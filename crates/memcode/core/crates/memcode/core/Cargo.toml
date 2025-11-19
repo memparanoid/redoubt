@@ -1,0 +1,22 @@
+[package]
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+edition = "2024"
+name    = "memcode_core"
+version = "1.0.0"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+thiserror = "2.0.16"
+zeroize   = { version = "1.8.1", features = ["zeroize_derive"] }
+
+[dev-dependencies]
+insta     = { version = "1.43.2", features = ["redactions"] }
+speculate = "0.1.2"
+seq-macro  = "0.3.6"
+paste = "1.0.0"
+proptest = "1.9.0"
+
+[features]
+test_utils = []
