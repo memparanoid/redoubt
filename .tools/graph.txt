@@ -1,4 +1,0 @@
-# Module graphs and dependency visualizations
-# Generated with: cargo modules generate tree --with-types
-
-# This file is auto-generated and should not be committed
