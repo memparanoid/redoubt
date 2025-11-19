@@ -1,8 +1,9 @@
 [package]
-categories           = ["cryptography", "encoding"]
-description          = "AEAD encryption with integrated serialization for Rust types"
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "memory-management"]
+description          = "AEAD encryption primitives with systematic zeroization"
 edition.workspace    = true
-keywords             = ["security", "encryption", "aead", "serialization"]
+keywords             = ["encryption", "xchacha20", "poly1305", "aead"]
 license.workspace    = true
 name                 = "memcrypt"
 repository.workspace = true
@@ -12,9 +13,16 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
-memrand.workspace = true
-subtle.workspace  = true
+chacha20poly1305  = { version = "0.11.0-rc.0", features = ["zeroize"] }
+memcode           = { path = "../memcode" }
+memzer            = { path = "../memzer", features = ["memcode"] }
+rand              = "0.9.2"
+rand_core         = "0.9"
+thiserror         = "2.0.16"
+zeroize.workspace = true
 
 [dev-dependencies]
-criterion.workspace = true
-proptest.workspace  = true
+memcode = { path = "../memcode", features = ["test_utils"] }
+
+[features]
+test_utils = []
