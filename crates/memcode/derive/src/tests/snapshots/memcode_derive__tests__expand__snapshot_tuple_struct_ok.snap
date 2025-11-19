@@ -1,0 +1,41 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+---
+source: project/crates/memcode/derive/src/tests/expand.rs
+assertion_line: 68
+expression: pretty(token_stream)
+---
+impl memcode_core::MemDrainEncode for Sigma {
+    #[inline]
+    fn mem_encode_required_capacity(&self) -> usize {
+        let fields: [&dyn memcode_core::MemDrainEncode; 3] = [&self.0, &self.1, &self.2];
+        memcode_core::utils::non_primitive::mem_encode_required_capacity(&fields)
+    }
+    #[inline]
+    fn drain_into(
+        &mut self,
+        buf: &mut memcode_core::WordBuf,
+    ) -> Result<(), memcode_core::MemEncodeError> {
+        let mut fields: [&mut dyn memcode_core::ZeroizableMemDrainEncode; 3] = [
+            &mut self.0,
+            &mut self.1,
+            &mut self.2,
+        ];
+        memcode_core::utils::non_primitive::drain_into(&mut fields, buf)
+    }
+}
+impl memcode_core::MemDrainDecode for Sigma {
+    fn drain_from(
+        &mut self,
+        words: &mut [memcode_core::MemCodeWord],
+    ) -> Result<(), memcode_core::MemDecodeError> {
+        let mut fields: [&mut dyn memcode_core::ZeroizableMemDrainDecode; 3] = [
+            &mut self.0,
+            &mut self.1,
+            &mut self.2,
+        ];
+        memcode_core::utils::non_primitive::drain_from(fields.as_mut_slice(), words)
+    }
+}

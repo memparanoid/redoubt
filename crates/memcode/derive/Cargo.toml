@@ -4,14 +4,24 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
 description = "Derive macros for memcode serialization"
 keywords = ["security", "serialization", "derive", "macro"]
 categories = ["encoding"]
 
 [lib]
+path = "src/lib.rs"
 proc-macro = true
 
 [dependencies]
-syn = { version = "2.0", features = ["full"] }
-quote = "1.0"
+memcode-core.workspace = true
+proc-macro-crate = "3.4"
 proc-macro2 = "1.0"
+quote = "1.0"
+syn = "2.0"
+zeroize = { version = "1.8", features = ["zeroize_derive"] }
+
+[dev-dependencies]
+insta = { version = "1.43", features = ["redactions"] }
+prettyplease = "0.2"
+trybuild = "1.0"

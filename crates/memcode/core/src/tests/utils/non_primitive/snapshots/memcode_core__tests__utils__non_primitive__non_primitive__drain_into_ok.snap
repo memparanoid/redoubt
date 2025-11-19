@@ -1,0 +1,6 @@
+---
+source: project/crates/memcode/core/src/tests/utils/non_primitive/non_primitive.rs
+assertion_line: 161
+expression: buf_snapshot
+---
+[6, 0, 1, 1, 2, 2, 2]

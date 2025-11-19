@@ -2,12 +2,28 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! # memcode-core
-//!
-//! Core serialization traits with automatic zeroization.
-//!
-//! This crate provides the foundational traits and implementations for
-//! memory-safe serialization that automatically zeros sensitive data.
+#[cfg(test)]
+mod tests;
 
-#![warn(missing_docs)]
-#![warn(unsafe_op_in_unsafe_fn)]
+mod codec;
+mod coerce;
+mod decode;
+mod encode;
+mod error;
+mod take;
+mod traits;
+mod types;
+mod word_buf;
+mod zeroizing_utils;
+
+pub mod utils;
+
+#[cfg(any(test, feature = "test_utils"))]
+pub mod test_utils;
+
+pub use codec::*;
+pub use error::*;
+pub use take::try_take_into;
+pub use traits::*;
+pub use types::*;
+pub use word_buf::*;

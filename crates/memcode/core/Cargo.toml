@@ -4,12 +4,21 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Core serialization traits and implementations with automatic zeroization"
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+description = "Core encoding traits and implementations with automatic zeroization"
 keywords = ["security", "serialization", "zeroize"]
 categories = ["encoding", "memory-management"]
 
+[lib]
+path = "src/lib.rs"
+
 [dependencies]
-memzer.workspace = true
+thiserror = "2.0"
+zeroize = { version = "1.8", features = ["zeroize_derive"] }
 
 [dev-dependencies]
-proptest.workspace = true
+insta = { version = "1.43", features = ["redactions"] }
+
+[features]
+default = []
+test_utils = []

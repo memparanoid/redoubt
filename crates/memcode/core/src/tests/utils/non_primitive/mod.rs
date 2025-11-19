@@ -2,5 +2,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-pub use memcode_core::*;
-pub use memcode_derive::*;
+mod invariant;
+mod non_primitive;

@@ -1,0 +1,8 @@
+---
+source: project/crates/memcode/derive/src/tests/expand.rs
+assertion_line: 20
+expression: pretty(ts_2)
+---
+compile_error!(
+    "MemCodec: could not find any of the candidate crates: `a`. Add `a = { version = \"*\" }` to your Cargo.toml."
+);
