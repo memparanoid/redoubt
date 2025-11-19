@@ -1,8 +1,9 @@
 [package]
-categories           = ["memory-management", "no-std"]
-description          = "Core zeroing traits and protected memory primitives"
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["memory-management"]
+description          = "Core zeroization primitives: guards, sentinels, and RAII wrappers"
 edition.workspace    = true
-keywords             = ["security", "memory", "zeroize", "guards"]
+keywords             = ["security", "zeroize", "memory"]
 license.workspace    = true
 name                 = "memzer-core"
 repository.workspace = true
@@ -12,7 +13,14 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
+memcode-core      = { workspace = true, optional = true }
 zeroize.workspace = true
 
 [dev-dependencies]
-proptest.workspace = true
+memcode-core.workspace = true
+paste                  = "1"
+
+[features]
+default = []
+memcode = ["dep:memcode-core"]
+test    = ["memcode"]

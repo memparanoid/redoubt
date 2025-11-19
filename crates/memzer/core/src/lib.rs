@@ -2,14 +2,24 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! # memzer-core
-//!
-//! Core primitives for protected memory guards and sentinels.
-//!
-//! This crate provides the foundational types for automatic memory
-//! zeroization and protected memory regions.
+#[cfg(test)]
+mod tests;
 
-#![warn(missing_docs)]
-#![warn(unsafe_op_in_unsafe_fn)]
+mod drop_sentinel;
+mod secret;
+mod traits;
+mod zeroizing_mut_guard;
 
-pub use zeroize::{Zeroize, ZeroizeOnDrop};
+pub mod assert;
+pub mod collections;
+pub mod primitives;
+pub use drop_sentinel::DropSentinel;
+pub use secret::Secret;
+pub use traits::{AssertZeroizeOnDrop, MutGuarded, Zeroizable, ZeroizationProbe};
+pub use zeroizing_mut_guard::ZeroizingMutGuard;
+
+#[cfg(any(test, feature = "memcode"))]
+mod mem_encode_buf;
+
+#[cfg(any(test, feature = "memcode"))]
+pub use mem_encode_buf::MemEncodeBuf;

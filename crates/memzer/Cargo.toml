@@ -1,8 +1,9 @@
 [package]
-categories           = ["memory-management", "no-std"]
-description          = "Composable primitives for protected memory (guards, sentinels)"
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["memory-management"]
+description          = "Memory guards and zeroization primitives with automatic verification"
 edition.workspace    = true
-keywords             = ["security", "memory", "guards", "zeroize"]
+keywords             = ["security", "zeroize", "memory", "guards"]
 license.workspace    = true
 name                 = "memzer"
 repository.workspace = true
@@ -12,16 +13,9 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
-memzer-core.workspace = true
-zeroize.workspace     = true
+memzer-core.workspace   = true
+memzer-derive.workspace = true
 
 [features]
 default = []
-derive  = ["memzer-derive"]
-
-  [dependencies.memzer-derive]
-  optional  = true
-  workspace = true
-
-[dev-dependencies]
-proptest.workspace = true
+memcode = ["memzer-core/memcode"]

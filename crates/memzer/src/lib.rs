@@ -1,16 +1,10 @@
 // Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only
-// See LICENSE in the repository root for full license text.
+// See LICENSE in the repository root for full license text.// Copyright (C) 2024 Mem Paranoid
+// Use of this software is governed by the MIT License.
+// See the LICENSE file for details.
+#[cfg(test)]
+mod tests;
 
-//! # Memzer
-//!
-//! Memory zeroing utilities for Memora framework
-
-#![warn(missing_docs)]
-#![warn(unsafe_op_in_unsafe_fn)]
-
-// Re-export from memzer-core crate
 pub use memzer_core::*;
-
-#[cfg(feature = "derive")]
 pub use memzer_derive::*;

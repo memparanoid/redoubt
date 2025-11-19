@@ -1,0 +1,8 @@
+---
+source: crates/memzer/derive/src/tests/expand.rs
+assertion_line: 22
+expression: pretty(ts_1)
+---
+compile_error!(
+    "MemZer: could not find any of the candidate crates: `a`, `b`. Add `a = { version = \\\"*\\\" }` (preferred) or `b = { version = \\\"*\\\" }` to your Cargo.toml."
+);

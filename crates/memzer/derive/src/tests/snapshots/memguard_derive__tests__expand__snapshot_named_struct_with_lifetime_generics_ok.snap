@@ -1,0 +1,41 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+---
+source: crates/memzer/derive/src/tests/expand.rs
+assertion_line: 52
+expression: pretty(token_stream)
+---
+impl<'alpha, Tau> memzer_core::Zeroizable for Sigma<'alpha, Tau>
+where
+    Tau: Clone,
+{
+    fn self_zeroize(&mut self) {
+        self.zeroize();
+    }
+}
+impl<'alpha, Tau> memzer_core::ZeroizationProbe for Sigma<'alpha, Tau>
+where
+    Tau: Clone,
+{
+    fn is_zeroized(&self) -> bool {
+        let fields: [&dyn memzer_core::ZeroizationProbe; 3] = [
+            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.alpha),
+            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.beta),
+            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.gamma),
+        ];
+        memzer_core::collections::collection_zeroed(&mut fields.into_iter())
+    }
+}
+impl<'alpha, Tau> memzer_core::AssertZeroizeOnDrop for Sigma<'alpha, Tau>
+where
+    Tau: Clone,
+{
+    fn clone_drop_sentinel(&self) -> memzer_core::drop_sentinel::DropSentinel {
+        self.__drop_sentinel.clone()
+    }
+    fn assert_zeroize_on_drop(self) {
+        memzer_core::assert::assert_zeroize_on_drop(self);
+    }
+}
