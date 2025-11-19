@@ -1,21 +1,15 @@
 [package]
-name = "memcode"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
 authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-description = "Memory-safe serialization with automatic zeroization"
-keywords = ["security", "serialization", "zeroize", "memory"]
-categories = ["encoding", "memory-management"]
+edition = "2024"
+name    = "memcode"
+version = "1.0.0"
 
 [lib]
 path = "src/lib.rs"
 
 [dependencies]
-memcode-core.workspace = true
-memcode-derive.workspace = true
+memcode_core   = { path = "./core" }
+memcode_derive = { path = "./derive" }
 
 [features]
-default = []
-test_utils = ["memcode-core/test_utils"]
+test_utils = ["memcode_core/test_utils"]

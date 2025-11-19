@@ -1,6 +1,6 @@
 ---
-source: project/crates/memcode/derive/src/tests/expand.rs
-assertion_line: 18
+source: crates/memcode/derive/src/tests/expand.rs
+assertion_line: 22
 expression: pretty(ts_1)
 ---
 compile_error!(

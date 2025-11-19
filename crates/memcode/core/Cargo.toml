@@ -1,24 +1,22 @@
 [package]
-name = "memcode-core"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
 authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-description = "Core encoding traits and implementations with automatic zeroization"
-keywords = ["security", "serialization", "zeroize"]
-categories = ["encoding", "memory-management"]
+edition = "2024"
+name    = "memcode_core"
+version = "1.0.0"
 
 [lib]
 path = "src/lib.rs"
 
 [dependencies]
-thiserror = "2.0"
-zeroize = { version = "1.8", features = ["zeroize_derive"] }
+thiserror = "2.0.16"
+zeroize   = { version = "1.8.1", features = ["zeroize_derive"] }
 
 [dev-dependencies]
-insta = { version = "1.43", features = ["redactions"] }
+insta     = { version = "1.43.2", features = ["redactions"] }
+speculate = "0.1.2"
+seq-macro  = "0.3.6"
+paste = "1.0.0"
+proptest = "1.9.0"
 
 [features]
-default = []
 test_utils = []

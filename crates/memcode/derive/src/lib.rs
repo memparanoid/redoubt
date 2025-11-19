@@ -104,25 +104,72 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
 
     // 5) Emit the traits implementations for the struct
     let output = quote! {
-        impl #impl_generics #root::MemDrainEncode for #struct_name #ty_generics #where_clause {
-          #[inline]
-          fn mem_encode_required_capacity(&self) -> usize {
-            let fields: [&dyn #root::MemDrainEncode; #len_lit] = [ #( #immut_refs ),* ];
-            #root::utils::non_primitive::mem_encode_required_capacity(&fields)
-          }
+        impl #impl_generics #root::Zeroizable for #struct_name #ty_generics #where_clause {
+            #[inline(always)]
+            fn self_zeroize(&mut self) {
+                self.zeroize();
+            }
+        }
 
-          #[inline]
-          fn drain_into(&mut self, buf: &mut #root::WordBuf) -> Result<(), #root::MemEncodeError> {
-            let mut fields: [&mut dyn #root::ZeroizableMemDrainEncode; #len_lit] = [ #( #mut_refs ),* ];
-             #root::utils::non_primitive::drain_into(&mut fields, buf)
+        impl #impl_generics #root::MemNumElements for #struct_name #ty_generics #where_clause {
+            #[inline(always)]
+            fn mem_num_elements(&self) -> usize {
+                #len_lit
+            }
+        }
+
+
+        impl #impl_generics #root::MemBytesRequired for #struct_name #ty_generics #where_clause {
+            fn mem_bytes_required(&self) -> Result<usize, #root::OverflowError> {
+                let collection: [&dyn #root::MemBytesRequired; #len_lit] = [
+                  #( #root::collections::to_bytes_required_dyn_ref(#immut_refs) ),*
+                ];
+
+                // `collection.into_iter()` produces &dyn MemBytesRequired directly,
+                // avoiding the double reference (&&) that `.iter()` would create.
+                // No values are copied - we're just iterating over references from the array.
+                #root::collections::mem_bytes_required(&mut collection.into_iter())
+            }
+        }
+
+        impl #impl_generics #root::MemEncode for #struct_name #ty_generics #where_clause {
+            fn drain_into(&mut self, buf: &mut #root::MemEncodeBuf) -> Result<(), #root::MemEncodeError> {
+                #root::collections::drain_into(buf, self)
+            }
+        }
+
+        impl #impl_generics #root::MemDecode for #struct_name #ty_generics #where_clause {
+            fn drain_from(&mut self, bytes: &mut [u8]) -> Result<usize, #root::MemDecodeError> {
+              #root::collections::drain_from(bytes, self)
+            }
+        }
+
+        impl #impl_generics #root::DecodeIterator for #struct_name #ty_generics #where_clause {
+          fn decode_iter_mut(&mut self) -> impl Iterator<Item = &mut (dyn #root::MemDecodable)> {
+              let collection: [&mut dyn #root::MemDecodable; #len_lit] = [
+                #( #root::collections::to_decode_dyn_mut(#mut_refs) ),*
+              ];
+              collection.into_iter()
           }
         }
 
-        impl #impl_generics #root::MemDrainDecode for #struct_name #ty_generics #where_clause {
-              fn drain_from(&mut self, words: &mut [#root::MemCodeWord]) -> Result<(), #root::MemDecodeError> {
-                    let mut fields: [&mut dyn #root::ZeroizableMemDrainDecode; #len_lit] = [ #( #mut_refs ),* ];
-                    #root::utils::non_primitive::drain_from(fields.as_mut_slice(), words)
-              }
+        impl #impl_generics #root::EncodeIterator for #struct_name #ty_generics #where_clause {
+          fn encode_iter_mut(&mut self) -> impl Iterator<Item = &mut (dyn #root::MemEncodable)> {
+              let collection: [&mut dyn #root::MemEncodable; #len_lit] = [
+                #( #root::collections::to_encode_dyn_mut(#mut_refs) ),*
+              ];
+              collection.into_iter()
+          }
+        }
+
+        impl #impl_generics #root::MemEncodable for #struct_name #ty_generics #where_clause {}
+        impl #impl_generics #root::MemDecodable for #struct_name #ty_generics #where_clause {}
+        impl #impl_generics #root::CollectionEncode for #struct_name #ty_generics #where_clause {}
+        impl #impl_generics #root::CollectionDecode for #struct_name #ty_generics #where_clause {
+          fn prepare_with_num_elements(&mut self, size: usize) -> Result<(), #root::MemDecodeError> {
+              #root::collections::mem_decode_assert_num_elements(#len_lit, size)
+          }
+
         }
     };
 

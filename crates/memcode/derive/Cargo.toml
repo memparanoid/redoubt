@@ -1,27 +1,22 @@
 [package]
-name = "memcode-derive"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
 authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-description = "Derive macros for memcode serialization"
-keywords = ["security", "serialization", "derive", "macro"]
-categories = ["encoding"]
+edition = "2024"
+name    = "memcode_derive"
+version = "1.0.0"
 
 [lib]
-path = "src/lib.rs"
+path       = "src/lib.rs"
 proc-macro = true
 
 [dependencies]
-memcode-core.workspace = true
-proc-macro-crate = "3.4"
-proc-macro2 = "1.0"
-quote = "1.0"
-syn = "2.0"
-zeroize = { version = "1.8", features = ["zeroize_derive"] }
+memcode_core     = { path = "../core" }
+proc-macro-crate = "3.4.0"
+proc-macro2      = "1.0.103"
+quote            = "1.0.41"
+syn              = "2.0.108"
+zeroize          = { version = "1.8.1", features = ["zeroize_derive"] }
 
 [dev-dependencies]
-insta = { version = "1.43", features = ["redactions"] }
-prettyplease = "0.2"
-trybuild = "1.0"
+insta        = { version = "1.43.2", features = ["redactions"] }
+prettyplease = "0.2.37"
+trybuild     = "1.0"

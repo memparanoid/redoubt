@@ -11,6 +11,7 @@ members = [
     "crates/memvault",
     "crates/memcrypt",
 ]
+exclude = ["scripts"]
 resolver = "2"
 
 [workspace.package]

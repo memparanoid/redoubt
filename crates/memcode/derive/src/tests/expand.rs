@@ -40,7 +40,7 @@ fn test_find_root_with_candidates() {
 fn snapshot_named_struct_with_lifetime_generics_ok() {
     let derive_input = parse_quote! {
         #[derive(MemCodec)]
-        struct Sigma<'alpha, Tau> where Tau: memcode_core::MemCode + memcode_rore::MemDecode + Clone {
+        struct Sigma<'alpha, Tau> where Tau: memcode_core::MemCode + memcode_core::MemDecode + Clone {
             pub alpha: Vec<u8>,
             pub beta: [u8; 32],
             pub gamma: &'alpha mut Tau,
@@ -103,10 +103,4 @@ fn snapshot_enum_fails() {
     });
 
     assert!(result.is_err());
-}
-
-#[test]
-fn snapshot_comp_fail() {
-    let t = trybuild::TestCases::new();
-    t.compile_fail("src/tests/comp_fail.rs");
 }

@@ -8,7 +8,7 @@ mod tests {
     use insta::assert_snapshot;
     use zeroize::Zeroize;
 
-    use memcode_core::{MemDrainDecode, MemDrainEncode, WordBuf};
+    use memcode_core::{MemBytesRequired, MemDecode, MemEncode, MemEncodeBuf};
     use memcode_derive::MemCodec;
 
     #[test]
@@ -76,37 +76,32 @@ mod tests {
         let snapshot_1 = format!("{:?}", very);
         assert_snapshot!(snapshot_1);
 
-        let mut wb = WordBuf::new(very.mem_encode_required_capacity());
-        let result = very.drain_into(&mut wb);
+        let mut buf = MemEncodeBuf::new(
+            very.mem_bytes_required()
+                .expect("Failed to get mem_bytes_required()"),
+        );
+        let result = very.drain_into(&mut buf);
 
         assert!(result.is_ok());
 
-        // zeroized snapshot
-        let snapshot_2 = format!("{:?}", very);
-        assert_snapshot!(snapshot_2);
-
-        let mut bytes = wb.to_bytes();
-
         // Assert zeroization!
-        assert!(wb.as_slice().iter().all(|b| *b == 0));
+        {
+            // zeroized snapshot
+            let snapshot_2 = format!("{:?}", very);
+            assert_snapshot!(snapshot_2);
+        }
 
-        let snapshot_3 = format!("{:?}", bytes);
+        // Fulfilled buf
+        let snapshot_3 = format!("{:?}", buf.as_mut_slice());
         assert_snapshot!(snapshot_3);
 
-        let mut recovered_wb = WordBuf::new(0);
-        recovered_wb
-            .try_from_bytes(&mut bytes)
-            .expect("Failed try_from_bytes");
-        // Assert zeroization
-        assert!(bytes.iter().all(|b| *b == 0));
-
-        let result = very.drain_from(recovered_wb.as_mut_slice());
+        let result = very.drain_from(buf.as_mut_slice());
         assert!(result.is_ok());
 
         let snapshot_4 = format!("{:?}", very);
         assert_eq!(snapshot_4, snapshot_1);
 
         // Assert zeroization!
-        assert!(recovered_wb.as_slice().iter().all(|b| *b == 0));
+        assert!(buf.as_slice().iter().all(|b| *b == 0));
     }
 }

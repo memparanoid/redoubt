@@ -5,25 +5,25 @@
 #[cfg(test)]
 mod tests;
 
-mod codec;
-mod coerce;
-mod decode;
-mod encode;
 mod error;
-mod take;
+mod guards;
+mod mem_encode_buf;
+mod primitives;
+mod support;
 mod traits;
-mod types;
-mod word_buf;
-mod zeroizing_utils;
 
-pub mod utils;
+pub use guards::BytesGuard;
+pub mod collections;
+pub use error::{MemDecodeError, MemEncodeBufError, MemEncodeError, OverflowError};
+pub use mem_encode_buf::MemEncodeBuf;
+pub use traits::{
+    CollectionDecode, CollectionEncode, DecodeIterator, EncodeIterator, MemBytesRequired,
+    MemDecodable, MemDecode, MemEncodable, MemEncode, MemNumElements, Zeroizable,
+};
 
-#[cfg(any(test, feature = "test_utils"))]
-pub mod test_utils;
-
-pub use codec::*;
-pub use error::*;
-pub use take::try_take_into;
-pub use traits::*;
-pub use types::*;
-pub use word_buf::*;
+#[cfg(feature = "test_utils")]
+pub use support::test_utils::memcode_test_breaker::{
+    MemCodeTestBreaker, MemCodeTestBreakerBehaviour,
+};
+#[cfg(feature = "test_utils")]
+pub use support::test_utils::utils::tamper_encoded_bytes_for_tests;

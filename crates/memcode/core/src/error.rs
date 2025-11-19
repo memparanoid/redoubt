@@ -1,66 +1,61 @@
 // Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only
-// See LICENSE in the repository root for full license text.
+// See LICENSE in the repository root for full license text.// Copyright (C) 2024 Mem Paranoid
+// Use of this software is governed by the MIT License.
+// See the LICENSE file for details.
+use core::error;
+use core::fmt;
 
 use thiserror::Error;
 
-#[derive(Debug, Error)]
-pub enum MemDecodeError {
-    #[error("CoerceError: {0}")]
-    CoerceError(#[from] CoerceError),
-
-    #[error("preconditions violated error")]
-    PreconditionsViolatedError,
-
-    #[error("length mismatch: expected {expected}, got {got}")]
-    LengthMismatch { expected: usize, got: usize },
-
-    #[cfg(test)]
-    #[error("TestBreakerIntentionalDecodeError")]
-    TestBreakerIntentionalDecodeError,
+#[derive(Debug, PartialEq, Eq)]
+pub struct OverflowError {
+    pub reason: String,
 }
 
-#[derive(Debug, Error)]
-pub enum WordBufError {
-    #[error("CodecError: {0}")]
-    CodecError(#[from] CodecError),
+impl fmt::Display for OverflowError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Overflow Error")
+    }
+}
 
-    #[error("capacity exceeded error")]
+impl error::Error for OverflowError {}
+
+#[derive(Debug, Error, Eq, PartialEq)]
+pub enum MemDecodeError {
+    #[error("OverflowError: {0}")]
+    OverflowError(#[from] OverflowError),
+
+    #[error("InvariantViolated")]
+    InvariantViolated,
+
+    #[error("LengthMismatch[expected {expected}, got {got}]")]
+    LengthMismatch { expected: usize, got: usize },
+
+    #[cfg(any(test, feature = "test_utils"))]
+    #[error("MemDecodeTestBreaker(IntentionalDecodeError)")]
+    IntentionalDecodeError,
+
+    #[cfg(any(test, feature = "test_utils"))]
+    #[error("MemDecodeTestBreaker(IntentionalPrepareWithNumElementsError)")]
+    IntentionalPrepareWithNumElementsError,
+}
+
+#[derive(Debug, Error, Eq, PartialEq)]
+pub enum MemEncodeBufError {
+    #[error("CapacityExceededError")]
     CapacityExceededError,
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Eq, PartialEq)]
 pub enum MemEncodeError {
-    #[error("CoerceError: {0}")]
-    CoerceError(#[from] CoerceError),
+    #[error("OverflowError: {0}")]
+    OverflowError(#[from] OverflowError),
 
-    #[error("WordBufError: {0}")]
-    WordBufError(#[from] WordBufError),
+    #[error("MemEncodeBufError: {0}")]
+    MemEncodeBufError(#[from] MemEncodeBufError),
 
-    #[cfg(test)]
-    #[error("TestBreakerIntentionalEncodeError")]
-    TestBreakerIntentionalEncodeError,
-}
-
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum CoerceError {
-    #[error(
-        "out of range: value={value} (expected in [{min}..={max}]) when coercing `{src}` -> `{dst}`"
-    )]
-    OutOfRange {
-        value: u128,
-        min: u128,
-        max: u128,
-        src: &'static str,
-        dst: &'static str,
-    },
-
-    #[error("LengthMismatchError")]
-    LengthMismatchError,
-}
-
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum CodecError {
-    #[error("word stream length is not a multiple of 4 bytes (got {got} bytes)")]
-    InvalidWordStreamLenError { got: usize },
+    #[cfg(any(test, feature = "test_utils"))]
+    #[error("MemDecodeTestBreaker(IntentionalEncodeError)")]
+    IntentionalEncodeError,
 }
