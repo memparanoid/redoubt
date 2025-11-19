@@ -80,12 +80,15 @@ pub fn mem_bytes_required(
         })
 }
 
-fn try_drain_into<CE>(buf: &mut MemEncodeBuf, collection: &mut CE) -> Result<(), MemEncodeError>
+fn try_drain_into<T>(
+    buf: &mut MemEncodeBuf,
+    collection_encode: &mut T,
+) -> Result<(), MemEncodeError>
 where
-    CE: CollectionEncode + ?Sized,
+    T: CollectionEncode + ?Sized,
 {
-    let num_elements = collection.mem_num_elements();
-    let bytes_required = collection.mem_bytes_required().map_err(|_| {
+    let num_elements = collection_encode.mem_num_elements();
+    let bytes_required = collection_encode.mem_bytes_required().map_err(|_| {
         MemEncodeError::OverflowError(OverflowError {
             reason: "Overflow while getting element mem_bytes_required()".into(),
         })
@@ -97,7 +100,7 @@ where
     buf.drain_bytes(num_elements_le_bytes.as_mut_slice())?;
     buf.drain_bytes(bytes_required_le_bytes.as_mut_slice())?;
 
-    let collection_encode_iter_mut = collection.encode_iter_mut();
+    let collection_encode_iter_mut = collection_encode.encode_iter_mut();
 
     for elem in collection_encode_iter_mut {
         elem.drain_into(buf)?;
@@ -106,15 +109,18 @@ where
     Ok(())
 }
 
-pub fn drain_into<CE>(buf: &mut MemEncodeBuf, collection: &mut CE) -> Result<(), MemEncodeError>
+pub fn drain_into<T>(
+    buf: &mut MemEncodeBuf,
+    collection_encode: &mut T,
+) -> Result<(), MemEncodeError>
 where
-    CE: CollectionEncode + ?Sized,
+    T: CollectionEncode + ?Sized,
 {
-    let result: Result<(), MemEncodeError> = try_drain_into(buf, collection);
+    let result: Result<(), MemEncodeError> = try_drain_into(buf, collection_encode);
 
     if result.is_err() {
         buf.zeroize();
-        collection.self_zeroize();
+        collection_encode.self_zeroize();
     }
 
     result
@@ -158,12 +164,12 @@ pub(crate) fn extract_collection_header(
     Ok((num_elements, bytes_required))
 }
 
-pub(crate) fn try_drain_from<CD>(
+pub(crate) fn try_drain_from<T>(
     bytes: &mut [u8],
-    collection: &mut CD,
+    collection_decode: &mut T,
 ) -> Result<usize, MemDecodeError>
 where
-    CD: CollectionDecode + ?Sized,
+    T: CollectionDecode + ?Sized,
 {
     let mut cursor: usize = 0;
     let (num_elements, bytes_required) = extract_collection_header(bytes, &mut cursor)?;
@@ -172,9 +178,9 @@ where
         return Err(MemDecodeError::InvariantViolated);
     }
 
-    collection.prepare_with_num_elements(num_elements)?;
+    collection_decode.prepare_with_num_elements(num_elements)?;
 
-    let collection_iter_mut = collection.decode_iter_mut();
+    let collection_iter_mut = collection_decode.decode_iter_mut();
 
     for elem in collection_iter_mut {
         // Pass remaining bytes to elem, it will consume what it needs
@@ -197,15 +203,15 @@ where
     Ok(bytes_required)
 }
 
-pub fn drain_from<CD>(bytes: &mut [u8], collection: &mut CD) -> Result<usize, MemDecodeError>
+pub fn drain_from<T>(bytes: &mut [u8], collection_decode: &mut T) -> Result<usize, MemDecodeError>
 where
-    CD: CollectionDecode + ?Sized,
+    T: CollectionDecode + ?Sized,
 {
-    let result = try_drain_from(bytes, collection);
+    let result = try_drain_from(bytes, collection_decode);
 
     if let Err(ref _e) = result {
         bytes.zeroize();
-        collection.self_zeroize();
+        collection_decode.self_zeroize();
     }
 
     result
