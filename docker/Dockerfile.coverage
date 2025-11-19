@@ -1,0 +1,28 @@
+FROM rust:1.83-slim
+
+# Install required system dependencies and coverage tools
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install cargo-tarpaulin for coverage
+RUN cargo install cargo-tarpaulin
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy workspace files
+COPY . .
+
+# Run coverage with required capabilities
+# Generates cobertura XML and HTML reports
+CMD ["cargo", "tarpaulin", \
+     "--all-features", \
+     "--workspace", \
+     "--out", "Xml", \
+     "--out", "Html", \
+     "--output-dir", "coverage", \
+     "--timeout", "300"]

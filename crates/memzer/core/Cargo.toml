@@ -1,0 +1,15 @@
+[package]
+name = "memzer-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Core zeroing traits and protected memory primitives"
+keywords = ["security", "memory", "zeroize", "guards"]
+categories = ["memory-management", "no-std"]
+
+[dependencies]
+zeroize.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

@@ -1,0 +1,48 @@
+# Makefile.toml
+# Rust task runner (cargo-make) configuration
+
+[config]
+default_to_workspace = false
+
+[tasks.run]
+args    = ["run", "-p", "example"]
+command = "cargo"
+
+[tasks.test]
+args    = ["test"]
+command = "cargo"
+
+[tasks.coverage]
+dependencies = ["coverage-clean", "coverage-html"]
+
+[tasks.coverage-clean]
+args    = ["llvm-cov", "clean", "--workspace"]
+command = "cargo"
+
+[tasks.coverage-html]
+args    = ["llvm-cov", "--workspace", "--html"]
+command = "cargo"
+
+[tasks.fmt-rs]
+args    = ["fmt"]
+command = "cargo"
+
+[tasks.fmt-toml]
+args    = ["format"]
+command = "taplo"
+
+[tasks.fmt]
+dependencies = ["fmt-rs", "fmt-toml"]
+
+[tasks.fmt-check]
+args    = ["fmt", "--", "--check"]
+command = "cargo"
+
+[tasks.lint]
+# Strict linting: treat warnings as errors
+args    = ["clippy"]
+command = "cargo"
+
+[tasks.check]
+dependencies = ["fmt-check", "lint", "test"]
+description  = "Run fmt, lint, and tests"

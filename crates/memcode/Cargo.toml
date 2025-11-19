@@ -1,0 +1,23 @@
+[package]
+name = "memcode"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Memory-safe serialization with automatic zeroization"
+keywords = ["security", "serialization", "zeroize", "memory"]
+categories = ["encoding", "memory-management"]
+
+[dependencies]
+memcode-core.workspace = true
+
+[features]
+default = []
+derive = ["memcode-derive"]
+
+[dependencies.memcode-derive]
+workspace = true
+optional = true
+
+[dev-dependencies]
+proptest.workspace = true

@@ -1,0 +1,51 @@
+[workspace]
+members = [
+    "crates/memlock",
+    "crates/memcode",
+    "crates/memcode/core",
+    "crates/memcode/derive",
+    "crates/memzer",
+    "crates/memzer/core",
+    "crates/memzer/derive",
+    "crates/memrand",
+    "crates/memvault",
+    "crates/memcrypt",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+repository = "https://github.com/yourusername/memora"
+
+[workspace.dependencies]
+# Internal crates
+memlock = { path = "crates/memlock" }
+memcode = { path = "crates/memcode" }
+memcode-core = { path = "crates/memcode/core" }
+memcode-derive = { path = "crates/memcode/derive" }
+memzer = { path = "crates/memzer" }
+memzer-core = { path = "crates/memzer/core" }
+memzer-derive = { path = "crates/memzer/derive" }
+memrand = { path = "crates/memrand" }
+memvault = { path = "crates/memvault" }
+memcrypt = { path = "crates/memcrypt" }
+
+# External dependencies
+zeroize = { version = "1.7", features = ["derive"] }
+subtle = "2.5"
+getrandom = "0.2"
+libc = "0.2"
+
+# Dev dependencies
+criterion = "0.5"
+proptest = "1.4"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[profile.bench]
+inherits = "release"

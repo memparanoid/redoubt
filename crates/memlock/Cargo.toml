@@ -1,0 +1,15 @@
+[package]
+name = "memlock"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Memory locking utilities - prevents swapping to disk"
+keywords = ["security", "memory", "mlock", "swap"]
+categories = ["memory-management", "os"]
+
+[dependencies]
+libc.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

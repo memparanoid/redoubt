@@ -1,0 +1,17 @@
+[package]
+name = "memzer-derive"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Derive macros for memzer protected memory primitives"
+keywords = ["security", "memory", "derive", "macro"]
+categories = ["memory-management"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2.0", features = ["full"] }
+quote = "1.0"
+proc-macro2 = "1.0"

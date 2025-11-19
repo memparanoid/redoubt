@@ -1,0 +1,19 @@
+[package]
+name = "memvault"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Encrypted in-memory storage (CipherBox<T>) with 4KB overhead"
+keywords = ["security", "encryption", "storage", "vault"]
+categories = ["memory-management", "cryptography"]
+
+[dependencies]
+memcrypt.workspace = true
+memlock.workspace = true
+memzer.workspace = true
+memcode.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+criterion.workspace = true

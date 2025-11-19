@@ -1,0 +1,15 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+//! # Memcode
+//!
+//! Memory encoding utilities for Memora framework
+
+#![warn(missing_docs)]
+#![warn(unsafe_op_in_unsafe_fn)]
+
+pub mod core;
+
+#[cfg(feature = "derive")]
+pub use memcode_derive::*;

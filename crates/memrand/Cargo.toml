@@ -1,0 +1,15 @@
+[package]
+name = "memrand"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Cross-platform cryptographic random number generation"
+keywords = ["security", "random", "crypto", "getrandom"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+getrandom.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
