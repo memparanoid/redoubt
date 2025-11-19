@@ -1,12 +1,15 @@
 [package]
-name = "memzer-core"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+categories           = ["memory-management", "no-std"]
+description          = "Core zeroing traits and protected memory primitives"
+edition.workspace    = true
+keywords             = ["security", "memory", "zeroize", "guards"]
+license.workspace    = true
+name                 = "memzer-core"
 repository.workspace = true
-description = "Core zeroing traits and protected memory primitives"
-keywords = ["security", "memory", "zeroize", "guards"]
-categories = ["memory-management", "no-std"]
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
 
 [dependencies]
 zeroize.workspace = true

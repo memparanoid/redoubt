@@ -1,12 +1,15 @@
 [package]
-name = "memlock"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+categories           = ["memory-management", "os"]
+description          = "Memory locking utilities - prevents swapping to disk"
+edition.workspace    = true
+keywords             = ["security", "memory", "mlock", "swap"]
+license.workspace    = true
+name                 = "memlock"
 repository.workspace = true
-description = "Memory locking utilities - prevents swapping to disk"
-keywords = ["security", "memory", "mlock", "swap"]
-categories = ["memory-management", "os"]
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
 
 [dependencies]
 libc.workspace = true

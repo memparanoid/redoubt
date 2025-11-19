@@ -7,8 +7,8 @@ use zeroize::Zeroize;
 use crate::error::{MemDecodeError, MemEncodeError, OverflowError};
 use crate::mem_encode_buf::MemEncodeBuf;
 use crate::traits::{
-    CollectionDecode, CollectionEncode, DecodeIterator, EncodeIterator,
-    MemBytesRequired, MemDecodable, MemDecode, MemEncodable, MemEncode, MemNumElements, Zeroizable,
+    CollectionDecode, CollectionEncode, DecodeIterator, EncodeIterator, MemBytesRequired,
+    MemDecodable, MemDecode, MemEncodable, MemEncode, MemNumElements, Zeroizable,
 };
 
 use super::helpers::{

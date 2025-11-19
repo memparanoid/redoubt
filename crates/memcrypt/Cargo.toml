@@ -1,17 +1,20 @@
 [package]
-name = "memcrypt"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+categories           = ["cryptography", "encoding"]
+description          = "AEAD encryption with integrated serialization for Rust types"
+edition.workspace    = true
+keywords             = ["security", "encryption", "aead", "serialization"]
+license.workspace    = true
+name                 = "memcrypt"
 repository.workspace = true
-description = "AEAD encryption with integrated serialization for Rust types"
-keywords = ["security", "encryption", "aead", "serialization"]
-categories = ["cryptography", "encoding"]
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
 
 [dependencies]
 memrand.workspace = true
-subtle.workspace = true
+subtle.workspace  = true
 
 [dev-dependencies]
-proptest.workspace = true
 criterion.workspace = true
+proptest.workspace  = true

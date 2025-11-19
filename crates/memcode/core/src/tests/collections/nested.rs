@@ -67,9 +67,11 @@ fn test_nested_collections_depth_3() {
     );
 
     // Assert (not) zeroization!
-    assert!(original
-        .iter()
-        .any(|v1| v1.iter().any(|v2| v2.iter().any(|b| *b != 0))));
+    assert!(
+        original
+            .iter()
+            .any(|v1| v1.iter().any(|v2| v2.iter().any(|b| *b != 0)))
+    );
 
     original
         .drain_into(&mut buf)
@@ -81,9 +83,11 @@ fn test_nested_collections_depth_3() {
         .expect("Failed to drain_from(..)");
 
     // Assert zeroization!
-    assert!(original
-        .iter()
-        .all(|v1| v1.iter().all(|v2| v2.iter().all(|b| *b == 0))));
+    assert!(
+        original
+            .iter()
+            .all(|v1| v1.iter().all(|v2| v2.iter().all(|b| *b == 0)))
+    );
     assert!(buf.as_slice()[..consumed].iter().all(|b| *b == 0));
 }
 
@@ -97,9 +101,10 @@ fn test_nested_collections_depth_4() {
     );
 
     // Assert (not) zeroization!
-    assert!(original.iter().any(|v1| v1
-        .iter()
-        .any(|v2| v2.iter().any(|v3| v3.iter().any(|b| *b != 0)))));
+    assert!(original.iter().any(|v1| {
+        v1.iter()
+            .any(|v2| v2.iter().any(|v3| v3.iter().any(|b| *b != 0)))
+    }));
 
     original
         .drain_into(&mut buf)
@@ -111,9 +116,10 @@ fn test_nested_collections_depth_4() {
         .expect("Failed to drain_from(..)");
 
     // Assert zeroization!
-    assert!(original.iter().all(|v1| v1
-        .iter()
-        .all(|v2| v2.iter().all(|v3| v3.iter().all(|b| *b == 0)))));
+    assert!(original.iter().all(|v1| {
+        v1.iter()
+            .all(|v2| v2.iter().all(|v3| v3.iter().all(|b| *b == 0)))
+    }));
     assert!(buf.as_slice()[..consumed].iter().all(|b| *b == 0));
 }
 
@@ -127,9 +133,10 @@ fn test_nested_collections_depth_5() {
     );
 
     // Assert (not) zeroization!
-    assert!(original.iter().any(|v1| v1.iter().any(|v2| v2
-        .iter()
-        .any(|v3| v3.iter().any(|v4| v4.iter().any(|b| *b != 0))))));
+    assert!(original.iter().any(|v1| v1.iter().any(|v2| {
+        v2.iter()
+            .any(|v3| v3.iter().any(|v4| v4.iter().any(|b| *b != 0)))
+    })));
 
     original
         .drain_into(&mut buf)
@@ -141,8 +148,9 @@ fn test_nested_collections_depth_5() {
         .expect("Failed to drain_from(..)");
 
     // Assert zeroization!
-    assert!(original.iter().all(|v1| v1.iter().all(|v2| v2
-        .iter()
-        .all(|v3| v3.iter().all(|v4| v4.iter().all(|b| *b == 0))))));
+    assert!(original.iter().all(|v1| v1.iter().all(|v2| {
+        v2.iter()
+            .all(|v3| v3.iter().all(|v4| v4.iter().all(|b| *b == 0)))
+    })));
     assert!(buf.as_slice()[..consumed].iter().all(|b| *b == 0));
 }

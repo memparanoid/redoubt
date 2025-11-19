@@ -9,7 +9,8 @@
 #![warn(missing_docs)]
 #![warn(unsafe_op_in_unsafe_fn)]
 
-pub mod core;
+// Re-export from memzer-core crate
+pub use memzer_core::*;
 
 #[cfg(feature = "derive")]
 pub use memzer_derive::*;

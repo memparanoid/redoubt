@@ -1,19 +1,22 @@
 [package]
-name = "memvault"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+categories           = ["memory-management", "cryptography"]
+description          = "Encrypted in-memory storage (CipherBox<T>) with 4KB overhead"
+edition.workspace    = true
+keywords             = ["security", "encryption", "storage", "vault"]
+license.workspace    = true
+name                 = "memvault"
 repository.workspace = true
-description = "Encrypted in-memory storage (CipherBox<T>) with 4KB overhead"
-keywords = ["security", "encryption", "storage", "vault"]
-categories = ["memory-management", "cryptography"]
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
 
 [dependencies]
+memcode.workspace  = true
 memcrypt.workspace = true
-memlock.workspace = true
-memzer.workspace = true
-memcode.workspace = true
+memlock.workspace  = true
+memzer.workspace   = true
 
 [dev-dependencies]
-proptest.workspace = true
 criterion.workspace = true
+proptest.workspace  = true

@@ -1,24 +1,27 @@
 [package]
-name = "memzer"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+categories           = ["memory-management", "no-std"]
+description          = "Composable primitives for protected memory (guards, sentinels)"
+edition.workspace    = true
+keywords             = ["security", "memory", "guards", "zeroize"]
+license.workspace    = true
+name                 = "memzer"
 repository.workspace = true
-description = "Composable primitives for protected memory (guards, sentinels)"
-keywords = ["security", "memory", "guards", "zeroize"]
-categories = ["memory-management", "no-std"]
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
 
 [dependencies]
 memzer-core.workspace = true
-zeroize.workspace = true
+zeroize.workspace     = true
 
 [features]
 default = []
-derive = ["memzer-derive"]
+derive  = ["memzer-derive"]
 
-[dependencies.memzer-derive]
-workspace = true
-optional = true
+  [dependencies.memzer-derive]
+  optional  = true
+  workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
