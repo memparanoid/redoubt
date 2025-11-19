@@ -419,15 +419,15 @@ checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 
 [[package]]
 name = "memcode"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
- "memcode-core",
- "memcode-derive",
+ "memcode_core",
+ "memcode_derive",
 ]
 
 [[package]]
-name = "memcode-core"
-version = "0.1.0"
+name = "memcode_core"
+version = "1.0.0"
 dependencies = [
  "insta",
  "paste",
@@ -439,11 +439,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "memcode-derive"
-version = "0.1.0"
+name = "memcode_derive"
+version = "1.0.0"
 dependencies = [
  "insta",
- "memcode-core",
+ "memcode_core",
  "prettyplease",
  "proc-macro-crate",
  "proc-macro2 1.0.103",
