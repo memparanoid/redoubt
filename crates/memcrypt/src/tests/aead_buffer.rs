@@ -265,8 +265,9 @@ fn test_drain_slice_checked_add_overflow() {
 
     // To trigger overflow in checked_add, we need cur_len + other.len() > usize::MAX
     // We'll allocate a huge capacity Vec and set len = usize::MAX - 5
+    // IMPORTANT: len must be <= capacity to satisfy Vec::from_raw_parts preconditions
     let fake_len = usize::MAX - 5;
-    let fake_capacity = usize::MAX / 2; // Huge but valid capacity
+    let fake_capacity = usize::MAX - 3; // capacity >= len
 
     let mut aead_buffer = AeadBuffer::default();
 
