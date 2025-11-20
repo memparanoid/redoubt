@@ -75,11 +75,11 @@ mkdir -p "$OUT"
 # --- Per-crate runs ---
 mk memlock
 mk memcode
-mk memcode-core
-mk memcode-derive
+mk memcode_core
+mk memcode_derive
 mk memzer
-mk memzer-core
-mk memzer-derive
+mk memzer_core
+mk memzer_derive
 mk memrand
 mk memvault
 mk memcrypt
