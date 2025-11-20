@@ -5,7 +5,7 @@ description          = "Derive macros for memzer guards and zeroization verifica
 edition.workspace    = true
 keywords             = ["security", "zeroize", "derive", "macro"]
 license.workspace    = true
-name                 = "memzer-derive"
+name                 = "memzer_derive"
 repository.workspace = true
 version.workspace    = true
 
@@ -14,14 +14,14 @@ path       = "src/lib.rs"
 proc-macro = true
 
 [dependencies]
-memzer-core      = { workspace = true }
+memzer_core      = { workspace = true }
 proc-macro-crate = "3.4"
 proc-macro2      = "1.0"
 quote            = "1.0"
 syn              = "2.0"
 
 [dev-dependencies]
-insta             = { version = "1.43", features = ["redactions"] }
+insta.workspace   = true
 prettyplease      = "0.2"
 trybuild          = "1.0"
 zeroize.workspace = true

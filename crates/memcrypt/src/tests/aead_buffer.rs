@@ -4,7 +4,7 @@
 
 use chacha20poly1305::aead::Buffer;
 
-use memguard::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
+use memzer::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
 
 use crate::aead_buffer::AeadBuffer;
 

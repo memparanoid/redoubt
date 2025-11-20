@@ -9,7 +9,7 @@ use zeroize::Zeroize;
 use memcode::{
     MemCodeTestBreaker as InnerMemCodeTestBreaker, MemCodeTestBreakerBehaviour, MemCodec,
 };
-use memguard::{
+use memzer::{
     AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe, assert::assert_zeroize_on_drop,
 };
 

@@ -4,10 +4,10 @@
 
 use zeroize::Zeroize;
 
-use memguard::{AssertZeroizeOnDrop, Secret, ZeroizationProbe};
+use memzer::{AssertZeroizeOnDrop, Secret, ZeroizationProbe};
 
 use crate::aead_key::AeadKey;
-use crate::guards::{DecryptionMemGuard, EncryptionMemGuard};
+use crate::guards::{DecryptionMemZer, EncryptionMemZer};
 use crate::xnonce::XNonce;
 
 use super::support::MemCodeTestBreaker;
@@ -19,7 +19,7 @@ fn test_encryption_mem_guard() {
 
     let mut test_breaker = MemCodeTestBreaker::default();
 
-    let mut x = EncryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
 
     assert!(!x.is_zeroized());
 
@@ -38,7 +38,7 @@ fn test_decryption_mem_guard() {
 
     let mut ciphertext = Secret::from(vec![1u8; 64]);
 
-    let mut x = DecryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
 
     assert!(!x.is_zeroized());
 

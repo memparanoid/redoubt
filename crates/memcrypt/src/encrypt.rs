@@ -6,11 +6,11 @@ use chacha20poly1305::{AeadInOut, KeyInit, XChaCha20Poly1305};
 use zeroize::Zeroize;
 
 use memcode::MemEncodable;
-use memguard::{Secret, Zeroizable, ZeroizationProbe};
+use memzer::{Secret, Zeroizable, ZeroizationProbe};
 
 use crate::consts::{AAD, TAG_SIZE};
 use crate::error::CryptoError;
-use crate::guards::EncryptionMemGuard;
+use crate::guards::EncryptionMemZer;
 use crate::{AeadKey, XNonce};
 
 #[derive(PartialEq, Eq, Debug)]
@@ -52,17 +52,17 @@ pub fn encrypt_mem_encodable<T>(
 where
     T: MemEncodable + Zeroize + Zeroizable + ZeroizationProbe,
 {
-    let mut x = EncryptionMemGuard::new(aead_key, xnonce, value);
+    let mut x = EncryptionMemZer::new(aead_key, xnonce, value);
     encrypt_mem_encodable_with(&mut x, |_, _| {})
 }
 
 pub fn encrypt_mem_encodable_with<'a, T, F>(
-    x: &mut EncryptionMemGuard<'a, T>,
+    x: &mut EncryptionMemZer<'a, T>,
     #[allow(unused)] f: F,
 ) -> Result<Secret<Vec<u8>>, CryptoError>
 where
     T: MemEncodable + Zeroize + Zeroizable + ZeroizationProbe,
-    F: Fn(EncryptStage, &mut EncryptionMemGuard<'a, T>),
+    F: Fn(EncryptStage, &mut EncryptionMemZer<'a, T>),
 {
     // Stage: MemBytesRequired
     {

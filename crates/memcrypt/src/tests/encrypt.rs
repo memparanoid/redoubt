@@ -3,12 +3,12 @@
 // See LICENSE in the repository root for full license text.
 
 use memcode::MemEncodeError;
-use memguard::ZeroizationProbe;
+use memzer::ZeroizationProbe;
 
 use crate::aead_key::AeadKey;
 use crate::encrypt::{EncryptStage, encrypt_mem_encodable_with};
 use crate::error::CryptoError;
-use crate::guards::EncryptionMemGuard;
+use crate::guards::EncryptionMemZer;
 use crate::xnonce::XNonce;
 
 use super::support::{MemCodeTestBreaker, MemCodeTestBreakerBehaviour};
@@ -22,7 +22,7 @@ fn test_encrypt_mem_encodable_stage_mem_bytes_required_failure() {
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
 
-    let mut x = EncryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
 
     let result = encrypt_mem_encodable_with(&mut x, |stage, x| match stage {
         EncryptStage::MemBytesRequired => {
@@ -52,7 +52,7 @@ fn test_encrypt_mem_encodable_stage_drain_into_failure() {
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
 
-    let mut x = EncryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
 
     let result = encrypt_mem_encodable_with(&mut x, |stage, x| match stage {
         EncryptStage::MemBytesRequired => {}
@@ -86,7 +86,7 @@ fn test_encrypt_mem_encodable_stage_aead_buffer_fill_with_plaintext_failure() {
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
 
-    let mut x = EncryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
 
     let result = encrypt_mem_encodable_with(&mut x, |stage, x| match stage {
         EncryptStage::MemBytesRequired => {}
@@ -120,7 +120,7 @@ fn test_encrypt_mem_encodable_stage_encrypt_failure() {
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
 
-    let mut x = EncryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
 
     let result = encrypt_mem_encodable_with(&mut x, |stage, x| match stage {
         EncryptStage::MemBytesRequired => {}
@@ -147,7 +147,7 @@ fn test_encrypt_mem_encodable_ok() {
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
 
-    let mut x = EncryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
     let result = encrypt_mem_encodable_with(&mut x, |_, _| {});
 
     assert!(result.is_ok());

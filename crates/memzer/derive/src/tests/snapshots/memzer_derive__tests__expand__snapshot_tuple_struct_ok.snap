@@ -4,36 +4,26 @@
 
 ---
 source: crates/memzer/derive/src/tests/expand.rs
-assertion_line: 52
 expression: pretty(token_stream)
 ---
-impl<'alpha, Tau> memzer_core::Zeroizable for Sigma<'alpha, Tau>
-where
-    Tau: Clone,
-{
+impl memzer_core::Zeroizable for Sigma {
     fn self_zeroize(&mut self) {
         self.zeroize();
     }
 }
-impl<'alpha, Tau> memzer_core::ZeroizationProbe for Sigma<'alpha, Tau>
-where
-    Tau: Clone,
-{
+impl memzer_core::ZeroizationProbe for Sigma {
     fn is_zeroized(&self) -> bool {
         let fields: [&dyn memzer_core::ZeroizationProbe; 3] = [
-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.alpha),
-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.beta),
-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.gamma),
+            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.0),
+            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.1),
+            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.2),
         ];
         memzer_core::collections::collection_zeroed(&mut fields.into_iter())
     }
 }
-impl<'alpha, Tau> memzer_core::AssertZeroizeOnDrop for Sigma<'alpha, Tau>
-where
-    Tau: Clone,
-{
+impl memzer_core::AssertZeroizeOnDrop for Sigma {
     fn clone_drop_sentinel(&self) -> memzer_core::drop_sentinel::DropSentinel {
-        self.__drop_sentinel.clone()
+        self.3.clone()
     }
     fn assert_zeroize_on_drop(self) {
         memzer_core::assert::assert_zeroize_on_drop(self);

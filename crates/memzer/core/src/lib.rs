@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests;
 
-mod drop_sentinel;
+pub mod drop_sentinel;
 mod secret;
 mod traits;
 mod zeroizing_mut_guard;

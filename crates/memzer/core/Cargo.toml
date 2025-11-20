@@ -5,7 +5,7 @@ description          = "Core zeroization primitives: guards, sentinels, and RAII
 edition.workspace    = true
 keywords             = ["security", "zeroize", "memory"]
 license.workspace    = true
-name                 = "memzer-core"
+name                 = "memzer_core"
 repository.workspace = true
 version.workspace    = true
 
@@ -13,14 +13,14 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
-memcode-core      = { workspace = true, optional = true }
+memcode_core      = { workspace = true, optional = true }
 zeroize.workspace = true
 
 [dev-dependencies]
-memcode-core.workspace = true
+memcode_core.workspace = true
 paste                  = "1"
 
 [features]
 default = []
-memcode = ["dep:memcode-core"]
+memcode = ["dep:memcode_core"]
 test    = ["memcode"]

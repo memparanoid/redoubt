@@ -6,7 +6,7 @@ use chacha20poly1305::Key;
 
 use crate::aead_key::AeadKey;
 
-use memguard::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
+use memzer::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
 
 #[test]
 fn test_aead_key_memguard_traits() {

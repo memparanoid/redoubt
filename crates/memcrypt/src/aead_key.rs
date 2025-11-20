@@ -5,7 +5,7 @@
 use chacha20poly1305::Key;
 use zeroize::Zeroize;
 
-use memguard::{
+use memzer::{
     AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe, assert::assert_zeroize_on_drop,
 };
 

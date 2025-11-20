@@ -3,13 +3,13 @@
 // See LICENSE in the repository root for full license text.
 
 use memcode::tamper_encoded_bytes_for_tests;
-use memguard::ZeroizationProbe;
+use memzer::ZeroizationProbe;
 
 use crate::aead_key::AeadKey;
 use crate::decrypt::{DecryptStage, decrypt_mem_decodable_with};
 use crate::encrypt::encrypt_mem_encodable;
 use crate::error::CryptoError;
-use crate::guards::DecryptionMemGuard;
+use crate::guards::DecryptionMemZer;
 use crate::xnonce::XNonce;
 
 use super::support::{MemCodeTestBreaker, MemCodeTestBreakerBehaviour};
@@ -30,7 +30,7 @@ fn test_decrypt_mem_decodable_stage_new_from_slice_failure() {
             .expect("Failed to encrypt_serializable(..)")
     };
 
-    let mut x = DecryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
 
     let result =
         decrypt_mem_decodable_with::<MemCodeTestBreaker, _>(&mut x, |stage, x| match stage {
@@ -67,7 +67,7 @@ fn test_decrypt_mem_decodable_stage_aead_buffer_fill_with_ciphertext_failure() {
             .expect("Failed to encrypt_serializable(..)")
     };
 
-    let mut x = DecryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
 
     let result =
         decrypt_mem_decodable_with::<MemCodeTestBreaker, _>(&mut x, |stage, x| match stage {
@@ -108,7 +108,7 @@ fn test_decrypt_mem_decodable_stage_decrypt_failure() {
             .expect("Failed to encrypt_serializable(..)")
     };
 
-    let mut x = DecryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
 
     let result = decrypt_mem_decodable_with::<MemCodeTestBreaker, _>(&mut x, |stage, x| {
         match stage {
@@ -147,7 +147,7 @@ fn test_decrypt_mem_decodable_stage_drain_from_failure() {
             .expect("Failed to encrypt_serializable(..)")
     };
 
-    let mut x = DecryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
 
     let result =
         decrypt_mem_decodable_with::<MemCodeTestBreaker, _>(&mut x, |stage, x| match stage {
@@ -184,7 +184,7 @@ fn test_decrypt_mem_decodable_ok() {
             .expect("Failed to encrypt_serializable(..)")
     };
 
-    let mut x = DecryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
 
     let result = decrypt_mem_decodable_with::<MemCodeTestBreaker, _>(&mut x, |_, _| {});
 

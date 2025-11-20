@@ -4,7 +4,6 @@
 
 ---
 source: crates/memzer/derive/src/tests/expand.rs
-assertion_line: 90
 expression: pretty(token_stream)
 ---
 impl memzer_core::Zeroizable for Sigma {
@@ -14,17 +13,13 @@ impl memzer_core::Zeroizable for Sigma {
 }
 impl memzer_core::ZeroizationProbe for Sigma {
     fn is_zeroized(&self) -> bool {
-        let fields: [&dyn memzer_core::ZeroizationProbe; 3] = [
-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.0),
-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.1),
-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.2),
-        ];
+        let fields: [&dyn memzer_core::ZeroizationProbe; 0] = [];
         memzer_core::collections::collection_zeroed(&mut fields.into_iter())
     }
 }
 impl memzer_core::AssertZeroizeOnDrop for Sigma {
     fn clone_drop_sentinel(&self) -> memzer_core::drop_sentinel::DropSentinel {
-        self.3.clone()
+        self.__drop_sentinel.clone()
     }
     fn assert_zeroize_on_drop(self) {
         memzer_core::assert::assert_zeroize_on_drop(self);

@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 # Run tests in Docker with required capabilities
+#
+# Usage:
+#   ./scripts/test.sh                              # All tests
+#   ./scripts/test.sh -p memcode-core              # Specific crate
+#   ./scripts/test.sh -p memcode-core test_name    # Specific test
+#   ./scripts/test.sh --lib                        # Only lib tests
+#   ./scripts/test.sh -p memcrypt --features test_utils test_encrypt
 
 set -euo pipefail
 

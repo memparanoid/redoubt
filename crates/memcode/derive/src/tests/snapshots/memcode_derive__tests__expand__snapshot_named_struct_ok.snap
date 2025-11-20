@@ -4,7 +4,6 @@
 
 ---
 source: crates/memcode/derive/src/tests/expand.rs
-assertion_line: 64
 expression: pretty(token_stream)
 ---
 impl memcode_core::Zeroizable for Sigma {

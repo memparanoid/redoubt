@@ -6,13 +6,13 @@ use chacha20poly1305::{AeadInOut, KeyInit, XChaCha20Poly1305, aead::Buffer};
 use zeroize::Zeroize;
 
 use memcode::MemDecodable;
-use memguard::{Secret, Zeroizable, ZeroizationProbe};
+use memzer::{Secret, Zeroizable, ZeroizationProbe};
 
 use crate::AeadKey;
 use crate::XNonce;
 use crate::consts::AAD;
 use crate::error::CryptoError;
-use crate::guards::DecryptionMemGuard;
+use crate::guards::DecryptionMemZer;
 
 #[derive(PartialEq, Eq, Debug)]
 #[allow(unused)]
@@ -55,17 +55,17 @@ pub fn decrypt_mem_decodable<T>(
 where
     T: MemDecodable + Default + Zeroize + Zeroizable + ZeroizationProbe,
 {
-    let mut x = DecryptionMemGuard::new(aead_key, xnonce, ciphertext);
+    let mut x = DecryptionMemZer::new(aead_key, xnonce, ciphertext);
     decrypt_mem_decodable_with::<T, _>(&mut x, |_, _| {})
 }
 
 pub fn decrypt_mem_decodable_with<T, F>(
-    x: &mut DecryptionMemGuard,
+    x: &mut DecryptionMemZer,
     #[allow(unused)] f: F,
 ) -> Result<Secret<T>, CryptoError>
 where
     T: MemDecodable + Default + Zeroize + Zeroizable + ZeroizationProbe,
-    F: Fn(DecryptStage, &mut DecryptionMemGuard),
+    F: Fn(DecryptStage, &mut DecryptionMemZer),
 {
     // State: NewFromSlice
     let cipher = {

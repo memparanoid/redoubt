@@ -4,7 +4,6 @@
 
 ---
 source: crates/memzer/derive/src/tests/expand.rs
-assertion_line: 141
 expression: pretty(token_stream)
 ---
 impl memzer_core::Zeroizable for Sigma {

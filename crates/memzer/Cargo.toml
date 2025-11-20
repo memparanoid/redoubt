@@ -13,9 +13,9 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
-memzer-core.workspace   = true
-memzer-derive.workspace = true
+memzer_core.workspace   = true
+memzer_derive.workspace = true
 
 [features]
 default = []
-memcode = ["memzer-core/memcode"]
+memcode = ["memzer_core/memcode"]

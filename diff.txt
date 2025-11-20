@@ -1,0 +1,1436 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 85e7236..4598e87 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -2,6 +2,16 @@
+ # It is not intended for manual editing.
+ version = 4
+ 
++[[package]]
++name = "aead"
++version = "0.6.0-rc.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "03d2d54c4d9e7006f132f615a167865bff927a79ca63d8f637237575ce0a9795"
++dependencies = [
++ "crypto-common 0.2.0-rc.5",
++ "inout",
++]
++
+ [[package]]
+ name = "aho-corasick"
+ version = "1.1.4"
+@@ -59,6 +69,15 @@ dependencies = [
+  "generic-array",
+ ]
+ 
++[[package]]
++name = "block-buffer"
++version = "0.11.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "96eb4cdd6cf1b31d671e9efe75c5d1ec614776856cefbe109ca373554a6d514f"
++dependencies = [
++ "hybrid-array",
++]
++
+ [[package]]
+ name = "bumpalo"
+ version = "3.19.0"
+@@ -77,6 +96,31 @@ version = "1.0.4"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
+ 
++[[package]]
++name = "chacha20"
++version = "0.10.0-rc.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "99cbf41c6ec3c4b9eaf7f8f5c11a72cd7d3aa0428125c20d5ef4d09907a0f019"
++dependencies = [
++ "cfg-if",
++ "cipher",
++ "cpufeatures",
++ "zeroize",
++]
++
++[[package]]
++name = "chacha20poly1305"
++version = "0.11.0-rc.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "c662d31454533832974f2b2b3fcbd552ed3cde94c95e614a5039d297dd97076f"
++dependencies = [
++ "aead",
++ "chacha20",
++ "cipher",
++ "poly1305",
++ "zeroize",
++]
++
+ [[package]]
+ name = "ciborium"
+ version = "0.2.2"
+@@ -104,6 +148,17 @@ dependencies = [
+  "half",
+ ]
+ 
++[[package]]
++name = "cipher"
++version = "0.5.0-rc.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "155e4a260750fa4f7754649f049748aacc31db238a358d85fd721002f230f92f"
++dependencies = [
++ "block-buffer 0.11.0",
++ "crypto-common 0.2.0-rc.5",
++ "inout",
++]
++
+ [[package]]
+ name = "clap"
+ version = "4.5.52"
+@@ -227,14 +282,24 @@ dependencies = [
+  "typenum",
+ ]
+ 
++[[package]]
++name = "crypto-common"
++version = "0.2.0-rc.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "919bd05924682a5480aec713596b9e2aabed3a0a6022fab6847f85a99e5f190a"
++dependencies = [
++ "getrandom 0.3.4",
++ "hybrid-array",
++]
++
+ [[package]]
+ name = "digest"
+ version = "0.10.7"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
+ dependencies = [
+- "block-buffer",
+- "crypto-common",
++ "block-buffer 0.10.4",
++ "crypto-common 0.1.7",
+ ]
+ 
+ [[package]]
+@@ -339,6 +404,15 @@ version = "0.5.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "fc0fef456e4baa96da950455cd02c081ca953b141298e41db3fc7e36b1da849c"
+ 
++[[package]]
++name = "hybrid-array"
++version = "0.4.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "f471e0a81b2f90ffc0cb2f951ae04da57de8baa46fa99112b062a5173a5088d0"
++dependencies = [
++ "typenum",
++]
++
+ [[package]]
+ name = "indexmap"
+ version = "2.12.0"
+@@ -349,6 +423,15 @@ dependencies = [
+  "hashbrown",
+ ]
+ 
++[[package]]
++name = "inout"
++version = "0.2.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "c7357b6e7aa75618c7864ebd0634b115a7218b0615f4cb1df33ac3eca23943d4"
++dependencies = [
++ "hybrid-array",
++]
++
+ [[package]]
+ name = "insta"
+ version = "1.43.2"
+@@ -419,7 +502,7 @@ checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
+ 
+ [[package]]
+ name = "memcode"
+-version = "1.0.0"
++version = "0.0.1"
+ dependencies = [
+  "memcode_core",
+  "memcode_derive",
+@@ -427,7 +510,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "memcode_core"
+-version = "1.0.0"
++version = "0.0.1"
+ dependencies = [
+  "insta",
+  "paste",
+@@ -440,7 +523,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "memcode_derive"
+-version = "1.0.0"
++version = "0.0.1"
+ dependencies = [
+  "insta",
+  "memcode_core",
+@@ -455,17 +538,20 @@ dependencies = [
+ 
+ [[package]]
+ name = "memcrypt"
+-version = "0.1.0"
++version = "0.0.1"
+ dependencies = [
+- "criterion",
+- "memrand",
+- "proptest",
+- "subtle",
++ "chacha20poly1305",
++ "memcode",
++ "memzer",
++ "rand",
++ "rand_core",
++ "thiserror",
++ "zeroize",
+ ]
+ 
+ [[package]]
+ name = "memlock"
+-version = "0.1.0"
++version = "0.0.1"
+ dependencies = [
+  "libc",
+  "proptest",
+@@ -473,7 +559,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "memrand"
+-version = "0.1.0"
++version = "0.0.1"
+ dependencies = [
+  "getrandom 0.2.16",
+  "proptest",
+@@ -481,7 +567,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "memvault"
+-version = "0.1.0"
++version = "0.0.1"
+ dependencies = [
+  "criterion",
+  "memcode",
+@@ -493,29 +579,34 @@ dependencies = [
+ 
+ [[package]]
+ name = "memzer"
+-version = "0.1.0"
++version = "0.0.1"
+ dependencies = [
+- "memzer-core",
+- "memzer-derive",
+- "proptest",
+- "zeroize",
++ "memzer_core",
++ "memzer_derive",
+ ]
+ 
+ [[package]]
+-name = "memzer-core"
+-version = "0.1.0"
++name = "memzer_core"
++version = "0.0.1"
+ dependencies = [
+- "proptest",
++ "memcode_core",
++ "paste",
+  "zeroize",
+ ]
+ 
+ [[package]]
+-name = "memzer-derive"
+-version = "0.1.0"
++name = "memzer_derive"
++version = "0.0.1"
+ dependencies = [
++ "insta",
++ "memzer_core",
++ "prettyplease",
++ "proc-macro-crate",
+  "proc-macro2 1.0.103",
+  "quote 1.0.42",
+  "syn 2.0.110",
++ "trybuild",
++ "zeroize",
+ ]
+ 
+ [[package]]
+@@ -616,6 +707,16 @@ dependencies = [
+  "plotters-backend",
+ ]
+ 
++[[package]]
++name = "poly1305"
++version = "0.9.0-rc.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d9c0749ae91cfe6e68c77c4d48802d9720ee06aed3f7100a38975fb0962d50bc"
++dependencies = [
++ "cpufeatures",
++ "universal-hash",
++]
++
+ [[package]]
+ name = "ppv-lite86"
+ version = "0.2.21"
+@@ -1113,6 +1214,16 @@ version = "0.1.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "fc72304796d0818e357ead4e000d19c9c174ab23dc11093ac919054d20a6a7fc"
+ 
++[[package]]
++name = "universal-hash"
++version = "0.6.0-rc.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "9ad6682ddb0189a4d3c2a5c54b8920ab6231ae911db53fc61a0709507bf1713b"
++dependencies = [
++ "crypto-common 0.2.0-rc.5",
++ "subtle",
++]
++
+ [[package]]
+ name = "version_check"
+ version = "0.9.5"
+diff --git a/Cargo.toml b/Cargo.toml
+index 7917dbc..04222bf 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -17,21 +17,21 @@ resolver = "2"
+   [workspace.package]
+   edition    = "2024"
+   license    = "GPL-3.0-only"
+-  repository = "https://github.com/yourusername/memora"
+-  version    = "0.1.0"
++  repository = "https://github.com/memparanoid/memora"
++  version    = "0.0.1"
+ 
+   [workspace.dependencies]
+   # Internal crates
+   memcode        = { path = "crates/memcode" }
+-  memcode-core   = { path = "crates/memcode/core" }
+-  memcode-derive = { path = "crates/memcode/derive" }
++  memcode_core   = { path = "crates/memcode/core" }
++  memcode_derive = { path = "crates/memcode/derive" }
+   memcrypt       = { path = "crates/memcrypt" }
+   memlock        = { path = "crates/memlock" }
+   memrand        = { path = "crates/memrand" }
+   memvault       = { path = "crates/memvault" }
+   memzer         = { path = "crates/memzer" }
+-  memzer-core    = { path = "crates/memzer/core" }
+-  memzer-derive  = { path = "crates/memzer/derive" }
++  memzer_core    = { path = "crates/memzer/core" }
++  memzer_derive  = { path = "crates/memzer/derive" }
+ 
+   # External dependencies
+   getrandom = "0.2"
+@@ -41,6 +41,7 @@ resolver = "2"
+ 
+   # Dev dependencies
+   criterion = "0.5"
++  insta     = { version = "1.43.2", features = ["redactions"] }
+   proptest  = "1.4"
+ 
+ [profile.release]
+@@ -48,5 +49,8 @@ codegen-units = 1
+ lto           = true
+ opt-level     = 3
+ 
++[profile.test]
++panic = "unwind"
++
+ [profile.bench]
+ inherits = "release"
+diff --git a/crates/memcode/Cargo.toml b/crates/memcode/Cargo.toml
+index 8b3af15..de94895 100644
+--- a/crates/memcode/Cargo.toml
++++ b/crates/memcode/Cargo.toml
+@@ -1,15 +1,20 @@
+ [package]
+-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+-edition = "2024"
+-name    = "memcode"
+-version = "1.0.0"
++authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
++categories           = ["encoding", "memory-management"]
++description          = "Allocation-free, zeroizing serialization library (umbrella crate)"
++edition.workspace    = true
++keywords             = ["serialization", "zeroize", "security"]
++license.workspace    = true
++name                 = "memcode"
++repository.workspace = true
++version.workspace    = true
+ 
+ [lib]
+ path = "src/lib.rs"
+ 
+ [dependencies]
+-memcode_core   = { path = "./core" }
+-memcode_derive = { path = "./derive" }
++memcode_core.workspace   = true
++memcode_derive.workspace = true
+ 
+ [features]
+ test_utils = ["memcode_core/test_utils"]
+diff --git a/crates/memcode/core/Cargo.toml b/crates/memcode/core/Cargo.toml
+index f4550a4..8b087fd 100644
+--- a/crates/memcode/core/Cargo.toml
++++ b/crates/memcode/core/Cargo.toml
+@@ -1,22 +1,27 @@
+ [package]
+-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+-edition = "2024"
+-name    = "memcode_core"
+-version = "1.0.0"
++authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
++categories           = ["encoding", "memory-management"]
++description          = "Allocation-free, zeroizing serialization for sensitive data"
++edition.workspace    = true
++keywords             = ["serialization", "zeroize", "security"]
++license.workspace    = true
++name                 = "memcode_core"
++repository.workspace = true
++version.workspace    = true
+ 
+ [lib]
+ path = "src/lib.rs"
+ 
+ [dependencies]
+-thiserror = "2.0.16"
+-zeroize   = { version = "1.8.1", features = ["zeroize_derive"] }
++thiserror         = "2.0.16"
++zeroize.workspace = true
+ 
+ [dev-dependencies]
+-insta     = { version = "1.43.2", features = ["redactions"] }
+-paste     = "1.0.0"
+-proptest  = "1.9.0"
+-seq-macro = "0.3.6"
+-speculate = "0.1.2"
++insta.workspace    = true
++paste              = "1.0.0"
++proptest.workspace = true
++seq-macro          = "0.3.6"
++speculate          = "0.1.2"
+ 
+ [features]
+ test_utils = []
+diff --git a/crates/memcode/derive/Cargo.toml b/crates/memcode/derive/Cargo.toml
+index 5e418e4..07724a5 100644
+--- a/crates/memcode/derive/Cargo.toml
++++ b/crates/memcode/derive/Cargo.toml
+@@ -1,22 +1,27 @@
+ [package]
+-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+-edition = "2024"
+-name    = "memcode_derive"
+-version = "1.0.0"
++authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
++categories           = ["development-tools::procedural-macro-helpers"]
++description          = "Derive macros for memcode serialization"
++edition.workspace    = true
++keywords             = ["derive", "macro", "serialization"]
++license.workspace    = true
++name                 = "memcode_derive"
++repository.workspace = true
++version.workspace    = true
+ 
+ [lib]
+ path       = "src/lib.rs"
+ proc-macro = true
+ 
+ [dependencies]
+-memcode_core     = { path = "../core" }
+-proc-macro-crate = "3.4.0"
+-proc-macro2      = "1.0.103"
+-quote            = "1.0.41"
+-syn              = "2.0.108"
+-zeroize          = { version = "1.8.1", features = ["zeroize_derive"] }
++memcode_core.workspace = true
++proc-macro-crate       = "3.4.0"
++proc-macro2            = "1.0.103"
++quote                  = "1.0.41"
++syn                    = "2.0.108"
++zeroize.workspace      = true
+ 
+ [dev-dependencies]
+-insta        = { version = "1.43.2", features = ["redactions"] }
+-prettyplease = "0.2.37"
+-trybuild     = "1.0"
++insta.workspace = true
++prettyplease    = "0.2.37"
++trybuild        = "1.0"
+diff --git a/crates/memcode/derive/src/tests/expand.rs b/crates/memcode/derive/src/tests/expand.rs
+index 59a0378..01827d4 100644
+--- a/crates/memcode/derive/src/tests/expand.rs
++++ b/crates/memcode/derive/src/tests/expand.rs
+@@ -24,6 +24,7 @@ fn test_find_root_with_candidates() {
+     insta::assert_snapshot!(pretty(ts_2));
+ 
+     // Just to cover all branches
++    // Note: proc-macro-crate uses underscores internally, not hyphens
+     let ts_3 = find_root_with_candidates(&["memcode_derive", "memcode_core"]);
+     println!("{:?}", ts_3);
+     assert_eq!(format!("{:?}", ts_3), "TokenStream [Ident { sym: crate }]");
+diff --git a/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_empty_struct_ok.snap b/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_empty_struct_ok.snap
+index 82f058e..56d5283 100644
+--- a/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_empty_struct_ok.snap
++++ b/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_empty_struct_ok.snap
+@@ -1,6 +1,5 @@
+ ---
+ source: crates/memcode/derive/src/tests/expand.rs
+-assertion_line: 86
+ expression: pretty(token_stream)
+ ---
+ impl memcode_core::Zeroizable for Sigma {
+diff --git a/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_named_struct_ok.snap b/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_named_struct_ok.snap
+index d7ebd62..d920f6e 100644
+--- a/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_named_struct_ok.snap
++++ b/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_named_struct_ok.snap
+@@ -1,6 +1,5 @@
+ ---
+ source: crates/memcode/derive/src/tests/expand.rs
+-assertion_line: 64
+ expression: pretty(token_stream)
+ ---
+ impl memcode_core::Zeroizable for Sigma {
+diff --git a/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_named_struct_with_lifetime_generics_ok.snap b/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_named_struct_with_lifetime_generics_ok.snap
+index ed2512d..daeefb8 100644
+--- a/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_named_struct_with_lifetime_generics_ok.snap
++++ b/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_named_struct_with_lifetime_generics_ok.snap
+@@ -1,6 +1,5 @@
+ ---
+ source: crates/memcode/derive/src/tests/expand.rs
+-assertion_line: 51
+ expression: pretty(token_stream)
+ ---
+ impl<'alpha, Tau> memcode_core::Zeroizable for Sigma<'alpha, Tau>
+diff --git a/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_tuple_struct_ok.snap b/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_tuple_struct_ok.snap
+index d82f3cf..84d8516 100644
+--- a/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_tuple_struct_ok.snap
++++ b/crates/memcode/derive/src/tests/snapshots/memcode_derive__tests__expand__snapshot_tuple_struct_ok.snap
+@@ -1,6 +1,5 @@
+ ---
+ source: crates/memcode/derive/src/tests/expand.rs
+-assertion_line: 75
+ expression: pretty(token_stream)
+ ---
+ impl memcode_core::Zeroizable for Sigma {
+diff --git a/crates/memcrypt/src/aead_buffer.rs b/crates/memcrypt/src/aead_buffer.rs
+index d896703..2f27c9d 100644
+--- a/crates/memcrypt/src/aead_buffer.rs
++++ b/crates/memcrypt/src/aead_buffer.rs
+@@ -7,8 +7,8 @@ use core::mem::MaybeUninit;
+ use chacha20poly1305::aead::Buffer;
+ use zeroize::Zeroize;
+ 
+-use memguard::assert::assert_zeroize_on_drop;
+-use memguard::{AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe};
++use memzer::assert::assert_zeroize_on_drop;
++use memzer::{AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe};
+ 
+ use crate::error::CryptoError;
+ 
+diff --git a/crates/memcrypt/src/aead_key.rs b/crates/memcrypt/src/aead_key.rs
+index ad3a0bf..a4fe3f2 100644
+--- a/crates/memcrypt/src/aead_key.rs
++++ b/crates/memcrypt/src/aead_key.rs
+@@ -5,7 +5,7 @@
+ use chacha20poly1305::Key;
+ use zeroize::Zeroize;
+ 
+-use memguard::{
++use memzer::{
+     AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe, assert::assert_zeroize_on_drop,
+ };
+ 
+diff --git a/crates/memcrypt/src/decrypt.rs b/crates/memcrypt/src/decrypt.rs
+index 66b4bae..dfa0a68 100644
+--- a/crates/memcrypt/src/decrypt.rs
++++ b/crates/memcrypt/src/decrypt.rs
+@@ -6,13 +6,13 @@ use chacha20poly1305::{AeadInOut, KeyInit, XChaCha20Poly1305, aead::Buffer};
+ use zeroize::Zeroize;
+ 
+ use memcode::MemDecodable;
+-use memguard::{Secret, Zeroizable, ZeroizationProbe};
++use memzer::{Secret, Zeroizable, ZeroizationProbe};
+ 
+ use crate::AeadKey;
+ use crate::XNonce;
+ use crate::consts::AAD;
+ use crate::error::CryptoError;
+-use crate::guards::DecryptionMemGuard;
++use crate::guards::DecryptionMemZer;
+ 
+ #[derive(PartialEq, Eq, Debug)]
+ #[allow(unused)]
+@@ -55,17 +55,17 @@ pub fn decrypt_mem_decodable<T>(
+ where
+     T: MemDecodable + Default + Zeroize + Zeroizable + ZeroizationProbe,
+ {
+-    let mut x = DecryptionMemGuard::new(aead_key, xnonce, ciphertext);
++    let mut x = DecryptionMemZer::new(aead_key, xnonce, ciphertext);
+     decrypt_mem_decodable_with::<T, _>(&mut x, |_, _| {})
+ }
+ 
+ pub fn decrypt_mem_decodable_with<T, F>(
+-    x: &mut DecryptionMemGuard,
++    x: &mut DecryptionMemZer,
+     #[allow(unused)] f: F,
+ ) -> Result<Secret<T>, CryptoError>
+ where
+     T: MemDecodable + Default + Zeroize + Zeroizable + ZeroizationProbe,
+-    F: Fn(DecryptStage, &mut DecryptionMemGuard),
++    F: Fn(DecryptStage, &mut DecryptionMemZer),
+ {
+     // State: NewFromSlice
+     let cipher = {
+diff --git a/crates/memcrypt/src/encrypt.rs b/crates/memcrypt/src/encrypt.rs
+index d11ebdc..13b01c0 100644
+--- a/crates/memcrypt/src/encrypt.rs
++++ b/crates/memcrypt/src/encrypt.rs
+@@ -6,11 +6,11 @@ use chacha20poly1305::{AeadInOut, KeyInit, XChaCha20Poly1305};
+ use zeroize::Zeroize;
+ 
+ use memcode::MemEncodable;
+-use memguard::{Secret, Zeroizable, ZeroizationProbe};
++use memzer::{Secret, Zeroizable, ZeroizationProbe};
+ 
+ use crate::consts::{AAD, TAG_SIZE};
+ use crate::error::CryptoError;
+-use crate::guards::EncryptionMemGuard;
++use crate::guards::EncryptionMemZer;
+ use crate::{AeadKey, XNonce};
+ 
+ #[derive(PartialEq, Eq, Debug)]
+@@ -52,17 +52,17 @@ pub fn encrypt_mem_encodable<T>(
+ where
+     T: MemEncodable + Zeroize + Zeroizable + ZeroizationProbe,
+ {
+-    let mut x = EncryptionMemGuard::new(aead_key, xnonce, value);
++    let mut x = EncryptionMemZer::new(aead_key, xnonce, value);
+     encrypt_mem_encodable_with(&mut x, |_, _| {})
+ }
+ 
+ pub fn encrypt_mem_encodable_with<'a, T, F>(
+-    x: &mut EncryptionMemGuard<'a, T>,
++    x: &mut EncryptionMemZer<'a, T>,
+     #[allow(unused)] f: F,
+ ) -> Result<Secret<Vec<u8>>, CryptoError>
+ where
+     T: MemEncodable + Zeroize + Zeroizable + ZeroizationProbe,
+-    F: Fn(EncryptStage, &mut EncryptionMemGuard<'a, T>),
++    F: Fn(EncryptStage, &mut EncryptionMemZer<'a, T>),
+ {
+     // Stage: MemBytesRequired
+     {
+diff --git a/crates/memcrypt/src/guards.rs b/crates/memcrypt/src/guards.rs
+index fa930f7..1e27b6f 100644
+--- a/crates/memcrypt/src/guards.rs
++++ b/crates/memcrypt/src/guards.rs
+@@ -4,17 +4,17 @@
+ 
+ use zeroize::Zeroize;
+ 
+-use memguard::{
+-    DropSentinel, MemEncodeBuf, MemGuard, Secret, Zeroizable, ZeroizationProbe, ZeroizingMutGuard,
++use memzer::{
++    DropSentinel, MemEncodeBuf, MemZer, Secret, Zeroizable, ZeroizationProbe, ZeroizingMutGuard,
+ };
+ 
+ use crate::aead_buffer::AeadBuffer;
+ use crate::aead_key::AeadKey;
+ use crate::xnonce::XNonce;
+ 
+-#[derive(Zeroize, MemGuard)]
++#[derive(Zeroize, MemZer)]
+ #[zeroize(drop)]
+-pub struct EncryptionMemGuard<'a, T: Zeroize + Zeroizable + ZeroizationProbe + Sized> {
++pub struct EncryptionMemZer<'a, T: Zeroize + Zeroizable + ZeroizationProbe + Sized> {
+     pub aead_key: ZeroizingMutGuard<'a, AeadKey>,
+     pub aead_key_size: usize,
+     pub xnonce: ZeroizingMutGuard<'a, XNonce>,
+@@ -24,7 +24,7 @@ pub struct EncryptionMemGuard<'a, T: Zeroize + Zeroizable + ZeroizationProbe + S
+     __drop_sentinel: DropSentinel,
+ }
+ 
+-impl<'a, T: Zeroize + Zeroizable + ZeroizationProbe + Sized> EncryptionMemGuard<'a, T> {
++impl<'a, T: Zeroize + Zeroizable + ZeroizationProbe + Sized> EncryptionMemZer<'a, T> {
+     pub fn new(aead_key: &'a mut AeadKey, xnonce: &'a mut XNonce, value: &'a mut T) -> Self {
+         let aead_key_size = aead_key.as_ref().len();
+ 
+@@ -40,9 +40,9 @@ impl<'a, T: Zeroize + Zeroizable + ZeroizationProbe + Sized> EncryptionMemGuard<
+     }
+ }
+ 
+-#[derive(Zeroize, MemGuard)]
++#[derive(Zeroize, MemZer)]
+ #[zeroize(drop)]
+-pub struct DecryptionMemGuard<'a> {
++pub struct DecryptionMemZer<'a> {
+     pub aead_key: ZeroizingMutGuard<'a, AeadKey>,
+     pub aead_key_size: usize,
+     pub xnonce: ZeroizingMutGuard<'a, XNonce>,
+@@ -51,7 +51,7 @@ pub struct DecryptionMemGuard<'a> {
+     __drop_sentinel: DropSentinel,
+ }
+ 
+-impl<'a> DecryptionMemGuard<'a> {
++impl<'a> DecryptionMemZer<'a> {
+     pub fn new(
+         aead_key: &'a mut AeadKey,
+         xnonce: &'a mut XNonce,
+diff --git a/crates/memcrypt/src/tests/aead_buffer.rs b/crates/memcrypt/src/tests/aead_buffer.rs
+index 344b28c..9630c3b 100644
+--- a/crates/memcrypt/src/tests/aead_buffer.rs
++++ b/crates/memcrypt/src/tests/aead_buffer.rs
+@@ -1,6 +1,6 @@
+ use chacha20poly1305::aead::Buffer;
+ 
+-use memguard::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
++use memzer::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
+ 
+ use crate::aead_buffer::AeadBuffer;
+ 
+diff --git a/crates/memcrypt/src/tests/aead_key.rs b/crates/memcrypt/src/tests/aead_key.rs
+index cbeda94..d66d8fd 100644
+--- a/crates/memcrypt/src/tests/aead_key.rs
++++ b/crates/memcrypt/src/tests/aead_key.rs
+@@ -2,7 +2,7 @@ use chacha20poly1305::Key;
+ 
+ use crate::aead_key::AeadKey;
+ 
+-use memguard::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
++use memzer::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
+ 
+ #[test]
+ fn test_aead_key_memguard_traits() {
+diff --git a/crates/memcrypt/src/tests/decrypt.rs b/crates/memcrypt/src/tests/decrypt.rs
+index c38b17b..4fa3970 100644
+--- a/crates/memcrypt/src/tests/decrypt.rs
++++ b/crates/memcrypt/src/tests/decrypt.rs
+@@ -7,13 +7,13 @@
+ // See the LICENSE file for details.
+ 
+ use memcode::tamper_encoded_bytes_for_tests;
+-use memguard::ZeroizationProbe;
++use memzer::ZeroizationProbe;
+ 
+ use crate::aead_key::AeadKey;
+ use crate::decrypt::{DecryptStage, decrypt_mem_decodable_with};
+ use crate::encrypt::encrypt_mem_encodable;
+ use crate::error::CryptoError;
+-use crate::guards::DecryptionMemGuard;
++use crate::guards::DecryptionMemZer;
+ use crate::xnonce::XNonce;
+ 
+ use super::support::{MemCodeTestBreaker, MemCodeTestBreakerBehaviour};
+@@ -34,7 +34,7 @@ fn test_decrypt_mem_decodable_stage_new_from_slice_failure() {
+             .expect("Failed to encrypt_serializable(..)")
+     };
+ 
+-    let mut x = DecryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut ciphertext);
++    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+ 
+     let result =
+         decrypt_mem_decodable_with::<MemCodeTestBreaker, _>(&mut x, |stage, x| match stage {
+@@ -71,7 +71,7 @@ fn test_decrypt_mem_decodable_stage_aead_buffer_fill_with_ciphertext_failure() {
+             .expect("Failed to encrypt_serializable(..)")
+     };
+ 
+-    let mut x = DecryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut ciphertext);
++    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+ 
+     let result =
+         decrypt_mem_decodable_with::<MemCodeTestBreaker, _>(&mut x, |stage, x| match stage {
+@@ -112,7 +112,7 @@ fn test_decrypt_mem_decodable_stage_decrypt_failure() {
+             .expect("Failed to encrypt_serializable(..)")
+     };
+ 
+-    let mut x = DecryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut ciphertext);
++    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+ 
+     let result = decrypt_mem_decodable_with::<MemCodeTestBreaker, _>(&mut x, |stage, x| {
+         match stage {
+@@ -151,7 +151,7 @@ fn test_decrypt_mem_decodable_stage_drain_from_failure() {
+             .expect("Failed to encrypt_serializable(..)")
+     };
+ 
+-    let mut x = DecryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut ciphertext);
++    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+ 
+     let result =
+         decrypt_mem_decodable_with::<MemCodeTestBreaker, _>(&mut x, |stage, x| match stage {
+@@ -188,7 +188,7 @@ fn test_decrypt_mem_decodable_ok() {
+             .expect("Failed to encrypt_serializable(..)")
+     };
+ 
+-    let mut x = DecryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut ciphertext);
++    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+ 
+     let result = decrypt_mem_decodable_with::<MemCodeTestBreaker, _>(&mut x, |_, _| {});
+ 
+diff --git a/crates/memcrypt/src/tests/encrypt.rs b/crates/memcrypt/src/tests/encrypt.rs
+index ea9817b..74f30cf 100644
+--- a/crates/memcrypt/src/tests/encrypt.rs
++++ b/crates/memcrypt/src/tests/encrypt.rs
+@@ -3,12 +3,12 @@
+ // See the LICENSE file for details.
+ 
+ use memcode::MemEncodeError;
+-use memguard::ZeroizationProbe;
++use memzer::ZeroizationProbe;
+ 
+ use crate::aead_key::AeadKey;
+ use crate::encrypt::{EncryptStage, encrypt_mem_encodable_with};
+ use crate::error::CryptoError;
+-use crate::guards::EncryptionMemGuard;
++use crate::guards::EncryptionMemZer;
+ use crate::xnonce::XNonce;
+ 
+ use super::support::{MemCodeTestBreaker, MemCodeTestBreakerBehaviour};
+@@ -22,7 +22,7 @@ fn test_encrypt_mem_encodable_stage_mem_bytes_required_failure() {
+     // Assert (not) zeroization!
+     assert!(!test_breaker.is_zeroized());
+ 
+-    let mut x = EncryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut test_breaker);
++    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+ 
+     let result = encrypt_mem_encodable_with(&mut x, |stage, x| match stage {
+         EncryptStage::MemBytesRequired => {
+@@ -52,7 +52,7 @@ fn test_encrypt_mem_encodable_stage_drain_into_failure() {
+     // Assert (not) zeroization!
+     assert!(!test_breaker.is_zeroized());
+ 
+-    let mut x = EncryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut test_breaker);
++    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+ 
+     let result = encrypt_mem_encodable_with(&mut x, |stage, x| match stage {
+         EncryptStage::MemBytesRequired => {}
+@@ -86,7 +86,7 @@ fn test_encrypt_mem_encodable_stage_aead_buffer_fill_with_plaintext_failure() {
+     // Assert (not) zeroization!
+     assert!(!test_breaker.is_zeroized());
+ 
+-    let mut x = EncryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut test_breaker);
++    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+ 
+     let result = encrypt_mem_encodable_with(&mut x, |stage, x| match stage {
+         EncryptStage::MemBytesRequired => {}
+@@ -120,7 +120,7 @@ fn test_encrypt_mem_encodable_stage_encrypt_failure() {
+     // Assert (not) zeroization!
+     assert!(!test_breaker.is_zeroized());
+ 
+-    let mut x = EncryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut test_breaker);
++    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+ 
+     let result = encrypt_mem_encodable_with(&mut x, |stage, x| match stage {
+         EncryptStage::MemBytesRequired => {}
+@@ -147,7 +147,7 @@ fn test_encrypt_mem_encodable_ok() {
+     // Assert (not) zeroization!
+     assert!(!test_breaker.is_zeroized());
+ 
+-    let mut x = EncryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut test_breaker);
++    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+     let result = encrypt_mem_encodable_with(&mut x, |_, _| {});
+ 
+     assert!(result.is_ok());
+diff --git a/crates/memcrypt/src/tests/guards.rs b/crates/memcrypt/src/tests/guards.rs
+index 732b315..3bdcea6 100644
+--- a/crates/memcrypt/src/tests/guards.rs
++++ b/crates/memcrypt/src/tests/guards.rs
+@@ -4,10 +4,10 @@
+ 
+ use zeroize::Zeroize;
+ 
+-use memguard::{AssertZeroizeOnDrop, Secret, ZeroizationProbe};
++use memzer::{AssertZeroizeOnDrop, Secret, ZeroizationProbe};
+ 
+ use crate::aead_key::AeadKey;
+-use crate::guards::{DecryptionMemGuard, EncryptionMemGuard};
++use crate::guards::{DecryptionMemZer, EncryptionMemZer};
+ use crate::xnonce::XNonce;
+ 
+ use super::support::MemCodeTestBreaker;
+@@ -19,7 +19,7 @@ fn test_encryption_mem_guard() {
+ 
+     let mut test_breaker = MemCodeTestBreaker::default();
+ 
+-    let mut x = EncryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut test_breaker);
++    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+ 
+     assert!(!x.is_zeroized());
+ 
+@@ -38,7 +38,7 @@ fn test_decryption_mem_guard() {
+ 
+     let mut ciphertext = Secret::from(vec![1u8; 64]);
+ 
+-    let mut x = DecryptionMemGuard::new(&mut aead_key, &mut xnonce, &mut ciphertext);
++    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+ 
+     assert!(!x.is_zeroized());
+ 
+diff --git a/crates/memcrypt/src/tests/support/memcode_test_breaker.rs b/crates/memcrypt/src/tests/support/memcode_test_breaker.rs
+index 70c378b..e17cbd7 100644
+--- a/crates/memcrypt/src/tests/support/memcode_test_breaker.rs
++++ b/crates/memcrypt/src/tests/support/memcode_test_breaker.rs
+@@ -5,7 +5,7 @@ use zeroize::Zeroize;
+ use memcode::{
+     MemCodeTestBreaker as InnerMemCodeTestBreaker, MemCodeTestBreakerBehaviour, MemCodec,
+ };
+-use memguard::{
++use memzer::{
+     AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe, assert::assert_zeroize_on_drop,
+ };
+ 
+diff --git a/crates/memcrypt/src/tests/xnonce.rs b/crates/memcrypt/src/tests/xnonce.rs
+index 7a8666b..79fb66b 100644
+--- a/crates/memcrypt/src/tests/xnonce.rs
++++ b/crates/memcrypt/src/tests/xnonce.rs
+@@ -1,6 +1,6 @@
+ use chacha20poly1305::XNonce as ChaCha20Poly1305XNonce;
+ 
+-use memguard::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
++use memzer::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
+ 
+ use crate::xnonce::XNonce;
+ 
+diff --git a/crates/memcrypt/src/xnonce.rs b/crates/memcrypt/src/xnonce.rs
+index dabfe71..e6dfa85 100644
+--- a/crates/memcrypt/src/xnonce.rs
++++ b/crates/memcrypt/src/xnonce.rs
+@@ -5,8 +5,8 @@
+ use chacha20poly1305::XNonce as ChachaXNonce;
+ use zeroize::Zeroize;
+ 
+-use memguard::assert::assert_zeroize_on_drop;
+-use memguard::{AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe};
++use memzer::assert::assert_zeroize_on_drop;
++use memzer::{AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe};
+ 
+ #[derive(Zeroize, Eq, PartialEq)]
+ #[zeroize(drop)]
+diff --git a/crates/memzer/Cargo.toml b/crates/memzer/Cargo.toml
+index 82c7e3e..057eb2f 100644
+--- a/crates/memzer/Cargo.toml
++++ b/crates/memzer/Cargo.toml
+@@ -13,9 +13,9 @@ version.workspace    = true
+ path = "src/lib.rs"
+ 
+ [dependencies]
+-memzer-core.workspace   = true
+-memzer-derive.workspace = true
++memzer_core.workspace   = true
++memzer_derive.workspace = true
+ 
+ [features]
+ default = []
+-memcode = ["memzer-core/memcode"]
++memcode = ["memzer_core/memcode"]
+diff --git a/crates/memzer/core/Cargo.toml b/crates/memzer/core/Cargo.toml
+index caf8582..933c165 100644
+--- a/crates/memzer/core/Cargo.toml
++++ b/crates/memzer/core/Cargo.toml
+@@ -5,7 +5,7 @@ description          = "Core zeroization primitives: guards, sentinels, and RAII
+ edition.workspace    = true
+ keywords             = ["security", "zeroize", "memory"]
+ license.workspace    = true
+-name                 = "memzer-core"
++name                 = "memzer_core"
+ repository.workspace = true
+ version.workspace    = true
+ 
+@@ -13,14 +13,14 @@ version.workspace    = true
+ path = "src/lib.rs"
+ 
+ [dependencies]
+-memcode-core      = { workspace = true, optional = true }
++memcode_core      = { workspace = true, optional = true }
+ zeroize.workspace = true
+ 
+ [dev-dependencies]
+-memcode-core.workspace = true
++memcode_core.workspace = true
+ paste                  = "1"
+ 
+ [features]
+ default = []
+-memcode = ["dep:memcode-core"]
++memcode = ["dep:memcode_core"]
+ test    = ["memcode"]
+diff --git a/crates/memzer/core/src/lib.rs b/crates/memzer/core/src/lib.rs
+index 858ff94..054c31a 100644
+--- a/crates/memzer/core/src/lib.rs
++++ b/crates/memzer/core/src/lib.rs
+@@ -1,7 +1,7 @@
+ #[cfg(test)]
+ mod tests;
+ 
+-mod drop_sentinel;
++pub mod drop_sentinel;
+ mod secret;
+ mod traits;
+ mod zeroizing_mut_guard;
+diff --git a/crates/memzer/derive/Cargo.toml b/crates/memzer/derive/Cargo.toml
+index b7a50a8..56edbb5 100644
+--- a/crates/memzer/derive/Cargo.toml
++++ b/crates/memzer/derive/Cargo.toml
+@@ -5,7 +5,7 @@ description          = "Derive macros for memzer guards and zeroization verifica
+ edition.workspace    = true
+ keywords             = ["security", "zeroize", "derive", "macro"]
+ license.workspace    = true
+-name                 = "memzer-derive"
++name                 = "memzer_derive"
+ repository.workspace = true
+ version.workspace    = true
+ 
+@@ -14,14 +14,14 @@ path       = "src/lib.rs"
+ proc-macro = true
+ 
+ [dependencies]
+-memzer-core      = { workspace = true }
++memzer_core      = { workspace = true }
+ proc-macro-crate = "3.4"
+ proc-macro2      = "1.0"
+ quote            = "1.0"
+ syn              = "2.0"
+ 
+ [dev-dependencies]
+-insta             = { version = "1.43", features = ["redactions"] }
++insta.workspace   = true
+ prettyplease      = "0.2"
+ trybuild          = "1.0"
+ zeroize.workspace = true
+diff --git a/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__find_root_with_candidates-2.snap b/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__find_root_with_candidates-2.snap
+deleted file mode 100644
+index a6a7a35..0000000
+--- a/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__find_root_with_candidates-2.snap
++++ /dev/null
+@@ -1,8 +0,0 @@
+----
+-source: crates/memzer/derive/src/tests/expand.rs
+-assertion_line: 24
+-expression: pretty(ts_2)
+----
+-compile_error!(
+-    "MemZer: could not find any of the candidate crates: `a`. Add `a = { version = \\\"*\\\" }` to your Cargo.toml."
+-);
+diff --git a/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__find_root_with_candidates.snap b/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__find_root_with_candidates.snap
+deleted file mode 100644
+index 38cba38..0000000
+--- a/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__find_root_with_candidates.snap
++++ /dev/null
+@@ -1,8 +0,0 @@
+----
+-source: crates/memzer/derive/src/tests/expand.rs
+-assertion_line: 22
+-expression: pretty(ts_1)
+----
+-compile_error!(
+-    "MemZer: could not find any of the candidate crates: `a`, `b`. Add `a = { version = \\\"*\\\" }` (preferred) or `b = { version = \\\"*\\\" }` to your Cargo.toml."
+-);
+diff --git a/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_empty_struct_ok.snap b/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_empty_struct_ok.snap
+deleted file mode 100644
+index 8f2f128..0000000
+--- a/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_empty_struct_ok.snap
++++ /dev/null
+@@ -1,24 +0,0 @@
+----
+-source: crates/memzer/derive/src/tests/expand.rs
+-assertion_line: 79
+-expression: pretty(token_stream)
+----
+-impl memzer_core::Zeroizable for Sigma {
+-    fn self_zeroize(&mut self) {
+-        self.zeroize();
+-    }
+-}
+-impl memzer_core::ZeroizationProbe for Sigma {
+-    fn is_zeroized(&self) -> bool {
+-        let fields: [&dyn memzer_core::ZeroizationProbe; 0] = [];
+-        memzer_core::collections::collection_zeroed(&mut fields.into_iter())
+-    }
+-}
+-impl memzer_core::AssertZeroizeOnDrop for Sigma {
+-    fn clone_drop_sentinel(&self) -> memzer_core::drop_sentinel::DropSentinel {
+-        self.__drop_sentinel.clone()
+-    }
+-    fn assert_zeroize_on_drop(self) {
+-        memzer_core::assert::assert_zeroize_on_drop(self);
+-    }
+-}
+diff --git a/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_named_struct_ok.snap b/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_named_struct_ok.snap
+deleted file mode 100644
+index 274610e..0000000
+--- a/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_named_struct_ok.snap
++++ /dev/null
+@@ -1,26 +0,0 @@
+----
+-source: crates/memzer/derive/src/tests/expand.rs
+-assertion_line: 66
+-expression: pretty(token_stream)
+----
+-impl memzer_core::Zeroizable for Sigma {
+-    fn self_zeroize(&mut self) {
+-        self.zeroize();
+-    }
+-}
+-impl memzer_core::ZeroizationProbe for Sigma {
+-    fn is_zeroized(&self) -> bool {
+-        let fields: [&dyn memzer_core::ZeroizationProbe; 1] = [
+-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.alpha),
+-        ];
+-        memzer_core::collections::collection_zeroed(&mut fields.into_iter())
+-    }
+-}
+-impl memzer_core::AssertZeroizeOnDrop for Sigma {
+-    fn clone_drop_sentinel(&self) -> memzer_core::drop_sentinel::DropSentinel {
+-        self.__drop_sentinel.clone()
+-    }
+-    fn assert_zeroize_on_drop(self) {
+-        memzer_core::assert::assert_zeroize_on_drop(self);
+-    }
+-}
+diff --git a/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_named_struct_with_lifetime_generics_ok.snap b/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_named_struct_with_lifetime_generics_ok.snap
+deleted file mode 100644
+index 32b93a1..0000000
+--- a/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_named_struct_with_lifetime_generics_ok.snap
++++ /dev/null
+@@ -1,37 +0,0 @@
+----
+-source: crates/memzer/derive/src/tests/expand.rs
+-assertion_line: 52
+-expression: pretty(token_stream)
+----
+-impl<'alpha, Tau> memzer_core::Zeroizable for Sigma<'alpha, Tau>
+-where
+-    Tau: Clone,
+-{
+-    fn self_zeroize(&mut self) {
+-        self.zeroize();
+-    }
+-}
+-impl<'alpha, Tau> memzer_core::ZeroizationProbe for Sigma<'alpha, Tau>
+-where
+-    Tau: Clone,
+-{
+-    fn is_zeroized(&self) -> bool {
+-        let fields: [&dyn memzer_core::ZeroizationProbe; 3] = [
+-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.alpha),
+-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.beta),
+-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.gamma),
+-        ];
+-        memzer_core::collections::collection_zeroed(&mut fields.into_iter())
+-    }
+-}
+-impl<'alpha, Tau> memzer_core::AssertZeroizeOnDrop for Sigma<'alpha, Tau>
+-where
+-    Tau: Clone,
+-{
+-    fn clone_drop_sentinel(&self) -> memzer_core::drop_sentinel::DropSentinel {
+-        self.__drop_sentinel.clone()
+-    }
+-    fn assert_zeroize_on_drop(self) {
+-        memzer_core::assert::assert_zeroize_on_drop(self);
+-    }
+-}
+diff --git a/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_tuple_struct_ok.snap b/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_tuple_struct_ok.snap
+deleted file mode 100644
+index 5543a70..0000000
+--- a/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_tuple_struct_ok.snap
++++ /dev/null
+@@ -1,28 +0,0 @@
+----
+-source: crates/memzer/derive/src/tests/expand.rs
+-assertion_line: 90
+-expression: pretty(token_stream)
+----
+-impl memzer_core::Zeroizable for Sigma {
+-    fn self_zeroize(&mut self) {
+-        self.zeroize();
+-    }
+-}
+-impl memzer_core::ZeroizationProbe for Sigma {
+-    fn is_zeroized(&self) -> bool {
+-        let fields: [&dyn memzer_core::ZeroizationProbe; 3] = [
+-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.0),
+-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.1),
+-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.2),
+-        ];
+-        memzer_core::collections::collection_zeroed(&mut fields.into_iter())
+-    }
+-}
+-impl memzer_core::AssertZeroizeOnDrop for Sigma {
+-    fn clone_drop_sentinel(&self) -> memzer_core::drop_sentinel::DropSentinel {
+-        self.3.clone()
+-    }
+-    fn assert_zeroize_on_drop(self) {
+-        memzer_core::assert::assert_zeroize_on_drop(self);
+-    }
+-}
+diff --git a/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_tuple_struct_with_non_drop_sentinel_types.snap b/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_tuple_struct_with_non_drop_sentinel_types.snap
+deleted file mode 100644
+index 1759f7a..0000000
+--- a/crates/memzer/derive/src/tests/snapshots/memguard_derive__tests__expand__snapshot_tuple_struct_with_non_drop_sentinel_types.snap
++++ /dev/null
+@@ -1,27 +0,0 @@
+----
+-source: crates/memzer/derive/src/tests/expand.rs
+-assertion_line: 141
+-expression: pretty(token_stream)
+----
+-impl memzer_core::Zeroizable for Sigma {
+-    fn self_zeroize(&mut self) {
+-        self.zeroize();
+-    }
+-}
+-impl memzer_core::ZeroizationProbe for Sigma {
+-    fn is_zeroized(&self) -> bool {
+-        let fields: [&dyn memzer_core::ZeroizationProbe; 2] = [
+-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.0),
+-            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.1),
+-        ];
+-        memzer_core::collections::collection_zeroed(&mut fields.into_iter())
+-    }
+-}
+-impl memzer_core::AssertZeroizeOnDrop for Sigma {
+-    fn clone_drop_sentinel(&self) -> memzer_core::drop_sentinel::DropSentinel {
+-        self.2.clone()
+-    }
+-    fn assert_zeroize_on_drop(self) {
+-        memzer_core::assert::assert_zeroize_on_drop(self);
+-    }
+-}
+diff --git a/docker/Dockerfile.coverage b/docker/Dockerfile.coverage
+index 18b325d..9f62549 100644
+--- a/docker/Dockerfile.coverage
++++ b/docker/Dockerfile.coverage
+@@ -1,28 +1,72 @@
+-FROM rust:1.83-slim
++FROM rust:alpine
+ 
+-# Install required system dependencies and coverage tools
+-RUN apt-get update && apt-get install -y \
+-    build-essential \
+-    pkg-config \
+-    libssl-dev \
+-    curl \
+-    && rm -rf /var/lib/apt/lists/*
++RUN apk add --no-cache \
++  musl-dev \
++  linux-headers \
++  build-base \
++  bash \
++  lcov
+ 
+-# Install cargo-tarpaulin for coverage
+-RUN cargo install cargo-tarpaulin
++# Install cargo-llvm-cov and nightly toolchain
++RUN cargo install cargo-llvm-cov
++RUN rustup component add llvm-tools-preview
++RUN rustup toolchain install nightly
++RUN rustup component add llvm-tools-preview --toolchain nightly
+ 
+-# Set working directory
+ WORKDIR /workspace
+ 
+-# Copy workspace files
+-COPY . .
+-
+-# Run coverage with required capabilities
+-# Generates cobertura XML and HTML reports
+-CMD ["cargo", "tarpaulin", \
+-     "--all-features", \
+-     "--workspace", \
+-     "--out", "Xml", \
+-     "--out", "Html", \
+-     "--output-dir", "coverage", \
+-     "--timeout", "300"]
++# Create directory structure for all workspace crates
++RUN mkdir -p crates/memlock/src
++RUN mkdir -p crates/memcode/src
++RUN mkdir -p crates/memcode/core/src
++RUN mkdir -p crates/memcode/derive/src
++RUN mkdir -p crates/memzer/src
++RUN mkdir -p crates/memzer/core/src
++RUN mkdir -p crates/memzer/derive/src
++RUN mkdir -p crates/memrand/src
++RUN mkdir -p crates/memvault/src
++RUN mkdir -p crates/memcrypt/src
++
++# Copy workspace Cargo.toml and Cargo.lock
++COPY Cargo.toml Cargo.lock ./
++
++# Copy all crate Cargo.toml files
++COPY crates/memlock/Cargo.toml ./crates/memlock/
++COPY crates/memcode/Cargo.toml ./crates/memcode/
++COPY crates/memcode/core/Cargo.toml ./crates/memcode/core/
++COPY crates/memcode/derive/Cargo.toml ./crates/memcode/derive/
++COPY crates/memzer/Cargo.toml ./crates/memzer/
++COPY crates/memzer/core/Cargo.toml ./crates/memzer/core/
++COPY crates/memzer/derive/Cargo.toml ./crates/memzer/derive/
++COPY crates/memrand/Cargo.toml ./crates/memrand/
++COPY crates/memvault/Cargo.toml ./crates/memvault/
++COPY crates/memcrypt/Cargo.toml ./crates/memcrypt/
++
++# Create stub lib.rs files to satisfy cargo build
++RUN mkdir -p crates/memlock/src && echo "// stub" > crates/memlock/src/lib.rs && \
++    mkdir -p crates/memcode/src && echo "// stub" > crates/memcode/src/lib.rs && \
++    mkdir -p crates/memcode/core/src && echo "// stub" > crates/memcode/core/src/lib.rs && \
++    mkdir -p crates/memcode/derive/src && echo "// stub" > crates/memcode/derive/src/lib.rs && \
++    mkdir -p crates/memzer/src && echo "// stub" > crates/memzer/src/lib.rs && \
++    mkdir -p crates/memzer/core/src && echo "// stub" > crates/memzer/core/src/lib.rs && \
++    mkdir -p crates/memzer/derive/src && echo "// stub" > crates/memzer/derive/src/lib.rs && \
++    mkdir -p crates/memrand/src && echo "// stub" > crates/memrand/src/lib.rs && \
++    mkdir -p crates/memvault/src && echo "// stub" > crates/memvault/src/lib.rs && \
++    mkdir -p crates/memcrypt/src && echo "// stub" > crates/memcrypt/src/lib.rs
++
++# Build workspace and dependencies (compiles everything including dev-dependencies)
++RUN cargo test --workspace --all-targets --no-run
++
++# Copy actual source code
++COPY crates ./crates
++
++# Update timestamps to force workspace re-compilation but keep dep artifacts
++RUN find crates -type f -name "*.rs" -exec touch {} \;
++
++# Copy coverage scripts
++COPY docker/coverage-entrypoint.sh /usr/local/bin/coverage-entrypoint.sh
++COPY docker/rustc-nocov-deps.sh /usr/local/bin/rustc-nocov-deps
++RUN chmod +x /usr/local/bin/rustc-nocov-deps
++RUN chmod +x /usr/local/bin/coverage-entrypoint.sh
++
++ENTRYPOINT ["/usr/local/bin/coverage-entrypoint.sh"]
+diff --git a/docker/Dockerfile.test b/docker/Dockerfile.test
+index 6ef6fce..d0d6512 100644
+--- a/docker/Dockerfile.test
++++ b/docker/Dockerfile.test
+@@ -1,21 +1,51 @@
+-FROM rust:1.83-slim
++FROM rust:alpine
+ 
+-# Install required system dependencies
+-RUN apt-get update && apt-get install -y \
+-    build-essential \
+-    pkg-config \
+-    libssl-dev \
+-    && rm -rf /var/lib/apt/lists/*
++RUN apk add --no-cache \
++  musl-dev \
++  linux-headers \
++  build-base \
++  bash
+ 
+-# Set working directory
+ WORKDIR /workspace
+ 
+-# Copy workspace files
+-COPY . .
++# Copy workspace Cargo.toml and Cargo.lock
++COPY Cargo.toml Cargo.lock ./
+ 
+-# Build all crates
+-RUN cargo build --all-features --workspace
++# Copy all crate Cargo.toml files
++COPY crates/memlock/Cargo.toml ./crates/memlock/
++COPY crates/memcode/Cargo.toml ./crates/memcode/
++COPY crates/memcode/core/Cargo.toml ./crates/memcode/core/
++COPY crates/memcode/derive/Cargo.toml ./crates/memcode/derive/
++COPY crates/memzer/Cargo.toml ./crates/memzer/
++COPY crates/memzer/core/Cargo.toml ./crates/memzer/core/
++COPY crates/memzer/derive/Cargo.toml ./crates/memzer/derive/
++COPY crates/memrand/Cargo.toml ./crates/memrand/
++COPY crates/memvault/Cargo.toml ./crates/memvault/
++COPY crates/memcrypt/Cargo.toml ./crates/memcrypt/
+ 
+-# Run tests with required capabilities
+-# Note: This container needs --cap-add=IPC_LOCK to test mlock
+-CMD ["cargo", "test", "--all-features", "--workspace", "--", "--nocapture"]
++# Create stub lib.rs files to satisfy cargo build
++RUN mkdir -p crates/memlock/src && echo "// stub" > crates/memlock/src/lib.rs && \
++    mkdir -p crates/memcode/src && echo "// stub" > crates/memcode/src/lib.rs && \
++    mkdir -p crates/memcode/core/src && echo "// stub" > crates/memcode/core/src/lib.rs && \
++    mkdir -p crates/memcode/derive/src && echo "// stub" > crates/memcode/derive/src/lib.rs && \
++    mkdir -p crates/memzer/src && echo "// stub" > crates/memzer/src/lib.rs && \
++    mkdir -p crates/memzer/core/src && echo "// stub" > crates/memzer/core/src/lib.rs && \
++    mkdir -p crates/memzer/derive/src && echo "// stub" > crates/memzer/derive/src/lib.rs && \
++    mkdir -p crates/memrand/src && echo "// stub" > crates/memrand/src/lib.rs && \
++    mkdir -p crates/memvault/src && echo "// stub" > crates/memvault/src/lib.rs && \
++    mkdir -p crates/memcrypt/src && echo "// stub" > crates/memcrypt/src/lib.rs
++
++# Build workspace and dependencies (compiles everything including dev-dependencies)
++RUN cargo test --workspace --all-targets --no-run
++
++# Copy actual source code
++COPY crates ./crates
++
++# Update timestamps to force workspace re-compilation but keep dep artifacts
++RUN find crates -type f -name "*.rs" -exec touch {} \;
++
++# Entrypoint script
++COPY docker/test-entrypoint.sh /usr/local/bin/test-entrypoint.sh
++RUN chmod +x /usr/local/bin/test-entrypoint.sh
++
++ENTRYPOINT ["/usr/local/bin/test-entrypoint.sh"]
+diff --git a/scripts/Cargo.toml b/scripts/Cargo.toml
+index 4ac233a..1df15be 100644
+--- a/scripts/Cargo.toml
++++ b/scripts/Cargo.toml
+@@ -1,5 +1,5 @@
+ [package]
+-edition = "2021"
++edition = "2024"
+ name    = "generate-snapshots"
+ version = "0.1.0"
+ 
+diff --git a/scripts/coverage.sh b/scripts/coverage.sh
+index 59e604b..41158e9 100755
+--- a/scripts/coverage.sh
++++ b/scripts/coverage.sh
+@@ -1,5 +1,14 @@
+ #!/usr/bin/env bash
+ # Run coverage in Docker with required capabilities
++#
++# Usage:
++#   ./scripts/coverage.sh                    # All crates (aggregated report)
++#   ./scripts/coverage.sh memcode-core       # Single crate only
++#   ./scripts/coverage.sh memzer-core        # Another crate
++#   ./scripts/coverage.sh memcrypt test_utils # Crate with features
++#
++# Note: Single-crate mode uses selective instrumentation to avoid
++# monomorphization pollution from workspace dependencies.
+ 
+ set -euo pipefail
+ 
+@@ -17,8 +26,10 @@ echo "Running coverage with capabilities..."
+ docker run --rm \
+   --cap-add=IPC_LOCK \
+   --cap-add=SYS_RESOURCE \
+-  -v "$COVERAGE_DIR:/workspace/coverage" \
+-  memora-coverage
++  --cap-add=SYS_ADMIN \
++  -v "$COVERAGE_DIR:/.coverage" \
++  memora-coverage "$@"
+ 
++echo ""
+ echo "Coverage report generated in: $COVERAGE_DIR"
+ echo "Open coverage/index.html to view the HTML report"
+diff --git a/scripts/test.sh b/scripts/test.sh
+index 552b98b..760b5c2 100755
+--- a/scripts/test.sh
++++ b/scripts/test.sh
+@@ -1,5 +1,12 @@
+ #!/usr/bin/env bash
+ # Run tests in Docker with required capabilities
++#
++# Usage:
++#   ./scripts/test.sh                              # All tests
++#   ./scripts/test.sh -p memcode-core              # Specific crate
++#   ./scripts/test.sh -p memcode-core test_name    # Specific test
++#   ./scripts/test.sh --lib                        # Only lib tests
++#   ./scripts/test.sh -p memcrypt --features test_utils test_encrypt
+ 
+ set -euo pipefail
+ 

@@ -7,8 +7,8 @@ use core::mem::MaybeUninit;
 use chacha20poly1305::aead::Buffer;
 use zeroize::Zeroize;
 
-use memguard::assert::assert_zeroize_on_drop;
-use memguard::{AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe};
+use memzer::assert::assert_zeroize_on_drop;
+use memzer::{AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe};
 
 use crate::error::CryptoError;
 

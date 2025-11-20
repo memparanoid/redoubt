@@ -1,15 +1,20 @@
 [package]
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-edition = "2024"
-name    = "memcode"
-version = "1.0.0"
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["encoding", "memory-management"]
+description          = "Allocation-free, zeroizing serialization library (umbrella crate)"
+edition.workspace    = true
+keywords             = ["serialization", "zeroize", "security"]
+license.workspace    = true
+name                 = "memcode"
+repository.workspace = true
+version.workspace    = true
 
 [lib]
 path = "src/lib.rs"
 
 [dependencies]
-memcode_core   = { path = "./core" }
-memcode_derive = { path = "./derive" }
+memcode_core.workspace   = true
+memcode_derive.workspace = true
 
 [features]
 test_utils = ["memcode_core/test_utils"]

@@ -5,8 +5,8 @@
 use chacha20poly1305::XNonce as ChachaXNonce;
 use zeroize::Zeroize;
 
-use memguard::assert::assert_zeroize_on_drop;
-use memguard::{AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe};
+use memzer::assert::assert_zeroize_on_drop;
+use memzer::{AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe};
 
 #[derive(Zeroize, Eq, PartialEq)]
 #[zeroize(drop)]

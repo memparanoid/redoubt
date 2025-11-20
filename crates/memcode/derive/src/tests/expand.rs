@@ -24,6 +24,7 @@ fn test_find_root_with_candidates() {
     insta::assert_snapshot!(pretty(ts_2));
 
     // Just to cover all branches
+    // Note: proc-macro-crate uses underscores internally, not hyphens
     let ts_3 = find_root_with_candidates(&["memcode_derive", "memcode_core"]);
     println!("{:?}", ts_3);
     assert_eq!(format!("{:?}", ts_3), "TokenStream [Ident { sym: crate }]");

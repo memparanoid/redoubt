@@ -4,17 +4,17 @@
 
 use zeroize::Zeroize;
 
-use memguard::{
-    DropSentinel, MemEncodeBuf, MemGuard, Secret, Zeroizable, ZeroizationProbe, ZeroizingMutGuard,
+use memzer::{
+    DropSentinel, MemEncodeBuf, MemZer, Secret, Zeroizable, ZeroizationProbe, ZeroizingMutGuard,
 };
 
 use crate::aead_buffer::AeadBuffer;
 use crate::aead_key::AeadKey;
 use crate::xnonce::XNonce;
 
-#[derive(Zeroize, MemGuard)]
+#[derive(Zeroize, MemZer)]
 #[zeroize(drop)]
-pub struct EncryptionMemGuard<'a, T: Zeroize + Zeroizable + ZeroizationProbe + Sized> {
+pub struct EncryptionMemZer<'a, T: Zeroize + Zeroizable + ZeroizationProbe + Sized> {
     pub aead_key: ZeroizingMutGuard<'a, AeadKey>,
     pub aead_key_size: usize,
     pub xnonce: ZeroizingMutGuard<'a, XNonce>,
@@ -24,7 +24,7 @@ pub struct EncryptionMemGuard<'a, T: Zeroize + Zeroizable + ZeroizationProbe + S
     __drop_sentinel: DropSentinel,
 }
 
-impl<'a, T: Zeroize + Zeroizable + ZeroizationProbe + Sized> EncryptionMemGuard<'a, T> {
+impl<'a, T: Zeroize + Zeroizable + ZeroizationProbe + Sized> EncryptionMemZer<'a, T> {
     pub fn new(aead_key: &'a mut AeadKey, xnonce: &'a mut XNonce, value: &'a mut T) -> Self {
         let aead_key_size = aead_key.as_ref().len();
 
@@ -40,9 +40,9 @@ impl<'a, T: Zeroize + Zeroizable + ZeroizationProbe + Sized> EncryptionMemGuard<
     }
 }
 
-#[derive(Zeroize, MemGuard)]
+#[derive(Zeroize, MemZer)]
 #[zeroize(drop)]
-pub struct DecryptionMemGuard<'a> {
+pub struct DecryptionMemZer<'a> {
     pub aead_key: ZeroizingMutGuard<'a, AeadKey>,
     pub aead_key_size: usize,
     pub xnonce: ZeroizingMutGuard<'a, XNonce>,
@@ -51,7 +51,7 @@ pub struct DecryptionMemGuard<'a> {
     __drop_sentinel: DropSentinel,
 }
 
-impl<'a> DecryptionMemGuard<'a> {
+impl<'a> DecryptionMemZer<'a> {
     pub fn new(
         aead_key: &'a mut AeadKey,
         xnonce: &'a mut XNonce,

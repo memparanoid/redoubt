@@ -17,21 +17,21 @@ resolver = "2"
   [workspace.package]
   edition    = "2024"
   license    = "GPL-3.0-only"
-  repository = "https://github.com/yourusername/memora"
-  version    = "0.1.0"
+  repository = "https://github.com/memparanoid/memora"
+  version    = "0.0.1"
 
   [workspace.dependencies]
   # Internal crates
   memcode        = { path = "crates/memcode" }
-  memcode-core   = { path = "crates/memcode/core" }
-  memcode-derive = { path = "crates/memcode/derive" }
+  memcode_core   = { path = "crates/memcode/core" }
+  memcode_derive = { path = "crates/memcode/derive" }
   memcrypt       = { path = "crates/memcrypt" }
   memlock        = { path = "crates/memlock" }
   memrand        = { path = "crates/memrand" }
   memvault       = { path = "crates/memvault" }
   memzer         = { path = "crates/memzer" }
-  memzer-core    = { path = "crates/memzer/core" }
-  memzer-derive  = { path = "crates/memzer/derive" }
+  memzer_core    = { path = "crates/memzer/core" }
+  memzer_derive  = { path = "crates/memzer/derive" }
 
   # External dependencies
   getrandom = "0.2"
@@ -41,12 +41,16 @@ resolver = "2"
 
   # Dev dependencies
   criterion = "0.5"
+  insta     = { version = "1.43.2", features = ["redactions"] }
   proptest  = "1.4"
 
 [profile.release]
 codegen-units = 1
 lto           = true
 opt-level     = 3
+
+[profile.test]
+panic = "unwind"
 
 [profile.bench]
 inherits = "release"

@@ -1,22 +1,27 @@
 [package]
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-edition = "2024"
-name    = "memcode_core"
-version = "1.0.0"
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["encoding", "memory-management"]
+description          = "Allocation-free, zeroizing serialization for sensitive data"
+edition.workspace    = true
+keywords             = ["serialization", "zeroize", "security"]
+license.workspace    = true
+name                 = "memcode_core"
+repository.workspace = true
+version.workspace    = true
 
 [lib]
 path = "src/lib.rs"
 
 [dependencies]
-thiserror = "2.0.16"
-zeroize   = { version = "1.8.1", features = ["zeroize_derive"] }
+thiserror         = "2.0.16"
+zeroize.workspace = true
 
 [dev-dependencies]
-insta     = { version = "1.43.2", features = ["redactions"] }
-paste     = "1.0.0"
-proptest  = "1.9.0"
-seq-macro = "0.3.6"
-speculate = "0.1.2"
+insta.workspace    = true
+paste              = "1.0.0"
+proptest.workspace = true
+seq-macro          = "0.3.6"
+speculate          = "0.1.2"
 
 [features]
 test_utils = []

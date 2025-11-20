@@ -4,7 +4,7 @@
 
 use chacha20poly1305::XNonce as ChaCha20Poly1305XNonce;
 
-use memguard::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
+use memzer::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
 
 use crate::xnonce::XNonce;
 
