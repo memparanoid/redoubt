@@ -1,21 +1,51 @@
-FROM rust:1.83-slim
+FROM rust:alpine
 
-# Install required system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    pkg-config \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache \
+  musl-dev \
+  linux-headers \
+  build-base \
+  bash
 
-# Set working directory
 WORKDIR /workspace
 
-# Copy workspace files
-COPY . .
+# Copy workspace Cargo.toml and Cargo.lock
+COPY Cargo.toml Cargo.lock ./
 
-# Build all crates
-RUN cargo build --all-features --workspace
+# Copy all crate Cargo.toml files
+COPY crates/memlock/Cargo.toml ./crates/memlock/
+COPY crates/memcode/Cargo.toml ./crates/memcode/
+COPY crates/memcode/core/Cargo.toml ./crates/memcode/core/
+COPY crates/memcode/derive/Cargo.toml ./crates/memcode/derive/
+COPY crates/memzer/Cargo.toml ./crates/memzer/
+COPY crates/memzer/core/Cargo.toml ./crates/memzer/core/
+COPY crates/memzer/derive/Cargo.toml ./crates/memzer/derive/
+COPY crates/memrand/Cargo.toml ./crates/memrand/
+COPY crates/memvault/Cargo.toml ./crates/memvault/
+COPY crates/memcrypt/Cargo.toml ./crates/memcrypt/
 
-# Run tests with required capabilities
-# Note: This container needs --cap-add=IPC_LOCK to test mlock
-CMD ["cargo", "test", "--all-features", "--workspace", "--", "--nocapture"]
+# Create stub lib.rs files to satisfy cargo build
+RUN mkdir -p crates/memlock/src && echo "// stub" > crates/memlock/src/lib.rs && \
+    mkdir -p crates/memcode/src && echo "// stub" > crates/memcode/src/lib.rs && \
+    mkdir -p crates/memcode/core/src && echo "// stub" > crates/memcode/core/src/lib.rs && \
+    mkdir -p crates/memcode/derive/src && echo "// stub" > crates/memcode/derive/src/lib.rs && \
+    mkdir -p crates/memzer/src && echo "// stub" > crates/memzer/src/lib.rs && \
+    mkdir -p crates/memzer/core/src && echo "// stub" > crates/memzer/core/src/lib.rs && \
+    mkdir -p crates/memzer/derive/src && echo "// stub" > crates/memzer/derive/src/lib.rs && \
+    mkdir -p crates/memrand/src && echo "// stub" > crates/memrand/src/lib.rs && \
+    mkdir -p crates/memvault/src && echo "// stub" > crates/memvault/src/lib.rs && \
+    mkdir -p crates/memcrypt/src && echo "// stub" > crates/memcrypt/src/lib.rs
+
+# Build workspace and dependencies (compiles everything including dev-dependencies)
+RUN cargo test --workspace --all-targets --no-run
+
+# Copy actual source code
+COPY crates ./crates
+
+# Update timestamps to force workspace re-compilation but keep dep artifacts
+RUN find crates -type f -name "*.rs" -exec touch {} \;
+
+# Entrypoint script
+COPY docker/test-entrypoint.sh /usr/local/bin/test-entrypoint.sh
+RUN chmod +x /usr/local/bin/test-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/test-entrypoint.sh"]
