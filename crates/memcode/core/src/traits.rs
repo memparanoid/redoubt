@@ -32,11 +32,11 @@ pub trait MemEncodable: MemEncode + MemNumElements + MemBytesRequired {}
 pub trait MemDecodable: MemDecode + MemBytesRequired {}
 
 pub trait EncodeIterator {
-    fn encode_iter_mut(&mut self) -> impl Iterator<Item = &mut (dyn MemEncodable)>;
+    fn encode_iter_mut(&mut self) -> impl Iterator<Item = &mut dyn MemEncodable>;
 }
 
 pub trait DecodeIterator {
-    fn decode_iter_mut(&mut self) -> impl Iterator<Item = &mut (dyn MemDecodable)>;
+    fn decode_iter_mut(&mut self) -> impl Iterator<Item = &mut dyn MemDecodable>;
 }
 
 pub trait CollectionEncode: EncodeIterator + MemEncodable {}

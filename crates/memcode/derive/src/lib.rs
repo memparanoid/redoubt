@@ -145,7 +145,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         }
 
         impl #impl_generics #root::DecodeIterator for #struct_name #ty_generics #where_clause {
-          fn decode_iter_mut(&mut self) -> impl Iterator<Item = &mut (dyn #root::MemDecodable)> {
+          fn decode_iter_mut(&mut self) -> impl Iterator<Item = &mut dyn #root::MemDecodable> {
               let collection: [&mut dyn #root::MemDecodable; #len_lit] = [
                 #( #root::collections::to_decode_dyn_mut(#mut_refs) ),*
               ];
@@ -154,7 +154,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         }
 
         impl #impl_generics #root::EncodeIterator for #struct_name #ty_generics #where_clause {
-          fn encode_iter_mut(&mut self) -> impl Iterator<Item = &mut (dyn #root::MemEncodable)> {
+          fn encode_iter_mut(&mut self) -> impl Iterator<Item = &mut dyn #root::MemEncodable> {
               let collection: [&mut dyn #root::MemEncodable; #len_lit] = [
                 #( #root::collections::to_encode_dyn_mut(#mut_refs) ),*
               ];

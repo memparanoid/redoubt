@@ -125,7 +125,7 @@ impl MemDecode for MemCodeTestBreaker {
 }
 
 impl DecodeIterator for MemCodeTestBreaker {
-    fn decode_iter_mut(&mut self) -> impl Iterator<Item = &mut (dyn MemDecodable)> {
+    fn decode_iter_mut(&mut self) -> impl Iterator<Item = &mut dyn MemDecodable> {
         let collection: [&mut dyn MemDecodable; 1] =
             [collections::to_decode_dyn_mut(&mut self.data)];
         collection.into_iter()
@@ -133,7 +133,7 @@ impl DecodeIterator for MemCodeTestBreaker {
 }
 
 impl EncodeIterator for MemCodeTestBreaker {
-    fn encode_iter_mut(&mut self) -> impl Iterator<Item = &mut (dyn MemEncodable)> {
+    fn encode_iter_mut(&mut self) -> impl Iterator<Item = &mut dyn MemEncodable> {
         let collection: [&mut dyn MemEncodable; 1] =
             [collections::to_encode_dyn_mut(&mut self.data)];
         collection.into_iter()

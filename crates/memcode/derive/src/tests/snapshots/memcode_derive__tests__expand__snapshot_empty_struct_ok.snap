@@ -43,7 +43,7 @@ impl memcode_core::MemDecode for Sigma {
 impl memcode_core::DecodeIterator for Sigma {
     fn decode_iter_mut(
         &mut self,
-    ) -> impl Iterator<Item = &mut (dyn memcode_core::MemDecodable)> {
+    ) -> impl Iterator<Item = &mut dyn memcode_core::MemDecodable> {
         let collection: [&mut dyn memcode_core::MemDecodable; 0] = [];
         collection.into_iter()
     }
@@ -51,7 +51,7 @@ impl memcode_core::DecodeIterator for Sigma {
 impl memcode_core::EncodeIterator for Sigma {
     fn encode_iter_mut(
         &mut self,
-    ) -> impl Iterator<Item = &mut (dyn memcode_core::MemEncodable)> {
+    ) -> impl Iterator<Item = &mut dyn memcode_core::MemEncodable> {
         let collection: [&mut dyn memcode_core::MemEncodable; 0] = [];
         collection.into_iter()
     }

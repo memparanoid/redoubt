@@ -159,7 +159,7 @@ impl<T> DecodeIterator for Secret<T>
 where
     T: Zeroize + Zeroizable + ZeroizationProbe + MemDecodable,
 {
-    fn decode_iter_mut(&mut self) -> impl Iterator<Item = &mut (dyn MemDecodable)> {
+    fn decode_iter_mut(&mut self) -> impl Iterator<Item = &mut dyn MemDecodable> {
         let collection: [&mut dyn MemDecodable; 2] = [
             collections::to_decode_dyn_mut(&mut self.__drop_sentinel),
             collections::to_decode_dyn_mut(&mut self.inner),
@@ -174,7 +174,7 @@ impl<T> EncodeIterator for Secret<T>
 where
     T: Zeroize + Zeroizable + ZeroizationProbe + MemEncodable,
 {
-    fn encode_iter_mut(&mut self) -> impl Iterator<Item = &mut (dyn MemEncodable)> {
+    fn encode_iter_mut(&mut self) -> impl Iterator<Item = &mut dyn MemEncodable> {
         let collection: [&mut dyn MemEncodable; 2] = [
             collections::to_encode_dyn_mut(&mut self.__drop_sentinel),
             collections::to_encode_dyn_mut(&mut self.inner),
