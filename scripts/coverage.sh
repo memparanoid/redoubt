@@ -20,7 +20,7 @@ COVERAGE_DIR="$PROJECT_ROOT/coverage"
 mkdir -p "$COVERAGE_DIR"
 
 echo "Building coverage Docker image..."
-docker build -f "$PROJECT_ROOT/docker/Dockerfile.coverage" -t memora-coverage "$PROJECT_ROOT"
+DOCKER_BUILDKIT=1 docker build -f "$PROJECT_ROOT/docker/Dockerfile.coverage" -t memora-coverage "$PROJECT_ROOT"
 
 echo "Running coverage with capabilities..."
 docker run --rm \
@@ -28,6 +28,8 @@ docker run --rm \
   --cap-add=SYS_RESOURCE \
   --cap-add=SYS_ADMIN \
   -v "$COVERAGE_DIR:/.coverage" \
+  -v memora-cargo-cache:/usr/local/cargo/registry \
+  -v memora-coverage-target-cache:/workspace/target \
   memora-coverage "$@"
 
 echo ""

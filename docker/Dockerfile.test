@@ -35,8 +35,10 @@ RUN mkdir -p crates/memlock/src && echo "// stub" > crates/memlock/src/lib.rs &&
     mkdir -p crates/memvault/src && echo "// stub" > crates/memvault/src/lib.rs && \
     mkdir -p crates/memcrypt/src && echo "// stub" > crates/memcrypt/src/lib.rs
 
-# Build workspace and dependencies (compiles everything including dev-dependencies)
-RUN cargo test --workspace --all-targets --no-run
+# Build workspace and dependencies with cache mount
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/workspace/target \
+    cargo test --workspace --all-targets --no-run
 
 # Copy actual source code
 COPY crates ./crates
