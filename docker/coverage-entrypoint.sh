@@ -73,7 +73,7 @@ cargo +nightly llvm-cov clean
 mkdir -p "$OUT"
 
 # --- Per-crate runs ---
-mk memlock
+mk memprotect
 mk memcode
 mk memcode_core
 mk memcode_derive

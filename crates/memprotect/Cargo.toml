@@ -1,10 +1,10 @@
 [package]
 categories           = ["memory-management", "os"]
-description          = "Memory locking utilities - prevents swapping to disk"
+description          = "TBD"
 edition.workspace    = true
 keywords             = ["security", "memory", "mlock", "swap"]
 license.workspace    = true
-name                 = "memlock"
+name                 = "memprotect"
 repository.workspace = true
 version.workspace    = true
 

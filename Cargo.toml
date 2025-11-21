@@ -1,7 +1,7 @@
 [workspace]
 exclude = ["scripts"]
 members = [
-  "crates/memlock",
+  "crates/memprotect",
   "crates/memcode",
   "crates/memcode/core",
   "crates/memcode/derive",
@@ -26,7 +26,7 @@ resolver = "2"
   memcode_core   = { path = "crates/memcode/core" }
   memcode_derive = { path = "crates/memcode/derive" }
   memcrypt       = { path = "crates/memcrypt" }
-  memlock        = { path = "crates/memlock" }
+  memprotect     = { path = "crates/memprotect" }
   memrand        = { path = "crates/memrand" }
   memvault       = { path = "crates/memvault" }
   memzer         = { path = "crates/memzer" }

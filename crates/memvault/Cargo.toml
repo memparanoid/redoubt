@@ -14,7 +14,6 @@ path = "src/lib.rs"
 [dependencies]
 memcode.workspace  = true
 memcrypt.workspace = true
-memlock.workspace  = true
 memzer.workspace   = true
 
 [dev-dependencies]
