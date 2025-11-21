@@ -34,15 +34,15 @@ resolver = "2"
   memzer_derive  = { path = "crates/memzer/derive" }
 
   # External dependencies
-  getrandom = "0.2"
-  libc      = "0.2"
-  subtle    = "2.5"
-  zeroize   = { version = "1.7", features = ["derive"] }
+  getrandom = "0.3"
+  libc      = "0.2.177"
+  subtle    = "2.6"
+  zeroize   = { version = "1.8.1", features = ["zeroize_derive"] }
 
   # Dev dependencies
   criterion = "0.5"
   insta     = { version = "1.43.2", features = ["redactions"] }
-  proptest  = "1.4"
+  proptest  = "1.9.0"
 
 [profile.release]
 codegen-units = 1
