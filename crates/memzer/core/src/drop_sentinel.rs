@@ -5,8 +5,8 @@
 // See the LICENSE file for details.
 extern crate alloc;
 
-use alloc::rc::Rc;
-use core::cell::Cell;
+use alloc::sync::Arc;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use zeroize::Zeroize;
 
@@ -69,8 +69,16 @@ use memcode_core::{
 /// sentinel.zeroize();
 /// assert!(sentinel_clone.is_dropped());
 /// ```
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DropSentinel(Rc<Cell<bool>>);
+#[derive(Clone, Debug)]
+pub struct DropSentinel(Arc<AtomicBool>);
+
+impl PartialEq for DropSentinel {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.load(Ordering::Relaxed) == other.0.load(Ordering::Relaxed)
+    }
+}
+
+impl Eq for DropSentinel {}
 
 impl DropSentinel {
     /// Resets the sentinel to "not zeroized" state.
@@ -91,7 +99,7 @@ impl DropSentinel {
     /// assert!(!sentinel.is_dropped());
     /// ```
     pub fn reset(&mut self) {
-        self.0.set(false);
+        self.0.store(false, Ordering::Relaxed);
     }
 
     /// Checks if zeroization happened (i.e., if `.zeroize()` was called).
@@ -111,19 +119,19 @@ impl DropSentinel {
     /// assert!(sentinel.is_dropped());
     /// ```
     pub fn is_dropped(&self) -> bool {
-        self.0.get()
+        self.0.load(Ordering::Relaxed)
     }
 }
 
 impl Default for DropSentinel {
     fn default() -> Self {
-        Self(Rc::new(Cell::new(false)))
+        Self(Arc::new(AtomicBool::new(false)))
     }
 }
 
 impl Zeroize for DropSentinel {
     fn zeroize(&mut self) {
-        self.0.set(true);
+        self.0.store(true, Ordering::Relaxed);
     }
 }
 
@@ -163,7 +171,7 @@ impl MemEncode for DropSentinel {
         &mut self,
         buf: &mut memcode_core::MemEncodeBuf,
     ) -> Result<(), memcode_core::MemEncodeError> {
-        if self.0.get() {
+        if self.0.load(Ordering::Relaxed) {
             buf.drain_byte(&mut 1)?;
         } else {
             buf.drain_byte(&mut 0)?;
@@ -196,9 +204,9 @@ impl MemDecode for DropSentinel {
         array.zeroize();
 
         if value == 0 {
-            self.0.set(false);
+            self.0.store(false, Ordering::Relaxed);
         } else {
-            self.0.set(true);
+            self.0.store(true, Ordering::Relaxed);
         }
 
         Ok(expected_size)
