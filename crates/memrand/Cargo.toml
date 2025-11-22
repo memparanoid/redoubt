@@ -13,6 +13,10 @@ path = "src/lib.rs"
 
 [dependencies]
 getrandom.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+
+[features]
+test_utils = []

@@ -4,7 +4,21 @@
 
 //! # Memrand
 //!
-//! Secure random number generation for Memora framework
+//! random number generation utilities for Memora framework
 
 #![warn(missing_docs)]
 #![warn(unsafe_op_in_unsafe_fn)]
+
+#[cfg(test)]
+mod tests;
+
+mod error;
+mod support;
+mod system;
+mod traits;
+
+pub use system::SystemEntropySource;
+pub use traits::EntropySource;
+
+#[cfg(any(test, feature = "test_utils"))]
+pub use support::test_utils;
