@@ -95,8 +95,8 @@ impl AeadBuffer {
             return Err(CryptoError::AeadBufferNotZeroized);
         }
 
-        self.inner.zeroize();
         self.inner.reserve_exact(capacity);
+
         Ok(())
     }
 
