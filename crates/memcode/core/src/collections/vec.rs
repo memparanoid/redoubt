@@ -89,6 +89,12 @@ where
     T: Default + Zeroize + MemDecodable,
 {
     fn prepare_with_num_elements(&mut self, num_elements: usize) -> Result<(), MemDecodeError> {
+        // SAFETY: `Zeroize::zeroize()` for `Vec<T>` clears BOTH active elements [0..len()]
+        // AND spare capacity [len()..capacity()]. This is verified by test
+        // `memzer_core::tests::utils::test_is_vec_fully_zeroized`.
+        //
+        // This makes the subsequent `resize_with()` safe: we're expanding over
+        // a fully zeroized allocation, preventing leaks of previous sensitive data.
         self.zeroize();
         self.shrink_to_fit();
         self.resize_with(num_elements, || T::default());
