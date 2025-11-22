@@ -38,8 +38,8 @@ fn test_bytes_guard() {
     }
 
     fn with_guard_mut(bytes: &mut [u8]) -> bool {
-        for i in 0..bytes.len() {
-            bytes[i] *= 2;
+        for item in bytes.iter_mut() {
+            *item *= 2;
         }
 
         bytes == &[0, 2, 4, 6, 8, 10]
