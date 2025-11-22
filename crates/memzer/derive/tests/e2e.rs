@@ -9,12 +9,12 @@ use zeroize::Zeroize;
 fn main() {
     #[derive(Zeroize, MemZer)]
     #[zeroize(drop)]
-    struct Foo {
+    struct SensitiveData {
         pub data: Secret<Vec<u8>>,
         __drop_sentinel: DropSentinel,
     }
 
-    impl Default for Foo {
+    impl Default for SensitiveData {
         fn default() -> Self {
             Self {
                 data: Secret::from(vec![1, 2, 3, 4]),
@@ -23,15 +23,15 @@ fn main() {
         }
     }
 
-    let mut foo = Foo::default();
+    let mut sensitive_data = SensitiveData::default();
 
     // Assert (not) zeroization!
-    assert!(!foo.is_zeroized());
+    assert!(!sensitive_data.is_zeroized());
 
-    foo.zeroize();
+    sensitive_data.zeroize();
 
     // Assert zeroization!
-    assert!(foo.is_zeroized());
+    assert!(sensitive_data.is_zeroized());
 
-    foo.assert_zeroize_on_drop();
+    sensitive_data.assert_zeroize_on_drop();
 }
