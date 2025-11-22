@@ -4,7 +4,7 @@
 
 use crate::traits::{Zeroizable, ZeroizationProbe};
 
-use super::utils::{is_zeroed_array, is_zeroed_slice, is_zeroed_vec};
+use super::support::utils::{is_zeroed_array, is_zeroed_slice, is_zeroed_vec};
 
 const SIZE: usize = (u16::MAX / 4) as usize;
 
