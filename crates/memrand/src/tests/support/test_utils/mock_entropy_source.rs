@@ -2,13 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::SystemEntropySource;
 use crate::error::EntropyError;
-use crate::support::test_utils::{
-    MockEntropySource, MockEntropySourceBehaviour, MockXNonceGeneratorBehaviour,
-    MockXNonceSessionGenerator,
-};
-use crate::traits::{EntropySource, XNonceGenerator};
+use crate::support::test_utils::{MockEntropySource, MockEntropySourceBehaviour};
+use crate::traits::EntropySource;
 
 #[test]
 fn test_mock_entropy_source_behaviour_none() {
