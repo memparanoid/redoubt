@@ -99,8 +99,8 @@ fn test_encode_fails_due_to_mem_encode_buf_insufficient_capacity() {
             let actual_required_bytes = max_value
                 .mem_bytes_required()
                 .expect("Failed to get mem_bytes_required()");
-            let less_bytes_tan_required = actual_required_bytes - 1;
-            let mut buf = MemEncodeBuf::new(less_bytes_tan_required);
+            let less_bytes_than_required = actual_required_bytes - 1;
+            let mut buf = MemEncodeBuf::new(less_bytes_than_required);
 
             let result = max_value.drain_into(&mut buf);
 

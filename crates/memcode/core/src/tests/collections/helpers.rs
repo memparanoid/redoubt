@@ -80,7 +80,7 @@ fn test_mem_bytes_required_propagates_element_overflow_error() {
 }
 
 #[test]
-fn test_mem_bytes_required_propagages_collection_overflow_error() {
+fn test_mem_bytes_required_propagates_collection_overflow_error() {
     let mut collection = Vec::new();
 
     collection.push(MemCodeTestBreaker::new(
@@ -236,7 +236,7 @@ fn test_extract_collection_header() {
 
     // Scope 2: bytes.len() < header_size -> InvariantViolated
     {
-        let mut bytes = [0u8; 8]; // Solo 8 bytes, necesita 16
+        let mut bytes = [0u8; 8];
         let mut cursor = 0;
         let result = extract_collection_header(&mut bytes, &mut cursor);
         assert!(matches!(result, Err(MemDecodeError::InvariantViolated)));

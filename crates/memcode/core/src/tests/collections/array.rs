@@ -36,7 +36,7 @@ fn test_array_encode_decode_roundtrip() {
 }
 
 #[test]
-fn test_vec_prepare_with_num_elements_reports_inviarant_violated() {
+fn test_vec_prepare_with_num_elements_reports_invariant_violated() {
     let mut array = [u128::MAX; 2048];
 
     let result = array.prepare_with_num_elements(1024);
