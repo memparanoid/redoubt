@@ -8,6 +8,8 @@ use memzer::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
 
 use crate::xnonce::XNonce;
 
+use super::support::create_xnonce_from_array;
+
 #[test]
 fn test_xnonce_memguard_traits() {
     let mut nonce = XNonce::default();
@@ -25,14 +27,8 @@ fn test_xnonce_memguard_traits() {
 }
 
 #[test]
-fn test_xnonce_from() {
-    let nonce = XNonce::from([2u8; 24]);
-    assert_eq!(nonce.as_ref(), &[2u8; 24]);
-}
-
-#[test]
 fn test_xnonce_as_ref() {
-    let nonce = XNonce::from([1u8; 24]);
+    let nonce = create_xnonce_from_array([1u8; 24]);
 
     fn with_ref(nonce: &ChaCha20Poly1305XNonce) -> bool {
         nonce.len() == 24
@@ -51,5 +47,5 @@ fn test_xnonce_fill_exact() {
     // Assert zeroization!
     assert!(bytes.iter().all(|b| *b == 0));
 
-    assert_eq!(nonce, XNonce::from([1u8; 24]));
+    assert_eq!(nonce, create_xnonce_from_array([1u8; 24]));
 }

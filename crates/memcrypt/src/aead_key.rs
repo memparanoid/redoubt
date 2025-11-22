@@ -47,35 +47,18 @@ use memzer::{
 #[zeroize(drop)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct AeadKey {
-    pub key: Key,
+    inner: Key,
     __drop_sentinel: DropSentinel,
 }
 
 impl AsRef<Key> for AeadKey {
     #[inline]
     fn as_ref(&self) -> &Key {
-        &self.key
+        &self.inner
     }
 }
 
 impl AeadKey {
-    /// Creates a new `AeadKey` from a 32-byte array.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use memcrypt::AeadKey;
-    ///
-    /// let key = AeadKey::from([1u8; 32]);
-    /// assert_eq!(key.as_ref().len(), 32);
-    /// ```
-    pub fn from(bytes: [u8; 32]) -> Self {
-        Self {
-            key: Key::from(bytes),
-            __drop_sentinel: DropSentinel::default(),
-        }
-    }
-
     /// Fills this key with bytes from the provided buffer, zeroizing both the old key and the source buffer.
     ///
     /// This method:
@@ -101,9 +84,9 @@ impl AeadKey {
     /// assert!(key.as_ref().iter().all(|&b| b == 37));
     /// ```
     pub fn fill_exact(&mut self, bytes: &mut [u8; 32]) {
-        self.key.zeroize();
-        self.key.copy_from_slice(bytes);
-        bytes.zeroize();
+        for (i, byte) in self.inner.iter_mut().enumerate() {
+            *byte = core::mem::take(&mut bytes[i]);
+        }
     }
 }
 
@@ -125,7 +108,7 @@ impl Zeroizable for AeadKey {
 
 impl ZeroizationProbe for AeadKey {
     fn is_zeroized(&self) -> bool {
-        self.key.as_slice().iter().all(|b| *b == 0)
+        self.inner.as_slice().iter().all(|b| *b == 0)
     }
 }
 

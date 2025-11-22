@@ -2,24 +2,25 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::aead_key::AeadKey;
 use crate::decrypt::decrypt_mem_decodable;
 use crate::encrypt::encrypt_mem_encodable;
-use crate::xnonce::XNonce;
 
-use super::support::{MemCodeTestBreaker, MemCodeTestBreakerBehaviour};
+use super::support::{
+    MemCodeTestBreaker, MemCodeTestBreakerBehaviour, create_key_from_array,
+    create_xnonce_from_array,
+};
 
 #[test]
 fn test_encrypt_decrypt_roundtrip() {
-    let mut aead_key = AeadKey::from([1u8; 32]);
-    let mut xnonce = XNonce::from([2u8; 24]);
+    let mut aead_key = create_key_from_array([1u8; 32]);
+    let mut xnonce = create_xnonce_from_array([2u8; 24]);
     let mut test_breaker = MemCodeTestBreaker::new(MemCodeTestBreakerBehaviour::None);
 
     let test_breaker_snapshot = format!("{:?}", test_breaker);
 
     let mut ciphertext = {
-        let mut aead_key_clone = AeadKey::from([1u8; 32]);
-        let mut xnonce_clone = XNonce::from([2u8; 24]);
+        let mut aead_key_clone = create_key_from_array([1u8; 32]);
+        let mut xnonce_clone = create_xnonce_from_array([2u8; 24]);
         encrypt_mem_encodable(&mut aead_key_clone, &mut xnonce_clone, &mut test_breaker)
             .expect("Failed to encrypt_mem_encodable(..)")
     };

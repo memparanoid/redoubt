@@ -5,18 +5,19 @@
 use memcode::MemEncodeError;
 use memzer::ZeroizationProbe;
 
-use crate::aead_key::AeadKey;
 use crate::encrypt::{EncryptStage, encrypt_mem_encodable_with};
 use crate::error::CryptoError;
 use crate::guards::EncryptionMemZer;
-use crate::xnonce::XNonce;
 
-use super::support::{MemCodeTestBreaker, MemCodeTestBreakerBehaviour};
+use super::support::{
+    MemCodeTestBreaker, MemCodeTestBreakerBehaviour, create_key_from_array,
+    create_xnonce_from_array,
+};
 
 #[test]
 fn test_encrypt_mem_encodable_stage_mem_bytes_required_failure() {
-    let mut aead_key = AeadKey::from([1u8; 32]);
-    let mut xnonce = XNonce::from([2u8; 24]);
+    let mut aead_key = create_key_from_array([1u8; 32]);
+    let mut xnonce = create_xnonce_from_array([2u8; 24]);
     let mut test_breaker = MemCodeTestBreaker::new(MemCodeTestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
@@ -45,8 +46,8 @@ fn test_encrypt_mem_encodable_stage_mem_bytes_required_failure() {
 
 #[test]
 fn test_encrypt_mem_encodable_stage_drain_into_failure() {
-    let mut aead_key = AeadKey::from([1u8; 32]);
-    let mut xnonce = XNonce::from([2u8; 24]);
+    let mut aead_key = create_key_from_array([1u8; 32]);
+    let mut xnonce = create_xnonce_from_array([2u8; 24]);
     let mut test_breaker = MemCodeTestBreaker::new(MemCodeTestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
@@ -79,8 +80,8 @@ fn test_encrypt_mem_encodable_stage_drain_into_failure() {
 
 #[test]
 fn test_encrypt_mem_encodable_stage_aead_buffer_fill_with_plaintext_failure() {
-    let mut aead_key = AeadKey::from([1u8; 32]);
-    let mut xnonce = XNonce::from([2u8; 24]);
+    let mut aead_key = create_key_from_array([1u8; 32]);
+    let mut xnonce = create_xnonce_from_array([2u8; 24]);
     let mut test_breaker = MemCodeTestBreaker::new(MemCodeTestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
@@ -113,8 +114,8 @@ fn test_encrypt_mem_encodable_stage_aead_buffer_fill_with_plaintext_failure() {
 
 #[test]
 fn test_encrypt_mem_encodable_stage_encrypt_failure() {
-    let mut aead_key = AeadKey::from([1u8; 32]);
-    let mut xnonce = XNonce::from([2u8; 24]);
+    let mut aead_key = create_key_from_array([1u8; 32]);
+    let mut xnonce = create_xnonce_from_array([2u8; 24]);
     let mut test_breaker = MemCodeTestBreaker::new(MemCodeTestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
@@ -140,8 +141,8 @@ fn test_encrypt_mem_encodable_stage_encrypt_failure() {
 
 #[test]
 fn test_encrypt_mem_encodable_ok() {
-    let mut aead_key = AeadKey::from([1u8; 32]);
-    let mut xnonce = XNonce::from([2u8; 24]);
+    let mut aead_key = create_key_from_array([1u8; 32]);
+    let mut xnonce = create_xnonce_from_array([2u8; 24]);
     let mut test_breaker = MemCodeTestBreaker::new(MemCodeTestBreakerBehaviour::None);
 
     // Assert (not) zeroization!

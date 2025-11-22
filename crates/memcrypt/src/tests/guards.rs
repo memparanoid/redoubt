@@ -6,16 +6,14 @@ use zeroize::Zeroize;
 
 use memzer::{AssertZeroizeOnDrop, Secret, ZeroizationProbe};
 
-use crate::aead_key::AeadKey;
 use crate::guards::{DecryptionMemZer, EncryptionMemZer};
-use crate::xnonce::XNonce;
 
-use super::support::MemCodeTestBreaker;
+use super::support::{MemCodeTestBreaker, create_key_from_array, create_xnonce_from_array};
 
 #[test]
 fn test_encryption_mem_guard() {
-    let mut aead_key = AeadKey::from([u8::MAX; 32]);
-    let mut xnonce = XNonce::from([u8::MAX; 24]);
+    let mut aead_key = create_key_from_array([u8::MAX; 32]);
+    let mut xnonce = create_xnonce_from_array([u8::MAX; 24]);
 
     let mut test_breaker = MemCodeTestBreaker::default();
 
@@ -33,8 +31,8 @@ fn test_encryption_mem_guard() {
 
 #[test]
 fn test_decryption_mem_guard() {
-    let mut aead_key = AeadKey::from([u8::MAX; 32]);
-    let mut xnonce = XNonce::from([u8::MAX; 24]);
+    let mut aead_key = create_key_from_array([u8::MAX; 32]);
+    let mut xnonce = create_xnonce_from_array([u8::MAX; 24]);
 
     let mut ciphertext = Secret::from(vec![1u8; 64]);
 

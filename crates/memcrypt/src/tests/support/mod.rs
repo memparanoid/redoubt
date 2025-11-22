@@ -3,6 +3,8 @@
 // See LICENSE in the repository root for full license text.
 
 mod memcode_test_breaker;
+mod utils;
 
 pub(crate) use memcode::MemCodeTestBreakerBehaviour;
 pub(crate) use memcode_test_breaker::MemCodeTestBreaker;
+pub(crate) use utils::{create_key_from_array, create_xnonce_from_array};

@@ -5,8 +5,9 @@
 use chacha20poly1305::Key;
 
 use crate::aead_key::AeadKey;
-
 use memzer::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
+
+use super::support::create_key_from_array;
 
 #[test]
 fn test_aead_key_memguard_traits() {
@@ -25,14 +26,8 @@ fn test_aead_key_memguard_traits() {
 }
 
 #[test]
-fn test_aead_key_from() {
-    let nonce = AeadKey::from([2u8; 32]);
-    assert_eq!(nonce.as_ref(), &[2u8; 32]);
-}
-
-#[test]
 fn test_aead_key_as_ref() {
-    let key = AeadKey::from([1u8; 32]);
+    let key = create_key_from_array([1u8; 32]);
 
     fn with_ref(key: &Key) -> bool {
         key.len() == 32
@@ -44,6 +39,7 @@ fn test_aead_key_as_ref() {
 #[test]
 fn test_aead_key_fill_exact() {
     let mut key = AeadKey::default();
+    let expected_key = create_key_from_array([1u8; 32]);
 
     let mut bytes = [1u8; 32];
     key.fill_exact(&mut bytes);
@@ -51,7 +47,7 @@ fn test_aead_key_fill_exact() {
     // Assert zeroization!
     assert!(bytes.iter().all(|b| *b == 0));
 
-    assert_eq!(key, AeadKey::from([1u8; 32]));
+    assert_eq!(key, expected_key);
 }
 
 #[test]
