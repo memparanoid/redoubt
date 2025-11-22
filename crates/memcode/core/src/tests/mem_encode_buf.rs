@@ -153,4 +153,33 @@ speculate! {
             assert!(bytes.iter().all(|b| *b == 0));
         }
     }
+
+    describe "MemEncodeBuf::Debug" {
+        it "does not expose buffer content in Debug output" {
+            let mut buf = MemEncodeBuf::new(4);
+            let mut sensitive_data = [0xDE, 0xAD, 0xBE, 0xEF];
+
+            buf.drain_bytes(&mut sensitive_data).unwrap();
+
+            let debug_output = format!("{:?}", buf);
+
+            // Assert that sensitive bytes are NOT in debug output
+            assert!(!debug_output.contains("DE"));
+            assert!(!debug_output.contains("AD"));
+            assert!(!debug_output.contains("BE"));
+            assert!(!debug_output.contains("EF"));
+            assert!(!debug_output.contains("222")); // 0xDE = 222
+            assert!(!debug_output.contains("173")); // 0xAD = 173
+            assert!(!debug_output.contains("190")); // 0xBE = 190
+            assert!(!debug_output.contains("239")); // 0xEF = 239
+
+            // Assert that REDACTED marker is present
+            assert!(debug_output.contains("REDACTED"));
+
+            // Assert that structural info is present
+            assert!(debug_output.contains("len"));
+            assert!(debug_output.contains("cursor"));
+            assert!(debug_output.contains("4")); // len should be 4
+        }
+    }
 }

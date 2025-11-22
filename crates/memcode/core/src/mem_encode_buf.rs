@@ -6,12 +6,21 @@ use zeroize::Zeroize;
 
 use crate::error::MemEncodeBufError;
 
-#[cfg_attr(test, derive(Debug))]
 #[derive(Zeroize)]
 #[zeroize(drop)]
 pub struct MemEncodeBuf {
     buf: Vec<u8>,
     cursor: usize,
+}
+
+impl core::fmt::Debug for MemEncodeBuf {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("MemEncodeBuf")
+            .field("len", &self.buf.len())
+            .field("cursor", &self.cursor)
+            .field("buf", &"[REDACTED]")
+            .finish()
+    }
 }
 
 impl MemEncodeBuf {
