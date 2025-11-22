@@ -34,7 +34,7 @@ fn test_bytes_guard() {
     let mut bytes = [0, 1, 2, 3, 4, 5];
 
     fn with_guard_ref(bytes: &[u8]) -> bool {
-        bytes == &[0, 1, 2, 3, 4, 5]
+        bytes == [0, 1, 2, 3, 4, 5]
     }
 
     fn with_guard_mut(bytes: &mut [u8]) -> bool {
@@ -42,7 +42,7 @@ fn test_bytes_guard() {
             *item *= 2;
         }
 
-        bytes == &[0, 2, 4, 6, 8, 10]
+        bytes == [0, 2, 4, 6, 8, 10]
     }
 
     let mut guard = BytesGuard::from(&mut bytes);
