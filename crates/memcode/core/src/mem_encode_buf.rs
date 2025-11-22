@@ -291,6 +291,9 @@ impl MemEncodeBuf {
         result
     }
 
+    /// Returns the current cursor position.
+    ///
+    /// Only available in test builds.
     #[cfg(test)]
     pub fn cursor(&self) -> usize {
         self.cursor

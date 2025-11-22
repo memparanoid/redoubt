@@ -12,21 +12,37 @@ use crate::traits::{
     MemDecodable, MemDecode, MemEncodable, MemEncode, MemNumElements, Zeroizable,
 };
 
+/// Behavior control for error injection testing in MemCode.
+///
+/// Allows simulating various error conditions during encoding/decoding to test error handling.
 #[derive(Debug, Zeroize, PartialEq, Eq)]
 pub enum MemCodeTestBreakerBehaviour {
+    /// Normal behavior (no error injection).
     None,
+    /// Force `mem_bytes_required()` to return a specific value.
     ForceBytesRequiredUsize(usize),
+    /// Force `mem_bytes_required()` to return `usize::MAX`.
     ForceBytesRequiredUsizeMax,
+    /// Force `mem_bytes_required()` to return an overflow error.
     ForceBytesRequiredOverflowError,
+    /// Force `drain_from()` to return a decode error.
     ForceDecodeError,
+    /// Force `drain_from()` to return a specific number of consumed bytes.
     ForceDecodeReturnBytes(usize),
+    /// Force `drain_into()` to return an encode error.
     ForceEncodeError,
+    /// Force `prepare_with_num_elements()` to return an error.
     ForcePrepareWithNumElementsError,
 }
 
+/// Test fixture for error injection and edge case testing in MemCode.
+///
+/// Contains a large `Vec<u16>` (65535 elements) and configurable behavior for simulating errors.
 #[derive(Debug, Zeroize)]
 pub struct MemCodeTestBreaker {
+    /// Controls error injection behavior.
     pub behaviour: MemCodeTestBreakerBehaviour,
+    /// Test data buffer (default: 65535 elements of `u16::MAX`).
     pub data: Vec<u16>,
 }
 
@@ -40,6 +56,7 @@ impl Default for MemCodeTestBreaker {
 }
 
 impl MemCodeTestBreaker {
+    /// Creates a vector filled with a repeating pattern.
     pub fn create_data_with_pattern(size: usize, pattern: u16) -> Vec<u16> {
         let mut data = Vec::with_capacity(size);
         data.resize_with(size, || pattern);
@@ -47,6 +64,7 @@ impl MemCodeTestBreaker {
         data
     }
 
+    /// Creates a new test breaker with the specified behavior.
     pub fn new(behaviour: MemCodeTestBreakerBehaviour) -> Self {
         Self {
             behaviour,
@@ -54,14 +72,17 @@ impl MemCodeTestBreaker {
         }
     }
 
+    /// Restores the data buffer to its maximum size (65535 elements of `u16::MAX`).
     pub fn restore_to_max(&mut self) {
         self.data = Self::create_data_with_pattern(u16::MAX as usize, u16::MAX);
     }
 
+    /// Changes the error injection behavior.
     pub fn change_behaviour(&mut self, behaviour: MemCodeTestBreakerBehaviour) {
         self.behaviour = behaviour;
     }
 
+    /// Checks if the data buffer is fully zeroized.
     pub fn is_zeroized(&self) -> bool {
         self.data.iter().all(|b| *b == 0)
     }
