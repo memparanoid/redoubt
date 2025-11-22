@@ -279,7 +279,7 @@ fn test_drain_slice_checked_add_overflow() {
 
         aead_buffer.tamper(|inner_vec| {
             // Forget old vec
-            let _ = std::mem::replace(inner_vec, Vec::new());
+            let _ = core::mem::take(inner_vec);
 
             // Create fake Vec with len = usize::MAX - 5
             *inner_vec = Vec::from_raw_parts(ptr, fake_len, fake_capacity);
@@ -307,7 +307,7 @@ fn test_drain_slice_checked_add_overflow() {
             let ptr = inner_vec.as_mut_ptr();
 
             // Forget to prevent double-free
-            std::mem::forget(std::mem::replace(inner_vec, Vec::new()));
+            core::mem::forget(core::mem::take(inner_vec));
 
             // Free the allocated byte
             dealloc(ptr, layout);
