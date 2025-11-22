@@ -37,7 +37,7 @@ resolver = "2"
   getrandom = "0.3"
   libc      = "0.2.177"
   subtle    = "2.6"
-  thiserror        = "2.0.16"
+  thiserror = "2.0.16"
   zeroize   = { version = "1.8.1", features = ["zeroize_derive"] }
 
   # Dev dependencies
