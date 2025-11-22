@@ -236,7 +236,7 @@ fn test_extract_collection_header() {
 
     // Scope 2: bytes.len() < header_size -> InvariantViolated
     {
-        let mut bytes = [0u8; 8];
+        let mut bytes = [0u8; 8]; // Only 8 bytes, needs 16
         let mut cursor = 0;
         let result = extract_collection_header(&mut bytes, &mut cursor);
         assert!(matches!(result, Err(MemDecodeError::InvariantViolated)));
