@@ -36,14 +36,13 @@ use memcode_core::{
 ///
 /// # Usage
 ///
-/// Typically used as a field in structs with `#[derive(MemZer)]`:
+/// Typically used as a field in structs to verify zeroization:
 ///
 /// ```rust
-/// use memzer_core::{DropSentinel, Zeroizable, ZeroizationProbe, AssertZeroizeOnDrop};
-/// use memzer_derive::MemZer;
+/// use memzer_core::DropSentinel;
 /// use zeroize::Zeroize;
 ///
-/// #[derive(Zeroize, MemZer)]
+/// #[derive(Zeroize)]
 /// #[zeroize(drop)]
 /// struct Secret {
 ///     data: Vec<u8>,
@@ -51,8 +50,9 @@ use memcode_core::{
 /// }
 /// ```
 ///
-/// The `__drop_sentinel` field is auto-detected by the derive macro and used to
-/// verify zeroization.
+/// The `__drop_sentinel` field tracks whether `.zeroize()` was called before drop.
+/// You'll need to implement `Zeroizable`, `ZeroizationProbe`, and `AssertZeroizeOnDrop`
+/// manually, or use the `memzer` umbrella crate which provides `#[derive(MemZer)]`.
 ///
 /// # Testing
 ///

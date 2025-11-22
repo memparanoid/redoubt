@@ -54,7 +54,7 @@
 //! ### Using `ZeroizingMutGuard`
 //!
 //! ```rust
-//! use memzer_core::{ZeroizingMutGuard, primitives::U64};
+//! use memzer_core::{ZeroizingMutGuard, ZeroizationProbe, primitives::U64};
 //!
 //! let mut sensitive = U64::default();
 //! *sensitive.expose_mut() = 0xdeadbeef;
@@ -68,19 +68,43 @@
 //! assert!(sensitive.is_zeroized());
 //! ```
 //!
-//! ### Using `#[derive(MemZer)]`
+//! ### Manual Implementation
 //!
 //! ```rust
-//! use memzer_core::{DropSentinel, Zeroizable, ZeroizationProbe, AssertZeroizeOnDrop};
-//! use memzer_derive::MemZer;
+//! use memzer_core::{DropSentinel, Zeroizable, ZeroizationProbe, AssertZeroizeOnDrop, collections};
 //! use zeroize::Zeroize;
 //!
-//! #[derive(Zeroize, MemZer)]
+//! #[derive(Zeroize)]
 //! #[zeroize(drop)]
 //! struct Credentials {
 //!     username: Vec<u8>,
 //!     password: Vec<u8>,
 //!     __drop_sentinel: DropSentinel,
+//! }
+//!
+//! impl Zeroizable for Credentials {
+//!     fn self_zeroize(&mut self) {
+//!         self.zeroize();
+//!     }
+//! }
+//!
+//! impl ZeroizationProbe for Credentials {
+//!     fn is_zeroized(&self) -> bool {
+//!         let fields: [&dyn ZeroizationProbe; 2] = [
+//!             collections::to_zeroization_probe_dyn_ref(&self.username),
+//!             collections::to_zeroization_probe_dyn_ref(&self.password),
+//!         ];
+//!         collections::collection_zeroed(&mut fields.into_iter())
+//!     }
+//! }
+//!
+//! impl AssertZeroizeOnDrop for Credentials {
+//!     fn clone_drop_sentinel(&self) -> DropSentinel {
+//!         self.__drop_sentinel.clone()
+//!     }
+//!     fn assert_zeroize_on_drop(self) {
+//!         memzer_core::assert::assert_zeroize_on_drop(self);
+//!     }
 //! }
 //!
 //! let creds = Credentials {

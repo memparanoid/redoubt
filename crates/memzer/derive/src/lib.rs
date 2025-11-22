@@ -108,8 +108,8 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     let struct_name = &input.ident; // Name of the struct
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl(); // Get generics
 
-    // 1) Resolving the `memzer` or `memzer_core` crate
-    let root = find_root_with_candidates(&["memzer", "memzer_core"]);
+    // 1) Resolving the `memzer_core` or `memzer` crate (prefer memzer_core)
+    let root = find_root_with_candidates(&["memzer_core", "memzer"]);
 
     // 2) Collect references to the struct fields, skipping __drop_sentinel
     let sentinel_ident = format_ident!("__drop_sentinel");

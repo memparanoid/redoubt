@@ -78,26 +78,12 @@ pub trait ZeroizationProbe {
 /// Types implementing this trait contain a [`DropSentinel`] and provide
 /// methods to verify that `.zeroize()` was called before the value is dropped.
 ///
-/// This trait is typically auto-implemented via `#[derive(MemZer)]`.
-///
 /// # Example
 ///
 /// ```rust
-/// use memzer_core::{DropSentinel, AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
-/// use memzer_derive::MemZer;
-/// use zeroize::Zeroize;
+/// use memzer_core::{Secret, AssertZeroizeOnDrop, primitives::U32};
 ///
-/// #[derive(Zeroize, MemZer)]
-/// #[zeroize(drop)]
-/// struct MySecret {
-///     data: Vec<u8>,
-///     __drop_sentinel: DropSentinel,
-/// }
-///
-/// let secret = MySecret {
-///     data: vec![1, 2, 3],
-///     __drop_sentinel: DropSentinel::default(),
-/// };
+/// let secret = Secret::from(U32::default());
 ///
 /// // Verify zeroization happens on drop
 /// secret.assert_zeroize_on_drop();
