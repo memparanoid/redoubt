@@ -293,7 +293,7 @@ fn test_drain_from_propagates_violated_invariant_error() {
 
     let mut bytes = buf.as_slice().to_vec();
 
-    while bytes.len() > 0 {
+    while !bytes.is_empty() {
         bytes.pop();
         let mut bytes_clone = bytes.clone();
 
@@ -307,7 +307,7 @@ fn test_drain_from_propagates_violated_invariant_error() {
         assert!(collection.iter().all(|b| *b == 0));
     }
 
-    assert!(bytes.len() == 0);
+    assert!(bytes.is_empty());
 }
 
 #[test]
@@ -318,8 +318,8 @@ fn test_drain_from_propagates_prepare_with_num_elements_error() {
     )];
 
     // Assert (not) zeroization!
-    assert!(collection[0].data.len() > 0);
-    assert!(decoded_collection[0].data.len() > 0);
+    assert!(!collection[0].data.is_empty());
+    assert!(!decoded_collection[0].data.is_empty());
     assert!(!collection.iter().all(|tb| tb.is_zeroized()));
     assert!(!decoded_collection.iter().all(|tb| tb.is_zeroized()));
 
@@ -358,7 +358,7 @@ fn test_drain_from_propagates_decode_error() {
 
     permute_with(&mut collection, |collection| {
         // Assert (not) zeroization!
-        assert!(collection[0].data.len() > 0);
+        assert!(!collection[0].data.is_empty());
         assert!(!collection.iter().all(|tb| tb.is_zeroized()));
 
         let bytes_required = collection
@@ -397,7 +397,7 @@ fn test_drain_from_propagates_overflow_error_on_cursor_counter() {
     assert!(
         !collection
             .iter()
-            .all(|tb| tb.data.len() > 0 && tb.is_zeroized())
+            .all(|tb| !tb.data.is_empty() && tb.is_zeroized())
     );
 
     let mut buf = MemEncodeBuf::new(
@@ -462,7 +462,7 @@ fn test_drain_from_propagates_invariant_violated_on_cursor_overflow() {
     let mut collection = [MemCodeTestBreaker::new(MemCodeTestBreakerBehaviour::None)];
 
     // Assert (not) zeroization!
-    assert!(collection[0].data.len() > 0);
+    assert!(!collection[0].data.is_empty());
     assert!(!collection.iter().all(|tb| tb.is_zeroized()));
 
     let mut buf = MemEncodeBuf::new(
@@ -493,7 +493,7 @@ fn test_drain_from_propagates_invariant_violated_on_bytes_mismatch() {
     let mut collection = [MemCodeTestBreaker::new(MemCodeTestBreakerBehaviour::None)];
 
     // Assert (not) zeroization!
-    assert!(collection[0].data.len() > 0);
+    assert!(!collection[0].data.is_empty());
     assert!(!collection.iter().all(|tb| tb.is_zeroized()));
 
     let mut buf = MemEncodeBuf::new(
