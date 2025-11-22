@@ -43,7 +43,7 @@ fn test_secret_expose_methods() {
 
     fn with_mut(vec: &mut [u8]) -> bool {
         for item in vec.iter_mut() {
-            *item = *item * 2
+            *item *= 2
         }
 
         vec.iter().sum::<u8>() == 30
