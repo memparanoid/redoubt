@@ -12,9 +12,46 @@ use memzer::{AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe};
 
 use crate::error::CryptoError;
 
+/// Error returned when attempting to drain more bytes than the buffer's capacity.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct CapacityExceededError;
 
+/// AEAD buffer for in-place encryption/decryption with automatic zeroization.
+///
+/// `AeadBuffer` wraps a `Vec<u8>` and implements the `chacha20poly1305::aead::Buffer` trait,
+/// allowing it to be used directly with ChaCha20-Poly1305 AEAD operations. It enforces
+/// systematic zeroization via a `DropSentinel`.
+///
+/// # Security Properties
+///
+/// - **Automatic zeroization**: Buffer is zeroized on drop (including spare capacity)
+/// - **Drop verification**: `DropSentinel` panics if `zeroize()` wasn't called
+/// - **No reallocations**: `zeroized_reserve_exact` pre-allocates and verifies zeroization
+/// - **Drain semantics**: `drain_slice` moves data with `mem::take`, zeroizing source
+///
+/// # Example
+///
+/// ```
+/// use memcrypt::AeadBuffer;
+/// use memzer::ZeroizationProbe;
+/// use zeroize::Zeroize;
+///
+/// let mut buffer = AeadBuffer::default();
+///
+/// // Reserve capacity (must be zeroized first)
+/// assert!(buffer.zeroized_reserve_exact(64).is_ok());
+///
+/// // Drain data into buffer
+/// let mut source = vec![13u8; 32]; // Prime number!
+/// assert!(buffer.drain_slice(&mut source).is_ok());
+///
+/// // Source is zeroized
+/// assert!(source.iter().all(|&b| b == 0));
+///
+/// // Buffer contains data
+/// assert_eq!(buffer.as_ref().len(), 32);
+/// assert!(buffer.as_ref().iter().all(|&b| b == 13));
+/// ```
 #[derive(Default, Zeroize)]
 #[zeroize(drop)]
 pub struct AeadBuffer {

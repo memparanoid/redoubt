@@ -47,6 +47,29 @@ pub enum DecryptStage {
 /// - [`CryptoError::AeadBufferNotZeroized`] if the AEAD buffer is not fully zeroized before reserving.
 /// - [`CryptoError::Decrypt`] if AEAD decryption fails.
 /// - [`CryptoError::MemDecode`] if `MemDecodable` fails to reconstruct `T`.
+///
+/// # Example
+///
+/// ```
+/// use memcrypt::{AeadKey, XNonce, encrypt_mem_encodable, decrypt_mem_decodable};
+///
+/// let mut key = AeadKey::from([29u8; 32]);
+/// let mut nonce = XNonce::from([31u8; 24]);
+///
+/// // Encrypt sensitive data
+/// let mut sensitive_data = vec![0xDEADBEEFu64; 20];
+/// let mut ciphertext = encrypt_mem_encodable(&mut key, &mut nonce, &mut sensitive_data)?;
+///
+/// // Decrypt with same key and nonce
+/// let mut key2 = AeadKey::from([29u8; 32]);
+/// let mut nonce2 = XNonce::from([31u8; 24]);
+/// let recovered = decrypt_mem_decodable::<Vec<u64>>(&mut key2, &mut nonce2, &mut ciphertext)?;
+///
+/// // Recovered data matches original
+/// assert_eq!(recovered.expose().len(), 20);
+/// assert!(recovered.expose().iter().all(|&v| v == 0xDEADBEEFu64));
+/// # Ok::<(), memcrypt::CryptoError>(())
+/// ```
 pub fn decrypt_mem_decodable<T>(
     aead_key: &mut AeadKey,
     xnonce: &mut XNonce,
