@@ -15,6 +15,7 @@ path = "src/lib.rs"
 [dependencies]
 memcode_core.workspace   = true
 memcode_derive.workspace = true
+zeroize.workspace        = true
 
 [features]
 test_utils = ["memcode_core/test_utils"]

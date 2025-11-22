@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! Helper functions for working with collections during encoding/decoding.
+
 use zeroize::Zeroize;
 
 use crate::error::{MemDecodeError, MemEncodeError, OverflowError};
@@ -10,6 +12,9 @@ use crate::traits::{
     CollectionDecode, CollectionEncode, MemBytesRequired, MemDecodable, MemEncodable, Zeroizable,
 };
 
+/// Converts a reference to a trait object (`&dyn MemBytesRequired`).
+///
+/// Helper for creating heterogeneous collections of types implementing `MemBytesRequired`.
 #[inline(always)]
 pub fn to_bytes_required_dyn_ref<'a, T: MemBytesRequired>(
     x: &'a T,
@@ -17,21 +22,31 @@ pub fn to_bytes_required_dyn_ref<'a, T: MemBytesRequired>(
     x
 }
 
+/// Converts a mutable reference to a trait object (`&mut dyn Zeroizable`).
+///
+/// Helper for creating heterogeneous collections of types implementing `Zeroizable`.
 #[inline(always)]
 pub fn to_zeroizable_dyn_mut<'a, T: Zeroizable>(x: &'a mut T) -> &'a mut (dyn Zeroizable + 'a) {
     x
 }
 
+/// Converts a mutable reference to a trait object (`&mut dyn MemEncodable`).
+///
+/// Helper for creating heterogeneous collections of types implementing `MemEncodable`.
 #[inline(always)]
 pub fn to_encode_dyn_mut<'a, T: MemEncodable>(x: &'a mut T) -> &'a mut (dyn MemEncodable + 'a) {
     x
 }
 
+/// Converts a mutable reference to a trait object (`&mut dyn MemDecodable`).
+///
+/// Helper for creating heterogeneous collections of types implementing `MemDecodable`.
 #[inline(always)]
 pub fn to_decode_dyn_mut<'a, T: MemDecodable>(x: &'a mut T) -> &'a mut (dyn MemDecodable + 'a) {
     x
 }
 
+/// Zeroizes all elements in a collection via an iterator.
 pub fn zeroize_collection_iter_mut<T>(collection_iter_mut: &mut dyn Iterator<Item = &mut T>)
 where
     T: Zeroizable + ?Sized,
@@ -41,6 +56,9 @@ where
     }
 }
 
+/// Validates that the expected element count matches the actual count.
+///
+/// Returns an error if `len != num_elements`.
 pub fn mem_decode_assert_num_elements(
     len: usize,
     num_elements: usize,
@@ -52,6 +70,9 @@ pub fn mem_decode_assert_num_elements(
     Ok(())
 }
 
+/// Calculates total bytes required for a collection of elements.
+///
+/// Sums the `mem_bytes_required()` for all elements in the iterator.
 pub fn mem_bytes_required(
     collection_iter: &mut dyn Iterator<Item = &dyn MemBytesRequired>,
 ) -> Result<usize, OverflowError> {
@@ -109,6 +130,13 @@ where
     Ok(())
 }
 
+/// Encodes a collection into a buffer with header and element iteration.
+///
+/// This function encodes collections with the wire format:
+/// `[ num_elements: usize LE ] [ bytes_required: usize LE ] [ elem1 ] [ elem2 ] ... [ elemN ]`
+///
+/// On success, the source collection is zeroized.
+/// On error, both the buffer and source collection are zeroized.
 pub fn drain_into<T>(
     buf: &mut MemEncodeBuf,
     collection_encode: &mut T,
@@ -203,6 +231,13 @@ where
     Ok(bytes_required)
 }
 
+/// Decodes a collection from bytes with header validation and element iteration.
+///
+/// This function decodes collections encoded with the wire format:
+/// `[ num_elements: usize LE ] [ bytes_required: usize LE ] [ elem1 ] [ elem2 ] ... [ elemN ]`
+///
+/// On success, the source bytes are zeroized.
+/// On error, both the source bytes and destination collection are zeroized.
 pub fn drain_from<T>(bytes: &mut [u8], collection_decode: &mut T) -> Result<usize, MemDecodeError>
 where
     T: CollectionDecode + ?Sized,

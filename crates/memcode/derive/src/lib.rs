@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! Procedural macros for the `memcode` crate.
+//!
+//! Provides the `#[derive(MemCodec)]` macro for automatic trait implementations.
+
+#![warn(missing_docs)]
+
 #[cfg(test)]
 mod tests;
 
@@ -11,14 +17,98 @@ use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{Data, DeriveInput, Fields, Ident, Index, LitStr, parse_macro_input};
 
-/// Main derive function for `MemCodec`.
-/// This function is called when using #[derive(MemCodec)] on a struct.
+/// Derives encoding and decoding traits for a struct.
+///
+/// This macro automatically generates trait implementations for structs to enable
+/// allocation-free, zeroizing serialization via `memcode-core`.
+///
+/// # Generated Implementations
+///
+/// The macro generates the following trait implementations:
+/// - [`Zeroizable`](https://docs.rs/memcode-core/latest/memcode_core/trait.Zeroizable.html)
+/// - [`MemNumElements`](https://docs.rs/memcode-core/latest/memcode_core/trait.MemNumElements.html)
+/// - [`MemBytesRequired`](https://docs.rs/memcode-core/latest/memcode_core/trait.MemBytesRequired.html)
+/// - [`MemEncode`](https://docs.rs/memcode-core/latest/memcode_core/trait.MemEncode.html)
+/// - [`MemDecode`](https://docs.rs/memcode-core/latest/memcode_core/trait.MemDecode.html)
+/// - [`EncodeIterator`](https://docs.rs/memcode-core/latest/memcode_core/trait.EncodeIterator.html)
+/// - [`DecodeIterator`](https://docs.rs/memcode-core/latest/memcode_core/trait.DecodeIterator.html)
+/// - [`MemEncodable`](https://docs.rs/memcode-core/latest/memcode_core/trait.MemEncodable.html) (marker)
+/// - [`MemDecodable`](https://docs.rs/memcode-core/latest/memcode_core/trait.MemDecodable.html) (marker)
+/// - [`CollectionEncode`](https://docs.rs/memcode-core/latest/memcode_core/trait.CollectionEncode.html) (marker)
+/// - [`CollectionDecode`](https://docs.rs/memcode-core/latest/memcode_core/trait.CollectionDecode.html)
+///
+/// # Requirements
+///
+/// - The struct must derive `Zeroize` and use `#[zeroize(drop)]`
+/// - All fields must implement `MemEncodable` and `MemDecodable`
+/// - Works with named structs, tuple structs, and unit structs
+///
+/// # Example (Named Struct)
+///
+/// ```rust
+/// use memcode_derive::MemCodec;
+/// use memcode_core::{MemEncodable, MemDecodable};
+/// use zeroize::Zeroize;
+///
+/// #[derive(Zeroize, MemCodec)]
+/// #[zeroize(drop)]
+/// struct Data {
+///     field_a: Vec<u8>,
+///     field_b: [u8; 32],
+///     field_c: u64,
+/// }
+/// ```
+///
+/// # Example (Tuple Struct)
+///
+/// ```rust
+/// use memcode_derive::MemCodec;
+/// use memcode_core::{MemEncodable, MemDecodable};
+/// use zeroize::Zeroize;
+///
+/// #[derive(Zeroize, MemCodec)]
+/// #[zeroize(drop)]
+/// struct Data(Vec<u8>, [u8; 32], u64);
+/// ```
+///
+/// # Example (With Generics)
+///
+/// ```rust
+/// use memcode_derive::MemCodec;
+/// use memcode_core::{MemEncodable, MemDecodable};
+/// use zeroize::Zeroize;
+///
+/// #[derive(Zeroize, MemCodec)]
+/// #[zeroize(drop)]
+/// struct Data<T: MemEncodable + MemDecodable + Zeroize> {
+///     value: T,
+///     metadata: u64,
+/// }
+/// ```
+///
+/// # Wire Format
+///
+/// Structs encode as collections with this format:
+///
+/// ```text
+/// [ num_elements: usize LE ] [ bytes_required: usize LE ] [ field1 ] [ field2 ] ... [ fieldN ]
+/// ```
+///
+/// # Error Handling
+///
+/// Generated implementations handle errors systematically:
+/// - Encoding errors → source struct is zeroized
+/// - Decoding errors → consumed bytes are zeroized
+/// - Collection size mismatch → `MemDecodeError::LengthMismatch`
 #[proc_macro_derive(MemCodec)]
 pub fn derive_memcode(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput); // Parse the input to DeriveInput
-    expand(input).unwrap_or_else(|e| e).into() // Expand the input and convert it to TokenStream
+    let input = parse_macro_input!(input as DeriveInput);
+    expand(input).unwrap_or_else(|e| e).into()
 }
 
+/// Finds the root crate path from a list of candidates.
+///
+/// Resolves the correct import path for `memcode` or `memcode-core` depending on context.
 pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStream2 {
     for &candidate in candidates {
         match crate_name(candidate) {
@@ -58,13 +148,17 @@ pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStr
     quote! { compile_error!(#lit); }
 }
 
-/// Expands the DeriveInput into the necessary implementation of `MemCodec`.
+/// Expands the `DeriveInput` into trait implementations for `MemCodec`.
+///
+/// This function generates all necessary trait implementations for encoding/decoding
+/// the struct. It collects field references (both immutable and mutable) and generates
+/// implementations that iterate over fields via collection helpers.
 fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     let struct_name = &input.ident; // Name of the struct
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl(); // Get generics
 
     // 1) Resolving the `memcode` or `memcode_core` crate
-    let root = find_root_with_candidates(&["memcode", "memcode_core"]);
+    let root = find_root_with_candidates(&["memcode_core", "memcode"]);
 
     // 2) Collect references to the struct fields for the `MemCode` and `MemDecode` traits
     let (mut immut_refs, mut mut_refs): (Vec<TokenStream2>, Vec<TokenStream2>) =

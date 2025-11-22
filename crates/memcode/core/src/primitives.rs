@@ -2,6 +2,50 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! Trait implementations for primitive integer types.
+//!
+//! This module provides `MemEncode`, `MemDecode`, and `Zeroizable` implementations
+//! for Rust's primitive unsigned integer types: `u8`, `u16`, `u32`, `u64`, `u128`.
+//!
+//! # Wire Format
+//!
+//! All primitives are encoded in **little-endian** format:
+//!
+//! - `u8`: 1 byte
+//! - `u16`: 2 bytes (LE)
+//! - `u32`: 4 bytes (LE)
+//! - `u64`: 8 bytes (LE)
+//! - `u128`: 16 bytes (LE)
+//!
+//! # Zeroization
+//!
+//! All encoding/decoding operations zeroize the source value after copying.
+//! This is enforced via [`PrimitiveGuard`] (internal) and [`BytesGuard`].
+//!
+//! # Example
+//!
+//! ```rust
+//! use memcode_core::{MemEncodeBuf, MemEncode, MemDecode, MemBytesRequired};
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!
+//! let mut value = 0xdeadbeef_u32;
+//!
+//! // Encode
+//! let size = value.mem_bytes_required()?;
+//! let mut buf = MemEncodeBuf::new(size);
+//! value.drain_into(&mut buf)?;
+//!
+//! assert_eq!(value, 0); // Source zeroized
+//!
+//! // Decode
+//! let mut decoded = 0u32;
+//! decoded.drain_from(buf.as_mut_slice())?;
+//!
+//! assert_eq!(decoded, 0xdeadbeef);
+//! # Ok(())
+//! # }
+//! ```
+
 use zeroize::Zeroize;
 
 use super::guards::{BytesGuard, PrimitiveGuard};
