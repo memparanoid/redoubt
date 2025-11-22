@@ -13,13 +13,15 @@
 mod tests;
 
 mod error;
+mod session;
 mod support;
 mod system;
 mod traits;
 
 pub use error::EntropyError;
+pub use session::XNonceSessionGenerator;
 pub use system::SystemEntropySource;
-pub use traits::EntropySource;
+pub use traits::{EntropySource, XNonceGenerator};
 
 #[cfg(any(test, feature = "test_utils"))]
 pub use support::test_utils;

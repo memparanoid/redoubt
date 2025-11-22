@@ -7,3 +7,7 @@ use crate::error::EntropyError;
 pub trait EntropySource {
     fn fill_bytes(&self, dest: &mut [u8]) -> Result<(), EntropyError>;
 }
+
+pub trait XNonceGenerator {
+    fn fill_current_xnonce(&mut self, current_xnonce: &mut [u8]) -> Result<(), EntropyError>;
+}
