@@ -53,16 +53,27 @@ pub enum DecryptStage {
 /// ```
 /// use memcrypt::{AeadKey, XNonce, encrypt_mem_encodable, decrypt_mem_decodable};
 ///
-/// let mut key = AeadKey::from([29u8; 32]);
-/// let mut nonce = XNonce::from([31u8; 24]);
+/// let mut key = AeadKey::default();
+/// let mut key_material = [29u8; 32];
+/// key.fill_exact(&mut key_material);
+///
+/// let mut nonce = XNonce::default();
+/// let mut nonce_material = [31u8; 24];
+/// nonce.fill_exact(&mut nonce_material);
 ///
 /// // Encrypt sensitive data
 /// let mut sensitive_data = vec![0xDEADBEEFu64; 20];
 /// let mut ciphertext = encrypt_mem_encodable(&mut key, &mut nonce, &mut sensitive_data)?;
 ///
 /// // Decrypt with same key and nonce
-/// let mut key2 = AeadKey::from([29u8; 32]);
-/// let mut nonce2 = XNonce::from([31u8; 24]);
+/// let mut key2 = AeadKey::default();
+/// let mut key2_material = [29u8; 32];
+/// key2.fill_exact(&mut key2_material);
+///
+/// let mut nonce2 = XNonce::default();
+/// let mut nonce2_material = [31u8; 24];
+/// nonce2.fill_exact(&mut nonce2_material);
+///
 /// let recovered = decrypt_mem_decodable::<Vec<u64>>(&mut key2, &mut nonce2, &mut ciphertext)?;
 ///
 /// // Recovered data matches original

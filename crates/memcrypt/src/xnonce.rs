@@ -26,10 +26,15 @@ use memzer::{AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe};
 /// use memzer::ZeroizationProbe;
 /// use zeroize::Zeroize;
 ///
-/// // Create from bytes
-/// let mut nonce = XNonce::from([1u8; 24]);
+/// // Create nonce using fill_exact (zero-copy move semantics)
+/// let mut nonce = XNonce::default();
+/// let mut nonce_material = [1u8; 24];
+/// nonce.fill_exact(&mut nonce_material);
 ///
-/// // Verify not zeroized
+/// // Source buffer is guaranteed to be zeroized
+/// assert!(nonce_material.iter().all(|&b| b == 0));
+///
+/// // Nonce contains the original bytes
 /// assert!(!nonce.is_zeroized());
 ///
 /// // Use the nonce (via AsRef)
@@ -78,12 +83,12 @@ impl AssertZeroizeOnDrop for XNonce {
 }
 
 impl XNonce {
-    /// Fills this nonce with bytes from the provided buffer, zeroizing both the old nonce and the source buffer.
+    /// Fills this nonce with bytes from the provided buffer using zero-copy move semantics.
     ///
-    /// This method:
-    /// 1. Zeroizes the current nonce
-    /// 2. Drains bytes from the source buffer (using `mem::take`)
-    /// 3. Source buffer is zeroized as a side effect of `mem::take`
+    /// This method uses `core::mem::take` to move each byte from the source buffer,
+    /// which simultaneously:
+    /// 1. Transfers the byte value to the nonce
+    /// 2. Replaces the source byte with zero (default value for u8)
     ///
     /// # Example
     ///

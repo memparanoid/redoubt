@@ -29,10 +29,15 @@ use memzer::{
 /// use memzer::ZeroizationProbe;
 /// use zeroize::Zeroize;
 ///
-/// // Create from bytes
-/// let mut key = AeadKey::from([42u8; 32]);
+/// // Create key using fill_exact (zero-copy move semantics)
+/// let mut key = AeadKey::default();
+/// let mut key_material = [42u8; 32];
+/// key.fill_exact(&mut key_material);
 ///
-/// // Verify not zeroized
+/// // Source buffer is guaranteed to be zeroized
+/// assert!(key_material.iter().all(|&b| b == 0));
+///
+/// // Key contains the original bytes
 /// assert!(!key.is_zeroized());
 ///
 /// // Use the key (via AsRef<Key>)
@@ -59,12 +64,12 @@ impl AsRef<Key> for AeadKey {
 }
 
 impl AeadKey {
-    /// Fills this key with bytes from the provided buffer, zeroizing both the old key and the source buffer.
+    /// Fills this key with bytes from the provided buffer using zero-copy move semantics.
     ///
-    /// This method:
-    /// 1. Zeroizes the current key
-    /// 2. Copies bytes from the source buffer
-    /// 3. Zeroizes the source buffer
+    /// This method uses `core::mem::take` to move each byte from the source buffer,
+    /// which simultaneously:
+    /// 1. Transfers the byte value to the key
+    /// 2. Replaces the source byte with zero (default value for u8)
     ///
     /// # Example
     ///

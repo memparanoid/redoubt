@@ -51,11 +51,21 @@ pub enum EncryptStage {
 /// use memcrypt::{AeadKey, XNonce, encrypt_mem_encodable};
 /// use memzer::ZeroizationProbe;
 ///
-/// let mut key = AeadKey::from([17u8; 32]);
-/// let mut nonce = XNonce::from([19u8; 24]);
+/// let mut key = AeadKey::default();
+/// let mut key_material = [17u8; 32];
+/// key.fill_exact(&mut key_material);
+///
+/// let mut nonce = XNonce::default();
+/// let mut nonce_material = [19u8; 24];
+/// nonce.fill_exact(&mut nonce_material);
+///
 /// let mut sensitive_data = vec![0x1234567890ABCDEFu64; 10];
 ///
 /// let ciphertext = encrypt_mem_encodable(&mut key, &mut nonce, &mut sensitive_data)?;
+///
+/// // Key and nonce materials are guaranteed to be zeroized
+/// assert!(key_material.iter().all(|&b| b == 0));
+/// assert!(nonce_material.iter().all(|&b| b == 0));
 ///
 /// // Plaintext is guaranteed to be zeroized
 /// assert!(sensitive_data.is_zeroized());
