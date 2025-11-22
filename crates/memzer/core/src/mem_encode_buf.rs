@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! Re-export of `MemEncodeBuf` with [`DropSentinel`] support.
+//!
+//! This module wraps `memcode-core`'s `MemEncodeBuf` and adds zeroization verification.
+
 use zeroize::Zeroize;
 
 use crate::assert::assert_zeroize_on_drop;
@@ -10,6 +14,22 @@ use crate::traits::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
 
 use memcode_core::MemEncodeBuf as InnerMemEncodeBuf;
 
+/// Wrapper around `memcode-core::MemEncodeBuf` with [`DropSentinel`] support.
+///
+/// This type wraps the serialization buffer from `memcode-core` and adds
+/// zeroization verification via an embedded [`DropSentinel`].
+///
+/// Available only when the `memcode` feature is enabled.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use memzer_core::MemEncodeBuf;
+///
+/// let buf = MemEncodeBuf::default();
+/// // Use for encoding...
+/// // Auto-zeroizes on drop
+/// ```
 #[derive(Zeroize)]
 #[zeroize(drop)]
 pub struct MemEncodeBuf {

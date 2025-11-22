@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! Wrapper type that prevents accidental exposure of sensitive data.
+
 use core::fmt;
 
 use zeroize::Zeroize;
@@ -19,6 +21,49 @@ use memcode_core::{
     Zeroizable as MemCodeZeroizable, collections,
 };
 
+/// Wrapper that prevents accidental exposure of sensitive data.
+///
+/// `Secret<T>` wraps a value `T` and prevents direct access to it, forcing
+/// controlled access via [`expose()`](Secret::expose) and [`expose_mut()`](Secret::expose_mut).
+/// This prevents accidental copies, leaks via `Debug`, and other unintended exposures.
+///
+/// # Design Principles
+///
+/// - **No `Deref`/`DerefMut`**: Cannot accidentally access inner value via `*secret`
+/// - **No `Clone`**: Prevents unintended copies of sensitive data
+/// - **Redacted `Debug`**: Prints `[REDACTED Secret]` instead of inner value
+/// - **Automatic zeroization**: Inner value zeroized on drop via `#[zeroize(drop)]`
+/// - **Drop verification**: Contains [`DropSentinel`] to verify zeroization happened
+///
+/// # Usage
+///
+/// ```rust
+/// use memzer_core::{Secret, primitives::U32};
+///
+/// let mut secret = Secret::from(U32::default());
+///
+/// // Access immutably
+/// let value = secret.expose();
+/// println!("Value: {}", value.expose());
+///
+/// // Access mutably
+/// let value_mut = secret.expose_mut();
+/// *value_mut.expose_mut() = 42;
+///
+/// // Auto-zeroizes on drop
+/// ```
+///
+/// # Integration with memcode
+///
+/// With the `memcode` feature enabled, `Secret<T>` can be serialized:
+///
+/// ```rust,ignore
+/// use memzer_core::Secret;
+/// use memcode_core::{MemEncodable, MemDecodable};
+///
+/// let secret = Secret::from(vec![1u8, 2, 3]);
+/// // Can be encoded/decoded via memcode
+/// ```
 #[derive(Zeroize, Default, PartialEq, Eq)]
 #[zeroize(drop)]
 pub struct Secret<T>
@@ -42,6 +87,18 @@ impl<T> Secret<T>
 where
     T: Zeroize + Zeroizable + ZeroizationProbe,
 {
+    /// Creates a new `Secret` wrapping the given value.
+    ///
+    /// The value is stored securely and can only be accessed via
+    /// [`expose()`](Secret::expose) and [`expose_mut()`](Secret::expose_mut).
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use memzer_core::{Secret, primitives::U32};
+    ///
+    /// let secret = Secret::from(U32::default());
+    /// ```
     pub fn from(inner: T) -> Self {
         Self {
             inner,
@@ -49,10 +106,40 @@ where
         }
     }
 
+    /// Exposes an immutable reference to the inner value.
+    ///
+    /// This is the **only** way to read the inner value. The reference
+    /// cannot outlive the `Secret`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use memzer_core::{Secret, primitives::U32};
+    ///
+    /// let secret = Secret::from(U32::default());
+    /// let value = secret.expose();
+    /// assert_eq!(*value.expose(), 0);
+    /// ```
     pub fn expose(&self) -> &T {
         &self.inner
     }
 
+    /// Exposes a mutable reference to the inner value.
+    ///
+    /// This is the **only** way to modify the inner value. The reference
+    /// cannot outlive the `Secret`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use memzer_core::{Secret, primitives::U32};
+    ///
+    /// let mut secret = Secret::from(U32::default());
+    /// let value_mut = secret.expose_mut();
+    /// *value_mut.expose_mut() = 42;
+    ///
+    /// assert_eq!(*secret.expose().expose(), 42);
+    /// ```
     pub fn expose_mut(&mut self) -> &mut T {
         &mut self.inner
     }

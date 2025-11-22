@@ -2,11 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! Wrapper types for primitive scalars with [`DropSentinel`](crate::DropSentinel) support.
+//!
+//! This module provides wrapper types (`U8`, `U16`, `U32`, `U64`, `U128`, `USIZE`) that wrap
+//! primitive integer types and add zeroization verification via [`DropSentinel`](crate::DropSentinel).
+
 use zeroize::Zeroize;
 
 macro_rules! impl_primitives_mem_zer_traits {
     ($(($ty:ty, $fn_name:ident, $wrapper_ty:ident)),* $(,)?) => {
         $(
+            #[doc = concat!("Wrapper for `", stringify!($ty), "` with [`DropSentinel`](crate::DropSentinel) support.")]
+            ///
+            /// This type wraps a primitive integer and adds zeroization verification.
+            /// On drop, it verifies that `.zeroize()` was called via the embedded sentinel.
             #[derive(Zeroize, Eq, PartialEq)]
             #[zeroize(drop)]
             #[cfg_attr(test, derive(Debug))]
@@ -18,15 +27,18 @@ macro_rules! impl_primitives_mem_zer_traits {
                 }
             }
 
+            #[doc = concat!("Creates a new default `", stringify!($wrapper_ty), "` (value = 0).")]
             pub fn $fn_name() -> $wrapper_ty {
                 $wrapper_ty::default()
             }
 
             impl $wrapper_ty {
+                /// Exposes an immutable reference to the inner value.
                 pub fn expose(&self) -> &$ty {
                     &self.0
                 }
 
+                /// Exposes a mutable reference to the inner value.
                 pub fn expose_mut(&mut self) -> &mut $ty {
                     &mut self.0
                 }

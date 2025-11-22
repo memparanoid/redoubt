@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! RAII guard for mutable references that auto-zeroizes on drop.
+
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 
@@ -15,6 +17,62 @@ use super::assert::assert_zeroize_on_drop;
 use super::drop_sentinel::DropSentinel;
 use super::traits::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
 
+/// RAII guard for mutable references that automatically zeroizes on drop.
+///
+/// `ZeroizingMutGuard` wraps a mutable reference `&mut T` and ensures that
+/// the referenced value is zeroized when the guard is dropped. This is useful
+/// for protecting sensitive data during temporary operations (e.g., encryption,
+/// decryption, signing).
+///
+/// # Design
+///
+/// - Wraps `&'a mut T` (borrows the value mutably)
+/// - Implements `Deref` and `DerefMut` for convenient access
+/// - Zeroizes `*inner` on drop via `#[zeroize(drop)]`
+/// - Contains [`DropSentinel`] to verify zeroization happened
+///
+/// # Usage
+///
+/// ```rust
+/// use memzer_core::{ZeroizingMutGuard, ZeroizationProbe, primitives::U64};
+///
+/// let mut sensitive = U64::default();
+/// *sensitive.expose_mut() = 0xdeadbeef;
+///
+/// {
+///     // Guard borrows `sensitive` and zeroizes it on drop
+///     let mut guard = ZeroizingMutGuard::from(&mut sensitive);
+///     *guard.expose_mut() = 0xcafebabe;
+///     println!("Value: {}", guard.expose());
+/// } // guard drops here → sensitive is zeroized
+///
+/// assert!(sensitive.is_zeroized());
+/// ```
+///
+/// # Composition with Crypto Operations
+///
+/// `ZeroizingMutGuard` is heavily used in `memcrypt` for wrapping keys and nonces:
+///
+/// ```rust,ignore
+/// use memzer_core::ZeroizingMutGuard;
+/// use memcrypt::{AeadKey, XNonce};
+///
+/// struct EncryptionContext<'a> {
+///     key: ZeroizingMutGuard<'a, AeadKey>,
+///     nonce: ZeroizingMutGuard<'a, XNonce>,
+/// }
+///
+/// impl Drop for EncryptionContext<'_> {
+///     fn drop(&mut self) {
+///         // key and nonce auto-zeroize when guards drop
+///     }
+/// }
+/// ```
+///
+/// # Panics
+///
+/// The guard panics on drop if the wrapped value's [`DropSentinel`] was not
+/// marked as zeroized. This ensures zeroization invariants are enforced.
 #[derive(Zeroize)]
 #[zeroize(drop)]
 pub struct ZeroizingMutGuard<'a, T>
@@ -38,6 +96,22 @@ impl<'a, T> ZeroizingMutGuard<'a, T>
 where
     T: Zeroize + Zeroizable + ZeroizationProbe,
 {
+    /// Creates a new guard wrapping a mutable reference.
+    ///
+    /// The guard takes ownership of the mutable reference and will zeroize
+    /// the referenced value when dropped.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use memzer_core::{ZeroizingMutGuard, primitives::U32};
+    ///
+    /// let mut value = U32::default();
+    /// *value.expose_mut() = 42;
+    ///
+    /// let guard = ZeroizingMutGuard::from(&mut value);
+    /// assert_eq!(*guard.expose(), 42);
+    /// ```
     pub fn from(inner: &'a mut T) -> Self {
         Self {
             inner,

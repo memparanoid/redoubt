@@ -16,14 +16,100 @@ use memcode_core::{
     Zeroizable as MemCodeZeroizable,
 };
 
+/// Runtime verification that zeroization happened before drop.
+///
+/// `DropSentinel` is a guard type used to verify that `.zeroize()` was called
+/// before a value is dropped. This provides **runtime enforcement** of zeroization
+/// invariants, complementing compile-time checks.
+///
+/// # Design
+///
+/// - Wraps a shared boolean flag (`Rc<Cell<bool>>`)
+/// - `.zeroize()` sets the flag to `true`
+/// - `Drop` checks the flag and panics if `false`
+/// - Can be cloned to verify zeroization from tests
+///
+/// # Panics
+///
+/// Panics on drop if `.zeroize()` was not called before drop. This is intentional:
+/// forgetting to zeroize sensitive data is a critical bug that must be caught.
+///
+/// # Usage
+///
+/// Typically used as a field in structs with `#[derive(MemZer)]`:
+///
+/// ```rust
+/// use memzer_core::{DropSentinel, Zeroizable, ZeroizationProbe, AssertZeroizeOnDrop};
+/// use memzer_derive::MemZer;
+/// use zeroize::Zeroize;
+///
+/// #[derive(Zeroize, MemZer)]
+/// #[zeroize(drop)]
+/// struct Secret {
+///     data: Vec<u8>,
+///     __drop_sentinel: DropSentinel,
+/// }
+/// ```
+///
+/// The `__drop_sentinel` field is auto-detected by the derive macro and used to
+/// verify zeroization.
+///
+/// # Testing
+///
+/// Clone the sentinel to verify zeroization behavior:
+///
+/// ```rust
+/// use memzer_core::DropSentinel;
+/// use zeroize::Zeroize;
+///
+/// let mut sentinel = DropSentinel::default();
+/// let sentinel_clone = sentinel.clone();
+///
+/// assert!(!sentinel_clone.is_dropped());
+/// sentinel.zeroize();
+/// assert!(sentinel_clone.is_dropped());
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DropSentinel(Rc<Cell<bool>>);
 
 impl DropSentinel {
+    /// Resets the sentinel to "not zeroized" state.
+    ///
+    /// This is useful in tests when reusing a sentinel for multiple assertions.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use memzer_core::DropSentinel;
+    /// use zeroize::Zeroize;
+    ///
+    /// let mut sentinel = DropSentinel::default();
+    /// sentinel.zeroize();
+    /// assert!(sentinel.is_dropped());
+    ///
+    /// sentinel.reset();
+    /// assert!(!sentinel.is_dropped());
+    /// ```
     pub fn reset(&mut self) {
         self.0.set(false);
     }
 
+    /// Checks if zeroization happened (i.e., if `.zeroize()` was called).
+    ///
+    /// Returns `true` if the sentinel was zeroized, `false` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use memzer_core::DropSentinel;
+    /// use zeroize::Zeroize;
+    ///
+    /// let mut sentinel = DropSentinel::default();
+    /// assert!(!sentinel.is_dropped());
+    ///
+    /// sentinel.zeroize();
+    /// assert!(sentinel.is_dropped());
+    /// ```
     pub fn is_dropped(&self) -> bool {
         self.0.get()
     }

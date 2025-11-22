@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! Procedural macros for the `memzer` crate.
+//!
+//! Provides the `#[derive(MemZer)]` macro for automatic trait implementations.
+
+#![warn(missing_docs)]
+
 #[cfg(test)]
 mod tests;
 
@@ -11,14 +17,40 @@ use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Fields, Ident, Index, LitStr, Type, parse_macro_input};
 
-/// Main derive function for `MemZer`.
-/// This function is called when using #[derive(MemZer)] on a struct.
+/// Derives `Zeroizable`, `ZeroizationProbe`, and `AssertZeroizeOnDrop` for a struct.
+///
+/// This macro automatically generates trait implementations for structs that contain
+/// a `DropSentinel` field.
+///
+/// # Requirements
+///
+/// - The struct must derive `Zeroize` and use `#[zeroize(drop)]`
+/// - Named structs must have a field named `__drop_sentinel: DropSentinel`
+/// - Tuple structs must have a field of type `DropSentinel`
+///
+/// # Example
+///
+/// ```rust
+/// use memzer_derive::MemZer;
+/// use memzer_core::{DropSentinel, Zeroizable, ZeroizationProbe};
+/// use zeroize::Zeroize;
+///
+/// #[derive(Zeroize, MemZer)]
+/// #[zeroize(drop)]
+/// struct ApiKey {
+///     key: Vec<u8>,
+///     __drop_sentinel: DropSentinel,
+/// }
+/// ```
 #[proc_macro_derive(MemZer)]
 pub fn derive_memzer(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput); // Parse the input to DeriveInput
-    expand(input).unwrap_or_else(|e| e).into() // Expand the input and convert it to TokenStream
+    let input = parse_macro_input!(input as DeriveInput);
+    expand(input).unwrap_or_else(|e| e).into()
 }
 
+/// Finds the root crate path from a list of candidates.
+///
+/// Resolves the correct import path for `memzer` or `memzer-core` depending on context.
 pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStream2 {
     for &candidate in candidates {
         match crate_name(candidate) {
@@ -58,7 +90,9 @@ pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStr
     quote! { compile_error!(#lit); }
 }
 
-/// Helper function to detect if a type is DropSentinel
+/// Detects if a type is `DropSentinel` by checking the type path.
+///
+/// Used for tuple struct support where we identify the sentinel field by type.
 pub(crate) fn is_drop_sentinel_type(ty: &Type) -> bool {
     matches!(
         ty,

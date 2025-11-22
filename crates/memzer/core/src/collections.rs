@@ -2,15 +2,25 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! Trait implementations and helpers for collections (slices, arrays, `Vec<T>`).
+
 use zeroize::Zeroize;
 
 use super::traits::{Zeroizable, ZeroizationProbe};
 
+/// Converts a mutable reference to a trait object (`&mut dyn Zeroizable`).
+///
+/// Helper for working with heterogeneous collections where elements implement
+/// `Zeroizable` but may have different concrete types.
 #[inline(always)]
 pub fn to_zeroizable_dyn_mut<'a, T: Zeroizable>(x: &'a mut T) -> &'a mut (dyn Zeroizable + 'a) {
     x
 }
 
+/// Converts a reference to a trait object (`&dyn ZeroizationProbe`).
+///
+/// Helper for working with heterogeneous collections where elements implement
+/// `ZeroizationProbe` but may have different concrete types.
 #[inline(always)]
 pub fn to_zeroization_probe_dyn_ref<'a, T: ZeroizationProbe>(
     x: &'a T,
@@ -18,12 +28,18 @@ pub fn to_zeroization_probe_dyn_ref<'a, T: ZeroizationProbe>(
     x
 }
 
+/// Zeroizes all elements in a collection via an iterator.
+///
+/// Iterates over `&mut dyn Zeroizable` and calls `.self_zeroize()` on each element.
 pub fn zeroize_collection(collection_iter: &mut dyn Iterator<Item = &mut dyn Zeroizable>) {
     for z in collection_iter {
         z.self_zeroize();
     }
 }
 
+/// Checks if all elements in a collection are zeroized.
+///
+/// Returns `true` if all elements return `true` for `.is_zeroized()`, `false` otherwise.
 pub fn collection_zeroed(collection_iter: &mut dyn Iterator<Item = &dyn ZeroizationProbe>) -> bool {
     for z in collection_iter {
         if !z.is_zeroized() {
@@ -34,6 +50,9 @@ pub fn collection_zeroed(collection_iter: &mut dyn Iterator<Item = &dyn Zeroizat
     true
 }
 
+/// Zeroizes all elements in a slice collection via an iterator.
+///
+/// Specialized version of [`zeroize_collection`] optimized for slices.
 #[inline(always)]
 pub fn zeroize_slice_collection(collection_iter: &mut dyn Iterator<Item = &mut dyn Zeroizable>) {
     for elem in collection_iter {
