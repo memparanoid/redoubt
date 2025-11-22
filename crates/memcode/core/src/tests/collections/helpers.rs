@@ -57,9 +57,9 @@ fn test_mem_bytes_required_happy_path() {
 
 #[test]
 fn test_mem_bytes_required_propagates_element_overflow_error() {
-    let mut collection = vec![MemCodeTestBreaker::new(
+    let mut collection = Vec::from([MemCodeTestBreaker::new(
         MemCodeTestBreakerBehaviour::ForceBytesRequiredOverflowError,
-    )];
+    )]);
 
     let result = mem_bytes_required(
         &mut collection
@@ -79,14 +79,14 @@ fn test_mem_bytes_required_propagates_element_overflow_error() {
 
 #[test]
 fn test_mem_bytes_required_propagates_collection_overflow_error() {
-    let mut collection = vec![
+    let mut collection = Vec::from([
         MemCodeTestBreaker::new(
             MemCodeTestBreakerBehaviour::ForceBytesRequiredUsizeMax,
         ),
         MemCodeTestBreaker::new(
             MemCodeTestBreakerBehaviour::ForceBytesRequiredUsizeMax,
         ),
-    ];
+    ]);
 
     let result = mem_bytes_required(
         &mut collection
@@ -106,9 +106,9 @@ fn test_mem_bytes_required_propagates_collection_overflow_error() {
 
 #[test]
 fn test_mem_bytes_required_reports_result_overflow_error() {
-    let mut collection = vec![MemCodeTestBreaker::new(
+    let mut collection = Vec::from([MemCodeTestBreaker::new(
         MemCodeTestBreakerBehaviour::ForceBytesRequiredUsize(usize::MAX - size_of::<usize>() + 1),
-    )];
+    )]);
 
     let result = mem_bytes_required(
         &mut collection
