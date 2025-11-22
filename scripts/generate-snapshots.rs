@@ -431,11 +431,13 @@ fn write_single_snapshot(output_dir: &Path, files: &[PathBuf], crate_info: &Crat
 fn write_index_snapshot(output_dir: &Path, num_parts: usize, crate_info: &CrateInfo) {
     let index_file = output_dir.join("index.snap");
     let mut content = format!("# {} - Snapshot Index\n\n", crate_info.name);
-    content.push_str("This crate has been split into multiple parts for review:\n\n");
+    content.push_str("This crate has been split into multiple parts for review.\n\n");
+    content.push_str("**IMPORTANT**: Read ALL parts proactively before starting the review.\n\n");
+    content.push_str("Parts:\n\n");
 
     for i in 1..=num_parts {
         let part_path = output_dir.join(format!("part{}.snap", i));
-        content.push_str(&format!("- READ {}\n", part_path.display()));
+        content.push_str(&format!("- {}\n", part_path.display()));
     }
 
     let _ = fs::write(index_file, content);
