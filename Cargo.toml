@@ -34,16 +34,27 @@ resolver = "2"
   memzer_derive  = { path = "crates/memzer/derive" }
 
   # External dependencies
-  getrandom = "0.3"
-  libc      = "0.2.177"
-  subtle    = "2.6"
-  thiserror = "2.0.16"
-  zeroize   = { version = "1.8.1", features = ["zeroize_derive"] }
+  chacha20poly1305 = { version = "0.11.0-rc.0", features = ["zeroize"] }
+  getrandom        = "0.3"
+  libc             = "0.2.177"
+  pastey           = "0.2.0"
+  proc-macro-crate = "3.4.0"
+  proc-macro2      = "1.0.103"
+  quote            = "1.0.41"
+  rand             = "0.9.2"
+  rand_core        = "0.9"
+  seq-macro        = "0.3.6"
+  subtle           = "2.6"
+  syn              = "2.0.108"
+  thiserror        = "2.0.16"
+  zeroize          = { version = "1.8.1", features = ["zeroize_derive"] }
 
   # Dev dependencies
-  criterion = "0.5"
-  insta     = { version = "1.43.2", features = ["redactions"] }
-  proptest  = "1.9.0"
+  criterion    = "0.5"
+  insta        = { version = "1.43.2", features = ["redactions"] }
+  prettyplease = "0.2.37"
+  proptest     = "1.9.0"
+  trybuild     = "1.0"
 
 [profile.release]
 codegen-units = 1

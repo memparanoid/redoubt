@@ -15,6 +15,10 @@ path = "src/lib.rs"
 [dependencies]
 memzer_core.workspace   = true
 memzer_derive.workspace = true
+zeroize.workspace       = true
+
+[dev-dependencies]
+zeroize.workspace = true
 
 [features]
 default = []

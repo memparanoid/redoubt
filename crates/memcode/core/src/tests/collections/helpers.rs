@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use paste::paste;
+use pastey::paste;
 use seq_macro::seq;
 use zeroize::Zeroize;
 

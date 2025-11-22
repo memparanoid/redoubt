@@ -13,16 +13,16 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
-chacha20poly1305  = { version = "0.11.0-rc.0", features = ["zeroize"] }
-memcode           = { path = "../memcode" }
-memzer            = { path = "../memzer", features = ["memcode"] }
-rand              = "0.9.2"
-rand_core         = "0.9"
-thiserror         = "2.0.16"
-zeroize.workspace = true
+chacha20poly1305.workspace = true
+memcode.workspace          = true
+memzer                     = { workspace = true, features = ["memcode"] }
+rand.workspace             = true
+rand_core.workspace        = true
+thiserror.workspace        = true
+zeroize.workspace          = true
 
 [dev-dependencies]
-memcode = { path = "../memcode", features = ["test_utils"] }
+memcode = { workspace = true, features = ["test_utils"] }
 
 [features]
 test_utils = []
