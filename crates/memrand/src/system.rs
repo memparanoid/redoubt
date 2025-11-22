@@ -6,6 +6,13 @@ use getrandom::Error as GetRandomError;
 
 use crate::{EntropySource, error::EntropyError};
 
+/// System-provided cryptographically secure random number generator.
+///
+/// Uses the OS-level CSPRNG via `getrandom`:
+/// - Linux/Android: `getrandom()` syscall
+/// - macOS/iOS: `getentropy()`
+/// - Windows: `BCryptGenRandom`
+/// - WASI: `random_get`
 pub struct SystemEntropySource {}
 
 impl SystemEntropySource {

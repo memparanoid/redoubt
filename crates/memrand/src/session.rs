@@ -4,12 +4,39 @@
 
 use crate::{EntropySource, XNonceGenerator};
 
+/// Session-based XChaCha20 nonce generator with 192-bit output.
+///
+/// Generates unique nonces using a hybrid approach:
+/// - **128-bit random prefix**: Regenerated for each nonce via [`EntropySource`]
+/// - **64-bit counter**: Incrementing session counter with automatic wrapping
+///
+/// # Collision resistance
+///
+/// Even with counter wrapping (after 2^64 nonces ≈ 584 years @ 10^9 ops/sec),
+/// collision probability remains ~1/2^128 due to the random prefix.
+///
+/// # Example
+///
+/// ```ignore
+/// use memrand::{SystemEntropySource, XNonceSessionGenerator, XNonceGenerator};
+///
+/// let entropy = SystemEntropySource {};
+/// let mut generator = XNonceSessionGenerator::new(&entropy);
+///
+/// let mut nonce = [0u8; 24];
+/// generator.fill_current_xnonce(&mut nonce)?;
+/// ```
 pub struct XNonceSessionGenerator<'a> {
     entropy: &'a dyn EntropySource,
     counter: u64,
 }
 
 impl<'a> XNonceSessionGenerator<'a> {
+    /// Creates a new XNonce session generator with counter initialized to 0.
+    ///
+    /// # Arguments
+    ///
+    /// * `entropy` - Entropy source for generating random nonce prefixes
     pub fn new(entropy: &'a dyn EntropySource) -> Self {
         Self {
             entropy,

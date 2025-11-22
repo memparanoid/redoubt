@@ -4,8 +4,10 @@
 
 use thiserror::Error;
 
+/// Errors that can occur when generating random data.
 #[derive(Debug, Error)]
 pub enum EntropyError {
+    /// System entropy source is unavailable or failed to generate random data.
     #[error("EntropyNotAvailable")]
     EntropyNotAvailable,
 }
