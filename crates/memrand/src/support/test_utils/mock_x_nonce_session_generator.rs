@@ -6,18 +6,25 @@ use crate::error::EntropyError;
 use crate::session::XNonceSessionGenerator;
 use crate::traits::{EntropySource, XNonceGenerator};
 
+/// Configurable behavior for [`MockXNonceSessionGenerator`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MockXNonceGeneratorBehaviour {
+    /// Normal operation (delegates to real nonce generator).
     None,
+    /// Simulates nonce generation failure.
     FailAtFillBytes,
 }
 
+/// Mock XNonce generator for testing.
+///
+/// Wraps [`XNonceSessionGenerator`] but allows simulating failures via [`MockXNonceGeneratorBehaviour`].
 pub struct MockXNonceSessionGenerator<'a> {
     inner: XNonceSessionGenerator<'a>,
     behaviour: MockXNonceGeneratorBehaviour,
 }
 
 impl<'a> MockXNonceSessionGenerator<'a> {
+    /// Creates a new mock nonce generator with the specified behavior.
     pub fn new(entropy: &'a dyn EntropySource, behaviour: MockXNonceGeneratorBehaviour) -> Self {
         Self {
             inner: XNonceSessionGenerator::new(entropy),
@@ -25,6 +32,7 @@ impl<'a> MockXNonceSessionGenerator<'a> {
         }
     }
 
+    /// Changes the mock behavior at runtime.
     pub fn change_behaviour(&mut self, behaviour: MockXNonceGeneratorBehaviour) {
         self.behaviour = behaviour;
     }

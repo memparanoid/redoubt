@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! Test utilities for mocking entropy sources and nonce generators.
+//!
+//! Provides mock implementations with configurable behavior for testing.
+
 mod mock_entropy_source;
 mod mock_x_nonce_session_generator;
 

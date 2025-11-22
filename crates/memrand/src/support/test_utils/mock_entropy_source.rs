@@ -6,18 +6,25 @@ use crate::error::EntropyError;
 use crate::system::SystemEntropySource;
 use crate::traits::EntropySource;
 
+/// Configurable behavior for [`MockEntropySource`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MockEntropySourceBehaviour {
+    /// Normal operation (delegates to real entropy source).
     None,
+    /// Simulates entropy source failure.
     FailAtFillBytes,
 }
 
+/// Mock entropy source for testing.
+///
+/// Wraps [`SystemEntropySource`] but allows simulating failures via [`MockEntropySourceBehaviour`].
 pub struct MockEntropySource {
     inner: SystemEntropySource,
     behaviour: MockEntropySourceBehaviour,
 }
 
 impl MockEntropySource {
+    /// Creates a new mock entropy source with the specified behavior.
     pub fn new(behaviour: MockEntropySourceBehaviour) -> Self {
         Self {
             inner: SystemEntropySource {},
@@ -25,6 +32,7 @@ impl MockEntropySource {
         }
     }
 
+    /// Changes the mock behavior at runtime.
     pub fn change_behaviour(&mut self, behaviour: MockEntropySourceBehaviour) {
         self.behaviour = behaviour;
     }
