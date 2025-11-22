@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use getrandom::{Error as GetRandomError, fill};
+use getrandom::Error as GetRandomError;
 
 use crate::{EntropySource, error::EntropyError};
 

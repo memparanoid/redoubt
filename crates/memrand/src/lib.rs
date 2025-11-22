@@ -17,6 +17,7 @@ mod support;
 mod system;
 mod traits;
 
+pub use error::EntropyError;
 pub use system::SystemEntropySource;
 pub use traits::EntropySource;
 
