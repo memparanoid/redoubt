@@ -21,11 +21,8 @@ use super::traits::AssertZeroizeOnDrop;
 /// ```rust
 /// use memzer_core::{Secret, assert::assert_zeroize_on_drop, primitives::U32};
 ///
-/// #[test]
-/// fn test_secret_zeroizes() {
-///     let secret = Secret::from(U32::default());
-///     assert_zeroize_on_drop(secret); // ✅ Passes if zeroization happened
-/// }
+/// let secret = Secret::from(U32::default());
+/// assert_zeroize_on_drop(secret); // ✅ Passes if zeroization happened
 /// ```
 ///
 /// Alternative: use the trait method (does the same internally):
@@ -33,11 +30,8 @@ use super::traits::AssertZeroizeOnDrop;
 /// ```rust
 /// use memzer_core::{Secret, AssertZeroizeOnDrop, primitives::U32};
 ///
-/// #[test]
-/// fn test_via_trait_method() {
-///     let secret = Secret::from(U32::default());
-///     secret.assert_zeroize_on_drop(); // Calls assert_zeroize_on_drop() internally
-/// }
+/// let secret = Secret::from(U32::default());
+/// secret.assert_zeroize_on_drop(); // Calls assert_zeroize_on_drop() internally
 /// ```
 ///
 /// # How It Works

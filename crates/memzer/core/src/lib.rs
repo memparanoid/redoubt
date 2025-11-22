@@ -127,11 +127,8 @@
 //! ```rust
 //! use memzer_core::{Secret, ZeroizationProbe, AssertZeroizeOnDrop, primitives::U32};
 //!
-//! #[test]
-//! fn test_secret_zeroizes() {
-//!     let secret = Secret::from(U32::default());
-//!     secret.assert_zeroize_on_drop(); // Panics if zeroization didn't happen
-//! }
+//! let secret = Secret::from(U32::default());
+//! secret.assert_zeroize_on_drop(); // Panics if zeroization didn't happen
 //! ```
 //!
 //! ## Safety
