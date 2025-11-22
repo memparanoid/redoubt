@@ -141,3 +141,55 @@ where
     /// Exposes a mutable reference to the guarded value.
     fn expose_mut(&mut self) -> &mut T;
 }
+
+/// Trait for zero-copy move semantics with automatic source zeroization.
+///
+/// `MemMove` provides a way to move data from one location to another while
+/// ensuring the source is zeroized, preventing unzeroized copies from remaining
+/// in memory. This is critical when working with sensitive data like cryptographic
+/// keys or credentials.
+///
+/// # The Copy Problem
+///
+/// When a type implements `Copy`, Rust will copy it implicitly, leaving the
+/// original unzeroized:
+///
+/// ```ignore
+/// let key = [0xAB; 32];  // [u8; 32] is Copy
+/// let secret = Secret::from(key);  // Copies key, original remains!
+/// // key still contains 0xAB (unzeroized leak)
+/// ```
+///
+/// # The MemMove Solution
+///
+/// `MemMove` forces explicit, zero-copy transfer using `core::mem::take`:
+///
+/// ```rust
+/// use memzer_core::traits::MemMove;
+///
+/// let mut src = [0xAB; 32];
+/// let mut dst = [0u8; 32];
+///
+/// <[u8; 32]>::mem_move(&mut src, &mut dst);
+///
+/// assert_eq!(dst[0], 0xAB);  // Data moved to dst
+/// assert_eq!(src[0], 0);     // Source zeroized
+/// ```
+///
+/// # Implementation Strategy
+///
+/// - **Fixed arrays**: Use `core::mem::take` element-by-element
+/// - **Vec<T>**: Zeroize + reserve, then move ownership
+/// - **Custom types**: Implement based on internal structure
+pub trait MemMove: Sized {
+    /// Moves data from `src` to `dst`, zeroizing `src` in the process.
+    ///
+    /// After this operation:
+    /// - `dst` contains the data that was in `src`
+    /// - `src` is fully zeroized (no unzeroized copies remain)
+    ///
+    /// # Panics
+    ///
+    /// May panic if `dst` is not properly initialized or if sizes don't match.
+    fn mem_move(src: &mut Self, dst: &mut Self);
+}

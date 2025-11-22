@@ -8,6 +8,7 @@ mod collections;
 mod drop_sentinel;
 mod functional;
 mod mem_encode_buf;
+mod mem_move;
 mod mut_guard;
 mod primitives;
 mod secret;

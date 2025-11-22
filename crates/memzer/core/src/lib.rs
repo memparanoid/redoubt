@@ -177,6 +177,7 @@ mod tests;
 ///
 /// Contains [`DropSentinel`], the core type used to verify that `.zeroize()` was called.
 pub mod drop_sentinel;
+mod mem_move;
 mod secret;
 mod traits;
 mod zeroizing_mut_guard;
@@ -199,7 +200,7 @@ pub mod primitives;
 pub mod utils;
 pub use drop_sentinel::DropSentinel;
 pub use secret::Secret;
-pub use traits::{AssertZeroizeOnDrop, MutGuarded, Zeroizable, ZeroizationProbe};
+pub use traits::{AssertZeroizeOnDrop, MemMove, MutGuarded, Zeroizable, ZeroizationProbe};
 pub use zeroizing_mut_guard::ZeroizingMutGuard;
 
 #[cfg(any(test, feature = "memcode"))]

@@ -4,6 +4,46 @@
 
 //! Utility functions for memory hygiene verification.
 
+use core::mem;
+
+/// Moves data from `src` slice to `dst` slice using `core::mem::take`.
+///
+/// This function transfers elements from `src` to `dst`, zeroizing
+/// `src` in the process via `mem::take` (which replaces source with Default).
+///
+/// Moves `min(src.len(), dst.len())` elements (best-effort, panic-free).
+#[inline]
+pub(crate) fn move_slice<T: Default>(src: &mut [T], dst: &mut [T]) {
+    let count = src.len().min(dst.len());
+
+    for i in 0..count {
+        dst[i] = mem::take(&mut src[i]);
+    }
+}
+
+/// Moves a `Vec<T>` from `src` to `dst`, zeroizing `dst` before reserve.
+///
+/// This function:
+/// 1. Zeroizes `dst` (clearing both elements AND spare capacity)
+/// 2. Reserves exact capacity in `dst` for `src.len()` elements
+/// 3. Moves ownership from `src` to `dst` (src becomes empty)
+///
+/// This ensures no unzeroized data remains in `dst`'s spare capacity
+/// before expanding.
+#[inline]
+pub(crate) fn move_vec<T: zeroize::Zeroize>(src: &mut Vec<T>, dst: &mut Vec<T>) {
+    use zeroize::Zeroize;
+
+    // CRITICAL: Zeroize dst to clear spare capacity BEFORE taking ownership
+    dst.zeroize();
+
+    // Reserve exact capacity to avoid reallocation
+    dst.reserve_exact(src.len());
+
+    // Move ownership from src to dst (src becomes empty Vec)
+    *dst = mem::take(src);
+}
+
 /// Verifies that a `Vec<u8>` is fully zeroized, including spare capacity.
 ///
 /// This function checks **the entire allocation** (from index 0 to capacity),
