@@ -54,15 +54,18 @@ pub trait Zeroizable {
 ///
 /// ```rust
 /// use memcode_core::{MemEncodeBuf, MemEncode, MemBytesRequired};
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///
 /// let mut value = vec![1u8, 2, 3];
-/// let size = value.mem_bytes_required().unwrap();
+/// let size = value.mem_bytes_required()?;
 /// let mut buf = MemEncodeBuf::new(size);
 ///
-/// value.drain_into(&mut buf).unwrap();
+/// value.drain_into(&mut buf)?;
 ///
 /// // Source is now zeroized
 /// assert!(value.iter().all(|&b| b == 0));
+/// # Ok(())
+/// # }
 /// ```
 pub trait MemEncode: Zeroizable {
     /// Encodes `self` into the buffer, consuming and zeroizing the source.
@@ -90,17 +93,20 @@ pub trait MemEncode: Zeroizable {
 ///
 /// ```rust
 /// use memcode_core::{MemDecode, MemEncode, MemEncodeBuf, MemBytesRequired};
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///
 /// let mut original = vec![1u8, 2, 3];
-/// let size = original.mem_bytes_required().unwrap();
+/// let size = original.mem_bytes_required()?;
 /// let mut buf = MemEncodeBuf::new(size);
-/// original.drain_into(&mut buf).unwrap();
+/// original.drain_into(&mut buf)?;
 ///
 /// let mut decoded = Vec::<u8>::new();
-/// let consumed = decoded.drain_from(buf.as_mut_slice()).unwrap();
+/// let consumed = decoded.drain_from(buf.as_mut_slice())?;
 ///
 /// assert_eq!(decoded, vec![1, 2, 3]);
 /// assert_eq!(consumed, size);
+/// # Ok(())
+/// # }
 /// ```
 pub trait MemDecode: Zeroizable {
     /// Decodes data from bytes and returns the number of bytes consumed.
@@ -159,12 +165,15 @@ pub trait MemNumElements {
 ///
 /// ```rust
 /// use memcode_core::{MemBytesRequired, MemEncodeBuf};
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///
 /// let value = vec![1u8, 2, 3, 4, 5];
-/// let size = value.mem_bytes_required().unwrap();
+/// let size = value.mem_bytes_required()?;
 ///
 /// // Pre-allocate exact size (no re-allocations needed)
 /// let buf = MemEncodeBuf::new(size);
+/// # Ok(())
+/// # }
 /// ```
 pub trait MemBytesRequired {
     /// Calculates the exact number of bytes required to encode this value.

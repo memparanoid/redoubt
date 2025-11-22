@@ -194,18 +194,21 @@
 //!
 //! ```rust
 //! use memcode_core::{MemEncodeBuf, MemEncode, MemDecode, MemBytesRequired, Zeroizable};
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!
 //! let mut original = vec![1u8, 2, 3];
-//! let size = original.mem_bytes_required().unwrap();
+//! let size = original.mem_bytes_required()?;
 //! let mut buf = MemEncodeBuf::new(size);
 //!
-//! original.drain_into(&mut buf).unwrap();
+//! original.drain_into(&mut buf)?;
 //! assert!(original.iter().all(|&b| b == 0)); // Zeroized after encode
 //!
 //! let mut decoded = Vec::<u8>::new();
-//! decoded.drain_from(buf.as_mut_slice()).unwrap();
+//! decoded.drain_from(buf.as_mut_slice())?;
 //!
 //! assert_eq!(decoded, vec![1, 2, 3]);
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Safety
