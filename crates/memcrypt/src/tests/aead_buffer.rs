@@ -271,7 +271,11 @@ fn test_drain_slice_checked_add_overflow() {
 
     let mut aead_buffer = AeadBuffer::default();
 
-    // Hack: Create a Vec with huge len that will cause checked_add overflow
+    // SAFETY: This test intentionally violates Vec invariants to test overflow handling.
+    // We create a Vec with len = usize::MAX - 5 using from_raw_parts, which is technically
+    // UB if we ever access the fake elements. However, we only use this Vec to trigger
+    // checked_add overflow in drain_slice, which returns early before any invalid access.
+    // The minimal 1-byte allocation satisfies the non-null ptr requirement.
     unsafe {
         // Allocate 1 byte (we won't actually use it, just need valid ptr)
         let layout = Layout::from_size_align(1, 1).unwrap();

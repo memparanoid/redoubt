@@ -101,7 +101,7 @@ impl XNonce {
     ///
     /// nonce.fill_exact(&mut source);
     ///
-    /// // Source buffer is zeroized
+    /// // Source buffer is guaranteed to be zeroized
     /// assert!(source.iter().all(|&b| b == 0));
     ///
     /// // Nonce contains the original bytes

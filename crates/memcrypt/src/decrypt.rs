@@ -119,7 +119,7 @@ where
             CryptoError::InvalidKeyLength
         })?;
 
-        // Wipe unused
+        // wipe unused
         x.aead_key.zeroize();
 
         cipher
@@ -173,7 +173,7 @@ where
             CryptoError::MemDecode(e)
         })?;
 
-        // Wipe unused
+        // wipe unused
         x.aead_buffer.zeroize();
     }
 

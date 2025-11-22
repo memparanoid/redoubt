@@ -133,7 +133,7 @@ where
             .drain_slice(x.buf.as_mut().as_mut_slice())
             .expect("Infallible: AeadBuffer has been already reserved with enough capacity");
 
-        // Wipe unused
+        // wipe unused
         x.buf.zeroize();
     }
 
@@ -155,7 +155,7 @@ where
             CryptoError::InvalidKeyLength
         })?;
 
-        // Wipe key (no longer needed)
+        // wipe unused
         x.aead_key.zeroize();
 
         cipher
@@ -164,8 +164,8 @@ where
             "XChaCha20Poly1305::encrypt is infallible with valid 32-byte aead key and 24-byte xnonce",
         );
 
-        // Wipe nonce (no longer needed)
-        drop(cipher);
+        // wipe unused
+        drop(cipher); // explicitly drop cipher to zeroize its internal state before wiping nonce
         x.xnonce.zeroize();
     }
 
