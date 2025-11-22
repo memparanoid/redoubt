@@ -91,7 +91,7 @@ fn test_truncate_when_len_equals_capacity() {
         .zeroized_reserve_exact(slice.len())
         .expect("Failed to zeroized_reserve_exact()");
     aead_buffer
-        .extend_from_slice(&slice)
+        .extend_from_slice(slice)
         .expect("Failed to extend_from_slice(..)");
 
     assert!(aead_buffer.len() == slice.len());
@@ -116,7 +116,7 @@ fn test_truncate_when_len_not_equals_capacity() {
         .zeroized_reserve_exact(fixed_capacity)
         .expect("Failed to zeroized_reserve_exact()");
     aead_buffer
-        .extend_from_slice(&slice)
+        .extend_from_slice(slice)
         .expect("Failed to extend_from_slice(..)");
 
     assert!(aead_buffer.len() == slice.len());
