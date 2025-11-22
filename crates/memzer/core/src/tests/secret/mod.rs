@@ -37,11 +37,11 @@ fn test_secret_expose_methods() {
     let vec = vec![1u8, 2, 3, 4, 5];
     let mut secret = Secret::from(vec);
 
-    fn with_ref(vec: &Vec<u8>) -> bool {
+    fn with_ref(vec: &[u8]) -> bool {
         vec.iter().sum::<u8>() == 15
     }
 
-    fn with_mut(vec: &mut Vec<u8>) -> bool {
+    fn with_mut(vec: &mut [u8]) -> bool {
         for item in vec.iter_mut() {
             *item = *item * 2
         }
