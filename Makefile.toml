@@ -40,7 +40,7 @@ command = "cargo"
 
 [tasks.lint]
 # Strict linting: treat warnings as errors
-args    = ["clippy"]
+args    = ["clippy", "--all-targets", "--all-features", "--", "-W", "unused-imports"]
 command = "cargo"
 
 [tasks.check]
