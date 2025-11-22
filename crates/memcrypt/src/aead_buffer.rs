@@ -199,8 +199,7 @@ impl Zeroizable for AeadBuffer {
 impl ZeroizationProbe for AeadBuffer {
     #[inline]
     fn is_zeroized(&self) -> bool {
-        //@TODO: Inspect spare capacity?
-        self.inner.iter().all(|&b| b == 0)
+        Self::is_vec_fully_zeroized(&self.inner)
     }
 }
 
