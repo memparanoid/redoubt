@@ -13,15 +13,14 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
-thiserror         = "2.0.16"
-zeroize.workspace = true
+thiserror.workspace = true
+zeroize.workspace   = true
 
 [dev-dependencies]
-insta.workspace    = true
-paste              = "1.0.0"
-proptest.workspace = true
-seq-macro          = "0.3.6"
-speculate          = "0.1.2"
+insta.workspace     = true
+pastey.workspace    = true
+proptest.workspace  = true
+seq-macro.workspace = true
 
 [features]
 test_utils = []
