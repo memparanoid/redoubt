@@ -17,7 +17,7 @@ fn main() {
     impl Default for SensitiveData {
         fn default() -> Self {
             Self {
-                data: Secret::from(vec![1, 2, 3, 4]),
+                data: Secret::from(&mut vec![1, 2, 3, 4]),
                 __drop_sentinel: DropSentinel::default(),
             }
         }

@@ -14,8 +14,8 @@ fn main() {
     impl Default for TupleStruct {
         fn default() -> Self {
             Self(
-                Secret::from(vec![1, 2, 3, 4]),
-                Secret::from([u8::MAX; 32]),
+                Secret::from(&mut vec![1, 2, 3, 4]),
+                Secret::from(&mut [u8::MAX; 32]),
                 DropSentinel::default(),
             )
         }
