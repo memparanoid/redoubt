@@ -93,6 +93,7 @@ where
     T: Zeroize + Zeroizable + ZeroizationProbe + MemEncodable + MemDecodable + MemBytesRequired,
 {
     inner: T,
+    #[memcode(default)]
     __drop_sentinel: DropSentinel,
 }
 

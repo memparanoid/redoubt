@@ -15,7 +15,7 @@ use proc_macro::TokenStream;
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, Ident, Index, LitStr, parse_macro_input};
+use syn::{Attribute, Data, DeriveInput, Fields, Ident, Index, LitStr, Meta, parse_macro_input};
 
 /// Derives encoding and decoding traits for a struct.
 ///
@@ -100,7 +100,11 @@ use syn::{Data, DeriveInput, Fields, Ident, Index, LitStr, parse_macro_input};
 /// - Encoding errors → source struct is zeroized
 /// - Decoding errors → consumed bytes are zeroized
 /// - Collection size mismatch → `MemDecodeError::LengthMismatch`
-#[proc_macro_derive(MemCodec)]
+///
+/// # Attributes
+///
+/// - `#[memcode(default)]` on a field: Skip encoding/decoding, use `Default::default()`
+#[proc_macro_derive(MemCodec, attributes(memcode))]
 pub fn derive_memcode(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     expand(input).unwrap_or_else(|e| e).into()
@@ -148,6 +152,18 @@ pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStr
     quote! { compile_error!(#lit); }
 }
 
+/// Checks if a field has the `#[memcode(default)]` attribute.
+fn has_memcode_default(attrs: &[Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        if let Meta::List(meta_list) = &attr.meta {
+            if meta_list.path.is_ident("memcode") {
+                return meta_list.tokens.to_string().contains("default");
+            }
+        }
+        false
+    })
+}
+
 /// Expands the `DeriveInput` into trait implementations for `MemCodec`.
 ///
 /// This function generates all necessary trait implementations for encoding/decoding
@@ -161,6 +177,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     let root = find_root_with_candidates(&["memcode_core", "memcode"]);
 
     // 2) Collect references to the struct fields for the `MemCode` and `MemDecode` traits
+    // Skip fields with #[memcode(default)] - they keep their Default::default() value
     let (mut immut_refs, mut mut_refs): (Vec<TokenStream2>, Vec<TokenStream2>) =
         (Vec::new(), Vec::new());
 
@@ -170,15 +187,22 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
                 for f in &named.named {
                     let ident = f.ident.as_ref().unwrap();
 
-                    immut_refs.push(quote! { &self.#ident });
-                    mut_refs.push(quote! { &mut self.#ident });
+                    // Skip fields with #[memcode(default)]
+                    if !has_memcode_default(&f.attrs) {
+                        immut_refs.push(quote! { &self.#ident });
+                        mut_refs.push(quote! { &mut self.#ident });
+                    }
                 }
             }
             Fields::Unnamed(unnamed) => {
-                for (i, _f) in unnamed.unnamed.iter().enumerate() {
+                for (i, f) in unnamed.unnamed.iter().enumerate() {
                     let idx = Index::from(i);
-                    immut_refs.push(quote! { &self.#idx });
-                    mut_refs.push(quote! { &mut self.#idx });
+
+                    // Skip fields with #[memcode(default)]
+                    if !has_memcode_default(&f.attrs) {
+                        immut_refs.push(quote! { &self.#idx });
+                        mut_refs.push(quote! { &mut self.#idx });
+                    }
                 }
             }
             Fields::Unit => {}

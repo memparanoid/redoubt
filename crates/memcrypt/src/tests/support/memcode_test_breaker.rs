@@ -15,7 +15,7 @@ use memzer::{
 
 #[derive(Default, Debug, MemCodec, Zeroize)]
 #[zeroize(drop)]
-pub struct MemCodeTestBreaker(InnerMemCodeTestBreaker, DropSentinel);
+pub struct MemCodeTestBreaker(InnerMemCodeTestBreaker, #[memcode(default)] DropSentinel);
 
 impl MemCodeTestBreaker {
     pub fn new(behaviour: MemCodeTestBreakerBehaviour) -> Self {
