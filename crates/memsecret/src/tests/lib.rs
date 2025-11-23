@@ -2,11 +2,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-mod support;
-
-mod collections;
-mod drop_sentinel;
-mod functional;
-mod mem_encode_buf;
-mod mut_guard;
-mod primitives;
+// Tests for Secret will go here

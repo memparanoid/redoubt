@@ -2,5 +2,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(any(test, feature = "memcode"))]
-mod memcode;
+mod collections;
+mod lib;

@@ -4,8 +4,10 @@
 
 use zeroize::Zeroize;
 
+use memutil::is_vec_fully_zeroized;
+
+use crate::collections::move_vec;
 use crate::traits::MemMove;
-use crate::utils::{is_vec_fully_zeroized, move_vec};
 
 /// Macro to test array MemMove for all type implementations
 macro_rules! test_array_mem_move {
@@ -27,12 +29,24 @@ macro_rules! test_array_mem_move {
 }
 
 test_array_mem_move!(
-    u8, test_array_mem_move_u8, 0xAB,
-    u16, test_array_mem_move_u16, 0xABCD,
-    u32, test_array_mem_move_u32, 0xABCD_EF01,
-    u64, test_array_mem_move_u64, 0xABCD_EF01_2345_6789,
-    u128, test_array_mem_move_u128, 0xABCD_EF01_2345_6789_ABCD_EF01_2345_6789,
-    usize, test_array_mem_move_usize, 0xABCD,
+    u8,
+    test_array_mem_move_u8,
+    0xAB,
+    u16,
+    test_array_mem_move_u16,
+    0xABCD,
+    u32,
+    test_array_mem_move_u32,
+    0xABCD_EF01,
+    u64,
+    test_array_mem_move_u64,
+    0xABCD_EF01_2345_6789,
+    u128,
+    test_array_mem_move_u128,
+    0xABCD_EF01_2345_6789_ABCD_EF01_2345_6789,
+    usize,
+    test_array_mem_move_usize,
+    0xABCD,
 );
 
 /// Macro to test Vec MemMove for all type implementations
@@ -55,12 +69,24 @@ macro_rules! test_vec_mem_move {
 }
 
 test_vec_mem_move!(
-    u8, test_vec_mem_move_u8, 0xDE,
-    u16, test_vec_mem_move_u16, 0xDEAD,
-    u32, test_vec_mem_move_u32, 0xDEAD_BEEF,
-    u64, test_vec_mem_move_u64, 0xDEAD_BEEF_CAFE_BABE,
-    u128, test_vec_mem_move_u128, 0xDEAD_BEEF_CAFE_BABE_1234_5678_9ABC_DEF0,
-    usize, test_vec_mem_move_usize, 0xDEAD,
+    u8,
+    test_vec_mem_move_u8,
+    0xDE,
+    u16,
+    test_vec_mem_move_u16,
+    0xDEAD,
+    u32,
+    test_vec_mem_move_u32,
+    0xDEAD_BEEF,
+    u64,
+    test_vec_mem_move_u64,
+    0xDEAD_BEEF_CAFE_BABE,
+    u128,
+    test_vec_mem_move_u128,
+    0xDEAD_BEEF_CAFE_BABE_1234_5678_9ABC_DEF0,
+    usize,
+    test_vec_mem_move_usize,
+    0xDEAD,
 );
 
 /// Test that `move_vec` zeroizes destination before reserve.
@@ -133,7 +159,11 @@ fn test_move_vec_zeroizes_before_reserve() {
         let mut c = 3u8;
         let mut d = 4u8;
         let mut e = 5u8;
-        let mut src = vec![MutByte::new(&mut c), MutByte::new(&mut d), MutByte::new(&mut e)];
+        let mut src = vec![
+            MutByte::new(&mut c),
+            MutByte::new(&mut d),
+            MutByte::new(&mut e),
+        ];
 
         move_vec(&mut src, &mut dst);
 

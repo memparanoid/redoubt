@@ -1,0 +1,22 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["memory-management"]
+description          = "High-level Secret wrapper with auto-zeroization"
+edition.workspace    = true
+keywords             = ["security", "secret", "zeroize", "memory"]
+license.workspace    = true
+name                 = "memsecret"
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+memcode.workspace = true
+memutil.workspace = true
+memzer = { workspace = true, features = ["memcode"] }
+zeroize.workspace = true
+
+[features]
+default = []
