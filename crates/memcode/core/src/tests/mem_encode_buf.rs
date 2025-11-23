@@ -4,6 +4,7 @@
 
 use crate::error::MemEncodeBufError;
 use crate::mem_encode_buf::MemEncodeBuf;
+use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
 
 #[test]
 fn test_new_creates_buffer_with_correct_capacity() {
@@ -189,4 +190,31 @@ fn test_debug_does_not_expose_buffer_content() {
     assert!(debug_output.contains("len"));
     assert!(debug_output.contains("cursor"));
     assert!(debug_output.contains("4")); // len should be 4
+}
+
+#[test]
+fn test_zeroization_probe_trait() {
+    let mut buf = MemEncodeBuf::new(4);
+
+    // New buffer should be zeroized
+    assert!(buf.is_zeroized());
+
+    // After adding data, should not be zeroized
+    let mut data = [1u8, 2, 3, 4];
+    buf.drain_bytes(&mut data).unwrap();
+    assert!(!buf.is_zeroized());
+
+    // After reset, should be zeroized again
+    buf.reset_with_capacity(4);
+    assert!(buf.is_zeroized());
+}
+
+#[test]
+fn test_assert_zeroize_on_drop_trait() {
+    let mut buf = MemEncodeBuf::new(4);
+    let mut data = [1u8, 2, 3, 4];
+    buf.drain_bytes(&mut data).unwrap();
+
+    // Should verify zeroization on drop
+    buf.assert_zeroize_on_drop();
 }

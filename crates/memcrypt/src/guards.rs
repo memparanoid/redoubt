@@ -4,9 +4,8 @@
 
 use zeroize::Zeroize;
 
-use memzer::{
-    DropSentinel, MemEncodeBuf, MemZer, Zeroizable, ZeroizationProbe, ZeroizingMutGuard,
-};
+use memcode::MemEncodeBuf;
+use memzer::{DropSentinel, MemZer, Zeroizable, ZeroizationProbe, ZeroizingMutGuard};
 
 use crate::aead_buffer::AeadBuffer;
 use crate::aead_key::AeadKey;

@@ -19,7 +19,3 @@ zeroize.workspace       = true
 
 [dev-dependencies]
 zeroize.workspace = true
-
-[features]
-default = []
-memcode = ["memzer_core/memcode"]

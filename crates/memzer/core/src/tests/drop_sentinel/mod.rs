@@ -8,9 +8,6 @@ use crate::assert::assert_zeroize_on_drop;
 use crate::drop_sentinel::DropSentinel;
 use crate::traits::AssertZeroizeOnDrop;
 
-#[cfg(any(test, feature = "memcode"))]
-mod features;
-
 #[test]
 fn functional_test_for_drop_sentinel() {
     struct Test {

@@ -13,15 +13,8 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
-memcode_core      = { workspace = true, optional = true }
 memutil.workspace = true
 zeroize.workspace = true
 
 [dev-dependencies]
-memcode_core.workspace = true
-pastey.workspace       = true
-
-[features]
-default = []
-memcode = ["dep:memcode_core"]
-test    = ["memcode"]
+pastey.workspace = true

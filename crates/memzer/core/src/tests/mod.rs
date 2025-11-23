@@ -7,6 +7,5 @@ mod support;
 mod collections;
 mod drop_sentinel;
 mod functional;
-mod mem_encode_buf;
 mod mut_guard;
 mod primitives;

@@ -105,7 +105,7 @@ where
             x.zeroize();
             CryptoError::Overflow(err)
         })?;
-        x.buf.as_mut().reset_with_capacity(bytes_required);
+        x.buf.reset_with_capacity(bytes_required);
     }
 
     // Stage: DrainInto
@@ -113,7 +113,7 @@ where
         #[cfg(test)]
         f(EncryptStage::DrainInto, x);
 
-        x.value.drain_into(x.buf.as_mut()).map_err(|err| {
+        x.value.drain_into(&mut x.buf).map_err(|err| {
             x.zeroize();
             CryptoError::MemEncode(err)
         })?;
@@ -126,13 +126,13 @@ where
 
         // Prepare AEAD buffer: reserve space for plaintext + tag
         x.aead_buffer
-            .zeroized_reserve_exact(x.buf.as_ref().len() + TAG_SIZE)
+            .zeroized_reserve_exact(x.buf.len() + TAG_SIZE)
             .map_err(|_| {
                 x.zeroize();
                 CryptoError::AeadBufferNotZeroized
             })?;
         x.aead_buffer
-            .drain_slice(x.buf.as_mut().as_mut_slice())
+            .drain_slice(x.buf.as_mut_slice())
             .expect("Infallible: AeadBuffer has been already reserved with enough capacity");
 
         // wipe unused

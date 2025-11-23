@@ -15,7 +15,7 @@ path = "src/lib.rs"
 [dependencies]
 memcode.workspace = true
 memutil.workspace = true
-memzer = { workspace = true, features = ["memcode"] }
+memzer.workspace  = true
 zeroize.workspace = true
 
 [features]

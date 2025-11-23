@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use memzer::{DropSentinel, MemZer};
 use zeroize::Zeroize;
 
 use crate::error::MemEncodeBufError;
@@ -48,11 +49,18 @@ use crate::error::MemEncodeBufError;
 /// - Dropped (via `#[zeroize(drop)]`)
 /// - An encoding operation fails
 /// - [`reset_with_capacity()`](Self::reset_with_capacity) is called
-#[derive(Zeroize)]
+#[derive(Zeroize, MemZer)]
 #[zeroize(drop)]
 pub struct MemEncodeBuf {
     buf: Vec<u8>,
     cursor: usize,
+    __drop_sentinel: DropSentinel,
+}
+
+impl Default for MemEncodeBuf {
+    fn default() -> Self {
+        Self::new(0)
+    }
 }
 
 impl core::fmt::Debug for MemEncodeBuf {
@@ -83,7 +91,11 @@ impl MemEncodeBuf {
     pub fn new(capacity: usize) -> Self {
         let buf = Vec::new();
 
-        let mut buf = Self { buf, cursor: 0 };
+        let mut buf = Self {
+            buf,
+            cursor: 0,
+            __drop_sentinel: DropSentinel::default(),
+        };
         buf.reset_with_capacity(capacity);
 
         buf

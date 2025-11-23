@@ -119,13 +119,9 @@
 //!
 //! Guards compose with other Memora crates:
 //! - **memsecret**: High-level `Secret<T>` wrapper built on memzer traits
-//! - **memcode**: Serialization support for guards (via `memcode` feature)
+//! - **memcode**: Serialization library with memzer trait support
 //! - **memcrypt**: Encryption stages use [`ZeroizingMutGuard`] for keys/nonces
 //! - **memvault**: High-level API uses guards for encrypted in-memory storage
-//!
-//! ## Feature Flags
-//!
-//! - `memcode`: Enable integration with `memcode-core` (serialization support for guards)
 //!
 //! ## Safety
 //!
@@ -170,9 +166,3 @@ pub mod primitives;
 pub use drop_sentinel::DropSentinel;
 pub use traits::{AssertZeroizeOnDrop, MutGuarded, Zeroizable, ZeroizationProbe};
 pub use zeroizing_mut_guard::ZeroizingMutGuard;
-
-#[cfg(any(test, feature = "memcode"))]
-mod mem_encode_buf;
-
-#[cfg(any(test, feature = "memcode"))]
-pub use mem_encode_buf::MemEncodeBuf;
