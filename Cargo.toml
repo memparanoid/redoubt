@@ -8,7 +8,9 @@ members = [
   "crates/memzer",
   "crates/memzer/core",
   "crates/memzer/derive",
+  "crates/memsecret",
   "crates/memrand",
+  "crates/memutil",
   "crates/memvault",
   "crates/memcrypt",
 ]
@@ -28,6 +30,8 @@ resolver = "2"
   memcrypt       = { path = "crates/memcrypt" }
   memprotect     = { path = "crates/memprotect" }
   memrand        = { path = "crates/memrand" }
+  memsecret      = { path = "crates/memsecret" }
+  memutil        = { path = "crates/memutil" }
   memvault       = { path = "crates/memvault" }
   memzer         = { path = "crates/memzer" }
   memzer_core    = { path = "crates/memzer/core" }
