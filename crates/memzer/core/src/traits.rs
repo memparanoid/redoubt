@@ -165,7 +165,7 @@ where
 /// `MemMove` forces explicit, zero-copy transfer using `core::mem::take`:
 ///
 /// ```rust
-/// use memzer_core::traits::MemMove;
+/// use memzer_core::MemMove;
 ///
 /// let mut src = [0xAB; 32];
 /// let mut dst = [0u8; 32];

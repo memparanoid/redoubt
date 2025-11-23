@@ -10,6 +10,8 @@ use crate::traits::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
 #[cfg(any(test, feature = "memcode"))]
 mod features;
 
+mod copy_leak;
+
 #[test]
 fn test_secret_assert_zeroization_probe_trait() {
     let vec = vec![1u8, 2, 3, 4, 5];
