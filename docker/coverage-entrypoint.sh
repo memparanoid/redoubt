@@ -58,7 +58,7 @@ if [ $# -ge 1 ]; then
 
   CARGO_TARGET_DIR="target" \
     cargo +nightly llvm-cov report \
-    --branch --show-instantiations \
+    --branch \
     --html --output-dir "$OUT"
 
   echo "Coverage report generated at $OUT/index.html"

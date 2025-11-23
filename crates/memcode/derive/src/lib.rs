@@ -155,12 +155,9 @@ pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStr
 /// Checks if a field has the `#[memcode(default)]` attribute.
 fn has_memcode_default(attrs: &[Attribute]) -> bool {
     attrs.iter().any(|attr| {
-        if let Meta::List(meta_list) = &attr.meta
-            && meta_list.path.is_ident("memcode")
-        {
-            return meta_list.tokens.to_string().contains("default");
-        }
-        false
+        matches!(&attr.meta, Meta::List(meta_list)
+            if meta_list.path.is_ident("memcode")
+            && meta_list.tokens.to_string().contains("default"))
     })
 }
 
@@ -178,34 +175,13 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
 
     // 2) Collect references to the struct fields for the `MemCode` and `MemDecode` traits
     // Skip fields with #[memcode(default)] - they keep their Default::default() value
-    let (mut immut_refs, mut mut_refs): (Vec<TokenStream2>, Vec<TokenStream2>) =
-        (Vec::new(), Vec::new());
 
-    match &input.data {
+    // Get fields as a Vec for functional processing
+    let fields: Vec<(usize, &syn::Field)> = match &input.data {
         Data::Struct(data) => match &data.fields {
-            Fields::Named(named) => {
-                for f in &named.named {
-                    let ident = f.ident.as_ref().unwrap();
-
-                    // Skip fields with #[memcode(default)]
-                    if !has_memcode_default(&f.attrs) {
-                        immut_refs.push(quote! { &self.#ident });
-                        mut_refs.push(quote! { &mut self.#ident });
-                    }
-                }
-            }
-            Fields::Unnamed(unnamed) => {
-                for (i, f) in unnamed.unnamed.iter().enumerate() {
-                    let idx = Index::from(i);
-
-                    // Skip fields with #[memcode(default)]
-                    if !has_memcode_default(&f.attrs) {
-                        immut_refs.push(quote! { &self.#idx });
-                        mut_refs.push(quote! { &mut self.#idx });
-                    }
-                }
-            }
-            Fields::Unit => {}
+            Fields::Named(named) => named.named.iter().enumerate().collect(),
+            Fields::Unnamed(unnamed) => unnamed.unnamed.iter().enumerate().collect(),
+            Fields::Unit => vec![],
         },
         _ => {
             return Err(syn::Error::new_spanned(
@@ -215,6 +191,22 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
             .to_compile_error());
         }
     };
+
+    // Functional approach: filter and map in one pass
+    let (immut_refs, mut_refs): (Vec<TokenStream2>, Vec<TokenStream2>) = fields
+        .iter()
+        .filter(|(_, f)| !has_memcode_default(&f.attrs))
+        .map(|(i, f)| {
+            if let Some(ident) = &f.ident {
+                // Named field
+                (quote! { &self.#ident }, quote! { &mut self.#ident })
+            } else {
+                // Unnamed field (tuple)
+                let idx = Index::from(*i);
+                (quote! { &self.#idx }, quote! { &mut self.#idx })
+            }
+        })
+        .unzip();
 
     // 4) Specify lengths (it could be done with mut_refs also)
     let len = immut_refs.len();

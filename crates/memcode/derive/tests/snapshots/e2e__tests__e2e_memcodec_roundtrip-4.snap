@@ -1,0 +1,5 @@
+---
+source: crates/memcode/derive/tests/e2e.rs
+expression: snapshot_4
+---
+buffer length: 384

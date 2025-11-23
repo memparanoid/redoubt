@@ -87,6 +87,63 @@ fn snapshot_empty_struct_ok() {
 }
 
 #[test]
+fn snapshot_named_struct_ok_with_memcode_default() {
+    let derive_input = parse_quote! {
+        #[derive(MemCodec)]
+        struct Sigma {
+            pub alpha: Vec<u8>,
+            pub beta: [u8; 32],
+            #[memcode(default)]
+            pub gamma: [u8; 16],
+        }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_tuple_struct_ok_with_memcode_default() {
+    let derive_input = parse_quote! {
+        #[derive(MemCodec)]
+        struct Sigma(Vec<u8>, [u8; 32], #[memcode(default)] [u8; 16]);
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_named_struct_with_non_default_memcode_attr() {
+    let derive_input = parse_quote! {
+        #[derive(MemCodec)]
+        struct Sigma {
+            pub alpha: Vec<u8>,
+            #[memcode(skip)]
+            pub beta: [u8; 32],
+        }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_named_struct_with_other_list_attr() {
+    let derive_input = parse_quote! {
+        #[derive(MemCodec)]
+        struct Sigma {
+            pub alpha: Vec<u8>,
+            #[serde(default)]
+            pub beta: [u8; 32],
+        }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
 fn snapshot_enum_fails() {
     use std::panic::catch_unwind;
 

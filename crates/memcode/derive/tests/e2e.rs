@@ -8,7 +8,7 @@ mod tests {
     use insta::assert_snapshot;
     use zeroize::Zeroize;
 
-    use memcode_core::{MemBytesRequired, MemDecode, MemEncode, MemEncodeBuf};
+    use memcode_core::{MemBytesRequired, MemDecode, MemEncode, MemEncodeBuf, MemNumElements};
     use memcode_derive::MemCodec;
 
     #[test]
@@ -17,6 +17,8 @@ mod tests {
         struct Very {
             pub nested: Nested,
             pub data: [u8; 64],
+            #[memcode(default)]
+            pub default: [u8; 32],
         }
 
         impl Default for Very {
@@ -24,6 +26,7 @@ mod tests {
                 Self {
                     data: [u8::MAX; 64],
                     nested: Nested::default(),
+                    default: [0u8; 32],
                 }
             }
         }
@@ -76,10 +79,18 @@ mod tests {
         let snapshot_1 = format!("{:?}", very);
         assert_snapshot!(snapshot_1);
 
-        let mut buf = MemEncodeBuf::new(
-            very.mem_bytes_required()
-                .expect("Failed to get mem_bytes_required()"),
+        let bytes_required = very
+            .mem_bytes_required()
+            .expect("Failed to get mem_bytes_required()");
+        let num_elements = very.mem_num_elements();
+
+        let snapshot_2 = format!(
+            "bytes_required: {}, num_elements: {}",
+            bytes_required, num_elements
         );
+        assert_snapshot!(snapshot_2);
+
+        let mut buf = MemEncodeBuf::new(bytes_required);
         let result = very.drain_into(&mut buf);
 
         assert!(result.is_ok());
@@ -87,19 +98,23 @@ mod tests {
         // Assert zeroization!
         {
             // zeroized snapshot
-            let snapshot_2 = format!("{:?}", very);
-            assert_snapshot!(snapshot_2);
+            let snapshot_3 = format!("{:?}", very);
+            assert_snapshot!(snapshot_3);
         }
 
         // Fulfilled buf
-        let snapshot_3 = format!("{:?}", buf.as_mut_slice());
-        assert_snapshot!(snapshot_3);
+        let snapshot_4 = format!("buffer length: {}", buf.as_slice().len());
+        assert_snapshot!(snapshot_4);
+
+        // struct should be zeroized
+        let snapshot_5 = format!("{:?}", buf.as_mut_slice());
+        assert_snapshot!(snapshot_5);
 
         let result = very.drain_from(buf.as_mut_slice());
         assert!(result.is_ok());
 
-        let snapshot_4 = format!("{:?}", very);
-        assert_eq!(snapshot_4, snapshot_1);
+        let snapshot_6 = format!("{:?}", very);
+        assert_eq!(snapshot_6, snapshot_1);
 
         // Assert zeroization!
         assert!(buf.as_slice().iter().all(|b| *b == 0));
