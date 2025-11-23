@@ -155,10 +155,10 @@ pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStr
 /// Checks if a field has the `#[memcode(default)]` attribute.
 fn has_memcode_default(attrs: &[Attribute]) -> bool {
     attrs.iter().any(|attr| {
-        if let Meta::List(meta_list) = &attr.meta {
-            if meta_list.path.is_ident("memcode") {
-                return meta_list.tokens.to_string().contains("default");
-            }
+        if let Meta::List(meta_list) = &attr.meta
+            && meta_list.path.is_ident("memcode")
+        {
+            return meta_list.tokens.to_string().contains("default");
         }
         false
     })
