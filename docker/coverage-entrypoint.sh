@@ -80,7 +80,9 @@ mk memcode_derive
 mk memzer
 mk memzer_core
 mk memzer_derive
+mk memsecret
 mk memrand
+mk memutil
 mk memvault
 mk memcrypt
 
