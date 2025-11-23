@@ -8,15 +8,20 @@ use crate::{ZeroizationProbe, secret::Secret};
 
 #[test]
 fn test_secret_mem_num_elements() {
-    let bytes = [u8::MAX; 32];
-    let secret = Secret::from(bytes);
+    let mut bytes = [u8::MAX; 32];
+    let secret = Secret::from(&mut bytes);
+
     assert_eq!(secret.mem_num_elements(), 2);
+
+    // Assert zeroization!
+    assert!(bytes.iter().all(|b| *b == 0));
 }
 
 #[test]
 fn test_secret_mem_zeroizable() {
-    let bytes = [u8::MAX; 32];
-    let mut secret = Secret::from(bytes);
+    let mut bytes = [u8::MAX; 32];
+    let mut secret = Secret::from(&mut bytes);
+
     let bytes_required = secret
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
@@ -28,6 +33,7 @@ fn test_secret_mem_zeroizable() {
     assert!(result.is_err());
 
     // Assert zeroization!
+    assert!(bytes.iter().all(|b| *b == 0));
     assert!(buf.as_slice().iter().all(|b| *b == 0));
     assert!(secret.is_zeroized());
 }
@@ -36,10 +42,14 @@ fn test_secret_mem_zeroizable() {
 fn test_secret_encode_decode_roundtrip() {
     let mut bytes = Vec::<u8>::new();
     bytes.resize_with(32, || u8::MAX);
-    let mut secret = Secret::from(bytes);
+
+    let mut secret = Secret::from(&mut bytes);
 
     // Assert (not) zeroization!
     assert!(!secret.is_zeroized());
+
+    // Assert zeroization on bytes!
+    assert!(bytes.iter().all(|b| *b == 0));
 
     let mut buf: MemEncodeBuf = MemEncodeBuf::new(
         secret
@@ -54,7 +64,7 @@ fn test_secret_encode_decode_roundtrip() {
     // Assert zeroization!
     assert!(secret.is_zeroized());
 
-    let mut recovered_secret = Secret::from(Vec::<u8>::new());
+    let mut recovered_secret = Secret::<Vec<u8>>::default();
 
     recovered_secret
         .drain_from(buf.as_mut_slice())

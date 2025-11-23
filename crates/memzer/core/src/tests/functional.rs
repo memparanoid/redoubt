@@ -21,7 +21,7 @@ struct Foo {
 impl Default for Foo {
     fn default() -> Self {
         Self {
-            data: Secret::from(vec![1, 2, 3, 4]),
+            data: Secret::from(&mut vec![1, 2, 3, 4]),
             __drop_sentinel: DropSentinel::default(),
         }
     }
@@ -69,9 +69,9 @@ impl<'a> FunctionalStruct<'a> {
         bytes.resize_with(128, || u8::MAX);
 
         Self {
-            bytes_16: Secret::from([u8::MAX; 16]),
-            bytes_32: Secret::from([u8::MAX; 32]),
-            bytes: Secret::from(bytes),
+            bytes_16: Secret::from(&mut [u8::MAX; 16]),
+            bytes_32: Secret::from(&mut [u8::MAX; 32]),
+            bytes: Secret::from(&mut bytes),
             foo: ZeroizingMutGuard::from(foo),
             __drop_sentinel: DropSentinel::default(),
         }

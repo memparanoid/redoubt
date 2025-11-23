@@ -38,17 +38,20 @@ use memcode_core::{
 /// # Usage
 ///
 /// ```rust
-/// use memzer_core::{Secret, primitives::U32};
+/// use memzer_core::Secret;
 ///
-/// let mut secret = Secret::from(U32::default());
+/// let mut sensitive_data = [197u8; 32];
+/// let mut secret = Secret::from(&mut sensitive_data);
+///
+/// // sensitive_data is guaranteed to be zeroized
+/// assert!(sensitive_data.iter().all(|&b| b == 0));
 ///
 /// // Access immutably
-/// let value = secret.expose();
-/// println!("Value: {}", value.expose());
+/// assert!(secret.expose().iter().all(|&b| b == 197));
 ///
 /// // Access mutably
-/// let value_mut = secret.expose_mut();
-/// *value_mut.expose_mut() = 42;
+/// secret.expose_mut().iter_mut().for_each(|b| *b = 0xFF);
+/// assert!(secret.expose().iter().all(|&b| b == 0xFF));
 ///
 /// // Auto-zeroizes on drop
 /// ```
@@ -61,7 +64,11 @@ use memcode_core::{
 /// use memzer_core::Secret;
 /// use memcode_core::{MemEncodable, MemDecodable};
 ///
-/// let secret = Secret::from(vec![1u8, 2, 3]);
+/// let mut sensitive_data = vec![1u8, 2, 3];
+/// let secret = Secret::from(&mut sensitive_data);
+///
+/// // sensitive_data is guaranteed to be zeroized
+/// assert!(sensitive_data.iter().all(|&b| b == 0));
 /// // Can be encoded/decoded via memcode
 /// ```
 #[derive(Zeroize, Default, PartialEq, Eq)]
@@ -87,7 +94,10 @@ impl<T> Secret<T>
 where
     T: Zeroize + Zeroizable + ZeroizationProbe,
 {
-    /// Creates a new `Secret` wrapping the given value.
+    /// Creates a new `Secret` by moving data from `sensitive_data`, zeroizing the source.
+    ///
+    /// This method uses [`MemMove`](crate::MemMove) to transfer data without creating
+    /// unzeroized copies. The source `sensitive_data` is guaranteed to be zeroized after this call.
     ///
     /// The value is stored securely and can only be accessed via
     /// [`expose()`](Secret::expose) and [`expose_mut()`](Secret::expose_mut).
@@ -95,11 +105,23 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use memzer_core::{Secret, primitives::U32};
+    /// use memzer_core::Secret;
     ///
-    /// let secret = Secret::from(U32::default());
+    /// let mut sensitive_data = [197u8; 32];
+    /// let secret = Secret::from(&mut sensitive_data);
+    ///
+    /// // sensitive_data is guaranteed to be zeroized
+    /// assert!(sensitive_data.iter().all(|&b| b == 0));
+    ///
+    /// assert!(secret.expose().iter().all(|&b| b == 197));
     /// ```
-    pub fn from(inner: T) -> Self {
+    pub fn from(sensitive_data: &mut T) -> Self
+    where
+        T: crate::traits::MemMove + Default,
+    {
+        let mut inner = T::default();
+        T::mem_move(sensitive_data, &mut inner);
+
         Self {
             inner,
             __drop_sentinel: DropSentinel::default(),
@@ -114,11 +136,15 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use memzer_core::{Secret, primitives::U32};
+    /// use memzer_core::Secret;
     ///
-    /// let secret = Secret::from(U32::default());
-    /// let value = secret.expose();
-    /// assert_eq!(*value.expose(), 0);
+    /// let mut sensitive_data = [197u8; 32];
+    /// let secret = Secret::from(&mut sensitive_data);
+    ///
+    /// // sensitive_data is guaranteed to be zeroized
+    /// assert!(sensitive_data.iter().all(|&b| b == 0));
+    ///
+    /// assert!(secret.expose().iter().all(|&b| b == 197));
     /// ```
     pub fn expose(&self) -> &T {
         &self.inner
@@ -132,13 +158,16 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use memzer_core::{Secret, primitives::U32};
+    /// use memzer_core::Secret;
     ///
-    /// let mut secret = Secret::from(U32::default());
-    /// let value_mut = secret.expose_mut();
-    /// *value_mut.expose_mut() = 42;
+    /// let mut sensitive_data = [197u8; 32];
+    /// let mut secret = Secret::from(&mut sensitive_data);
     ///
-    /// assert_eq!(*secret.expose().expose(), 42);
+    /// // sensitive_data is guaranteed to be zeroized
+    /// assert!(sensitive_data.iter().all(|&b| b == 0));
+    ///
+    /// secret.expose_mut().iter_mut().for_each(|b| *b = 0xFF);
+    /// assert!(secret.expose().iter().all(|&b| b == 0xFF));
     /// ```
     pub fn expose_mut(&mut self) -> &mut T {
         &mut self.inner

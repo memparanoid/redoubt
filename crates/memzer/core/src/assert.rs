@@ -19,18 +19,28 @@ use super::traits::AssertZeroizeOnDrop;
 /// # Usage
 ///
 /// ```rust
-/// use memzer_core::{Secret, assert::assert_zeroize_on_drop, primitives::U32};
+/// use memzer_core::{Secret, assert::assert_zeroize_on_drop};
 ///
-/// let secret = Secret::from(U32::default());
+/// let mut sensitive_data = [197u8; 32];
+/// let secret = Secret::from(&mut sensitive_data);
+///
+/// // sensitive_data is guaranteed to be zeroized
+/// assert!(sensitive_data.iter().all(|&b| b == 0));
+///
 /// assert_zeroize_on_drop(secret); // ✅ Passes if zeroization happened
 /// ```
 ///
 /// Alternative: use the trait method (does the same internally):
 ///
 /// ```rust
-/// use memzer_core::{Secret, AssertZeroizeOnDrop, primitives::U32};
+/// use memzer_core::{Secret, AssertZeroizeOnDrop};
 ///
-/// let secret = Secret::from(U32::default());
+/// let mut sensitive_data = [197u8; 32];
+/// let secret = Secret::from(&mut sensitive_data);
+///
+/// // sensitive_data is guaranteed to be zeroized
+/// assert!(sensitive_data.iter().all(|&b| b == 0));
+///
 /// secret.assert_zeroize_on_drop(); // Calls assert_zeroize_on_drop() internally
 /// ```
 ///

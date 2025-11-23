@@ -81,9 +81,13 @@ pub trait ZeroizationProbe {
 /// # Example
 ///
 /// ```rust
-/// use memzer_core::{Secret, AssertZeroizeOnDrop, primitives::U32};
+/// use memzer_core::{Secret, AssertZeroizeOnDrop};
 ///
-/// let secret = Secret::from(U32::default());
+/// let mut sensitive_data = [197u8; 32];
+/// let secret = Secret::from(&mut sensitive_data);
+///
+/// // sensitive_data is guaranteed to be zeroized
+/// assert!(sensitive_data.iter().all(|&b| b == 0));
 ///
 /// // Verify zeroization happens on drop
 /// secret.assert_zeroize_on_drop();
@@ -106,10 +110,15 @@ pub trait AssertZeroizeOnDrop {
     /// Typically used in tests to verify drop behavior:
     ///
     /// ```rust
-    /// # use memzer_core::{Secret, AssertZeroizeOnDrop, primitives::U32};
+    /// # use memzer_core::Secret;
     /// #[test]
     /// fn test_secret_zeroizes() {
-    ///     let secret = Secret::from(U32::default());
+    ///     let mut sensitive_data = [197u8; 32];
+    ///     let secret = Secret::from(&mut sensitive_data);
+    ///
+    ///     // sensitive_data is guaranteed to be zeroized
+    ///     assert!(sensitive_data.iter().all(|&b| b == 0));
+    ///
     ///     secret.assert_zeroize_on_drop(); // ✅ Passes
     /// }
     /// ```
@@ -151,18 +160,38 @@ where
 ///
 /// # The Copy Problem
 ///
-/// When a type implements `Copy`, Rust will copy it implicitly, leaving the
-/// original unzeroized:
+/// When a type implements `Copy`, passing it by value creates implicit copies.
+/// With Copy types, Rust doesn't enforce true ownership transfer - the original
+/// remains accessible and unzeroized:
 ///
-/// ```ignore
-/// let key = [0xAB; 32];  // [u8; 32] is Copy
+/// ```rust,ignore
+/// // ❌ BROKEN PATTERN (before MemMove):
+/// pub fn from(inner: T) -> Secret<T> { ... }
+///
+/// let key = [0xAB; 32];  // [u8; 32] implements Copy
 /// let secret = Secret::from(key);  // Copies key, original remains!
 /// // key still contains 0xAB (unzeroized leak)
 /// ```
 ///
+/// With `Copy` types, there is no true ownership - only copying.
+///
 /// # The MemMove Solution
 ///
 /// `MemMove` forces explicit, zero-copy transfer using `core::mem::take`:
+///
+/// ```rust,ignore
+/// // ✅ CORRECT PATTERN (with MemMove):
+/// pub fn from(src: &mut T) -> Secret<T>
+/// where
+///     T: MemMove + Default,
+/// { ... }
+///
+/// let mut key = [0xAB; 32];
+/// let secret = Secret::from(&mut key);  // Moves via MemMove
+/// // key is now guaranteed to be zeroized
+/// ```
+///
+/// Concrete example:
 ///
 /// ```rust
 /// use memzer_core::MemMove;

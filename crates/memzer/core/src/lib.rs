@@ -35,18 +35,20 @@
 //! ### Using `Secret<T>`
 //!
 //! ```rust
-//! use memzer_core::{Secret, primitives::U32};
+//! use memzer_core::Secret;
 //!
 //! // Wrap sensitive data
-//! let mut secret = Secret::from(U32::default());
+//! let mut sensitive_data = [197u8; 32];
+//! let mut secret = Secret::from(&mut sensitive_data);
+//!
+//! // sensitive_data is guaranteed to be zeroized
+//! assert!(sensitive_data.iter().all(|&b| b == 0));
 //!
 //! // Access via references (prevents accidental copies)
-//! let value = secret.expose();
-//! assert_eq!(*value.expose(), 0);
+//! assert!(secret.expose().iter().all(|&b| b == 197));
 //!
 //! // Modify securely
-//! let value_mut = secret.expose_mut();
-//! *value_mut.expose_mut() = 42;
+//! secret.expose_mut()[0] = 42;
 //!
 //! // Auto-zeroizes on drop
 //! ```
@@ -149,9 +151,10 @@
 //! Verify zeroization in tests:
 //!
 //! ```rust
-//! use memzer_core::{Secret, ZeroizationProbe, AssertZeroizeOnDrop, primitives::U32};
+//! use memzer_core::{Secret, AssertZeroizeOnDrop};
 //!
-//! let secret = Secret::from(U32::default());
+//! let mut sensitive_data = [197u8; 32];
+//! let secret = Secret::from(&mut sensitive_data);
 //! secret.assert_zeroize_on_drop(); // Panics if zeroization didn't happen
 //! ```
 //!

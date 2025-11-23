@@ -10,12 +10,10 @@ use crate::traits::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
 #[cfg(any(test, feature = "memcode"))]
 mod features;
 
-mod copy_leak;
-
 #[test]
 fn test_secret_assert_zeroization_probe_trait() {
-    let vec = vec![1u8, 2, 3, 4, 5];
-    let mut secret = Secret::from(vec);
+    let mut vec = vec![1u8, 2, 3, 4, 5];
+    let mut secret = Secret::from(&mut vec);
 
     // Assert (not) zeroization!
     assert!(!secret.is_zeroized());
@@ -28,16 +26,16 @@ fn test_secret_assert_zeroization_probe_trait() {
 
 #[test]
 fn test_secret_assert_zeroed_on_drop_trait() {
-    let vec = vec![1u8, 2, 3, 4, 5];
-    let secret = Secret::from(vec);
+    let mut vec = vec![1u8, 2, 3, 4, 5];
+    let secret = Secret::from(&mut vec);
 
     secret.assert_zeroize_on_drop();
 }
 
 #[test]
 fn test_secret_expose_methods() {
-    let vec = vec![1u8, 2, 3, 4, 5];
-    let mut secret = Secret::from(vec);
+    let mut vec = vec![1u8, 2, 3, 4, 5];
+    let mut secret = Secret::from(&mut vec);
 
     fn with_ref(vec: &[u8]) -> bool {
         vec.iter().sum::<u8>() == 15
@@ -57,8 +55,8 @@ fn test_secret_expose_methods() {
 
 #[test]
 fn test_secret_debug() {
-    let inner = vec![1u8, 2, 3];
-    let secret = Secret::from(inner);
+    let mut vec = vec![1u8, 2, 3];
+    let secret = Secret::from(&mut vec);
 
     let mut buf = String::new();
     write!(&mut buf, "{:?}", secret).unwrap();
