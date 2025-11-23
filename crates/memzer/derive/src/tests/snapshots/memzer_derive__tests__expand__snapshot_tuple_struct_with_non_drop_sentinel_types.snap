@@ -21,7 +21,7 @@ impl memzer_core::ZeroizationProbe for Sigma {
     }
 }
 impl memzer_core::AssertZeroizeOnDrop for Sigma {
-    fn clone_drop_sentinel(&self) -> memzer_core::drop_sentinel::DropSentinel {
+    fn clone_drop_sentinel(&self) -> memzer_core::DropSentinel {
         self.2.clone()
     }
     fn assert_zeroize_on_drop(self) {

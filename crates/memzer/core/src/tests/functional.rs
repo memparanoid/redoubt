@@ -7,21 +7,20 @@ use zeroize::Zeroize;
 use crate::assert::assert_zeroize_on_drop;
 use crate::collections::{collection_zeroed, to_zeroization_probe_dyn_ref};
 use crate::drop_sentinel::DropSentinel;
-use crate::secret::Secret;
 use crate::traits::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
 use crate::zeroizing_mut_guard::ZeroizingMutGuard;
 
 #[derive(Zeroize)]
 #[zeroize(drop)]
 struct Foo {
-    pub data: Secret<Vec<u8>>,
+    pub data: Vec<u8>,
     __drop_sentinel: DropSentinel,
 }
 
 impl Default for Foo {
     fn default() -> Self {
         Self {
-            data: Secret::from(&mut vec![1, 2, 3, 4]),
+            data: vec![1, 2, 3, 4],
             __drop_sentinel: DropSentinel::default(),
         }
     }
@@ -56,9 +55,9 @@ impl Zeroizable for Foo {
 #[derive(Zeroize)]
 #[zeroize(drop)]
 struct FunctionalStruct<'a> {
-    pub bytes_16: Secret<[u8; 16]>,
-    pub bytes_32: Secret<[u8; 32]>,
-    pub bytes: Secret<Vec<u8>>,
+    pub bytes: Vec<u8>,
+    pub bytes_16: [u8; 16],
+    pub bytes_32: [u8; 32],
     pub foo: ZeroizingMutGuard<'a, Foo>,
     __drop_sentinel: DropSentinel,
 }
@@ -69,9 +68,9 @@ impl<'a> FunctionalStruct<'a> {
         bytes.resize_with(128, || u8::MAX);
 
         Self {
-            bytes_16: Secret::from(&mut [u8::MAX; 16]),
-            bytes_32: Secret::from(&mut [u8::MAX; 32]),
-            bytes: Secret::from(&mut bytes),
+            bytes,
+            bytes_16: [u8::MAX; 16],
+            bytes_32: [u8::MAX; 32],
             foo: ZeroizingMutGuard::from(foo),
             __drop_sentinel: DropSentinel::default(),
         }

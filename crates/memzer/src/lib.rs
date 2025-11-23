@@ -11,7 +11,7 @@
 //! ## Quick Start
 //!
 //! ```rust
-//! use memzer::{Secret, DropSentinel, Zeroizable, ZeroizationProbe, AssertZeroizeOnDrop, MemZer};
+//! use memzer::{DropSentinel, Zeroizable, ZeroizationProbe, AssertZeroizeOnDrop, MemZer};
 //! use zeroize::Zeroize;
 //!
 //! #[derive(Zeroize, MemZer)]
@@ -32,11 +32,13 @@
 //!
 //! ## What's Included
 //!
-//! - **Core types**: [`Secret<T>`], [`DropSentinel`], [`ZeroizingMutGuard`]
+//! - **Core types**: [`DropSentinel`], [`ZeroizingMutGuard`]
 //! - **Traits**: [`Zeroizable`], [`ZeroizationProbe`], [`AssertZeroizeOnDrop`], [`MutGuarded`]
 //! - **Derive macro**: `#[derive(MemZer)]` for automatic trait implementations
 //! - **Primitives**: Wrapper types for scalars (`U8`, `U16`, `U32`, `U64`, `U128`, `USIZE`)
 //! - **Test helpers**: [`assert_zeroize_on_drop()`](assert::assert_zeroize_on_drop)
+//!
+//! For high-level wrappers like `Secret<T>`, see the `memsecret` crate.
 //!
 //! ## Documentation
 //!
@@ -44,7 +46,6 @@
 //!
 //! [`memzer-core`]: https://docs.rs/memzer-core
 //! [`memzer-derive`]: https://docs.rs/memzer-derive
-//! [`Secret<T>`]: memzer_core::Secret
 //! [`DropSentinel`]: memzer_core::DropSentinel
 //! [`ZeroizingMutGuard`]: memzer_core::ZeroizingMutGuard
 //! [`Zeroizable`]: memzer_core::Zeroizable

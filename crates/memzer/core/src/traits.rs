@@ -78,20 +78,7 @@ pub trait ZeroizationProbe {
 /// Types implementing this trait contain a [`DropSentinel`] and provide
 /// methods to verify that `.zeroize()` was called before the value is dropped.
 ///
-/// # Example
-///
-/// ```rust
-/// use memzer_core::{Secret, AssertZeroizeOnDrop};
-///
-/// let mut sensitive_data = [197u8; 32];
-/// let secret = Secret::from(&mut sensitive_data);
-///
-/// // sensitive_data is guaranteed to be zeroized
-/// assert!(sensitive_data.iter().all(|&b| b == 0));
-///
-/// // Verify zeroization happens on drop
-/// secret.assert_zeroize_on_drop();
-/// ```
+/// This trait is typically derived using `#[derive(MemZer)]` from the `memzer` crate.
 pub trait AssertZeroizeOnDrop {
     /// Clones the internal [`DropSentinel`] for verification.
     ///
@@ -105,23 +92,8 @@ pub trait AssertZeroizeOnDrop {
     ///
     /// Panics if `.zeroize()` was not called before drop.
     ///
-    /// # Usage
-    ///
-    /// Typically used in tests to verify drop behavior:
-    ///
-    /// ```rust
-    /// # use memzer_core::Secret;
-    /// #[test]
-    /// fn test_secret_zeroizes() {
-    ///     let mut sensitive_data = [197u8; 32];
-    ///     let secret = Secret::from(&mut sensitive_data);
-    ///
-    ///     // sensitive_data is guaranteed to be zeroized
-    ///     assert!(sensitive_data.iter().all(|&b| b == 0));
-    ///
-    ///     secret.assert_zeroize_on_drop(); // ✅ Passes
-    /// }
-    /// ```
+    /// This is typically used in tests to verify drop behavior for types
+    /// that implement this trait.
     fn assert_zeroize_on_drop(self);
 }
 
@@ -149,76 +121,4 @@ where
 
     /// Exposes a mutable reference to the guarded value.
     fn expose_mut(&mut self) -> &mut T;
-}
-
-/// Trait for zero-copy move semantics with automatic source zeroization.
-///
-/// `MemMove` provides a way to move data from one location to another while
-/// ensuring the source is zeroized, preventing unzeroized copies from remaining
-/// in memory. This is critical when working with sensitive data like cryptographic
-/// keys or credentials.
-///
-/// # The Copy Problem
-///
-/// When a type implements `Copy`, passing it by value creates implicit copies.
-/// With Copy types, Rust doesn't enforce true ownership transfer - the original
-/// remains accessible and unzeroized:
-///
-/// ```rust,ignore
-/// // ❌ BROKEN PATTERN (before MemMove):
-/// pub fn from(inner: T) -> Secret<T> { ... }
-///
-/// let key = [0xAB; 32];  // [u8; 32] implements Copy
-/// let secret = Secret::from(key);  // Copies key, original remains!
-/// // key still contains 0xAB (unzeroized leak)
-/// ```
-///
-/// With `Copy` types, there is no true ownership - only copying.
-///
-/// # The MemMove Solution
-///
-/// `MemMove` forces explicit, zero-copy transfer using `core::mem::take`:
-///
-/// ```rust,ignore
-/// // ✅ CORRECT PATTERN (with MemMove):
-/// pub fn from(src: &mut T) -> Secret<T>
-/// where
-///     T: MemMove + Default,
-/// { ... }
-///
-/// let mut key = [0xAB; 32];
-/// let secret = Secret::from(&mut key);  // Moves via MemMove
-/// // key is now guaranteed to be zeroized
-/// ```
-///
-/// Concrete example:
-///
-/// ```rust
-/// use memzer_core::MemMove;
-///
-/// let mut src = [0xAB; 32];
-/// let mut dst = [0u8; 32];
-///
-/// <[u8; 32]>::mem_move(&mut src, &mut dst);
-///
-/// assert_eq!(dst[0], 0xAB);  // Data moved to dst
-/// assert_eq!(src[0], 0);     // Source zeroized
-/// ```
-///
-/// # Implementation Strategy
-///
-/// - **Fixed arrays**: Use `core::mem::take` element-by-element
-/// - **Vec<T>**: Zeroize + reserve, then move ownership
-/// - **Custom types**: Implement based on internal structure
-pub trait MemMove: Sized {
-    /// Moves data from `src` to `dst`, zeroizing `src` in the process.
-    ///
-    /// After this operation:
-    /// - `dst` contains the data that was in `src`
-    /// - `src` is fully zeroized (no unzeroized copies remain)
-    ///
-    /// # Panics
-    ///
-    /// May panic if `dst` is not properly initialized or if sizes don't match.
-    fn mem_move(src: &mut Self, dst: &mut Self);
 }

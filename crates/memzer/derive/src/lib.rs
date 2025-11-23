@@ -197,7 +197,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         }
 
         impl #impl_generics #root::AssertZeroizeOnDrop for #struct_name #ty_generics #where_clause {
-            fn clone_drop_sentinel(&self) -> #root::drop_sentinel::DropSentinel {
+            fn clone_drop_sentinel(&self) -> #root::DropSentinel {
                 #sentinel_access.clone()
             }
 

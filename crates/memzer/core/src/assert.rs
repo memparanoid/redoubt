@@ -16,40 +16,14 @@ use super::traits::AssertZeroizeOnDrop;
 ///
 /// Panics if the value's `.zeroize()` method was not called during drop.
 ///
-/// # Usage
-///
-/// ```rust
-/// use memzer_core::{Secret, assert::assert_zeroize_on_drop};
-///
-/// let mut sensitive_data = [197u8; 32];
-/// let secret = Secret::from(&mut sensitive_data);
-///
-/// // sensitive_data is guaranteed to be zeroized
-/// assert!(sensitive_data.iter().all(|&b| b == 0));
-///
-/// assert_zeroize_on_drop(secret); // ✅ Passes if zeroization happened
-/// ```
-///
-/// Alternative: use the trait method (does the same internally):
-///
-/// ```rust
-/// use memzer_core::{Secret, AssertZeroizeOnDrop};
-///
-/// let mut sensitive_data = [197u8; 32];
-/// let secret = Secret::from(&mut sensitive_data);
-///
-/// // sensitive_data is guaranteed to be zeroized
-/// assert!(sensitive_data.iter().all(|&b| b == 0));
-///
-/// secret.assert_zeroize_on_drop(); // Calls assert_zeroize_on_drop() internally
-/// ```
-///
 /// # How It Works
 ///
 /// 1. Clones the value's [`DropSentinel`](crate::DropSentinel)
 /// 2. Resets the sentinel to "not zeroized" state
 /// 3. Drops the value
 /// 4. Asserts the sentinel was marked as zeroized
+///
+/// Typically used in tests for types that implement [`AssertZeroizeOnDrop`].
 pub fn assert_zeroize_on_drop<T: AssertZeroizeOnDrop>(value: T) {
     let mut drop_sentinel = value.clone_drop_sentinel();
 

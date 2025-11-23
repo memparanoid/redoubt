@@ -8,11 +8,12 @@
 //!
 //! `memzer-core` provides composable building blocks for secure memory handling:
 //!
-//! - **[`Secret<T>`]**: Wrapper that prevents accidental exposure of sensitive data
 //! - **[`DropSentinel`]**: Runtime verification that zeroization happened before drop
 //! - **[`ZeroizingMutGuard`]**: RAII guard for mutable references (auto-zeroizes on drop)
 //! - **Traits**: [`Zeroizable`], [`ZeroizationProbe`], [`AssertZeroizeOnDrop`], [`MutGuarded`]
 //! - **Derive macro**: `#[derive(MemZer)]` for automatic trait implementations
+//!
+//! For high-level wrappers, see the `memsecret` crate which provides `Secret<T>` and `MemMove`.
 //!
 //! ## Core Problem
 //!
@@ -27,31 +28,10 @@
 //!
 //! 1. **Systematic zeroization**: Guards auto-zeroize on drop (impossible to forget)
 //! 2. **Runtime verification**: [`DropSentinel`] ensures zeroization happened
-//! 3. **API safety**: [`Secret<T>`] prevents direct access (only via closures)
+//! 3. **API safety**: High-level wrappers (like `memsecret::Secret<T>`) prevent direct access
 //! 4. **Composability**: Traits work with collections, nested types, custom structs
 //!
 //! ## Quick Start
-//!
-//! ### Using `Secret<T>`
-//!
-//! ```rust
-//! use memzer_core::Secret;
-//!
-//! // Wrap sensitive data
-//! let mut sensitive_data = [197u8; 32];
-//! let mut secret = Secret::from(&mut sensitive_data);
-//!
-//! // sensitive_data is guaranteed to be zeroized
-//! assert!(sensitive_data.iter().all(|&b| b == 0));
-//!
-//! // Access via references (prevents accidental copies)
-//! assert!(secret.expose().iter().all(|&b| b == 197));
-//!
-//! // Modify securely
-//! secret.expose_mut()[0] = 42;
-//!
-//! // Auto-zeroizes on drop
-//! ```
 //!
 //! ### Using `ZeroizingMutGuard`
 //!
@@ -138,25 +118,14 @@
 //! ```
 //!
 //! Guards compose with other Memora crates:
-//! - **memcode**: [`Secret<T>`] can be serialized (via `memcode` feature)
+//! - **memsecret**: High-level `Secret<T>` wrapper built on memzer traits
+//! - **memcode**: Serialization support for guards (via `memcode` feature)
 //! - **memcrypt**: Encryption stages use [`ZeroizingMutGuard`] for keys/nonces
 //! - **memvault**: High-level API uses guards for encrypted in-memory storage
 //!
 //! ## Feature Flags
 //!
 //! - `memcode`: Enable integration with `memcode-core` (serialization support for guards)
-//!
-//! ## Testing
-//!
-//! Verify zeroization in tests:
-//!
-//! ```rust
-//! use memzer_core::{Secret, AssertZeroizeOnDrop};
-//!
-//! let mut sensitive_data = [197u8; 32];
-//! let secret = Secret::from(&mut sensitive_data);
-//! secret.assert_zeroize_on_drop(); // Panics if zeroization didn't happen
-//! ```
 //!
 //! ## Safety
 //!
@@ -179,9 +148,7 @@ mod tests;
 /// Drop verification mechanism for ensuring zeroization happened before drop.
 ///
 /// Contains [`DropSentinel`], the core type used to verify that `.zeroize()` was called.
-pub mod drop_sentinel;
-mod mem_move;
-mod secret;
+mod drop_sentinel;
 mod traits;
 mod zeroizing_mut_guard;
 
@@ -200,10 +167,8 @@ pub mod collections;
 ///
 /// Exports: `U8`, `U16`, `U32`, `U64`, `U128`, `USIZE` - each wraps the corresponding primitive type.
 pub mod primitives;
-pub mod utils;
 pub use drop_sentinel::DropSentinel;
-pub use secret::Secret;
-pub use traits::{AssertZeroizeOnDrop, MemMove, MutGuarded, Zeroizable, ZeroizationProbe};
+pub use traits::{AssertZeroizeOnDrop, MutGuarded, Zeroizable, ZeroizationProbe};
 pub use zeroizing_mut_guard::ZeroizingMutGuard;
 
 #[cfg(any(test, feature = "memcode"))]
