@@ -3,10 +3,10 @@
 // See LICENSE in the repository root for full license text.
 
 use chacha20poly1305::{AeadInOut, KeyInit, XChaCha20Poly1305, aead::Buffer};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 use memcode::MemDecodable;
-use memzer::{Secret, Zeroizable, ZeroizationProbe};
+use memzer::{Zeroizable, ZeroizationProbe};
 
 use crate::AeadKey;
 use crate::XNonce;
@@ -54,38 +54,53 @@ pub enum DecryptStage {
 /// use memcrypt::{AeadKey, XNonce, encrypt_mem_encodable, decrypt_mem_decodable};
 ///
 /// let mut key = AeadKey::default();
-/// let mut key_material = [29u8; 32];
+/// let mut key_material = [197u8; 32];
 /// key.fill_exact(&mut key_material);
 ///
+/// // key_material is guaranteed to be zeroized
+/// assert!(key_material.iter().all(|&b| b == 0));
+///
 /// let mut nonce = XNonce::default();
-/// let mut nonce_material = [31u8; 24];
+/// let mut nonce_material = [193u8; 24];
 /// nonce.fill_exact(&mut nonce_material);
 ///
+/// // nonce_material is guaranteed to be zeroized
+/// assert!(nonce_material.iter().all(|&b| b == 0));
+///
 /// // Encrypt sensitive data
-/// let mut sensitive_data = vec![0xDEADBEEFu64; 20];
+/// let mut sensitive_data = vec![6317u64; 20];
 /// let mut ciphertext = encrypt_mem_encodable(&mut key, &mut nonce, &mut sensitive_data)?;
+///
+/// // sensitive_data is guaranteed to be zeroized
+/// assert!(sensitive_data.iter().all(|&v| v == 0));
 ///
 /// // Decrypt with same key and nonce
 /// let mut key2 = AeadKey::default();
-/// let mut key2_material = [29u8; 32];
+/// let mut key2_material = [197u8; 32];
 /// key2.fill_exact(&mut key2_material);
 ///
+/// // key2_material is guaranteed to be zeroized
+/// assert!(key2_material.iter().all(|&b| b == 0));
+///
 /// let mut nonce2 = XNonce::default();
-/// let mut nonce2_material = [31u8; 24];
+/// let mut nonce2_material = [193u8; 24];
 /// nonce2.fill_exact(&mut nonce2_material);
+///
+/// // nonce2_material is guaranteed to be zeroized
+/// assert!(nonce2_material.iter().all(|&b| b == 0));
 ///
 /// let recovered = decrypt_mem_decodable::<Vec<u64>>(&mut key2, &mut nonce2, &mut ciphertext)?;
 ///
 /// // Recovered data matches original
-/// assert_eq!(recovered.expose().len(), 20);
-/// assert!(recovered.expose().iter().all(|&v| v == 0xDEADBEEFu64));
+/// assert_eq!(recovered.len(), 20);
+/// assert!(recovered.iter().all(|&v| v == 6317));
 /// # Ok::<(), memcrypt::CryptoError>(())
 /// ```
 pub fn decrypt_mem_decodable<T>(
     aead_key: &mut AeadKey,
     xnonce: &mut XNonce,
-    ciphertext: &mut Secret<Vec<u8>>,
-) -> Result<Secret<T>, CryptoError>
+    ciphertext: &mut Vec<u8>,
+) -> Result<Zeroizing<T>, CryptoError>
 where
     T: MemDecodable + Default + Zeroize + Zeroizable + ZeroizationProbe,
 {
@@ -96,7 +111,7 @@ where
 pub fn decrypt_mem_decodable_with<T, F>(
     x: &mut DecryptionMemZer,
     #[allow(unused)] f: F,
-) -> Result<Secret<T>, CryptoError>
+) -> Result<Zeroizing<T>, CryptoError>
 where
     T: MemDecodable + Default + Zeroize + Zeroizable + ZeroizationProbe,
     F: Fn(DecryptStage, &mut DecryptionMemZer),
@@ -132,13 +147,13 @@ where
 
         // Prepare AEAD buffer
         x.aead_buffer
-            .zeroized_reserve_exact(x.ciphertext.expose().len())
+            .zeroized_reserve_exact(x.ciphertext.len())
             .map_err(|_| {
                 x.zeroize();
                 CryptoError::AeadBufferNotZeroized
             })?;
         x.aead_buffer
-            .extend_from_slice(x.ciphertext.expose().as_ref())
+            .extend_from_slice(&x.ciphertext)
             .expect("Infallible: AeadBuffer has been reserved with enough length");
 
         // wipe unused
@@ -177,5 +192,5 @@ where
         x.aead_buffer.zeroize();
     }
 
-    Ok(Secret::from(value))
+    Ok(Zeroizing::new(value))
 }

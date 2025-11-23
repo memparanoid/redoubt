@@ -5,7 +5,7 @@
 use zeroize::Zeroize;
 
 use memzer::{
-    DropSentinel, MemEncodeBuf, MemZer, Secret, Zeroizable, ZeroizationProbe, ZeroizingMutGuard,
+    DropSentinel, MemEncodeBuf, MemZer, Zeroizable, ZeroizationProbe, ZeroizingMutGuard,
 };
 
 use crate::aead_buffer::AeadBuffer;
@@ -43,29 +43,29 @@ impl<'a, T: Zeroize + Zeroizable + ZeroizationProbe + Sized> EncryptionMemZer<'a
 #[derive(Zeroize, MemZer)]
 #[zeroize(drop)]
 pub struct DecryptionMemZer<'a> {
-    pub aead_key: ZeroizingMutGuard<'a, AeadKey>,
     pub aead_key_size: usize,
-    pub xnonce: ZeroizingMutGuard<'a, XNonce>,
-    pub ciphertext: ZeroizingMutGuard<'a, Secret<Vec<u8>>>,
     pub aead_buffer: AeadBuffer,
     __drop_sentinel: DropSentinel,
+    pub xnonce: ZeroizingMutGuard<'a, XNonce>,
+    pub aead_key: ZeroizingMutGuard<'a, AeadKey>,
+    pub ciphertext: ZeroizingMutGuard<'a, Vec<u8>>,
 }
 
 impl<'a> DecryptionMemZer<'a> {
     pub fn new(
         aead_key: &'a mut AeadKey,
         xnonce: &'a mut XNonce,
-        ciphertext: &'a mut Secret<Vec<u8>>,
+        ciphertext: &'a mut Vec<u8>,
     ) -> Self {
         let aead_key_size = aead_key.as_ref().len();
 
         Self {
             aead_key_size,
-            aead_key: ZeroizingMutGuard::from(aead_key),
-            xnonce: ZeroizingMutGuard::from(xnonce),
-            ciphertext: ZeroizingMutGuard::from(ciphertext),
             aead_buffer: AeadBuffer::default(),
             __drop_sentinel: DropSentinel::default(),
+            xnonce: ZeroizingMutGuard::from(xnonce),
+            aead_key: ZeroizingMutGuard::from(aead_key),
+            ciphertext: ZeroizingMutGuard::from(ciphertext),
         }
     }
 }

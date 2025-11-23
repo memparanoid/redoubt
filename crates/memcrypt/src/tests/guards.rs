@@ -4,7 +4,7 @@
 
 use zeroize::Zeroize;
 
-use memzer::{AssertZeroizeOnDrop, Secret, ZeroizationProbe};
+use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
 
 use crate::guards::{DecryptionMemZer, EncryptionMemZer};
 
@@ -34,7 +34,7 @@ fn test_decryption_mem_guard() {
     let mut aead_key = create_key_from_array([u8::MAX; 32]);
     let mut xnonce = create_xnonce_from_array([u8::MAX; 24]);
 
-    let mut ciphertext = Secret::from(vec![1u8; 64]);
+    let mut ciphertext = vec![1u8; 64];
 
     let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
 

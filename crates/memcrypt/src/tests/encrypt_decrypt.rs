@@ -29,7 +29,7 @@ fn test_encrypt_decrypt_roundtrip() {
         decrypt_mem_decodable::<MemCodeTestBreaker>(&mut aead_key, &mut xnonce, &mut ciphertext)
             .expect("Failed to decrypt_mem_decodable(..)");
 
-    let recovered_test_breaker_snapshot = format!("{:?}", recovered_test_breaker.expose());
+    let recovered_test_breaker_snapshot = format!("{:?}", &*recovered_test_breaker);
 
     assert_eq!(test_breaker_snapshot, recovered_test_breaker_snapshot);
 }

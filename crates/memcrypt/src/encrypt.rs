@@ -3,10 +3,10 @@
 // See LICENSE in the repository root for full license text.
 
 use chacha20poly1305::{AeadInOut, KeyInit, XChaCha20Poly1305};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 use memcode::MemEncodable;
-use memzer::{Secret, Zeroizable, ZeroizationProbe};
+use memzer::{Zeroizable, ZeroizationProbe};
 
 use crate::consts::{AAD, TAG_SIZE};
 use crate::error::CryptoError;
@@ -52,33 +52,35 @@ pub enum EncryptStage {
 /// use memzer::ZeroizationProbe;
 ///
 /// let mut key = AeadKey::default();
-/// let mut key_material = [17u8; 32];
+/// let mut key_material = [197u8; 32];
 /// key.fill_exact(&mut key_material);
 ///
+/// // key_material is guaranteed to be zeroized
+/// assert!(key_material.iter().all(|&b| b == 0));
+///
 /// let mut nonce = XNonce::default();
-/// let mut nonce_material = [19u8; 24];
+/// let mut nonce_material = [193u8; 24];
 /// nonce.fill_exact(&mut nonce_material);
 ///
-/// let mut sensitive_data = vec![0x1234567890ABCDEFu64; 10];
+/// // nonce_material is guaranteed to be zeroized
+/// assert!(nonce_material.iter().all(|&b| b == 0));
+///
+/// let mut sensitive_data = vec![6317u64; 10];
 ///
 /// let ciphertext = encrypt_mem_encodable(&mut key, &mut nonce, &mut sensitive_data)?;
 ///
-/// // Key and nonce materials are guaranteed to be zeroized
-/// assert!(key_material.iter().all(|&b| b == 0));
-/// assert!(nonce_material.iter().all(|&b| b == 0));
-///
-/// // Plaintext is guaranteed to be zeroized
+/// // sensitive_data is guaranteed to be zeroized
 /// assert!(sensitive_data.is_zeroized());
 ///
-/// // Ciphertext is wrapped in Secret
-/// assert!(!ciphertext.expose().is_empty());
+/// // Ciphertext is returned with auto-zeroization
+/// assert!(!ciphertext.is_empty());
 /// # Ok::<(), memcrypt::CryptoError>(())
 /// ```
 pub fn encrypt_mem_encodable<T>(
     aead_key: &mut AeadKey,
     xnonce: &mut XNonce,
     value: &mut T,
-) -> Result<Secret<Vec<u8>>, CryptoError>
+) -> Result<Zeroizing<Vec<u8>>, CryptoError>
 where
     T: MemEncodable + Zeroize + Zeroizable + ZeroizationProbe,
 {
@@ -89,7 +91,7 @@ where
 pub fn encrypt_mem_encodable_with<'a, T, F>(
     x: &mut EncryptionMemZer<'a, T>,
     #[allow(unused)] f: F,
-) -> Result<Secret<Vec<u8>>, CryptoError>
+) -> Result<Zeroizing<Vec<u8>>, CryptoError>
 where
     T: MemEncodable + Zeroize + Zeroizable + ZeroizationProbe,
     F: Fn(EncryptStage, &mut EncryptionMemZer<'a, T>),
@@ -169,8 +171,8 @@ where
         x.xnonce.zeroize();
     }
 
-    // Move ciphertext to Secret<Vec<u8>>
-    let ciphertext = Secret::from(x.aead_buffer.as_ref().to_vec());
+    // Move ciphertext to Zeroizing<Vec<u8>>
+    let ciphertext = Zeroizing::new(x.aead_buffer.as_ref().to_vec());
     x.aead_buffer.zeroize();
 
     Ok(ciphertext)
