@@ -63,7 +63,7 @@ impl<T> AllockedVec<T>
 where
     T: Zeroize + ZeroizationProbe,
 {
-    pub(crate) fn try_drain_from(&mut self, slice: &mut [T]) -> Result<(), AllockedVecError>
+    fn try_drain_from(&mut self, slice: &mut [T]) -> Result<(), AllockedVecError>
     where
         T: Default + Zeroize,
     {
