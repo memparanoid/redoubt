@@ -18,9 +18,9 @@ use zeroize::Zeroize;
 ///
 /// # Design
 ///
-/// - Wraps a shared boolean flag (`Rc<Cell<bool>>`)
-/// - `.zeroize()` sets the flag to `true`
-/// - `Drop` checks the flag and panics if `false`
+/// - Wraps a shared boolean flag (`Arc<AtomicBool>`) representing pristine state
+/// - Initially `true` (pristine/untouched)
+/// - `.zeroize()` sets the flag to `false` (no longer pristine)
 /// - Can be cloned to verify zeroization from tests
 ///
 /// # Panics
@@ -75,7 +75,7 @@ impl PartialEq for DropSentinel {
 impl Eq for DropSentinel {}
 
 impl DropSentinel {
-    /// Resets the sentinel to "not zeroized" state.
+    /// Resets the sentinel to "not zeroized" (pristine) state.
     ///
     /// This is useful in tests when reusing a sentinel for multiple assertions.
     ///
@@ -93,12 +93,12 @@ impl DropSentinel {
     /// assert!(!sentinel.is_zeroized());
     /// ```
     pub fn reset(&mut self) {
-        self.0.store(false, Ordering::Relaxed);
+        self.0.store(true, Ordering::Relaxed);
     }
 
     /// Checks if zeroization happened (i.e., if `.zeroize()` was called).
     ///
-    /// Returns `true` if the sentinel was zeroized, `false` otherwise.
+    /// Returns `true` if the sentinel was zeroized, `false` if still pristine.
     ///
     /// # Example
     ///
@@ -113,18 +113,18 @@ impl DropSentinel {
     /// assert!(sentinel.is_zeroized());
     /// ```
     pub fn is_zeroized(&self) -> bool {
-        self.0.load(Ordering::Relaxed)
+        !self.0.load(Ordering::Relaxed)
     }
 }
 
 impl Default for DropSentinel {
     fn default() -> Self {
-        Self(Arc::new(AtomicBool::new(false)))
+        Self(Arc::new(AtomicBool::new(true)))
     }
 }
 
 impl Zeroize for DropSentinel {
     fn zeroize(&mut self) {
-        self.0.store(true, Ordering::Relaxed);
+        self.0.store(false, Ordering::Relaxed);
     }
 }
