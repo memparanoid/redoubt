@@ -44,7 +44,7 @@ fn functional_test_for_drop_sentinel() {
 
     assert_zeroize_on_drop(t);
 
-    assert!(drop_sentinel_clone.is_dropped());
+    assert!(drop_sentinel_clone.is_zeroized());
 }
 
 /// CRITICAL TEST: Verifies that zeroizing a DropSentinel also marks all clones as zeroized.
@@ -60,11 +60,11 @@ fn test_drop_sentinel_zeroizes_clone() {
     let mut drop_sentinel = DropSentinel::default();
     let drop_sentinel_clone = drop_sentinel.clone();
 
-    assert!(!drop_sentinel.is_dropped());
-    assert!(!drop_sentinel_clone.is_dropped());
+    assert!(!drop_sentinel.is_zeroized());
+    assert!(!drop_sentinel_clone.is_zeroized());
     drop_sentinel.zeroize();
-    assert!(drop_sentinel_clone.is_dropped());
-    assert!(drop_sentinel_clone.is_dropped());
+    assert!(drop_sentinel_clone.is_zeroized());
+    assert!(drop_sentinel_clone.is_zeroized());
 }
 
 /// CRITICAL TEST: Verifies that DropSentinel does NOT auto-zeroize when dropped.
@@ -82,7 +82,7 @@ fn test_drop_sentinel_is_not_zeroized_on_drop() {
     let drop_sentinel = DropSentinel::default();
     let drop_sentinel_clone = drop_sentinel.clone();
 
-    assert!(!drop_sentinel_clone.is_dropped());
+    assert!(!drop_sentinel_clone.is_zeroized());
     drop(drop_sentinel);
-    assert!(!drop_sentinel_clone.is_dropped());
+    assert!(!drop_sentinel_clone.is_zeroized());
 }

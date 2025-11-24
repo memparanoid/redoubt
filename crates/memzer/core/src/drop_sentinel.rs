@@ -59,9 +59,9 @@ use zeroize::Zeroize;
 /// let mut sentinel = DropSentinel::default();
 /// let sentinel_clone = sentinel.clone();
 ///
-/// assert!(!sentinel_clone.is_dropped());
+/// assert!(!sentinel_clone.is_zeroized());
 /// sentinel.zeroize();
-/// assert!(sentinel_clone.is_dropped());
+/// assert!(sentinel_clone.is_zeroized());
 /// ```
 #[derive(Clone, Debug)]
 pub struct DropSentinel(Arc<AtomicBool>);
@@ -87,10 +87,10 @@ impl DropSentinel {
     ///
     /// let mut sentinel = DropSentinel::default();
     /// sentinel.zeroize();
-    /// assert!(sentinel.is_dropped());
+    /// assert!(sentinel.is_zeroized());
     ///
     /// sentinel.reset();
-    /// assert!(!sentinel.is_dropped());
+    /// assert!(!sentinel.is_zeroized());
     /// ```
     pub fn reset(&mut self) {
         self.0.store(false, Ordering::Relaxed);
@@ -107,12 +107,12 @@ impl DropSentinel {
     /// use zeroize::Zeroize;
     ///
     /// let mut sentinel = DropSentinel::default();
-    /// assert!(!sentinel.is_dropped());
+    /// assert!(!sentinel.is_zeroized());
     ///
     /// sentinel.zeroize();
-    /// assert!(sentinel.is_dropped());
+    /// assert!(sentinel.is_zeroized());
     /// ```
-    pub fn is_dropped(&self) -> bool {
+    pub fn is_zeroized(&self) -> bool {
         self.0.load(Ordering::Relaxed)
     }
 }

@@ -29,7 +29,7 @@ pub fn assert_zeroize_on_drop<T: AssertZeroizeOnDrop>(value: T) {
 
     drop_sentinel.reset();
 
-    assert!(!drop_sentinel.is_dropped());
+    assert!(!drop_sentinel.is_zeroized());
     drop(value);
-    assert!(drop_sentinel.is_dropped());
+    assert!(drop_sentinel.is_zeroized());
 }
