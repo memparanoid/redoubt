@@ -4,6 +4,7 @@
 
 mod support;
 
+mod assert;
 mod collections;
 mod drop_sentinel;
 mod functional;

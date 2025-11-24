@@ -128,9 +128,3 @@ impl Zeroize for DropSentinel {
         self.0.store(true, Ordering::Relaxed);
     }
 }
-
-impl Drop for DropSentinel {
-    fn drop(&mut self) {
-        self.zeroize();
-    }
-}
