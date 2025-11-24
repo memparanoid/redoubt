@@ -74,6 +74,7 @@ mkdir -p "$OUT"
 
 # --- Per-crate runs ---
 mk memprotect
+mk memalloc
 mk memcode
 mk memcode_core
 mk memcode_derive

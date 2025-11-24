@@ -1,0 +1,5 @@
+---
+source: crates/memalloc/src/tests/vec.rs
+expression: snapshot
+---
+AllockedVec { inner: [1, 2], has_been_sealed: true, __drop_sentinel: DropSentinel(false) }

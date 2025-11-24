@@ -13,6 +13,7 @@ members = [
   "crates/memutil",
   "crates/memvault",
   "crates/memcrypt",
+  "crates/memalloc",
 ]
 resolver = "2"
 
