@@ -12,6 +12,14 @@ pub enum AllockedVecError {
     #[error("Vector is already sealed and cannot be resized")]
     AlreadySealed,
 
+    /// Integer overflow when computing new length.
+    ///
+    /// This error is practically impossible to encounter in normal usage,
+    /// as it would require a vector with length approaching `isize::MAX`.
+    /// It exists as a defensive check for integer overflow safety.
+    #[error("Integer overflow: total length would exceed usize::MAX")]
+    Overflow,
+
     /// Attempted to push beyond the vector's capacity.
     #[error("Capacity exceeded: cannot push beyond sealed capacity")]
     CapacityExceeded,
@@ -55,6 +63,30 @@ impl<T> AllockedVec<T>
 where
     T: Zeroize + ZeroizationProbe,
 {
+    pub(crate) fn try_drain_from(&mut self, slice: &mut [T]) -> Result<(), AllockedVecError>
+    where
+        T: Default + Zeroize,
+    {
+        // Note: checked_add overflow is practically impossible (requires len > isize::MAX),
+        // but we keep this defensive check for integer overflow safety.
+        let new_len = self
+            .inner
+            .len()
+            .checked_add(slice.len())
+            .ok_or(AllockedVecError::Overflow)?;
+
+        if new_len > self.inner.capacity() {
+            return Err(AllockedVecError::CapacityExceeded);
+        }
+
+        for item in slice.iter_mut() {
+            let value = core::mem::take(item);
+            self.inner.push(value);
+        }
+
+        Ok(())
+    }
+
     /// Creates a new empty `AllockedVec` with zero capacity.
     ///
     /// The vector is not sealed until `reserve_exact()` is called.
@@ -183,26 +215,17 @@ where
     where
         T: Default + Zeroize,
     {
-        let new_len = self
-            .inner
-            .len()
-            .checked_add(slice.len())
-            .ok_or(AllockedVecError::CapacityExceeded)?;
-        if new_len > self.inner.capacity() {
+        let result = self.try_drain_from(slice);
+
+        if result.is_err() {
             self.zeroize();
             // Zeroize each element in slice manually
             for item in slice.iter_mut() {
                 item.zeroize();
             }
-            return Err(AllockedVecError::CapacityExceeded);
         }
 
-        for item in slice.iter_mut() {
-            let value = core::mem::take(item);
-            self.inner.push(value);
-        }
-
-        Ok(())
+        result
     }
 
     /// Returns the number of elements in the vector.
