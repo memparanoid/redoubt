@@ -100,7 +100,7 @@ impl_primitives_mem_zer_traits!(
 impl crate::traits::ZeroizationProbe for bool {
     #[inline(always)]
     fn is_zeroized(&self) -> bool {
-        *self == false
+        !(*self)
     }
 }
 

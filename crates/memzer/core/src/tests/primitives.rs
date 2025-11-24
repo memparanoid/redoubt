@@ -54,5 +54,5 @@ fn test_bool_zeroization_probe() {
 
     value.self_zeroize();
     assert!(value.is_zeroized(), "bool should be zeroized (false) after zeroize");
-    assert_eq!(value, false);
+    assert!(!value);
 }
