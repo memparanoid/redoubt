@@ -41,3 +41,18 @@ fn test_primitive_zeroization_roundtrip() {
     run_test_for!(u128, u128, U128);
     run_test_for!(usize, usize, USIZE);
 }
+
+#[test]
+fn test_bool_zeroization_probe() {
+    use crate::traits::{Zeroizable, ZeroizationProbe};
+
+    let mut value = false;
+    assert!(value.is_zeroized(), "false should be considered zeroized");
+
+    value = true;
+    assert!(!value.is_zeroized(), "true should NOT be zeroized");
+
+    value.self_zeroize();
+    assert!(value.is_zeroized(), "bool should be zeroized (false) after zeroize");
+    assert_eq!(value, false);
+}

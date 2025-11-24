@@ -95,3 +95,18 @@ impl_primitives_mem_zer_traits!(
     (u128, u128, U128),
     (usize, usize, USIZE)
 );
+
+// Implement ZeroizationProbe for bool
+impl crate::traits::ZeroizationProbe for bool {
+    #[inline(always)]
+    fn is_zeroized(&self) -> bool {
+        *self == false
+    }
+}
+
+impl crate::traits::Zeroizable for bool {
+    #[inline(always)]
+    fn self_zeroize(&mut self) {
+        self.zeroize();
+    }
+}
