@@ -310,3 +310,23 @@ fn test_behaviour_fail_at_drain_from() {
     assert_eq!(vec.as_slice(), &[1, 2, 3]);
     assert!(data.iter().all(|&x| x == 0));
 }
+
+#[test]
+fn test_truncate_zeroizes_removed_elements() {
+    let mut vec = AllockedVec::with_capacity(5);
+    vec.push(0u8).expect("Failed to push");
+    vec.push(0u8).expect("Failed to push");
+    vec.push(0u8).expect("Failed to push");
+    vec.push(1u8).expect("Failed to push");
+    vec.push(2u8).expect("Failed to push");
+
+    vec.__unsafe_expose_inner_for_tests(|inner| {
+        assert!(!is_vec_fully_zeroized(inner));
+    });
+
+    vec.truncate(3);
+
+    vec.__unsafe_expose_inner_for_tests(|inner| {
+        assert!(is_vec_fully_zeroized(inner));
+    });
+}

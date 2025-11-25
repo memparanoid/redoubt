@@ -379,6 +379,54 @@ where
         &mut self.inner
     }
 
+    /// Truncates the vector to the specified length, zeroizing removed elements.
+    ///
+    /// If `new_len` is greater than or equal to the current length, this is a no-op.
+    /// Otherwise, the elements beyond `new_len` are zeroized before truncation.
+    ///
+    /// # Security
+    ///
+    /// This method zeroizes removed elements before truncating to prevent sensitive
+    /// data from remaining in spare capacity. A debug assertion verifies zeroization.
+    ///
+    /// # Note
+    ///
+    /// Unlike `Vec::truncate`, this method guarantees no data remains in spare capacity
+    /// after the operation.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use memalloc::{AllockedVec, AllockedVecError};
+    ///
+    /// fn example() -> Result<(), AllockedVecError> {
+    ///     let mut vec = AllockedVec::with_capacity(5);
+    ///     vec.push(1u8)?;
+    ///     vec.push(2u8)?;
+    ///     vec.push(3u8)?;
+    ///
+    ///     vec.truncate(1);
+    ///
+    ///     assert_eq!(vec.len(), 1);
+    ///     assert_eq!(vec.as_slice(), &[1]);
+    ///     // Elements at indices 1 and 2 have been zeroized in spare capacity
+    ///     Ok(())
+    /// }
+    /// # example().unwrap();
+    /// ```
+    pub fn truncate(&mut self, new_len: usize) {
+        if new_len < self.len() {
+            self.inner[new_len..].iter_mut().zeroize();
+
+            debug_assert!(
+                self.inner[new_len..].iter().all(|v| v.is_zeroized()),
+                "AllockedVec::truncate: zeroization failed"
+            );
+
+            self.inner.truncate(new_len);
+        }
+    }
+
     /// Drains values from a mutable slice into the vector.
     ///
     /// The source slice is zeroized after draining (each element replaced with `T::default()`).
