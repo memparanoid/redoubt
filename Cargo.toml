@@ -15,6 +15,7 @@ members = [
   "crates/memvault",
   "crates/memcrypt",
   "crates/memalloc",
+  "crates/membench",
 ]
 resolver = "2"
 
@@ -26,6 +27,8 @@ resolver = "2"
 
   [workspace.dependencies]
   # Internal crates
+  memaead        = { path = "crates/memaead" }
+  memalloc       = { path = "crates/memalloc" }
   memcode        = { path = "crates/memcode" }
   memcode_core   = { path = "crates/memcode/core" }
   memcode_derive = { path = "crates/memcode/derive" }

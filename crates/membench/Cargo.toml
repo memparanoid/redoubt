@@ -1,0 +1,15 @@
+[package]
+name = "membench"
+version = "0.0.1"
+edition = "2021"
+publish = false
+description = "Benchmarks for memora crates - not published"
+
+[dev-dependencies]
+criterion = "0.5"
+memaead.workspace = true
+chacha20poly1305.workspace = true
+
+[[bench]]
+name = "aead"
+harness = false
