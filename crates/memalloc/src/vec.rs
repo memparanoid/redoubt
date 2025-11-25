@@ -63,30 +63,6 @@ impl<T> AllockedVec<T>
 where
     T: Zeroize + ZeroizationProbe,
 {
-    fn try_drain_from(&mut self, slice: &mut [T]) -> Result<(), AllockedVecError>
-    where
-        T: Default + Zeroize,
-    {
-        // Note: checked_add overflow is practically impossible (requires len > isize::MAX),
-        // but we keep this defensive check for integer overflow safety.
-        let new_len = self
-            .inner
-            .len()
-            .checked_add(slice.len())
-            .ok_or(AllockedVecError::Overflow)?;
-
-        if new_len > self.inner.capacity() {
-            return Err(AllockedVecError::CapacityExceeded);
-        }
-
-        for item in slice.iter_mut() {
-            let value = core::mem::take(item);
-            self.inner.push(value);
-        }
-
-        Ok(())
-    }
-
     pub(crate) fn realloc_with<F>(&mut self, capacity: usize, #[allow(unused)] mut hook: F)
     where
         T: Default + Zeroize,
@@ -194,7 +170,6 @@ where
     /// # Errors
     ///
     /// Returns [`AllockedVecError::CapacityExceeded`] if the vector is at capacity.
-    /// On error, the vector is zeroized.
     ///
     /// # Example
     ///
@@ -209,8 +184,7 @@ where
     /// assert!(vec.push(3u8).is_err());
     /// ```
     pub fn push(&mut self, value: T) -> Result<(), AllockedVecError> {
-        if self.inner.len() >= self.inner.capacity() {
-            self.zeroize();
+        if self.len() >= self.capacity() {
             return Err(AllockedVecError::CapacityExceeded);
         }
 
@@ -303,7 +277,6 @@ where
     /// # Errors
     ///
     /// Returns [`AllockedVecError::CapacityExceeded`] if adding all elements would exceed capacity.
-    /// On error, both the source slice and vector are zeroized.
     ///
     /// # Example
     ///
@@ -320,19 +293,25 @@ where
     /// ```
     pub fn drain_from(&mut self, slice: &mut [T]) -> Result<(), AllockedVecError>
     where
-        T: Default + Zeroize,
+        T: Default,
     {
-        let result = self.try_drain_from(slice);
+        // Note: checked_add overflow is practically impossible (requires len > isize::MAX),
+        // but we keep this defensive check for integer overflow safety.
+        let new_len = self
+            .len()
+            .checked_add(slice.len())
+            .ok_or(AllockedVecError::Overflow)?;
 
-        if result.is_err() {
-            self.zeroize();
-            // Zeroize each element in slice manually
-            for item in slice.iter_mut() {
-                item.zeroize();
-            }
+        if new_len > self.capacity() {
+            return Err(AllockedVecError::CapacityExceeded);
         }
 
-        result
+        for item in slice.iter_mut() {
+            let value = core::mem::take(item);
+            self.inner.push(value);
+        }
+
+        Ok(())
     }
 
     /// Re-seals the vector with a new capacity, safely zeroizing the old allocation.
@@ -357,7 +336,7 @@ where
     /// use memalloc::AllockedVec;
     ///
     /// let mut vec = AllockedVec::with_capacity(5);
-    /// vec.push(1u8).upnwrap();
+    /// vec.push(1u8).unwrap();
     /// vec.push(2u8).unwrap();
     ///
     /// // Expand capacity safely

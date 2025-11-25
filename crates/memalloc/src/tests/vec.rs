@@ -63,14 +63,14 @@ fn test_push_exceeds_capacity() {
     vec.push(1u8).unwrap();
     vec.push(2u8).unwrap();
 
-    // Exceeding capacity fails and zeroizes
+    // Exceeding capacity fails
     assert!(matches!(
         vec.push(3u8),
         Err(AllockedVecError::CapacityExceeded)
     ));
 
-    // Vector should be zeroized after error
-    assert!(vec.iter().all(|&x| x == 0));
+    // Vector data is preserved (not zeroized)
+    assert_eq!(vec.as_slice(), &[1, 2]);
 }
 
 #[test]
@@ -98,9 +98,9 @@ fn test_drain_from_exceeds_capacity() {
         Err(AllockedVecError::CapacityExceeded)
     ));
 
-    // Both vec and source should be zeroized
-    assert!(vec.iter().all(|&x| x == 0));
-    assert!(data.iter().all(|&x| x == 0));
+    // Vec remains empty, source data is preserved (no partial drain)
+    assert_eq!(vec.len(), 0);
+    assert_eq!(data, vec![1u8, 2, 3, 4, 5]);
 }
 
 #[test]
@@ -183,27 +183,7 @@ fn test_realloc_with_noop_when_sufficient() {
     assert_eq!(vec.as_slice(), [1, 2]);
 }
 
-// TODO: This test is currently FAILING and will be fixed in the next commit.
-//
-// REASON FOR FAILURE:
-// The `push()` method (line 180 in vec.rs) calls `self.zeroize()` when it fails
-// with `CapacityExceeded`. This means when `vec.push(3u8)` fails on line 188 below,
-// the entire vector is zeroized, losing the data [1, 2] that was already there.
-//
-// Then when we call `realloc_with(5, ...)` and push [3, 4, 5], we get:
-//   Expected: [1, 2, 3, 4, 5]
-//   Actual:   [3, 4, 5]
-//
-// FIX (next commit):
-// Remove `self.zeroize()` from `push()` when failing with `CapacityExceeded`.
-// Rationale:
-// - `CapacityExceeded` is a recoverable error (user can call `realloc_with_capacity`)
-// - Zeroizing destroys valid data unnecessarily
-// - Only the failed `value` parameter should be zeroized, not the entire vec
-//
-// After that fix, this test will pass.
 #[test]
-#[ignore = "Failing: push() zeroizes vec on CapacityExceeded (will be fixed next commit)"]
 fn test_realloc_with_zeroizes_old_allocation() {
     let mut vec = AllockedVec::with_capacity(2);
     vec.push(1u8).unwrap();
