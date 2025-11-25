@@ -5,7 +5,7 @@
 use memutil::is_vec_fully_zeroized;
 use memzer::AssertZeroizeOnDrop;
 
-use crate::vec::{AllockedVec, AllockedVecBehaviour, AllockedVecError};
+use crate::allocked_vec::{AllockedVec, AllockedVecBehaviour, AllockedVecError};
 
 #[test]
 fn test_new_is_empty() {

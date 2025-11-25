@@ -66,12 +66,12 @@
 //! }
 //! ```
 
-mod vec;
+mod allocked_vec;
 
 #[cfg(test)]
 mod tests;
 
-pub use vec::{AllockedVec, AllockedVecError};
+pub use allocked_vec::{AllockedVec, AllockedVecError};
 
 #[cfg(any(test, feature = "test_utils"))]
-pub use vec::AllockedVecBehaviour;
+pub use allocked_vec::AllockedVecBehaviour;

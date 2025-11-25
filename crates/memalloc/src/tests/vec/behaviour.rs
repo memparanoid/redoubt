@@ -4,7 +4,7 @@
 
 use memzer::{Zeroizable, ZeroizationProbe};
 
-use crate::vec::AllockedVecBehaviour;
+use crate::allocked_vec::AllockedVecBehaviour;
 
 #[test]
 fn test_allocked_vec_behaviour() {

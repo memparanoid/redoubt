@@ -2,5 +2,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+mod allocked_vec;
 mod behaviour;
-mod vec;
