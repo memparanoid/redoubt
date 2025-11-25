@@ -30,6 +30,34 @@
 //! // Exceeding capacity fails and zeroizes
 //! assert!(vec.push(42).is_err());
 //! ```
+//!
+//! # Test Utilities
+//!
+//! Enable the `test_utils` feature to inject failures for testing error handling paths:
+//!
+//! ```toml
+//! [dev-dependencies]
+//! memalloc = { version = "*", features = ["test_utils"] }
+//! ```
+//!
+//! Then use [`AllockedVecBehaviour`] to test error scenarios:
+//!
+//! ```rust
+//! // test_utils feature required in dev-dependencies
+//! #[cfg(test)]
+//! mod tests {
+//!     use memalloc::{AllockedVec, AllockedVecBehaviour};
+//!
+//!     #[test]
+//!     fn test_handles_push_failure() {
+//!         let mut vec = AllockedVec::with_capacity(10);
+//!         vec.change_behaviour(AllockedVecBehaviour::FailAtPush);
+//!
+//!         // Test that your code handles the error correctly
+//!         assert!(vec.push(1u8).is_err());
+//!     }
+//! }
+//! ```
 
 mod vec;
 
@@ -37,3 +65,6 @@ mod vec;
 mod tests;
 
 pub use vec::{AllockedVec, AllockedVecError};
+
+#[cfg(any(test, feature = "test_utils"))]
+pub use vec::AllockedVecBehaviour;

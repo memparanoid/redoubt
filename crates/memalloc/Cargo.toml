@@ -9,6 +9,9 @@ name                = "memalloc"
 repository.workspace = true
 version.workspace   = true
 
+[features]
+test_utils = []
+
 [dependencies]
 memzer.workspace    = true
 memutil.workspace   = true

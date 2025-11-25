@@ -25,6 +25,79 @@ pub enum AllockedVecError {
     CapacityExceeded,
 }
 
+/// Test behaviour for injecting failures in `AllockedVec` operations.
+///
+/// This is only available with the `test_utils` feature and allows users
+/// to test error handling paths in their code by injecting failures.
+///
+/// The behaviour is sticky - once set, it remains active until changed.
+///
+/// # Example
+///
+/// ```rust
+/// // test_utils feature required in dev-dependencies
+/// #[cfg(test)]
+/// mod tests {
+///     use memalloc::{AllockedVec, AllockedVecBehaviour};
+///
+///     #[test]
+///     fn test_handles_capacity_exceeded() {
+///         let mut vec = AllockedVec::with_capacity(10);
+///
+///         // Inject failure
+///         vec.change_behaviour(AllockedVecBehaviour::FailAtPush);
+///
+///         // This will fail even though capacity allows it
+///         let result = vec.push(1u8);
+///         assert!(result.is_err());
+///
+///         // Reset to normal behaviour
+///         vec.change_behaviour(AllockedVecBehaviour::None);
+///
+///         // Now it works
+///         vec.push(1u8).unwrap();
+///     }
+/// }
+/// ```
+#[cfg(any(test, feature = "test_utils"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AllockedVecBehaviour {
+    /// Normal behaviour - no injected failures.
+    None,
+    /// Next `push()` call will fail with `CapacityExceeded`.
+    FailAtPush,
+    /// Next `drain_from()` call will fail with `CapacityExceeded`.
+    FailAtDrainFrom,
+}
+
+#[cfg(any(test, feature = "test_utils"))]
+impl Default for AllockedVecBehaviour {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+#[cfg(any(test, feature = "test_utils"))]
+impl Zeroize for AllockedVecBehaviour {
+    fn zeroize(&mut self) {
+        *self = Self::None;
+    }
+}
+
+#[cfg(any(test, feature = "test_utils"))]
+impl memzer::ZeroizationProbe for AllockedVecBehaviour {
+    fn is_zeroized(&self) -> bool {
+        matches!(self, Self::None)
+    }
+}
+
+#[cfg(any(test, feature = "test_utils"))]
+impl memzer::Zeroizable for AllockedVecBehaviour {
+    fn self_zeroize(&mut self) {
+        self.zeroize();
+    }
+}
+
 /// Allocation-locked Vec that prevents reallocation after sealing.
 ///
 /// Once `reserve_exact()` is called, the vector is sealed and cannot grow beyond
@@ -56,6 +129,8 @@ where
 {
     inner: Vec<T>,
     has_been_sealed: bool,
+    #[cfg(any(test, feature = "test_utils"))]
+    behaviour: AllockedVecBehaviour,
     __drop_sentinel: DropSentinel,
 }
 
@@ -109,6 +184,8 @@ where
         Self {
             inner: Vec::new(),
             has_been_sealed: false,
+            #[cfg(any(test, feature = "test_utils"))]
+            behaviour: AllockedVecBehaviour::default(),
             __drop_sentinel: DropSentinel::default(),
         }
     }
@@ -184,6 +261,11 @@ where
     /// assert!(vec.push(3u8).is_err());
     /// ```
     pub fn push(&mut self, value: T) -> Result<(), AllockedVecError> {
+        #[cfg(any(test, feature = "test_utils"))]
+        if matches!(self.behaviour, AllockedVecBehaviour::FailAtPush) {
+            return Err(AllockedVecError::CapacityExceeded);
+        }
+
         if self.len() >= self.capacity() {
             return Err(AllockedVecError::CapacityExceeded);
         }
@@ -295,6 +377,11 @@ where
     where
         T: Default,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        if matches!(self.behaviour, AllockedVecBehaviour::FailAtDrainFrom) {
+            return Err(AllockedVecError::CapacityExceeded);
+        }
+
         // Note: checked_add overflow is practically impossible (requires len > isize::MAX),
         // but we keep this defensive check for integer overflow safety.
         let new_len = self
@@ -351,6 +438,34 @@ where
         T: Default + Zeroize,
     {
         self.realloc_with(capacity, |_| {});
+    }
+
+    /// Changes the test behaviour for this vector.
+    ///
+    /// This is only available with the `test_utils` feature and allows injecting
+    /// failures for testing error handling paths.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// // test_utils feature required in dev-dependencies
+    /// #[cfg(test)]
+    /// mod tests {
+    ///     use memalloc::{AllockedVec, AllockedVecBehaviour};
+    ///
+    ///     #[test]
+    ///     fn test_error_handling() {
+    ///         let mut vec = AllockedVec::with_capacity(10);
+    ///         vec.change_behaviour(AllockedVecBehaviour::FailAtPush);
+    ///
+    ///         // Next push will fail
+    ///         assert!(vec.push(1u8).is_err());
+    ///     }
+    /// }
+    /// ```
+    #[cfg(any(test, feature = "test_utils"))]
+    pub fn change_behaviour(&mut self, behaviour: AllockedVecBehaviour) {
+        self.behaviour = behaviour;
     }
 
     #[cfg(test)]

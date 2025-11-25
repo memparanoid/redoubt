@@ -5,7 +5,7 @@
 use memutil::is_vec_fully_zeroized;
 use memzer::AssertZeroizeOnDrop;
 
-use crate::{AllockedVec, AllockedVecError};
+use crate::vec::{AllockedVec, AllockedVecBehaviour, AllockedVecError};
 
 #[test]
 fn test_new_is_empty() {
@@ -224,4 +224,59 @@ fn test_realloc_with_capacity_ok() {
     vec.push(5u8).expect("Failed to vec.push(5)");
 
     assert_eq!(vec.as_slice(), [1, 2, 3, 4, 5]);
+}
+
+#[test]
+fn test_behaviour_fail_at_push() {
+    let mut vec = AllockedVec::with_capacity(10);
+    vec.change_behaviour(AllockedVecBehaviour::FailAtPush);
+
+    let result = vec.push(1u8);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(AllockedVecError::CapacityExceeded)));
+
+    // Behaviour is sticky - still fails
+    let result = vec.push(2u8);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(AllockedVecError::CapacityExceeded)));
+
+    // Reset behaviour
+    vec.change_behaviour(AllockedVecBehaviour::None);
+
+    // Now push should work
+    vec.push(1u8).expect("Failed to vec.push(1)");
+    assert_eq!(vec.as_slice(), &[1]);
+}
+
+#[test]
+fn test_behaviour_fail_at_drain_from() {
+    let mut vec = AllockedVec::with_capacity(10);
+    let mut data = vec![1u8, 2, 3];
+
+    vec.change_behaviour(AllockedVecBehaviour::FailAtDrainFrom);
+
+    let result = vec.drain_from(&mut data);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(AllockedVecError::CapacityExceeded)));
+
+    // Data should not be modified
+    assert_eq!(data, [1, 2, 3]);
+
+    // Behaviour is sticky - still fails
+    let result = vec.drain_from(&mut data);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(AllockedVecError::CapacityExceeded)));
+
+    // Reset behaviour
+    vec.change_behaviour(AllockedVecBehaviour::None);
+
+    // Now drain should work
+    vec.drain_from(&mut data).expect("Failed to drain_from");
+
+    assert_eq!(vec.as_slice(), &[1, 2, 3]);
+    assert!(data.iter().all(|&x| x == 0));
 }
