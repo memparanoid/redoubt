@@ -35,8 +35,9 @@ fn test_chacha20_block() {
         0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x4a, 0x00, 0x00, 0x00, 0x00,
     ];
     let counter = 1u32;
+    let mut block = [0u8; 64];
 
-    let block = chacha20_block(&key, &nonce, counter);
+    chacha20_block(&key, &nonce, counter, &mut block);
 
     // First 16 bytes from RFC 8439 Section 2.3.2
     let expected_first_16: [u8; 16] = [
@@ -83,7 +84,8 @@ fn test_hchacha20() {
         0x27,
     ];
 
-    let subkey = hchacha20(&key, &nonce);
+    let mut subkey = [0u8; 32];
+    hchacha20(&key, &nonce, &mut subkey);
 
     let expected: [u8; 32] = [
         0x82, 0x41, 0x3b, 0x42, 0x27, 0xb2, 0x7b, 0xfe, 0xd3, 0x0e, 0x42, 0x50, 0x8a, 0x87, 0x7d,

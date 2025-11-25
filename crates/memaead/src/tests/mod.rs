@@ -4,5 +4,6 @@
 
 mod aead;
 mod chacha20;
+mod sensitive;
 mod wycheproof;
 mod wycheproof_vectors;

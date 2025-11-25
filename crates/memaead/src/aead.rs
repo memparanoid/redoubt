@@ -9,11 +9,13 @@
 //! - Poly1305 for authentication
 
 use poly1305::{
+    Key as Poly1305Key, Poly1305,
     universal_hash::{KeyInit, UniversalHash},
-    Key as Poly1305Key, Poly1305, Tag,
 };
+use zeroize::Zeroize;
 
-use crate::chacha20::{hchacha20, xchacha20_crypt};
+use crate::chacha20::{chacha20_block, hchacha20, xchacha20_crypt};
+use crate::sensitive::SensitiveArrayU8;
 
 /// Authentication tag size in bytes
 pub const TAG_SIZE: usize = 16;
@@ -42,21 +44,24 @@ pub enum DecryptError {
 }
 
 /// Generate Poly1305 one-time key from XChaCha20 keystream (counter=0)
-fn generate_poly_key(key: &[u8; 32], xnonce: &[u8; 24]) -> [u8; 32] {
+fn generate_poly_key(key: &[u8; 32], xnonce: &[u8; 24], poly_key: &mut [u8; 32]) {
     // Derive subkey using HChaCha20
-    let subkey = hchacha20(key, xnonce[0..16].try_into().unwrap());
+    let mut subkey = SensitiveArrayU8::<32>::new();
+    hchacha20(key, xnonce[0..16].try_into().unwrap(), &mut subkey);
 
     // Construct ChaCha20 nonce: [0,0,0,0] || xnonce[16..24]
     let mut nonce = [0u8; 12];
     nonce[4..12].copy_from_slice(&xnonce[16..24]);
 
     // Generate keystream block with counter=0
-    let block = crate::chacha20::chacha20_block(&subkey, &nonce, 0);
+    let mut block = SensitiveArrayU8::<64>::new();
+    chacha20_block(&subkey, &nonce, 0, &mut block);
 
     // First 32 bytes are the Poly1305 key
-    let mut poly_key = [0u8; 32];
     poly_key.copy_from_slice(&block[0..32]);
-    poly_key
+
+    subkey.zeroize();
+    block.zeroize();
 }
 
 /// Compute Poly1305 tag over AAD and ciphertext (RFC 8439 Section 2.8)
@@ -66,7 +71,7 @@ fn generate_poly_key(key: &[u8; 32], xnonce: &[u8; 24]) -> [u8; 32] {
 /// - ciphertext || pad16(ciphertext)
 /// - len(aad) as u64 little-endian
 /// - len(ciphertext) as u64 little-endian
-fn compute_tag(poly_key: &[u8; 32], aad: &[u8], ciphertext: &[u8]) -> Tag {
+fn compute_tag(poly_key: &[u8; 32], aad: &[u8], ciphertext: &[u8], output: &mut [u8; 16]) {
     let key = Poly1305Key::from(*poly_key);
     let mut mac = Poly1305::new(&key);
 
@@ -77,12 +82,22 @@ fn compute_tag(poly_key: &[u8; 32], aad: &[u8], ciphertext: &[u8]) -> Tag {
     mac.update_padded(ciphertext);
 
     // Lengths as u64 little-endian
-    let mut len_block = [0u8; 16];
+    let mut len_block = SensitiveArrayU8::<16>::new();
     len_block[0..8].copy_from_slice(&(aad.len() as u64).to_le_bytes());
     len_block[8..16].copy_from_slice(&(ciphertext.len() as u64).to_le_bytes());
-    mac.update_padded(&len_block);
 
-    mac.finalize()
+    mac.update_padded(len_block.as_slice());
+
+    let mut tag = mac.finalize();
+    len_block.zeroize();
+
+    let tag_bytes = tag.as_mut_slice();
+
+    for (i, b) in tag_bytes.iter_mut().enumerate() {
+        output[i] = core::mem::take(b);
+    }
+
+    debug_assert!(tag_bytes.iter().all(|b| *b == 0));
 }
 
 /// Encrypt plaintext with XChaCha20-Poly1305 AEAD
@@ -101,18 +116,24 @@ pub fn xchacha20poly1305_encrypt(
     aad: &[u8],
     plaintext: &[u8],
 ) -> Vec<u8> {
-    // Generate Poly1305 one-time key
-    let poly_key = generate_poly_key(key, xnonce);
-
     // Encrypt plaintext (counter starts at 1)
     let mut ciphertext = plaintext.to_vec();
     xchacha20_crypt(key, xnonce, 1, &mut ciphertext);
 
+    // Generate Poly1305 one-time key
+    let mut poly_key = SensitiveArrayU8::<32>::new();
+    generate_poly_key(key, xnonce, &mut poly_key);
+
     // Compute authentication tag
-    let tag = compute_tag(&poly_key, aad, &ciphertext);
+    let mut tag = SensitiveArrayU8::<16>::new();
+    compute_tag(&poly_key, aad, &ciphertext, &mut tag);
 
     // Append tag to ciphertext
     ciphertext.extend_from_slice(tag.as_slice());
+
+    poly_key.zeroize();
+    tag.zeroize();
+
     ciphertext
 }
 
@@ -139,13 +160,16 @@ pub fn xchacha20poly1305_decrypt(
     }
 
     // Split ciphertext and tag
-    let (ciphertext, received_tag) = ciphertext_with_tag.split_at(ciphertext_with_tag.len() - TAG_SIZE);
+    let (ciphertext, received_tag) =
+        ciphertext_with_tag.split_at(ciphertext_with_tag.len() - TAG_SIZE);
 
     // Generate Poly1305 one-time key
-    let poly_key = generate_poly_key(key, xnonce);
+    let mut poly_key = [0u8; 32];
+    generate_poly_key(key, xnonce, &mut poly_key);
 
     // Compute expected tag
-    let expected_tag = compute_tag(&poly_key, aad, ciphertext);
+    let mut expected_tag = [0u8; 16];
+    compute_tag(&poly_key, aad, ciphertext, &mut expected_tag);
 
     // Constant-time comparison to prevent timing attacks
     if !constant_time_eq(expected_tag.as_slice(), received_tag) {
@@ -171,7 +195,9 @@ pub(crate) fn xchacha20poly1305_decrypt_slice(
     ciphertext_with_tag: &[u8],
 ) -> Result<Vec<u8>, DecryptError> {
     let key: &[u8; 32] = key.try_into().map_err(|_| DecryptError::InvalidNonceSize)?;
-    let xnonce: &[u8; 24] = xnonce.try_into().map_err(|_| DecryptError::InvalidNonceSize)?;
+    let xnonce: &[u8; 24] = xnonce
+        .try_into()
+        .map_err(|_| DecryptError::InvalidNonceSize)?;
     xchacha20poly1305_decrypt(key, xnonce, aad, ciphertext_with_tag)
 }
 
