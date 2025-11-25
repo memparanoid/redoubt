@@ -169,17 +169,28 @@ fn test_zeroize_on_drop() {
 
 #[test]
 fn test_realloc_with_noop_when_sufficient() {
-    let mut vec = AllockedVec::with_capacity(2);
+    let mut vec = AllockedVec::with_capacity(5);
     vec.push(1u8).expect("Failed to vec.push(1)");
     vec.push(2u8).expect("Failed to vec.push(2)");
 
     let mut hook_has_been_called = false;
 
-    vec.realloc_with(2, |_| {
+    // Realloc with same capacity - should be no-op
+    vec.realloc_with(5, |_| {
         hook_has_been_called = true;
     });
 
     assert!(!hook_has_been_called);
+    assert_eq!(vec.capacity(), 5);
+    assert_eq!(vec.as_slice(), [1, 2]);
+
+    // Realloc with smaller capacity - should also be no-op
+    vec.realloc_with(3, |_| {
+        hook_has_been_called = true;
+    });
+
+    assert!(!hook_has_been_called);
+    assert_eq!(vec.capacity(), 5);
     assert_eq!(vec.as_slice(), [1, 2]);
 }
 
@@ -210,6 +221,25 @@ fn test_realloc_with_zeroizes_old_allocation() {
     vec.push(5u8).expect("Failed to vec.push(5)");
 
     assert_eq!(vec.as_slice(), [1u8, 2, 3, 4, 5]);
+}
+
+#[test]
+fn test_realloc_with_capacity_noop_when_sufficient() {
+    let mut vec = AllockedVec::with_capacity(5);
+    vec.push(1u8).expect("Failed to vec.push(1)");
+    vec.push(2u8).expect("Failed to vec.push(2)");
+
+    // Realloc with same capacity - should be no-op
+    vec.realloc_with_capacity(5);
+
+    assert_eq!(vec.capacity(), 5);
+    assert_eq!(vec.as_slice(), [1, 2]);
+
+    // Realloc with smaller capacity - should also be no-op
+    vec.realloc_with_capacity(3);
+
+    assert_eq!(vec.capacity(), 5);
+    assert_eq!(vec.as_slice(), [1, 2]);
 }
 
 #[test]
