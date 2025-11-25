@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+#![warn(missing_docs)]
+#![warn(unsafe_op_in_unsafe_fn)]
+
 //! Allocation-locked Vec that guarantees no reallocation after sealing.
 //!
 //! `AllockedVec<T>` is a wrapper around `Vec<T>` that prevents reallocation after the initial
@@ -14,21 +17,25 @@
 //! # Example
 //!
 //! ```rust
-//! use memalloc::AllockedVec;
+//! use memalloc::{AllockedVec, AllockedVecError};
 //!
-//! let mut vec = AllockedVec::<u8>::new();
-//! vec.reserve_exact(10).expect("reserve failed");
+//! fn example() -> Result<(), AllockedVecError> {
+//!     let mut vec = AllockedVec::<u8>::new();
+//!     vec.reserve_exact(10)?;
 //!
-//! // Now sealed - cannot reserve again
-//! assert!(vec.reserve_exact(20).is_err());
+//!     // Now sealed - cannot reserve again
+//!     assert!(vec.reserve_exact(20).is_err());
 //!
-//! // Push works while capacity allows
-//! for i in 0u8..10 {
-//!     vec.push(i).expect("push failed");
+//!     // Push works while capacity allows
+//!     for i in 0u8..10 {
+//!         vec.push(i)?;
+//!     }
+//!
+//!     // Exceeding capacity fails
+//!     assert!(vec.push(42).is_err());
+//!     Ok(())
 //! }
-//!
-//! // Exceeding capacity fails and zeroizes
-//! assert!(vec.push(42).is_err());
+//! # example().unwrap();
 //! ```
 //!
 //! # Test Utilities

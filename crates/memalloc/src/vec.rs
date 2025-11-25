@@ -36,12 +36,14 @@ pub enum AllockedVecError {
 ///
 /// ```rust
 /// // test_utils feature required in dev-dependencies
+/// use memalloc::{AllockedVec, AllockedVecBehaviour, AllockedVecError};
+///
 /// #[cfg(test)]
 /// mod tests {
-///     use memalloc::{AllockedVec, AllockedVecBehaviour};
+///     use super::*;
 ///
 ///     #[test]
-///     fn test_handles_capacity_exceeded() {
+///     fn test_handles_capacity_exceeded() -> Result<(), AllockedVecError> {
 ///         let mut vec = AllockedVec::with_capacity(10);
 ///
 ///         // Inject failure
@@ -55,7 +57,8 @@ pub enum AllockedVecError {
 ///         vec.change_behaviour(AllockedVecBehaviour::None);
 ///
 ///         // Now it works
-///         vec.push(1u8).unwrap();
+///         vec.push(1u8)?;
+///         Ok(())
 ///     }
 /// }
 /// ```
@@ -110,16 +113,20 @@ impl memzer::Zeroizable for AllockedVecBehaviour {
 /// # Example
 ///
 /// ```rust
-/// use memalloc::AllockedVec;
+/// use memalloc::{AllockedVec, AllockedVecError};
 ///
-/// let mut vec = AllockedVec::new();
-/// vec.reserve_exact(5).unwrap();
+/// fn example() -> Result<(), AllockedVecError> {
+///     let mut vec = AllockedVec::new();
+///     vec.reserve_exact(5)?;
 ///
-/// vec.push(1u8).unwrap();
-/// vec.push(2u8).unwrap();
+///     vec.push(1u8)?;
+///     vec.push(2u8)?;
 ///
-/// assert_eq!(vec.len(), 2);
-/// assert_eq!(vec.capacity(), 5);
+///     assert_eq!(vec.len(), 2);
+///     assert_eq!(vec.capacity(), 5);
+///     Ok(())
+/// }
+/// # example().unwrap();
 /// ```
 #[derive(Debug, Zeroize, MemZer)]
 #[zeroize(drop)]
@@ -224,13 +231,17 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use memalloc::AllockedVec;
+    /// use memalloc::{AllockedVec, AllockedVecError};
     ///
-    /// let mut vec: AllockedVec<u8> = AllockedVec::new();
-    /// vec.reserve_exact(10).unwrap();
+    /// fn example() -> Result<(), AllockedVecError> {
+    ///     let mut vec: AllockedVec<u8> = AllockedVec::new();
+    ///     vec.reserve_exact(10)?;
     ///
-    /// // Second reserve fails
-    /// assert!(vec.reserve_exact(20).is_err());
+    ///     // Second reserve fails
+    ///     assert!(vec.reserve_exact(20).is_err());
+    ///     Ok(())
+    /// }
+    /// # example().unwrap();
     /// ```
     pub fn reserve_exact(&mut self, capacity: usize) -> Result<(), AllockedVecError> {
         if self.has_been_sealed {
@@ -251,14 +262,18 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use memalloc::AllockedVec;
+    /// use memalloc::{AllockedVec, AllockedVecError};
     ///
-    /// let mut vec = AllockedVec::with_capacity(2);
-    /// vec.push(1u8).unwrap();
-    /// vec.push(2u8).unwrap();
+    /// fn example() -> Result<(), AllockedVecError> {
+    ///     let mut vec = AllockedVec::with_capacity(2);
+    ///     vec.push(1u8)?;
+    ///     vec.push(2u8)?;
     ///
-    /// // Exceeds capacity
-    /// assert!(vec.push(3u8).is_err());
+    ///     // Exceeds capacity
+    ///     assert!(vec.push(3u8).is_err());
+    ///     Ok(())
+    /// }
+    /// # example().unwrap();
     /// ```
     pub fn push(&mut self, value: T) -> Result<(), AllockedVecError> {
         #[cfg(any(test, feature = "test_utils"))]
@@ -279,11 +294,15 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use memalloc::AllockedVec;
+    /// use memalloc::{AllockedVec, AllockedVecError};
     ///
-    /// let mut vec = AllockedVec::with_capacity(10);
-    /// vec.push(1u8).unwrap();
-    /// assert_eq!(vec.len(), 1);
+    /// fn example() -> Result<(), AllockedVecError> {
+    ///     let mut vec = AllockedVec::with_capacity(10);
+    ///     vec.push(1u8)?;
+    ///     assert_eq!(vec.len(), 1);
+    ///     Ok(())
+    /// }
+    /// # example().unwrap();
     /// ```
     pub fn len(&self) -> usize {
         self.inner.len()
@@ -322,13 +341,17 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use memalloc::AllockedVec;
+    /// use memalloc::{AllockedVec, AllockedVecError};
     ///
-    /// let mut vec = AllockedVec::with_capacity(3);
-    /// vec.push(1u8).unwrap();
-    /// vec.push(2u8).unwrap();
+    /// fn example() -> Result<(), AllockedVecError> {
+    ///     let mut vec = AllockedVec::with_capacity(3);
+    ///     vec.push(1u8)?;
+    ///     vec.push(2u8)?;
     ///
-    /// assert_eq!(vec.as_slice(), &[1, 2]);
+    ///     assert_eq!(vec.as_slice(), &[1, 2]);
+    ///     Ok(())
+    /// }
+    /// # example().unwrap();
     /// ```
     pub fn as_slice(&self) -> &[T] {
         &self.inner
@@ -339,14 +362,18 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use memalloc::AllockedVec;
+    /// use memalloc::{AllockedVec, AllockedVecError};
     ///
-    /// let mut vec = AllockedVec::with_capacity(3);
-    /// vec.push(1u8).unwrap();
-    /// vec.push(2u8).unwrap();
+    /// fn example() -> Result<(), AllockedVecError> {
+    ///     let mut vec = AllockedVec::with_capacity(3);
+    ///     vec.push(1u8)?;
+    ///     vec.push(2u8)?;
     ///
-    /// vec.as_mut_slice()[0] = 42;
-    /// assert_eq!(vec.as_slice(), &[42, 2]);
+    ///     vec.as_mut_slice()[0] = 42;
+    ///     assert_eq!(vec.as_slice(), &[42, 2]);
+    ///     Ok(())
+    /// }
+    /// # example().unwrap();
     /// ```
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         &mut self.inner
@@ -363,15 +390,19 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use memalloc::AllockedVec;
+    /// use memalloc::{AllockedVec, AllockedVecError};
     ///
-    /// let mut vec = AllockedVec::with_capacity(5);
-    /// let mut data = vec![1u8, 2, 3, 4, 5];
+    /// fn example() -> Result<(), AllockedVecError> {
+    ///     let mut vec = AllockedVec::with_capacity(5);
+    ///     let mut data = vec![1u8, 2, 3, 4, 5];
     ///
-    /// vec.drain_from(&mut data).unwrap();
+    ///     vec.drain_from(&mut data)?;
     ///
-    /// assert_eq!(vec.len(), 5);
-    /// assert!(data.iter().all(|&x| x == 0)); // Source zeroized
+    ///     assert_eq!(vec.len(), 5);
+    ///     assert!(data.iter().all(|&x| x == 0)); // Source zeroized
+    ///     Ok(())
+    /// }
+    /// # example().unwrap();
     /// ```
     pub fn drain_from(&mut self, slice: &mut [T]) -> Result<(), AllockedVecError>
     where
@@ -420,18 +451,22 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use memalloc::AllockedVec;
+    /// use memalloc::{AllockedVec, AllockedVecError};
     ///
-    /// let mut vec = AllockedVec::with_capacity(5);
-    /// vec.push(1u8).unwrap();
-    /// vec.push(2u8).unwrap();
+    /// fn example() -> Result<(), AllockedVecError> {
+    ///     let mut vec = AllockedVec::with_capacity(5);
+    ///     vec.push(1u8)?;
+    ///     vec.push(2u8)?;
     ///
-    /// // Expand capacity safely
-    /// vec.realloc_with_capacity(10);
+    ///     // Expand capacity safely
+    ///     vec.realloc_with_capacity(10);
     ///
-    /// // Now can push more elements
-    /// vec.push(3u8).unwrap();
-    /// assert_eq!(vec.capacity(), 10);
+    ///     // Now can push more elements
+    ///     vec.push(3u8)?;
+    ///     assert_eq!(vec.capacity(), 10);
+    ///     Ok(())
+    /// }
+    /// # example().unwrap();
     /// ```
     pub fn realloc_with_capacity(&mut self, capacity: usize)
     where
