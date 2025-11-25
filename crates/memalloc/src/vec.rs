@@ -87,6 +87,35 @@ where
         Ok(())
     }
 
+    pub(crate) fn realloc_with<F>(&mut self, capacity: usize, #[allow(unused)] mut hook: F)
+    where
+        T: Default + Zeroize,
+        F: FnMut(&mut Self),
+    {
+        if capacity <= self.capacity() {
+            return;
+        }
+
+        let new_allocked_vec = {
+            let mut allocked_vec = AllockedVec::<T>::with_capacity(capacity);
+            allocked_vec
+                 .drain_from(self.as_mut_slice())
+                 .expect("infallible: new vec len=0 prevents Overflow error (0 + len <= usize::MAX), and: capacity >
+     self.capacity() >= self.len() implies that CapacityExceeded error is not possible.");
+            allocked_vec
+        };
+
+        #[cfg(test)]
+        hook(self);
+
+        self.zeroize();
+
+        #[cfg(test)]
+        hook(self);
+
+        *self = new_allocked_vec;
+    }
+
     /// Creates a new empty `AllockedVec` with zero capacity.
     ///
     /// The vector is not sealed until `reserve_exact()` is called.
@@ -304,6 +333,53 @@ where
         }
 
         result
+    }
+
+    /// Re-seals the vector with a new capacity, safely zeroizing the old allocation.
+    ///
+    /// This method allows expanding a sealed `AllockedVec` by:
+    /// 1. Creating a new vector with the requested capacity
+    /// 2. Draining data from the old vector to the new one (zeroizes source via `mem::take`)
+    /// 3. Zeroizing the old vector (including spare capacity)
+    /// 4. Replacing self with the new vector
+    ///
+    /// If `new_capacity <= current capacity`, this is a no-op.
+    ///
+    /// # Safety Guarantees
+    ///
+    /// - Old allocation is fully zeroized before being dropped
+    /// - No unzeroized copies of data remain in memory
+    /// - New allocation is sealed with the specified capacity
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use memalloc::AllockedVec;
+    ///
+    /// let mut vec = AllockedVec::with_capacity(5);
+    /// vec.push(1u8).upnwrap();
+    /// vec.push(2u8).unwrap();
+    ///
+    /// // Expand capacity safely
+    /// vec.realloc_with_capacity(10);
+    ///
+    /// // Now can push more elements
+    /// vec.push(3u8).unwrap();
+    /// assert_eq!(vec.capacity(), 10);
+    /// ```
+    pub fn realloc_with_capacity(&mut self, capacity: usize)
+    where
+        T: Default + Zeroize,
+    {
+        self.realloc_with(capacity, |_| {});
+    }
+
+    #[cfg(test)]
+    pub(crate) fn __unsafe_expose_inner_for_tests<F>(&mut self, f: F)
+    where
+        F: FnOnce(&mut Vec<T>),
+    {
+        f(&mut self.inner);
     }
 }
 

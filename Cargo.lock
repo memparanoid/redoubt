@@ -488,6 +488,7 @@ name = "memalloc"
 version = "0.0.1"
 dependencies = [
  "insta",
+ "memutil",
  "memzer",
  "thiserror",
  "zeroize",
