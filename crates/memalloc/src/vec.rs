@@ -189,45 +189,6 @@ where
         Ok(())
     }
 
-    /// Drains values from a mutable slice into the vector.
-    ///
-    /// The source slice is zeroized after draining (each element replaced with `T::default()`).
-    ///
-    /// # Errors
-    ///
-    /// Returns [`AllockedVecError::CapacityExceeded`] if adding all elements would exceed capacity.
-    /// On error, both the source slice and vector are zeroized.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use memalloc::AllockedVec;
-    ///
-    /// let mut vec = AllockedVec::with_capacity(5);
-    /// let mut data = vec![1u8, 2, 3, 4, 5];
-    ///
-    /// vec.drain_from(&mut data).unwrap();
-    ///
-    /// assert_eq!(vec.len(), 5);
-    /// assert!(data.iter().all(|&x| x == 0)); // Source zeroized
-    /// ```
-    pub fn drain_from(&mut self, slice: &mut [T]) -> Result<(), AllockedVecError>
-    where
-        T: Default + Zeroize,
-    {
-        let result = self.try_drain_from(slice);
-
-        if result.is_err() {
-            self.zeroize();
-            // Zeroize each element in slice manually
-            for item in slice.iter_mut() {
-                item.zeroize();
-            }
-        }
-
-        result
-    }
-
     /// Returns the number of elements in the vector.
     ///
     /// # Example
@@ -304,6 +265,45 @@ where
     /// ```
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         &mut self.inner
+    }
+
+    /// Drains values from a mutable slice into the vector.
+    ///
+    /// The source slice is zeroized after draining (each element replaced with `T::default()`).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AllockedVecError::CapacityExceeded`] if adding all elements would exceed capacity.
+    /// On error, both the source slice and vector are zeroized.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use memalloc::AllockedVec;
+    ///
+    /// let mut vec = AllockedVec::with_capacity(5);
+    /// let mut data = vec![1u8, 2, 3, 4, 5];
+    ///
+    /// vec.drain_from(&mut data).unwrap();
+    ///
+    /// assert_eq!(vec.len(), 5);
+    /// assert!(data.iter().all(|&x| x == 0)); // Source zeroized
+    /// ```
+    pub fn drain_from(&mut self, slice: &mut [T]) -> Result<(), AllockedVecError>
+    where
+        T: Default + Zeroize,
+    {
+        let result = self.try_drain_from(slice);
+
+        if result.is_err() {
+            self.zeroize();
+            // Zeroize each element in slice manually
+            for item in slice.iter_mut() {
+                item.zeroize();
+            }
+        }
+
+        result
     }
 }
 
