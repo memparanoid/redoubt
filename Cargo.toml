@@ -8,6 +8,7 @@ members = [
   "crates/memzer",
   "crates/memzer/core",
   "crates/memzer/derive",
+  "crates/memaead",
   "crates/memsecret",
   "crates/memrand",
   "crates/memutil",
@@ -40,6 +41,7 @@ resolver = "2"
 
   # External dependencies
   chacha20poly1305 = { version = "0.11.0-rc.0", features = ["zeroize"] }
+  poly1305         = "0.8.0"
   getrandom        = "0.3"
   libc             = "0.2.177"
   pastey           = "0.2.0"

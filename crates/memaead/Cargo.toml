@@ -1,0 +1,15 @@
+[package]
+authors             = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories          = ["data-structures", "memory-management"]
+description         = "Allocation-locked Vec that guarantees no reallocation after sealing"
+edition.workspace   = true
+keywords            = ["xchacha20", "security", "no-realloc"]
+license.workspace   = true
+name                = "memaead"
+repository.workspace = true
+version.workspace   = true
+
+[dependencies]
+zeroize.workspace   = true
+poly1305.workspace  = true
+thiserror.workspace = true
