@@ -8,6 +8,7 @@
 //! - XChaCha20 for encryption (192-bit nonce)
 //! - Poly1305 for authentication
 
+use memalloc::AllockedVec;
 use poly1305::{
     Key as Poly1305Key, Poly1305,
     universal_hash::{KeyInit, UniversalHash},
@@ -106,19 +107,22 @@ fn compute_tag(poly_key: &[u8; 32], aad: &[u8], ciphertext: &[u8], output: &mut 
 /// - `key`: 32-byte encryption key
 /// - `xnonce`: 24-byte nonce (must be unique per message)
 /// - `aad`: Additional authenticated data (not encrypted, but authenticated)
-/// - `plaintext`: Data to encrypt
+/// - `plaintext`: Mutable buffer — encrypted in-place and drained, which is therefore zeroized
 ///
 /// # Returns
-/// Ciphertext with 16-byte authentication tag appended
+/// `AllockedVec<u8>` containing ciphertext with 16-byte authentication tag appended
+///
+/// # Security
+/// - Output buffer uses `AllockedVec` (no reallocation, zeroized on drop)
 pub fn xchacha20poly1305_encrypt(
     key: &[u8; 32],
     xnonce: &[u8; 24],
     aad: &[u8],
-    plaintext: &[u8],
-) -> Vec<u8> {
-    // Encrypt plaintext (counter starts at 1)
-    let mut ciphertext = plaintext.to_vec();
-    xchacha20_crypt(key, xnonce, 1, &mut ciphertext);
+    plaintext: &mut [u8],
+) -> AllockedVec<u8> {
+    // Encrypt in-place (counter starts at 1)
+    xchacha20_crypt(key, xnonce, 1, plaintext);
+    let ciphertext = plaintext; // plaintext is now encrypted
 
     // Generate Poly1305 one-time key
     let mut poly_key = SensitiveArrayU8::<32>::new();
@@ -126,15 +130,21 @@ pub fn xchacha20poly1305_encrypt(
 
     // Compute authentication tag
     let mut tag = SensitiveArrayU8::<16>::new();
-    compute_tag(&poly_key, aad, &ciphertext, &mut tag);
+    compute_tag(&poly_key, aad, ciphertext, &mut tag);
 
-    // Append tag to ciphertext
-    ciphertext.extend_from_slice(tag.as_slice());
+    // Create output buffer and drain ciphertext + tag
+    let mut output = AllockedVec::with_capacity(ciphertext.len() + TAG_SIZE);
+    output
+        .drain_from(ciphertext)
+        .expect("infallible: capacity = ciphertext.len() + TAG_SIZE");
+    output
+        .drain_from(tag.as_mut_slice())
+        .expect("infallible: TAG_SIZE bytes remaining");
 
     poly_key.zeroize();
     tag.zeroize();
 
-    ciphertext
+    output
 }
 
 /// Decrypt ciphertext with XChaCha20-Poly1305 AEAD
@@ -143,44 +153,64 @@ pub fn xchacha20poly1305_encrypt(
 /// - `key`: 32-byte encryption key
 /// - `xnonce`: 24-byte nonce (same as used for encryption)
 /// - `aad`: Additional authenticated data (same as used for encryption)
-/// - `ciphertext_with_tag`: Ciphertext with 16-byte authentication tag appended
+/// - `ciphertext_with_tag`: Mutable buffer — decrypted in-place and drained, which is therefore zeroized
 ///
 /// # Returns
-/// - `Ok(plaintext)` if authentication succeeds
-/// - `Err(DecryptError)` if authentication fails (ciphertext is NOT returned)
+/// - `Ok(AllockedVec<u8>)` containing plaintext if authentication succeeds
+/// - `Err(DecryptError)` if authentication fails (input buffer is zeroized)
+///
+/// # Security
+/// - On authentication failure, input buffer is zeroized before returning error
+/// - Output buffer uses `AllockedVec` (no reallocation, zeroized on drop)
 pub fn xchacha20poly1305_decrypt(
     key: &[u8; 32],
     xnonce: &[u8; 24],
     aad: &[u8],
-    ciphertext_with_tag: &[u8],
-) -> Result<Vec<u8>, DecryptError> {
+    ciphertext_with_tag: &mut [u8],
+) -> Result<AllockedVec<u8>, DecryptError> {
     // Must have at least TAG_SIZE bytes
     if ciphertext_with_tag.len() < TAG_SIZE {
+        ciphertext_with_tag.zeroize();
         return Err(DecryptError::CiphertextTooShort);
     }
 
     // Split ciphertext and tag
     let (ciphertext, received_tag) =
-        ciphertext_with_tag.split_at(ciphertext_with_tag.len() - TAG_SIZE);
+        ciphertext_with_tag.split_at_mut(ciphertext_with_tag.len() - TAG_SIZE);
 
     // Generate Poly1305 one-time key
-    let mut poly_key = [0u8; 32];
+    let mut poly_key = SensitiveArrayU8::<32>::new();
     generate_poly_key(key, xnonce, &mut poly_key);
 
     // Compute expected tag
-    let mut expected_tag = [0u8; 16];
+    let mut expected_tag = SensitiveArrayU8::<16>::new();
     compute_tag(&poly_key, aad, ciphertext, &mut expected_tag);
 
     // Constant-time comparison to prevent timing attacks
     if !constant_time_eq(expected_tag.as_slice(), received_tag) {
+        ciphertext.zeroize();
+        received_tag.zeroize();
+        poly_key.zeroize();
+        expected_tag.zeroize();
         return Err(DecryptError::AuthenticationFailed);
     }
 
-    // Authentication passed, decrypt
-    let mut plaintext = ciphertext.to_vec();
-    xchacha20_crypt(key, xnonce, 1, &mut plaintext);
+    // Authentication passed, decrypt in-place
+    xchacha20_crypt(key, xnonce, 1, ciphertext);
+    let plaintext = ciphertext; // ciphertext is now decrypted
 
-    Ok(plaintext)
+    // Create output buffer and drain plaintext
+    let mut output = AllockedVec::with_capacity(plaintext.len());
+    output
+        .drain_from(plaintext)
+        .expect("infallible: capacity = plaintext.len()");
+
+    // Zeroize tag and sensitive intermediates
+    received_tag.zeroize();
+    poly_key.zeroize();
+    expected_tag.zeroize();
+
+    Ok(output)
 }
 
 /// Decrypt ciphertext with XChaCha20-Poly1305 AEAD (slice version for testing)
@@ -192,8 +222,8 @@ pub(crate) fn xchacha20poly1305_decrypt_slice(
     key: &[u8],
     xnonce: &[u8],
     aad: &[u8],
-    ciphertext_with_tag: &[u8],
-) -> Result<Vec<u8>, DecryptError> {
+    ciphertext_with_tag: &mut [u8],
+) -> Result<AllockedVec<u8>, DecryptError> {
     let key: &[u8; 32] = key.try_into().map_err(|_| DecryptError::InvalidNonceSize)?;
     let xnonce: &[u8; 24] = xnonce
         .try_into()

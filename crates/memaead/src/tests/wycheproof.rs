@@ -96,12 +96,12 @@ fn run_test_case(tc: &TestCase) -> std::result::Result<(), String> {
     let mut ciphertext_with_tag = ct;
     ciphertext_with_tag.extend_from_slice(&tag);
 
-    let result = xchacha20poly1305_decrypt_slice(&key, &nonce, &aad, &ciphertext_with_tag);
+    let result = xchacha20poly1305_decrypt_slice(&key, &nonce, &aad, &mut ciphertext_with_tag);
 
     match (&tc.result, &result) {
         (Result::Valid, Ok(plaintext)) => {
             let expected_msg = hex_to_bytes(&tc.msg);
-            if *plaintext == expected_msg {
+            if plaintext.as_slice() == expected_msg.as_slice() {
                 Ok(())
             } else {
                 Err(format!("tc_id {}: plaintext mismatch", tc.tc_id))

@@ -6,7 +6,9 @@
 //!
 //! Compares the "traditional" allocating API that most users use.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{
+    black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput,
+};
 
 // RustCrypto
 use chacha20poly1305::{
@@ -39,12 +41,13 @@ fn bench_encrypt(c: &mut Criterion) {
             });
         });
 
-        // Ours
+        // Ours (iter_batched separates clone from measured code)
         group.bench_with_input(BenchmarkId::new("memaead", size), &plaintext, |b, pt| {
-            b.iter(|| {
-                let ct = xchacha20poly1305_encrypt(&KEY, &NONCE, AAD, pt);
-                black_box(ct)
-            });
+            b.iter_batched(
+                || pt.clone(),
+                |mut buf| black_box(xchacha20poly1305_encrypt(&KEY, &NONCE, AAD, &mut buf)),
+                BatchSize::SmallInput,
+            );
         });
     }
 
@@ -56,8 +59,8 @@ fn bench_decrypt(c: &mut Criterion) {
 
     for size in [64, 256, 1024, 4096, 16384, 65536] {
         // Pre-encrypt with our implementation (both produce same output)
-        let plaintext = vec![0xAB; size];
-        let ciphertext = xchacha20poly1305_encrypt(&KEY, &NONCE, AAD, &plaintext);
+        let mut plaintext = vec![0xAB; size];
+        let ciphertext = xchacha20poly1305_encrypt(&KEY, &NONCE, AAD, &mut plaintext);
 
         group.throughput(Throughput::Bytes(size as u64));
 
@@ -75,12 +78,13 @@ fn bench_decrypt(c: &mut Criterion) {
             },
         );
 
-        // Ours
+        // Ours (iter_batched separates clone from measured code)
         group.bench_with_input(BenchmarkId::new("memaead", size), &ciphertext, |b, ct| {
-            b.iter(|| {
-                let pt = xchacha20poly1305_decrypt(&KEY, &NONCE, AAD, ct).unwrap();
-                black_box(pt)
-            });
+            b.iter_batched(
+                || ct.as_slice().to_vec(),
+                |mut buf| black_box(xchacha20poly1305_decrypt(&KEY, &NONCE, AAD, &mut buf).unwrap()),
+                BatchSize::SmallInput,
+            );
         });
     }
 
