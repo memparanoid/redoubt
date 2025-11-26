@@ -558,6 +558,17 @@ where
     {
         f(&mut self.inner);
     }
+
+    /// Returns a raw mutable pointer to the vector's buffer.
+    ///
+    /// # Safety
+    ///
+    /// This method is only available with the `unsafe` feature.
+    #[cfg(any(test, feature = "unsafe"))]
+    #[inline(always)]
+    pub fn as_mut_ptr(&mut self) -> *mut T {
+        self.inner.as_mut_ptr()
+    }
 }
 
 impl<T> Default for AllockedVec<T>

@@ -330,3 +330,17 @@ fn test_truncate_zeroizes_removed_elements() {
         assert!(is_vec_fully_zeroized(inner));
     });
 }
+
+#[test]
+fn test_as_mut_ptr_write_single_byte() {
+    let mut vec = AllockedVec::<u8>::with_capacity(1);
+    vec.push(0u8).expect("Failed to push initial byte");
+
+    let ptr = vec.as_mut_ptr();
+
+    unsafe {
+        *ptr = 0x42;
+    }
+
+    assert_eq!(vec.as_slice(), &[0x42]);
+}
