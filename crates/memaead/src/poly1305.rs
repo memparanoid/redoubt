@@ -263,7 +263,7 @@ impl Poly1305 {
         self.finalize.g[3] &= 0x3ffffff;
 
         // mask = all 1s if NO overflow (use h), all 0s if overflow (use g)
-        self.finalize.mask = ((g4 >> 26) as u64).wrapping_sub(1);
+        self.finalize.mask = (g4 >> 26).wrapping_sub(1);
 
         // Select h (mask=1s) or g (mask=0s)
         self.finalize.d[0] =
