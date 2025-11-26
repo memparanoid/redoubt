@@ -2,35 +2,52 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Memory utilities for verification and testing.
+//! Memory utilities for secure byte conversions and verification.
+//!
+//! All conversion functions zeroize source data after reading to prevent
+//! sensitive data from lingering on the stack.
 
-/// Converts 4 bytes to a little-endian u32, zeroizing the source bytes.
-///
-/// This function avoids creating temporary `[u8; 4]` arrays that could
-/// leak sensitive data on the stack. Instead, it builds the u32 using
-/// bit shifts and zeroizes each source byte after reading.
-///
-/// # Example
-///
-/// ```
-/// use memutil::u32_from_le;
-///
-/// let mut value: u32 = 0;
-/// let mut bytes = [0x01, 0x02, 0x03, 0x04];
-///
-/// u32_from_le(&mut value, &mut bytes);
-///
-/// assert_eq!(value, 0x04030201); // little-endian
-/// assert_eq!(bytes, [0, 0, 0, 0]); // zeroized
-/// ```
-#[inline(always)]
-pub fn u32_from_le(dst: &mut u32, bytes: &mut [u8; 4]) {
-    *dst = 0;
-    for (i, byte) in bytes.iter_mut().enumerate() {
-        *dst |= (*byte as u32) << (8 * i);
-        *byte = 0;
-    }
+/// Generates `{type}_from_le` and `{type}_to_le` functions for integer types.
+macro_rules! impl_le_conversions {
+    ($type:ty, $size:expr, $fn_from:ident, $fn_to:ident) => {
+        #[doc = concat!("Converts ", stringify!($size), " bytes to a little-endian `", stringify!($type), "`, zeroizing the source bytes.")]
+        ///
+        /// This function avoids creating temporary byte arrays that could
+        /// leak sensitive data on the stack. Instead, it builds the integer using
+        /// bit shifts and zeroizes each source byte after reading.
+        #[inline(always)]
+        pub fn $fn_from(dst: &mut $type, bytes: &mut [u8; $size]) {
+            *dst = 0;
+            for (i, byte) in bytes.iter_mut().enumerate() {
+                *dst |= (*byte as $type) << (8 * i);
+                *byte = 0;
+            }
+        }
+
+        #[doc = concat!("Converts a `", stringify!($type), "` to little-endian bytes, zeroizing the source.")]
+        ///
+        /// This function avoids creating temporary byte arrays that could
+        /// leak sensitive data on the stack. Instead, it extracts bytes using
+        /// bit shifts and zeroizes the source integer after writing.
+        #[inline(always)]
+        pub fn $fn_to(src: &mut $type, bytes: &mut [u8; $size]) {
+            for (i, byte) in bytes.iter_mut().enumerate() {
+                *byte = (*src >> (8 * i)) as u8;
+            }
+            *src = 0;
+        }
+    };
 }
+
+impl_le_conversions!(u16, 2, u16_from_le, u16_to_le);
+impl_le_conversions!(u32, 4, u32_from_le, u32_to_le);
+impl_le_conversions!(u64, 8, u64_from_le, u64_to_le);
+
+// usize: platform-dependent size
+#[cfg(target_pointer_width = "32")]
+impl_le_conversions!(usize, 4, usize_from_le, usize_to_le);
+#[cfg(target_pointer_width = "64")]
+impl_le_conversions!(usize, 8, usize_from_le, usize_to_le);
 
 /// Verifies that a `Vec<u8>` is fully zeroized, including spare capacity.
 ///
@@ -66,24 +83,6 @@ pub fn u32_from_le(dst: &mut u32, bytes: &mut [u8; 4]) {
 /// // Zeroize clears BOTH active elements AND spare capacity
 /// vec.zeroize();
 /// assert!(is_vec_fully_zeroized(&vec));
-/// ```
-///
-/// # Use Case
-///
-/// This function is used to verify that vectors are safe to expand without
-/// leaking previous data. Before calling operations like `resize_with()` or
-/// `reserve_exact()`, check that spare capacity is clean:
-///
-/// ```
-/// use memutil::is_vec_fully_zeroized;
-///
-/// fn safe_expand(vec: &mut Vec<u8>, new_len: usize) -> Result<(), &'static str> {
-///     if !is_vec_fully_zeroized(vec) {
-///         return Err("Cannot expand: spare capacity contains unzeroized data");
-///     }
-///     vec.resize_with(new_len, || 0);
-///     Ok(())
-/// }
 /// ```
 #[inline(never)]
 pub fn is_vec_fully_zeroized(vec: &Vec<u8>) -> bool {
