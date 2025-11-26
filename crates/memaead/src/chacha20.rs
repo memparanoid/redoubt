@@ -6,7 +6,7 @@
 //!
 //! All sensitive state is zeroized on drop using memzer.
 
-use memutil::u32_from_le;
+use memutil::{u32_from_le, u32_to_le};
 use memzer::{DropSentinel, MemZer};
 use zeroize::Zeroize;
 
@@ -115,11 +115,15 @@ impl ChaCha20 {
 
         for i in 0..16 {
             self.working[i] = self.working[i].wrapping_add(self.initial[i]);
-            self.keystream[i * 4..i * 4 + 4].copy_from_slice(&self.working[i].to_le_bytes());
+            u32_to_le(
+                &mut self.working[i],
+                (&mut self.keystream[i * 4..i * 4 + 4])
+                    .try_into()
+                    .expect("infallible: keystream slice is exactly 4 bytes"),
+            );
         }
 
         self.initial.zeroize();
-        self.working.zeroize();
     }
 
     #[cfg(test)]
@@ -227,13 +231,24 @@ impl HChaCha20 {
         }
 
         for i in 0..4 {
-            output[i * 4..i * 4 + 4].copy_from_slice(&self.state[i].to_le_bytes());
+            u32_to_le(
+                &mut self.state[i],
+                (&mut output[i * 4..i * 4 + 4])
+                    .try_into()
+                    .expect("infallible: output slice is exactly 4 bytes"),
+            );
         }
         for i in 0..4 {
-            output[16 + i * 4..16 + i * 4 + 4].copy_from_slice(&self.state[12 + i].to_le_bytes());
+            u32_to_le(
+                &mut self.state[12 + i],
+                (&mut output[16 + i * 4..16 + i * 4 + 4])
+                    .try_into()
+                    .expect("infallible: output slice is exactly 4 bytes"),
+            );
         }
 
-        self.state.zeroize();
+        // state[4..12] not written to output, zeroize remaining
+        self.state[4..12].zeroize();
     }
 }
 

@@ -7,7 +7,7 @@
 //! Implements the Poly1305 one-time authenticator (RFC 8439).
 //! All sensitive state is zeroized on drop using memzer.
 
-use memutil::u32_from_le;
+use memutil::{u32_from_le, u32_to_le};
 use memzer::{DropSentinel, MemZer};
 use zeroize::Zeroize;
 
@@ -315,10 +315,34 @@ impl Poly1305 {
         self.finalize.h[3] &= 0xffffffff;
 
         // Write tag
-        output[0..4].copy_from_slice(&(self.finalize.h[0] as u32).to_le_bytes());
-        output[4..8].copy_from_slice(&(self.finalize.h[1] as u32).to_le_bytes());
-        output[8..12].copy_from_slice(&(self.finalize.h[2] as u32).to_le_bytes());
-        output[12..16].copy_from_slice(&(self.finalize.h[3] as u32).to_le_bytes());
+        s_u32 = self.finalize.h[0] as u32;
+        u32_to_le(
+            &mut s_u32,
+            (&mut output[0..4])
+                .try_into()
+                .expect("infallible: output[0..4] is exactly 4 bytes"),
+        );
+        s_u32 = self.finalize.h[1] as u32;
+        u32_to_le(
+            &mut s_u32,
+            (&mut output[4..8])
+                .try_into()
+                .expect("infallible: output[4..8] is exactly 4 bytes"),
+        );
+        s_u32 = self.finalize.h[2] as u32;
+        u32_to_le(
+            &mut s_u32,
+            (&mut output[8..12])
+                .try_into()
+                .expect("infallible: output[8..12] is exactly 4 bytes"),
+        );
+        s_u32 = self.finalize.h[3] as u32;
+        u32_to_le(
+            &mut s_u32,
+            (&mut output[12..16])
+                .try_into()
+                .expect("infallible: output[12..16] is exactly 4 bytes"),
+        );
 
         self.finalize.zeroize();
     }

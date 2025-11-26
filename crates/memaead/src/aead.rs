@@ -7,6 +7,7 @@
 //! All sensitive state is zeroized on drop using memzer.
 
 use memalloc::AllockedVec;
+use memutil::u64_to_le;
 use memzer::{DropSentinel, MemZer};
 use zeroize::Zeroize;
 
@@ -64,8 +65,20 @@ impl Aead {
         self.poly.update_padded(aad);
         self.poly.update_padded(ciphertext);
 
-        self.len_block[0..8].copy_from_slice(&(aad.len() as u64).to_le_bytes());
-        self.len_block[8..16].copy_from_slice(&(ciphertext.len() as u64).to_le_bytes());
+        let mut aad_len = aad.len() as u64;
+        let mut ct_len = ciphertext.len() as u64;
+        u64_to_le(
+            &mut aad_len,
+            (&mut self.len_block[0..8])
+                .try_into()
+                .expect("infallible: len_block[0..8] is exactly 8 bytes"),
+        );
+        u64_to_le(
+            &mut ct_len,
+            (&mut self.len_block[8..16])
+                .try_into()
+                .expect("infallible: len_block[8..16] is exactly 8 bytes"),
+        );
         self.poly.update(&self.len_block);
 
         self.poly.finalize(&mut self.expected_tag);
