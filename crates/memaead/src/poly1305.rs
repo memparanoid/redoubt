@@ -311,6 +311,7 @@ impl Poly1305 {
         self.finalize.zeroize();
     }
 
+    #[cfg(test)]
     pub fn compute(key: &[u8; KEY_SIZE], data: &[u8], output: &mut [u8; TAG_SIZE]) {
         let mut state = Self::default();
         state.init(key);

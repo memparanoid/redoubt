@@ -4,8 +4,17 @@
 
 //! AEAD unit tests
 
-use crate::aead::{xchacha20poly1305_decrypt, xchacha20poly1305_encrypt, DecryptError};
+use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
+
+use crate::aead::{xchacha20poly1305_decrypt, xchacha20poly1305_encrypt, Aead, DecryptError};
 use crate::consts::TAG_SIZE;
+
+#[test]
+fn test_aead_zeroization_on_drop() {
+    let aead = Aead::default();
+    assert!(aead.is_zeroized());
+    aead.assert_zeroize_on_drop();
+}
 
 /// draft-irtf-cfrg-xchacha Appendix A.1 - Full AEAD test vector
 #[test]

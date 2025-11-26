@@ -15,3 +15,12 @@ pub const BLOCK_SIZE: usize = 16;
 
 /// Nonce size in bytes (XChaCha20 extended nonce)
 pub const NONCE_SIZE: usize = 24;
+
+/// ChaCha20 keystream block size in bytes
+pub const CHACHA20_BLOCK_SIZE: usize = 64;
+
+/// ChaCha20 nonce size in bytes
+pub const CHACHA20_NONCE_SIZE: usize = 12;
+
+/// HChaCha20 nonce size in bytes
+pub const HCHACHA20_NONCE_SIZE: usize = 16;

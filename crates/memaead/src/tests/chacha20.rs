@@ -4,24 +4,34 @@
 
 //! ChaCha20 unit tests
 
-use crate::chacha20::{chacha20_block, chacha20_crypt, hchacha20, quarter_round, xchacha20_crypt};
+use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
 
-/// RFC 8439 Section 2.1.1 - Test Vector for Quarter Round
+use crate::chacha20::{ChaCha20, HChaCha20, XChaCha20};
+
+// Zeroization tests
+
 #[test]
-fn test_quarter_round() {
-    let mut state = [0u32; 16];
-    state[0] = 0x11111111;
-    state[1] = 0x01020304;
-    state[2] = 0x9b8d6f43;
-    state[3] = 0x01234567;
-
-    quarter_round(&mut state, 0, 1, 2, 3);
-
-    assert_eq!(state[0], 0xea2a92f4);
-    assert_eq!(state[1], 0xcb1cf8ce);
-    assert_eq!(state[2], 0x4581472e);
-    assert_eq!(state[3], 0x5881c4bb);
+fn test_chacha20_zeroization_on_drop() {
+    let state = ChaCha20::default();
+    assert!(state.is_zeroized());
+    state.assert_zeroize_on_drop();
 }
+
+#[test]
+fn test_hchacha20_zeroization_on_drop() {
+    let state = HChaCha20::default();
+    assert!(state.is_zeroized());
+    state.assert_zeroize_on_drop();
+}
+
+#[test]
+fn test_xchacha20_zeroization_on_drop() {
+    let state = XChaCha20::default();
+    assert!(state.is_zeroized());
+    state.assert_zeroize_on_drop();
+}
+
+// RFC test vectors
 
 /// RFC 8439 Section 2.3.2 - Test Vector for ChaCha20 Block
 #[test]
@@ -34,10 +44,10 @@ fn test_chacha20_block() {
     let nonce: [u8; 12] = [
         0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x4a, 0x00, 0x00, 0x00, 0x00,
     ];
-    let counter = 1u32;
-    let mut block = [0u8; 64];
 
-    chacha20_block(&key, &nonce, counter, &mut block);
+    let mut state = ChaCha20::default();
+    let mut block = [0u8; 64];
+    state.block(&key, &nonce, 1, &mut block);
 
     // First 16 bytes from RFC 8439 Section 2.3.2
     let expected_first_16: [u8; 16] = [
@@ -61,7 +71,7 @@ fn test_chacha20_encrypt() {
 
     let mut plaintext = *b"Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
 
-    chacha20_crypt(&key, &nonce, 1, &mut plaintext);
+    ChaCha20::default().crypt(&key, &nonce, 1, &mut plaintext);
 
     // First 16 bytes of expected ciphertext from RFC 8439
     let expected_first_16: [u8; 16] = [
@@ -85,7 +95,7 @@ fn test_hchacha20() {
     ];
 
     let mut subkey = [0u8; 32];
-    hchacha20(&key, &nonce, &mut subkey);
+    HChaCha20::default().derive(&key, &nonce, &mut subkey);
 
     let expected: [u8; 32] = [
         0x82, 0x41, 0x3b, 0x42, 0x27, 0xb2, 0x7b, 0xfe, 0xd3, 0x0e, 0x42, 0x50, 0x8a, 0x87, 0x7d,
@@ -111,7 +121,7 @@ fn test_xchacha20_encrypt() {
 
     let mut plaintext = *b"Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
 
-    xchacha20_crypt(&key, &xnonce, 1, &mut plaintext);
+    XChaCha20::default().crypt(&key, &xnonce, &mut plaintext);
 
     // Expected ciphertext from draft-irtf-cfrg-xchacha Appendix A.1
     let expected: [u8; 114] = [
@@ -137,10 +147,10 @@ fn test_xchacha20_roundtrip() {
     let mut data = *original;
 
     // Encrypt
-    xchacha20_crypt(&key, &xnonce, 1, &mut data);
+    XChaCha20::default().crypt(&key, &xnonce, &mut data);
     assert_ne!(&data[..], &original[..]);
 
     // Decrypt (same operation)
-    xchacha20_crypt(&key, &xnonce, 1, &mut data);
+    XChaCha20::default().crypt(&key, &xnonce, &mut data);
     assert_eq!(&data[..], &original[..]);
 }

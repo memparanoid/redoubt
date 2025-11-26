@@ -4,230 +4,279 @@
 
 //! ChaCha20 stream cipher implementation (RFC 8439)
 //!
-//! This module provides the core ChaCha20 primitives:
-//! - `quarter_round`: The basic mixing operation
-//! - `chacha20_block`: Generates a 64-byte keystream block
-//! - `chacha20_crypt`: XORs data with keystream (encrypt/decrypt)
+//! All sensitive state is zeroized on drop using memzer.
 
+use memzer::{DropSentinel, MemZer};
 use zeroize::Zeroize;
 
-use crate::sensitive::{SensitiveArrayU8, SensitiveArrayU32};
+use crate::consts::{
+    CHACHA20_BLOCK_SIZE, CHACHA20_NONCE_SIZE, HCHACHA20_NONCE_SIZE, KEY_SIZE, NONCE_SIZE,
+};
 
-/// ChaCha20 quarter round operation (RFC 8439 Section 2.1)
-///
-/// Operates on 4 words of the state matrix, applying:
-/// a += b; d ^= a; d <<<= 16;
-/// c += d; b ^= c; b <<<= 12;
-/// a += b; d ^= a; d <<<= 8;
-/// c += d; b ^= c; b <<<= 7;
-#[inline(always)]
-pub(crate) fn quarter_round(state: &mut [u32; 16], a: usize, b: usize, c: usize, d: usize) {
-    state[a] = state[a].wrapping_add(state[b]);
-    state[d] ^= state[a];
-    state[d] = state[d].rotate_left(16);
-
-    state[c] = state[c].wrapping_add(state[d]);
-    state[b] ^= state[c];
-    state[b] = state[b].rotate_left(12);
-
-    state[a] = state[a].wrapping_add(state[b]);
-    state[d] ^= state[a];
-    state[d] = state[d].rotate_left(8);
-
-    state[c] = state[c].wrapping_add(state[d]);
-    state[b] ^= state[c];
-    state[b] = state[b].rotate_left(7);
+/// ChaCha20 cipher state with guaranteed zeroization.
+#[derive(Zeroize, MemZer)]
+#[zeroize(drop)]
+pub(crate) struct ChaCha20 {
+    initial: [u32; 16],
+    working: [u32; 16],
+    keystream: [u8; CHACHA20_BLOCK_SIZE],
+    __drop_sentinel: DropSentinel,
 }
 
-/// Initialize ChaCha20 state matrix from key, nonce, and counter (RFC 8439 Section 2.3)
-///
-/// State layout (4x4 matrix of u32):
-/// ```text
-/// cccccccc  cccccccc  cccccccc  cccccccc
-/// kkkkkkkk  kkkkkkkk  kkkkkkkk  kkkkkkkk
-/// kkkkkkkk  kkkkkkkk  kkkkkkkk  kkkkkkkk
-/// bbbbbbbb  nnnnnnnn  nnnnnnnn  nnnnnnnn
-/// ```
-/// Where c = constant, k = key, b = block counter, n = nonce
-#[inline]
-fn init_state(key: &[u8; 32], nonce: &[u8; 12], counter: u32, state: &mut [u32; 16]) {
-    // Constants "expand 32-byte k"
-    state[0] = 0x61707865;
-    state[1] = 0x3320646e;
-    state[2] = 0x79622d32;
-    state[3] = 0x6b206574;
-
-    // Key (8 words)
-    for i in 0..8 {
-        state[4 + i] =
-            u32::from_le_bytes([key[i * 4], key[i * 4 + 1], key[i * 4 + 2], key[i * 4 + 3]]);
-    }
-
-    // Counter
-    state[12] = counter;
-
-    // Nonce (3 words)
-    for i in 0..3 {
-        state[13 + i] = u32::from_le_bytes([
-            nonce[i * 4],
-            nonce[i * 4 + 1],
-            nonce[i * 4 + 2],
-            nonce[i * 4 + 3],
-        ]);
+impl Default for ChaCha20 {
+    fn default() -> Self {
+        Self {
+            initial: [0; 16],
+            working: [0; 16],
+            keystream: [0; CHACHA20_BLOCK_SIZE],
+            __drop_sentinel: DropSentinel::default(),
+        }
     }
 }
 
-/// Generate a 64-byte ChaCha20 keystream block (RFC 8439 Section 2.3)
-///
-/// Runs 20 rounds (10 iterations of column + diagonal rounds),
-/// then adds the original state to the result.
-pub(crate) fn chacha20_block(
-    key: &[u8; 32],
-    nonce: &[u8; 12],
-    counter: u32,
-    output: &mut [u8; 64],
-) {
-    let mut initial_state = SensitiveArrayU32::<16>::new();
-    let mut state = SensitiveArrayU32::<16>::new();
+impl ChaCha20 {
+    #[inline(always)]
+    fn quarter_round(&mut self, a: usize, b: usize, c: usize, d: usize) {
+        self.working[a] = self.working[a].wrapping_add(self.working[b]);
+        self.working[d] ^= self.working[a];
+        self.working[d] = self.working[d].rotate_left(16);
 
-    init_state(key, nonce, counter, &mut initial_state);
-    state.copy_from_slice(&*initial_state);
+        self.working[c] = self.working[c].wrapping_add(self.working[d]);
+        self.working[b] ^= self.working[c];
+        self.working[b] = self.working[b].rotate_left(12);
 
-    // 20 rounds (10 iterations of 2 rounds each)
-    for _ in 0..10 {
-        // Column rounds
-        quarter_round(&mut state, 0, 4, 8, 12);
-        quarter_round(&mut state, 1, 5, 9, 13);
-        quarter_round(&mut state, 2, 6, 10, 14);
-        quarter_round(&mut state, 3, 7, 11, 15);
+        self.working[a] = self.working[a].wrapping_add(self.working[b]);
+        self.working[d] ^= self.working[a];
+        self.working[d] = self.working[d].rotate_left(8);
 
-        // Diagonal rounds
-        quarter_round(&mut state, 0, 5, 10, 15);
-        quarter_round(&mut state, 1, 6, 11, 12);
-        quarter_round(&mut state, 2, 7, 8, 13);
-        quarter_round(&mut state, 3, 4, 9, 14);
+        self.working[c] = self.working[c].wrapping_add(self.working[d]);
+        self.working[b] ^= self.working[c];
+        self.working[b] = self.working[b].rotate_left(7);
     }
 
-    // Add initial state and drain to output
-    for i in 0..16 {
-        state[i] = state[i].wrapping_add(initial_state[i]);
-        initial_state[i] = 0; // zeroize as we go
-        state.drain_le(i, &mut output[i * 4..i * 4 + 4]);
-    }
-    // state is already zeroed by drain_le, initial_state zeroed in loop
-}
+    #[inline]
+    fn init_state(&mut self, key: &[u8; KEY_SIZE], nonce: &[u8; CHACHA20_NONCE_SIZE], counter: u32) {
+        self.initial[0] = 0x61707865;
+        self.initial[1] = 0x3320646e;
+        self.initial[2] = 0x79622d32;
+        self.initial[3] = 0x6b206574;
 
-/// Encrypt or decrypt data in-place using ChaCha20 (RFC 8439 Section 2.4)
-///
-/// XORs each byte of `data` with the keystream generated from
-/// `key`, `nonce`, and `initial_counter`.
-pub(crate) fn chacha20_crypt(
-    key: &[u8; 32],
-    nonce: &[u8; 12],
-    initial_counter: u32,
-    data: &mut [u8],
-) {
-    let mut counter = initial_counter;
-    let mut keystream = SensitiveArrayU8::<64>::new();
-
-    for chunk in data.chunks_mut(64) {
-        chacha20_block(key, nonce, counter, &mut keystream);
-
-        for (byte, ks_byte) in chunk.iter_mut().zip(keystream.iter()) {
-            *byte ^= ks_byte;
+        for i in 0..8 {
+            self.initial[4 + i] =
+                u32::from_le_bytes([key[i * 4], key[i * 4 + 1], key[i * 4 + 2], key[i * 4 + 3]]);
         }
 
-        counter = counter.wrapping_add(1);
+        self.initial[12] = counter;
+
+        for i in 0..3 {
+            self.initial[13 + i] = u32::from_le_bytes([
+                nonce[i * 4],
+                nonce[i * 4 + 1],
+                nonce[i * 4 + 2],
+                nonce[i * 4 + 3],
+            ]);
+        }
     }
 
-    keystream.zeroize();
-}
+    #[inline]
+    fn do_rounds(&mut self) {
+        for _ in 0..10 {
+            self.quarter_round(0, 4, 8, 12);
+            self.quarter_round(1, 5, 9, 13);
+            self.quarter_round(2, 6, 10, 14);
+            self.quarter_round(3, 7, 11, 15);
 
-/// HChaCha20 - derives a 256-bit subkey from key and 128-bit nonce (draft-irtf-cfrg-xchacha)
-///
-/// Used as the first step of XChaCha20 to extend the nonce from 192 to 256 bits.
-/// Takes first 16 bytes of the 24-byte xnonce as input.
-///
-/// Output: words 0-3 and 12-15 of the ChaCha20 state after 20 rounds (no final addition).
-pub(crate) fn hchacha20(key: &[u8; 32], nonce: &[u8; 16], output: &mut [u8; 32]) {
-    let mut state = SensitiveArrayU32::<16>::new();
-
-    // Constants "expand 32-byte k"
-    state[0] = 0x61707865;
-    state[1] = 0x3320646e;
-    state[2] = 0x79622d32;
-    state[3] = 0x6b206574;
-
-    // Key (8 words)
-    for i in 0..8 {
-        state[4 + i] =
-            u32::from_le_bytes([key[i * 4], key[i * 4 + 1], key[i * 4 + 2], key[i * 4 + 3]]);
+            self.quarter_round(0, 5, 10, 15);
+            self.quarter_round(1, 6, 11, 12);
+            self.quarter_round(2, 7, 8, 13);
+            self.quarter_round(3, 4, 9, 14);
+        }
     }
 
-    // Nonce (4 words) - note: HChaCha20 uses 16-byte nonce, not 12
-    for i in 0..4 {
-        state[12 + i] = u32::from_le_bytes([
-            nonce[i * 4],
-            nonce[i * 4 + 1],
-            nonce[i * 4 + 2],
-            nonce[i * 4 + 3],
-        ]);
+    /// Generate keystream block into self.keystream
+    fn generate_block(&mut self, key: &[u8; KEY_SIZE], nonce: &[u8; CHACHA20_NONCE_SIZE], counter: u32) {
+        self.init_state(key, nonce, counter);
+        self.working.copy_from_slice(&self.initial);
+
+        self.do_rounds();
+
+        for i in 0..16 {
+            self.working[i] = self.working[i].wrapping_add(self.initial[i]);
+            self.keystream[i * 4..i * 4 + 4].copy_from_slice(&self.working[i].to_le_bytes());
+        }
+
+        self.initial.zeroize();
+        self.working.zeroize();
     }
 
-    // 20 rounds (10 iterations of 2 rounds each)
-    for _ in 0..10 {
-        // Column rounds
-        quarter_round(&mut state, 0, 4, 8, 12);
-        quarter_round(&mut state, 1, 5, 9, 13);
-        quarter_round(&mut state, 2, 6, 10, 14);
-        quarter_round(&mut state, 3, 7, 11, 15);
-
-        // Diagonal rounds
-        quarter_round(&mut state, 0, 5, 10, 15);
-        quarter_round(&mut state, 1, 6, 11, 12);
-        quarter_round(&mut state, 2, 7, 8, 13);
-        quarter_round(&mut state, 3, 4, 9, 14);
+    #[cfg(test)]
+    pub fn block(&mut self, key: &[u8; KEY_SIZE], nonce: &[u8; CHACHA20_NONCE_SIZE], counter: u32, output: &mut [u8; CHACHA20_BLOCK_SIZE]) {
+        self.generate_block(key, nonce, counter);
+        output.copy_from_slice(&self.keystream);
+        self.keystream.zeroize();
     }
 
-    // Extract words 0-3 and 12-15 (NOT adding initial state - this is the key difference)
-    // Drain directly to output, zeroizing state as we go
-    for i in 0..4 {
-        state.drain_le(i, &mut output[i * 4..i * 4 + 4]);
-    }
+    pub fn crypt(&mut self, key: &[u8; KEY_SIZE], nonce: &[u8; CHACHA20_NONCE_SIZE], counter: u32, data: &mut [u8]) {
+        for (i, chunk) in data.chunks_mut(CHACHA20_BLOCK_SIZE).enumerate() {
+            self.generate_block(key, nonce, counter.wrapping_add(i as u32));
 
-    for i in 0..4 {
-        state.drain_le(12 + i, &mut output[16 + i * 4..16 + i * 4 + 4]);
-    }
+            for (byte, ks_byte) in chunk.iter_mut().zip(self.keystream.iter()) {
+                *byte ^= ks_byte;
+            }
+        }
 
-    // Zeroize remaining state slots (4-11) that weren't drained
-    for i in 4..12 {
-        state[i] = 0;
+        self.keystream.zeroize();
     }
 }
 
-/// XChaCha20 encryption/decryption (draft-irtf-cfrg-xchacha)
-///
-/// Uses 192-bit (24-byte) nonce for better collision resistance.
-/// 1. Derive subkey using HChaCha20(key, xnonce[0..16])
-/// 2. Construct ChaCha20 nonce as [0,0,0,0] || xnonce[16..24]
-/// 3. Run ChaCha20 with subkey and constructed nonce
-pub(crate) fn xchacha20_crypt(
-    key: &[u8; 32],
-    xnonce: &[u8; 24],
-    initial_counter: u32,
-    data: &mut [u8],
-) {
-    // Step 1: Derive subkey from first 16 bytes of xnonce
-    let mut subkey = SensitiveArrayU8::<32>::new();
-    hchacha20(key, xnonce[0..16].try_into().unwrap(), &mut subkey);
+impl core::fmt::Debug for ChaCha20 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "ChaCha20 {{ [protected] }}")
+    }
+}
 
-    // Step 2: Construct ChaCha20 nonce: [0, 0, 0, 0] || xnonce[16..24]
-    // Nonce is not sensitive, use regular array
-    let mut nonce = [0u8; 12];
-    nonce[4..12].copy_from_slice(&xnonce[16..24]);
+/// HChaCha20 state for subkey derivation.
+#[derive(Default, Zeroize, MemZer)]
+#[zeroize(drop)]
+pub(crate) struct HChaCha20 {
+    state: [u32; 16],
+    __drop_sentinel: DropSentinel,
+}
 
-    // Step 3: Run ChaCha20 with derived subkey
-    chacha20_crypt(&subkey, &nonce, initial_counter, data);
+impl HChaCha20 {
+    #[inline(always)]
+    fn quarter_round(&mut self, a: usize, b: usize, c: usize, d: usize) {
+        self.state[a] = self.state[a].wrapping_add(self.state[b]);
+        self.state[d] ^= self.state[a];
+        self.state[d] = self.state[d].rotate_left(16);
 
-    subkey.zeroize();
+        self.state[c] = self.state[c].wrapping_add(self.state[d]);
+        self.state[b] ^= self.state[c];
+        self.state[b] = self.state[b].rotate_left(12);
+
+        self.state[a] = self.state[a].wrapping_add(self.state[b]);
+        self.state[d] ^= self.state[a];
+        self.state[d] = self.state[d].rotate_left(8);
+
+        self.state[c] = self.state[c].wrapping_add(self.state[d]);
+        self.state[b] ^= self.state[c];
+        self.state[b] = self.state[b].rotate_left(7);
+    }
+
+    pub fn derive(&mut self, key: &[u8; KEY_SIZE], nonce: &[u8; HCHACHA20_NONCE_SIZE], output: &mut [u8; KEY_SIZE]) {
+        self.state[0] = 0x61707865;
+        self.state[1] = 0x3320646e;
+        self.state[2] = 0x79622d32;
+        self.state[3] = 0x6b206574;
+
+        for i in 0..8 {
+            self.state[4 + i] =
+                u32::from_le_bytes([key[i * 4], key[i * 4 + 1], key[i * 4 + 2], key[i * 4 + 3]]);
+        }
+
+        for i in 0..4 {
+            self.state[12 + i] = u32::from_le_bytes([
+                nonce[i * 4],
+                nonce[i * 4 + 1],
+                nonce[i * 4 + 2],
+                nonce[i * 4 + 3],
+            ]);
+        }
+
+        for _ in 0..10 {
+            self.quarter_round(0, 4, 8, 12);
+            self.quarter_round(1, 5, 9, 13);
+            self.quarter_round(2, 6, 10, 14);
+            self.quarter_round(3, 7, 11, 15);
+
+            self.quarter_round(0, 5, 10, 15);
+            self.quarter_round(1, 6, 11, 12);
+            self.quarter_round(2, 7, 8, 13);
+            self.quarter_round(3, 4, 9, 14);
+        }
+
+        for i in 0..4 {
+            output[i * 4..i * 4 + 4].copy_from_slice(&self.state[i].to_le_bytes());
+        }
+        for i in 0..4 {
+            output[16 + i * 4..16 + i * 4 + 4].copy_from_slice(&self.state[12 + i].to_le_bytes());
+        }
+
+        self.state.zeroize();
+    }
+}
+
+impl core::fmt::Debug for HChaCha20 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "HChaCha20 {{ [protected] }}")
+    }
+}
+
+/// XChaCha20 cipher state with guaranteed zeroization.
+#[derive(Zeroize, MemZer)]
+#[zeroize(drop)]
+pub(crate) struct XChaCha20 {
+    subkey: [u8; KEY_SIZE],
+    nonce: [u8; CHACHA20_NONCE_SIZE],
+    hchacha: HChaCha20,
+    chacha: ChaCha20,
+    __drop_sentinel: DropSentinel,
+}
+
+impl Default for XChaCha20 {
+    fn default() -> Self {
+        Self {
+            subkey: [0; KEY_SIZE],
+            nonce: [0; CHACHA20_NONCE_SIZE],
+            hchacha: HChaCha20::default(),
+            chacha: ChaCha20::default(),
+            __drop_sentinel: DropSentinel::default(),
+        }
+    }
+}
+
+impl XChaCha20 {
+    /// Generate Poly1305 key from XChaCha20 keystream (counter=0)
+    pub fn generate_poly_key(&mut self, key: &[u8; KEY_SIZE], xnonce: &[u8; NONCE_SIZE], output: &mut [u8; KEY_SIZE]) {
+        self.hchacha.derive(
+            key,
+            xnonce[0..HCHACHA20_NONCE_SIZE]
+                .try_into()
+                .expect("infallible: xnonce[0..16] is exactly 16 bytes"),
+            &mut self.subkey,
+        );
+
+        self.nonce[4..CHACHA20_NONCE_SIZE].copy_from_slice(&xnonce[HCHACHA20_NONCE_SIZE..NONCE_SIZE]);
+
+        self.chacha.generate_block(&self.subkey, &self.nonce, 0);
+        output.copy_from_slice(&self.chacha.keystream[0..KEY_SIZE]);
+
+        self.subkey.zeroize();
+        self.nonce.zeroize();
+        self.chacha.keystream.zeroize();
+    }
+
+    /// Encrypt/decrypt data in-place (counter=1)
+    pub fn crypt(&mut self, key: &[u8; KEY_SIZE], xnonce: &[u8; NONCE_SIZE], data: &mut [u8]) {
+        self.hchacha.derive(
+            key,
+            xnonce[0..HCHACHA20_NONCE_SIZE]
+                .try_into()
+                .expect("infallible: xnonce[0..16] is exactly 16 bytes"),
+            &mut self.subkey,
+        );
+
+        self.nonce[4..CHACHA20_NONCE_SIZE].copy_from_slice(&xnonce[HCHACHA20_NONCE_SIZE..NONCE_SIZE]);
+
+        self.chacha.crypt(&self.subkey, &self.nonce, 1, data);
+
+        self.subkey.zeroize();
+        self.nonce.zeroize();
+    }
+}
+
+impl core::fmt::Debug for XChaCha20 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "XChaCha20 {{ [protected] }}")
+    }
 }
