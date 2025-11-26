@@ -12,6 +12,5 @@ version.workspace   = true
 [dependencies]
 memalloc.workspace  = true
 memzer.workspace    = true
-poly1305.workspace  = true
 thiserror.workspace = true
 zeroize.workspace   = true

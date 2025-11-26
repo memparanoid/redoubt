@@ -4,9 +4,8 @@
 
 //! AEAD unit tests
 
-use crate::aead::{
-    xchacha20poly1305_decrypt, xchacha20poly1305_encrypt, DecryptError, TAG_SIZE,
-};
+use crate::aead::{xchacha20poly1305_decrypt, xchacha20poly1305_encrypt, DecryptError};
+use crate::consts::TAG_SIZE;
 
 /// draft-irtf-cfrg-xchacha Appendix A.1 - Full AEAD test vector
 #[test]

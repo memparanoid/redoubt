@@ -9,23 +9,12 @@
 //! - Poly1305 for authentication
 
 use memalloc::AllockedVec;
-use poly1305::{
-    Key as Poly1305Key, Poly1305,
-    universal_hash::{KeyInit, UniversalHash},
-};
 use zeroize::Zeroize;
 
 use crate::chacha20::{chacha20_block, hchacha20, xchacha20_crypt};
+use crate::consts::{NONCE_SIZE, TAG_SIZE};
+use crate::poly1305::Poly1305;
 use crate::sensitive::SensitiveArrayU8;
-
-/// Authentication tag size in bytes
-pub const TAG_SIZE: usize = 16;
-
-/// Key size in bytes
-pub const KEY_SIZE: usize = 32;
-
-/// Nonce size in bytes (extended nonce for XChaCha20)
-pub const NONCE_SIZE: usize = 24;
 
 /// Errors that can occur during AEAD decryption
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -73,8 +62,8 @@ fn generate_poly_key(key: &[u8; 32], xnonce: &[u8; 24], poly_key: &mut [u8; 32])
 /// - len(aad) as u64 little-endian
 /// - len(ciphertext) as u64 little-endian
 fn compute_tag(poly_key: &[u8; 32], aad: &[u8], ciphertext: &[u8], output: &mut [u8; 16]) {
-    let key = Poly1305Key::from(*poly_key);
-    let mut mac = Poly1305::new(&key);
+    let mut mac = Poly1305::default();
+    mac.init(poly_key);
 
     // AAD with padding
     mac.update_padded(aad);
@@ -82,23 +71,15 @@ fn compute_tag(poly_key: &[u8; 32], aad: &[u8], ciphertext: &[u8], output: &mut 
     // Ciphertext with padding
     mac.update_padded(ciphertext);
 
-    // Lengths as u64 little-endian
+    // Lengths as u64 little-endian (exactly 16 bytes, no padding needed)
     let mut len_block = SensitiveArrayU8::<16>::new();
     len_block[0..8].copy_from_slice(&(aad.len() as u64).to_le_bytes());
     len_block[8..16].copy_from_slice(&(ciphertext.len() as u64).to_le_bytes());
+    mac.update(len_block.as_slice());
 
-    mac.update_padded(len_block.as_slice());
-
-    let mut tag = mac.finalize();
+    mac.finalize(output);
     len_block.zeroize();
-
-    let tag_bytes = tag.as_mut_slice();
-
-    for (i, b) in tag_bytes.iter_mut().enumerate() {
-        output[i] = core::mem::take(b);
-    }
-
-    debug_assert!(tag_bytes.iter().all(|b| *b == 0));
+    // mac zeroized on drop via MemZer
 }
 
 /// Encrypt plaintext with XChaCha20-Poly1305 AEAD
