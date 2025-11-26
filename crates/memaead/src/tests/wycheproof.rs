@@ -171,3 +171,60 @@ fn test_wycheproof_all() {
         );
     }
 }
+
+/// For every valid test case, flip a bit in the tag and verify authentication fails
+#[test]
+fn test_wycheproof_valid_with_flipped_tag() {
+    use super::wycheproof_vectors::test_vectors;
+    use crate::aead::{xchacha20poly1305_decrypt_slice, DecryptError};
+
+    let vectors = test_vectors();
+    let mut failures = Vec::new();
+
+    for tc in vectors.iter() {
+        // Only test valid cases
+        if !matches!(tc.result, Result::Valid) {
+            continue;
+        }
+
+        let key = hex_to_bytes(&tc.key);
+        let nonce = hex_to_bytes(&tc.iv);
+        let aad = hex_to_bytes(&tc.aad);
+        let ct = hex_to_bytes(&tc.ct);
+        let mut tag = hex_to_bytes(&tc.tag);
+
+        // Flip first bit of first byte
+        tag[0] ^= 0x01;
+
+        let mut ciphertext_with_tag = ct;
+        ciphertext_with_tag.extend_from_slice(&tag);
+
+        let result = xchacha20poly1305_decrypt_slice(&key, &nonce, &aad, &mut ciphertext_with_tag);
+
+        match result {
+            Err(DecryptError::AuthenticationFailed) => {
+                // Expected
+            }
+            Ok(_) => {
+                failures.push(format!(
+                    "tc_id {}: flipped tag accepted (should have been rejected)",
+                    tc.tc_id
+                ));
+            }
+            Err(e) => {
+                failures.push(format!(
+                    "tc_id {}: unexpected error with flipped tag: {:?}",
+                    tc.tc_id, e
+                ));
+            }
+        }
+    }
+
+    if !failures.is_empty() {
+        panic!(
+            "Flipped tag test failures ({}):\n{}",
+            failures.len(),
+            failures.join("\n")
+        );
+    }
+}
