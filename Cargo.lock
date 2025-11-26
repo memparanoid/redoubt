@@ -497,6 +497,7 @@ name = "memaead"
 version = "0.0.1"
 dependencies = [
  "memalloc",
+ "memutil",
  "memzer",
  "thiserror",
  "zeroize",

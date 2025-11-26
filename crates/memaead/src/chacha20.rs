@@ -6,6 +6,7 @@
 //!
 //! All sensitive state is zeroized on drop using memzer.
 
+use memutil::u32_from_le;
 use memzer::{DropSentinel, MemZer};
 use zeroize::Zeroize;
 
@@ -22,18 +23,6 @@ pub(crate) struct ChaCha20 {
     working: [u32; 16],
     keystream: [u8; CHACHA20_BLOCK_SIZE],
     __drop_sentinel: DropSentinel,
-}
-
-#[inline(always)]
-fn u32_from_le(u32: &mut u32, bytes: &mut [u8]) {
-    let truncated_bytes = &mut bytes[..4];
-
-    *u32 = 0;
-
-    for (i, byte) in truncated_bytes.iter_mut().enumerate() {
-        *u32 = *u32 | (*byte as u32) << 8 * i;
-        *byte = 0;
-    }
 }
 
 impl Default for ChaCha20 {
@@ -80,19 +69,20 @@ impl ChaCha20 {
         self.initial[3] = 0x6b206574;
 
         for i in 0..8 {
-            self.initial[4 + i] =
-                u32::from_le_bytes([key[i * 4], key[i * 4 + 1], key[i * 4 + 2], key[i * 4 + 3]]);
+            let mut tmp = [key[i * 4], key[i * 4 + 1], key[i * 4 + 2], key[i * 4 + 3]];
+            u32_from_le(&mut self.initial[4 + i], &mut tmp);
         }
 
         self.initial[12] = counter;
 
         for i in 0..3 {
-            self.initial[13 + i] = u32::from_le_bytes([
+            let mut tmp = [
                 nonce[i * 4],
                 nonce[i * 4 + 1],
                 nonce[i * 4 + 2],
                 nonce[i * 4 + 3],
-            ]);
+            ];
+            u32_from_le(&mut self.initial[13 + i], &mut tmp);
         }
     }
 
@@ -210,29 +200,18 @@ impl HChaCha20 {
         self.state[3] = 0x6b206574;
 
         for i in 0..8 {
-            fn drain_from_le_bytes(state: &mut [u32], le_bytes: &mut [u8]) {
-                let u32 = u32::from_le_bytes(le_bytes);
-                state[0] = core::mem::take(u32);
-            }
-
-            drain(
-                &mut self.state[4 + i..],
-                &mut u32::from_le_bytes([
-                    key[i * 4],
-                    key[i * 4 + 1],
-                    key[i * 4 + 2],
-                    key[i * 4 + 3],
-                ]),
-            );
+            let mut tmp = [key[i * 4], key[i * 4 + 1], key[i * 4 + 2], key[i * 4 + 3]];
+            u32_from_le(&mut self.state[4 + i], &mut tmp);
         }
 
         for i in 0..4 {
-            self.state[12 + i] = u32::from_le_bytes([
+            let mut tmp = [
                 nonce[i * 4],
                 nonce[i * 4 + 1],
                 nonce[i * 4 + 2],
                 nonce[i * 4 + 3],
-            ]);
+            ];
+            u32_from_le(&mut self.state[12 + i], &mut tmp);
         }
 
         for _ in 0..10 {
