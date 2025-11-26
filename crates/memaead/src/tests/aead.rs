@@ -89,7 +89,8 @@ fn test_xchacha20_poly1305_decrypt() {
     ];
 
     let plaintext =
-        xchacha20poly1305_decrypt(&key, &xnonce, &aad, &mut ciphertext_with_tag).unwrap();
+        xchacha20poly1305_decrypt(&key, &xnonce, &aad, &mut ciphertext_with_tag)
+            .expect("decryption failed");
 
     // Ciphertext must be zeroized
     assert!(ciphertext_with_tag.iter().all(|&b| b == 0));
@@ -183,7 +184,8 @@ fn test_roundtrip() {
 
     // Copy to mutable buffer for decrypt
     let mut ct_with_tag: Vec<u8> = ciphertext.as_slice().to_vec();
-    let decrypted = xchacha20poly1305_decrypt(&key, &xnonce, aad, &mut ct_with_tag).unwrap();
+    let decrypted =
+        xchacha20poly1305_decrypt(&key, &xnonce, aad, &mut ct_with_tag).expect("decryption failed");
 
     // Ciphertext must be zeroized
     assert!(ct_with_tag.iter().all(|&b| b == 0));
@@ -201,7 +203,8 @@ fn test_empty_plaintext() {
     assert_eq!(ciphertext.len(), TAG_SIZE); // Only tag
 
     let mut ct_with_tag: Vec<u8> = ciphertext.as_slice().to_vec();
-    let decrypted = xchacha20poly1305_decrypt(&key, &xnonce, aad, &mut ct_with_tag).unwrap();
+    let decrypted =
+        xchacha20poly1305_decrypt(&key, &xnonce, aad, &mut ct_with_tag).expect("decryption failed");
     assert!(decrypted.is_empty());
 }
 
@@ -218,7 +221,8 @@ fn test_empty_aad() {
     assert!(plaintext.iter().all(|&b| b == 0));
 
     let mut ct_with_tag: Vec<u8> = ciphertext.as_slice().to_vec();
-    let decrypted = xchacha20poly1305_decrypt(&key, &xnonce, b"", &mut ct_with_tag).unwrap();
+    let decrypted =
+        xchacha20poly1305_decrypt(&key, &xnonce, b"", &mut ct_with_tag).expect("decryption failed");
 
     // Ciphertext must be zeroized
     assert!(ct_with_tag.iter().all(|&b| b == 0));
