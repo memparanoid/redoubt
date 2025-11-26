@@ -105,10 +105,10 @@ fn test_modified_tag_rejected() {
     ct_with_tag[last] ^= 0x01;
 
     // Should fail authentication
-    assert!(matches!(
-        xchacha20poly1305_decrypt(&key, &xnonce, aad, &mut ct_with_tag),
-        Err(DecryptError::AuthenticationFailed)
-    ));
+    let result = xchacha20poly1305_decrypt(&key, &xnonce, aad, &mut ct_with_tag);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(DecryptError::AuthenticationFailed)));
 
     // Ciphertext must be zeroized on auth failure
     assert!(ct_with_tag.iter().all(|&b| b == 0));
@@ -128,10 +128,10 @@ fn test_modified_ciphertext_rejected() {
     ct_with_tag[0] ^= 0x01;
 
     // Should fail authentication
-    assert!(matches!(
-        xchacha20poly1305_decrypt(&key, &xnonce, aad, &mut ct_with_tag),
-        Err(DecryptError::AuthenticationFailed)
-    ));
+    let result = xchacha20poly1305_decrypt(&key, &xnonce, aad, &mut ct_with_tag);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(DecryptError::AuthenticationFailed)));
 
     // Ciphertext must be zeroized on auth failure
     assert!(ct_with_tag.iter().all(|&b| b == 0));
@@ -149,10 +149,10 @@ fn test_modified_aad_rejected() {
     let mut ct_with_tag: Vec<u8> = ciphertext.as_slice().to_vec();
 
     // Different AAD should fail
-    assert!(matches!(
-        xchacha20poly1305_decrypt(&key, &xnonce, b"HEADER", &mut ct_with_tag),
-        Err(DecryptError::AuthenticationFailed)
-    ));
+    let result = xchacha20poly1305_decrypt(&key, &xnonce, b"HEADER", &mut ct_with_tag);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(DecryptError::AuthenticationFailed)));
 
     // Ciphertext must be zeroized on auth failure
     assert!(ct_with_tag.iter().all(|&b| b == 0));
