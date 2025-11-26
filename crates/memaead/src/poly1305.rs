@@ -23,6 +23,8 @@ pub(crate) struct Poly1305Block {
     d: [u64; 5],
     tmp: [u8; 16],
     le_bytes_tmp: [u8; 4],
+    shifting_tmp_a: u32,
+    shifting_tmp_b: u32,
     __drop_sentinel: DropSentinel,
 }
 
@@ -80,9 +82,22 @@ impl Poly1305 {
         u32_from_le(&mut self.block.t[3], &mut self.block.le_bytes_tmp);
 
         self.r[0] = self.block.t[0] & 0x3ffffff;
-        self.r[1] = ((self.block.t[0] >> 26) | (self.block.t[1] << 6)) & 0x3ffffff;
-        self.r[2] = ((self.block.t[1] >> 20) | (self.block.t[2] << 12)) & 0x3ffffff;
-        self.r[3] = ((self.block.t[2] >> 14) | (self.block.t[3] << 18)) & 0x3ffffff;
+
+        self.block.shifting_tmp_a = self.block.t[0] >> 26;
+        self.block.shifting_tmp_b = self.block.t[1] << 6;
+        self.block.shifting_tmp_a |= self.block.shifting_tmp_b;
+        self.r[1] = self.block.shifting_tmp_a & 0x3ffffff;
+
+        self.block.shifting_tmp_a = self.block.t[1] >> 20;
+        self.block.shifting_tmp_b = self.block.t[2] << 12;
+        self.block.shifting_tmp_a |= self.block.shifting_tmp_b;
+        self.r[2] = self.block.shifting_tmp_a & 0x3ffffff;
+
+        self.block.shifting_tmp_a = self.block.t[2] >> 14;
+        self.block.shifting_tmp_b = self.block.t[3] << 18;
+        self.block.shifting_tmp_a |= self.block.shifting_tmp_b;
+        self.r[3] = self.block.shifting_tmp_a & 0x3ffffff;
+
         self.r[4] = self.block.t[3] >> 8;
 
         self.block.zeroize();
@@ -124,10 +139,26 @@ impl Poly1305 {
         u32_from_le(&mut self.block.t[3], &mut self.block.le_bytes_tmp);
 
         self.acc[0] += (self.block.t[0] & 0x3ffffff) as u64;
-        self.acc[1] += (((self.block.t[0] >> 26) | (self.block.t[1] << 6)) & 0x3ffffff) as u64;
-        self.acc[2] += (((self.block.t[1] >> 20) | (self.block.t[2] << 12)) & 0x3ffffff) as u64;
-        self.acc[3] += (((self.block.t[2] >> 14) | (self.block.t[3] << 18)) & 0x3ffffff) as u64;
-        self.acc[4] += ((self.block.t[3] >> 8) | (hibit << 24)) as u64;
+
+        self.block.shifting_tmp_a = self.block.t[0] >> 26;
+        self.block.shifting_tmp_b = self.block.t[1] << 6;
+        self.block.shifting_tmp_a |= self.block.shifting_tmp_b;
+        self.acc[1] += (self.block.shifting_tmp_a & 0x3ffffff) as u64;
+
+        self.block.shifting_tmp_a = self.block.t[1] >> 20;
+        self.block.shifting_tmp_b = self.block.t[2] << 12;
+        self.block.shifting_tmp_a |= self.block.shifting_tmp_b;
+        self.acc[2] += (self.block.shifting_tmp_a & 0x3ffffff) as u64;
+
+        self.block.shifting_tmp_a = self.block.t[2] >> 14;
+        self.block.shifting_tmp_b = self.block.t[3] << 18;
+        self.block.shifting_tmp_a |= self.block.shifting_tmp_b;
+        self.acc[3] += (self.block.shifting_tmp_a & 0x3ffffff) as u64;
+
+        self.block.shifting_tmp_a = self.block.t[3] >> 8;
+        self.block.shifting_tmp_b = hibit << 24;
+        self.block.shifting_tmp_a |= self.block.shifting_tmp_b;
+        self.acc[4] += self.block.shifting_tmp_a as u64;
 
         self.block.s[0] = (self.r[1] as u64) * 5;
         self.block.s[1] = (self.r[2] as u64) * 5;
