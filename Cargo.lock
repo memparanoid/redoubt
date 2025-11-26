@@ -523,6 +523,7 @@ dependencies = [
  "criterion",
  "memaead",
  "memcode",
+ "memcodec",
  "serde",
  "zeroize",
 ]
