@@ -6,9 +6,10 @@
 //!
 //! All sensitive state is zeroized on drop using memzer.
 
+use zeroize::Zeroize;
+
 use memutil::{u32_from_le, u32_to_le};
 use memzer::{DropSentinel, MemZer};
-use zeroize::Zeroize;
 
 use crate::consts::{
     CHACHA20_BLOCK_SIZE, CHACHA20_NONCE_SIZE, HCHACHA20_NONCE_SIZE, KEY_SIZE, XNONCE_SIZE,

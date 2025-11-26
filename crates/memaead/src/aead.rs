@@ -6,10 +6,11 @@
 //!
 //! All sensitive state is zeroized on drop using memzer.
 
+use zeroize::Zeroize;
+
 use memalloc::AllockedVec;
 use memutil::u64_to_le;
 use memzer::{DropSentinel, MemZer};
-use zeroize::Zeroize;
 
 use crate::chacha20::XChaCha20;
 use crate::consts::{KEY_SIZE, TAG_SIZE};
