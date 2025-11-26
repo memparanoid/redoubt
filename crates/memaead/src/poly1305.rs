@@ -35,7 +35,10 @@ pub(crate) struct Poly1305Final {
     d: [u64; 5],            // reduced accumulator
     g: [u64; 4],            // h + 5 for comparison
     h: [u64; 4],            // h0-h3 for tag
+    g4: u64,                // overflow check
     mask: u64,
+    shifting_tmp_a: u64,
+    shifting_tmp_b: u64,
     le_bytes_tmp: [u8; 4],
     s_u32: u32,
     __drop_sentinel: DropSentinel,
@@ -301,11 +304,11 @@ impl Poly1305 {
         self.finalize.g[2] &= 0x3ffffff;
 
         // If (d[4] + carry from g[3]) overflows, h >= 2^130-5
-        let g4 = self.finalize.d[4] + (self.finalize.g[3] >> 26);
+        self.finalize.g4 = self.finalize.d[4] + (self.finalize.g[3] >> 26);
         self.finalize.g[3] &= 0x3ffffff;
 
         // mask = all 1s if NO overflow (use h), all 0s if overflow (use g)
-        self.finalize.mask = (g4 >> 26).wrapping_sub(1);
+        self.finalize.mask = (self.finalize.g4 >> 26).wrapping_sub(1);
 
         // Select h (mask=1s) or g (mask=0s)
         self.finalize.d[0] =
@@ -322,10 +325,24 @@ impl Poly1305 {
         // Convert radix 2^26 to 4x32-bit
         // Map 130-bit N = sum(d[i]*2^(26i)) to h[0..3] where h[i] = bits 32i..32i+31 of N
         // Mask each d contribution so h[i] is exactly 32 bits (no overflow)
-        self.finalize.h[0] = self.finalize.d[0] | ((self.finalize.d[1] & 0x3f) << 26);
-        self.finalize.h[1] = (self.finalize.d[1] >> 6) | ((self.finalize.d[2] & 0xfff) << 20);
-        self.finalize.h[2] = (self.finalize.d[2] >> 12) | ((self.finalize.d[3] & 0x3ffff) << 14);
-        self.finalize.h[3] = (self.finalize.d[3] >> 18) | ((self.finalize.d[4] & 0xffffff) << 8);
+        self.finalize.shifting_tmp_a = self.finalize.d[1] & 0x3f;
+        self.finalize.shifting_tmp_a <<= 26;
+        self.finalize.h[0] = self.finalize.d[0] | self.finalize.shifting_tmp_a;
+
+        self.finalize.shifting_tmp_a = self.finalize.d[1] >> 6;
+        self.finalize.shifting_tmp_b = self.finalize.d[2] & 0xfff;
+        self.finalize.shifting_tmp_b <<= 20;
+        self.finalize.h[1] = self.finalize.shifting_tmp_a | self.finalize.shifting_tmp_b;
+
+        self.finalize.shifting_tmp_a = self.finalize.d[2] >> 12;
+        self.finalize.shifting_tmp_b = self.finalize.d[3] & 0x3ffff;
+        self.finalize.shifting_tmp_b <<= 14;
+        self.finalize.h[2] = self.finalize.shifting_tmp_a | self.finalize.shifting_tmp_b;
+
+        self.finalize.shifting_tmp_a = self.finalize.d[3] >> 18;
+        self.finalize.shifting_tmp_b = self.finalize.d[4] & 0xffffff;
+        self.finalize.shifting_tmp_b <<= 8;
+        self.finalize.h[3] = self.finalize.shifting_tmp_a | self.finalize.shifting_tmp_b;
 
         // Add s with carry propagation
         self.finalize.le_bytes_tmp = [self.s[0], self.s[1], self.s[2], self.s[3]];
