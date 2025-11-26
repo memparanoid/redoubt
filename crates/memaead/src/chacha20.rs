@@ -24,6 +24,18 @@ pub(crate) struct ChaCha20 {
     __drop_sentinel: DropSentinel,
 }
 
+#[inline(always)]
+fn u32_from_le(u32: &mut u32, bytes: &mut [u8]) {
+    let truncated_bytes = &mut bytes[..4];
+
+    *u32 = 0;
+
+    for (i, byte) in truncated_bytes.iter_mut().enumerate() {
+        *u32 = *u32 | (*byte as u32) << 8 * i;
+        *byte = 0;
+    }
+}
+
 impl Default for ChaCha20 {
     fn default() -> Self {
         Self {
@@ -56,7 +68,12 @@ impl ChaCha20 {
     }
 
     #[inline]
-    fn init_state(&mut self, key: &[u8; KEY_SIZE], nonce: &[u8; CHACHA20_NONCE_SIZE], counter: u32) {
+    fn init_state(
+        &mut self,
+        key: &[u8; KEY_SIZE],
+        nonce: &[u8; CHACHA20_NONCE_SIZE],
+        counter: u32,
+    ) {
         self.initial[0] = 0x61707865;
         self.initial[1] = 0x3320646e;
         self.initial[2] = 0x79622d32;
@@ -95,7 +112,12 @@ impl ChaCha20 {
     }
 
     /// Generate keystream block into self.keystream
-    fn generate_block(&mut self, key: &[u8; KEY_SIZE], nonce: &[u8; CHACHA20_NONCE_SIZE], counter: u32) {
+    fn generate_block(
+        &mut self,
+        key: &[u8; KEY_SIZE],
+        nonce: &[u8; CHACHA20_NONCE_SIZE],
+        counter: u32,
+    ) {
         self.init_state(key, nonce, counter);
         self.working.copy_from_slice(&self.initial);
 
@@ -111,13 +133,25 @@ impl ChaCha20 {
     }
 
     #[cfg(test)]
-    pub fn block(&mut self, key: &[u8; KEY_SIZE], nonce: &[u8; CHACHA20_NONCE_SIZE], counter: u32, output: &mut [u8; CHACHA20_BLOCK_SIZE]) {
+    pub fn block(
+        &mut self,
+        key: &[u8; KEY_SIZE],
+        nonce: &[u8; CHACHA20_NONCE_SIZE],
+        counter: u32,
+        output: &mut [u8; CHACHA20_BLOCK_SIZE],
+    ) {
         self.generate_block(key, nonce, counter);
         output.copy_from_slice(&self.keystream);
         self.keystream.zeroize();
     }
 
-    pub fn crypt(&mut self, key: &[u8; KEY_SIZE], nonce: &[u8; CHACHA20_NONCE_SIZE], counter: u32, data: &mut [u8]) {
+    pub fn crypt(
+        &mut self,
+        key: &[u8; KEY_SIZE],
+        nonce: &[u8; CHACHA20_NONCE_SIZE],
+        counter: u32,
+        data: &mut [u8],
+    ) {
         for (i, chunk) in data.chunks_mut(CHACHA20_BLOCK_SIZE).enumerate() {
             self.generate_block(key, nonce, counter.wrapping_add(i as u32));
 
@@ -164,15 +198,32 @@ impl HChaCha20 {
         self.state[b] = self.state[b].rotate_left(7);
     }
 
-    pub fn derive(&mut self, key: &[u8; KEY_SIZE], nonce: &[u8; HCHACHA20_NONCE_SIZE], output: &mut [u8; KEY_SIZE]) {
+    pub fn derive(
+        &mut self,
+        key: &[u8; KEY_SIZE],
+        nonce: &[u8; HCHACHA20_NONCE_SIZE],
+        output: &mut [u8; KEY_SIZE],
+    ) {
         self.state[0] = 0x61707865;
         self.state[1] = 0x3320646e;
         self.state[2] = 0x79622d32;
         self.state[3] = 0x6b206574;
 
         for i in 0..8 {
-            self.state[4 + i] =
-                u32::from_le_bytes([key[i * 4], key[i * 4 + 1], key[i * 4 + 2], key[i * 4 + 3]]);
+            fn drain_from_le_bytes(state: &mut [u32], le_bytes: &mut [u8]) {
+                let u32 = u32::from_le_bytes(le_bytes);
+                state[0] = core::mem::take(u32);
+            }
+
+            drain(
+                &mut self.state[4 + i..],
+                &mut u32::from_le_bytes([
+                    key[i * 4],
+                    key[i * 4 + 1],
+                    key[i * 4 + 2],
+                    key[i * 4 + 3],
+                ]),
+            );
         }
 
         for i in 0..4 {
@@ -247,7 +298,8 @@ impl XChaCha20 {
             &mut self.subkey,
         );
 
-        self.nonce[4..CHACHA20_NONCE_SIZE].copy_from_slice(&xnonce[HCHACHA20_NONCE_SIZE..XNONCE_SIZE]);
+        self.nonce[4..CHACHA20_NONCE_SIZE]
+            .copy_from_slice(&xnonce[HCHACHA20_NONCE_SIZE..XNONCE_SIZE]);
 
         self.chacha.generate_block(&self.subkey, &self.nonce, 0);
         output.copy_from_slice(&self.chacha.keystream[0..KEY_SIZE]);
@@ -267,7 +319,8 @@ impl XChaCha20 {
             &mut self.subkey,
         );
 
-        self.nonce[4..CHACHA20_NONCE_SIZE].copy_from_slice(&xnonce[HCHACHA20_NONCE_SIZE..XNONCE_SIZE]);
+        self.nonce[4..CHACHA20_NONCE_SIZE]
+            .copy_from_slice(&xnonce[HCHACHA20_NONCE_SIZE..XNONCE_SIZE]);
 
         self.chacha.crypt(&self.subkey, &self.nonce, 1, data);
 

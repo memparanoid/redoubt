@@ -4,6 +4,34 @@
 
 //! Memory utilities for verification and testing.
 
+/// Converts 4 bytes to a little-endian u32, zeroizing the source bytes.
+///
+/// This function avoids creating temporary `[u8; 4]` arrays that could
+/// leak sensitive data on the stack. Instead, it builds the u32 using
+/// bit shifts and zeroizes each source byte after reading.
+///
+/// # Example
+///
+/// ```
+/// use memutil::u32_from_le;
+///
+/// let mut value: u32 = 0;
+/// let mut bytes = [0x01, 0x02, 0x03, 0x04];
+///
+/// u32_from_le(&mut value, &mut bytes);
+///
+/// assert_eq!(value, 0x04030201); // little-endian
+/// assert_eq!(bytes, [0, 0, 0, 0]); // zeroized
+/// ```
+#[inline(always)]
+pub fn u32_from_le(dst: &mut u32, bytes: &mut [u8; 4]) {
+    *dst = 0;
+    for (i, byte) in bytes.iter_mut().enumerate() {
+        *dst |= (*byte as u32) << (8 * i);
+        *byte = 0;
+    }
+}
+
 /// Verifies that a `Vec<u8>` is fully zeroized, including spare capacity.
 ///
 /// This function checks **the entire allocation** (from index 0 to capacity),
