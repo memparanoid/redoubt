@@ -9,7 +9,7 @@ use crate::allocked_vec::{AllockedVec, AllockedVecBehaviour, AllockedVecError};
 
 #[test]
 fn test_new_is_empty() {
-    let vec: AllockedVec<u8> = AllockedVec::new();
+    let vec: AllockedVec<u8> = AllockedVec::default();
     assert_eq!(vec.len(), 0);
     assert_eq!(vec.capacity(), 0);
     assert!(vec.is_empty());
@@ -31,7 +31,7 @@ fn test_with_capacity_creates_sealed() {
 
 #[test]
 fn test_reserve_exact_seals_vector() {
-    let mut vec: AllockedVec<u8> = AllockedVec::new();
+    let mut vec: AllockedVec<u8> = AllockedVec::default();
 
     // First reserve succeeds
     vec.reserve_exact(5).expect("Failed to reserve_exact");

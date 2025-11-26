@@ -52,7 +52,7 @@ impl Default for Aead {
             poly_key: [0; KEY_SIZE],
             expected_tag: [0; TAG_SIZE],
             len_block: [0; TAG_SIZE],
-            output: AllockedVec::new(),
+            output: AllockedVec::default(),
             __drop_sentinel: DropSentinel::default(),
         }
     }
