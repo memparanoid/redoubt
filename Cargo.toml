@@ -16,6 +16,7 @@ members = [
   "crates/memcrypt",
   "crates/memalloc",
   "crates/membench",
+  "crates/memcodec",
 ]
 resolver = "2"
 
@@ -31,6 +32,7 @@ resolver = "2"
   memalloc       = { path = "crates/memalloc" }
   memcode        = { path = "crates/memcode" }
   memcode_core   = { path = "crates/memcode/core" }
+  memcodec       = { path = "crates/memcodec" }
   memcode_derive = { path = "crates/memcode/derive" }
   memcrypt       = { path = "crates/memcrypt" }
   memprotect     = { path = "crates/memprotect" }
