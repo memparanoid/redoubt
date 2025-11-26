@@ -10,8 +10,9 @@ use memzer::{DropSentinel, MemZer};
 use zeroize::Zeroize;
 
 use crate::consts::{
-    CHACHA20_BLOCK_SIZE, CHACHA20_NONCE_SIZE, HCHACHA20_NONCE_SIZE, KEY_SIZE, NONCE_SIZE,
+    CHACHA20_BLOCK_SIZE, CHACHA20_NONCE_SIZE, HCHACHA20_NONCE_SIZE, KEY_SIZE, XNONCE_SIZE,
 };
+use crate::types::{AeadKey, XNonce};
 
 /// ChaCha20 cipher state with guaranteed zeroization.
 #[derive(Zeroize, MemZer)]
@@ -237,7 +238,7 @@ impl Default for XChaCha20 {
 
 impl XChaCha20 {
     /// Generate Poly1305 key from XChaCha20 keystream (counter=0)
-    pub fn generate_poly_key(&mut self, key: &[u8; KEY_SIZE], xnonce: &[u8; NONCE_SIZE], output: &mut [u8; KEY_SIZE]) {
+    pub fn generate_poly_key(&mut self, key: &AeadKey, xnonce: &XNonce, output: &mut AeadKey) {
         self.hchacha.derive(
             key,
             xnonce[0..HCHACHA20_NONCE_SIZE]
@@ -246,7 +247,7 @@ impl XChaCha20 {
             &mut self.subkey,
         );
 
-        self.nonce[4..CHACHA20_NONCE_SIZE].copy_from_slice(&xnonce[HCHACHA20_NONCE_SIZE..NONCE_SIZE]);
+        self.nonce[4..CHACHA20_NONCE_SIZE].copy_from_slice(&xnonce[HCHACHA20_NONCE_SIZE..XNONCE_SIZE]);
 
         self.chacha.generate_block(&self.subkey, &self.nonce, 0);
         output.copy_from_slice(&self.chacha.keystream[0..KEY_SIZE]);
@@ -257,7 +258,7 @@ impl XChaCha20 {
     }
 
     /// Encrypt/decrypt data in-place (counter=1)
-    pub fn crypt(&mut self, key: &[u8; KEY_SIZE], xnonce: &[u8; NONCE_SIZE], data: &mut [u8]) {
+    pub fn crypt(&mut self, key: &AeadKey, xnonce: &XNonce, data: &mut [u8]) {
         self.hchacha.derive(
             key,
             xnonce[0..HCHACHA20_NONCE_SIZE]
@@ -266,7 +267,7 @@ impl XChaCha20 {
             &mut self.subkey,
         );
 
-        self.nonce[4..CHACHA20_NONCE_SIZE].copy_from_slice(&xnonce[HCHACHA20_NONCE_SIZE..NONCE_SIZE]);
+        self.nonce[4..CHACHA20_NONCE_SIZE].copy_from_slice(&xnonce[HCHACHA20_NONCE_SIZE..XNONCE_SIZE]);
 
         self.chacha.crypt(&self.subkey, &self.nonce, 1, data);
 

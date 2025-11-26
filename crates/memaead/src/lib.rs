@@ -6,9 +6,11 @@ mod aead;
 mod chacha20;
 mod consts;
 mod poly1305;
+mod types;
 
-pub use aead::{DecryptError, xchacha20poly1305_decrypt, xchacha20poly1305_encrypt};
-pub use consts::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
+pub use aead::{xchacha20poly1305_decrypt, xchacha20poly1305_encrypt, DecryptError};
+pub use consts::{KEY_SIZE, TAG_SIZE, XNONCE_SIZE};
+pub use types::{AeadKey, XNonce};
 
 #[cfg(test)]
 pub(crate) mod tests;

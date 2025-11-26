@@ -11,14 +11,17 @@ use memzer::{DropSentinel, MemZer};
 use zeroize::Zeroize;
 
 use crate::chacha20::XChaCha20;
-use crate::consts::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
+use crate::consts::{KEY_SIZE, TAG_SIZE};
+#[cfg(test)]
+use crate::consts::XNONCE_SIZE;
 use crate::poly1305::Poly1305;
+use crate::types::{AeadKey, XNonce};
 
 /// Errors that can occur during AEAD decryption
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum DecryptError {
     #[cfg(test)]
-    #[error("invalid nonce size: expected {NONCE_SIZE} bytes")]
+    #[error("invalid nonce size: expected {XNONCE_SIZE} bytes")]
     InvalidNonceSize,
 
     #[error("ciphertext too short: expected at least {TAG_SIZE} bytes")]
@@ -71,8 +74,8 @@ impl Aead {
 
     pub fn encrypt(
         &mut self,
-        key: &[u8; KEY_SIZE],
-        xnonce: &[u8; NONCE_SIZE],
+        key: &AeadKey,
+        xnonce: &XNonce,
         aad: &[u8],
         plaintext: &mut [u8],
     ) -> AllockedVec<u8> {
@@ -96,8 +99,8 @@ impl Aead {
 
     pub fn decrypt(
         &mut self,
-        key: &[u8; KEY_SIZE],
-        xnonce: &[u8; NONCE_SIZE],
+        key: &AeadKey,
+        xnonce: &XNonce,
         aad: &[u8],
         ciphertext_with_tag: &mut [u8],
     ) -> Result<AllockedVec<u8>, DecryptError> {
@@ -154,8 +157,8 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 // Public API
 
 pub fn xchacha20poly1305_encrypt(
-    key: &[u8; KEY_SIZE],
-    xnonce: &[u8; NONCE_SIZE],
+    key: &AeadKey,
+    xnonce: &XNonce,
     aad: &[u8],
     plaintext: &mut [u8],
 ) -> AllockedVec<u8> {
@@ -163,8 +166,8 @@ pub fn xchacha20poly1305_encrypt(
 }
 
 pub fn xchacha20poly1305_decrypt(
-    key: &[u8; KEY_SIZE],
-    xnonce: &[u8; NONCE_SIZE],
+    key: &AeadKey,
+    xnonce: &XNonce,
     aad: &[u8],
     ciphertext_with_tag: &mut [u8],
 ) -> Result<AllockedVec<u8>, DecryptError> {
@@ -179,7 +182,7 @@ pub(crate) fn xchacha20poly1305_decrypt_slice(
     ciphertext_with_tag: &mut [u8],
 ) -> Result<AllockedVec<u8>, DecryptError> {
     let key: &[u8; KEY_SIZE] = key.try_into().map_err(|_| DecryptError::InvalidNonceSize)?;
-    let xnonce: &[u8; NONCE_SIZE] = xnonce
+    let xnonce: &[u8; XNONCE_SIZE] = xnonce
         .try_into()
         .map_err(|_| DecryptError::InvalidNonceSize)?;
     xchacha20poly1305_decrypt(key, xnonce, aad, ciphertext_with_tag)

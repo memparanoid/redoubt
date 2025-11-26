@@ -13,8 +13,8 @@ pub const KEY_SIZE: usize = 32;
 /// Block size in bytes (Poly1305 and padding)
 pub const BLOCK_SIZE: usize = 16;
 
-/// Nonce size in bytes (XChaCha20 extended nonce)
-pub const NONCE_SIZE: usize = 24;
+/// XChaCha20 extended nonce size in bytes
+pub const XNONCE_SIZE: usize = 24;
 
 /// ChaCha20 keystream block size in bytes
 pub const CHACHA20_BLOCK_SIZE: usize = 64;
