@@ -571,6 +571,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "memcodec"
+version = "0.0.1"
+dependencies = [
+ "memalloc",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "memcrypt"
 version = "0.0.1"
 dependencies = [
