@@ -8,8 +8,16 @@ description = "Benchmarks for memora crates - not published"
 [dev-dependencies]
 criterion = "0.5"
 memaead.workspace = true
+memcode.workspace = true
 chacha20poly1305.workspace = true
+bincode = "1.3"
+serde = { version = "1.0", features = ["derive"] }
+zeroize = { workspace = true, features = ["derive"] }
 
 [[bench]]
 name = "aead"
+harness = false
+
+[[bench]]
+name = "codec"
 harness = false
