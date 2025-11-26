@@ -104,21 +104,21 @@ fn run_test_case(tc: &TestCase) -> std::result::Result<(), String> {
             if plaintext.as_slice() == expected_msg.as_slice() {
                 Ok(())
             } else {
-                Err(format!("tc_id {}: plaintext mismatch", tc.tc_id))
+                Err(format!("tc_id {} ({}): plaintext mismatch", tc.tc_id, tc.comment))
             }
         }
         (Result::Valid, Err(e)) => {
-            Err(format!("tc_id {}: expected valid but got error: {:?}", tc.tc_id, e))
+            Err(format!("tc_id {} ({}): expected valid but got error: {:?}", tc.tc_id, tc.comment, e))
         }
         (Result::Invalid, Ok(_)) => {
-            Err(format!("tc_id {}: expected invalid but decryption succeeded", tc.tc_id))
+            Err(format!("tc_id {} ({}): expected invalid but decryption succeeded", tc.tc_id, tc.comment))
         }
         (Result::Invalid, Err(DecryptError::InvalidNonceSize)) => {
             // InvalidNonceSize flag should map to this error
             if tc.flags.contains(&Flag::InvalidNonceSize) {
                 Ok(())
             } else {
-                Err(format!("tc_id {}: unexpected InvalidNonceSize error", tc.tc_id))
+                Err(format!("tc_id {} ({}): unexpected InvalidNonceSize error", tc.tc_id, tc.comment))
             }
         }
         (Result::Invalid, Err(DecryptError::AuthenticationFailed)) => {
