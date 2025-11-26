@@ -21,6 +21,7 @@ use crate::types::{AeadKey, XNonce};
 pub(crate) struct ChaCha20 {
     initial: [u32; 16],
     working: [u32; 16],
+    le_bytes_tmp: [u8; 4],
     keystream: [u8; CHACHA20_BLOCK_SIZE],
     __drop_sentinel: DropSentinel,
 }
@@ -30,6 +31,7 @@ impl Default for ChaCha20 {
         Self {
             initial: [0; 16],
             working: [0; 16],
+            le_bytes_tmp: [0; 4],
             keystream: [0; CHACHA20_BLOCK_SIZE],
             __drop_sentinel: DropSentinel::default(),
         }
@@ -69,20 +71,20 @@ impl ChaCha20 {
         self.initial[3] = 0x6b206574;
 
         for i in 0..8 {
-            let mut tmp = [key[i * 4], key[i * 4 + 1], key[i * 4 + 2], key[i * 4 + 3]];
-            u32_from_le(&mut self.initial[4 + i], &mut tmp);
+            self.le_bytes_tmp = [key[i * 4], key[i * 4 + 1], key[i * 4 + 2], key[i * 4 + 3]];
+            u32_from_le(&mut self.initial[4 + i], &mut self.le_bytes_tmp);
         }
 
         self.initial[12] = counter;
 
         for i in 0..3 {
-            let mut tmp = [
+            self.le_bytes_tmp = [
                 nonce[i * 4],
                 nonce[i * 4 + 1],
                 nonce[i * 4 + 2],
                 nonce[i * 4 + 3],
             ];
-            u32_from_le(&mut self.initial[13 + i], &mut tmp);
+            u32_from_le(&mut self.initial[13 + i], &mut self.le_bytes_tmp);
         }
     }
 
@@ -169,6 +171,7 @@ impl core::fmt::Debug for ChaCha20 {
 #[zeroize(drop)]
 pub(crate) struct HChaCha20 {
     state: [u32; 16],
+    le_bytes_tmp: [u8; 4],
     __drop_sentinel: DropSentinel,
 }
 
@@ -204,18 +207,18 @@ impl HChaCha20 {
         self.state[3] = 0x6b206574;
 
         for i in 0..8 {
-            let mut tmp = [key[i * 4], key[i * 4 + 1], key[i * 4 + 2], key[i * 4 + 3]];
-            u32_from_le(&mut self.state[4 + i], &mut tmp);
+            self.le_bytes_tmp = [key[i * 4], key[i * 4 + 1], key[i * 4 + 2], key[i * 4 + 3]];
+            u32_from_le(&mut self.state[4 + i], &mut self.le_bytes_tmp);
         }
 
         for i in 0..4 {
-            let mut tmp = [
+            self.le_bytes_tmp = [
                 nonce[i * 4],
                 nonce[i * 4 + 1],
                 nonce[i * 4 + 2],
                 nonce[i * 4 + 3],
             ];
-            u32_from_le(&mut self.state[12 + i], &mut tmp);
+            u32_from_le(&mut self.state[12 + i], &mut self.le_bytes_tmp);
         }
 
         for _ in 0..10 {

@@ -21,6 +21,7 @@ pub(crate) struct Poly1305Block {
     s: [u64; 4],
     d: [u64; 5],
     tmp: [u8; 16],
+    le_bytes_tmp: [u8; 4],
     __drop_sentinel: DropSentinel,
 }
 
@@ -28,10 +29,12 @@ pub(crate) struct Poly1305Block {
 #[derive(Default, Zeroize, MemZer)]
 #[zeroize(drop)]
 pub(crate) struct Poly1305Final {
-    d: [u64; 5], // reduced accumulator
-    g: [u64; 4], // h + 5 for comparison
-    h: [u64; 4], // h0-h3 for tag
+    d: [u64; 5],            // reduced accumulator
+    g: [u64; 4],            // h + 5 for comparison
+    h: [u64; 4],            // h0-h3 for tag
     mask: u64,
+    le_bytes_tmp: [u8; 4],
+    s_u32: u32,
     __drop_sentinel: DropSentinel,
 }
 
@@ -56,24 +59,24 @@ impl Poly1305 {
     }
 
     fn clamp_r(&mut self, r_bytes: &[u8]) {
-        let mut tmp = [r_bytes[0], r_bytes[1], r_bytes[2], r_bytes[3] & 0x0f];
-        u32_from_le(&mut self.block.t[0], &mut tmp);
-        let mut tmp = [r_bytes[4] & 0xfc, r_bytes[5], r_bytes[6], r_bytes[7] & 0x0f];
-        u32_from_le(&mut self.block.t[1], &mut tmp);
-        let mut tmp = [
+        self.block.le_bytes_tmp = [r_bytes[0], r_bytes[1], r_bytes[2], r_bytes[3] & 0x0f];
+        u32_from_le(&mut self.block.t[0], &mut self.block.le_bytes_tmp);
+        self.block.le_bytes_tmp = [r_bytes[4] & 0xfc, r_bytes[5], r_bytes[6], r_bytes[7] & 0x0f];
+        u32_from_le(&mut self.block.t[1], &mut self.block.le_bytes_tmp);
+        self.block.le_bytes_tmp = [
             r_bytes[8] & 0xfc,
             r_bytes[9],
             r_bytes[10],
             r_bytes[11] & 0x0f,
         ];
-        u32_from_le(&mut self.block.t[2], &mut tmp);
-        let mut tmp = [
+        u32_from_le(&mut self.block.t[2], &mut self.block.le_bytes_tmp);
+        self.block.le_bytes_tmp = [
             r_bytes[12] & 0xfc,
             r_bytes[13],
             r_bytes[14],
             r_bytes[15] & 0x0f,
         ];
-        u32_from_le(&mut self.block.t[3], &mut tmp);
+        u32_from_le(&mut self.block.t[3], &mut self.block.le_bytes_tmp);
 
         self.r[0] = self.block.t[0] & 0x3ffffff;
         self.r[1] = ((self.block.t[0] >> 26) | (self.block.t[1] << 6)) & 0x3ffffff;
@@ -90,34 +93,34 @@ impl Poly1305 {
     }
 
     fn process_block_from_tmp(&mut self, hibit: u32) {
-        let mut tmp = [
+        self.block.le_bytes_tmp = [
             self.block.tmp[0],
             self.block.tmp[1],
             self.block.tmp[2],
             self.block.tmp[3],
         ];
-        u32_from_le(&mut self.block.t[0], &mut tmp);
-        let mut tmp = [
+        u32_from_le(&mut self.block.t[0], &mut self.block.le_bytes_tmp);
+        self.block.le_bytes_tmp = [
             self.block.tmp[4],
             self.block.tmp[5],
             self.block.tmp[6],
             self.block.tmp[7],
         ];
-        u32_from_le(&mut self.block.t[1], &mut tmp);
-        let mut tmp = [
+        u32_from_le(&mut self.block.t[1], &mut self.block.le_bytes_tmp);
+        self.block.le_bytes_tmp = [
             self.block.tmp[8],
             self.block.tmp[9],
             self.block.tmp[10],
             self.block.tmp[11],
         ];
-        u32_from_le(&mut self.block.t[2], &mut tmp);
-        let mut tmp = [
+        u32_from_le(&mut self.block.t[2], &mut self.block.le_bytes_tmp);
+        self.block.le_bytes_tmp = [
             self.block.tmp[12],
             self.block.tmp[13],
             self.block.tmp[14],
             self.block.tmp[15],
         ];
-        u32_from_le(&mut self.block.t[3], &mut tmp);
+        u32_from_le(&mut self.block.t[3], &mut self.block.le_bytes_tmp);
 
         self.acc[0] += (self.block.t[0] & 0x3ffffff) as u64;
         self.acc[1] += (((self.block.t[0] >> 26) | (self.block.t[1] << 6)) & 0x3ffffff) as u64;
@@ -293,52 +296,51 @@ impl Poly1305 {
         self.finalize.h[3] = (self.finalize.d[3] >> 18) | ((self.finalize.d[4] & 0xffffff) << 8);
 
         // Add s with carry propagation
-        let mut s_u32: u32 = 0;
-        let mut tmp = [self.s[0], self.s[1], self.s[2], self.s[3]];
-        u32_from_le(&mut s_u32, &mut tmp);
-        self.finalize.h[0] += s_u32 as u64;
+        self.finalize.le_bytes_tmp = [self.s[0], self.s[1], self.s[2], self.s[3]];
+        u32_from_le(&mut self.finalize.s_u32, &mut self.finalize.le_bytes_tmp);
+        self.finalize.h[0] += self.finalize.s_u32 as u64;
 
-        let mut tmp = [self.s[4], self.s[5], self.s[6], self.s[7]];
-        u32_from_le(&mut s_u32, &mut tmp);
-        self.finalize.h[1] += s_u32 as u64 + (self.finalize.h[0] >> 32);
+        self.finalize.le_bytes_tmp = [self.s[4], self.s[5], self.s[6], self.s[7]];
+        u32_from_le(&mut self.finalize.s_u32, &mut self.finalize.le_bytes_tmp);
+        self.finalize.h[1] += self.finalize.s_u32 as u64 + (self.finalize.h[0] >> 32);
         self.finalize.h[0] &= 0xffffffff;
 
-        let mut tmp = [self.s[8], self.s[9], self.s[10], self.s[11]];
-        u32_from_le(&mut s_u32, &mut tmp);
-        self.finalize.h[2] += s_u32 as u64 + (self.finalize.h[1] >> 32);
+        self.finalize.le_bytes_tmp = [self.s[8], self.s[9], self.s[10], self.s[11]];
+        u32_from_le(&mut self.finalize.s_u32, &mut self.finalize.le_bytes_tmp);
+        self.finalize.h[2] += self.finalize.s_u32 as u64 + (self.finalize.h[1] >> 32);
         self.finalize.h[1] &= 0xffffffff;
 
-        let mut tmp = [self.s[12], self.s[13], self.s[14], self.s[15]];
-        u32_from_le(&mut s_u32, &mut tmp);
-        self.finalize.h[3] += s_u32 as u64 + (self.finalize.h[2] >> 32);
+        self.finalize.le_bytes_tmp = [self.s[12], self.s[13], self.s[14], self.s[15]];
+        u32_from_le(&mut self.finalize.s_u32, &mut self.finalize.le_bytes_tmp);
+        self.finalize.h[3] += self.finalize.s_u32 as u64 + (self.finalize.h[2] >> 32);
         self.finalize.h[2] &= 0xffffffff;
         self.finalize.h[3] &= 0xffffffff;
 
         // Write tag
-        s_u32 = self.finalize.h[0] as u32;
+        self.finalize.s_u32 = self.finalize.h[0] as u32;
         u32_to_le(
-            &mut s_u32,
+            &mut self.finalize.s_u32,
             (&mut output[0..4])
                 .try_into()
                 .expect("infallible: output[0..4] is exactly 4 bytes"),
         );
-        s_u32 = self.finalize.h[1] as u32;
+        self.finalize.s_u32 = self.finalize.h[1] as u32;
         u32_to_le(
-            &mut s_u32,
+            &mut self.finalize.s_u32,
             (&mut output[4..8])
                 .try_into()
                 .expect("infallible: output[4..8] is exactly 4 bytes"),
         );
-        s_u32 = self.finalize.h[2] as u32;
+        self.finalize.s_u32 = self.finalize.h[2] as u32;
         u32_to_le(
-            &mut s_u32,
+            &mut self.finalize.s_u32,
             (&mut output[8..12])
                 .try_into()
                 .expect("infallible: output[8..12] is exactly 4 bytes"),
         );
-        s_u32 = self.finalize.h[3] as u32;
+        self.finalize.s_u32 = self.finalize.h[3] as u32;
         u32_to_le(
-            &mut s_u32,
+            &mut self.finalize.s_u32,
             (&mut output[12..16])
                 .try_into()
                 .expect("infallible: output[12..16] is exactly 4 bytes"),
