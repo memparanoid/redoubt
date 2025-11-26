@@ -12,23 +12,26 @@ use crate::chacha20::{ChaCha20, HChaCha20, XChaCha20};
 
 #[test]
 fn test_chacha20_zeroization_on_drop() {
-    let state = ChaCha20::default();
-    assert!(state.is_zeroized());
-    state.assert_zeroize_on_drop();
+    let chacha20 = ChaCha20::default();
+
+    assert!(chacha20.is_zeroized());
+    chacha20.assert_zeroize_on_drop();
 }
 
 #[test]
 fn test_hchacha20_zeroization_on_drop() {
-    let state = HChaCha20::default();
-    assert!(state.is_zeroized());
-    state.assert_zeroize_on_drop();
+    let hchacha20 = HChaCha20::default();
+
+    assert!(hchacha20.is_zeroized());
+    hchacha20.assert_zeroize_on_drop();
 }
 
 #[test]
 fn test_xchacha20_zeroization_on_drop() {
-    let state = XChaCha20::default();
-    assert!(state.is_zeroized());
-    state.assert_zeroize_on_drop();
+    let xchacha20 = XChaCha20::default();
+
+    assert!(xchacha20.is_zeroized());
+    xchacha20.assert_zeroize_on_drop();
 }
 
 // RFC test vectors

@@ -6,12 +6,13 @@
 
 use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
 
-use crate::aead::{xchacha20poly1305_decrypt, xchacha20poly1305_encrypt, Aead, DecryptError};
+use crate::aead::{Aead, DecryptError, xchacha20poly1305_decrypt, xchacha20poly1305_encrypt};
 use crate::consts::TAG_SIZE;
 
 #[test]
 fn test_aead_zeroization_on_drop() {
     let aead = Aead::default();
+
     assert!(aead.is_zeroized());
     aead.assert_zeroize_on_drop();
 }
@@ -87,7 +88,8 @@ fn test_xchacha20_poly1305_decrypt() {
         0x49,
     ];
 
-    let plaintext = xchacha20poly1305_decrypt(&key, &xnonce, &aad, &mut ciphertext_with_tag).unwrap();
+    let plaintext =
+        xchacha20poly1305_decrypt(&key, &xnonce, &aad, &mut ciphertext_with_tag).unwrap();
 
     // Ciphertext must be zeroized
     assert!(ciphertext_with_tag.iter().all(|&b| b == 0));
