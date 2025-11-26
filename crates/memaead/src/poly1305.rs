@@ -280,14 +280,10 @@ impl Poly1305 {
         // Convert radix 2^26 to 4x32-bit
         // Map 130-bit N = sum(d[i]*2^(26i)) to h[0..3] where h[i] = bits 32i..32i+31 of N
         // Mask each d contribution so h[i] is exactly 32 bits (no overflow)
-        self.finalize.h[0] =
-            self.finalize.d[0] | ((self.finalize.d[1] & 0x3f) << 26);
-        self.finalize.h[1] =
-            (self.finalize.d[1] >> 6) | ((self.finalize.d[2] & 0xfff) << 20);
-        self.finalize.h[2] =
-            (self.finalize.d[2] >> 12) | ((self.finalize.d[3] & 0x3ffff) << 14);
-        self.finalize.h[3] =
-            (self.finalize.d[3] >> 18) | ((self.finalize.d[4] & 0xffffff) << 8);
+        self.finalize.h[0] = self.finalize.d[0] | ((self.finalize.d[1] & 0x3f) << 26);
+        self.finalize.h[1] = (self.finalize.d[1] >> 6) | ((self.finalize.d[2] & 0xfff) << 20);
+        self.finalize.h[2] = (self.finalize.d[2] >> 12) | ((self.finalize.d[3] & 0x3ffff) << 14);
+        self.finalize.h[3] = (self.finalize.d[3] >> 18) | ((self.finalize.d[4] & 0xffffff) << 8);
 
         // Add s with carry propagation
         self.finalize.h[0] +=

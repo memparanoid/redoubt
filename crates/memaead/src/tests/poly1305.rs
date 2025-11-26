@@ -4,7 +4,33 @@
 
 //! Poly1305 tests using RFC 8439 Section 2.5.2 test vector.
 
-use crate::poly1305::Poly1305;
+use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
+
+use crate::poly1305::{Poly1305, Poly1305Block, Poly1305Final};
+
+#[test]
+fn test_poly1305_zeroization_on_drop() {
+    let mac = Poly1305::default();
+
+    assert!(mac.is_zeroized());
+    mac.assert_zeroize_on_drop();
+}
+
+#[test]
+fn test_poly1305_block_zeroization_on_drop() {
+    let block = Poly1305Block::default();
+
+    assert!(block.is_zeroized());
+    block.assert_zeroize_on_drop();
+}
+
+#[test]
+fn test_poly1305_final_zeroization_on_drop() {
+    let fin = Poly1305Final::default();
+
+    assert!(fin.is_zeroized());
+    fin.assert_zeroize_on_drop();
+}
 
 /// RFC 8439 Section 2.5.2 test vector
 #[test]
