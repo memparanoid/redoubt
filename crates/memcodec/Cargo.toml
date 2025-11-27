@@ -12,8 +12,13 @@ version.workspace    = true
 [lib]
 path = "src/lib.rs"
 
+[features]
+default = []
+zeroize = ["dep:memutil"]
+
 [dependencies]
-memalloc = { workspace = true, features = ["unsafe"] }
+memutil  = { workspace = true, optional = true }
+membuffer.workspace = true
 thiserror.workspace = true
 zeroize.workspace   = true
 

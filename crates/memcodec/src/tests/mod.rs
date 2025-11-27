@@ -2,15 +2,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! High-performance secure codec with memory zeroization.
-
-#[cfg(test)]
-mod tests;
-
 mod buffer;
 mod collections;
-mod error;
-mod primitives;
-mod traits;
-
-pub use traits::{BytesRequired, CodecBuffer, Encode};
