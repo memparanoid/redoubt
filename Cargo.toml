@@ -16,6 +16,7 @@ members = [
   "crates/memcrypt",
   "crates/memalloc",
   "crates/membench",
+  "crates/membuffer",
   "crates/memcodec",
 ]
 resolver = "2"
@@ -30,6 +31,7 @@ resolver = "2"
   # Internal crates
   memaead        = { path = "crates/memaead" }
   memalloc       = { path = "crates/memalloc" }
+  membuffer      = { path = "crates/membuffer" }
   memcode        = { path = "crates/memcode" }
   memcode_core   = { path = "crates/memcode/core" }
   memcodec       = { path = "crates/memcodec" }

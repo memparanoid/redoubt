@@ -1,0 +1,25 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["data-structures", "memory-management"]
+description          = "Secure buffer with locked capacity and automatic zeroization"
+edition.workspace    = true
+keywords             = ["buffer", "zeroize", "security", "encoding"]
+license.workspace    = true
+name                 = "membuffer"
+repository.workspace = true
+version.workspace    = true
+
+[dependencies]
+memzer.workspace    = true
+thiserror.workspace = true
+zeroize.workspace   = true
+
+[dependencies.memalloc]
+workspace = true
+features  = ["unsafe"]
+
+[dependencies.memutil]
+workspace = true
+optional  = true
+
+[dev-dependencies]
