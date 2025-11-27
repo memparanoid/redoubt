@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! AEAD benchmarks: memaead vs RustCrypto chacha20poly1305
+//! AEAD benchmarks: memaead vs RustCrypto chacha20poly1305 vs AEGIS vs AES-GCM
 //!
 //! Compares the "traditional" allocating API that most users use.
 
@@ -10,17 +10,31 @@ use criterion::{
     black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput,
 };
 
-// RustCrypto
+// RustCrypto ChaCha20-Poly1305
 use chacha20poly1305::{
     aead::{Aead, KeyInit},
     XChaCha20Poly1305,
+};
+
+// AEGIS (hardware AES-NI accelerated)
+use aegis::aegis128x4::Aegis128X4;
+use aegis::aegis256x4::Aegis256X4;
+
+// AES-GCM (hardware AES-NI accelerated)
+use aes_gcm::{
+    aead::{AeadInPlace, KeyInit as AesKeyInit},
+    Aes256Gcm,
 };
 
 // Ours
 use memaead::{xchacha20poly1305_decrypt, xchacha20poly1305_encrypt};
 
 const KEY: [u8; 32] = [0x42; 32];
+const KEY_16: [u8; 16] = [0x42; 16];
 const NONCE: [u8; 24] = [0x24; 24];
+const NONCE_32: [u8; 32] = [0x24; 32];
+const NONCE_16: [u8; 16] = [0x24; 16];
+const NONCE_12: [u8; 12] = [0x24; 12];
 const AAD: &[u8] = b"";
 
 fn bench_encrypt(c: &mut Criterion) {
@@ -46,6 +60,46 @@ fn bench_encrypt(c: &mut Criterion) {
             b.iter_batched(
                 || pt.clone(),
                 |mut buf| black_box(xchacha20poly1305_encrypt(&KEY, &NONCE, AAD, &mut buf)),
+                BatchSize::SmallInput,
+            );
+        });
+
+        // AES-256-GCM (hardware accelerated)
+        group.bench_with_input(BenchmarkId::new("aes256gcm", size), &plaintext, |b, pt| {
+            let cipher = Aes256Gcm::new((&KEY).into());
+            let nonce = (&NONCE_12).into();
+            b.iter_batched(
+                || pt.clone(),
+                |mut buf| {
+                    let tag = cipher.encrypt_in_place_detached(nonce, &[], &mut buf).unwrap();
+                    black_box((buf, tag))
+                },
+                BatchSize::SmallInput,
+            );
+        });
+
+        // AEGIS-128X4 (hardware accelerated, 4-way parallel, 128-bit key)
+        group.bench_with_input(BenchmarkId::new("aegis128x4", size), &plaintext, |b, pt| {
+            b.iter_batched(
+                || pt.clone(),
+                |mut buf| {
+                    let state = Aegis128X4::<16>::new(&NONCE_16, &KEY_16);
+                    let tag = state.encrypt_in_place(&mut buf, &[]);
+                    black_box((buf, tag))
+                },
+                BatchSize::SmallInput,
+            );
+        });
+
+        // AEGIS-256X4 (hardware accelerated, 4-way parallel, 256-bit key)
+        group.bench_with_input(BenchmarkId::new("aegis256x4", size), &plaintext, |b, pt| {
+            b.iter_batched(
+                || pt.clone(),
+                |mut buf| {
+                    let state = Aegis256X4::<16>::new(&NONCE_32, &KEY);
+                    let tag = state.encrypt_in_place(&mut buf, &[]);
+                    black_box((buf, tag))
+                },
                 BatchSize::SmallInput,
             );
         });
@@ -86,6 +140,77 @@ fn bench_decrypt(c: &mut Criterion) {
                 BatchSize::SmallInput,
             );
         });
+
+        // AES-256-GCM decrypt (hardware accelerated)
+        // Pre-encrypt with AES-GCM
+        let mut aes_plaintext = vec![0xAB; size];
+        let aes_cipher = Aes256Gcm::new((&KEY).into());
+        let aes_nonce = (&NONCE_12).into();
+        let aes_tag = aes_cipher.encrypt_in_place_detached(aes_nonce, &[], &mut aes_plaintext).unwrap();
+        let aes_ciphertext = aes_plaintext; // now contains ciphertext
+
+        group.bench_with_input(
+            BenchmarkId::new("aes256gcm", size),
+            &(aes_ciphertext.clone(), aes_tag),
+            |b, (ct, tag)| {
+                let cipher = Aes256Gcm::new((&KEY).into());
+                let nonce = (&NONCE_12).into();
+                b.iter_batched(
+                    || ct.clone(),
+                    |mut buf| {
+                        cipher.decrypt_in_place_detached(nonce, &[], &mut buf, tag).unwrap();
+                        black_box(buf)
+                    },
+                    BatchSize::SmallInput,
+                );
+            },
+        );
+
+        // AEGIS-128X4 decrypt (hardware accelerated, 4-way parallel, 128-bit key)
+        // Pre-encrypt with AEGIS-128X4
+        let mut aegis128_plaintext = vec![0xAB; size];
+        let aegis128_state = Aegis128X4::<16>::new(&NONCE_16, &KEY_16);
+        let aegis128_tag = aegis128_state.encrypt_in_place(&mut aegis128_plaintext, &[]);
+        let aegis128_ciphertext = aegis128_plaintext;
+
+        group.bench_with_input(
+            BenchmarkId::new("aegis128x4", size),
+            &(aegis128_ciphertext.clone(), aegis128_tag),
+            |b, (ct, tag)| {
+                b.iter_batched(
+                    || ct.clone(),
+                    |mut buf| {
+                        let state = Aegis128X4::<16>::new(&NONCE_16, &KEY_16);
+                        state.decrypt_in_place(&mut buf, tag, &[]).unwrap();
+                        black_box(buf)
+                    },
+                    BatchSize::SmallInput,
+                );
+            },
+        );
+
+        // AEGIS-256X4 decrypt (hardware accelerated, 4-way parallel, 256-bit key)
+        // Pre-encrypt with AEGIS-256X4
+        let mut aegis256_plaintext = vec![0xAB; size];
+        let aegis256_state = Aegis256X4::<16>::new(&NONCE_32, &KEY);
+        let aegis256_tag = aegis256_state.encrypt_in_place(&mut aegis256_plaintext, &[]);
+        let aegis256_ciphertext = aegis256_plaintext;
+
+        group.bench_with_input(
+            BenchmarkId::new("aegis256x4", size),
+            &(aegis256_ciphertext.clone(), aegis256_tag),
+            |b, (ct, tag)| {
+                b.iter_batched(
+                    || ct.clone(),
+                    |mut buf| {
+                        let state = Aegis256X4::<16>::new(&NONCE_32, &KEY);
+                        state.decrypt_in_place(&mut buf, tag, &[]).unwrap();
+                        black_box(buf)
+                    },
+                    BatchSize::SmallInput,
+                );
+            },
+        );
     }
 
     group.finish();

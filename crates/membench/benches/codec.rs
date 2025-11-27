@@ -113,8 +113,17 @@ fn bench_encode(c: &mut Criterion) {
     };
     group.throughput(Throughput::Bytes(count as u64));
 
+    // Fair comparison: bincode also clones + zeroizes
     group.bench_with_input(BenchmarkId::new("bincode/u8", count), &data_u8, |b, d| {
-        b.iter(|| black_box(bincode::serialize(d).unwrap()));
+        b.iter_batched(
+            || d.clone(),
+            |mut data| {
+                let result = bincode::serialize(&data).unwrap();
+                data.zeroize();
+                black_box(result)
+            },
+            BatchSize::SmallInput,
+        );
     });
 
     group.bench_with_input(BenchmarkId::new("memcode/u8", count), &data_u8, |b, d| {
@@ -137,7 +146,15 @@ fn bench_encode(c: &mut Criterion) {
     group.throughput(Throughput::Bytes((count * 2) as u64));
 
     group.bench_with_input(BenchmarkId::new("bincode/u16", count), &data_u16, |b, d| {
-        b.iter(|| black_box(bincode::serialize(d).unwrap()));
+        b.iter_batched(
+            || d.clone(),
+            |mut data| {
+                let result = bincode::serialize(&data).unwrap();
+                data.zeroize();
+                black_box(result)
+            },
+            BatchSize::SmallInput,
+        );
     });
 
     group.bench_with_input(BenchmarkId::new("memcode/u16", count), &data_u16, |b, d| {
@@ -160,7 +177,15 @@ fn bench_encode(c: &mut Criterion) {
     group.throughput(Throughput::Bytes((count * 4) as u64));
 
     group.bench_with_input(BenchmarkId::new("bincode/u32", count), &data_u32, |b, d| {
-        b.iter(|| black_box(bincode::serialize(d).unwrap()));
+        b.iter_batched(
+            || d.clone(),
+            |mut data| {
+                let result = bincode::serialize(&data).unwrap();
+                data.zeroize();
+                black_box(result)
+            },
+            BatchSize::SmallInput,
+        );
     });
 
     group.bench_with_input(BenchmarkId::new("memcode/u32", count), &data_u32, |b, d| {
@@ -183,7 +208,15 @@ fn bench_encode(c: &mut Criterion) {
     group.throughput(Throughput::Bytes((count * 8) as u64));
 
     group.bench_with_input(BenchmarkId::new("bincode/u64", count), &data_u64, |b, d| {
-        b.iter(|| black_box(bincode::serialize(d).unwrap()));
+        b.iter_batched(
+            || d.clone(),
+            |mut data| {
+                let result = bincode::serialize(&data).unwrap();
+                data.zeroize();
+                black_box(result)
+            },
+            BatchSize::SmallInput,
+        );
     });
 
     group.bench_with_input(BenchmarkId::new("memcode/u64", count), &data_u64, |b, d| {
