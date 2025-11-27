@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use thiserror::Error;
+
 use memzer::{DropSentinel, MemZer, ZeroizationProbe};
 use zeroize::Zeroize;
 
 /// Error type for `AllockedVec` operations.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Error, Eq, PartialEq)]
 pub enum AllockedVecError {
     /// Attempted to reserve capacity on an already-sealed vector.
     #[error("Vector is already sealed and cannot be resized")]
@@ -214,8 +216,10 @@ where
     /// ```
     pub fn with_capacity(capacity: usize) -> Self {
         let mut vec = Self::new();
-        vec.inner.reserve_exact(capacity);
-        vec.has_been_sealed = true;
+
+        vec.reserve_exact(capacity)
+            .expect("Infallible: Vec capacity is 0 (seal is false)");
+
         vec
     }
 
@@ -250,6 +254,14 @@ where
 
         self.inner.reserve_exact(capacity);
         self.has_been_sealed = true;
+
+        // When unsafe feature is enabled, zero the entire capacity to prevent
+        // reading garbage via as_capacity_slice() / as_capacity_mut_slice()
+        #[cfg(any(test, feature = "unsafe"))]
+        if capacity > 0 {
+            memutil::fast_zeroize_slice(self.as_capacity_mut_slice());
+        }
+
         Ok(())
     }
 
@@ -568,6 +580,31 @@ where
     #[inline(always)]
     pub fn as_mut_ptr(&mut self) -> *mut T {
         self.inner.as_mut_ptr()
+    }
+
+    /// Returns a slice of the full capacity, regardless of len.
+    ///
+    /// # Safety
+    ///
+    /// This method is only available with the `unsafe` feature.
+    /// Bytes beyond `len()` may contain old data from previous operations.
+    #[cfg(any(test, feature = "unsafe"))]
+    #[inline(always)]
+    pub fn as_capacity_slice(&self) -> &[T] {
+        unsafe { core::slice::from_raw_parts(self.inner.as_ptr(), self.inner.capacity()) }
+    }
+
+    /// Returns a mutable slice of the full capacity, regardless of len.
+    ///
+    /// # Safety
+    ///
+    /// This method is only available with the `unsafe` feature.
+    /// The caller must ensure writes don't exceed capacity.
+    /// Bytes beyond `len()` may contain old data from previous operations.
+    #[cfg(any(test, feature = "unsafe"))]
+    #[inline(always)]
+    pub fn as_capacity_mut_slice(&mut self) -> &mut [T] {
+        unsafe { core::slice::from_raw_parts_mut(self.inner.as_mut_ptr(), self.inner.capacity()) }
     }
 }
 

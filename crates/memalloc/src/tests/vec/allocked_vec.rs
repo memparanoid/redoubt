@@ -344,3 +344,53 @@ fn test_as_mut_ptr_write_single_byte() {
 
     assert_eq!(vec.as_slice(), &[0x42]);
 }
+
+#[test]
+fn test_as_capacity_slice_returns_full_capacity() {
+    let mut vec = AllockedVec::<u8>::with_capacity(5);
+    vec.push(1u8).expect("Failed to push");
+    vec.push(2u8).expect("Failed to push");
+
+    // len is 2, but capacity is 5
+    assert_eq!(vec.len(), 2);
+    assert_eq!(vec.capacity(), 5);
+
+    // as_capacity_slice returns full capacity (zeroed by with_capacity)
+    let slice = vec.as_capacity_slice();
+    assert_eq!(slice.len(), 5);
+    assert_eq!(&slice[..2], &[1, 2]);
+    // Spare capacity is zeroed
+    assert_eq!(&slice[2..], &[0, 0, 0]);
+}
+
+#[test]
+fn test_capacity_is_zeroed_on_creation() {
+    // Test that spare capacity is zeroed when using reserve_exact
+    let mut vec = AllockedVec::<u8>::new();
+    vec.reserve_exact(100).expect("Failed to reserve");
+
+    // All capacity should be zeroed
+    let slice = vec.as_capacity_slice();
+    assert_eq!(slice.len(), 100);
+    assert!(slice.iter().all(|&b| b == 0));
+}
+
+#[test]
+fn test_as_capacity_mut_slice_allows_writing_beyond_len() {
+    let mut vec = AllockedVec::<u8>::with_capacity(5);
+    vec.push(1u8).expect("Failed to push");
+    vec.push(2u8).expect("Failed to push");
+
+    // Write beyond len (but within capacity)
+    let slice = vec.as_capacity_mut_slice();
+    slice[2] = 3;
+    slice[3] = 4;
+    slice[4] = 5;
+
+    // len unchanged, but data is written
+    assert_eq!(vec.len(), 2);
+
+    // Verify via as_capacity_slice
+    let slice = vec.as_capacity_slice();
+    assert_eq!(slice, &[1, 2, 3, 4, 5]);
+}
