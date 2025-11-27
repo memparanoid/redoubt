@@ -4,6 +4,7 @@
 
 use thiserror::Error;
 
+use memutil::fast_zeroize_vec;
 use memzer::{DropSentinel, MemZer, ZeroizationProbe};
 use zeroize::Zeroize;
 
@@ -130,8 +131,7 @@ impl memzer::Zeroizable for AllockedVecBehaviour {
 /// }
 /// # example().unwrap();
 /// ```
-#[derive(Debug, Zeroize, MemZer)]
-#[zeroize(drop)]
+#[derive(Debug, MemZer)]
 pub struct AllockedVec<T>
 where
     T: Zeroize + ZeroizationProbe,
@@ -141,6 +141,22 @@ where
     #[cfg(any(test, feature = "test_utils"))]
     behaviour: AllockedVecBehaviour,
     __drop_sentinel: DropSentinel,
+}
+
+impl<T: Zeroize + ZeroizationProbe> Zeroize for AllockedVec<T> {
+    fn zeroize(&mut self) {
+        fast_zeroize_vec(&mut self.inner);
+        self.has_been_sealed.zeroize();
+        #[cfg(any(test, feature = "test_utils"))]
+        self.behaviour.zeroize();
+        self.__drop_sentinel.zeroize();
+    }
+}
+
+impl<T: Zeroize + ZeroizationProbe> Drop for AllockedVec<T> {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
 }
 
 impl<T> AllockedVec<T>

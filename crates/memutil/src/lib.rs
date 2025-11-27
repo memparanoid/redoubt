@@ -134,3 +134,36 @@ pub fn fast_zeroize_slice<T>(slice: &mut [T]) {
         core::ptr::read_volatile(slice.as_ptr() as *const u8);
     }
 }
+
+/// Fast bulk zeroization of a Vec including spare capacity.
+///
+/// Zeroizes the **entire allocation** (from index 0 to capacity),
+/// not just the active elements (0 to len). This ensures no sensitive
+/// data remains in spare capacity after operations like `truncate()`.
+///
+/// Uses `write_bytes` (memset) + volatile read, same as `fast_zeroize_slice`.
+///
+/// # Example
+///
+/// ```
+/// use memutil::{fast_zeroize_vec, is_vec_fully_zeroized};
+///
+/// let mut vec = vec![0xFFu8; 100];
+/// vec.truncate(10);  // len = 10, capacity = 100, spare has 0xFF
+///
+/// fast_zeroize_vec(&mut vec);
+/// assert!(is_vec_fully_zeroized(&vec));
+/// ```
+#[inline(always)]
+pub fn fast_zeroize_vec<T>(vec: &mut Vec<T>) {
+    if vec.capacity() == 0 {
+        return;
+    }
+
+    let byte_len = vec.capacity() * core::mem::size_of::<T>();
+    unsafe {
+        core::ptr::write_bytes(vec.as_mut_ptr() as *mut u8, 0, byte_len);
+        // Volatile read prevents the optimizer from removing the write_bytes
+        core::ptr::read_volatile(vec.as_ptr() as *const u8);
+    }
+}
