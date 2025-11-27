@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(test)]
-mod tests {
+mod le_conversions_tests {
     use memutil::*;
 
     // u16 tests

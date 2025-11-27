@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(test)]
-mod tests {
+mod is_vec_fully_zeroized_tests {
     use memutil::is_vec_fully_zeroized;
     use zeroize::Zeroize;
 

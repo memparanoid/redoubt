@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(test)]
-mod tests {
+mod fast_zeroize_slice_tests {
     use memutil::fast_zeroize_slice;
 
     #[test]
