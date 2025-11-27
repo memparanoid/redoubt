@@ -14,10 +14,10 @@ path = "src/lib.rs"
 
 [features]
 default = []
-zeroize = ["dep:memutil"]
+zeroize = []
 
 [dependencies]
-memutil  = { workspace = true, optional = true }
+memutil.workspace   = true
 membuffer.workspace = true
 thiserror.workspace = true
 zeroize.workspace   = true

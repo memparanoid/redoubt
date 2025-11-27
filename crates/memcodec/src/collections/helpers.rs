@@ -24,11 +24,8 @@ pub fn write_header(
     Ok(())
 }
 
-pub fn process_header(
-    mut buf: &mut &mut [u8],
-    output_size: &mut usize,
-    output_bytes_required: &mut usize,
-) -> Result<(), DecodeError> {
+#[inline(always)]
+pub fn process_header(buf: &mut &mut [u8], output_size: &mut usize) -> Result<(), DecodeError> {
     let header_size = Zeroizing::new(header_size());
 
     if buf.len() < *header_size {
@@ -36,9 +33,13 @@ pub fn process_header(
     }
 
     buf.read_usize(output_size)?;
-    buf.read_usize(output_bytes_required)?;
 
-    if buf.len() < *output_bytes_required {
+    // bytes_required is only used internally for validation
+    let mut bytes_required = Zeroizing::new(0usize);
+    buf.read_usize(&mut bytes_required)?;
+
+    let expected_len = Zeroizing::new(*bytes_required - *header_size);
+    if buf.len() < *expected_len {
         return Err(DecodeError::PreconditionViolated);
     }
 

@@ -4,60 +4,24 @@
 
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::error::{DecodeBufferError, DecodeError};
+use crate::error::DecodeError;
 
-use super::traits::{CodecBuffer, TryDecode};
+use super::traits::{CodecBuffer, PreAlloc, TryDecodeVec};
 
-// ============================================================================
-// u8: No LE conversion needed, always bulk copy
-// ============================================================================
-
-impl TryDecode for u8 {
-    #[inline(always)]
-    fn try_decode_from(&mut self, buf: &mut [u8]) -> Result<(), DecodeError> {
-        if buf.is_empty() {
-            return Err(DecodeError::DecodeBufferError(
-                DecodeBufferError::OutOfBounds,
-            ));
-        }
-
-        *self = buf[0];
-        Ok(())
-    }
-}
-
-impl crate::traits::Encode for u8 {
-    #[inline(always)]
-    fn encode_into(
-        &mut self,
-        buf: &mut membuffer::Buffer,
-    ) -> Result<(), crate::error::EncodeError> {
-        buf.write(self)?;
-        Ok(())
-    }
-
-    #[inline(always)]
-    fn encode_slice_into(
-        slice: &mut [Self],
-        buf: &mut membuffer::Buffer,
-    ) -> Result<(), crate::error::EncodeError> {
-        buf.write_slice(slice)?;
-        Ok(())
-    }
-}
-
-impl crate::traits::BytesRequired for u8 {
-    #[inline(always)]
-    fn mem_bytes_required(&self) -> Result<usize, crate::error::OverflowError> {
-        Ok(1)
-    }
-}
-
-// For other primitives, on LE machines we can bulk copy (LE conversion is no-op)
+// On LE machines we can bulk copy (LE conversion is no-op)
 // On BE machines, we fall back to element-by-element with conversion
 macro_rules! impl_traits_for_primitives {
     ($($ty:ty),* $(,)?) => {
         $(
+            // BytesRequired
+            impl $crate::traits::BytesRequired for $ty {
+                #[inline(always)]
+                fn mem_bytes_required(&self) -> Result<usize, $crate::error::OverflowError> {
+                    Ok(core::mem::size_of::<$ty>())
+                }
+            }
+
+            // Encoding Traits
             impl $crate::traits::Encode for $ty {
                 #[inline(always)]
                 fn encode_into(&mut self, buf: &mut membuffer::Buffer) -> Result<(), $crate::error::EncodeError> {
@@ -80,8 +44,8 @@ macro_rules! impl_traits_for_primitives {
                         buf.write(&mut byte)?;
                     }
 
-                    #[cfg(feature = "zeroize")]
-                    self.zeroize();
+                    // #[cfg(feature = "zeroize")]
+                    // self.zeroize();
 
                     Ok(())
                 }
@@ -99,15 +63,13 @@ macro_rules! impl_traits_for_primitives {
                             )
                         };
 
-                        #[cfg(feature = "zeroize")]
-                        byte_len.zeroize();
+                        // #[cfg(feature = "zeroize")]
+                        // byte_len.zeroize();
 
                         buf.write_slice(byte_slice)?;
 
-                        #[cfg(feature = "zeroize")]
-                        memutil::fast_zeroize_slice(byte_slice);
-
-                        byte_len.zeroize();
+                        // #[cfg(feature = "zeroize")]
+                        // memutil::fast_zeroize_slice(byte_slice);
                     }
 
                     #[cfg(target_endian = "big")]
@@ -121,14 +83,56 @@ macro_rules! impl_traits_for_primitives {
                 }
             }
 
-            impl $crate::traits::BytesRequired for $ty {
-                #[inline(always)]
-                fn mem_bytes_required(&self) -> Result<usize, $crate::error::OverflowError> {
-                    Ok(core::mem::size_of::<$ty>())
+            // Decoding Traits
+            impl $crate::traits::Decode for $ty {
+                fn decode_from(&mut self, buf: &mut [u8]) -> Result<(), $crate::error::DecodeError> {
+                    Ok(())
+                }
+            }
+
+            impl $crate::traits::TryDecodeVec for $ty {
+                // NOTE: Vec already processed header and called prealloc.
+                // We just do the bulk copy here.
+                fn try_decode_vec_from(vec: &mut Vec<Self>, buf: &mut [u8]) -> Result<(), DecodeError> {
+                    let byte_len = Zeroizing::new(vec.len() * core::mem::size_of::<Self>());
+
+                    #[cfg(target_endian = "little")]
+                    {
+                        let dst = unsafe {
+                            core::slice::from_raw_parts_mut(vec.as_mut_ptr() as *mut u8, *byte_len)
+                        };
+                        dst.copy_from_slice(&buf[..*byte_len]);
+
+                        // #[cfg(feature = "zeroize")]
+                        // memutil::fast_zeroize_slice(&mut buf[..*byte_len]);
+                    }
+
+                    #[cfg(target_endian = "big")]
+                    {
+                        for elem in vec.iter_mut() {
+                            elem.decode_from(buf)?;
+                        }
+                    }
+
+                    Ok(())
+                }
+            }
+
+            impl $crate::traits::DecodeVec for $ty {
+                fn decode_vec_from(vec: &mut Vec<Self>, buf: &mut [u8]) -> Result<(), DecodeError> {
+                    let result = Self::try_decode_vec_from(vec, buf);
+
+                    // #[cfg(feature = "zeroize")]
+                    // if result.is_err() {
+                    //     memutil::fast_zeroize_vec(vec);
+                    //     memutil::fast_zeroize_slice(buf);
+                    // }
+
+                    result
                 }
             }
         )*
     };
 }
 
-impl_traits_for_primitives!(u16, u32, u64, u128, usize);
+impl_traits_for_primitives!(u8, u16, u32, u64, u128, usize);
