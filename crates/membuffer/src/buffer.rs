@@ -70,7 +70,7 @@ impl Buffer {
 
     pub fn clear(&mut self) {
         self.cursor = self.ptr.clone();
-        self.zeroize();
+        self.allocked_vec.zeroize();
     }
 
     pub fn as_slice(&self) -> &[u8] {

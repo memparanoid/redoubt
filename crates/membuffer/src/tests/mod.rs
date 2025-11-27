@@ -82,7 +82,13 @@ fn test_clear() {
     // Verify data is written
     assert!(buf.as_slice().iter().all(|&b| b == 0xFF));
 
-    // Clear should zeroize
+    // Clear zeroizes content but keeps buffer usable (pointers valid)
     buf.clear();
-    assert!(buf.is_zeroized());
+
+    // Content should be zeroized
+    assert!(buf.as_slice().iter().all(|&b| b == 0x00));
+
+    // Buffer is still usable - can write again
+    buf.as_mut_slice()[0] = 0x42;
+    assert_eq!(buf.as_slice()[0], 0x42);
 }

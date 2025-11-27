@@ -699,9 +699,8 @@ dependencies = [
 name = "memcodec"
 version = "0.0.1"
 dependencies = [
- "memalloc",
+ "membuffer",
  "memutil",
- "memzer",
  "thiserror",
  "zeroize",
 ]
