@@ -46,13 +46,25 @@ done
 covered_crates_csv="${COVER_CRATES:-}"
 rustc_args=("$@")
 current_crate_name=""
+crate_type=""
+has_test_flag=false
 
 for i in "${!rustc_args[@]}"; do
   if [[ "${rustc_args[$i]}" == "--crate-name" && $((i + 1)) -lt ${#rustc_args[@]} ]]; then
     current_crate_name="${rustc_args[$((i + 1))]}"
-    break
+  fi
+  if [[ "${rustc_args[$i]}" == "--crate-type" && $((i + 1)) -lt ${#rustc_args[@]} ]]; then
+    crate_type="${rustc_args[$((i + 1))]}"
+  fi
+  if [[ "${rustc_args[$i]}" == "--test" ]]; then
+    has_test_flag=true
   fi
 done
+
+# DEBUG: Log compilation info
+if [[ -n "${DEBUG_COVERAGE:-}" ]]; then
+  echo "[rustc-nocov] crate=$current_crate_name type=$crate_type test=$has_test_flag cover=$covered_crates_csv" >&2
+fi
 
 instrument_this_crate=true
 if [[ -n "$covered_crates_csv" ]]; then
@@ -67,6 +79,11 @@ if [[ -n "$covered_crates_csv" ]]; then
       break
     fi
   done
+
+  # Test binaries need coverage runtime to write profraw, even if not in COVER_CRATES
+  if $has_test_flag; then
+    instrument_this_crate=true
+  fi
 fi
 
 # --- If not instrumenting this crate, strip coverage-related flags from args ---

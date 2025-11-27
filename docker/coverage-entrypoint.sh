@@ -87,6 +87,8 @@ mk memutil
 mk memvault
 mk memcrypt
 mk memaead
+mk memcodec
+mk memcodec zeroize
 
 # --- Aggregated HTML report (consumes the profraw generated above) ---
 CARGO_TARGET_DIR="target" \
