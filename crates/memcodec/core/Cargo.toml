@@ -1,11 +1,11 @@
 [package]
 authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
 categories           = ["encoding", "memory-management"]
-description          = "High-performance secure codec with memory zeroization"
+description          = "Core implementation for memcodec"
 edition.workspace    = true
 keywords             = ["codec", "zeroize", "security", "encoding"]
 license.workspace    = true
-name                 = "memcodec"
+name                 = "memcodec_core"
 repository.workspace = true
 version.workspace    = true
 
@@ -14,8 +14,10 @@ path = "src/lib.rs"
 
 [features]
 default = []
-zeroize = ["memcodec_core/zeroize"]
+zeroize = []
 
 [dependencies]
-memcodec_core.workspace   = true
-memcodec_derive.workspace = true
+memutil.workspace   = true
+membuffer.workspace = true
+thiserror.workspace = true
+zeroize.workspace   = true

@@ -18,6 +18,8 @@ members = [
   "crates/membench",
   "crates/membuffer",
   "crates/memcodec",
+  "crates/memcodec/core",
+  "crates/memcodec/derive",
 ]
 resolver = "2"
 
@@ -34,8 +36,10 @@ resolver = "2"
   membuffer      = { path = "crates/membuffer" }
   memcode        = { path = "crates/memcode" }
   memcode_core   = { path = "crates/memcode/core" }
-  memcodec       = { path = "crates/memcodec" }
-  memcode_derive = { path = "crates/memcode/derive" }
+  memcodec        = { path = "crates/memcodec" }
+  memcodec_core   = { path = "crates/memcodec/core" }
+  memcodec_derive = { path = "crates/memcodec/derive" }
+  memcode_derive  = { path = "crates/memcode/derive" }
   memcrypt       = { path = "crates/memcrypt" }
   memprotect     = { path = "crates/memprotect" }
   memrand        = { path = "crates/memrand" }

@@ -29,6 +29,8 @@ COPY crates/memcrypt/Cargo.toml ./crates/memcrypt/
 COPY crates/memaead/Cargo.toml ./crates/memaead/
 COPY crates/membench/Cargo.toml ./crates/membench/
 COPY crates/memcodec/Cargo.toml ./crates/memcodec/
+COPY crates/memcodec/core/Cargo.toml ./crates/memcodec/core/
+COPY crates/memcodec/derive/Cargo.toml ./crates/memcodec/derive/
 
 # Create stub lib.rs files to satisfy cargo build
 RUN mkdir -p crates/memprotect/src && echo "// stub" > crates/memprotect/src/lib.rs && \
@@ -49,7 +51,9 @@ RUN mkdir -p crates/memprotect/src && echo "// stub" > crates/memprotect/src/lib
     mkdir -p crates/membench/src && echo "// stub" > crates/membench/src/lib.rs && \
     mkdir -p crates/membench/benches && echo "fn main() {}" > crates/membench/benches/aead.rs && \
     echo "fn main() {}" > crates/membench/benches/codec.rs && \
-    mkdir -p crates/memcodec/src && echo "// stub" > crates/memcodec/src/lib.rs
+    mkdir -p crates/memcodec/src && echo "// stub" > crates/memcodec/src/lib.rs && \
+    mkdir -p crates/memcodec/core/src && echo "// stub" > crates/memcodec/core/src/lib.rs && \
+    mkdir -p crates/memcodec/derive/src && echo "// stub" > crates/memcodec/derive/src/lib.rs
 
 # Build workspace and dependencies with cache mount
 RUN --mount=type=cache,target=/usr/local/cargo/registry \

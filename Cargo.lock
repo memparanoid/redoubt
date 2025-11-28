@@ -699,10 +699,27 @@ dependencies = [
 name = "memcodec"
 version = "0.0.1"
 dependencies = [
+ "memcodec_core",
+ "memcodec_derive",
+]
+
+[[package]]
+name = "memcodec_core"
+version = "0.0.1"
+dependencies = [
  "membuffer",
  "memutil",
  "thiserror",
  "zeroize",
+]
+
+[[package]]
+name = "memcodec_derive"
+version = "0.0.1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
