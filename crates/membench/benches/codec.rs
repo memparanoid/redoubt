@@ -458,5 +458,51 @@ fn bench_mixed(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_bytes_required_only, bench_encode, bench_decode, bench_mixed);
+fn bench_roundtrip(c: &mut Criterion) {
+    let mut group = c.benchmark_group("roundtrip");
+    configure_group(&mut group);
+
+    for size in [1024, 4096, 8192, 16384, 65536] {
+        let data = DataU8 {
+            values: vec![0xAB; size],
+        };
+
+        group.throughput(Throughput::Bytes(size as u64));
+
+        // bincode roundtrip - clone INSIDE measurement (fair comparison)
+        group.bench_with_input(BenchmarkId::new("bincode", size), &data, |b, d| {
+            b.iter(|| {
+                // Clone inside - pays for allocation
+                let mut data = d.clone();
+                // Encode
+                let encoded = bincode::serialize(&data).unwrap();
+                data.zeroize();
+                // Decode
+                let decoded: DataU8 = bincode::deserialize(&encoded).unwrap();
+                black_box(decoded)
+            });
+        });
+
+        // memcode roundtrip - clone INSIDE measurement (fair comparison)
+        group.bench_with_input(BenchmarkId::new("memcode", size), &data, |b, d| {
+            b.iter(|| {
+                // Clone inside - pays for allocation
+                let mut data = d.clone();
+                // Encode
+                let size = data.mem_bytes_required().unwrap();
+                let mut buf = MemEncodeBuf::new(size);
+                data.drain_into(&mut buf).unwrap();
+                // Decode
+                let mut bytes = buf.as_slice().to_vec();
+                let mut decoded = DataU8 { values: Vec::new() };
+                decoded.drain_from(&mut bytes).unwrap();
+                black_box(decoded)
+            });
+        });
+    }
+
+    group.finish();
+}
+
+criterion_group!(benches, bench_bytes_required_only, bench_encode, bench_decode, bench_mixed, bench_roundtrip);
 criterion_main!(benches);
