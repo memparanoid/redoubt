@@ -7,7 +7,8 @@ use zeroize::Zeroize;
 
 use membuffer::Buffer;
 use memutil::fast_zeroize_vec;
-use zeroize::Zeroizing;
+
+use crate::wrappers::Primitive;
 
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{BytesRequired, Decode, DecodeVec, Encode, PreAlloc, TryDecode};
@@ -57,8 +58,8 @@ where
 {
     #[inline(always)]
     fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
-        let mut size = Zeroizing::new(self.len());
-        let mut bytes_required = Zeroizing::new(self.mem_bytes_required()?);
+        let mut size = Primitive::new(self.len());
+        let mut bytes_required = Primitive::new(self.mem_bytes_required()?);
 
         write_header(buf, &mut size, &mut bytes_required)?;
 
@@ -80,7 +81,7 @@ where
 {
     #[inline(always)]
     fn try_decode_from(&mut self, mut buf: &mut [u8]) -> Result<(), DecodeError> {
-        let mut size = Zeroizing::new(0);
+        let mut size = Primitive::new(0);
 
         process_header(&mut buf, &mut size)?;
 

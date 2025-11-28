@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use zeroize::Zeroizing;
+#[cfg(feature = "zeroize")]
+use zeroize::Zeroize;
 
 use crate::error::DecodeError;
+use crate::wrappers::Primitive;
 
 use super::traits::{CodecBuffer, TryDecodeVec};
 
@@ -40,12 +42,12 @@ macro_rules! impl_traits_for_primitives {
                     // - `self` is zeroized after encoding completes
                     // - No copies persist in stack or heap memory
                     for i in 0..core::mem::size_of::<$ty>() {
-                        let mut byte = zeroize::Zeroizing::new((*self >> (8 * i)) as u8);
+                        let mut byte = Primitive::new((*self >> (8 * i)) as u8);
                         buf.write(&mut byte)?;
                     }
 
-                    // #[cfg(feature = "zeroize")]
-                    // self.zeroize();
+                    #[cfg(feature = "zeroize")]
+                    self.zeroize();
 
                     Ok(())
                 }
@@ -55,21 +57,18 @@ macro_rules! impl_traits_for_primitives {
                     #[cfg(target_endian = "little")]
                     {
                         // On LE machines, to_le is identity - bulk copy the bytes directly
-                        let byte_len = Zeroizing::new(slice.len() * core::mem::size_of::<$ty>());
+                        let byte_len = slice.len() * core::mem::size_of::<$ty>();
                         let byte_slice = unsafe {
                             core::slice::from_raw_parts_mut(
                                 slice.as_mut_ptr() as *mut u8,
-                                *byte_len
+                                byte_len
                             )
                         };
 
-                        // #[cfg(feature = "zeroize")]
-                        // byte_len.zeroize();
-
                         buf.write_slice(byte_slice)?;
 
-                        // #[cfg(feature = "zeroize")]
-                        // memutil::fast_zeroize_slice(byte_slice);
+                        #[cfg(feature = "zeroize")]
+                        memutil::fast_zeroize_slice(byte_slice);
                     }
 
                     #[cfg(target_endian = "big")]
@@ -94,7 +93,7 @@ macro_rules! impl_traits_for_primitives {
                 // NOTE: Vec already processed header and called prealloc.
                 // We just do the bulk copy here.
                 fn try_decode_vec_from(vec: &mut Vec<Self>, buf: &mut [u8]) -> Result<(), DecodeError> {
-                    let byte_len = Zeroizing::new(vec.len() * core::mem::size_of::<Self>());
+                    let byte_len = Primitive::new(vec.len() * core::mem::size_of::<Self>());
 
                     #[cfg(target_endian = "little")]
                     {
@@ -103,8 +102,8 @@ macro_rules! impl_traits_for_primitives {
                         };
                         dst.copy_from_slice(&buf[..*byte_len]);
 
-                        // #[cfg(feature = "zeroize")]
-                        // memutil::fast_zeroize_slice(&mut buf[..*byte_len]);
+                        #[cfg(feature = "zeroize")]
+                        memutil::fast_zeroize_slice(&mut buf[..*byte_len]);
                     }
 
                     #[cfg(target_endian = "big")]
@@ -122,11 +121,11 @@ macro_rules! impl_traits_for_primitives {
                 fn decode_vec_from(vec: &mut Vec<Self>, buf: &mut [u8]) -> Result<(), DecodeError> {
                     let result = Self::try_decode_vec_from(vec, buf);
 
-                    // #[cfg(feature = "zeroize")]
-                    // if result.is_err() {
-                    //     memutil::fast_zeroize_vec(vec);
-                    //     memutil::fast_zeroize_slice(buf);
-                    // }
+                    #[cfg(feature = "zeroize")]
+                    if result.is_err() {
+                        memutil::fast_zeroize_vec(vec);
+                        memutil::fast_zeroize_slice(buf);
+                    }
 
                     result
                 }

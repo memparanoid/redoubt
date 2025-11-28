@@ -12,6 +12,7 @@ mod collections;
 mod error;
 mod primitives;
 mod traits;
+mod wrappers;
 
 pub use error::{DecodeError, EncodeError};
 pub use traits::{BytesRequired, CodecBuffer, Decode, DecodeBuffer, Encode};

@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use zeroize::Zeroizing;
-
 use membuffer::Buffer;
 
 use crate::error::{CodecBufferError, DecodeError};
 use crate::traits::{CodecBuffer, DecodeBuffer};
+use crate::wrappers::Primitive;
 
 pub fn header_size() -> usize {
     2 * size_of::<usize>()
@@ -26,7 +25,7 @@ pub fn write_header(
 
 #[inline(always)]
 pub fn process_header(buf: &mut &mut [u8], output_size: &mut usize) -> Result<(), DecodeError> {
-    let header_size = Zeroizing::new(header_size());
+    let header_size = Primitive::new(header_size());
 
     if buf.len() < *header_size {
         return Err(DecodeError::PreconditionViolated);
@@ -35,10 +34,10 @@ pub fn process_header(buf: &mut &mut [u8], output_size: &mut usize) -> Result<()
     buf.read_usize(output_size)?;
 
     // bytes_required is only used internally for validation
-    let mut bytes_required = Zeroizing::new(0usize);
+    let mut bytes_required = Primitive::new(0usize);
     buf.read_usize(&mut bytes_required)?;
 
-    let expected_len = Zeroizing::new(*bytes_required - *header_size);
+    let expected_len = Primitive::new(*bytes_required - *header_size);
     if buf.len() < *expected_len {
         return Err(DecodeError::PreconditionViolated);
     }
