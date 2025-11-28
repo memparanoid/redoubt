@@ -23,19 +23,6 @@ fn cleanup_encode_error<T>(slice: &mut [T], buf: &mut Buffer) {
     buf.zeroize();
 }
 
-/// Perf test: raw pointers to avoid borrow interference
-#[cfg(feature = "zeroize")]
-#[cold]
-#[inline(always)]
-fn cleanup_encode_error_perf_test(ptr: *mut u8, len: usize, buf_ptr: *mut u8, buf_len: usize) {
-    unsafe {
-        let slice = core::slice::from_raw_parts_mut(ptr, len);
-        memutil::fast_zeroize_slice(slice);
-        let buf_slice = core::slice::from_raw_parts_mut(buf_ptr, buf_len);
-        memutil::fast_zeroize_slice(buf_slice);
-    }
-}
-
 /// Cleanup function for decode errors. Marked #[cold] to keep it out of the hot path.
 #[cfg(feature = "zeroize")]
 #[cold]

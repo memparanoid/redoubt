@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use zeroize::{Zeroize, Zeroizing};
+use zeroize::Zeroizing;
 
 use crate::error::DecodeError;
 
-use super::traits::{CodecBuffer, PreAlloc, TryDecodeVec};
+use super::traits::{CodecBuffer, TryDecodeVec};
 
 // On LE machines we can bulk copy (LE conversion is no-op)
 // On BE machines, we fall back to element-by-element with conversion
@@ -55,11 +55,11 @@ macro_rules! impl_traits_for_primitives {
                     #[cfg(target_endian = "little")]
                     {
                         // On LE machines, to_le is identity - bulk copy the bytes directly
-                        let mut byte_len = slice.len() * core::mem::size_of::<$ty>();
+                        let byte_len = Zeroizing::new(slice.len() * core::mem::size_of::<$ty>());
                         let byte_slice = unsafe {
                             core::slice::from_raw_parts_mut(
                                 slice.as_mut_ptr() as *mut u8,
-                                byte_len
+                                *byte_len
                             )
                         };
 
@@ -85,7 +85,7 @@ macro_rules! impl_traits_for_primitives {
 
             // Decoding Traits
             impl $crate::traits::Decode for $ty {
-                fn decode_from(&mut self, buf: &mut [u8]) -> Result<(), $crate::error::DecodeError> {
+                fn decode_from(&mut self, _buf: &mut [u8]) -> Result<(), $crate::error::DecodeError> {
                     Ok(())
                 }
             }

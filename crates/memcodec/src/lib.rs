@@ -13,4 +13,5 @@ mod error;
 mod primitives;
 mod traits;
 
-pub use traits::{BytesRequired, CodecBuffer, Encode};
+pub use error::{DecodeError, EncodeError};
+pub use traits::{BytesRequired, CodecBuffer, Decode, DecodeBuffer, Encode};

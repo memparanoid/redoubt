@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use zeroize::Zeroize;
-
 use membuffer::Buffer;
 
-use crate::error::{CodecBufferError, DecodeBufferError};
+use crate::error::DecodeBufferError;
 use crate::traits::{CodecBuffer, DecodeBuffer};
 
 #[test]
