@@ -93,10 +93,12 @@ fn test_roundtrip_vec_u8() {
 fn test_roundtrip_benchmark() {
     use std::time::Instant;
 
-    // let iterations = 100_000usize;
+    let iterations = 100_000usize;
+    // let iterations = 1_000usize;
+
+    let data_size = 1024usize; // 1KB
     // let data_size = 8192usize; // 8KB
-    let iterations = 1_000usize;
-    let data_size = 10 * 1024 * 1024; // 10 MiB
+    // let data_size = 10 * 1024 * 1024; // 10 MiB
 
     // Pre-allocate buffer
     let sample: Vec<u8> = vec![0xAB; data_size];
