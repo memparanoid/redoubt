@@ -22,13 +22,11 @@ fn test_write() {
 
 #[test]
 fn test_read_usize() {
-    // LE bytes for usize values 42 and 123
     let mut bytes: [u8; 16] = [0; 16];
 
-    // Write 42 in LE
-    bytes[0] = 42;
-    // Write 123 in LE at offset 8
-    bytes[8] = 123;
+    // Write values in native endian
+    bytes[..8].copy_from_slice(&42usize.to_ne_bytes());
+    bytes[8..].copy_from_slice(&123usize.to_ne_bytes());
 
     let mut slice: &mut [u8] = &mut bytes;
 
@@ -55,14 +53,14 @@ fn test_read_usize_out_of_bounds() {
 
 #[test]
 fn test_read() {
-    let mut bytes: [u8; 4] = [0x12, 0x34, 0x56, 0x78];
+    let value: u32 = 0x12345678;
+    let mut bytes = value.to_ne_bytes();
     let mut slice: &mut [u8] = &mut bytes;
 
     let mut dst: u32 = 0;
     slice.read(&mut dst).expect("read failed");
 
-    // LE: 0x78563412
-    assert_eq!(dst, 0x78563412);
+    assert_eq!(dst, value);
 }
 
 #[test]

@@ -71,12 +71,9 @@ impl DecodeBuffer for &mut [u8] {
             return Err(DecodeBufferError::OutOfBounds);
         }
 
-        // SECURITY NOTE: We reconstruct usize byte-by-byte from LE format to avoid
-        // from_le_bytes() which could leave copies on the stack. Same rationale as
-        // encode_into for primitives - see primitives.rs for detailed explanation.
-        *dst = 0;
-        for i in 0..size {
-            *dst |= (self[i] as usize) << (8 * i);
+        // Native endian copy - no conversion
+        unsafe {
+            core::ptr::copy_nonoverlapping(self.as_ptr(), dst as *mut usize as *mut u8, size);
         }
 
         // Zeroize the Buffer
