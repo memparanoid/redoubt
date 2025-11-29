@@ -8,11 +8,11 @@
 mod tests;
 
 mod buffer;
-mod collections;
+pub mod collections;
 mod error;
 mod primitives;
 mod traits;
 mod wrappers;
 
-pub use error::{DecodeError, EncodeError};
+pub use error::{DecodeError, EncodeError, OverflowError};
 pub use traits::{BytesRequired, CodecBuffer, Decode, DecodeBuffer, Encode};

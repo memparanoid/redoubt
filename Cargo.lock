@@ -635,6 +635,7 @@ dependencies = [
  "chacha20poly1305",
  "criterion",
  "memaead",
+ "membuffer",
  "memcode",
  "memcodec",
  "serde",
@@ -717,6 +718,10 @@ dependencies = [
 name = "memcodec_derive"
 version = "0.0.1"
 dependencies = [
+ "insta",
+ "memcodec_core",
+ "prettyplease",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn",

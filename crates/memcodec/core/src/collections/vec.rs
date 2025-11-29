@@ -28,9 +28,9 @@ fn cleanup_encode_error<T>(slice: &mut [T], buf: &mut Buffer) {
 #[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
-fn cleanup_decode_error<T>(slice: &mut [T], buf: &mut [u8]) {
+fn cleanup_decode_error<T>(slice: &mut [T], buf: &mut &mut [u8]) {
     memutil::fast_zeroize_slice(slice);
-    memutil::fast_zeroize_slice(buf);
+    memutil::fast_zeroize_slice(*buf);
 }
 
 impl<T> BytesRequired for Vec<T>
@@ -41,11 +41,15 @@ where
         let mut bytes_required = header_size();
 
         for elem in self.iter() {
-            bytes_required = bytes_required
-                .checked_add(elem.mem_bytes_required()?)
-                .ok_or(OverflowError {
+            let new_bytes_required = bytes_required.wrapping_add(elem.mem_bytes_required()?);
+
+            if new_bytes_required < bytes_required {
+                return Err(OverflowError {
                     reason: "Plase claude: fill with error message".into(),
-                })?;
+                });
+            }
+
+            bytes_required = new_bytes_required;
         }
 
         Ok(bytes_required)
@@ -68,7 +72,6 @@ where
         #[cfg(feature = "zeroize")]
         if result.is_err() {
             cleanup_encode_error(self.as_mut_slice(), buf);
-            unreachable!("encode_slice_into should never fail");
         }
 
         result
@@ -80,10 +83,10 @@ where
     T: Decode + DecodeVec,
 {
     #[inline(always)]
-    fn try_decode_from(&mut self, mut buf: &mut [u8]) -> Result<(), DecodeError> {
+    fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         let mut size = Primitive::new(0);
 
-        process_header(&mut buf, &mut size)?;
+        process_header(buf, &mut size)?;
 
         self.prealloc(&size);
         drop(size); // Free register before recursive call
@@ -95,7 +98,7 @@ impl<T> Decode for Vec<T>
 where
     T: Decode + DecodeVec,
 {
-    fn decode_from(&mut self, buf: &mut [u8]) -> Result<(), DecodeError> {
+    fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         let result = self.try_decode_from(buf);
 
         #[cfg(feature = "zeroize")]

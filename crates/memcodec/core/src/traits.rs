@@ -44,11 +44,11 @@ pub trait Encode {
 
 // @TODO: Doc why this trait is useful
 pub(crate) trait TryDecode {
-    fn try_decode_from(&mut self, buf: &mut [u8]) -> Result<(), DecodeError>;
+    fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError>;
 }
 
 pub trait Decode {
-    fn decode_from(&mut self, buf: &mut [u8]) -> Result<(), DecodeError>;
+    fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError>;
 }
 
 // pub(crate) trait DecodeSlice: Decode {
@@ -80,7 +80,7 @@ pub trait Decode {
 
 // @TODO: Doc why this trait is useful
 pub(crate) trait TryDecodeVec: Sized {
-    fn try_decode_vec_from(vec: &mut Vec<Self>, buf: &mut [u8]) -> Result<(), DecodeError>;
+    fn try_decode_vec_from(vec: &mut Vec<Self>, buf: &mut &mut [u8]) -> Result<(), DecodeError>;
 }
 
 pub(crate) trait DecodeVec: Decode + Sized {
@@ -88,7 +88,7 @@ pub(crate) trait DecodeVec: Decode + Sized {
     /// Default implementation: loop and call decode_from on each element.
     /// This is ONLY used in nested collections.
     /// Primitives override this with bulk copy for performance.
-    fn decode_vec_from(vec: &mut Vec<Self>, buf: &mut [u8]) -> Result<(), DecodeError> {
+    fn decode_vec_from(vec: &mut Vec<Self>, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         for elem in vec.iter_mut() {
             let result = elem.decode_from(buf);
 
@@ -96,7 +96,7 @@ pub(crate) trait DecodeVec: Decode + Sized {
                 #[cfg(feature = "zeroize")]
                 {
                     memutil::fast_zeroize_vec(vec);
-                    buf.zeroize();
+                    (*buf).zeroize();
                 }
 
                 return result;

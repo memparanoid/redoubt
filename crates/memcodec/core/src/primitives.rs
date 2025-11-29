@@ -84,15 +84,17 @@ macro_rules! impl_traits_for_primitives {
 
             // Decoding Traits
             impl $crate::traits::Decode for $ty {
-                fn decode_from(&mut self, _buf: &mut [u8]) -> Result<(), $crate::error::DecodeError> {
+                fn decode_from(&mut self, _buf: &mut &mut [u8]) -> Result<(), $crate::error::DecodeError> {
+                    // Primitives as struct fields don't consume from buffer directly.
+                    // Vec<primitive> uses try_decode_vec_from for bulk copy.
                     Ok(())
                 }
             }
 
             impl $crate::traits::TryDecodeVec for $ty {
                 // NOTE: Vec already processed header and called prealloc.
-                // We just do the bulk copy here.
-                fn try_decode_vec_from(vec: &mut Vec<Self>, buf: &mut [u8]) -> Result<(), DecodeError> {
+                // We do bulk copy and ADVANCE the buffer.
+                fn try_decode_vec_from(vec: &mut Vec<Self>, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
                     let byte_len = Primitive::new(vec.len() * core::mem::size_of::<Self>());
 
                     #[cfg(target_endian = "little")]
@@ -100,10 +102,13 @@ macro_rules! impl_traits_for_primitives {
                         let dst = unsafe {
                             core::slice::from_raw_parts_mut(vec.as_mut_ptr() as *mut u8, *byte_len)
                         };
-                        dst.copy_from_slice(&buf[..*byte_len]);
+                        dst.copy_from_slice(&(*buf)[..*byte_len]);
 
                         #[cfg(feature = "zeroize")]
-                        memutil::fast_zeroize_slice(&mut buf[..*byte_len]);
+                        memutil::fast_zeroize_slice(&mut (*buf)[..*byte_len]);
+
+                        // Advance the buffer
+                        *buf = &mut core::mem::take(buf)[*byte_len..];
                     }
 
                     #[cfg(target_endian = "big")]
@@ -118,13 +123,13 @@ macro_rules! impl_traits_for_primitives {
             }
 
             impl $crate::traits::DecodeVec for $ty {
-                fn decode_vec_from(vec: &mut Vec<Self>, buf: &mut [u8]) -> Result<(), DecodeError> {
+                fn decode_vec_from(vec: &mut Vec<Self>, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
                     let result = Self::try_decode_vec_from(vec, buf);
 
                     #[cfg(feature = "zeroize")]
                     if result.is_err() {
                         memutil::fast_zeroize_vec(vec);
-                        memutil::fast_zeroize_slice(buf);
+                        memutil::fast_zeroize_slice(*buf);
                     }
 
                     result
