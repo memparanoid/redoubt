@@ -72,19 +72,20 @@ impl ChaCha20 {
         self.initial[3] = 0x6b206574;
 
         for i in 0..8 {
-            self.le_bytes_tmp = [key[i * 4], key[i * 4 + 1], key[i * 4 + 2], key[i * 4 + 3]];
+            self.le_bytes_tmp[0] = key[i * 4];
+            self.le_bytes_tmp[1] = key[i * 4 + 1];
+            self.le_bytes_tmp[2] = key[i * 4 + 2];
+            self.le_bytes_tmp[3] = key[i * 4 + 3];
             u32_from_le(&mut self.initial[4 + i], &mut self.le_bytes_tmp);
         }
 
         self.initial[12] = counter;
 
         for i in 0..3 {
-            self.le_bytes_tmp = [
-                nonce[i * 4],
-                nonce[i * 4 + 1],
-                nonce[i * 4 + 2],
-                nonce[i * 4 + 3],
-            ];
+            self.le_bytes_tmp[0] = nonce[i * 4];
+            self.le_bytes_tmp[1] = nonce[i * 4 + 1];
+            self.le_bytes_tmp[2] = nonce[i * 4 + 2];
+            self.le_bytes_tmp[3] = nonce[i * 4 + 3];
             u32_from_le(&mut self.initial[13 + i], &mut self.le_bytes_tmp);
         }
     }
@@ -208,17 +209,18 @@ impl HChaCha20 {
         self.state[3] = 0x6b206574;
 
         for i in 0..8 {
-            self.le_bytes_tmp = [key[i * 4], key[i * 4 + 1], key[i * 4 + 2], key[i * 4 + 3]];
+            self.le_bytes_tmp[0] = key[i * 4];
+            self.le_bytes_tmp[1] = key[i * 4 + 1];
+            self.le_bytes_tmp[2] = key[i * 4 + 2];
+            self.le_bytes_tmp[3] = key[i * 4 + 3];
             u32_from_le(&mut self.state[4 + i], &mut self.le_bytes_tmp);
         }
 
         for i in 0..4 {
-            self.le_bytes_tmp = [
-                nonce[i * 4],
-                nonce[i * 4 + 1],
-                nonce[i * 4 + 2],
-                nonce[i * 4 + 3],
-            ];
+            self.le_bytes_tmp[0] = nonce[i * 4];
+            self.le_bytes_tmp[1] = nonce[i * 4 + 1];
+            self.le_bytes_tmp[2] = nonce[i * 4 + 2];
+            self.le_bytes_tmp[3] = nonce[i * 4 + 3];
             u32_from_le(&mut self.state[12 + i], &mut self.le_bytes_tmp);
         }
 
