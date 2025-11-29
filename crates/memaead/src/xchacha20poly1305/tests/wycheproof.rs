@@ -5,7 +5,6 @@
 use crate::xchacha20poly1305::XChacha20Poly1305;
 use crate::xchacha20poly1305::DecryptError;
 use crate::xchacha20poly1305::consts::*;
-use memalloc::AllockedVec;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,28 +90,31 @@ fn xchacha20poly1305_encrypt(
     key: &[u8],
     xnonce: &[u8],
     aad: &[u8],
-    plaintext: &mut [u8],
-) -> Result<AllockedVec<u8>, DecryptError> {
+    data: &mut [u8],
+    tag_out: &mut [u8; TAG_SIZE],
+) -> Result<(), DecryptError> {
     let key: &[u8; KEY_SIZE] = key.try_into().map_err(|_| DecryptError::InvalidNonceSize)?;
     let xnonce: &[u8; XNONCE_SIZE] = xnonce
         .try_into()
         .map_err(|_| DecryptError::InvalidNonceSize)?;
     let mut cipher = XChacha20Poly1305::default();
-    Ok(cipher.encrypt(key, xnonce, aad, plaintext))
+    cipher.encrypt(key, xnonce, aad, data, tag_out);
+    Ok(())
 }
 
 fn xchacha20poly1305_decrypt(
     key: &[u8],
     xnonce: &[u8],
     aad: &[u8],
-    ciphertext_with_tag: &mut [u8],
-) -> Result<AllockedVec<u8>, DecryptError> {
+    data: &mut [u8],
+    tag: &[u8; TAG_SIZE],
+) -> Result<(), DecryptError> {
     let key: &[u8; KEY_SIZE] = key.try_into().map_err(|_| DecryptError::InvalidNonceSize)?;
     let xnonce: &[u8; XNONCE_SIZE] = xnonce
         .try_into()
         .map_err(|_| DecryptError::InvalidNonceSize)?;
     let mut cipher = XChacha20Poly1305::default();
-    cipher.decrypt(key, xnonce, aad, ciphertext_with_tag)
+    cipher.decrypt(key, xnonce, aad, data, tag)
 }
 
 /// Run a single test case and return Ok if behavior matches expected result
@@ -122,19 +124,26 @@ fn run_test_case(tc: &TestCase) -> Result<(), String> {
     let key = hex_to_bytes(&tc.key);
     let nonce = hex_to_bytes(&tc.iv);
     let aad = hex_to_bytes(&tc.aad);
-    let ct = hex_to_bytes(&tc.ct);
-    let tag = hex_to_bytes(&tc.tag);
+    let mut data = hex_to_bytes(&tc.ct);
+    let tag_vec = hex_to_bytes(&tc.tag);
+    let tag: [u8; TAG_SIZE] = match tag_vec.try_into() {
+        Ok(t) => t,
+        Err(_) => {
+            // Invalid tag size - with new API this is rejected at compile time,
+            // but Wycheproof tests include these cases
+            return match tc.result {
+                TestResult::Invalid => Ok(()), // Expected to fail
+                TestResult::Valid => Err(format!("tc_id {}: invalid tag size on valid test", tc.tc_id)),
+            };
+        }
+    };
 
-    // Combine ciphertext + tag (as Wycheproof stores them separately)
-    let mut ciphertext_with_tag = ct;
-    ciphertext_with_tag.extend_from_slice(&tag);
-
-    let result = xchacha20poly1305_decrypt(&key, &nonce, &aad, &mut ciphertext_with_tag);
+    let result = xchacha20poly1305_decrypt(&key, &nonce, &aad, &mut data, &tag);
 
     match (&tc.result, &result) {
-        (TestResult::Valid, Ok(plaintext)) => {
+        (TestResult::Valid, Ok(())) => {
             let expected_msg = hex_to_bytes(&tc.msg);
-            if plaintext.as_slice() == expected_msg.as_slice() {
+            if data == expected_msg {
                 Ok(())
             } else {
                 Err(format!(
@@ -147,7 +156,7 @@ fn run_test_case(tc: &TestCase) -> Result<(), String> {
             "tc_id {} ({}): expected valid but got error: {:?}",
             tc.tc_id, tc.comment, e
         )),
-        (TestResult::Invalid, Ok(_)) => Err(format!(
+        (TestResult::Invalid, Ok(())) => Err(format!(
             "tc_id {} ({}): expected invalid but decryption succeeded",
             tc.tc_id, tc.comment
         )),
@@ -166,7 +175,10 @@ fn run_test_case(tc: &TestCase) -> Result<(), String> {
             // ModifiedTag and other auth failures
             Ok(())
         }
-        (TestResult::Invalid, Err(DecryptError::CiphertextTooShort)) => Ok(()),
+        (TestResult::Invalid, Err(DecryptError::CiphertextTooShort)) => {
+            // Shouldn't happen with new API (tag is separate), but handle it
+            Ok(())
+        }
     }
 }
 
@@ -229,22 +241,19 @@ fn test_wycheproof_valid_with_flipped_tag() {
         let key = hex_to_bytes(&tc.key);
         let nonce = hex_to_bytes(&tc.iv);
         let aad = hex_to_bytes(&tc.aad);
-        let ct = hex_to_bytes(&tc.ct);
-        let mut tag = hex_to_bytes(&tc.tag);
+        let mut data = hex_to_bytes(&tc.ct);
+        let mut tag: [u8; TAG_SIZE] = hex_to_bytes(&tc.tag).try_into().unwrap();
 
         // Flip first bit of first byte
         tag[0] ^= 0x01;
 
-        let mut ciphertext_with_tag = ct;
-        ciphertext_with_tag.extend_from_slice(&tag);
-
-        let result = xchacha20poly1305_decrypt(&key, &nonce, &aad, &mut ciphertext_with_tag);
+        let result = xchacha20poly1305_decrypt(&key, &nonce, &aad, &mut data, &tag);
 
         match result {
             Err(DecryptError::AuthenticationFailed) => {
                 // Expected
             }
-            Ok(_) => {
+            Ok(()) => {
                 failures.push(format!(
                     "tc_id {}: flipped tag accepted (should have been rejected)",
                     tc.tc_id
@@ -284,39 +293,30 @@ fn test_wycheproof_roundtrip() {
         let key = hex_to_bytes(&tc.key);
         let nonce = hex_to_bytes(&tc.iv);
         let aad = hex_to_bytes(&tc.aad);
-        let ct = hex_to_bytes(&tc.ct);
-        let tag = hex_to_bytes(&tc.tag);
-
-        let mut ciphertext_with_tag = ct.clone();
-        ciphertext_with_tag.extend_from_slice(&tag);
-        let original_ct_with_tag = ciphertext_with_tag.clone();
+        let original_ct = hex_to_bytes(&tc.ct);
+        let original_tag: [u8; TAG_SIZE] = hex_to_bytes(&tc.tag).try_into().unwrap();
 
         // Decrypt
-        let plaintext = match xchacha20poly1305_decrypt(&key, &nonce, &aad, &mut ciphertext_with_tag) {
-            Ok(pt) => pt,
-            Err(e) => {
-                failures.push(format!("tc_id {}: decrypt failed: {:?}", tc.tc_id, e));
-                continue;
-            }
-        };
+        let mut data = original_ct.clone();
+        if let Err(e) = xchacha20poly1305_decrypt(&key, &nonce, &aad, &mut data, &original_tag) {
+            failures.push(format!("tc_id {}: decrypt failed: {:?}", tc.tc_id, e));
+            continue;
+        }
+        // data now contains plaintext
 
         // Re-encrypt
-        let mut pt_copy: Vec<u8> = plaintext.as_slice().to_vec();
-        let re_encrypted = match xchacha20poly1305_encrypt(&key, &nonce, &aad, &mut pt_copy) {
-            Ok(ct) => ct,
-            Err(e) => {
-                failures.push(format!("tc_id {}: encrypt failed: {:?}", tc.tc_id, e));
-                continue;
-            }
-        };
+        let mut re_encrypted_ct = data; // plaintext
+        let mut re_encrypted_tag = [0u8; TAG_SIZE];
+        if let Err(e) = xchacha20poly1305_encrypt(&key, &nonce, &aad, &mut re_encrypted_ct, &mut re_encrypted_tag) {
+            failures.push(format!("tc_id {}: encrypt failed: {:?}", tc.tc_id, e));
+            continue;
+        }
 
         // Verify roundtrip
-        if re_encrypted.as_slice() != original_ct_with_tag.as_slice() {
+        if re_encrypted_ct != original_ct || re_encrypted_tag != original_tag {
             failures.push(format!(
-                "tc_id {}: roundtrip mismatch, expected {} bytes, got {} bytes",
-                tc.tc_id,
-                original_ct_with_tag.len(),
-                re_encrypted.len()
+                "tc_id {}: roundtrip mismatch",
+                tc.tc_id
             ));
         }
     }

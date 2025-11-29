@@ -32,14 +32,13 @@ fn test_xchacha20_poly1305_encrypt() {
     let aad: [u8; 12] = [
         0x50, 0x51, 0x52, 0x53, 0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
     ];
-    let mut plaintext = *b"Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
+    let mut data = *b"Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
+    let mut tag = [0u8; TAG_SIZE];
+
     let mut cipher = XChacha20Poly1305::default();
-    let result = cipher.encrypt(&key, &xnonce, &aad, &mut plaintext);
+    cipher.encrypt(&key, &xnonce, &aad, &mut data, &mut tag);
 
-    // Plaintext must be zeroized
-    assert!(plaintext.iter().all(|&b| b == 0));
-
-    // Expected ciphertext (114 bytes) + tag (16 bytes)
+    // Expected ciphertext (114 bytes)
     let expected_ct: [u8; 114] = [
         0xbd, 0x6d, 0x17, 0x9d, 0x3e, 0x83, 0xd4, 0x3b, 0x95, 0x76, 0x57, 0x94, 0x93, 0xc0, 0xe9,
         0x39, 0x57, 0x2a, 0x17, 0x00, 0x25, 0x2b, 0xfa, 0xcc, 0xbe, 0xd2, 0x90, 0x2c, 0x21, 0x39,
@@ -55,8 +54,8 @@ fn test_xchacha20_poly1305_encrypt() {
         0x49,
     ];
 
-    assert_eq!(&result.as_slice()[..114], &expected_ct[..]);
-    assert_eq!(&result.as_slice()[114..], &expected_tag[..]);
+    assert_eq!(&data, &expected_ct);
+    assert_eq!(&tag, &expected_tag);
 }
 
 #[test]
@@ -74,8 +73,8 @@ fn test_xchacha20_poly1305_decrypt() {
         0x50, 0x51, 0x52, 0x53, 0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
     ];
 
-    // Ciphertext + tag from encrypt test
-    let mut ciphertext_with_tag: [u8; 130] = [
+    // Ciphertext (114 bytes)
+    let mut data: [u8; 114] = [
         0xbd, 0x6d, 0x17, 0x9d, 0x3e, 0x83, 0xd4, 0x3b, 0x95, 0x76, 0x57, 0x94, 0x93, 0xc0, 0xe9,
         0x39, 0x57, 0x2a, 0x17, 0x00, 0x25, 0x2b, 0xfa, 0xcc, 0xbe, 0xd2, 0x90, 0x2c, 0x21, 0x39,
         0x6c, 0xbb, 0x73, 0x1c, 0x7f, 0x1b, 0x0b, 0x4a, 0xa6, 0x44, 0x0b, 0xf3, 0xa8, 0x2f, 0x4e,
@@ -83,21 +82,21 @@ fn test_xchacha20_poly1305_decrypt() {
         0x12, 0x13, 0xb4, 0x52, 0x2f, 0x8c, 0x9b, 0xa4, 0x0d, 0xb5, 0xd9, 0x45, 0xb1, 0x1b, 0x69,
         0xb9, 0x82, 0xc1, 0xbb, 0x9e, 0x3f, 0x3f, 0xac, 0x2b, 0xc3, 0x69, 0x48, 0x8f, 0x76, 0xb2,
         0x38, 0x35, 0x65, 0xd3, 0xff, 0xf9, 0x21, 0xf9, 0x66, 0x4c, 0x97, 0x63, 0x7d, 0xa9, 0x76,
-        0x88, 0x12, 0xf6, 0x15, 0xc6, 0x8b, 0x13, 0xb5, 0x2e, // Tag
+        0x88, 0x12, 0xf6, 0x15, 0xc6, 0x8b, 0x13, 0xb5, 0x2e,
+    ];
+    // Tag (16 bytes)
+    let tag: [u8; TAG_SIZE] = [
         0xc0, 0x87, 0x59, 0x24, 0xc1, 0xc7, 0x98, 0x79, 0x47, 0xde, 0xaf, 0xd8, 0x78, 0x0a, 0xcf,
         0x49,
     ];
 
     let mut cipher = XChacha20Poly1305::default();
-    let plaintext = cipher
-        .decrypt(&key, &xnonce, &aad, &mut ciphertext_with_tag)
+    cipher
+        .decrypt(&key, &xnonce, &aad, &mut data, &tag)
         .expect("decryption failed");
 
-    // Ciphertext must be zeroized
-    assert!(ciphertext_with_tag.iter().all(|&b| b == 0));
-
     assert_eq!(
-        plaintext.as_slice(),
+        &data,
         b"Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it."
     );
 }
@@ -107,24 +106,23 @@ fn test_modified_tag_rejected() {
     let key = [0x42u8; 32];
     let xnonce = [0x24u8; 24];
     let aad = b"header";
-    let mut plaintext = *b"secret";
+    let mut data = *b"secret";
+    let mut tag = [0u8; TAG_SIZE];
 
     let mut cipher = XChacha20Poly1305::default();
-    let ciphertext = cipher.encrypt(&key, &xnonce, aad, &mut plaintext);
+    cipher.encrypt(&key, &xnonce, aad, &mut data, &mut tag);
 
-    // Copy to mutable buffer and flip one bit in the tag
-    let mut ct_with_tag: Vec<u8> = ciphertext.as_slice().to_vec();
-    let last = ct_with_tag.len() - 1;
-    ct_with_tag[last] ^= 0x01;
+    // Flip one bit in the tag
+    tag[TAG_SIZE - 1] ^= 0x01;
 
     // Should fail authentication
-    let result = cipher.decrypt(&key, &xnonce, aad, &mut ct_with_tag);
+    let result = cipher.decrypt(&key, &xnonce, aad, &mut data, &tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecryptError::AuthenticationFailed)));
 
     // Ciphertext must be zeroized on auth failure
-    assert!(ct_with_tag.iter().all(|&b| b == 0));
+    assert!(data.iter().all(|&b| b == 0));
 }
 
 #[test]
@@ -132,45 +130,43 @@ fn test_modified_ciphertext_rejected() {
     let key = [0x42u8; 32];
     let xnonce = [0x24u8; 24];
     let aad = b"header";
-    let mut plaintext = *b"secret";
+    let mut data = *b"secret";
+    let mut tag = [0u8; TAG_SIZE];
 
     let mut cipher = XChacha20Poly1305::default();
-    let ciphertext = cipher.encrypt(&key, &xnonce, aad, &mut plaintext);
+    cipher.encrypt(&key, &xnonce, aad, &mut data, &mut tag);
 
-    // Copy to mutable buffer and flip one bit in the ciphertext (not tag)
-    let mut ct_with_tag: Vec<u8> = ciphertext.as_slice().to_vec();
-    ct_with_tag[0] ^= 0x01;
+    // Flip one bit in the ciphertext (not tag)
+    data[0] ^= 0x01;
 
     // Should fail authentication
-    let result = cipher.decrypt(&key, &xnonce, aad, &mut ct_with_tag);
+    let result = cipher.decrypt(&key, &xnonce, aad, &mut data, &tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecryptError::AuthenticationFailed)));
 
     // Ciphertext must be zeroized on auth failure
-    assert!(ct_with_tag.iter().all(|&b| b == 0));
+    assert!(data.iter().all(|&b| b == 0));
 }
 
 #[test]
 fn test_modified_aad_rejected() {
     let key = [0x42u8; 32];
     let xnonce = [0x24u8; 24];
-    let mut plaintext = *b"secret";
+    let mut data = *b"secret";
+    let mut tag = [0u8; TAG_SIZE];
 
     let mut cipher = XChacha20Poly1305::default();
-    let ciphertext = cipher.encrypt(&key, &xnonce, b"header", &mut plaintext);
-
-    // Copy to mutable buffer
-    let mut ct_with_tag: Vec<u8> = ciphertext.as_slice().to_vec();
+    cipher.encrypt(&key, &xnonce, b"header", &mut data, &mut tag);
 
     // Different AAD should fail
-    let result = cipher.decrypt(&key, &xnonce, b"HEADER", &mut ct_with_tag);
+    let result = cipher.decrypt(&key, &xnonce, b"HEADER", &mut data, &tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecryptError::AuthenticationFailed)));
 
     // Ciphertext must be zeroized on auth failure
-    assert!(ct_with_tag.iter().all(|&b| b == 0));
+    assert!(data.iter().all(|&b| b == 0));
 }
 
 #[test]
@@ -179,24 +175,21 @@ fn test_roundtrip() {
     let xnonce = [0x24u8; 24];
     let aad = b"associated data";
     let original = b"Hello, XChaCha20-Poly1305!";
-    let mut plaintext = *original;
+    let mut data = *original;
+    let mut tag = [0u8; TAG_SIZE];
 
     let mut cipher = XChacha20Poly1305::default();
-    let ciphertext = cipher.encrypt(&key, &xnonce, aad, &mut plaintext);
+    cipher.encrypt(&key, &xnonce, aad, &mut data, &mut tag);
 
-    // Plaintext must be zeroized
-    assert!(plaintext.iter().all(|&b| b == 0));
+    // data now contains ciphertext
+    assert_ne!(&data, original);
 
-    // Copy to mutable buffer for decrypt
-    let mut ct_with_tag: Vec<u8> = ciphertext.as_slice().to_vec();
-    let decrypted = cipher
-        .decrypt(&key, &xnonce, aad, &mut ct_with_tag)
+    // Decrypt in-place
+    cipher
+        .decrypt(&key, &xnonce, aad, &mut data, &tag)
         .expect("decryption failed");
 
-    // Ciphertext must be zeroized
-    assert!(ct_with_tag.iter().all(|&b| b == 0));
-
-    assert_eq!(decrypted.as_slice(), original);
+    assert_eq!(&data, original);
 }
 
 #[test]
@@ -204,16 +197,15 @@ fn test_empty_plaintext() {
     let key = [0x42u8; 32];
     let xnonce = [0x24u8; 24];
     let aad = b"just aad, no plaintext";
+    let mut tag = [0u8; TAG_SIZE];
 
     let mut cipher = XChacha20Poly1305::default();
-    let ciphertext = cipher.encrypt(&key, &xnonce, aad, &mut []);
-    assert_eq!(ciphertext.len(), TAG_SIZE); // Only tag
+    cipher.encrypt(&key, &xnonce, aad, &mut [], &mut tag);
 
-    let mut ct_with_tag: Vec<u8> = ciphertext.as_slice().to_vec();
-    let decrypted = cipher
-        .decrypt(&key, &xnonce, aad, &mut ct_with_tag)
+    // Decrypt empty ciphertext
+    cipher
+        .decrypt(&key, &xnonce, aad, &mut [], &tag)
         .expect("decryption failed");
-    assert!(decrypted.is_empty());
 }
 
 #[test]
@@ -221,21 +213,19 @@ fn test_empty_aad() {
     let key = [0x42u8; 32];
     let xnonce = [0x24u8; 24];
     let original = b"no associated data";
-    let mut plaintext = *original;
+    let mut data = *original;
+    let mut tag = [0u8; TAG_SIZE];
 
     let mut cipher = XChacha20Poly1305::default();
-    let ciphertext = cipher.encrypt(&key, &xnonce, b"", &mut plaintext);
+    cipher.encrypt(&key, &xnonce, b"", &mut data, &mut tag);
 
-    // Plaintext must be zeroized
-    assert!(plaintext.iter().all(|&b| b == 0));
+    // data now contains ciphertext
+    assert_ne!(&data, original);
 
-    let mut ct_with_tag: Vec<u8> = ciphertext.as_slice().to_vec();
-    let decrypted = cipher
-        .decrypt(&key, &xnonce, b"", &mut ct_with_tag)
+    // Decrypt in-place
+    cipher
+        .decrypt(&key, &xnonce, b"", &mut data, &tag)
         .expect("decryption failed");
 
-    // Ciphertext must be zeroized
-    assert!(ct_with_tag.iter().all(|&b| b == 0));
-
-    assert_eq!(decrypted.as_slice(), original);
+    assert_eq!(&data, original);
 }

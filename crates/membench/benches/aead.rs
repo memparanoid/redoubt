@@ -29,7 +29,7 @@ use aes_gcm::{
 };
 
 // Ours
-use memaead::xchacha20poly1305::XChacha20Poly1305;
+use memaead::xchacha20poly1305::{XChacha20Poly1305, TAG_SIZE};
 
 const KEY: [u8; 32] = [0x42; 32];
 const KEY_16: [u8; 16] = [0x42; 16];
@@ -62,7 +62,11 @@ fn bench_encrypt(c: &mut Criterion) {
             let mut cipher = XChacha20Poly1305::default();
             b.iter_batched(
                 || pt.clone(),
-                |mut buf| black_box(cipher.encrypt(&KEY, &NONCE, AAD, &mut buf)),
+                |mut buf| {
+                    let mut tag = [0u8; TAG_SIZE];
+                    cipher.encrypt(&KEY, &NONCE, AAD, &mut buf, &mut tag);
+                    black_box((buf, tag))
+                },
                 BatchSize::SmallInput,
             );
         });
@@ -141,16 +145,22 @@ fn bench_decrypt(c: &mut Criterion) {
     let mut group = c.benchmark_group("decrypt");
 
     for size in [64, 256, 1024, 4096, 16384, 65536] {
-        // Pre-encrypt with our implementation (both produce same output)
+        // Pre-encrypt with our implementation
         let mut plaintext = vec![0xAB; size];
-        let ciphertext = XChacha20Poly1305::default().encrypt(&KEY, &NONCE, AAD, &mut plaintext);
+        let mut our_tag = [0u8; TAG_SIZE];
+        XChacha20Poly1305::default().encrypt(&KEY, &NONCE, AAD, &mut plaintext, &mut our_tag);
+        let our_ciphertext = plaintext; // now contains ciphertext
+
+        // RustCrypto needs ciphertext || tag format
+        let mut rustcrypto_ct = our_ciphertext.clone();
+        rustcrypto_ct.extend_from_slice(&our_tag);
 
         group.throughput(Throughput::Bytes(size as u64));
 
         // RustCrypto (traditional API)
         group.bench_with_input(
             BenchmarkId::new("rustcrypto", size),
-            &ciphertext,
+            &rustcrypto_ct,
             |b, ct| {
                 let cipher = chacha20poly1305::XChaCha20Poly1305::new((&KEY).into());
                 let nonce = (&NONCE).into();
@@ -162,14 +172,21 @@ fn bench_decrypt(c: &mut Criterion) {
         );
 
         // Ours (iter_batched separates clone from measured code)
-        group.bench_with_input(BenchmarkId::new("memaead", size), &ciphertext, |b, ct| {
-            let mut cipher = XChacha20Poly1305::default();
-            b.iter_batched(
-                || ct.as_slice().to_vec(),
-                |mut buf| black_box(cipher.decrypt(&KEY, &NONCE, AAD, &mut buf).unwrap()),
-                BatchSize::SmallInput,
-            );
-        });
+        group.bench_with_input(
+            BenchmarkId::new("memaead", size),
+            &(our_ciphertext.clone(), our_tag),
+            |b, (ct, tag)| {
+                let mut cipher = XChacha20Poly1305::default();
+                b.iter_batched(
+                    || ct.clone(),
+                    |mut buf| {
+                        cipher.decrypt(&KEY, &NONCE, AAD, &mut buf, tag).unwrap();
+                        black_box(buf)
+                    },
+                    BatchSize::SmallInput,
+                );
+            },
+        );
 
         // AES-256-GCM decrypt (hardware accelerated)
         // Pre-encrypt with AES-GCM

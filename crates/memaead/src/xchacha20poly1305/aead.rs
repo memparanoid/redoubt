@@ -8,7 +8,6 @@
 
 use zeroize::Zeroize;
 
-use memalloc::AllockedVec;
 use memutil::u64_to_le;
 use memzer::{DropSentinel, MemZer};
 
@@ -27,7 +26,6 @@ pub struct XChacha20Poly1305 {
     poly_key: [u8; KEY_SIZE],
     expected_tag: [u8; TAG_SIZE],
     len_block: [u8; TAG_SIZE],
-    output: AllockedVec<u8>,
     __drop_sentinel: DropSentinel,
 }
 
@@ -39,7 +37,6 @@ impl Default for XChacha20Poly1305 {
             poly_key: [0; KEY_SIZE],
             expected_tag: [0; TAG_SIZE],
             len_block: [0; TAG_SIZE],
-            output: AllockedVec::default(),
             __drop_sentinel: DropSentinel::default(),
         }
     }
@@ -71,70 +68,49 @@ impl XChacha20Poly1305 {
         self.len_block.zeroize();
     }
 
+    /// Encrypt plaintext in-place and write tag to separate buffer.
     pub fn encrypt(
         &mut self,
         key: &AeadKey,
         xnonce: &XNonce,
         aad: &[u8],
-        plaintext: &mut [u8],
-    ) -> AllockedVec<u8> {
-        self.xchacha.crypt(key, xnonce, plaintext);
+        data: &mut [u8],
+        tag_out: &mut [u8; TAG_SIZE],
+    ) {
+        self.xchacha.crypt(key, xnonce, data);
 
         self.xchacha
             .generate_poly_key(key, xnonce, &mut self.poly_key);
-        self.compute_tag(aad, plaintext);
+        self.compute_tag(aad, data);
 
-        self.output
-            .reserve_exact(plaintext.len() + TAG_SIZE)
-            .expect("infallible: fresh AllockedVec");
-        self.output
-            .drain_from(plaintext)
-            .expect("infallible: capacity reserved");
-        self.output
-            .drain_from(&mut self.expected_tag)
-            .expect("infallible: capacity reserved");
-
-        core::mem::take(&mut self.output)
+        tag_out.copy_from_slice(&self.expected_tag);
+        self.expected_tag.zeroize();
     }
 
+    /// Decrypt ciphertext in-place after verifying tag.
     pub fn decrypt(
         &mut self,
         key: &AeadKey,
         xnonce: &XNonce,
         aad: &[u8],
-        ciphertext_with_tag: &mut [u8],
-    ) -> Result<AllockedVec<u8>, DecryptError> {
-        if ciphertext_with_tag.len() < TAG_SIZE {
-            ciphertext_with_tag.zeroize();
-            return Err(DecryptError::CiphertextTooShort);
-        }
-
-        let ct_len = ciphertext_with_tag.len() - TAG_SIZE;
-        let (ciphertext, received_tag) = ciphertext_with_tag.split_at_mut(ct_len);
-
+        data: &mut [u8],
+        tag: &[u8; TAG_SIZE],
+    ) -> Result<(), DecryptError> {
         self.xchacha
             .generate_poly_key(key, xnonce, &mut self.poly_key);
-        self.compute_tag(aad, ciphertext);
+        self.compute_tag(aad, data);
 
-        if !constant_time_eq(&self.expected_tag, received_tag) {
-            ciphertext.zeroize();
-            received_tag.zeroize();
+        if !constant_time_eq(&self.expected_tag, tag) {
+            data.zeroize();
             self.poly_key.zeroize();
             self.expected_tag.zeroize();
             return Err(DecryptError::AuthenticationFailed);
         }
 
-        self.xchacha.crypt(key, xnonce, ciphertext);
+        self.xchacha.crypt(key, xnonce, data);
+        self.expected_tag.zeroize();
 
-        self.output
-            .reserve_exact(ciphertext.len())
-            .expect("infallible: fresh AllockedVec");
-        self.output
-            .drain_from(ciphertext)
-            .expect("infallible: capacity reserved");
-        received_tag.zeroize();
-
-        Ok(core::mem::take(&mut self.output))
+        Ok(())
     }
 }
 
