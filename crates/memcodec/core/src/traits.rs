@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(feature = "zeroize")]
-use zeroize::Zeroize;
-
 use membuffer::Buffer;
 
 use crate::error::{CodecBufferError, DecodeBufferError, DecodeError, EncodeError, OverflowError};
@@ -37,60 +34,11 @@ pub trait Decode {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError>;
 }
 
-// pub(crate) trait DecodeSlice: Decode {
-//     /// Decode a slice of Self from the buffer.
-//     /// Default implementation: loop and call drain_into on each collection.
-//     /// This is ONLY used in nested collections.
-//     /// Primitives override this with bulk copy for performance.
-//     fn decode_slice_from(slice: &mut [Self], buf: &mut [u8]) -> Result<(), DecodeError>
-//     where
-//         Self: Sized,
-//     {
-//         for elem in slice.iter_mut() {
-//             let result = elem.decode_from(buf);
-
-//             if result.is_err() {
-//                 #[cfg(feature = "zeroize")]
-//                 {
-//                     memutil::fast_zeroize_slice(slice);
-//                     buf.zeroize();
-//                 }
-
-//                 return result;
-//             }
-//         }
-
-//         Ok(())
-//     }
-// }
-
-// @TODO: Doc why this trait is useful
-pub(crate) trait TryDecodeVec: Sized {
-    fn try_decode_vec_from(vec: &mut Vec<Self>, buf: &mut &mut [u8]) -> Result<(), DecodeError>;
-}
-
-pub(crate) trait DecodeVec: Decode + Sized {
-    /// Decode a Vec of Self from the buffer.
-    /// Default implementation: loop and call decode_from on each element.
-    /// This is ONLY used in nested collections.
-    /// Primitives override this with bulk copy for performance.
-    fn decode_vec_from(vec: &mut Vec<Self>, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-        for elem in vec.iter_mut() {
-            let result = elem.decode_from(buf);
-
-            if result.is_err() {
-                #[cfg(feature = "zeroize")]
-                {
-                    memutil::fast_zeroize_vec(vec);
-                    (*buf).zeroize();
-                }
-
-                return result;
-            }
-        }
-
-        Ok(())
-    }
+/// Decode a slice of elements from the buffer.
+/// - Primitives: NO zeroize (collection handles it)
+/// - Collections: YES zeroize (handle their own cleanup)
+pub(crate) trait DecodeSlice: Decode + Sized {
+    fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError>;
 }
 
 pub trait CodecBuffer {

@@ -11,7 +11,7 @@ use crate::wrappers::Primitive;
 
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
-    BytesRequired, Decode, DecodeVec, Encode, EncodeSlice, PreAlloc, TryDecode, TryEncode,
+    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc, TryDecode, TryEncode,
 };
 
 use super::helpers::{header_size, process_header, write_header};
@@ -105,7 +105,7 @@ where
 
 impl<T> TryDecode for Vec<T>
 where
-    T: Decode + DecodeVec,
+    T: DecodeSlice,
 {
     #[inline(always)]
     fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
@@ -115,13 +115,13 @@ where
 
         self.prealloc(&size);
         drop(size); // Free register before recursive call
-        T::decode_vec_from(self, buf)
+        T::decode_slice_from(self.as_mut_slice(), buf)
     }
 }
 
 impl<T> Decode for Vec<T>
 where
-    T: Decode + DecodeVec,
+    T: DecodeSlice,
 {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         let result = self.try_decode_from(buf);
@@ -132,6 +132,19 @@ where
         }
 
         result
+    }
+}
+
+impl<T> DecodeSlice for Vec<T>
+where
+    T: DecodeSlice,
+{
+    fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError> {
+        for elem in slice.iter_mut() {
+            elem.decode_from(buf)?;
+        }
+
+        Ok(())
     }
 }
 

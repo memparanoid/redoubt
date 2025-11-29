@@ -8,7 +8,7 @@ use zeroize::Zeroize;
 use crate::error::DecodeError;
 use crate::wrappers::Primitive;
 
-use super::traits::{CodecBuffer, DecodeBuffer, TryDecodeVec, TryEncode};
+use super::traits::{CodecBuffer, DecodeBuffer, TryEncode};
 
 // On LE machines we can bulk copy (LE conversion is no-op)
 // On BE machines, we fall back to element-by-element with conversion
@@ -97,42 +97,28 @@ macro_rules! impl_traits_for_primitives {
             impl $crate::traits::Decode for $ty {
                 fn decode_from(&mut self, _buf: &mut &mut [u8]) -> Result<(), $crate::error::DecodeError> {
                     // Primitives as struct fields don't consume from buffer directly.
-                    // Vec<primitive> uses try_decode_vec_from for bulk copy.
+                    // Vec<primitive> uses decode_slice_from for bulk copy.
                     Ok(())
                 }
             }
 
-            impl $crate::traits::TryDecodeVec for $ty {
-                // NOTE: Vec already processed header and called prealloc.
-                // We do bulk copy and ADVANCE the buffer.
-                fn try_decode_vec_from(vec: &mut Vec<Self>, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
+            // DecodeSlice - NO zeroize, collection handles it
+            impl $crate::traits::DecodeSlice for $ty {
+                #[inline(always)]
+                fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError> {
                     #[cfg(target_endian = "little")]
                     {
-                        buf.read_slice(vec.as_mut_slice())?;
+                        buf.read_slice(slice)?;
                     }
 
                     #[cfg(target_endian = "big")]
                     {
-                        for elem in vec.iter_mut() {
+                        for elem in slice.iter_mut() {
                             elem.decode_from(buf)?;
                         }
                     }
 
                     Ok(())
-                }
-            }
-
-            impl $crate::traits::DecodeVec for $ty {
-                fn decode_vec_from(vec: &mut Vec<Self>, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-                    let result = Self::try_decode_vec_from(vec, buf);
-
-                    #[cfg(feature = "zeroize")]
-                    if result.is_err() {
-                        memutil::fast_zeroize_vec(vec);
-                        memutil::fast_zeroize_slice(*buf);
-                    }
-
-                    result
                 }
             }
         )*
