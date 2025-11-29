@@ -7,6 +7,9 @@
 #[cfg(test)]
 mod tests;
 
+#[cfg(all(test, feature = "benchmark"))]
+mod bench;
+
 mod buffer;
 pub mod collections;
 mod error;

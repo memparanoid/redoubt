@@ -15,6 +15,7 @@ path = "src/lib.rs"
 [features]
 default = []
 zeroize = []
+benchmark = []
 
 [dependencies]
 memutil.workspace   = true
