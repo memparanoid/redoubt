@@ -79,6 +79,10 @@ impl DecodeBuffer for &mut [u8] {
             *dst |= (self[i] as usize) << (8 * i);
         }
 
+        // Zeroize the Buffer
+        #[cfg(feature = "zeroize")]
+        memutil::fast_zeroize_slice(&mut self[..size]);
+
         // Shrink the slice - consume the bytes we read
         *self = &mut core::mem::take(self)[size..];
 
@@ -97,12 +101,19 @@ impl DecodeBuffer for &mut [u8] {
             core::ptr::copy_nonoverlapping(self.as_ptr(), dst as *mut T as *mut u8, len);
         }
 
+        // Zeroize the Buffer
+        #[cfg(feature = "zeroize")]
+        memutil::fast_zeroize_slice(&mut self[..len]);
+
+        // Shrink the slice - consume the bytes we read
+        *self = &mut core::mem::take(self)[len..];
+
         Ok(())
     }
 
     #[inline(always)]
-    fn read_slice<T>(&mut self, dst: &mut [T], len: usize) -> Result<(), DecodeBufferError> {
-        let byte_len = len * core::mem::size_of::<T>();
+    fn read_slice<T>(&mut self, dst: &mut [T]) -> Result<(), DecodeBufferError> {
+        let byte_len = dst.len() * core::mem::size_of::<T>();
 
         if self.len() < byte_len {
             return Err(DecodeBufferError::OutOfBounds);
@@ -111,6 +122,10 @@ impl DecodeBuffer for &mut [u8] {
         unsafe {
             core::ptr::copy_nonoverlapping(self.as_ptr(), dst.as_mut_ptr() as *mut u8, byte_len);
         }
+
+        // Zeroize the Buffer
+        #[cfg(feature = "zeroize")]
+        memutil::fast_zeroize_slice(&mut self[..byte_len]);
 
         // Shrink the slice
         *self = &mut core::mem::take(self)[byte_len..];

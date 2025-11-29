@@ -6,12 +6,13 @@
 use zeroize::Zeroize;
 
 use membuffer::Buffer;
-use memutil::fast_zeroize_vec;
 
 use crate::wrappers::Primitive;
 
 use crate::error::{DecodeError, EncodeError, OverflowError};
-use crate::traits::{BytesRequired, Decode, DecodeVec, Encode, PreAlloc, TryDecode};
+use crate::traits::{
+    BytesRequired, Decode, DecodeVec, Encode, EncodeSlice, PreAlloc, TryDecode, TryEncode,
+};
 
 use super::helpers::{header_size, process_header, write_header};
 
@@ -19,8 +20,8 @@ use super::helpers::{header_size, process_header, write_header};
 #[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
-fn cleanup_encode_error<T>(slice: &mut [T], buf: &mut Buffer) {
-    memutil::fast_zeroize_slice(slice);
+fn cleanup_encode_error<T>(vec: &mut Vec<T>, buf: &mut Buffer) {
+    memutil::fast_zeroize_vec(vec);
     buf.zeroize();
 }
 
@@ -28,8 +29,8 @@ fn cleanup_encode_error<T>(slice: &mut [T], buf: &mut Buffer) {
 #[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
-fn cleanup_decode_error<T>(slice: &mut [T], buf: &mut &mut [u8]) {
-    memutil::fast_zeroize_slice(slice);
+fn cleanup_decode_error<T>(vec: &mut Vec<T>, buf: &mut &mut [u8]) {
+    memutil::fast_zeroize_vec(vec);
     memutil::fast_zeroize_slice(*buf);
 }
 
@@ -56,25 +57,49 @@ where
     }
 }
 
-impl<T> Encode for Vec<T>
+impl<T> TryEncode for Vec<T>
 where
-    T: Encode + BytesRequired,
+    T: EncodeSlice + BytesRequired,
 {
-    #[inline(always)]
-    fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
+    fn try_encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
         let mut size = Primitive::new(self.len());
         let mut bytes_required = Primitive::new(self.mem_bytes_required()?);
 
         write_header(buf, &mut size, &mut bytes_required)?;
 
-        let result = T::encode_slice_into(self.as_mut_slice(), buf);
+        T::encode_slice_into(self.as_mut_slice(), buf)
+    }
+}
+
+impl<T> Encode for Vec<T>
+where
+    T: EncodeSlice + BytesRequired,
+{
+    #[inline(always)]
+    fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
+        let result = self.try_encode_into(buf);
 
         #[cfg(feature = "zeroize")]
         if result.is_err() {
-            cleanup_encode_error(self.as_mut_slice(), buf);
+            cleanup_encode_error(self, buf);
+        } else {
+            memutil::fast_zeroize_vec(self);
         }
 
         result
+    }
+}
+
+impl<T> EncodeSlice for Vec<T>
+where
+    T: EncodeSlice + BytesRequired,
+{
+    fn encode_slice_into(slice: &mut [Self], buf: &mut Buffer) -> Result<(), EncodeError> {
+        for elem in slice.iter_mut() {
+            elem.encode_into(buf)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -103,7 +128,7 @@ where
 
         #[cfg(feature = "zeroize")]
         if result.is_err() {
-            cleanup_decode_error(self.as_mut_slice(), buf);
+            cleanup_decode_error(self, buf);
         }
 
         result
@@ -116,7 +141,7 @@ impl<T> PreAlloc for Vec<T> {
         self.shrink_to_fit();
         self.reserve_exact(*size);
 
-        fast_zeroize_vec(self);
+        memutil::fast_zeroize_vec(self);
 
         unsafe { self.set_len(*size) };
     }

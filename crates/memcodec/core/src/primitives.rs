@@ -8,7 +8,7 @@ use zeroize::Zeroize;
 use crate::error::DecodeError;
 use crate::wrappers::Primitive;
 
-use super::traits::{CodecBuffer, TryDecodeVec};
+use super::traits::{CodecBuffer, DecodeBuffer, TryDecodeVec, TryEncode};
 
 // On LE machines we can bulk copy (LE conversion is no-op)
 // On BE machines, we fall back to element-by-element with conversion
@@ -24,9 +24,9 @@ macro_rules! impl_traits_for_primitives {
             }
 
             // Encoding Traits
-            impl $crate::traits::Encode for $ty {
+            impl $crate::traits::TryEncode for $ty {
                 #[inline(always)]
-                fn encode_into(&mut self, buf: &mut membuffer::Buffer) -> Result<(), $crate::error::EncodeError> {
+                fn try_encode_into(&mut self, buf: &mut membuffer::Buffer) -> Result<(), $crate::error::EncodeError> {
                     // SECURITY NOTE: We extract bytes via bit-shifting instead of to_le()/swap_bytes()
                     // because those methods take `self` by value, potentially leaving copies on the stack.
                     //
@@ -46,17 +46,32 @@ macro_rules! impl_traits_for_primitives {
                         buf.write(&mut byte)?;
                     }
 
-                    #[cfg(feature = "zeroize")]
-                    self.zeroize();
-
                     Ok(())
                 }
+            }
 
+            impl $crate::traits::Encode for $ty {
+                #[inline(always)]
+                fn encode_into(&mut self, buf: &mut membuffer::Buffer) -> Result<(), $crate::error::EncodeError> {
+                    let result = self.try_encode_into(buf);
+
+                    #[cfg(feature = "zeroize")]
+                    if result.is_err() {
+                        self.zeroize();
+                        buf.zeroize();
+                    }
+
+                    result
+                }
+            }
+
+            // EncodeSlice - NO zeroize, collection handles it
+            impl $crate::traits::EncodeSlice for $ty {
                 #[inline(always)]
                 fn encode_slice_into(slice: &mut [Self], buf: &mut membuffer::Buffer) -> Result<(), $crate::error::EncodeError> {
                     #[cfg(target_endian = "little")]
                     {
-                        // On LE machines, to_le is identity - bulk copy the bytes directly
+                        // On LE machines, bulk copy the bytes directly
                         let byte_len = slice.len() * core::mem::size_of::<$ty>();
                         let byte_slice = unsafe {
                             core::slice::from_raw_parts_mut(
@@ -64,16 +79,12 @@ macro_rules! impl_traits_for_primitives {
                                 byte_len
                             )
                         };
-
                         buf.write_slice(byte_slice)?;
-
-                        #[cfg(feature = "zeroize")]
-                        memutil::fast_zeroize_slice(byte_slice);
                     }
 
                     #[cfg(target_endian = "big")]
                     {
-                        // On BE machines, convert each element
+                        // On BE machines, convert each element (encode_into zeroizes each)
                         for elem in slice.iter_mut() {
                             elem.encode_into(buf)?;
                         }
@@ -95,20 +106,9 @@ macro_rules! impl_traits_for_primitives {
                 // NOTE: Vec already processed header and called prealloc.
                 // We do bulk copy and ADVANCE the buffer.
                 fn try_decode_vec_from(vec: &mut Vec<Self>, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-                    let byte_len = Primitive::new(vec.len() * core::mem::size_of::<Self>());
-
                     #[cfg(target_endian = "little")]
                     {
-                        let dst = unsafe {
-                            core::slice::from_raw_parts_mut(vec.as_mut_ptr() as *mut u8, *byte_len)
-                        };
-                        dst.copy_from_slice(&(*buf)[..*byte_len]);
-
-                        #[cfg(feature = "zeroize")]
-                        memutil::fast_zeroize_slice(&mut (*buf)[..*byte_len]);
-
-                        // Advance the buffer
-                        *buf = &mut core::mem::take(buf)[*byte_len..];
+                        buf.read_slice(vec.as_mut_slice())?;
                     }
 
                     #[cfg(target_endian = "big")]

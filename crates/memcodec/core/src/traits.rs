@@ -13,33 +13,19 @@ pub trait BytesRequired {
     fn mem_bytes_required(&self) -> Result<usize, OverflowError>;
 }
 
+pub(crate) trait TryEncode: Encode + Sized {
+    fn try_encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError>;
+}
+
 pub trait Encode {
     fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError>;
+}
 
-    /// Drain a slice of Self into the buffer.
-    /// Default implementation: loop and call drain_into on each collection.
-    /// This is ONLY used in nested collections.
-    /// Primitives override this with bulk copy for performance.
-    fn encode_slice_into(slice: &mut [Self], buf: &mut Buffer) -> Result<(), EncodeError>
-    where
-        Self: Sized,
-    {
-        for elem in slice.iter_mut() {
-            let result = elem.encode_into(buf);
-
-            if result.is_err() {
-                #[cfg(feature = "zeroize")]
-                {
-                    memutil::fast_zeroize_slice(slice);
-                    buf.zeroize();
-                }
-
-                return result;
-            }
-        }
-
-        Ok(())
-    }
+/// Encode a slice of elements into the buffer.
+/// - Primitives: NO zeroize (collection handles it)
+/// - Collections: YES zeroize (handle their own cleanup)
+pub(crate) trait EncodeSlice: Encode + Sized {
+    fn encode_slice_into(slice: &mut [Self], buf: &mut Buffer) -> Result<(), EncodeError>;
 }
 
 // @TODO: Doc why this trait is useful
@@ -115,7 +101,7 @@ pub trait CodecBuffer {
 pub trait DecodeBuffer {
     fn read_usize(&mut self, dst: &mut usize) -> Result<(), DecodeBufferError>;
     fn read<T>(&mut self, dst: &mut T) -> Result<(), DecodeBufferError>;
-    fn read_slice<T>(&mut self, dst: &mut [T], len: usize) -> Result<(), DecodeBufferError>;
+    fn read_slice<T>(&mut self, dst: &mut [T]) -> Result<(), DecodeBufferError>;
 }
 
 pub(crate) trait PreAlloc {

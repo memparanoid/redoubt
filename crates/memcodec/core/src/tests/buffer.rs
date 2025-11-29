@@ -71,7 +71,7 @@ fn test_read_slice() {
     let mut slice: &mut [u8] = &mut bytes;
 
     let mut dst: [u8; 4] = [0; 4];
-    slice.read_slice(&mut dst, 4).expect("read_slice failed");
+    slice.read_slice(&mut dst).expect("read_slice failed");
 
     assert_eq!(dst, [1, 2, 3, 4]);
 }
@@ -82,7 +82,7 @@ fn test_read_slice_out_of_bounds() {
     let mut slice: &mut [u8] = &mut bytes;
 
     let mut dst: [u8; 8] = [0; 8];
-    let result = slice.read_slice(&mut dst, 8);
+    let result = slice.read_slice(&mut dst);
 
     assert_eq!(result, Err(DecodeBufferError::OutOfBounds));
 }
