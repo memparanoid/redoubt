@@ -24,6 +24,11 @@ pub(crate) struct ChaCha20 {
     working: [u32; 16],
     le_bytes_tmp: [u8; 4],
     keystream: [u8; CHACHA20_BLOCK_SIZE],
+    // Temporaries for fallback quarter_round (zeroized on drop)
+    qr_a: u32,
+    qr_b: u32,
+    qr_c: u32,
+    qr_d: u32,
     __drop_sentinel: DropSentinel,
 }
 
@@ -34,6 +39,10 @@ impl Default for ChaCha20 {
             working: [0; 16],
             le_bytes_tmp: [0; 4],
             keystream: [0; CHACHA20_BLOCK_SIZE],
+            qr_a: 0,
+            qr_b: 0,
+            qr_c: 0,
+            qr_d: 0,
             __drop_sentinel: DropSentinel::default(),
         }
     }
@@ -42,21 +51,45 @@ impl Default for ChaCha20 {
 impl ChaCha20 {
     #[inline(always)]
     fn quarter_round(&mut self, a: usize, b: usize, c: usize, d: usize) {
-        self.working[a] = self.working[a].wrapping_add(self.working[b]);
-        self.working[d] ^= self.working[a];
-        self.working[d] = self.working[d].rotate_left(16);
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            crate::asm::x86_64::quarter_round(&mut self.working, a, b, c, d);
+        }
 
-        self.working[c] = self.working[c].wrapping_add(self.working[d]);
-        self.working[b] ^= self.working[c];
-        self.working[b] = self.working[b].rotate_left(12);
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            crate::asm::aarch64::quarter_round(&mut self.working, a, b, c, d);
+        }
 
-        self.working[a] = self.working[a].wrapping_add(self.working[b]);
-        self.working[d] ^= self.working[a];
-        self.working[d] = self.working[d].rotate_left(8);
+        // Full Rust implementation as fallback (uses struct temporaries for zeroization)
+        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+        {
+            self.qr_a = self.working[a];
+            self.qr_b = self.working[b];
+            self.qr_c = self.working[c];
+            self.qr_d = self.working[d];
 
-        self.working[c] = self.working[c].wrapping_add(self.working[d]);
-        self.working[b] ^= self.working[c];
-        self.working[b] = self.working[b].rotate_left(7);
+            self.qr_a = self.qr_a.wrapping_add(self.qr_b);
+            self.qr_d ^= self.qr_a;
+            self.qr_d = self.qr_d.rotate_left(16);
+
+            self.qr_c = self.qr_c.wrapping_add(self.qr_d);
+            self.qr_b ^= self.qr_c;
+            self.qr_b = self.qr_b.rotate_left(12);
+
+            self.qr_a = self.qr_a.wrapping_add(self.qr_b);
+            self.qr_d ^= self.qr_a;
+            self.qr_d = self.qr_d.rotate_left(8);
+
+            self.qr_c = self.qr_c.wrapping_add(self.qr_d);
+            self.qr_b ^= self.qr_c;
+            self.qr_b = self.qr_b.rotate_left(7);
+
+            self.working[a] = self.qr_a;
+            self.working[b] = self.qr_b;
+            self.working[c] = self.qr_c;
+            self.working[d] = self.qr_d;
+        }
     }
 
     #[inline]
@@ -169,32 +202,75 @@ impl core::fmt::Debug for ChaCha20 {
 }
 
 /// HChaCha20 state for subkey derivation.
-#[derive(Default, Zeroize, MemZer)]
+#[derive(Zeroize, MemZer)]
 #[zeroize(drop)]
 pub(crate) struct HChaCha20 {
     state: [u32; 16],
     le_bytes_tmp: [u8; 4],
+    // Temporaries for fallback quarter_round (zeroized on drop)
+    qr_a: u32,
+    qr_b: u32,
+    qr_c: u32,
+    qr_d: u32,
     __drop_sentinel: DropSentinel,
+}
+
+impl Default for HChaCha20 {
+    fn default() -> Self {
+        Self {
+            state: [0; 16],
+            le_bytes_tmp: [0; 4],
+            qr_a: 0,
+            qr_b: 0,
+            qr_c: 0,
+            qr_d: 0,
+            __drop_sentinel: DropSentinel::default(),
+        }
+    }
 }
 
 impl HChaCha20 {
     #[inline(always)]
     fn quarter_round(&mut self, a: usize, b: usize, c: usize, d: usize) {
-        self.state[a] = self.state[a].wrapping_add(self.state[b]);
-        self.state[d] ^= self.state[a];
-        self.state[d] = self.state[d].rotate_left(16);
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            crate::asm::x86_64::quarter_round(&mut self.state, a, b, c, d);
+        }
 
-        self.state[c] = self.state[c].wrapping_add(self.state[d]);
-        self.state[b] ^= self.state[c];
-        self.state[b] = self.state[b].rotate_left(12);
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            crate::asm::aarch64::quarter_round(&mut self.state, a, b, c, d);
+        }
 
-        self.state[a] = self.state[a].wrapping_add(self.state[b]);
-        self.state[d] ^= self.state[a];
-        self.state[d] = self.state[d].rotate_left(8);
+        // Full Rust implementation as fallback (uses struct temporaries for zeroization)
+        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+        {
+            self.qr_a = self.state[a];
+            self.qr_b = self.state[b];
+            self.qr_c = self.state[c];
+            self.qr_d = self.state[d];
 
-        self.state[c] = self.state[c].wrapping_add(self.state[d]);
-        self.state[b] ^= self.state[c];
-        self.state[b] = self.state[b].rotate_left(7);
+            self.qr_a = self.qr_a.wrapping_add(self.qr_b);
+            self.qr_d ^= self.qr_a;
+            self.qr_d = self.qr_d.rotate_left(16);
+
+            self.qr_c = self.qr_c.wrapping_add(self.qr_d);
+            self.qr_b ^= self.qr_c;
+            self.qr_b = self.qr_b.rotate_left(12);
+
+            self.qr_a = self.qr_a.wrapping_add(self.qr_b);
+            self.qr_d ^= self.qr_a;
+            self.qr_d = self.qr_d.rotate_left(8);
+
+            self.qr_c = self.qr_c.wrapping_add(self.qr_d);
+            self.qr_b ^= self.qr_c;
+            self.qr_b = self.qr_b.rotate_left(7);
+
+            self.state[a] = self.qr_a;
+            self.state[b] = self.qr_b;
+            self.state[c] = self.qr_c;
+            self.state[d] = self.qr_d;
+        }
     }
 
     pub fn derive(
