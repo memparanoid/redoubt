@@ -73,7 +73,7 @@ RUN echo "=== Architecture Info ===" && \
     rustc --print cfg | grep -E "(target_arch|target_endian)"
 
 # Run tests for the 3 target crates
-CMD ["sh", "-c", "echo '=== Testing memutil ===' && cargo test -p memutil && \
-     echo '=== Testing memcodec_core ===' && cargo test -p memcodec_core && \
-     echo '=== Testing memaead ===' && cargo test -p memaead && \
+CMD ["sh", "-c", "echo '=== Testing memutil ===' && cargo test -p memutil --release && \
+     echo '=== Testing memcodec_core ===' && cargo test -p memcodec_core --release && \
+     echo '=== Testing memaead ===' && cargo test -p memaead --release && \
      echo '=== ALL ARCH TESTS PASSED ==='"]
