@@ -17,6 +17,7 @@ OUTPUT_PATH = os.path.join(
     "crates",
     "memaead",
     "src",
+    "xchacha20poly1305",
     "tests",
     "wycheproof_vectors.rs",
 )
@@ -34,9 +35,9 @@ FLAG_MAP = {
 }
 
 RESULT_MAP = {
-    "valid": "Result::Valid",
-    "invalid": "Result::Invalid",
-    "acceptable": "Result::Acceptable",
+    "valid": "TestResult::Valid",
+    "invalid": "TestResult::Invalid",
+    "acceptable": "TestResult::Acceptable",
 }
 
 
@@ -77,7 +78,7 @@ def generate_rust(data):
     lines.append(f"// Version: {data.get('generatorVersion', 'unknown')}")
     lines.append(f"// Number of tests: {data.get('numberOfTests', 'unknown')}")
     lines.append("")
-    lines.append("use super::wycheproof::{Flag, Result, TestCase};")
+    lines.append("use super::wycheproof::{Flag, TestCase, TestResult};")
     lines.append("")
     lines.append("pub(crate) fn test_vectors() -> Vec<TestCase> {")
     lines.append("    vec![")

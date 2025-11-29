@@ -6,7 +6,7 @@
 
 use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
 
-use crate::poly1305::{Poly1305, Poly1305Block, Poly1305Final};
+use crate::xchacha20poly1305::poly1305::{Poly1305, Poly1305Block, Poly1305Final};
 
 #[test]
 fn test_poly1305_zeroization_on_drop() {

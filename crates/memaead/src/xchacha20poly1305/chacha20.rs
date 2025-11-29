@@ -11,10 +11,10 @@ use zeroize::Zeroize;
 use memutil::{u32_from_le, u32_to_le};
 use memzer::{DropSentinel, MemZer};
 
-use crate::consts::{
+use super::consts::{
     CHACHA20_BLOCK_SIZE, CHACHA20_NONCE_SIZE, HCHACHA20_NONCE_SIZE, KEY_SIZE, XNONCE_SIZE,
 };
-use crate::types::{AeadKey, XNonce};
+use super::types::{AeadKey, XNonce};
 
 /// ChaCha20 cipher state with guaranteed zeroization.
 #[derive(Zeroize, MemZer)]
@@ -53,12 +53,12 @@ impl ChaCha20 {
     fn quarter_round(&mut self, a: usize, b: usize, c: usize, d: usize) {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            crate::asm::x86_64::quarter_round(&mut self.working, a, b, c, d);
+            super::asm::x86_64::quarter_round(&mut self.working, a, b, c, d);
         }
 
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            crate::asm::aarch64::quarter_round(&mut self.working, a, b, c, d);
+            super::asm::aarch64::quarter_round(&mut self.working, a, b, c, d);
         }
 
         // Full Rust implementation as fallback (uses struct temporaries for zeroization)
@@ -234,12 +234,12 @@ impl HChaCha20 {
     fn quarter_round(&mut self, a: usize, b: usize, c: usize, d: usize) {
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            crate::asm::x86_64::quarter_round(&mut self.state, a, b, c, d);
+            super::asm::x86_64::quarter_round(&mut self.state, a, b, c, d);
         }
 
         #[cfg(target_arch = "aarch64")]
         unsafe {
-            crate::asm::aarch64::quarter_round(&mut self.state, a, b, c, d);
+            super::asm::aarch64::quarter_round(&mut self.state, a, b, c, d);
         }
 
         // Full Rust implementation as fallback (uses struct temporaries for zeroization)

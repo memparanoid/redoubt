@@ -12,7 +12,7 @@ use zeroize::Zeroize;
 use memutil::{u32_from_le, u32_to_le};
 use memzer::{DropSentinel, MemZer};
 
-use crate::consts::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
+use super::consts::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 
 /// Work variables for block processing.
 #[derive(Default, Zeroize, MemZer)]
@@ -32,10 +32,10 @@ pub(crate) struct Poly1305Block {
 #[derive(Default, Zeroize, MemZer)]
 #[zeroize(drop)]
 pub(crate) struct Poly1305Final {
-    d: [u64; 5],            // reduced accumulator
-    g: [u64; 4],            // h + 5 for comparison
-    h: [u64; 4],            // h0-h3 for tag
-    g4: u64,                // overflow check
+    d: [u64; 5], // reduced accumulator
+    g: [u64; 4], // h + 5 for comparison
+    h: [u64; 4], // h0-h3 for tag
+    g4: u64,     // overflow check
     mask: u64,
     shifting_tmp_a: u64,
     shifting_tmp_b: u64,
@@ -60,6 +60,8 @@ pub(crate) struct Poly1305 {
 
 impl Poly1305 {
     pub fn init(&mut self, key: &[u8; KEY_SIZE]) {
+        self.acc = [0; 5];
+        self.buffer_len = 0;
         self.clamp_r(&key[0..16]);
         self.s.copy_from_slice(&key[16..32]);
     }

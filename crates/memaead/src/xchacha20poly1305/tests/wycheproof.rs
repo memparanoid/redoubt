@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use crate::xchacha20poly1305::XChacha20Poly1305;
+use crate::xchacha20poly1305::DecryptError;
+use crate::xchacha20poly1305::consts::*;
+use memalloc::AllockedVec;
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Flag {
@@ -35,7 +40,7 @@ pub(crate) enum Flag {
     Pseudorandom,
 }
 
-pub(crate) enum Result {
+pub(crate) enum TestResult {
     Valid,
     Invalid,
 }
@@ -71,7 +76,7 @@ pub(crate) struct TestCase {
     pub tag: String,
 
     /// Expected test result: Valid (must accept) or Invalid (must reject)
-    pub result: Result,
+    pub result: TestResult,
 }
 
 /// Convert hex string to bytes
@@ -82,9 +87,23 @@ fn hex_to_bytes(hex: &str) -> Vec<u8> {
         .collect()
 }
 
+fn xchacha20poly1305_decrypt_slice(
+    key: &[u8],
+    xnonce: &[u8],
+    aad: &[u8],
+    ciphertext_with_tag: &mut [u8],
+) -> Result<AllockedVec<u8>, DecryptError> {
+    let key: &[u8; KEY_SIZE] = key.try_into().map_err(|_| DecryptError::InvalidNonceSize)?;
+    let xnonce: &[u8; XNONCE_SIZE] = xnonce
+        .try_into()
+        .map_err(|_| DecryptError::InvalidNonceSize)?;
+    let mut cipher = XChacha20Poly1305::default();
+    cipher.decrypt(key, xnonce, aad, ciphertext_with_tag)
+}
+
 /// Run a single test case and return Ok if behavior matches expected result
-fn run_test_case(tc: &TestCase) -> std::result::Result<(), String> {
-    use crate::aead::{xchacha20poly1305_decrypt_slice, DecryptError};
+fn run_test_case(tc: &TestCase) -> Result<(), String> {
+    use crate::xchacha20poly1305::DecryptError;
 
     let key = hex_to_bytes(&tc.key);
     let nonce = hex_to_bytes(&tc.iv);
@@ -99,35 +118,41 @@ fn run_test_case(tc: &TestCase) -> std::result::Result<(), String> {
     let result = xchacha20poly1305_decrypt_slice(&key, &nonce, &aad, &mut ciphertext_with_tag);
 
     match (&tc.result, &result) {
-        (Result::Valid, Ok(plaintext)) => {
+        (TestResult::Valid, Ok(plaintext)) => {
             let expected_msg = hex_to_bytes(&tc.msg);
             if plaintext.as_slice() == expected_msg.as_slice() {
                 Ok(())
             } else {
-                Err(format!("tc_id {} ({}): plaintext mismatch", tc.tc_id, tc.comment))
+                Err(format!(
+                    "tc_id {} ({}): plaintext mismatch",
+                    tc.tc_id, tc.comment
+                ))
             }
         }
-        (Result::Valid, Err(e)) => {
-            Err(format!("tc_id {} ({}): expected valid but got error: {:?}", tc.tc_id, tc.comment, e))
-        }
-        (Result::Invalid, Ok(_)) => {
-            Err(format!("tc_id {} ({}): expected invalid but decryption succeeded", tc.tc_id, tc.comment))
-        }
-        (Result::Invalid, Err(DecryptError::InvalidNonceSize)) => {
+        (TestResult::Valid, Err(e)) => Err(format!(
+            "tc_id {} ({}): expected valid but got error: {:?}",
+            tc.tc_id, tc.comment, e
+        )),
+        (TestResult::Invalid, Ok(_)) => Err(format!(
+            "tc_id {} ({}): expected invalid but decryption succeeded",
+            tc.tc_id, tc.comment
+        )),
+        (TestResult::Invalid, Err(DecryptError::InvalidNonceSize)) => {
             // InvalidNonceSize flag should map to this error
             if tc.flags.contains(&Flag::InvalidNonceSize) {
                 Ok(())
             } else {
-                Err(format!("tc_id {} ({}): unexpected InvalidNonceSize error", tc.tc_id, tc.comment))
+                Err(format!(
+                    "tc_id {} ({}): unexpected InvalidNonceSize error",
+                    tc.tc_id, tc.comment
+                ))
             }
         }
-        (Result::Invalid, Err(DecryptError::AuthenticationFailed)) => {
+        (TestResult::Invalid, Err(DecryptError::AuthenticationFailed)) => {
             // ModifiedTag and other auth failures
             Ok(())
         }
-        (Result::Invalid, Err(DecryptError::CiphertextTooShort)) => {
-            Ok(())
-        }
+        (TestResult::Invalid, Err(DecryptError::CiphertextTooShort)) => Ok(()),
     }
 }
 
@@ -176,14 +201,14 @@ fn test_wycheproof_all() {
 #[test]
 fn test_wycheproof_valid_with_flipped_tag() {
     use super::wycheproof_vectors::test_vectors;
-    use crate::aead::{xchacha20poly1305_decrypt_slice, DecryptError};
+    use crate::xchacha20poly1305::DecryptError;
 
     let vectors = test_vectors();
     let mut failures = Vec::new();
 
     for tc in vectors.iter() {
         // Only test valid cases
-        if !matches!(tc.result, Result::Valid) {
+        if !matches!(tc.result, TestResult::Valid) {
             continue;
         }
 

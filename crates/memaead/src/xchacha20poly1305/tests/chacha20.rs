@@ -6,7 +6,7 @@
 
 use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
 
-use crate::chacha20::{ChaCha20, HChaCha20, XChaCha20};
+use crate::xchacha20poly1305::chacha20::{ChaCha20, HChaCha20, XChaCha20};
 
 // Zeroization tests
 

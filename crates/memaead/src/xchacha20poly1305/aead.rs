@@ -12,31 +12,16 @@ use memalloc::AllockedVec;
 use memutil::u64_to_le;
 use memzer::{DropSentinel, MemZer};
 
-use crate::chacha20::XChaCha20;
-use crate::consts::{KEY_SIZE, TAG_SIZE};
-#[cfg(test)]
-use crate::consts::XNONCE_SIZE;
-use crate::poly1305::Poly1305;
-use crate::types::{AeadKey, XNonce};
-
-/// Errors that can occur during AEAD decryption
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
-pub enum DecryptError {
-    #[cfg(test)]
-    #[error("invalid nonce size: expected {XNONCE_SIZE} bytes")]
-    InvalidNonceSize,
-
-    #[error("ciphertext too short: expected at least {TAG_SIZE} bytes")]
-    CiphertextTooShort,
-
-    #[error("authentication failed: tag mismatch")]
-    AuthenticationFailed,
-}
+use super::chacha20::XChaCha20;
+use super::consts::{KEY_SIZE, TAG_SIZE};
+use super::error::DecryptError;
+use super::poly1305::Poly1305;
+use super::types::{AeadKey, XNonce};
 
 /// XChaCha20-Poly1305 AEAD with guaranteed zeroization.
 #[derive(Zeroize, MemZer)]
 #[zeroize(drop)]
-pub(crate) struct Aead {
+pub struct XChacha20Poly1305 {
     xchacha: XChaCha20,
     poly: Poly1305,
     poly_key: [u8; KEY_SIZE],
@@ -46,7 +31,7 @@ pub(crate) struct Aead {
     __drop_sentinel: DropSentinel,
 }
 
-impl Default for Aead {
+impl Default for XChacha20Poly1305 {
     fn default() -> Self {
         Self {
             xchacha: XChaCha20::default(),
@@ -60,7 +45,7 @@ impl Default for Aead {
     }
 }
 
-impl Aead {
+impl XChacha20Poly1305 {
     fn compute_tag(&mut self, aad: &[u8], ciphertext: &[u8]) {
         self.poly.init(&self.poly_key);
         self.poly.update_padded(aad);
@@ -95,7 +80,8 @@ impl Aead {
     ) -> AllockedVec<u8> {
         self.xchacha.crypt(key, xnonce, plaintext);
 
-        self.xchacha.generate_poly_key(key, xnonce, &mut self.poly_key);
+        self.xchacha
+            .generate_poly_key(key, xnonce, &mut self.poly_key);
         self.compute_tag(aad, plaintext);
 
         self.output
@@ -126,7 +112,8 @@ impl Aead {
         let ct_len = ciphertext_with_tag.len() - TAG_SIZE;
         let (ciphertext, received_tag) = ciphertext_with_tag.split_at_mut(ct_len);
 
-        self.xchacha.generate_poly_key(key, xnonce, &mut self.poly_key);
+        self.xchacha
+            .generate_poly_key(key, xnonce, &mut self.poly_key);
         self.compute_tag(aad, ciphertext);
 
         if !constant_time_eq(&self.expected_tag, received_tag) {
@@ -151,9 +138,9 @@ impl Aead {
     }
 }
 
-impl core::fmt::Debug for Aead {
+impl core::fmt::Debug for XChacha20Poly1305 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Aead {{ [protected] }}")
+        write!(f, "XChacha20Poly1305 {{ [protected] }}")
     }
 }
 
@@ -165,39 +152,6 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 
     a.iter()
         .zip(b.iter())
-        .fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
-}
-
-// Public API
-
-pub fn xchacha20poly1305_encrypt(
-    key: &AeadKey,
-    xnonce: &XNonce,
-    aad: &[u8],
-    plaintext: &mut [u8],
-) -> AllockedVec<u8> {
-    Aead::default().encrypt(key, xnonce, aad, plaintext)
-}
-
-pub fn xchacha20poly1305_decrypt(
-    key: &AeadKey,
-    xnonce: &XNonce,
-    aad: &[u8],
-    ciphertext_with_tag: &mut [u8],
-) -> Result<AllockedVec<u8>, DecryptError> {
-    Aead::default().decrypt(key, xnonce, aad, ciphertext_with_tag)
-}
-
-#[cfg(test)]
-pub(crate) fn xchacha20poly1305_decrypt_slice(
-    key: &[u8],
-    xnonce: &[u8],
-    aad: &[u8],
-    ciphertext_with_tag: &mut [u8],
-) -> Result<AllockedVec<u8>, DecryptError> {
-    let key: &[u8; KEY_SIZE] = key.try_into().map_err(|_| DecryptError::InvalidNonceSize)?;
-    let xnonce: &[u8; XNONCE_SIZE] = xnonce
-        .try_into()
-        .map_err(|_| DecryptError::InvalidNonceSize)?;
-    xchacha20poly1305_decrypt(key, xnonce, aad, ciphertext_with_tag)
+        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+        == 0
 }

@@ -4,7 +4,7 @@
 
 //! Type aliases for AEAD.
 
-use crate::consts::{KEY_SIZE, XNONCE_SIZE};
+use super::{KEY_SIZE, XNONCE_SIZE};
 
 /// AEAD key type
 pub type AeadKey = [u8; KEY_SIZE];

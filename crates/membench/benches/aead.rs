@@ -17,7 +17,9 @@ use chacha20poly1305::{
 };
 
 // AEGIS (hardware AES-NI accelerated)
+use aegis::aegis128l::Aegis128L;
 use aegis::aegis128x4::Aegis128X4;
+use aegis::aegis256::Aegis256;
 use aegis::aegis256x4::Aegis256X4;
 
 // AES-GCM (hardware AES-NI accelerated)
@@ -27,7 +29,7 @@ use aes_gcm::{
 };
 
 // Ours
-use memaead::{xchacha20poly1305_decrypt, xchacha20poly1305_encrypt};
+use memaead::xchacha20poly1305::XChacha20Poly1305;
 
 const KEY: [u8; 32] = [0x42; 32];
 const KEY_16: [u8; 16] = [0x42; 16];
@@ -57,9 +59,10 @@ fn bench_encrypt(c: &mut Criterion) {
 
         // Ours (iter_batched separates clone from measured code)
         group.bench_with_input(BenchmarkId::new("memaead", size), &plaintext, |b, pt| {
+            let mut cipher = XChacha20Poly1305::default();
             b.iter_batched(
                 || pt.clone(),
-                |mut buf| black_box(xchacha20poly1305_encrypt(&KEY, &NONCE, AAD, &mut buf)),
+                |mut buf| black_box(cipher.encrypt(&KEY, &NONCE, AAD, &mut buf)),
                 BatchSize::SmallInput,
             );
         });
@@ -78,12 +81,38 @@ fn bench_encrypt(c: &mut Criterion) {
             );
         });
 
+        // AEGIS-128L (hardware accelerated, 128-bit key, optimized for long messages)
+        group.bench_with_input(BenchmarkId::new("aegis128l", size), &plaintext, |b, pt| {
+            b.iter_batched(
+                || pt.clone(),
+                |mut buf| {
+                    let state = Aegis128L::<16>::new(&NONCE_16, &KEY_16);
+                    let tag = state.encrypt_in_place(&mut buf, &[]);
+                    black_box((buf, tag))
+                },
+                BatchSize::SmallInput,
+            );
+        });
+
         // AEGIS-128X4 (hardware accelerated, 4-way parallel, 128-bit key)
         group.bench_with_input(BenchmarkId::new("aegis128x4", size), &plaintext, |b, pt| {
             b.iter_batched(
                 || pt.clone(),
                 |mut buf| {
                     let state = Aegis128X4::<16>::new(&NONCE_16, &KEY_16);
+                    let tag = state.encrypt_in_place(&mut buf, &[]);
+                    black_box((buf, tag))
+                },
+                BatchSize::SmallInput,
+            );
+        });
+
+        // AEGIS-256 (hardware accelerated, 256-bit key)
+        group.bench_with_input(BenchmarkId::new("aegis256", size), &plaintext, |b, pt| {
+            b.iter_batched(
+                || pt.clone(),
+                |mut buf| {
+                    let state = Aegis256::<16>::new(&NONCE_32, &KEY);
                     let tag = state.encrypt_in_place(&mut buf, &[]);
                     black_box((buf, tag))
                 },
@@ -114,7 +143,7 @@ fn bench_decrypt(c: &mut Criterion) {
     for size in [64, 256, 1024, 4096, 16384, 65536] {
         // Pre-encrypt with our implementation (both produce same output)
         let mut plaintext = vec![0xAB; size];
-        let ciphertext = xchacha20poly1305_encrypt(&KEY, &NONCE, AAD, &mut plaintext);
+        let ciphertext = XChacha20Poly1305::default().encrypt(&KEY, &NONCE, AAD, &mut plaintext);
 
         group.throughput(Throughput::Bytes(size as u64));
 
@@ -123,7 +152,7 @@ fn bench_decrypt(c: &mut Criterion) {
             BenchmarkId::new("rustcrypto", size),
             &ciphertext,
             |b, ct| {
-                let cipher = XChaCha20Poly1305::new((&KEY).into());
+                let cipher = chacha20poly1305::XChaCha20Poly1305::new((&KEY).into());
                 let nonce = (&NONCE).into();
                 b.iter(|| {
                     let pt = cipher.decrypt(nonce, ct.as_slice()).unwrap();
@@ -134,9 +163,10 @@ fn bench_decrypt(c: &mut Criterion) {
 
         // Ours (iter_batched separates clone from measured code)
         group.bench_with_input(BenchmarkId::new("memaead", size), &ciphertext, |b, ct| {
+            let mut cipher = XChacha20Poly1305::default();
             b.iter_batched(
                 || ct.as_slice().to_vec(),
-                |mut buf| black_box(xchacha20poly1305_decrypt(&KEY, &NONCE, AAD, &mut buf).unwrap()),
+                |mut buf| black_box(cipher.decrypt(&KEY, &NONCE, AAD, &mut buf).unwrap()),
                 BatchSize::SmallInput,
             );
         });
@@ -166,16 +196,39 @@ fn bench_decrypt(c: &mut Criterion) {
             },
         );
 
+        // AEGIS-128L decrypt (hardware accelerated, 128-bit key, optimized for long messages)
+        // Pre-encrypt with AEGIS-128L
+        let mut aegis128l_plaintext = vec![0xAB; size];
+        let aegis128l_state = Aegis128L::<16>::new(&NONCE_16, &KEY_16);
+        let aegis128l_tag = aegis128l_state.encrypt_in_place(&mut aegis128l_plaintext, &[]);
+        let aegis128l_ciphertext = aegis128l_plaintext;
+
+        group.bench_with_input(
+            BenchmarkId::new("aegis128l", size),
+            &(aegis128l_ciphertext.clone(), aegis128l_tag),
+            |b, (ct, tag)| {
+                b.iter_batched(
+                    || ct.clone(),
+                    |mut buf| {
+                        let state = Aegis128L::<16>::new(&NONCE_16, &KEY_16);
+                        state.decrypt_in_place(&mut buf, tag, &[]).unwrap();
+                        black_box(buf)
+                    },
+                    BatchSize::SmallInput,
+                );
+            },
+        );
+
         // AEGIS-128X4 decrypt (hardware accelerated, 4-way parallel, 128-bit key)
         // Pre-encrypt with AEGIS-128X4
-        let mut aegis128_plaintext = vec![0xAB; size];
-        let aegis128_state = Aegis128X4::<16>::new(&NONCE_16, &KEY_16);
-        let aegis128_tag = aegis128_state.encrypt_in_place(&mut aegis128_plaintext, &[]);
-        let aegis128_ciphertext = aegis128_plaintext;
+        let mut aegis128x4_plaintext = vec![0xAB; size];
+        let aegis128x4_state = Aegis128X4::<16>::new(&NONCE_16, &KEY_16);
+        let aegis128x4_tag = aegis128x4_state.encrypt_in_place(&mut aegis128x4_plaintext, &[]);
+        let aegis128x4_ciphertext = aegis128x4_plaintext;
 
         group.bench_with_input(
             BenchmarkId::new("aegis128x4", size),
-            &(aegis128_ciphertext.clone(), aegis128_tag),
+            &(aegis128x4_ciphertext.clone(), aegis128x4_tag),
             |b, (ct, tag)| {
                 b.iter_batched(
                     || ct.clone(),
@@ -189,16 +242,39 @@ fn bench_decrypt(c: &mut Criterion) {
             },
         );
 
-        // AEGIS-256X4 decrypt (hardware accelerated, 4-way parallel, 256-bit key)
-        // Pre-encrypt with AEGIS-256X4
+        // AEGIS-256 decrypt (hardware accelerated, 256-bit key)
+        // Pre-encrypt with AEGIS-256
         let mut aegis256_plaintext = vec![0xAB; size];
-        let aegis256_state = Aegis256X4::<16>::new(&NONCE_32, &KEY);
+        let aegis256_state = Aegis256::<16>::new(&NONCE_32, &KEY);
         let aegis256_tag = aegis256_state.encrypt_in_place(&mut aegis256_plaintext, &[]);
         let aegis256_ciphertext = aegis256_plaintext;
 
         group.bench_with_input(
-            BenchmarkId::new("aegis256x4", size),
+            BenchmarkId::new("aegis256", size),
             &(aegis256_ciphertext.clone(), aegis256_tag),
+            |b, (ct, tag)| {
+                b.iter_batched(
+                    || ct.clone(),
+                    |mut buf| {
+                        let state = Aegis256::<16>::new(&NONCE_32, &KEY);
+                        state.decrypt_in_place(&mut buf, tag, &[]).unwrap();
+                        black_box(buf)
+                    },
+                    BatchSize::SmallInput,
+                );
+            },
+        );
+
+        // AEGIS-256X4 decrypt (hardware accelerated, 4-way parallel, 256-bit key)
+        // Pre-encrypt with AEGIS-256X4
+        let mut aegis256x4_plaintext = vec![0xAB; size];
+        let aegis256x4_state = Aegis256X4::<16>::new(&NONCE_32, &KEY);
+        let aegis256x4_tag = aegis256x4_state.encrypt_in_place(&mut aegis256x4_plaintext, &[]);
+        let aegis256x4_ciphertext = aegis256x4_plaintext;
+
+        group.bench_with_input(
+            BenchmarkId::new("aegis256x4", size),
+            &(aegis256x4_ciphertext.clone(), aegis256x4_tag),
             |b, (ct, tag)| {
                 b.iter_batched(
                     || ct.clone(),
