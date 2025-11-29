@@ -43,16 +43,16 @@ impl CodecBuffer for Buffer {
         Ok(())
     }
 
-    fn write_slice(&mut self, src: &mut [u8]) -> Result<(), CodecBufferError> {
-        let len = src.len();
+    fn write_slice<T>(&mut self, src: &mut [T]) -> Result<(), CodecBufferError> {
+        let byte_len = src.len() * core::mem::size_of::<T>();
 
         unsafe {
-            if self.cursor.add(len) > self.end {
+            if self.cursor.add(byte_len) > self.end {
                 return Err(CodecBufferError::CapacityExceeded);
             }
 
-            core::ptr::copy_nonoverlapping(src.as_ptr(), self.cursor, len);
-            self.cursor = self.cursor.add(len);
+            core::ptr::copy_nonoverlapping(src.as_ptr() as *const u8, self.cursor, byte_len);
+            self.cursor = self.cursor.add(byte_len);
         }
 
         // Invariant must be preserved before returning.

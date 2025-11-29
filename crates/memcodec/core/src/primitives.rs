@@ -71,20 +71,11 @@ macro_rules! impl_traits_for_primitives {
                 fn encode_slice_into(slice: &mut [Self], buf: &mut membuffer::Buffer) -> Result<(), $crate::error::EncodeError> {
                     #[cfg(target_endian = "little")]
                     {
-                        // On LE machines, bulk copy the bytes directly
-                        let byte_len = slice.len() * core::mem::size_of::<$ty>();
-                        let byte_slice = unsafe {
-                            core::slice::from_raw_parts_mut(
-                                slice.as_mut_ptr() as *mut u8,
-                                byte_len
-                            )
-                        };
-                        buf.write_slice(byte_slice)?;
+                        buf.write_slice(slice)?;
                     }
 
                     #[cfg(target_endian = "big")]
                     {
-                        // On BE machines, convert each element (encode_into zeroizes each)
                         for elem in slice.iter_mut() {
                             elem.encode_into(buf)?;
                         }

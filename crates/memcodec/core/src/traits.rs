@@ -43,7 +43,7 @@ pub(crate) trait DecodeSlice: Decode + Sized {
 
 pub trait CodecBuffer {
     fn write<T>(&mut self, src: &mut T) -> Result<(), CodecBufferError>;
-    fn write_slice(&mut self, src: &mut [u8]) -> Result<(), CodecBufferError>;
+    fn write_slice<T>(&mut self, src: &mut [T]) -> Result<(), CodecBufferError>;
 }
 
 pub trait DecodeBuffer {
