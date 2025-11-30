@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
-mod aegis;
+pub mod aegis;
 
 pub mod xchacha20poly1305;
 
@@ -12,3 +12,6 @@ mod traits;
 
 pub use error::DecryptError;
 pub use traits::Aead;
+
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+pub use aegis::Aegis128L;
