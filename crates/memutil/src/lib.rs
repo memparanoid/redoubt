@@ -7,6 +7,61 @@
 //! All conversion functions zeroize source data after reading to prevent
 //! sensitive data from lingering on the stack.
 
+/// Constant-time equality comparison for byte slices.
+///
+/// Returns `true` if slices are equal, `false` otherwise.
+/// The comparison time is constant regardless of where differences occur,
+/// preventing timing side-channel attacks.
+///
+/// # Example
+///
+/// ```
+/// use memutil::constant_time_eq;
+///
+/// let a = [1, 2, 3, 4];
+/// let b = [1, 2, 3, 4];
+/// let c = [1, 2, 3, 5];
+///
+/// assert!(constant_time_eq(&a, &b));
+/// assert!(!constant_time_eq(&a, &c));
+/// ```
+#[inline]
+pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+
+    a.iter()
+        .zip(b.iter())
+        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+        == 0
+}
+
+/// Parses a hexadecimal string into bytes.
+///
+/// The string must have an even number of characters and contain only
+/// valid hexadecimal digits (0-9, a-f, A-F).
+///
+/// # Panics
+///
+/// Panics if the string contains invalid hex characters or has odd length.
+///
+/// # Example
+///
+/// ```
+/// use memutil::hex_to_bytes;
+///
+/// let bytes = hex_to_bytes("deadbeef");
+/// assert_eq!(bytes, vec![0xde, 0xad, 0xbe, 0xef]);
+/// ```
+#[inline]
+pub fn hex_to_bytes(hex: &str) -> Vec<u8> {
+    (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
+        .collect()
+}
+
 /// Generates `{type}_from_le` and `{type}_to_le` functions for integer types.
 macro_rules! impl_le_conversions {
     ($type:ty, $size:expr, $fn_from:ident, $fn_to:ident) => {
