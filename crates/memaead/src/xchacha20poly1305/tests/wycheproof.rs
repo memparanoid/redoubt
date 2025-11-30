@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use memutil::hex_to_bytes;
+
 use crate::traits::Aead;
 use crate::xchacha20poly1305::XChacha20Poly1305;
 use crate::xchacha20poly1305::DecryptError;
@@ -77,14 +79,6 @@ pub(crate) struct TestCase {
 
     /// Expected test result: Valid (must accept) or Invalid (must reject)
     pub result: TestResult,
-}
-
-/// Convert hex string to bytes
-fn hex_to_bytes(hex: &str) -> Vec<u8> {
-    (0..hex.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).expect("valid hex"))
-        .collect()
 }
 
 fn xchacha20poly1305_encrypt(

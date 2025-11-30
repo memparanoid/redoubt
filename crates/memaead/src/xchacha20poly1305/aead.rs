@@ -6,9 +6,8 @@
 //!
 //! All sensitive state is zeroized on drop using memzer.
 
+use memutil::{constant_time_eq, u64_to_le};
 use zeroize::Zeroize;
-
-use memutil::u64_to_le;
 use memzer::{DropSentinel, MemZer};
 
 use crate::{Aead, DecryptError};
@@ -123,16 +122,4 @@ impl core::fmt::Debug for XChacha20Poly1305 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "XChacha20Poly1305 {{ [protected] }}")
     }
-}
-
-#[inline]
-fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-
-    a.iter()
-        .zip(b.iter())
-        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
-        == 0
 }
