@@ -327,6 +327,7 @@ impl Aegis128LState {
     }
 
     /// Encrypt all full blocks in one asm loop, state stays in registers.
+    /// Uses ping-pong between v0-v7 and v8-v15 to avoid mov instructions.
     #[inline(always)]
     pub unsafe fn encrypt_blocks(&mut self, data: &mut [u8]) {
         let full_blocks = data.len() / 32;
@@ -334,15 +335,21 @@ impl Aegis128LState {
             return;
         }
 
+        let pairs = full_blocks / 2;
+        let odd = full_blocks % 2;
+
         core::arch::asm!(
-            // Load state once
+            // Load state into v0-v7
             "ld1 {{v0.16b-v3.16b}}, [{state}]",
             "add {tmp}, {state}, #64",
             "ld1 {{v4.16b-v7.16b}}, [{tmp}]",
             "movi v31.16b, #0",
 
+            // Skip main loop if no pairs
+            "cbz {pairs}, 32f",
+
             "30:",
-            // Load plaintext
+            // === Block 1: state in v0-v7, compute into v8-v15 ===
             "ld1 {{v24.16b, v25.16b}}, [{data}]",
 
             // z0 = s1 ^ s6 ^ (s2 & s3)
@@ -358,16 +365,13 @@ impl Aegis128LState {
             // ciphertext = plaintext ^ z
             "eor v19.16b, v24.16b, v17.16b",
             "eor v20.16b, v25.16b, v18.16b",
-
-            // Start state update immediately (interleave with store)
-            "eor v16.16b, v0.16b, v24.16b",
-            "mov v8.16b, v7.16b",
-            "aese v8.16b, v31.16b",
-
-            // Store ciphertext (can execute in parallel with aesmc)
             "st1 {{v19.16b, v20.16b}}, [{data}]",
             "add {data}, {data}, #32",
 
+            // Update: v0-v7 -> v8-v15
+            "eor v16.16b, v0.16b, v24.16b",
+            "mov v8.16b, v7.16b",
+            "aese v8.16b, v31.16b",
             "aesmc v8.16b, v8.16b",
             "eor v8.16b, v8.16b, v16.16b",
 
@@ -407,7 +411,138 @@ impl Aegis128LState {
             "aesmc v15.16b, v15.16b",
             "eor v15.16b, v15.16b, v7.16b",
 
-            // Move new state to current
+            // === Block 2: state in v8-v15, compute into v0-v7 ===
+            "ld1 {{v24.16b, v25.16b}}, [{data}]",
+
+            // z0 = s1 ^ s6 ^ (s2 & s3) but from v8-v15
+            "and v16.16b, v10.16b, v11.16b",
+            "eor v17.16b, v9.16b, v14.16b",
+            "eor v17.16b, v17.16b, v16.16b",
+
+            // z1 = s2 ^ s5 ^ (s6 & s7)
+            "and v16.16b, v14.16b, v15.16b",
+            "eor v18.16b, v10.16b, v13.16b",
+            "eor v18.16b, v18.16b, v16.16b",
+
+            // ciphertext = plaintext ^ z
+            "eor v19.16b, v24.16b, v17.16b",
+            "eor v20.16b, v25.16b, v18.16b",
+            "st1 {{v19.16b, v20.16b}}, [{data}]",
+            "add {data}, {data}, #32",
+
+            // Update: v8-v15 -> v0-v7
+            "eor v16.16b, v8.16b, v24.16b",
+            "mov v0.16b, v15.16b",
+            "aese v0.16b, v31.16b",
+            "aesmc v0.16b, v0.16b",
+            "eor v0.16b, v0.16b, v16.16b",
+
+            "mov v1.16b, v8.16b",
+            "aese v1.16b, v31.16b",
+            "aesmc v1.16b, v1.16b",
+            "eor v1.16b, v1.16b, v9.16b",
+
+            "mov v2.16b, v9.16b",
+            "aese v2.16b, v31.16b",
+            "aesmc v2.16b, v2.16b",
+            "eor v2.16b, v2.16b, v10.16b",
+
+            "mov v3.16b, v10.16b",
+            "aese v3.16b, v31.16b",
+            "aesmc v3.16b, v3.16b",
+            "eor v3.16b, v3.16b, v11.16b",
+
+            "eor v16.16b, v12.16b, v25.16b",
+            "mov v4.16b, v11.16b",
+            "aese v4.16b, v31.16b",
+            "aesmc v4.16b, v4.16b",
+            "eor v4.16b, v4.16b, v16.16b",
+
+            "mov v5.16b, v12.16b",
+            "aese v5.16b, v31.16b",
+            "aesmc v5.16b, v5.16b",
+            "eor v5.16b, v5.16b, v13.16b",
+
+            "mov v6.16b, v13.16b",
+            "aese v6.16b, v31.16b",
+            "aesmc v6.16b, v6.16b",
+            "eor v6.16b, v6.16b, v14.16b",
+
+            "mov v7.16b, v14.16b",
+            "aese v7.16b, v31.16b",
+            "aesmc v7.16b, v7.16b",
+            "eor v7.16b, v7.16b, v15.16b",
+
+            "subs {pairs}, {pairs}, #1",
+            "b.ne 30b",
+
+            // State is now in v0-v7
+            "32:",
+            // Handle odd block if needed
+            "cbz {odd}, 34f",
+
+            // One more block: v0-v7 -> v8-v15, then move back to v0-v7
+            "ld1 {{v24.16b, v25.16b}}, [{data}]",
+
+            // z0 = s1 ^ s6 ^ (s2 & s3)
+            "and v16.16b, v2.16b, v3.16b",
+            "eor v17.16b, v1.16b, v6.16b",
+            "eor v17.16b, v17.16b, v16.16b",
+
+            // z1 = s2 ^ s5 ^ (s6 & s7)
+            "and v16.16b, v6.16b, v7.16b",
+            "eor v18.16b, v2.16b, v5.16b",
+            "eor v18.16b, v18.16b, v16.16b",
+
+            // ciphertext
+            "eor v19.16b, v24.16b, v17.16b",
+            "eor v20.16b, v25.16b, v18.16b",
+            "st1 {{v19.16b, v20.16b}}, [{data}]",
+
+            // Update: compute into v8-v15 first
+            "eor v16.16b, v0.16b, v24.16b",
+            "mov v8.16b, v7.16b",
+            "aese v8.16b, v31.16b",
+            "aesmc v8.16b, v8.16b",
+            "eor v8.16b, v8.16b, v16.16b",
+
+            "mov v9.16b, v0.16b",
+            "aese v9.16b, v31.16b",
+            "aesmc v9.16b, v9.16b",
+            "eor v9.16b, v9.16b, v1.16b",
+
+            "mov v10.16b, v1.16b",
+            "aese v10.16b, v31.16b",
+            "aesmc v10.16b, v10.16b",
+            "eor v10.16b, v10.16b, v2.16b",
+
+            "mov v11.16b, v2.16b",
+            "aese v11.16b, v31.16b",
+            "aesmc v11.16b, v11.16b",
+            "eor v11.16b, v11.16b, v3.16b",
+
+            "eor v16.16b, v4.16b, v25.16b",
+            "mov v12.16b, v3.16b",
+            "aese v12.16b, v31.16b",
+            "aesmc v12.16b, v12.16b",
+            "eor v12.16b, v12.16b, v16.16b",
+
+            "mov v13.16b, v4.16b",
+            "aese v13.16b, v31.16b",
+            "aesmc v13.16b, v13.16b",
+            "eor v13.16b, v13.16b, v5.16b",
+
+            "mov v14.16b, v5.16b",
+            "aese v14.16b, v31.16b",
+            "aesmc v14.16b, v14.16b",
+            "eor v14.16b, v14.16b, v6.16b",
+
+            "mov v15.16b, v6.16b",
+            "aese v15.16b, v31.16b",
+            "aesmc v15.16b, v15.16b",
+            "eor v15.16b, v15.16b, v7.16b",
+
+            // Move v8-v15 back to v0-v7
             "mov v0.16b, v8.16b",
             "mov v1.16b, v9.16b",
             "mov v2.16b, v10.16b",
@@ -417,16 +552,15 @@ impl Aegis128LState {
             "mov v6.16b, v14.16b",
             "mov v7.16b, v15.16b",
 
-            "subs {blocks}, {blocks}, #1",
-            "b.ne 30b",
-
-            // Store state once at end
+            "34:",
+            // Store state (always in v0-v7)
             "st1 {{v0.16b-v3.16b}}, [{state}]",
             "st1 {{v4.16b-v7.16b}}, [{tmp}]",
 
             state = in(reg) self.s.as_mut_ptr(),
             data = inout(reg) data.as_mut_ptr() => _,
-            blocks = inout(reg) full_blocks => _,
+            pairs = inout(reg) pairs => _,
+            odd = inout(reg) odd => _,
             tmp = out(reg) _,
             out("v0") _, out("v1") _, out("v2") _, out("v3") _,
             out("v4") _, out("v5") _, out("v6") _, out("v7") _,
@@ -544,6 +678,7 @@ impl Aegis128LState {
     }
 
     /// Decrypt all full blocks in one asm loop.
+    /// Uses ping-pong between v0-v7 and v8-v15 to avoid mov instructions.
     #[inline(always)]
     pub unsafe fn decrypt_blocks(&mut self, data: &mut [u8]) {
         let full_blocks = data.len() / 32;
@@ -551,15 +686,21 @@ impl Aegis128LState {
             return;
         }
 
+        let pairs = full_blocks / 2;
+        let odd = full_blocks % 2;
+
         core::arch::asm!(
-            // Load state once
+            // Load state into v0-v7
             "ld1 {{v0.16b-v3.16b}}, [{state}]",
             "add {tmp}, {state}, #64",
             "ld1 {{v4.16b-v7.16b}}, [{tmp}]",
             "movi v31.16b, #0",
 
+            // Skip main loop if no pairs
+            "cbz {pairs}, 42f",
+
             "40:",
-            // Load ciphertext
+            // === Block 1: state in v0-v7, compute into v8-v15 ===
             "ld1 {{v19.16b, v20.16b}}, [{data}]",
 
             // z0 = s1 ^ s6 ^ (s2 & s3)
@@ -575,17 +716,13 @@ impl Aegis128LState {
             // plaintext = ciphertext ^ z
             "eor v24.16b, v19.16b, v17.16b",
             "eor v25.16b, v20.16b, v18.16b",
-
-            // Start state update immediately (interleave with store)
-            // This allows the store to happen in parallel with AES operations
-            "eor v16.16b, v0.16b, v24.16b",
-            "mov v8.16b, v7.16b",
-            "aese v8.16b, v31.16b",
-
-            // Store plaintext (can execute in parallel with aesmc)
             "st1 {{v24.16b, v25.16b}}, [{data}]",
             "add {data}, {data}, #32",
 
+            // Update: v0-v7 -> v8-v15
+            "eor v16.16b, v0.16b, v24.16b",
+            "mov v8.16b, v7.16b",
+            "aese v8.16b, v31.16b",
             "aesmc v8.16b, v8.16b",
             "eor v8.16b, v8.16b, v16.16b",
 
@@ -625,7 +762,135 @@ impl Aegis128LState {
             "aesmc v15.16b, v15.16b",
             "eor v15.16b, v15.16b, v7.16b",
 
-            // Move new state to current
+            // === Block 2: state in v8-v15, compute into v0-v7 ===
+            "ld1 {{v19.16b, v20.16b}}, [{data}]",
+
+            // z0 = s1 ^ s6 ^ (s2 & s3) from v8-v15
+            "and v16.16b, v10.16b, v11.16b",
+            "eor v17.16b, v9.16b, v14.16b",
+            "eor v17.16b, v17.16b, v16.16b",
+
+            // z1 = s2 ^ s5 ^ (s6 & s7)
+            "and v16.16b, v14.16b, v15.16b",
+            "eor v18.16b, v10.16b, v13.16b",
+            "eor v18.16b, v18.16b, v16.16b",
+
+            // plaintext = ciphertext ^ z
+            "eor v24.16b, v19.16b, v17.16b",
+            "eor v25.16b, v20.16b, v18.16b",
+            "st1 {{v24.16b, v25.16b}}, [{data}]",
+            "add {data}, {data}, #32",
+
+            // Update: v8-v15 -> v0-v7
+            "eor v16.16b, v8.16b, v24.16b",
+            "mov v0.16b, v15.16b",
+            "aese v0.16b, v31.16b",
+            "aesmc v0.16b, v0.16b",
+            "eor v0.16b, v0.16b, v16.16b",
+
+            "mov v1.16b, v8.16b",
+            "aese v1.16b, v31.16b",
+            "aesmc v1.16b, v1.16b",
+            "eor v1.16b, v1.16b, v9.16b",
+
+            "mov v2.16b, v9.16b",
+            "aese v2.16b, v31.16b",
+            "aesmc v2.16b, v2.16b",
+            "eor v2.16b, v2.16b, v10.16b",
+
+            "mov v3.16b, v10.16b",
+            "aese v3.16b, v31.16b",
+            "aesmc v3.16b, v3.16b",
+            "eor v3.16b, v3.16b, v11.16b",
+
+            "eor v16.16b, v12.16b, v25.16b",
+            "mov v4.16b, v11.16b",
+            "aese v4.16b, v31.16b",
+            "aesmc v4.16b, v4.16b",
+            "eor v4.16b, v4.16b, v16.16b",
+
+            "mov v5.16b, v12.16b",
+            "aese v5.16b, v31.16b",
+            "aesmc v5.16b, v5.16b",
+            "eor v5.16b, v5.16b, v13.16b",
+
+            "mov v6.16b, v13.16b",
+            "aese v6.16b, v31.16b",
+            "aesmc v6.16b, v6.16b",
+            "eor v6.16b, v6.16b, v14.16b",
+
+            "mov v7.16b, v14.16b",
+            "aese v7.16b, v31.16b",
+            "aesmc v7.16b, v7.16b",
+            "eor v7.16b, v7.16b, v15.16b",
+
+            "subs {pairs}, {pairs}, #1",
+            "b.ne 40b",
+
+            // State is now in v0-v7
+            "42:",
+            // Handle odd block if needed
+            "cbz {odd}, 44f",
+
+            // One more block: v0-v7 -> v8-v15, then move back
+            "ld1 {{v19.16b, v20.16b}}, [{data}]",
+
+            "and v16.16b, v2.16b, v3.16b",
+            "eor v17.16b, v1.16b, v6.16b",
+            "eor v17.16b, v17.16b, v16.16b",
+
+            "and v16.16b, v6.16b, v7.16b",
+            "eor v18.16b, v2.16b, v5.16b",
+            "eor v18.16b, v18.16b, v16.16b",
+
+            "eor v24.16b, v19.16b, v17.16b",
+            "eor v25.16b, v20.16b, v18.16b",
+            "st1 {{v24.16b, v25.16b}}, [{data}]",
+
+            // Update into v8-v15
+            "eor v16.16b, v0.16b, v24.16b",
+            "mov v8.16b, v7.16b",
+            "aese v8.16b, v31.16b",
+            "aesmc v8.16b, v8.16b",
+            "eor v8.16b, v8.16b, v16.16b",
+
+            "mov v9.16b, v0.16b",
+            "aese v9.16b, v31.16b",
+            "aesmc v9.16b, v9.16b",
+            "eor v9.16b, v9.16b, v1.16b",
+
+            "mov v10.16b, v1.16b",
+            "aese v10.16b, v31.16b",
+            "aesmc v10.16b, v10.16b",
+            "eor v10.16b, v10.16b, v2.16b",
+
+            "mov v11.16b, v2.16b",
+            "aese v11.16b, v31.16b",
+            "aesmc v11.16b, v11.16b",
+            "eor v11.16b, v11.16b, v3.16b",
+
+            "eor v16.16b, v4.16b, v25.16b",
+            "mov v12.16b, v3.16b",
+            "aese v12.16b, v31.16b",
+            "aesmc v12.16b, v12.16b",
+            "eor v12.16b, v12.16b, v16.16b",
+
+            "mov v13.16b, v4.16b",
+            "aese v13.16b, v31.16b",
+            "aesmc v13.16b, v13.16b",
+            "eor v13.16b, v13.16b, v5.16b",
+
+            "mov v14.16b, v5.16b",
+            "aese v14.16b, v31.16b",
+            "aesmc v14.16b, v14.16b",
+            "eor v14.16b, v14.16b, v6.16b",
+
+            "mov v15.16b, v6.16b",
+            "aese v15.16b, v31.16b",
+            "aesmc v15.16b, v15.16b",
+            "eor v15.16b, v15.16b, v7.16b",
+
+            // Move v8-v15 back to v0-v7
             "mov v0.16b, v8.16b",
             "mov v1.16b, v9.16b",
             "mov v2.16b, v10.16b",
@@ -635,16 +900,15 @@ impl Aegis128LState {
             "mov v6.16b, v14.16b",
             "mov v7.16b, v15.16b",
 
-            "subs {blocks}, {blocks}, #1",
-            "b.ne 40b",
-
-            // Store state once at end
+            "44:",
+            // Store state (always in v0-v7)
             "st1 {{v0.16b-v3.16b}}, [{state}]",
             "st1 {{v4.16b-v7.16b}}, [{tmp}]",
 
             state = in(reg) self.s.as_mut_ptr(),
             data = inout(reg) data.as_mut_ptr() => _,
-            blocks = inout(reg) full_blocks => _,
+            pairs = inout(reg) pairs => _,
+            odd = inout(reg) odd => _,
             tmp = out(reg) _,
             out("v0") _, out("v1") _, out("v2") _, out("v3") _,
             out("v4") _, out("v5") _, out("v6") _, out("v7") _,
