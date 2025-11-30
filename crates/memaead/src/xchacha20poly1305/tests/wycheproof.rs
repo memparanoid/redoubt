@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use crate::traits::Aead;
 use crate::xchacha20poly1305::XChacha20Poly1305;
 use crate::xchacha20poly1305::DecryptError;
 use crate::xchacha20poly1305::consts::*;

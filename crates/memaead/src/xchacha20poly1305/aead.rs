@@ -11,9 +11,10 @@ use zeroize::Zeroize;
 use memutil::u64_to_le;
 use memzer::{DropSentinel, MemZer};
 
+use crate::{Aead, DecryptError};
+
 use super::chacha20::XChaCha20;
 use super::consts::{KEY_SIZE, TAG_SIZE};
-use super::error::DecryptError;
 use super::poly1305::Poly1305;
 use super::types::{AeadKey, XNonce};
 
@@ -67,37 +68,41 @@ impl XChacha20Poly1305 {
         self.poly.finalize(&mut self.expected_tag);
         self.len_block.zeroize();
     }
+}
 
-    /// Encrypt plaintext in-place and write tag to separate buffer.
-    pub fn encrypt(
+impl Aead for XChacha20Poly1305 {
+    type Key = AeadKey;
+    type Nonce = XNonce;
+    type Tag = [u8; TAG_SIZE];
+
+    fn encrypt(
         &mut self,
-        key: &AeadKey,
-        xnonce: &XNonce,
+        key: &Self::Key,
+        nonce: &Self::Nonce,
         aad: &[u8],
         data: &mut [u8],
-        tag_out: &mut [u8; TAG_SIZE],
+        tag: &mut Self::Tag,
     ) {
-        self.xchacha.crypt(key, xnonce, data);
+        self.xchacha.crypt(key, nonce, data);
 
         self.xchacha
-            .generate_poly_key(key, xnonce, &mut self.poly_key);
+            .generate_poly_key(key, nonce, &mut self.poly_key);
         self.compute_tag(aad, data);
 
-        tag_out.copy_from_slice(&self.expected_tag);
+        tag.copy_from_slice(&self.expected_tag);
         self.expected_tag.zeroize();
     }
 
-    /// Decrypt ciphertext in-place after verifying tag.
-    pub fn decrypt(
+    fn decrypt(
         &mut self,
-        key: &AeadKey,
-        xnonce: &XNonce,
+        key: &Self::Key,
+        nonce: &Self::Nonce,
         aad: &[u8],
         data: &mut [u8],
-        tag: &[u8; TAG_SIZE],
+        tag: &Self::Tag,
     ) -> Result<(), DecryptError> {
         self.xchacha
-            .generate_poly_key(key, xnonce, &mut self.poly_key);
+            .generate_poly_key(key, nonce, &mut self.poly_key);
         self.compute_tag(aad, data);
 
         if !constant_time_eq(&self.expected_tag, tag) {
@@ -107,7 +112,7 @@ impl XChacha20Poly1305 {
             return Err(DecryptError::AuthenticationFailed);
         }
 
-        self.xchacha.crypt(key, xnonce, data);
+        self.xchacha.crypt(key, nonce, data);
         self.expected_tag.zeroize();
 
         Ok(())

@@ -3,3 +3,9 @@
 // See LICENSE in the repository root for full license text.
 
 pub mod xchacha20poly1305;
+
+mod error;
+mod traits;
+
+pub use error::DecryptError;
+pub use traits::Aead;
