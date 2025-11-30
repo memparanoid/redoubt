@@ -13,7 +13,9 @@ use memzer::{Zeroizable, ZeroizationProbe};
 use zeroize::Zeroize;
 
 /// AES block using AES-NI intrinsics.
-#[derive(Copy, Clone)]
+///
+/// Does NOT implement Copy to prevent unzeroized copies.
+/// Caller must ensure CPU supports AES-NI before calling any method.
 #[repr(transparent)]
 pub struct Intrinsics(__m128i);
 
@@ -66,6 +68,13 @@ impl Zeroize for Intrinsics {
     fn zeroize(&mut self) {
         // Overwrite SIMD register with zeros
         self.0 = unsafe { _mm_setzero_si128() };
+    }
+}
+
+impl Drop for Intrinsics {
+    #[inline]
+    fn drop(&mut self) {
+        self.zeroize();
     }
 }
 

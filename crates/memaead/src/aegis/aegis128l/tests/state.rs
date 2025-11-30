@@ -27,18 +27,17 @@ fn test_vector_1_16byte_msg_no_ad() {
     let expected_tag = hex_to_bytes("abe0ece80c24868a226a35d16bdae37a");
 
     let mut state = Aegis128LState::default();
-    let mut data = [0u8; 16];
-    data.copy_from_slice(&msg);
+    let mut block = [0u8; 32];
+    block[..16].copy_from_slice(&msg);
 
     unsafe {
         state.init(&key, &nonce);
-        // 16-byte message is a partial block (< 32 bytes)
-        state.encrypt_partial(&mut data);
+        state.enc(&mut block);
 
         let mut tag = [0u8; 16];
         state.finalize(0, 16, &mut tag);
 
-        assert_eq!(&data[..], &expected_ct[..], "Ciphertext mismatch");
+        assert_eq!(&block[..16], &expected_ct[..], "Ciphertext mismatch");
         assert_eq!(&tag[..], &expected_tag[..], "Tag mismatch");
     }
 }
@@ -92,14 +91,17 @@ fn test_vector_3_32byte_msg_8byte_ad() {
     let expected_tag = hex_to_bytes("cc6f3372f6aa1bb82388d695c3962d9a");
 
     let mut state = Aegis128LState::default();
+
+    // Pad AD to 32 bytes
+    let mut ad_block = [0u8; 32];
+    ad_block[..ad.len()].copy_from_slice(&ad);
+
     let mut block: [u8; 32] = msg.try_into().unwrap();
 
     unsafe {
         state.init(&key, &nonce);
-        // absorb_all handles padding internally
-        state.absorb_all(&ad);
-        // 32-byte message is exactly one full block
-        state.encrypt_blocks(&mut block);
+        state.absorb(&ad_block);
+        state.enc(&mut block);
 
         let mut tag = [0u8; 16];
         state.finalize(ad.len(), 32, &mut tag);
@@ -136,13 +138,13 @@ fn test_encrypt_decrypt_roundtrip() {
     unsafe {
         // Encrypt
         encrypt_state.init(&key, &nonce);
-        encrypt_state.encrypt_blocks(&mut block);
+        encrypt_state.enc(&mut block);
         let mut tag = [0u8; 16];
         encrypt_state.finalize(0, 32, &mut tag);
 
         // Decrypt
         decrypt_state.init(&key, &nonce);
-        decrypt_state.decrypt_blocks(&mut block);
+        decrypt_state.dec(&mut block);
         let mut dec_tag = [0u8; 16];
         decrypt_state.finalize(0, 32, &mut dec_tag);
 

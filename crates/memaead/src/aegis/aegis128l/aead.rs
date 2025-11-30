@@ -41,6 +41,33 @@ impl core::fmt::Debug for Aegis128L {
 }
 
 impl Aegis128L {
+    /// Process associated data (zero-padded to 32-byte blocks).
+    ///
+    /// # Safety
+    /// Caller must ensure AES hardware support is available.
+    #[inline]
+    #[target_feature(enable = "aes")]
+    unsafe fn process_aad(&mut self, aad: &[u8]) {
+        let mut offset = 0;
+        let full_blocks = aad.len() / BLOCK_SIZE;
+
+        // Process full blocks
+        for _ in 0..full_blocks {
+            let block: &[u8; 32] = aad[offset..offset + BLOCK_SIZE].try_into().unwrap();
+            unsafe { self.state.absorb(block) };
+            offset += BLOCK_SIZE;
+        }
+
+        // Process partial block (if any)
+        let remaining = aad.len() % BLOCK_SIZE;
+        if remaining > 0 {
+            let block_tmp = self.state.block_tmp();
+            block_tmp[..remaining].copy_from_slice(&aad[offset..]);
+            block_tmp[remaining..].fill(0);
+            let block: [u8; 32] = *block_tmp;
+            unsafe { self.state.absorb(&block) };
+        }
+    }
 }
 
 impl Aead for Aegis128L {
@@ -105,25 +132,32 @@ impl Aegis128L {
         let msg_len = data.len();
 
         // Initialize state
-        self.state.init(key, nonce);
+        unsafe { self.state.init(key, nonce) };
 
         // Process AAD
-        self.state.absorb_all(aad);
+        unsafe { self.process_aad(aad) };
 
-        // Encrypt full blocks (state stays in registers for entire loop)
-        let full_block_len = (msg_len / BLOCK_SIZE) * BLOCK_SIZE;
-        if full_block_len > 0 {
-            self.state.encrypt_blocks(&mut data[..full_block_len]);
+        // Encrypt full blocks
+        let mut offset = 0;
+        let full_blocks = msg_len / BLOCK_SIZE;
+
+        for _ in 0..full_blocks {
+            let block: &mut [u8; 32] = (&mut data[offset..offset + BLOCK_SIZE]).try_into().unwrap();
+            unsafe { self.state.enc(block) };
+            offset += BLOCK_SIZE;
         }
 
         // Encrypt partial block (if any)
         let remaining = msg_len % BLOCK_SIZE;
         if remaining > 0 {
-            self.state.encrypt_partial(&mut data[full_block_len..]);
+            let block_tmp = self.state.block_tmp();
+            block_tmp[..remaining].copy_from_slice(&data[offset..]);
+            unsafe { self.state.enc_partial(remaining) };
+            data[offset..].copy_from_slice(&self.state.block_tmp()[..remaining]);
         }
 
         // Finalize and get tag
-        self.state.finalize(aad.len(), msg_len, tag);
+        unsafe { self.state.finalize(aad.len(), msg_len, tag) };
     }
 
     #[inline]
@@ -139,25 +173,32 @@ impl Aegis128L {
         let ct_len = data.len();
 
         // Initialize state
-        self.state.init(key, nonce);
+        unsafe { self.state.init(key, nonce) };
 
         // Process AAD
-        self.state.absorb_all(aad);
+        unsafe { self.process_aad(aad) };
 
-        // Decrypt full blocks (state stays in registers for entire loop)
-        let full_block_len = (ct_len / BLOCK_SIZE) * BLOCK_SIZE;
-        if full_block_len > 0 {
-            self.state.decrypt_blocks(&mut data[..full_block_len]);
+        // Decrypt full blocks
+        let mut offset = 0;
+        let full_blocks = ct_len / BLOCK_SIZE;
+
+        for _ in 0..full_blocks {
+            let block: &mut [u8; 32] = (&mut data[offset..offset + BLOCK_SIZE]).try_into().unwrap();
+            unsafe { self.state.dec(block) };
+            offset += BLOCK_SIZE;
         }
 
         // Decrypt partial block (if any)
         let remaining = ct_len % BLOCK_SIZE;
         if remaining > 0 {
-            self.state.decrypt_partial(&mut data[full_block_len..]);
+            let block_tmp = self.state.block_tmp();
+            block_tmp[..remaining].copy_from_slice(&data[offset..]);
+            unsafe { self.state.dec_partial(remaining) };
+            data[offset..].copy_from_slice(&self.state.block_tmp()[..remaining]);
         }
 
         // Finalize and verify tag
-        self.state.finalize(aad.len(), ct_len, &mut self.expected_tag);
+        unsafe { self.state.finalize(aad.len(), ct_len, &mut self.expected_tag) };
 
         if !constant_time_eq(&self.expected_tag, tag) {
             data.zeroize();
