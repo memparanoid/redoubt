@@ -13,52 +13,44 @@ use memzer::{Zeroizable, ZeroizationProbe};
 use zeroize::Zeroize;
 
 /// AES block using ARM Crypto intrinsics.
-///
-/// Does NOT implement Copy to prevent unzeroized copies.
-/// Caller must ensure CPU supports ARM Crypto before calling any method.
+#[derive(Copy, Clone)]
 #[repr(transparent)]
 pub struct Intrinsics(uint8x16_t);
 
 impl Intrinsics {
     /// Create a zeroed block.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub fn zero() -> Self {
+    #[inline(always)]
+    pub unsafe fn zero() -> Self {
         Self(vdupq_n_u8(0))
     }
 
     /// Load 16 bytes into a block.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub fn load(bytes: &[u8; 16]) -> Self {
-        Self(unsafe { vld1q_u8(bytes.as_ptr()) })
+    #[inline(always)]
+    pub unsafe fn load(bytes: &[u8; 16]) -> Self {
+        Self(vld1q_u8(bytes.as_ptr()))
     }
 
     /// Store block to 16 bytes.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub fn store(&self, out: &mut [u8; 16]) {
-        unsafe { vst1q_u8(out.as_mut_ptr(), self.0) }
+    #[inline(always)]
+    pub unsafe fn store(&self, out: &mut [u8; 16]) {
+        vst1q_u8(out.as_mut_ptr(), self.0)
     }
 
     /// XOR two blocks.
-    #[inline]
-    #[target_feature(enable = "aes")]
+    #[inline(always)]
     pub fn xor(&self, other: &Self) -> Self {
-        Self(veorq_u8(self.0, other.0))
+        unsafe { Self(veorq_u8(self.0, other.0)) }
     }
 
     /// AND two blocks.
-    #[inline]
-    #[target_feature(enable = "aes")]
+    #[inline(always)]
     pub fn and(&self, other: &Self) -> Self {
-        Self(vandq_u8(self.0, other.0))
+        unsafe { Self(vandq_u8(self.0, other.0)) }
     }
 
     /// AES encryption round: SubBytes + ShiftRows + MixColumns + XOR round_key
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub fn aes_enc(&self, round_key: &Self) -> Self {
+    #[inline(always)]
+    pub unsafe fn aes_enc(&self, round_key: &Self) -> Self {
         let zero = vdupq_n_u8(0);
         let after_sub_shift = vaeseq_u8(self.0, zero);
         let after_mix = vaesmcq_u8(after_sub_shift);
@@ -74,12 +66,6 @@ impl Zeroize for Intrinsics {
     }
 }
 
-impl Drop for Intrinsics {
-    #[inline]
-    fn drop(&mut self) {
-        self.zeroize();
-    }
-}
 
 impl Default for Intrinsics {
     #[inline]

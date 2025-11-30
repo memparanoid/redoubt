@@ -11,7 +11,9 @@ use criterion::{
 };
 
 use aegis::aegis128l::Aegis128L;
-use aegis::aegis128x4::Aegis128X4;
+
+use memaead::Aegis128L as MemAegis128L;
+use memaead::Aead as MemAead;
 
 const KEY_16: [u8; 16] = [0x42; 16];
 const NONCE_16: [u8; 16] = [0x24; 16];
@@ -36,12 +38,13 @@ fn bench_encrypt_2mb(c: &mut Criterion) {
         );
     });
 
-    group.bench_with_input(BenchmarkId::new("aegis128x4", size), &plaintext, |b, pt| {
+    group.bench_with_input(BenchmarkId::new("memaead_aegis128l", size), &plaintext, |b, pt| {
+        let mut aead = MemAegis128L::default();
         b.iter_batched(
             || pt.clone(),
             |mut buf| {
-                let state = Aegis128X4::<16>::new(&NONCE_16, &KEY_16);
-                let tag = state.encrypt_in_place(&mut buf, &[]);
+                let mut tag = [0u8; 16];
+                aead.encrypt(&KEY_16, &NONCE_16, &[], &mut buf, &mut tag);
                 black_box((buf, tag))
             },
             BatchSize::LargeInput,
@@ -80,21 +83,22 @@ fn bench_decrypt_2mb(c: &mut Criterion) {
         },
     );
 
-    // Pre-encrypt with AEGIS-128X4
-    let mut aegis128x4_plaintext = vec![0xAB; size];
-    let aegis128x4_state = Aegis128X4::<16>::new(&NONCE_16, &KEY_16);
-    let aegis128x4_tag = aegis128x4_state.encrypt_in_place(&mut aegis128x4_plaintext, &[]);
-    let aegis128x4_ciphertext = aegis128x4_plaintext;
+    // Pre-encrypt with memaead AEGIS-128L
+    let mut memaead_plaintext = vec![0xAB; size];
+    let mut memaead_aead = MemAegis128L::default();
+    let mut memaead_tag = [0u8; 16];
+    memaead_aead.encrypt(&KEY_16, &NONCE_16, &[], &mut memaead_plaintext, &mut memaead_tag);
+    let memaead_ciphertext = memaead_plaintext;
 
     group.bench_with_input(
-        BenchmarkId::new("aegis128x4", size),
-        &(aegis128x4_ciphertext.clone(), aegis128x4_tag),
+        BenchmarkId::new("memaead_aegis128l", size),
+        &(memaead_ciphertext.clone(), memaead_tag),
         |b, (ct, tag): &(Vec<u8>, [u8; 16])| {
+            let mut aead = MemAegis128L::default();
             b.iter_batched(
                 || ct.clone(),
                 |mut buf| {
-                    let state = Aegis128X4::<16>::new(&NONCE_16, &KEY_16);
-                    state.decrypt_in_place(&mut buf, tag, &[]).unwrap();
+                    aead.decrypt(&KEY_16, &NONCE_16, &[], &mut buf, tag).unwrap();
                     black_box(buf)
                 },
                 BatchSize::LargeInput,

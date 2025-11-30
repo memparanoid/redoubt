@@ -3,11 +3,12 @@
 // See LICENSE in the repository root for full license text.
 
 //! AEGIS-128L state implementation with guaranteed zeroization.
+//!
+//! All hot paths use inline assembly to keep state in SIMD registers,
+//! avoiding stack temporaries that would need zeroization.
 
-use zeroize::Zeroize;
-
-use memutil::u64_to_le;
 use memzer::{DropSentinel, MemZer};
+use zeroize::Zeroize;
 
 use crate::aegis::intrinsics::Intrinsics;
 
@@ -26,38 +27,14 @@ const C1: [u8; 16] = [
 /// AEGIS-128L state: 8 x 128-bit blocks with guaranteed zeroization.
 #[derive(Zeroize, MemZer)]
 #[zeroize(drop)]
+#[repr(C)]
 pub struct Aegis128LState {
     /// The 8 state blocks S0..S7
-    s0: Intrinsics,
-    s1: Intrinsics,
-    s2: Intrinsics,
-    s3: Intrinsics,
-    s4: Intrinsics,
-    s5: Intrinsics,
-    s6: Intrinsics,
-    s7: Intrinsics,
+    s: [Intrinsics; 8],
 
-    /// Temporary blocks for intermediate calculations (avoid stack temporaries)
-    tmp_m0: Intrinsics,
-    tmp_m1: Intrinsics,
-    tmp_z0: Intrinsics,
-    tmp_z1: Intrinsics,
-    tmp_t: Intrinsics,
-
-    /// Temporary for new state during update
-    new_s0: Intrinsics,
-    new_s1: Intrinsics,
-    new_s2: Intrinsics,
-    new_s3: Intrinsics,
-    new_s4: Intrinsics,
-    new_s5: Intrinsics,
-    new_s6: Intrinsics,
-    new_s7: Intrinsics,
-
-    /// Temporary byte buffers for conversions
+    /// Temporary byte buffers
     len_block: [u8; 16],
     block_tmp: [u8; 32],
-    tag_tmp: [u8; 16],
 
     /// Drop sentinel for testing
     __drop_sentinel: DropSentinel,
@@ -66,30 +43,9 @@ pub struct Aegis128LState {
 impl Default for Aegis128LState {
     fn default() -> Self {
         Self {
-            s0: Intrinsics::default(),
-            s1: Intrinsics::default(),
-            s2: Intrinsics::default(),
-            s3: Intrinsics::default(),
-            s4: Intrinsics::default(),
-            s5: Intrinsics::default(),
-            s6: Intrinsics::default(),
-            s7: Intrinsics::default(),
-            tmp_m0: Intrinsics::default(),
-            tmp_m1: Intrinsics::default(),
-            tmp_z0: Intrinsics::default(),
-            tmp_z1: Intrinsics::default(),
-            tmp_t: Intrinsics::default(),
-            new_s0: Intrinsics::default(),
-            new_s1: Intrinsics::default(),
-            new_s2: Intrinsics::default(),
-            new_s3: Intrinsics::default(),
-            new_s4: Intrinsics::default(),
-            new_s5: Intrinsics::default(),
-            new_s6: Intrinsics::default(),
-            new_s7: Intrinsics::default(),
+            s: [Intrinsics::default(); 8],
             len_block: [0; 16],
             block_tmp: [0; 32],
-            tag_tmp: [0; 16],
             __drop_sentinel: DropSentinel::default(),
         }
     }
@@ -102,289 +58,830 @@ impl core::fmt::Debug for Aegis128LState {
 }
 
 impl Aegis128LState {
-    /// Access the scratch buffer for partial block operations.
-    #[inline]
-    pub fn block_tmp(&mut self) -> &mut [u8; 32] {
-        &mut self.block_tmp
-    }
-
     /// Initialize state from key and nonce.
-    ///
-    /// # Safety
-    /// Caller must ensure AES hardware support is available.
-    #[inline]
-    #[target_feature(enable = "aes")]
+    #[inline(always)]
     pub unsafe fn init(&mut self, key: &[u8; 16], nonce: &[u8; 16]) {
-        // Load key, nonce, constants
-        self.tmp_m0 = Intrinsics::load(key);
-        self.tmp_m1 = Intrinsics::load(nonce);
-        self.tmp_z0 = Intrinsics::load(&C0);
-        self.tmp_z1 = Intrinsics::load(&C1);
+        core::arch::asm!(
+            "ld1 {{v24.16b}}, [{key}]",
+            "ld1 {{v25.16b}}, [{nonce}]",
+            "ld1 {{v26.16b}}, [{c0}]",
+            "ld1 {{v27.16b}}, [{c1}]",
+            "eor v28.16b, v24.16b, v25.16b",
 
-        // key_xor_nonce
-        self.tmp_t = self.tmp_m0.xor(&self.tmp_m1);
+            "mov v0.16b, v28.16b",
+            "mov v1.16b, v27.16b",
+            "mov v2.16b, v26.16b",
+            "mov v3.16b, v27.16b",
+            "mov v4.16b, v28.16b",
+            "eor v5.16b, v24.16b, v26.16b",
+            "eor v6.16b, v24.16b, v27.16b",
+            "eor v7.16b, v24.16b, v26.16b",
 
-        // S0 = key ^ nonce
-        self.s0 = Intrinsics::load(key);
-        self.s0 = self.s0.xor(&Intrinsics::load(nonce));
+            "movi v31.16b, #0",
+            "mov x9, #10",
+            "2:",
 
-        // S1 = C1
-        self.s1 = Intrinsics::load(&C1);
+            "eor v16.16b, v0.16b, v25.16b",
+            "mov v8.16b, v7.16b",
+            "aese v8.16b, v31.16b",
+            "aesmc v8.16b, v8.16b",
+            "eor v8.16b, v8.16b, v16.16b",
 
-        // S2 = C0
-        self.s2 = Intrinsics::load(&C0);
+            "mov v9.16b, v0.16b",
+            "aese v9.16b, v31.16b",
+            "aesmc v9.16b, v9.16b",
+            "eor v9.16b, v9.16b, v1.16b",
 
-        // S3 = C1
-        self.s3 = Intrinsics::load(&C1);
+            "mov v10.16b, v1.16b",
+            "aese v10.16b, v31.16b",
+            "aesmc v10.16b, v10.16b",
+            "eor v10.16b, v10.16b, v2.16b",
 
-        // S4 = key ^ nonce
-        self.s4 = Intrinsics::load(key);
-        self.s4 = self.s4.xor(&Intrinsics::load(nonce));
+            "mov v11.16b, v2.16b",
+            "aese v11.16b, v31.16b",
+            "aesmc v11.16b, v11.16b",
+            "eor v11.16b, v11.16b, v3.16b",
 
-        // S5 = key ^ C0
-        self.s5 = Intrinsics::load(key);
-        self.s5 = self.s5.xor(&Intrinsics::load(&C0));
+            "eor v16.16b, v4.16b, v24.16b",
+            "mov v12.16b, v3.16b",
+            "aese v12.16b, v31.16b",
+            "aesmc v12.16b, v12.16b",
+            "eor v12.16b, v12.16b, v16.16b",
 
-        // S6 = key ^ C1
-        self.s6 = Intrinsics::load(key);
-        self.s6 = self.s6.xor(&Intrinsics::load(&C1));
+            "mov v13.16b, v4.16b",
+            "aese v13.16b, v31.16b",
+            "aesmc v13.16b, v13.16b",
+            "eor v13.16b, v13.16b, v5.16b",
 
-        // S7 = key ^ C0
-        self.s7 = Intrinsics::load(key);
-        self.s7 = self.s7.xor(&Intrinsics::load(&C0));
+            "mov v14.16b, v5.16b",
+            "aese v14.16b, v31.16b",
+            "aesmc v14.16b, v14.16b",
+            "eor v14.16b, v14.16b, v6.16b",
 
-        // Run 10 Update rounds with (nonce, key)
-        for _ in 0..10 {
-            self.tmp_m0 = Intrinsics::load(nonce);
-            self.tmp_m1 = Intrinsics::load(key);
-            unsafe { self.update() };
+            "mov v15.16b, v6.16b",
+            "aese v15.16b, v31.16b",
+            "aesmc v15.16b, v15.16b",
+            "eor v15.16b, v15.16b, v7.16b",
+
+            "mov v0.16b, v8.16b",
+            "mov v1.16b, v9.16b",
+            "mov v2.16b, v10.16b",
+            "mov v3.16b, v11.16b",
+            "mov v4.16b, v12.16b",
+            "mov v5.16b, v13.16b",
+            "mov v6.16b, v14.16b",
+            "mov v7.16b, v15.16b",
+
+            "subs x9, x9, #1",
+            "b.ne 2b",
+
+            "st1 {{v0.16b-v3.16b}}, [{state}]",
+            "add {tmp}, {state}, #64",
+            "st1 {{v4.16b-v7.16b}}, [{tmp}]",
+
+            key = in(reg) key.as_ptr(),
+            nonce = in(reg) nonce.as_ptr(),
+            c0 = in(reg) C0.as_ptr(),
+            c1 = in(reg) C1.as_ptr(),
+            state = in(reg) self.s.as_mut_ptr(),
+            tmp = out(reg) _,
+            out("x9") _,
+            out("v0") _, out("v1") _, out("v2") _, out("v3") _,
+            out("v4") _, out("v5") _, out("v6") _, out("v7") _,
+            out("v8") _, out("v9") _, out("v10") _, out("v11") _,
+            out("v12") _, out("v13") _, out("v14") _, out("v15") _,
+            out("v16") _, out("v24") _, out("v25") _, out("v26") _,
+            out("v27") _, out("v28") _, out("v31") _,
+            options(nostack),
+        );
+    }
+
+    /// Absorb associated data - processes all AD in one asm block.
+    #[inline(always)]
+    pub unsafe fn absorb_all(&mut self, ad: &[u8]) {
+        if ad.is_empty() {
+            return;
+        }
+
+        let full_blocks = ad.len() / 32;
+        let remaining = ad.len() % 32;
+
+        if full_blocks > 0 {
+            core::arch::asm!(
+                // Load state
+                "ld1 {{v0.16b-v3.16b}}, [{state}]",
+                "add {tmp}, {state}, #64",
+                "ld1 {{v4.16b-v7.16b}}, [{tmp}]",
+                "movi v31.16b, #0",
+
+                "20:",
+                // Load AD block
+                "ld1 {{v24.16b, v25.16b}}, [{ad}]",
+                "add {ad}, {ad}, #32",
+
+                // Update state
+                "eor v16.16b, v0.16b, v24.16b",
+                "mov v8.16b, v7.16b",
+                "aese v8.16b, v31.16b",
+                "aesmc v8.16b, v8.16b",
+                "eor v8.16b, v8.16b, v16.16b",
+
+                "mov v9.16b, v0.16b",
+                "aese v9.16b, v31.16b",
+                "aesmc v9.16b, v9.16b",
+                "eor v9.16b, v9.16b, v1.16b",
+
+                "mov v10.16b, v1.16b",
+                "aese v10.16b, v31.16b",
+                "aesmc v10.16b, v10.16b",
+                "eor v10.16b, v10.16b, v2.16b",
+
+                "mov v11.16b, v2.16b",
+                "aese v11.16b, v31.16b",
+                "aesmc v11.16b, v11.16b",
+                "eor v11.16b, v11.16b, v3.16b",
+
+                "eor v16.16b, v4.16b, v25.16b",
+                "mov v12.16b, v3.16b",
+                "aese v12.16b, v31.16b",
+                "aesmc v12.16b, v12.16b",
+                "eor v12.16b, v12.16b, v16.16b",
+
+                "mov v13.16b, v4.16b",
+                "aese v13.16b, v31.16b",
+                "aesmc v13.16b, v13.16b",
+                "eor v13.16b, v13.16b, v5.16b",
+
+                "mov v14.16b, v5.16b",
+                "aese v14.16b, v31.16b",
+                "aesmc v14.16b, v14.16b",
+                "eor v14.16b, v14.16b, v6.16b",
+
+                "mov v15.16b, v6.16b",
+                "aese v15.16b, v31.16b",
+                "aesmc v15.16b, v15.16b",
+                "eor v15.16b, v15.16b, v7.16b",
+
+                "mov v0.16b, v8.16b",
+                "mov v1.16b, v9.16b",
+                "mov v2.16b, v10.16b",
+                "mov v3.16b, v11.16b",
+                "mov v4.16b, v12.16b",
+                "mov v5.16b, v13.16b",
+                "mov v6.16b, v14.16b",
+                "mov v7.16b, v15.16b",
+
+                "subs {blocks}, {blocks}, #1",
+                "b.ne 20b",
+
+                // Store state
+                "st1 {{v0.16b-v3.16b}}, [{state}]",
+                "st1 {{v4.16b-v7.16b}}, [{tmp}]",
+
+                state = in(reg) self.s.as_mut_ptr(),
+                ad = inout(reg) ad.as_ptr() => _,
+                blocks = inout(reg) full_blocks => _,
+                tmp = out(reg) _,
+                out("v0") _, out("v1") _, out("v2") _, out("v3") _,
+                out("v4") _, out("v5") _, out("v6") _, out("v7") _,
+                out("v8") _, out("v9") _, out("v10") _, out("v11") _,
+                out("v12") _, out("v13") _, out("v14") _, out("v15") _,
+                out("v16") _, out("v24") _, out("v25") _, out("v31") _,
+                options(nostack),
+            );
+        }
+
+        // Handle partial block
+        if remaining > 0 {
+            self.block_tmp[..remaining].copy_from_slice(&ad[full_blocks * 32..]);
+            self.block_tmp[remaining..].fill(0);
+            self.absorb_block(&self.block_tmp.clone());
         }
     }
 
-    /// Core state update function.
+    /// Absorb a single 32-byte block.
+    #[inline(always)]
+    unsafe fn absorb_block(&mut self, block: &[u8; 32]) {
+        core::arch::asm!(
+            "ld1 {{v0.16b-v3.16b}}, [{state}]",
+            "add {tmp}, {state}, #64",
+            "ld1 {{v4.16b-v7.16b}}, [{tmp}]",
+            "ld1 {{v24.16b, v25.16b}}, [{block}]",
+            "movi v31.16b, #0",
+
+            "eor v16.16b, v0.16b, v24.16b",
+            "mov v8.16b, v7.16b",
+            "aese v8.16b, v31.16b",
+            "aesmc v8.16b, v8.16b",
+            "eor v8.16b, v8.16b, v16.16b",
+
+            "mov v9.16b, v0.16b",
+            "aese v9.16b, v31.16b",
+            "aesmc v9.16b, v9.16b",
+            "eor v9.16b, v9.16b, v1.16b",
+
+            "mov v10.16b, v1.16b",
+            "aese v10.16b, v31.16b",
+            "aesmc v10.16b, v10.16b",
+            "eor v10.16b, v10.16b, v2.16b",
+
+            "mov v11.16b, v2.16b",
+            "aese v11.16b, v31.16b",
+            "aesmc v11.16b, v11.16b",
+            "eor v11.16b, v11.16b, v3.16b",
+
+            "eor v16.16b, v4.16b, v25.16b",
+            "mov v12.16b, v3.16b",
+            "aese v12.16b, v31.16b",
+            "aesmc v12.16b, v12.16b",
+            "eor v12.16b, v12.16b, v16.16b",
+
+            "mov v13.16b, v4.16b",
+            "aese v13.16b, v31.16b",
+            "aesmc v13.16b, v13.16b",
+            "eor v13.16b, v13.16b, v5.16b",
+
+            "mov v14.16b, v5.16b",
+            "aese v14.16b, v31.16b",
+            "aesmc v14.16b, v14.16b",
+            "eor v14.16b, v14.16b, v6.16b",
+
+            "mov v15.16b, v6.16b",
+            "aese v15.16b, v31.16b",
+            "aesmc v15.16b, v15.16b",
+            "eor v15.16b, v15.16b, v7.16b",
+
+            "st1 {{v8.16b-v11.16b}}, [{state}]",
+            "st1 {{v12.16b-v15.16b}}, [{tmp}]",
+
+            state = in(reg) self.s.as_mut_ptr(),
+            block = in(reg) block.as_ptr(),
+            tmp = out(reg) _,
+            out("v0") _, out("v1") _, out("v2") _, out("v3") _,
+            out("v4") _, out("v5") _, out("v6") _, out("v7") _,
+            out("v8") _, out("v9") _, out("v10") _, out("v11") _,
+            out("v12") _, out("v13") _, out("v14") _, out("v15") _,
+            out("v16") _, out("v24") _, out("v25") _, out("v31") _,
+            options(nostack),
+        );
+    }
+
+    /// Encrypt all full blocks in one asm loop, state stays in registers.
+    #[inline(always)]
+    pub unsafe fn encrypt_blocks(&mut self, data: &mut [u8]) {
+        let full_blocks = data.len() / 32;
+        if full_blocks == 0 {
+            return;
+        }
+
+        core::arch::asm!(
+            // Load state once
+            "ld1 {{v0.16b-v3.16b}}, [{state}]",
+            "add {tmp}, {state}, #64",
+            "ld1 {{v4.16b-v7.16b}}, [{tmp}]",
+            "movi v31.16b, #0",
+
+            "30:",
+            // Load plaintext
+            "ld1 {{v24.16b, v25.16b}}, [{data}]",
+
+            // z0 = s1 ^ s6 ^ (s2 & s3)
+            "and v16.16b, v2.16b, v3.16b",
+            "eor v17.16b, v1.16b, v6.16b",
+            "eor v17.16b, v17.16b, v16.16b",
+
+            // z1 = s2 ^ s5 ^ (s6 & s7)
+            "and v16.16b, v6.16b, v7.16b",
+            "eor v18.16b, v2.16b, v5.16b",
+            "eor v18.16b, v18.16b, v16.16b",
+
+            // ciphertext = plaintext ^ z
+            "eor v19.16b, v24.16b, v17.16b",
+            "eor v20.16b, v25.16b, v18.16b",
+
+            // Start state update immediately (interleave with store)
+            "eor v16.16b, v0.16b, v24.16b",
+            "mov v8.16b, v7.16b",
+            "aese v8.16b, v31.16b",
+
+            // Store ciphertext (can execute in parallel with aesmc)
+            "st1 {{v19.16b, v20.16b}}, [{data}]",
+            "add {data}, {data}, #32",
+
+            "aesmc v8.16b, v8.16b",
+            "eor v8.16b, v8.16b, v16.16b",
+
+            "mov v9.16b, v0.16b",
+            "aese v9.16b, v31.16b",
+            "aesmc v9.16b, v9.16b",
+            "eor v9.16b, v9.16b, v1.16b",
+
+            "mov v10.16b, v1.16b",
+            "aese v10.16b, v31.16b",
+            "aesmc v10.16b, v10.16b",
+            "eor v10.16b, v10.16b, v2.16b",
+
+            "mov v11.16b, v2.16b",
+            "aese v11.16b, v31.16b",
+            "aesmc v11.16b, v11.16b",
+            "eor v11.16b, v11.16b, v3.16b",
+
+            "eor v16.16b, v4.16b, v25.16b",
+            "mov v12.16b, v3.16b",
+            "aese v12.16b, v31.16b",
+            "aesmc v12.16b, v12.16b",
+            "eor v12.16b, v12.16b, v16.16b",
+
+            "mov v13.16b, v4.16b",
+            "aese v13.16b, v31.16b",
+            "aesmc v13.16b, v13.16b",
+            "eor v13.16b, v13.16b, v5.16b",
+
+            "mov v14.16b, v5.16b",
+            "aese v14.16b, v31.16b",
+            "aesmc v14.16b, v14.16b",
+            "eor v14.16b, v14.16b, v6.16b",
+
+            "mov v15.16b, v6.16b",
+            "aese v15.16b, v31.16b",
+            "aesmc v15.16b, v15.16b",
+            "eor v15.16b, v15.16b, v7.16b",
+
+            // Move new state to current
+            "mov v0.16b, v8.16b",
+            "mov v1.16b, v9.16b",
+            "mov v2.16b, v10.16b",
+            "mov v3.16b, v11.16b",
+            "mov v4.16b, v12.16b",
+            "mov v5.16b, v13.16b",
+            "mov v6.16b, v14.16b",
+            "mov v7.16b, v15.16b",
+
+            "subs {blocks}, {blocks}, #1",
+            "b.ne 30b",
+
+            // Store state once at end
+            "st1 {{v0.16b-v3.16b}}, [{state}]",
+            "st1 {{v4.16b-v7.16b}}, [{tmp}]",
+
+            state = in(reg) self.s.as_mut_ptr(),
+            data = inout(reg) data.as_mut_ptr() => _,
+            blocks = inout(reg) full_blocks => _,
+            tmp = out(reg) _,
+            out("v0") _, out("v1") _, out("v2") _, out("v3") _,
+            out("v4") _, out("v5") _, out("v6") _, out("v7") _,
+            out("v8") _, out("v9") _, out("v10") _, out("v11") _,
+            out("v12") _, out("v13") _, out("v14") _, out("v15") _,
+            out("v16") _, out("v17") _, out("v18") _, out("v19") _,
+            out("v20") _, out("v24") _, out("v25") _, out("v31") _,
+            options(nostack),
+        );
+    }
+
+    /// Encrypt partial block (< 32 bytes).
     ///
-    /// Uses tmp_m0 and tmp_m1 as input (M0, M1).
-    /// ```text
-    /// S'0 = AESRound(S7, S0 ^ M0)
-    /// S'1 = AESRound(S0, S1)
-    /// S'2 = AESRound(S1, S2)
-    /// S'3 = AESRound(S2, S3)
-    /// S'4 = AESRound(S3, S4 ^ M1)
-    /// S'5 = AESRound(S4, S5)
-    /// S'6 = AESRound(S5, S6)
-    /// S'7 = AESRound(S6, S7)
-    /// ```
-    #[inline]
-    #[target_feature(enable = "aes")]
-    unsafe fn update(&mut self) {
-        // S0 ^ M0
-        self.tmp_t = self.s0.xor(&self.tmp_m0);
-        self.new_s0 = self.s7.aes_enc(&self.tmp_t);
-
-        self.new_s1 = self.s0.aes_enc(&self.s1);
-        self.new_s2 = self.s1.aes_enc(&self.s2);
-        self.new_s3 = self.s2.aes_enc(&self.s3);
-
-        // S4 ^ M1
-        self.tmp_t = self.s4.xor(&self.tmp_m1);
-        self.new_s4 = self.s3.aes_enc(&self.tmp_t);
-
-        self.new_s5 = self.s4.aes_enc(&self.s5);
-        self.new_s6 = self.s5.aes_enc(&self.s6);
-        self.new_s7 = self.s6.aes_enc(&self.s7);
-
-        // Move new state to current state
-        core::mem::swap(&mut self.s0, &mut self.new_s0);
-        core::mem::swap(&mut self.s1, &mut self.new_s1);
-        core::mem::swap(&mut self.s2, &mut self.new_s2);
-        core::mem::swap(&mut self.s3, &mut self.new_s3);
-        core::mem::swap(&mut self.s4, &mut self.new_s4);
-        core::mem::swap(&mut self.s5, &mut self.new_s5);
-        core::mem::swap(&mut self.s6, &mut self.new_s6);
-        core::mem::swap(&mut self.s7, &mut self.new_s7);
-    }
-
-    /// Absorb a 256-bit block of associated data.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub unsafe fn absorb(&mut self, ad: &[u8; 32]) {
-        self.tmp_m0 = Intrinsics::load(ad[..16].try_into().unwrap());
-        self.tmp_m1 = Intrinsics::load(ad[16..].try_into().unwrap());
-        unsafe { self.update() };
-    }
-
-    /// Encrypt a 256-bit plaintext block in-place.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub unsafe fn enc(&mut self, block: &mut [u8; 32]) {
-        // z0 = S1 ^ S6 ^ (S2 & S3)
-        self.tmp_t = self.s2.and(&self.s3);
-        self.tmp_z0 = self.s1.xor(&self.s6);
-        self.tmp_z0 = self.tmp_z0.xor(&self.tmp_t);
-
-        // z1 = S2 ^ S5 ^ (S6 & S7)
-        self.tmp_t = self.s6.and(&self.s7);
-        self.tmp_z1 = self.s2.xor(&self.s5);
-        self.tmp_z1 = self.tmp_z1.xor(&self.tmp_t);
-
-        // Load plaintext into tmp_m0, tmp_m1
-        self.tmp_m0 = Intrinsics::load(block[..16].try_into().unwrap());
-        self.tmp_m1 = Intrinsics::load(block[16..].try_into().unwrap());
-
-        // out0 = t0 ^ z0, out1 = t1 ^ z1
-        self.tmp_t = self.tmp_m0.xor(&self.tmp_z0);
-        self.tmp_t.store((&mut block[..16]).try_into().unwrap());
-
-        self.tmp_t = self.tmp_m1.xor(&self.tmp_z1);
-        self.tmp_t.store((&mut block[16..]).try_into().unwrap());
-
-        // Update state with plaintext (tmp_m0, tmp_m1 still hold plaintext)
-        unsafe { self.update() };
-    }
-
-    /// Encrypt a partial plaintext block (< 32 bytes) in-place.
-    ///
-    /// Uses block_tmp as scratch space. The `len` bytes at the start of
-    /// block_tmp are the plaintext, and will be replaced with ciphertext.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub unsafe fn enc_partial(&mut self, len: usize) {
+    /// For partial blocks we must:
+    /// 1. Compute z0, z1 from current state
+    /// 2. Encrypt: ciphertext = plaintext ^ z[0..len]
+    /// 3. Update state with (plaintext || zeros)
+    #[inline(always)]
+    pub unsafe fn encrypt_partial(&mut self, data: &mut [u8]) {
+        let len = data.len();
         debug_assert!(len > 0 && len < 32);
 
-        // Zero-pad the partial plaintext (already in block_tmp[..len])
+        // Prepare: plaintext || zeros
+        self.block_tmp[..len].copy_from_slice(data);
         self.block_tmp[len..].fill(0);
 
-        // z0 = S1 ^ S6 ^ (S2 & S3)
-        self.tmp_t = self.s2.and(&self.s3);
-        self.tmp_z0 = self.s1.xor(&self.s6);
-        self.tmp_z0 = self.tmp_z0.xor(&self.tmp_t);
+        core::arch::asm!(
+            // Load state
+            "ld1 {{v0.16b-v3.16b}}, [{state}]",
+            "add {tmp_reg}, {state}, #64",
+            "ld1 {{v4.16b-v7.16b}}, [{tmp_reg}]",
+            "movi v31.16b, #0",
 
-        // z1 = S2 ^ S5 ^ (S6 & S7)
-        self.tmp_t = self.s6.and(&self.s7);
-        self.tmp_z1 = self.s2.xor(&self.s5);
-        self.tmp_z1 = self.tmp_z1.xor(&self.tmp_t);
+            // Load plaintext||zeros
+            "ld1 {{v24.16b, v25.16b}}, [{block}]",
 
-        // Load zero-padded plaintext
-        self.tmp_m0 = Intrinsics::load(self.block_tmp[..16].try_into().unwrap());
-        self.tmp_m1 = Intrinsics::load(self.block_tmp[16..].try_into().unwrap());
+            // z0 = s1 ^ s6 ^ (s2 & s3)
+            "and v16.16b, v2.16b, v3.16b",
+            "eor v17.16b, v1.16b, v6.16b",
+            "eor v17.16b, v17.16b, v16.16b",
 
-        // Encrypt: ciphertext = plaintext ^ z
-        self.tmp_t = self.tmp_m0.xor(&self.tmp_z0);
-        self.tmp_t.store((&mut self.block_tmp[..16]).try_into().unwrap());
+            // z1 = s2 ^ s5 ^ (s6 & s7)
+            "and v16.16b, v6.16b, v7.16b",
+            "eor v18.16b, v2.16b, v5.16b",
+            "eor v18.16b, v18.16b, v16.16b",
 
-        self.tmp_t = self.tmp_m1.xor(&self.tmp_z1);
-        self.tmp_t.store((&mut self.block_tmp[16..]).try_into().unwrap());
+            // ciphertext||garbage = plaintext||zeros ^ z0||z1
+            "eor v19.16b, v24.16b, v17.16b",
+            "eor v20.16b, v25.16b, v18.16b",
 
-        // Update with zero-padded plaintext (tmp_m0, tmp_m1 still hold it)
-        unsafe { self.update() };
+            // Store ciphertext||garbage (we'll truncate in Rust)
+            "st1 {{v19.16b, v20.16b}}, [{block}]",
+
+            // Update state with plaintext||zeros (v24, v25)
+            "eor v16.16b, v0.16b, v24.16b",
+            "mov v8.16b, v7.16b",
+            "aese v8.16b, v31.16b",
+            "aesmc v8.16b, v8.16b",
+            "eor v8.16b, v8.16b, v16.16b",
+
+            "mov v9.16b, v0.16b",
+            "aese v9.16b, v31.16b",
+            "aesmc v9.16b, v9.16b",
+            "eor v9.16b, v9.16b, v1.16b",
+
+            "mov v10.16b, v1.16b",
+            "aese v10.16b, v31.16b",
+            "aesmc v10.16b, v10.16b",
+            "eor v10.16b, v10.16b, v2.16b",
+
+            "mov v11.16b, v2.16b",
+            "aese v11.16b, v31.16b",
+            "aesmc v11.16b, v11.16b",
+            "eor v11.16b, v11.16b, v3.16b",
+
+            "eor v16.16b, v4.16b, v25.16b",
+            "mov v12.16b, v3.16b",
+            "aese v12.16b, v31.16b",
+            "aesmc v12.16b, v12.16b",
+            "eor v12.16b, v12.16b, v16.16b",
+
+            "mov v13.16b, v4.16b",
+            "aese v13.16b, v31.16b",
+            "aesmc v13.16b, v13.16b",
+            "eor v13.16b, v13.16b, v5.16b",
+
+            "mov v14.16b, v5.16b",
+            "aese v14.16b, v31.16b",
+            "aesmc v14.16b, v14.16b",
+            "eor v14.16b, v14.16b, v6.16b",
+
+            "mov v15.16b, v6.16b",
+            "aese v15.16b, v31.16b",
+            "aesmc v15.16b, v15.16b",
+            "eor v15.16b, v15.16b, v7.16b",
+
+            // Store new state
+            "st1 {{v8.16b-v11.16b}}, [{state}]",
+            "st1 {{v12.16b-v15.16b}}, [{tmp_reg}]",
+
+            state = in(reg) self.s.as_mut_ptr(),
+            block = in(reg) self.block_tmp.as_mut_ptr(),
+            tmp_reg = out(reg) _,
+            out("v0") _, out("v1") _, out("v2") _, out("v3") _,
+            out("v4") _, out("v5") _, out("v6") _, out("v7") _,
+            out("v8") _, out("v9") _, out("v10") _, out("v11") _,
+            out("v12") _, out("v13") _, out("v14") _, out("v15") _,
+            out("v16") _, out("v17") _, out("v18") _, out("v19") _,
+            out("v20") _, out("v24") _, out("v25") _, out("v31") _,
+            options(nostack),
+        );
+
+        // Copy ciphertext back (ignore garbage beyond len)
+        data.copy_from_slice(&self.block_tmp[..len]);
     }
 
-    /// Decrypt a 256-bit ciphertext block in-place.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub unsafe fn dec(&mut self, block: &mut [u8; 32]) {
-        // z0 = S1 ^ S6 ^ (S2 & S3)
-        self.tmp_t = self.s2.and(&self.s3);
-        self.tmp_z0 = self.s1.xor(&self.s6);
-        self.tmp_z0 = self.tmp_z0.xor(&self.tmp_t);
+    /// Decrypt all full blocks in one asm loop.
+    #[inline(always)]
+    pub unsafe fn decrypt_blocks(&mut self, data: &mut [u8]) {
+        let full_blocks = data.len() / 32;
+        if full_blocks == 0 {
+            return;
+        }
 
-        // z1 = S2 ^ S5 ^ (S6 & S7)
-        self.tmp_t = self.s6.and(&self.s7);
-        self.tmp_z1 = self.s2.xor(&self.s5);
-        self.tmp_z1 = self.tmp_z1.xor(&self.tmp_t);
+        core::arch::asm!(
+            // Load state once
+            "ld1 {{v0.16b-v3.16b}}, [{state}]",
+            "add {tmp}, {state}, #64",
+            "ld1 {{v4.16b-v7.16b}}, [{tmp}]",
+            "movi v31.16b, #0",
 
-        // Load ciphertext
-        self.tmp_t = Intrinsics::load(block[..16].try_into().unwrap());
-        // Decrypt: plaintext = ciphertext ^ z0
-        self.tmp_m0 = self.tmp_t.xor(&self.tmp_z0);
-        self.tmp_m0.store((&mut block[..16]).try_into().unwrap());
+            "40:",
+            // Load ciphertext
+            "ld1 {{v19.16b, v20.16b}}, [{data}]",
 
-        self.tmp_t = Intrinsics::load(block[16..].try_into().unwrap());
-        // Decrypt: plaintext = ciphertext ^ z1
-        self.tmp_m1 = self.tmp_t.xor(&self.tmp_z1);
-        self.tmp_m1.store((&mut block[16..]).try_into().unwrap());
+            // z0 = s1 ^ s6 ^ (s2 & s3)
+            "and v16.16b, v2.16b, v3.16b",
+            "eor v17.16b, v1.16b, v6.16b",
+            "eor v17.16b, v17.16b, v16.16b",
 
-        // Update state with PLAINTEXT (tmp_m0, tmp_m1)
-        unsafe { self.update() };
+            // z1 = s2 ^ s5 ^ (s6 & s7)
+            "and v16.16b, v6.16b, v7.16b",
+            "eor v18.16b, v2.16b, v5.16b",
+            "eor v18.16b, v18.16b, v16.16b",
+
+            // plaintext = ciphertext ^ z
+            "eor v24.16b, v19.16b, v17.16b",
+            "eor v25.16b, v20.16b, v18.16b",
+
+            // Start state update immediately (interleave with store)
+            // This allows the store to happen in parallel with AES operations
+            "eor v16.16b, v0.16b, v24.16b",
+            "mov v8.16b, v7.16b",
+            "aese v8.16b, v31.16b",
+
+            // Store plaintext (can execute in parallel with aesmc)
+            "st1 {{v24.16b, v25.16b}}, [{data}]",
+            "add {data}, {data}, #32",
+
+            "aesmc v8.16b, v8.16b",
+            "eor v8.16b, v8.16b, v16.16b",
+
+            "mov v9.16b, v0.16b",
+            "aese v9.16b, v31.16b",
+            "aesmc v9.16b, v9.16b",
+            "eor v9.16b, v9.16b, v1.16b",
+
+            "mov v10.16b, v1.16b",
+            "aese v10.16b, v31.16b",
+            "aesmc v10.16b, v10.16b",
+            "eor v10.16b, v10.16b, v2.16b",
+
+            "mov v11.16b, v2.16b",
+            "aese v11.16b, v31.16b",
+            "aesmc v11.16b, v11.16b",
+            "eor v11.16b, v11.16b, v3.16b",
+
+            "eor v16.16b, v4.16b, v25.16b",
+            "mov v12.16b, v3.16b",
+            "aese v12.16b, v31.16b",
+            "aesmc v12.16b, v12.16b",
+            "eor v12.16b, v12.16b, v16.16b",
+
+            "mov v13.16b, v4.16b",
+            "aese v13.16b, v31.16b",
+            "aesmc v13.16b, v13.16b",
+            "eor v13.16b, v13.16b, v5.16b",
+
+            "mov v14.16b, v5.16b",
+            "aese v14.16b, v31.16b",
+            "aesmc v14.16b, v14.16b",
+            "eor v14.16b, v14.16b, v6.16b",
+
+            "mov v15.16b, v6.16b",
+            "aese v15.16b, v31.16b",
+            "aesmc v15.16b, v15.16b",
+            "eor v15.16b, v15.16b, v7.16b",
+
+            // Move new state to current
+            "mov v0.16b, v8.16b",
+            "mov v1.16b, v9.16b",
+            "mov v2.16b, v10.16b",
+            "mov v3.16b, v11.16b",
+            "mov v4.16b, v12.16b",
+            "mov v5.16b, v13.16b",
+            "mov v6.16b, v14.16b",
+            "mov v7.16b, v15.16b",
+
+            "subs {blocks}, {blocks}, #1",
+            "b.ne 40b",
+
+            // Store state once at end
+            "st1 {{v0.16b-v3.16b}}, [{state}]",
+            "st1 {{v4.16b-v7.16b}}, [{tmp}]",
+
+            state = in(reg) self.s.as_mut_ptr(),
+            data = inout(reg) data.as_mut_ptr() => _,
+            blocks = inout(reg) full_blocks => _,
+            tmp = out(reg) _,
+            out("v0") _, out("v1") _, out("v2") _, out("v3") _,
+            out("v4") _, out("v5") _, out("v6") _, out("v7") _,
+            out("v8") _, out("v9") _, out("v10") _, out("v11") _,
+            out("v12") _, out("v13") _, out("v14") _, out("v15") _,
+            out("v16") _, out("v17") _, out("v18") _, out("v19") _,
+            out("v20") _, out("v24") _, out("v25") _, out("v31") _,
+            options(nostack),
+        );
     }
 
-    /// Decrypt a partial ciphertext block (< 32 bytes) in-place.
+    /// Decrypt partial block (< 32 bytes).
     ///
-    /// Uses block_tmp as scratch space. The `len` bytes at the start of
-    /// block_tmp are the ciphertext, and will be replaced with plaintext.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub unsafe fn dec_partial(&mut self, len: usize) {
+    /// For partial blocks we must:
+    /// 1. Compute z0, z1 from current state
+    /// 2. Decrypt: plaintext = ciphertext ^ z[0..len]
+    /// 3. Update state with (plaintext || zeros)
+    #[inline(always)]
+    pub unsafe fn decrypt_partial(&mut self, data: &mut [u8]) {
+        let len = data.len();
         debug_assert!(len > 0 && len < 32);
 
-        // Zero-pad the partial ciphertext (already in block_tmp[..len])
+        // Prepare: ciphertext || zeros
+        self.block_tmp[..len].copy_from_slice(data);
         self.block_tmp[len..].fill(0);
 
-        // z0 = S1 ^ S6 ^ (S2 & S3)
-        self.tmp_t = self.s2.and(&self.s3);
-        self.tmp_z0 = self.s1.xor(&self.s6);
-        self.tmp_z0 = self.tmp_z0.xor(&self.tmp_t);
+        core::arch::asm!(
+            // Load state
+            "ld1 {{v0.16b-v3.16b}}, [{state}]",
+            "add {tmp_reg}, {state}, #64",
+            "ld1 {{v4.16b-v7.16b}}, [{tmp_reg}]",
+            "movi v31.16b, #0",
 
-        // z1 = S2 ^ S5 ^ (S6 & S7)
-        self.tmp_t = self.s6.and(&self.s7);
-        self.tmp_z1 = self.s2.xor(&self.s5);
-        self.tmp_z1 = self.tmp_z1.xor(&self.tmp_t);
+            // Load ciphertext||zeros
+            "ld1 {{v19.16b, v20.16b}}, [{block}]",
 
-        // Decrypt: padded_plaintext = padded_ciphertext ^ z
-        self.tmp_t = Intrinsics::load(self.block_tmp[..16].try_into().unwrap());
-        self.tmp_m0 = self.tmp_t.xor(&self.tmp_z0);
-        self.tmp_m0.store((&mut self.block_tmp[..16]).try_into().unwrap());
+            // z0 = s1 ^ s6 ^ (s2 & s3)
+            "and v16.16b, v2.16b, v3.16b",
+            "eor v17.16b, v1.16b, v6.16b",
+            "eor v17.16b, v17.16b, v16.16b",
 
-        self.tmp_t = Intrinsics::load(self.block_tmp[16..].try_into().unwrap());
-        self.tmp_m1 = self.tmp_t.xor(&self.tmp_z1);
-        self.tmp_m1.store((&mut self.block_tmp[16..]).try_into().unwrap());
+            // z1 = s2 ^ s5 ^ (s6 & s7)
+            "and v16.16b, v6.16b, v7.16b",
+            "eor v18.16b, v2.16b, v5.16b",
+            "eor v18.16b, v18.16b, v16.16b",
 
-        // Zero the padding bytes (keep only actual plaintext)
+            // plaintext||garbage = ciphertext||zeros ^ z0||z1
+            "eor v24.16b, v19.16b, v17.16b",
+            "eor v25.16b, v20.16b, v18.16b",
+
+            // Store plaintext||garbage (we'll zero-pad in Rust then reload)
+            "st1 {{v24.16b, v25.16b}}, [{block}]",
+
+            state = in(reg) self.s.as_mut_ptr(),
+            block = in(reg) self.block_tmp.as_mut_ptr(),
+            tmp_reg = out(reg) _,
+            out("v0") _, out("v1") _, out("v2") _, out("v3") _,
+            out("v4") _, out("v5") _, out("v6") _, out("v7") _,
+            out("v16") _, out("v17") _, out("v18") _, out("v19") _,
+            out("v20") _, out("v24") _, out("v25") _, out("v31") _,
+            options(nostack),
+        );
+
+        // Copy plaintext back, zero the garbage
+        data.copy_from_slice(&self.block_tmp[..len]);
         self.block_tmp[len..].fill(0);
 
-        // Update with zero-padded plaintext
-        self.tmp_m0 = Intrinsics::load(self.block_tmp[..16].try_into().unwrap());
-        self.tmp_m1 = Intrinsics::load(self.block_tmp[16..].try_into().unwrap());
-        unsafe { self.update() };
+        // Update state with zero-padded plaintext
+        core::arch::asm!(
+            // Load state
+            "ld1 {{v0.16b-v3.16b}}, [{state}]",
+            "add {tmp_reg}, {state}, #64",
+            "ld1 {{v4.16b-v7.16b}}, [{tmp_reg}]",
+            "movi v31.16b, #0",
+
+            // Load plaintext||zeros
+            "ld1 {{v24.16b, v25.16b}}, [{block}]",
+
+            // Update state
+            "eor v16.16b, v0.16b, v24.16b",
+            "mov v8.16b, v7.16b",
+            "aese v8.16b, v31.16b",
+            "aesmc v8.16b, v8.16b",
+            "eor v8.16b, v8.16b, v16.16b",
+
+            "mov v9.16b, v0.16b",
+            "aese v9.16b, v31.16b",
+            "aesmc v9.16b, v9.16b",
+            "eor v9.16b, v9.16b, v1.16b",
+
+            "mov v10.16b, v1.16b",
+            "aese v10.16b, v31.16b",
+            "aesmc v10.16b, v10.16b",
+            "eor v10.16b, v10.16b, v2.16b",
+
+            "mov v11.16b, v2.16b",
+            "aese v11.16b, v31.16b",
+            "aesmc v11.16b, v11.16b",
+            "eor v11.16b, v11.16b, v3.16b",
+
+            "eor v16.16b, v4.16b, v25.16b",
+            "mov v12.16b, v3.16b",
+            "aese v12.16b, v31.16b",
+            "aesmc v12.16b, v12.16b",
+            "eor v12.16b, v12.16b, v16.16b",
+
+            "mov v13.16b, v4.16b",
+            "aese v13.16b, v31.16b",
+            "aesmc v13.16b, v13.16b",
+            "eor v13.16b, v13.16b, v5.16b",
+
+            "mov v14.16b, v5.16b",
+            "aese v14.16b, v31.16b",
+            "aesmc v14.16b, v14.16b",
+            "eor v14.16b, v14.16b, v6.16b",
+
+            "mov v15.16b, v6.16b",
+            "aese v15.16b, v31.16b",
+            "aesmc v15.16b, v15.16b",
+            "eor v15.16b, v15.16b, v7.16b",
+
+            // Store new state
+            "st1 {{v8.16b-v11.16b}}, [{state}]",
+            "st1 {{v12.16b-v15.16b}}, [{tmp_reg}]",
+
+            state = in(reg) self.s.as_mut_ptr(),
+            block = in(reg) self.block_tmp.as_ptr(),
+            tmp_reg = out(reg) _,
+            out("v0") _, out("v1") _, out("v2") _, out("v3") _,
+            out("v4") _, out("v5") _, out("v6") _, out("v7") _,
+            out("v8") _, out("v9") _, out("v10") _, out("v11") _,
+            out("v12") _, out("v13") _, out("v14") _, out("v15") _,
+            out("v16") _, out("v24") _, out("v25") _, out("v31") _,
+            options(nostack),
+        );
     }
 
-    /// Finalize and produce 128-bit tag.
-    #[inline]
-    #[target_feature(enable = "aes")]
+    /// Finalize and produce tag.
+    #[inline(always)]
     pub unsafe fn finalize(&mut self, ad_len: usize, msg_len: usize, tag: &mut [u8; 16]) {
-        // t = S2 ^ (LE64(ad_len_bits) || LE64(msg_len_bits))
-        let mut ad_bits = (ad_len as u64) * 8;
-        let mut msg_bits = (msg_len as u64) * 8;
+        let ad_bits = (ad_len as u64) * 8;
+        let msg_bits = (msg_len as u64) * 8;
 
-        u64_to_le(
-            &mut ad_bits,
-            (&mut self.len_block[..8]).try_into().unwrap(),
+        self.len_block[..8].copy_from_slice(&ad_bits.to_le_bytes());
+        self.len_block[8..].copy_from_slice(&msg_bits.to_le_bytes());
+
+        core::arch::asm!(
+            "ld1 {{v0.16b-v3.16b}}, [{state}]",
+            "add {tmp}, {state}, #64",
+            "ld1 {{v4.16b-v7.16b}}, [{tmp}]",
+            "ld1 {{v24.16b}}, [{len_block}]",
+
+            "eor v24.16b, v2.16b, v24.16b",
+            "mov v25.16b, v24.16b",
+            "movi v31.16b, #0",
+
+            "mov x9, #7",
+            "50:",
+
+            "eor v16.16b, v0.16b, v24.16b",
+            "mov v8.16b, v7.16b",
+            "aese v8.16b, v31.16b",
+            "aesmc v8.16b, v8.16b",
+            "eor v8.16b, v8.16b, v16.16b",
+
+            "mov v9.16b, v0.16b",
+            "aese v9.16b, v31.16b",
+            "aesmc v9.16b, v9.16b",
+            "eor v9.16b, v9.16b, v1.16b",
+
+            "mov v10.16b, v1.16b",
+            "aese v10.16b, v31.16b",
+            "aesmc v10.16b, v10.16b",
+            "eor v10.16b, v10.16b, v2.16b",
+
+            "mov v11.16b, v2.16b",
+            "aese v11.16b, v31.16b",
+            "aesmc v11.16b, v11.16b",
+            "eor v11.16b, v11.16b, v3.16b",
+
+            "eor v16.16b, v4.16b, v25.16b",
+            "mov v12.16b, v3.16b",
+            "aese v12.16b, v31.16b",
+            "aesmc v12.16b, v12.16b",
+            "eor v12.16b, v12.16b, v16.16b",
+
+            "mov v13.16b, v4.16b",
+            "aese v13.16b, v31.16b",
+            "aesmc v13.16b, v13.16b",
+            "eor v13.16b, v13.16b, v5.16b",
+
+            "mov v14.16b, v5.16b",
+            "aese v14.16b, v31.16b",
+            "aesmc v14.16b, v14.16b",
+            "eor v14.16b, v14.16b, v6.16b",
+
+            "mov v15.16b, v6.16b",
+            "aese v15.16b, v31.16b",
+            "aesmc v15.16b, v15.16b",
+            "eor v15.16b, v15.16b, v7.16b",
+
+            "mov v0.16b, v8.16b",
+            "mov v1.16b, v9.16b",
+            "mov v2.16b, v10.16b",
+            "mov v3.16b, v11.16b",
+            "mov v4.16b, v12.16b",
+            "mov v5.16b, v13.16b",
+            "mov v6.16b, v14.16b",
+            "mov v7.16b, v15.16b",
+
+            "subs x9, x9, #1",
+            "b.ne 50b",
+
+            // tag = s0 ^ s1 ^ s2 ^ s3 ^ s4 ^ s5 ^ s6
+            "eor v0.16b, v0.16b, v1.16b",
+            "eor v0.16b, v0.16b, v2.16b",
+            "eor v0.16b, v0.16b, v3.16b",
+            "eor v0.16b, v0.16b, v4.16b",
+            "eor v0.16b, v0.16b, v5.16b",
+            "eor v0.16b, v0.16b, v6.16b",
+            "st1 {{v0.16b}}, [{tag}]",
+
+            // Store final state
+            "st1 {{v8.16b-v11.16b}}, [{state}]",
+            "st1 {{v12.16b-v15.16b}}, [{tmp}]",
+
+            state = in(reg) self.s.as_mut_ptr(),
+            len_block = in(reg) self.len_block.as_ptr(),
+            tag = in(reg) tag.as_mut_ptr(),
+            tmp = out(reg) _,
+            out("x9") _,
+            out("v0") _, out("v1") _, out("v2") _, out("v3") _,
+            out("v4") _, out("v5") _, out("v6") _, out("v7") _,
+            out("v8") _, out("v9") _, out("v10") _, out("v11") _,
+            out("v12") _, out("v13") _, out("v14") _, out("v15") _,
+            out("v16") _, out("v24") _, out("v25") _, out("v31") _,
+            options(nostack),
         );
-        u64_to_le(
-            &mut msg_bits,
-            (&mut self.len_block[8..]).try_into().unwrap(),
-        );
-
-        // t = S2 ^ len_block (computed once and stored)
-        self.tmp_t = Intrinsics::load(&self.len_block);
-        self.tmp_t = self.s2.xor(&self.tmp_t);
-        self.tmp_t.store(&mut self.tag_tmp);
-
-        // Run 7 Update rounds with (t, t)
-        for _ in 0..7 {
-            self.tmp_m0 = Intrinsics::load(&self.tag_tmp);
-            self.tmp_m1 = Intrinsics::load(&self.tag_tmp);
-            unsafe { self.update() };
-        }
-
-        // tag = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5 ^ S6
-        self.tmp_t = self.s0.xor(&self.s1);
-        self.tmp_t = self.tmp_t.xor(&self.s2);
-        self.tmp_t = self.tmp_t.xor(&self.s3);
-        self.tmp_t = self.tmp_t.xor(&self.s4);
-        self.tmp_t = self.tmp_t.xor(&self.s5);
-        self.tmp_t = self.tmp_t.xor(&self.s6);
-
-        self.tmp_t.store(tag);
     }
 }
