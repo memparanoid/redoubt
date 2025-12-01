@@ -81,7 +81,8 @@ fn test_string_encode_into_propagates_try_encode_into_error() {
         result,
         Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
     ));
-    // Check zeroization
+
+    // Assert zeroization!
     assert!(s.is_empty());
     assert!(buf.is_zeroized());
 }
@@ -158,7 +159,8 @@ fn test_string_decode_from_propagates_try_decode_from_error() {
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
-    // Check zeroization - string should be cleared
+
+    // Assert zeroization!
     assert!(s.is_empty());
     assert!(slice.iter().all(|&b| b == 0));
 }
