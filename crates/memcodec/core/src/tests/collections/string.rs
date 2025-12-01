@@ -176,3 +176,38 @@ fn test_string_decode_from_propagates_try_decode_from_error() {
     assert!(s.is_empty());
     assert!(slice.iter().all(|&b| b == 0));
 }
+
+// EncodeSlice
+
+#[test]
+fn test_string_encode_slice_propagates_encode_into_error() {
+    use crate::error::CodecBufferError;
+    use crate::traits::EncodeSlice;
+
+    let mut slice = [String::from("hello"), String::from("world")];
+    let mut buf = Buffer::new(1); // Too small
+
+    let result = String::encode_slice_into(&mut slice, &mut buf);
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
+    ));
+}
+
+// DecodeSlice
+
+#[test]
+fn test_string_decode_slice_propagates_decode_from_error() {
+    use crate::traits::DecodeSlice;
+    use crate::DecodeError;
+
+    let mut slice = [String::from("existing"), String::from("data")];
+    let mut buf = [0u8; 1]; // Too small
+
+    let result = String::decode_slice_from(&mut slice, &mut buf.as_mut_slice());
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+}
