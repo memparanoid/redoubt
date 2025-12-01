@@ -110,6 +110,29 @@ fn test_string_try_decode_propagates_process_header_error() {
 }
 
 #[test]
+fn test_string_try_decode_propagates_decode_slice_error() {
+    use crate::collections::helpers::header_size;
+    use crate::traits::{Encode, TryDecode};
+    use crate::DecodeError;
+
+    // Encode valid string
+    let mut s = String::from("hello");
+    let mut buf = Buffer::new(header_size() + s.len());
+    s.encode_into(&mut buf).expect("encode failed");
+
+    // Truncate buffer after header but before all data bytes
+    let truncated_size = header_size() + 2; // Only 2 bytes of "hello" instead of 5
+    let mut slice = &mut buf.as_mut_slice()[..truncated_size];
+
+    // Decode should fail at decode_slice_from
+    let mut decoded = String::new();
+    let result = decoded.try_decode_from(&mut slice);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+}
+
+#[test]
 fn test_string_try_decode_propagates_utf8_validation_error() {
     use crate::collections::helpers::header_size;
     use crate::traits::{Encode, TryDecode};
@@ -215,7 +238,7 @@ fn test_string_encode_slice_propagates_encode_into_error() {
 #[test]
 fn test_string_decode_slice_ok() {
     use crate::collections::helpers::header_size;
-    use crate::traits::{DecodeSlice, Encode, EncodeSlice};
+    use crate::traits::{DecodeSlice, EncodeSlice};
 
     // Encode first
     let mut slice = [String::from("hello"), String::from("world")];
