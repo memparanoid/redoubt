@@ -103,26 +103,21 @@ pub fn bytes_required_sum<'a>(
     Ok(*total)
 }
 
-/// Try to encode fields from an iterator of `&mut dyn Encode`.
-/// Does not handle zeroization - caller is responsible for cleanup on error.
-fn try_encode_fields<'a>(
-    iter: impl Iterator<Item = &'a mut dyn Encode>,
-    buf: &mut Buffer,
-) -> Result<(), EncodeError> {
-    for field in iter {
-        field.encode_into(buf)?;
-    }
-    Ok(())
-}
-
 /// Encode fields from an iterator of `&mut dyn EncodeZeroize`.
 /// On error with zeroize feature, zeroizes all fields and the buffer.
 pub fn encode_fields<'a>(
-    fields: &mut [&'a mut dyn EncodeZeroize],
+    iter: impl Iterator<Item = &'a mut dyn EncodeZeroize>,
     buf: &mut Buffer,
 ) -> Result<(), EncodeError> {
-    let iter = fields.iter_mut().map(|f| *f as &mut dyn Encode);
-    let result = try_encode_fields(iter, buf);
+    let mut fields: Vec<&'a mut dyn EncodeZeroize> = iter.collect();
+
+    let mut result = Ok(());
+    for field in fields.iter_mut() {
+        if let Err(e) = field.encode_into(buf) {
+            result = Err(e);
+            break;
+        }
+    }
 
     #[cfg(feature = "zeroize")]
     if result.is_err() {
@@ -135,26 +130,21 @@ pub fn encode_fields<'a>(
     result
 }
 
-/// Try to decode fields from an iterator of `&mut dyn Decode`.
-/// Does not handle zeroization - caller is responsible for cleanup on error.
-fn try_decode_fields<'a>(
-    iter: impl Iterator<Item = &'a mut dyn Decode>,
-    buf: &mut &mut [u8],
-) -> Result<(), DecodeError> {
-    for field in iter {
-        field.decode_from(buf)?;
-    }
-    Ok(())
-}
-
-/// Decode fields from a slice of `&mut dyn DecodeZeroize`.
+/// Decode fields from an iterator of `&mut dyn DecodeZeroize`.
 /// On error with zeroize feature, zeroizes all fields and the buffer.
 pub fn decode_fields<'a>(
-    fields: &mut [&'a mut dyn DecodeZeroize],
+    iter: impl Iterator<Item = &'a mut dyn DecodeZeroize>,
     buf: &mut &mut [u8],
 ) -> Result<(), DecodeError> {
-    let iter = fields.iter_mut().map(|f| *f as &mut dyn Decode);
-    let result = try_decode_fields(iter, buf);
+    let mut fields: Vec<&'a mut dyn DecodeZeroize> = iter.collect();
+
+    let mut result = Ok(());
+    for field in fields.iter_mut() {
+        if let Err(e) = field.decode_from(buf) {
+            result = Err(e);
+            break;
+        }
+    }
 
     #[cfg(feature = "zeroize")]
     if result.is_err() {

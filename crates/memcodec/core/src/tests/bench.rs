@@ -96,7 +96,7 @@ impl BytesRequired for MixedData {
 
 impl Encode for MixedData {
     fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
-        let mut collection: [&mut dyn EncodeZeroize; 11] = [
+        let collection: [&mut dyn EncodeZeroize; 11] = [
             to_encode_zeroize_dyn_mut(&mut self.bytes_1k),
             to_encode_zeroize_dyn_mut(&mut self.bytes_2k),
             to_encode_zeroize_dyn_mut(&mut self.bytes_4k),
@@ -109,13 +109,13 @@ impl Encode for MixedData {
             to_encode_zeroize_dyn_mut(&mut self.bytes_512k),
             to_encode_zeroize_dyn_mut(&mut self.bytes_1m),
         ];
-        encode_fields(&mut collection, buf)
+        encode_fields(collection.into_iter(), buf)
     }
 }
 
 impl Decode for MixedData {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-        let mut collection: [&mut dyn DecodeZeroize; 11] = [
+        let collection: [&mut dyn DecodeZeroize; 11] = [
             to_decode_zeroize_dyn_mut(&mut self.bytes_1k),
             to_decode_zeroize_dyn_mut(&mut self.bytes_2k),
             to_decode_zeroize_dyn_mut(&mut self.bytes_4k),
@@ -128,7 +128,7 @@ impl Decode for MixedData {
             to_decode_zeroize_dyn_mut(&mut self.bytes_512k),
             to_decode_zeroize_dyn_mut(&mut self.bytes_1m),
         ];
-        decode_fields(&mut collection, buf)
+        decode_fields(collection.into_iter(), buf)
     }
 }
 
