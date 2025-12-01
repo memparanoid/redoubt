@@ -68,9 +68,9 @@ impl TestBreaker {
         self.behaviour = behaviour;
     }
 
-    /// Checks if the data is zeroized.
+    /// Checks if the TestBreaker is fully zeroized.
     pub fn is_zeroized(&self) -> bool {
-        self.data == 0
+        (self.behaviour == TestBreakerBehaviour::None) & (self.data == 0)
     }
 }
 
