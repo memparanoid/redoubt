@@ -115,6 +115,8 @@ impl TryDecode for String {
 
         // SAFETY: prealloc sets len, we decode into those bytes
         let bytes = unsafe { self.as_bytes_mut() };
+        // Note: This error branch is unreachable since process_header already validates
+        // buffer length. We use `?` instead of expect/unwrap to keep the code panic-free.
         u8::decode_slice_from(bytes, buf)?;
 
         // Validate UTF-8
