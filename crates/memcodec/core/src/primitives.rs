@@ -85,4 +85,4 @@ macro_rules! impl_traits_for_primitives {
     };
 }
 
-impl_traits_for_primitives!(u8, u16, u32, u64, u128, usize);
+impl_traits_for_primitives!(bool, u8, u16, u32, u64, u128, usize);

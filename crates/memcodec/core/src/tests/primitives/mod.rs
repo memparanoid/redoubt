@@ -2,9 +2,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(all(test, feature = "benchmark"))]
-mod bench;
-
-mod buffer;
-mod collections;
-mod primitives;
+mod bool;
