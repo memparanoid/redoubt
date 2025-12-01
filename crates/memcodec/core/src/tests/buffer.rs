@@ -53,7 +53,7 @@ fn test_read_usize_out_of_bounds() {
 
 #[test]
 fn test_read() {
-    let value: u32 = 0x12345678;
+    let value: u32 = 15485863;
     let mut bytes = value.to_ne_bytes();
     let mut slice: &mut [u8] = &mut bytes;
 
