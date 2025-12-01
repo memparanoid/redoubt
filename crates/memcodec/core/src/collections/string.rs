@@ -63,8 +63,8 @@ impl BytesRequired for String {
 
 impl TryEncode for String {
     fn try_encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
-        let mut size = Primitive::new(self.len());
         let mut bytes_required = Primitive::new(self.mem_bytes_required()?);
+        let mut size = Primitive::new(self.len());
 
         write_header(buf, &mut size, &mut bytes_required)?;
 
@@ -118,7 +118,7 @@ impl TryDecode for String {
         u8::decode_slice_from(bytes, buf)?;
 
         // Validate UTF-8
-        if std::str::from_utf8(self.as_bytes()).is_err() {
+        if core::str::from_utf8(self.as_bytes()).is_err() {
             return Err(DecodeError::PreconditionViolated);
         }
 

@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use membuffer::Buffer;
+
 use crate::error::OverflowError;
 use crate::tests::primitives::utils::{equidistant_unsigned, EQUIDISTANT_SAMPLE_SIZE};
+use crate::traits::TryEncode;
+use crate::EncodeError;
 
 use super::utils::test_collection_varying_capacities;
 
@@ -52,4 +56,22 @@ fn test_string_bytes_required_overflow() {
         }
         _ => panic!("Expected OverflowError"),
     }
+}
+
+// TryEncode
+
+#[test]
+fn test_string_try_encode_propagates_write_header_error() {
+    use crate::error::CodecBufferError;
+
+    let mut s = String::from("hello");
+    let mut buf = Buffer::new(1); // Too small for header
+
+    let result = s.try_encode_into(&mut buf);
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
+    ));
 }
