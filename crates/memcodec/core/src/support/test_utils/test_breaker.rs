@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use membuffer::Buffer;
+use memzer::ZeroizationProbe;
 use zeroize::Zeroize;
 
 use crate::error::{DecodeError, EncodeError, OverflowError};
@@ -66,11 +67,6 @@ impl TestBreaker {
     /// Changes the error injection behavior.
     pub fn set_behaviour(&mut self, behaviour: TestBreakerBehaviour) {
         self.behaviour = behaviour;
-    }
-
-    /// Checks if the TestBreaker is fully zeroized.
-    pub fn is_zeroized(&self) -> bool {
-        (self.behaviour == TestBreakerBehaviour::None) & (self.data == 0)
     }
 }
 
@@ -146,5 +142,11 @@ impl CodecZeroize for TestBreaker {
     fn codec_zeroize(&mut self) {
         self.behaviour = TestBreakerBehaviour::None;
         self.data.zeroize();
+    }
+}
+
+impl ZeroizationProbe for TestBreaker {
+    fn is_zeroized(&self) -> bool {
+        (self.behaviour == TestBreakerBehaviour::None) & (self.data == 0)
     }
 }

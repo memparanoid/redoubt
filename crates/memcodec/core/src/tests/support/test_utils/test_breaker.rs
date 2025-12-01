@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use membuffer::Buffer;
+use memzer::ZeroizationProbe;
 
 use crate::error::{DecodeError, EncodeError};
 use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
