@@ -93,9 +93,7 @@ impl BytesRequired for TestBreaker {
 impl Encode for TestBreaker {
     fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
         if self.behaviour == TestBreakerBehaviour::ForceEncodeError {
-            return Err(EncodeError::OverflowError(OverflowError {
-                reason: "TestBreaker forced encode error".into(),
-            }));
+            return Err(EncodeError::IntentionalEncodeError);
         }
         self.data.encode_into(buf)
     }
@@ -104,7 +102,7 @@ impl Encode for TestBreaker {
 impl Decode for TestBreaker {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         if self.behaviour == TestBreakerBehaviour::ForceDecodeError {
-            return Err(DecodeError::PreconditionViolated);
+            return Err(DecodeError::IntentionalDecodeError);
         }
         self.data.decode_from(buf)
     }

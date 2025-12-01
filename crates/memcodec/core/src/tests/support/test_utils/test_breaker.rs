@@ -4,7 +4,7 @@
 
 use membuffer::Buffer;
 
-use crate::error::EncodeError;
+use crate::error::{DecodeError, EncodeError};
 use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
 use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, PreAlloc};
 
@@ -95,7 +95,7 @@ fn test_force_encode_error() {
     let mut buf = Buffer::new(1024);
 
     let result = tb.encode_into(&mut buf);
-    assert!(matches!(result, Err(EncodeError::OverflowError(_))));
+    assert!(matches!(result, Err(EncodeError::IntentionalEncodeError)));
 }
 
 // Decode
@@ -114,7 +114,7 @@ fn test_force_decode_error() {
     // Now try to decode with ForceDecodeError
     let mut tb_decode = TestBreaker::with_behaviour(TestBreakerBehaviour::ForceDecodeError);
     let result = tb_decode.decode_from(&mut buf.as_mut_slice());
-    assert!(result.is_err());
+    assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
 }
 
 // Roundtrip (Encode + Decode)

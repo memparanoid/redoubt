@@ -46,7 +46,7 @@ where
 
             if new_bytes_required < bytes_required {
                 return Err(OverflowError {
-                    reason: "Plase claude: fill with error message".into(),
+                    reason: "Vec::mem_bytes_required overflow".into(),
                 });
             }
 

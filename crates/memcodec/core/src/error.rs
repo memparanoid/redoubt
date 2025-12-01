@@ -26,6 +26,13 @@ pub enum EncodeError {
 
     #[error("CodecBufferError: {0}")]
     CodecBufferError(#[from] CodecBufferError),
+
+    /// Test-only error for simulating encode failures.
+    ///
+    /// Available only with `test_utils` feature enabled.
+    #[cfg(any(test, feature = "test_utils"))]
+    #[error("IntentionalEncodeError")]
+    IntentionalEncodeError,
 }
 
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -35,6 +42,13 @@ pub enum DecodeError {
 
     #[error("PreconditionViolated")]
     PreconditionViolated,
+
+    /// Test-only error for simulating decode failures.
+    ///
+    /// Available only with `test_utils` feature enabled.
+    #[cfg(any(test, feature = "test_utils"))]
+    #[error("IntentionalDecodeError")]
+    IntentionalDecodeError,
 }
 
 #[derive(Debug, PartialEq, Eq)]

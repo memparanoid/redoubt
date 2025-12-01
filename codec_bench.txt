@@ -1,128 +1,23 @@
+   Compiling memalloc v0.0.1 (/Users/fedehoerth/Work/memora/crates/memalloc)
+   Compiling membuffer v0.0.1 (/Users/fedehoerth/Work/memora/crates/membuffer)
+   Compiling memaead v0.0.1 (/Users/fedehoerth/Work/memora/crates/memaead)
+   Compiling memcodec_core v0.0.1 (/Users/fedehoerth/Work/memora/crates/memcodec/core)
+   Compiling memcodec v0.0.1 (/Users/fedehoerth/Work/memora/crates/memcodec)
    Compiling membench v0.0.1 (/Users/fedehoerth/Work/memora/crates/membench)
-    Finished `bench` profile [optimized] target(s) in 15.23s
-     Running benches/codec.rs (target/release/deps/codec-8022461de36af9bc)
+    Finished `bench` profile [optimized] target(s) in 15.65s
+     Running benches/codec.rs (target/release/deps/codec-0abdd639d8e4422c)
 Gnuplot not found, using plotters backend
 Benchmarking encode/bincode/2096128
 Benchmarking encode/bincode/2096128: Warming up for 3.0000 s
-Benchmarking encode/bincode/2096128: Collecting 50 samples in estimated 3.2342 s (2550 iterations)
+Benchmarking encode/bincode/2096128: Collecting 50 samples in estimated 3.3264 s (2550 iterations)
 Benchmarking encode/bincode/2096128: Analyzing
-encode/bincode/2096128  time:   [1.1432 ms 1.1582 ms 1.1779 ms]
-                        thrpt:  [1.6573 GiB/s 1.6855 GiB/s 1.7076 GiB/s]
+encode/bincode/2096128  time:   [1.1376 ms 1.1621 ms 1.1979 ms]
+                        thrpt:  [1.6297 GiB/s 1.6799 GiB/s 1.7160 GiB/s]
                  change:
-                        time:   [-38.932% -26.700% -14.565%] (p = 0.00 < 0.05)
-                        thrpt:  [+17.048% +36.426% +63.751%]
-                        Performance has improved.
-Found 2 outliers among 50 measurements (4.00%)
-  1 (2.00%) high mild
-  1 (2.00%) high severe
-Benchmarking encode/memcode/2096128
-Benchmarking encode/memcode/2096128: Warming up for 3.0000 s
-Benchmarking encode/memcode/2096128: Collecting 50 samples in estimated 3.1506 s (300 iterations)
-Benchmarking encode/memcode/2096128: Analyzing
-encode/memcode/2096128  time:   [8.9773 ms 9.1017 ms 9.2589 ms]
-                        thrpt:  [215.90 MiB/s 219.63 MiB/s 222.68 MiB/s]
-                 change:
-                        time:   [-0.8704% +0.6120% +2.6515%] (p = 0.88 > 0.05)
-                        thrpt:  [-2.5830% -0.6082% +0.8781%]
+                        time:   [-1.5822% +0.0251% +1.8823%] (p = 0.97 > 0.05)
+                        thrpt:  [-1.8475% -0.0251% +1.6077%]
                         No change in performance detected.
 Found 6 outliers among 50 measurements (12.00%)
-  1 (2.00%) high mild
-  5 (10.00%) high severe
-Benchmarking encode/memcodec/2096128
-Benchmarking encode/memcodec/2096128: Warming up for 3.0000 s
-Benchmarking encode/memcodec/2096128: Collecting 50 samples in estimated 3.3688 s (8925 iterations)
-Benchmarking encode/memcodec/2096128: Analyzing
-encode/memcodec/2096128 time:   [182.64 µs 185.84 µs 189.96 µs]
-                        thrpt:  [10.277 GiB/s 10.504 GiB/s 10.688 GiB/s]
-                 change:
-                        time:   [-50.453% -48.861% -47.379%] (p = 0.00 < 0.05)
-                        thrpt:  [+90.040% +95.546% +101.83%]
-                        Performance has improved.
-Found 3 outliers among 50 measurements (6.00%)
-  2 (4.00%) high mild
-  1 (2.00%) high severe
-
-Benchmarking decode/bincode/2096128
-Benchmarking decode/bincode/2096128: Warming up for 3.0000 s
-Benchmarking decode/bincode/2096128: Collecting 50 samples in estimated 3.0143 s (2550 iterations)
-Benchmarking decode/bincode/2096128: Analyzing
-decode/bincode/2096128  time:   [1.1702 ms 1.1776 ms 1.1873 ms]
-                        thrpt:  [1.6442 GiB/s 1.6577 GiB/s 1.6683 GiB/s]
-                 change:
-                        time:   [-21.261% -13.919% -6.2664%] (p = 0.00 < 0.05)
-                        thrpt:  [+6.6853% +16.170% +27.002%]
-                        Performance has improved.
-Found 7 outliers among 50 measurements (14.00%)
-  3 (6.00%) high mild
-  4 (8.00%) high severe
-Benchmarking decode/memcode/2096128
-Benchmarking decode/memcode/2096128: Warming up for 3.0000 s
-Benchmarking decode/memcode/2096128: Collecting 50 samples in estimated 4.6739 s (100 iterations)
-Benchmarking decode/memcode/2096128: Analyzing
-decode/memcode/2096128  time:   [40.959 ms 41.742 ms 42.675 ms]
-                        thrpt:  [46.843 MiB/s 47.890 MiB/s 48.806 MiB/s]
-                 change:
-                        time:   [-5.5496% +0.0260% +5.9176%] (p = 0.93 > 0.05)
-                        thrpt:  [-5.5870% -0.0260% +5.8756%]
-                        No change in performance detected.
-Found 3 outliers among 50 measurements (6.00%)
-  1 (2.00%) high mild
-  2 (4.00%) high severe
-Benchmarking decode/memcodec/2096128
-Benchmarking decode/memcodec/2096128: Warming up for 3.0000 s
-Benchmarking decode/memcodec/2096128: Collecting 50 samples in estimated 3.0699 s (8925 iterations)
-Benchmarking decode/memcodec/2096128: Analyzing
-decode/memcodec/2096128 time:   [99.527 µs 105.35 µs 112.58 µs]
-                        thrpt:  [17.340 GiB/s 18.530 GiB/s 19.614 GiB/s]
-                 change:
-                        time:   [-17.367% -10.348% -2.4876%] (p = 0.01 < 0.05)
-                        thrpt:  [+2.5511% +11.542% +21.017%]
-                        Performance has improved.
-Found 3 outliers among 50 measurements (6.00%)
-  3 (6.00%) high mild
-
-Benchmarking roundtrip/bincode/2096128
-Benchmarking roundtrip/bincode/2096128: Warming up for 3.0000 s
-
-Warning: Unable to complete 50 samples in 3.0s. You may wish to increase target time to 3.2s, enable flat sampling, or reduce sample count to 30.
-Benchmarking roundtrip/bincode/2096128: Collecting 50 samples in estimated 3.1880 s (1275 iterations)
-Benchmarking roundtrip/bincode/2096128: Analyzing
-roundtrip/bincode/2096128
-                        time:   [2.4077 ms 2.4477 ms 2.5003 ms]
-                        thrpt:  [799.51 MiB/s 816.70 MiB/s 830.27 MiB/s]
-                 change:
-                        time:   [-0.5572% +1.0139% +2.5891%] (p = 0.41 > 0.05)
-                        thrpt:  [-2.5238% -1.0037% +0.5603%]
-                        No change in performance detected.
-Found 3 outliers among 50 measurements (6.00%)
-  2 (4.00%) high mild
-  1 (2.00%) high severe
-Benchmarking roundtrip/memcode/2096128
-Benchmarking roundtrip/memcode/2096128: Warming up for 3.0000 s
-Benchmarking roundtrip/memcode/2096128: Collecting 50 samples in estimated 5.2696 s (100 iterations)
-Benchmarking roundtrip/memcode/2096128: Analyzing
-roundtrip/memcode/2096128
-                        time:   [51.587 ms 52.118 ms 52.712 ms]
-                        thrpt:  [37.923 MiB/s 38.356 MiB/s 38.751 MiB/s]
-                 change:
-                        time:   [+3.8323% +5.9671% +7.8795%] (p = 0.00 < 0.05)
-                        thrpt:  [-7.3040% -5.6311% -3.6909%]
-                        Performance has regressed.
-Found 4 outliers among 50 measurements (8.00%)
-  1 (2.00%) low mild
-  1 (2.00%) high mild
-  2 (4.00%) high severe
-Benchmarking roundtrip/memcodec/2096128
-Benchmarking roundtrip/memcodec/2096128: Warming up for 3.0000 s
-Benchmarking roundtrip/memcodec/2096128: Collecting 50 samples in estimated 3.2303 s (6375 iterations)
-Benchmarking roundtrip/memcodec/2096128: Analyzing
-roundtrip/memcodec/2096128
-                        time:   [374.41 µs 383.61 µs 393.89 µs]
-                        thrpt:  [4.9561 GiB/s 5.0889 GiB/s 5.2139 GiB/s]
-                 change:
-                        time:   [-10.895% -5.6164% +0.3496%] (p = 0.05 > 0.05)
-                        thrpt:  [-0.3484% +5.9507% +12.227%]
-                        No change in performance detected.
-Found 2 outliers among 50 measurements (4.00%)
-  2 (4.00%) high mild
-
+  6 (12.00%) high severe
+Benchmarking encode/memcode/2096128
+Benchmarking encode/memcode/2096128: Warming up for 3.0000 s
