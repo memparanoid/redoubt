@@ -551,6 +551,40 @@ where
         self.realloc_with(capacity, |_| {});
     }
 
+    /// Fills the remaining capacity with `T::default()` values.
+    ///
+    /// This method creates default values for the unused capacity and appends them
+    /// to the vector, preserving any existing elements. After this call,
+    /// `len() == capacity()`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use memalloc::{AllockedVec, AllockedVecError};
+    ///
+    /// fn example() -> Result<(), AllockedVecError> {
+    ///     let mut vec = AllockedVec::<u8>::with_capacity(5);
+    ///     vec.push(1)?;
+    ///     vec.push(2)?;
+    ///
+    ///     vec.fill_with_default();
+    ///
+    ///     assert_eq!(vec.len(), 5);
+    ///     assert_eq!(vec.as_slice(), &[1, 2, 0, 0, 0]);
+    ///     Ok(())
+    /// }
+    /// # example().unwrap();
+    /// ```
+    pub fn fill_with_default(&mut self)
+    where
+        T: Default,
+    {
+        let remaining = self.capacity() - self.len();
+        let mut source: Vec<T> = (0..remaining).map(|_| T::default()).collect();
+        self.drain_from(&mut source)
+            .expect("infallible: remaining = capacity - len");
+    }
+
     /// Changes the test behaviour for this vector.
     ///
     /// This is only available with the `test_utils` feature and allows injecting

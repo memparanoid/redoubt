@@ -275,6 +275,47 @@ fn test_realloc_with_capacity_ok() {
 }
 
 #[test]
+fn test_fill_with_default_empty_vec() {
+    let mut vec = AllockedVec::<u8>::with_capacity(5);
+
+    assert_eq!(vec.len(), 0);
+
+    vec.fill_with_default();
+
+    assert_eq!(vec.len(), 5);
+    assert_eq!(vec.as_slice(), [0, 0, 0, 0, 0]);
+}
+
+#[test]
+fn test_fill_with_default_partial_vec() {
+    let mut vec = AllockedVec::<u8>::with_capacity(5);
+    vec.push(1).expect("push failed");
+    vec.push(2).expect("push failed");
+
+    assert_eq!(vec.len(), 2);
+
+    vec.fill_with_default();
+
+    assert_eq!(vec.len(), 5);
+    assert_eq!(vec.as_slice(), [1, 2, 0, 0, 0]);
+}
+
+#[test]
+fn test_fill_with_default_full_vec() {
+    let mut vec = AllockedVec::<u8>::with_capacity(3);
+    vec.push(1).expect("push failed");
+    vec.push(2).expect("push failed");
+    vec.push(3).expect("push failed");
+
+    assert_eq!(vec.len(), 3);
+
+    vec.fill_with_default();
+
+    assert_eq!(vec.len(), 3);
+    assert_eq!(vec.as_slice(), [1, 2, 3]);
+}
+
+#[test]
 fn test_behaviour_fail_at_push() {
     let mut vec = AllockedVec::with_capacity(10);
     vec.change_behaviour(AllockedVecBehaviour::FailAtPush);
