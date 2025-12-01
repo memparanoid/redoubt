@@ -185,3 +185,28 @@ fn test_decode_slice_error() {
 
     assert!(result.is_err());
 }
+
+// PreAlloc
+
+#[test]
+fn test_prealloc_zero_init_true() {
+    // Vec<Vec<u8>> exercises the ZERO_INIT = true branch in prealloc
+    // because Vec<u8>::ZERO_INIT = u8::ZERO_INIT = true
+    let mut original: Vec<Vec<u8>> = vec![vec![1, 2, 3], vec![4, 5], vec![6, 7, 8, 9]];
+    let original_clone = original.clone();
+
+    let bytes_required = original
+        .mem_bytes_required()
+        .expect("Failed to get mem_bytes_required()");
+    let mut buf = Buffer::new(bytes_required);
+    original
+        .encode_into(&mut buf)
+        .expect("Failed to encode_into(..)");
+
+    let mut decoded: Vec<Vec<u8>> = Vec::new();
+    decoded
+        .decode_from(&mut buf.as_mut_slice())
+        .expect("Failed to decode_from(..)");
+
+    assert_eq!(decoded, original_clone);
+}

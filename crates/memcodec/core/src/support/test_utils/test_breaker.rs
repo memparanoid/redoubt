@@ -144,6 +144,7 @@ impl CodecZeroize for TestBreaker {
     const FAST_ZEROIZE: bool = false;
 
     fn codec_zeroize(&mut self) {
+        self.behaviour = TestBreakerBehaviour::None;
         self.data.zeroize();
     }
 }

@@ -152,7 +152,8 @@ where
 }
 
 impl<T: PreAlloc> PreAlloc for Vec<T> {
-    const ZERO_INIT: bool = T::ZERO_INIT;
+    /// Vec can NEVER be zero-initialized (has ptr/len/capacity).
+    const ZERO_INIT: bool = false;
 
     fn prealloc(&mut self, size: usize) {
         self.clear();
