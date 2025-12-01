@@ -5,8 +5,8 @@
 #[cfg(feature = "zeroize")]
 pub mod allocked_vec;
 pub mod helpers;
+pub mod string;
 pub mod vec;
 
 mod array;
 mod slice;
-mod string;

@@ -42,17 +42,22 @@ fn cleanup_decode_error(s: &mut String, buf: &mut &mut [u8]) {
     memutil::fast_zeroize_slice(*buf);
 }
 
+#[inline(always)]
+pub(crate) fn string_bytes_required(len: usize) -> Result<usize, OverflowError> {
+    let bytes_required = header_size().wrapping_add(len);
+
+    if bytes_required < header_size() {
+        return Err(OverflowError {
+            reason: "String bytes_required overflow".into(),
+        });
+    }
+
+    Ok(bytes_required)
+}
+
 impl BytesRequired for String {
     fn mem_bytes_required(&self) -> Result<usize, OverflowError> {
-        let bytes_required = header_size().wrapping_add(self.len());
-
-        if bytes_required < header_size() {
-            return Err(OverflowError {
-                reason: "String bytes_required overflow".into(),
-            });
-        }
-
-        Ok(bytes_required)
+        string_bytes_required(self.len())
     }
 }
 

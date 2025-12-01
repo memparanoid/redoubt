@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use super::utils::test_collection_varying_capacities;
+use crate::error::OverflowError;
 use crate::tests::primitives::utils::{equidistant_unsigned, EQUIDISTANT_SAMPLE_SIZE};
+
+use super::utils::test_collection_varying_capacities;
 
 fn test_string_varying_capacities(set: &[u8]) {
     test_collection_varying_capacities(
@@ -24,4 +26,30 @@ fn test_string_varying_capacities(set: &[u8]) {
 fn test_string_varying_capacities_u8() {
     let set = equidistant_unsigned::<u8>(EQUIDISTANT_SAMPLE_SIZE);
     test_string_varying_capacities(&set);
+}
+
+// string_bytes_required
+
+#[test]
+fn test_string_bytes_required_ok() {
+    use crate::collections::string::string_bytes_required;
+
+    let result = string_bytes_required(100);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_string_bytes_required_overflow() {
+    use crate::collections::string::string_bytes_required;
+
+    let result = string_bytes_required(usize::MAX);
+
+    assert!(result.is_err());
+    match result {
+        Err(OverflowError { reason }) => {
+            assert_eq!(reason, "String bytes_required overflow");
+        }
+        _ => panic!("Expected OverflowError"),
+    }
 }
