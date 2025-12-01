@@ -129,6 +129,8 @@ where
     test_all_pairs_with(set, |a, b| a == b);
 }
 
+pub(crate) const EQUIDISTANT_SAMPLE_SIZE: usize = 250;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -221,41 +223,41 @@ mod tests {
 
     #[test]
     fn test_equidistant_unsigned_u8() {
-        verify_equidistant_unsigned::<u8>(250);
+        verify_equidistant_unsigned::<u8>(EQUIDISTANT_SAMPLE_SIZE);
     }
 
     #[test]
     fn test_equidistant_unsigned_u16() {
-        verify_equidistant_unsigned::<u16>(250);
+        verify_equidistant_unsigned::<u16>(EQUIDISTANT_SAMPLE_SIZE);
     }
 
     #[test]
     fn test_equidistant_unsigned_u32() {
-        verify_equidistant_unsigned::<u32>(250);
+        verify_equidistant_unsigned::<u32>(EQUIDISTANT_SAMPLE_SIZE);
     }
 
     #[test]
     fn test_equidistant_unsigned_u64() {
-        verify_equidistant_unsigned::<u64>(250);
+        verify_equidistant_unsigned::<u64>(EQUIDISTANT_SAMPLE_SIZE);
     }
 
     #[test]
     fn test_equidistant_signed_i8() {
-        verify_equidistant_signed::<i8>(250);
+        verify_equidistant_signed::<i8>(EQUIDISTANT_SAMPLE_SIZE);
     }
 
     #[test]
     fn test_equidistant_signed_i16() {
-        verify_equidistant_signed::<i16>(250);
+        verify_equidistant_signed::<i16>(EQUIDISTANT_SAMPLE_SIZE);
     }
 
     #[test]
     fn test_equidistant_signed_i32() {
-        verify_equidistant_signed::<i32>(250);
+        verify_equidistant_signed::<i32>(EQUIDISTANT_SAMPLE_SIZE);
     }
 
     #[test]
     fn test_equidistant_signed_i64() {
-        verify_equidistant_signed::<i64>(250);
+        verify_equidistant_signed::<i64>(EQUIDISTANT_SAMPLE_SIZE);
     }
 }
