@@ -72,19 +72,19 @@ impl Intrinsics {
 
     /// XOR in-place: self = self ^ other
     #[inline(always)]
-    pub fn xor_assign(&mut self, other: &Self) {
+    pub fn xor_in_place(&mut self, other: &Self) {
         self.0 = unsafe { veorq_u8(self.0, other.0) };
     }
 
     /// AND in-place: self = self & other
     #[inline(always)]
-    pub fn and_assign(&mut self, other: &Self) {
+    pub fn and_in_place(&mut self, other: &Self) {
         self.0 = unsafe { vandq_u8(self.0, other.0) };
     }
 
     /// AES encryption round in-place: self = AES(self, round_key)
     #[inline(always)]
-    pub fn aes_enc_assign(&mut self, round_key: &Self) {
+    pub fn aes_enc_in_place(&mut self, round_key: &Self) {
         unsafe {
             let zero = vdupq_n_u8(0);
             let after_sub_shift = vaeseq_u8(self.0, zero);

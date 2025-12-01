@@ -108,13 +108,13 @@ pub unsafe fn encrypt(
         // Compute keystream: z0 = s1 ^ s6 ^ (s2 & s3)
         let mut z0 = s1.xor(&s6);
         let mut t0 = s2.and(&s3);
-        z0.xor_assign(&t0);
+        z0.xor_in_place(&t0);
         t0.zeroize();
 
         // z1 = s2 ^ s5 ^ (s6 & s7)
         let mut z1 = s2.xor(&s5);
         let mut t1 = s6.and(&s7);
-        z1.xor_assign(&t1);
+        z1.xor_in_place(&t1);
         t1.zeroize();
 
         // Load plaintext
@@ -151,12 +151,12 @@ pub unsafe fn encrypt(
         // Compute keystream
         let mut z0 = s1.xor(&s6);
         let mut t0 = s2.and(&s3);
-        z0.xor_assign(&t0);
+        z0.xor_in_place(&t0);
         t0.zeroize();
 
         let mut z1 = s2.xor(&s5);
         let mut t1 = s6.and(&s7);
-        z1.xor_assign(&t1);
+        z1.xor_in_place(&t1);
         t1.zeroize();
 
         // Load padded plaintext
@@ -218,11 +218,11 @@ pub unsafe fn encrypt(
 
     // Compute tag = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5 ^ S6
     let mut tag_block = s0.xor(&s1);
-    tag_block.xor_assign(&s2);
-    tag_block.xor_assign(&s3);
-    tag_block.xor_assign(&s4);
-    tag_block.xor_assign(&s5);
-    tag_block.xor_assign(&s6);
+    tag_block.xor_in_place(&s2);
+    tag_block.xor_in_place(&s3);
+    tag_block.xor_in_place(&s4);
+    tag_block.xor_in_place(&s5);
+    tag_block.xor_in_place(&s6);
     tag_block.store(tag);
     tag_block.zeroize();
 
@@ -319,12 +319,12 @@ pub unsafe fn decrypt(
         // Compute keystream
         let mut z0 = s1.xor(&s6);
         let mut t0 = s2.and(&s3);
-        z0.xor_assign(&t0);
+        z0.xor_in_place(&t0);
         t0.zeroize();
 
         let mut z1 = s2.xor(&s5);
         let mut t1 = s6.and(&s7);
-        z1.xor_assign(&t1);
+        z1.xor_in_place(&t1);
         t1.zeroize();
 
         // Load ciphertext
@@ -361,12 +361,12 @@ pub unsafe fn decrypt(
         // Compute keystream
         let mut z0 = s1.xor(&s6);
         let mut t0 = s2.and(&s3);
-        z0.xor_assign(&t0);
+        z0.xor_in_place(&t0);
         t0.zeroize();
 
         let mut z1 = s2.xor(&s5);
         let mut t1 = s6.and(&s7);
-        z1.xor_assign(&t1);
+        z1.xor_in_place(&t1);
         t1.zeroize();
 
         // Load padded ciphertext
@@ -436,11 +436,11 @@ pub unsafe fn decrypt(
 
     // Compute tag
     let mut tag_block = s0.xor(&s1);
-    tag_block.xor_assign(&s2);
-    tag_block.xor_assign(&s3);
-    tag_block.xor_assign(&s4);
-    tag_block.xor_assign(&s5);
-    tag_block.xor_assign(&s6);
+    tag_block.xor_in_place(&s2);
+    tag_block.xor_in_place(&s3);
+    tag_block.xor_in_place(&s4);
+    tag_block.xor_in_place(&s5);
+    tag_block.xor_in_place(&s6);
 
     let mut computed_tag = [0u8; 16];
     tag_block.store(&mut computed_tag);
