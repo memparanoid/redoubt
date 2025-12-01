@@ -5,6 +5,7 @@
 use membuffer::Buffer;
 use memzer::ZeroizationProbe;
 
+use crate::error::OverflowError;
 use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
 use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice};
 
@@ -35,16 +36,35 @@ fn test_bytes_required_element_error() {
         TestBreaker::new(TestBreakerBehaviour::None, 10),
         TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10),
     ];
-    assert!(vec.mem_bytes_required().is_err());
+
+    let result = vec.mem_bytes_required();
+
+    assert!(result.is_err());
+    match result {
+        Err(OverflowError { reason }) => {
+            assert_eq!(reason, "TestBreaker forced overflow");
+        }
+        _ => panic!("Expected OverflowError"),
+    }
 }
 
 #[test]
 fn test_bytes_required_overflow() {
+    // Two elements each returning usize::MAX / 2 will overflow on the second iteration
     let vec = vec![
-        TestBreaker::new(TestBreakerBehaviour::BytesRequiredReturnMax, 10),
-        TestBreaker::new(TestBreakerBehaviour::BytesRequiredReturn(1), 10),
+        TestBreaker::new(TestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2), 10),
+        TestBreaker::new(TestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2), 10),
     ];
-    assert!(vec.mem_bytes_required().is_err());
+
+    let result = vec.mem_bytes_required();
+
+    assert!(result.is_err());
+    match result {
+        Err(OverflowError { reason }) => {
+            assert_eq!(reason, "Vec::mem_bytes_required overflow");
+        }
+        _ => panic!("Expected OverflowError"),
+    }
 }
 
 // Encode
