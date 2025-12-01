@@ -3,11 +3,14 @@
 // See LICENSE in the repository root for full license text.
 
 use membuffer::Buffer;
+use memzer::ZeroizationProbe;
 
-use crate::error::OverflowError;
+use crate::collections::helpers::header_size;
+use crate::collections::string::string_bytes_required;
+use crate::error::{CodecBufferError, OverflowError};
 use crate::tests::primitives::utils::{equidistant_unsigned, EQUIDISTANT_SAMPLE_SIZE};
-use crate::traits::TryEncode;
-use crate::EncodeError;
+use crate::traits::{Decode, DecodeSlice, Encode, EncodeSlice, TryDecode, TryEncode};
+use crate::{DecodeError, EncodeError};
 
 use super::utils::test_collection_varying_capacities;
 
@@ -15,8 +18,6 @@ use super::utils::test_collection_varying_capacities;
 
 #[test]
 fn test_string_bytes_required_ok() {
-    use crate::collections::string::string_bytes_required;
-
     let result = string_bytes_required(100);
 
     assert!(result.is_ok());
@@ -24,8 +25,6 @@ fn test_string_bytes_required_ok() {
 
 #[test]
 fn test_string_bytes_required_overflow() {
-    use crate::collections::string::string_bytes_required;
-
     let result = string_bytes_required(usize::MAX);
 
     assert!(result.is_err());
@@ -41,8 +40,6 @@ fn test_string_bytes_required_overflow() {
 
 #[test]
 fn test_string_try_encode_propagates_write_header_error() {
-    use crate::error::CodecBufferError;
-
     let mut s = String::from("hello");
     let mut buf = Buffer::new(1); // Too small for header
 
@@ -57,9 +54,6 @@ fn test_string_try_encode_propagates_write_header_error() {
 
 #[test]
 fn test_string_try_encode_propagates_encode_slice_error() {
-    use crate::collections::helpers::header_size;
-    use crate::error::CodecBufferError;
-
     let mut s = String::from("hello");
     let mut buf = Buffer::new(header_size()); // Fits header, not data
 
@@ -76,10 +70,6 @@ fn test_string_try_encode_propagates_encode_slice_error() {
 
 #[test]
 fn test_string_encode_into_propagates_try_encode_into_error() {
-    use crate::error::CodecBufferError;
-    use crate::traits::Encode;
-    use memzer::ZeroizationProbe;
-
     // Force try_encode_into to fail via buffer too small, then check zeroization
     let mut s = String::from("hello");
     let mut buf = Buffer::new(1); // Too small
@@ -100,9 +90,6 @@ fn test_string_encode_into_propagates_try_encode_into_error() {
 
 #[test]
 fn test_string_encode_slice_ok() {
-    use crate::collections::helpers::header_size;
-    use crate::traits::EncodeSlice;
-
     let mut slice = [String::from("hello"), String::from("world")];
     let buf_size = 2 * header_size() + 5 + 5; // 2 headers + "hello" + "world"
     let mut buf = Buffer::new(buf_size);
@@ -114,9 +101,6 @@ fn test_string_encode_slice_ok() {
 
 #[test]
 fn test_string_encode_slice_propagates_encode_into_error() {
-    use crate::error::CodecBufferError;
-    use crate::traits::EncodeSlice;
-
     let mut slice = [String::from("hello"), String::from("world")];
     let mut buf = Buffer::new(1); // Too small
 
@@ -133,9 +117,6 @@ fn test_string_encode_slice_propagates_encode_into_error() {
 
 #[test]
 fn test_string_try_decode_propagates_process_header_error() {
-    use crate::traits::TryDecode;
-    use crate::DecodeError;
-
     let mut s = String::new();
     let mut buf = [0u8; 1]; // Too small for header
 
@@ -147,10 +128,6 @@ fn test_string_try_decode_propagates_process_header_error() {
 
 #[test]
 fn test_string_try_decode_utf8_validation_error() {
-    use crate::collections::helpers::header_size;
-    use crate::traits::{Encode, TryDecode};
-    use crate::DecodeError;
-
     // Encode valid string
     let mut s = String::from("hello");
     let mut buf = Buffer::new(header_size() + s.len());
@@ -172,9 +149,6 @@ fn test_string_try_decode_utf8_validation_error() {
 
 #[test]
 fn test_string_decode_from_propagates_try_decode_from_error() {
-    use crate::traits::Decode;
-    use crate::DecodeError;
-
     // Start with a string with data to verify zeroization
     let mut s = String::from("existing data");
     let mut buf = [0u8; 1]; // Too small for header
@@ -193,9 +167,6 @@ fn test_string_decode_from_propagates_try_decode_from_error() {
 
 #[test]
 fn test_string_decode_slice_ok() {
-    use crate::collections::helpers::header_size;
-    use crate::traits::{DecodeSlice, EncodeSlice};
-
     // Encode first
     let mut slice = [String::from("hello"), String::from("world")];
     let buf_size = 2 * header_size() + 5 + 5;
@@ -213,9 +184,6 @@ fn test_string_decode_slice_ok() {
 
 #[test]
 fn test_string_decode_slice_propagates_decode_from_error() {
-    use crate::traits::DecodeSlice;
-    use crate::DecodeError;
-
     let mut slice = [String::from("existing"), String::from("data")];
     let mut buf = [0u8; 1]; // Too small
 
