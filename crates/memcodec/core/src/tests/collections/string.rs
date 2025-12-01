@@ -92,3 +92,19 @@ fn test_string_try_encode_propagates_encode_slice_error() {
         Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
     ));
 }
+
+// TryDecode
+
+#[test]
+fn test_string_try_decode_propagates_process_header_error() {
+    use crate::traits::TryDecode;
+    use crate::DecodeError;
+
+    let mut s = String::new();
+    let mut buf = [0u8; 1]; // Too small for header
+
+    let result = s.try_decode_from(&mut buf.as_mut_slice());
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+}
