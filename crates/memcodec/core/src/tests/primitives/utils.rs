@@ -3,7 +3,10 @@
 // See LICENSE in the repository root for full license text.
 
 use membuffer::Buffer;
+#[cfg(feature = "zeroize")]
+use memzer::ZeroizationProbe;
 
+use crate::error::{CodecBufferError, EncodeError};
 use crate::traits::{BytesRequired, Decode, Encode};
 
 /// Generates n equidistant values in [0, MAX] for unsigned types
@@ -83,6 +86,34 @@ pub(crate) fn test_bytes_required<T: BytesRequired>(value: &T) {
     assert_eq!(result.unwrap(), core::mem::size_of::<T>());
 }
 
+/// Tests that encode_into fails with CapacityExceeded when buffer is too small
+pub(crate) fn test_encode_insufficient_buffer<T>(value: &mut T)
+where
+    T: Encode + BytesRequired + Default + PartialEq + core::fmt::Debug,
+{
+    let bytes_required = value.mem_bytes_required().expect("Failed to get bytes_required");
+    if bytes_required == 0 {
+        return; // Can't test with 0 bytes
+    }
+    let insufficient = bytes_required - 1;
+    let mut buf = Buffer::new(insufficient);
+
+    let result = value.encode_into(&mut buf);
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
+    ));
+
+    // Assert zeroization on error
+    #[cfg(feature = "zeroize")]
+    {
+        assert_eq!(*value, T::default(), "value must be zeroized after encode error");
+        assert!(buf.is_zeroized(), "buffer must be zeroized after encode error");
+    }
+}
+
 /// Tests encode(original) -> decode into recovered -> assert using custom comparator
 pub(crate) fn test_roundtrip_with<T, F>(original_value: T, initial_recovered: T, compare: F)
 where
@@ -126,6 +157,9 @@ where
 
             test_bytes_required(&t0);
             test_bytes_required(&t1);
+
+            test_encode_insufficient_buffer(&mut t0.clone());
+            test_encode_insufficient_buffer(&mut t1.clone());
 
             test_roundtrip_with(t0.clone(), t0.clone(), &compare);
             test_roundtrip_with(t0.clone(), t1.clone(), &compare);
