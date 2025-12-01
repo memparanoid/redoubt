@@ -28,3 +28,7 @@ harness = false
 [[bench]]
 name = "codec"
 harness = false
+
+[[bench]]
+name = "cipherbox"
+harness = false
