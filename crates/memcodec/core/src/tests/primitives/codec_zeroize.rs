@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(feature = "zeroize")]
 use crate::traits::{CodecZeroize, FastZeroize};
 
-#[cfg(feature = "zeroize")]
 #[test]
 fn test_codec_zeroize_is_noop() {
     let mut val: u64 = 12345;
@@ -16,7 +14,6 @@ fn test_codec_zeroize_is_noop() {
     assert_eq!(val, 12345);
 }
 
-#[cfg(feature = "zeroize")]
 #[test]
 fn test_fast_zeroize_is_true() {
     assert!(<bool as FastZeroize>::FAST_ZEROIZE);
