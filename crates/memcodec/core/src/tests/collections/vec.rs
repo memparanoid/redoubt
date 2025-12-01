@@ -147,7 +147,77 @@ fn test_vec_u32_varying_capacities() {
 }
 
 #[test]
+fn test_vec_u64_varying_capacities() {
+    let set = equidistant_unsigned::<u64>(250);
+    test_vec_varying_capacities_generic(&set);
+}
+
+#[test]
+fn test_vec_u128_varying_capacities() {
+    let set = equidistant_unsigned::<u128>(250);
+    test_vec_varying_capacities_generic(&set);
+}
+
+#[test]
+fn test_vec_usize_varying_capacities() {
+    #[cfg(target_pointer_width = "64")]
+    let set: Vec<usize> = equidistant_unsigned::<u64>(250)
+        .into_iter()
+        .map(|x| x as usize)
+        .collect();
+
+    #[cfg(target_pointer_width = "32")]
+    let set: Vec<usize> = equidistant_unsigned::<u32>(250)
+        .into_iter()
+        .map(|x| x as usize)
+        .collect();
+
+    test_vec_varying_capacities_generic(&set);
+}
+
+#[test]
+fn test_vec_i8_varying_capacities() {
+    let set = equidistant_signed::<i8>(250);
+    test_vec_varying_capacities_generic(&set);
+}
+
+#[test]
+fn test_vec_i16_varying_capacities() {
+    let set = equidistant_signed::<i16>(250);
+    test_vec_varying_capacities_generic(&set);
+}
+
+#[test]
 fn test_vec_i32_varying_capacities() {
     let set = equidistant_signed::<i32>(250);
+    test_vec_varying_capacities_generic(&set);
+}
+
+#[test]
+fn test_vec_i64_varying_capacities() {
+    let set = equidistant_signed::<i64>(250);
+    test_vec_varying_capacities_generic(&set);
+}
+
+#[test]
+fn test_vec_i128_varying_capacities() {
+    let set = equidistant_signed::<i128>(250);
+    test_vec_varying_capacities_generic(&set);
+}
+
+#[test]
+fn test_vec_isize_varying_capacities() {
+    #[cfg(target_pointer_width = "64")]
+    let set: Vec<isize> = equidistant_signed::<i64>(250)
+        .into_iter()
+        .map(|x| x as isize)
+        .collect();
+
+    #[cfg(target_pointer_width = "32")]
+    let set: Vec<isize> = equidistant_signed::<i32>(250)
+        .into_iter()
+        .map(|x| x as isize)
+        .collect();
+
     test_vec_varying_capacities_generic(&set);
 }
