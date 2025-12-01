@@ -4,6 +4,7 @@
 
 mod bool;
 mod floats;
+mod prealloc;
 mod signed;
 mod unsigned;
 pub(crate) mod utils;
