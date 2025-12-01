@@ -78,6 +78,8 @@ fn test_drain_from_success() {
     let mut vec = AllockedVec::with_capacity(5);
     let mut data = vec![1u8, 2, 3, 4, 5];
 
+    assert_eq!(vec.len(), 0);
+
     vec.drain_from(&mut data).expect("Failed to drain_from");
 
     assert_eq!(vec.len(), 5);
@@ -240,6 +242,22 @@ fn test_realloc_with_capacity_noop_when_sufficient() {
 
     assert_eq!(vec.capacity(), 5);
     assert_eq!(vec.as_slice(), [1, 2]);
+}
+
+#[test]
+fn test_realloc_with_capacity_preserves_len() {
+    let mut vec = AllockedVec::with_capacity(5);
+
+    vec.push(1u8).expect("Failed to vec.push(1)");
+    vec.push(2u8).expect("Failed to vec.push(2)");
+    vec.push(3u8).expect("Failed to vec.push(3)");
+    vec.push(4u8).expect("Failed to vec.push(4)");
+    vec.push(5u8).expect("Failed to vec.push(5)");
+
+    vec.realloc_with_capacity(10);
+
+    assert_eq!(vec.len(), 5);
+    assert_eq!(vec.as_slice(), [1, 2, 3, 4, 5]);
 }
 
 #[test]
