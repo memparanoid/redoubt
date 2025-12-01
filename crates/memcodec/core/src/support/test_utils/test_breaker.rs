@@ -6,7 +6,7 @@ use membuffer::Buffer;
 use zeroize::Zeroize;
 
 use crate::error::{DecodeError, EncodeError, OverflowError};
-use crate::traits::{BytesRequired, Decode, Encode, TryDecode, TryEncode};
+use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc};
 
 /// Behavior control for error injection testing in memcodec.
 #[derive(Debug, Clone, PartialEq, Eq, Zeroize)]
@@ -90,17 +90,6 @@ impl BytesRequired for TestBreaker {
     }
 }
 
-impl TryEncode for TestBreaker {
-    fn try_encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
-        if self.behaviour == TestBreakerBehaviour::ForceEncodeError {
-            return Err(EncodeError::OverflowError(OverflowError {
-                reason: "TestBreaker forced encode error".into(),
-            }));
-        }
-        self.data.try_encode_into(buf)
-    }
-}
-
 impl Encode for TestBreaker {
     fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
         if self.behaviour == TestBreakerBehaviour::ForceEncodeError {
@@ -109,15 +98,6 @@ impl Encode for TestBreaker {
             }));
         }
         self.data.encode_into(buf)
-    }
-}
-
-impl TryDecode for TestBreaker {
-    fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-        if self.behaviour == TestBreakerBehaviour::ForceDecodeError {
-            return Err(DecodeError::PreconditionViolated);
-        }
-        self.data.try_decode_from(buf)
     }
 }
 
@@ -137,3 +117,29 @@ impl PartialEq for TestBreaker {
 }
 
 impl Eq for TestBreaker {}
+
+impl EncodeSlice for TestBreaker {
+    fn encode_slice_into(slice: &mut [Self], buf: &mut Buffer) -> Result<(), EncodeError> {
+        for elem in slice.iter_mut() {
+            elem.encode_into(buf)?;
+        }
+        Ok(())
+    }
+}
+
+impl DecodeSlice for TestBreaker {
+    fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError> {
+        for elem in slice.iter_mut() {
+            elem.decode_from(buf)?;
+        }
+        Ok(())
+    }
+}
+
+impl PreAlloc for TestBreaker {
+    const ZERO_INIT: bool = false;
+
+    fn prealloc(&mut self, _size: usize) {
+        // No-op: collection uses Default::default() when ZERO_INIT = false
+    }
+}

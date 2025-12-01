@@ -52,6 +52,12 @@ pub trait DecodeBuffer {
     fn read_slice<T>(&mut self, dst: &mut [T]) -> Result<(), DecodeBufferError>;
 }
 
-pub(crate) trait PreAlloc {
+/// Pre-allocation trait for collections.
+///
+/// `ZERO_INIT` indicates if the type can be safely initialized by zeroing memory.
+/// - `true`: Use fast memset + set_len (primitives)
+/// - `false`: Use Default::default() for each element (complex types)
+pub(crate) trait PreAlloc: Default {
+    const ZERO_INIT: bool;
     fn prealloc(&mut self, size: usize);
 }

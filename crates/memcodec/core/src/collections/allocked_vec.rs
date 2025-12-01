@@ -155,6 +155,8 @@ impl<T> PreAlloc for AllockedVec<T>
 where
     T: Zeroize + ZeroizationProbe + Default,
 {
+    const ZERO_INIT: bool = false;
+
     fn prealloc(&mut self, size: usize) {
         self.zeroize();
 

@@ -145,6 +145,8 @@ impl DecodeSlice for String {
 }
 
 impl PreAlloc for String {
+    const ZERO_INIT: bool = true;
+
     fn prealloc(&mut self, size: usize) {
         self.clear();
         self.shrink_to_fit();

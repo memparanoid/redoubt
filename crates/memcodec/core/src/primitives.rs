@@ -85,6 +85,15 @@ macro_rules! impl_traits_for_primitives {
                     Ok(())
                 }
             }
+
+            impl $crate::traits::PreAlloc for $ty {
+                const ZERO_INIT: bool = true;
+
+                #[inline(always)]
+                fn prealloc(&mut self, _size: usize) {
+                    // No-op: collection must preallocate memory with zeroes
+                }
+            }
         )*
     };
 }

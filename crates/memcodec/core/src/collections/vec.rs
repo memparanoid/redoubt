@@ -105,7 +105,7 @@ where
 
 impl<T> TryDecode for Vec<T>
 where
-    T: DecodeSlice,
+    T: DecodeSlice + PreAlloc,
 {
     #[inline(always)]
     fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
@@ -121,7 +121,7 @@ where
 
 impl<T> Decode for Vec<T>
 where
-    T: DecodeSlice,
+    T: DecodeSlice + PreAlloc,
 {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         let result = self.try_decode_from(buf);
@@ -137,7 +137,7 @@ where
 
 impl<T> DecodeSlice for Vec<T>
 where
-    T: DecodeSlice,
+    T: DecodeSlice + PreAlloc,
 {
     fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         for elem in slice.iter_mut() {
@@ -148,14 +148,18 @@ where
     }
 }
 
-impl<T> PreAlloc for Vec<T> {
+impl<T: PreAlloc> PreAlloc for Vec<T> {
+    const ZERO_INIT: bool = T::ZERO_INIT;
+
     fn prealloc(&mut self, size: usize) {
         self.clear();
-        self.shrink_to_fit();
-        self.reserve_exact(size);
-
-        memutil::fast_zeroize_vec(self);
-
-        unsafe { self.set_len(size) };
+        if T::ZERO_INIT {
+            self.shrink_to_fit();
+            self.reserve_exact(size);
+            memutil::fast_zeroize_vec(self);
+            unsafe { self.set_len(size) };
+        } else {
+            self.resize_with(size, Default::default);
+        }
     }
 }
