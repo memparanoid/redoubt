@@ -169,9 +169,9 @@ fn test_decode_element_error() {
         .expect("Failed to encode_into(..)");
 
     // Truncate buffer to make second element fail
-    let truncated = bytes_required / 2;
+    let insufficient_bytes_required = bytes_required / 2;
     let mut decoded: Vec<TestBreaker> = Vec::new();
-    let mut slice = &mut buf.as_mut_slice()[..truncated];
+    let mut slice = &mut buf.as_mut_slice()[..insufficient_bytes_required];
 
     let result = decoded.decode_from(&mut slice);
 

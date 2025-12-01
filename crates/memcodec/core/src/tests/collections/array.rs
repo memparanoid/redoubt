@@ -166,9 +166,9 @@ fn test_decode_element_error() {
     arr.encode_into(&mut buf).expect("Failed to encode_into(..)");
 
     // Truncate buffer to make second element fail
-    let truncated = bytes_required / 2;
+    let insufficient_bytes_required = bytes_required / 2;
     let mut decoded: [TestBreaker; 2] = [TestBreaker::default(), TestBreaker::default()];
-    let mut slice = &mut buf.as_mut_slice()[..truncated];
+    let mut slice = &mut buf.as_mut_slice()[..insufficient_bytes_required];
 
     let result = decoded.decode_from(&mut slice);
 
