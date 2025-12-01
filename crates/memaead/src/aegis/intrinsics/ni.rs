@@ -14,8 +14,8 @@ use zeroize::Zeroize;
 
 /// AES block using AES-NI intrinsics.
 ///
-/// Does NOT implement Copy to prevent unzeroized copies.
-/// Caller must ensure CPU supports AES-NI before calling any method.
+/// Does NOT implement Copy - caller must manually zeroize before drop.
+/// Drop asserts the value is zero (in debug/test builds).
 #[repr(transparent)]
 pub struct Intrinsics(__m128i);
 
@@ -61,6 +61,33 @@ impl Intrinsics {
     pub fn aes_enc(&self, round_key: &Self) -> Self {
         Self(unsafe { _mm_aesenc_si128(self.0, round_key.0) })
     }
+
+    // === In-place operations ===
+
+    /// Move value to dest, zeroizing both old dest and self.
+    #[inline]
+    pub fn move_to(&mut self, dest: &mut Self) {
+        core::mem::swap(self, dest);
+        self.zeroize();  // self now has old dest value, zeroize it
+    }
+
+    /// XOR in-place: self = self ^ other
+    #[inline(always)]
+    pub unsafe fn xor_assign(&mut self, other: &Self) {
+        self.0 = _mm_xor_si128(self.0, other.0);
+    }
+
+    /// AND in-place: self = self & other
+    #[inline(always)]
+    pub unsafe fn and_assign(&mut self, other: &Self) {
+        self.0 = _mm_and_si128(self.0, other.0);
+    }
+
+    /// AES encryption round in-place: self = AES(self, round_key)
+    #[inline(always)]
+    pub unsafe fn aes_enc_assign(&mut self, round_key: &Self) {
+        self.0 = _mm_aesenc_si128(self.0, round_key.0);
+    }
 }
 
 impl Zeroize for Intrinsics {
@@ -74,7 +101,7 @@ impl Zeroize for Intrinsics {
 impl Drop for Intrinsics {
     #[inline]
     fn drop(&mut self) {
-        self.zeroize();
+        debug_assert!(self.is_zeroized(), "Intrinsics dropped without zeroization!");
     }
 }
 

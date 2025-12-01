@@ -14,8 +14,8 @@ use zeroize::Zeroize;
 
 /// AES block using ARM Crypto intrinsics.
 ///
-/// Does NOT implement Copy to prevent unzeroized copies.
-/// Caller must ensure CPU supports ARM Crypto before calling any method.
+/// Does NOT implement Copy - caller must manually zeroize before drop.
+/// Drop asserts the value is zero (in debug/test builds).
 #[repr(transparent)]
 pub struct Intrinsics(uint8x16_t);
 
@@ -64,6 +64,38 @@ impl Intrinsics {
         let after_mix = vaesmcq_u8(after_sub_shift);
         Self(veorq_u8(after_mix, round_key.0))
     }
+
+    // === In-place operations ===
+
+    /// Move value to dest, zeroizing both old dest and self.
+    #[inline]
+    pub fn move_to(&mut self, dest: &mut Self) {
+        core::mem::swap(self, dest);
+        self.zeroize();  // self now has old dest value, zeroize it
+    }
+
+    /// XOR in-place: self = self ^ other
+    #[inline(always)]
+    pub unsafe fn xor_assign(&mut self, other: &Self) {
+        unsafe { self.0 = veorq_u8(self.0, other.0) };
+    }
+
+    /// AND in-place: self = self & other
+    #[inline(always)]
+    pub unsafe fn and_assign(&mut self, other: &Self) {
+        unsafe { self.0 = vandq_u8(self.0, other.0) };
+    }
+
+    /// AES encryption round in-place: self = AES(self, round_key)
+    #[inline(always)]
+    pub unsafe fn aes_enc_assign(&mut self, round_key: &Self) {
+        unsafe {
+            let zero = vdupq_n_u8(0);
+            let after_sub_shift = vaeseq_u8(self.0, zero);
+            let after_mix = vaesmcq_u8(after_sub_shift);
+            self.0 = veorq_u8(after_mix, round_key.0);
+        }
+    }
 }
 
 impl Zeroize for Intrinsics {
@@ -77,7 +109,7 @@ impl Zeroize for Intrinsics {
 impl Drop for Intrinsics {
     #[inline]
     fn drop(&mut self) {
-        self.zeroize();
+        debug_assert!(self.is_zeroized(), "Intrinsics dropped without zeroization!");
     }
 }
 

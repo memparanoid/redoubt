@@ -2,389 +2,517 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! AEGIS-128L state implementation with guaranteed zeroization.
+//! AEGIS-128L implementation with in-place operations for guaranteed zeroization.
+//!
+//! Uses local variables with explicit zeroization of all intermediates.
+//! All Intrinsics are either zeroized explicitly or via move_to.
+
+#![allow(unsafe_op_in_unsafe_fn)]
 
 use zeroize::Zeroize;
 
 use memutil::u64_to_le;
-use memzer::{DropSentinel, MemZer};
 
 use crate::aegis::intrinsics::Intrinsics;
 
 /// Fibonacci constant C0
 const C0: [u8; 16] = [
-    0x00, 0x01, 0x01, 0x02, 0x03, 0x05, 0x08, 0x0d,
-    0x15, 0x22, 0x37, 0x59, 0x90, 0xe9, 0x79, 0x62,
+    0x00, 0x01, 0x01, 0x02, 0x03, 0x05, 0x08, 0x0d, 0x15, 0x22, 0x37, 0x59, 0x90, 0xe9, 0x79, 0x62,
 ];
 
 /// Fibonacci constant C1
 const C1: [u8; 16] = [
-    0xdb, 0x3d, 0x18, 0x55, 0x6d, 0xc2, 0x2f, 0xf1,
-    0x20, 0x11, 0x31, 0x42, 0x73, 0xb5, 0x28, 0xdd,
+    0xdb, 0x3d, 0x18, 0x55, 0x6d, 0xc2, 0x2f, 0xf1, 0x20, 0x11, 0x31, 0x42, 0x73, 0xb5, 0x28, 0xdd,
 ];
 
-/// AEGIS-128L state: 8 x 128-bit blocks with guaranteed zeroization.
-#[derive(Zeroize, MemZer)]
-#[zeroize(drop)]
-pub struct Aegis128LState {
-    /// The 8 state blocks S0..S7
-    s0: Intrinsics,
-    s1: Intrinsics,
-    s2: Intrinsics,
-    s3: Intrinsics,
-    s4: Intrinsics,
-    s5: Intrinsics,
-    s6: Intrinsics,
-    s7: Intrinsics,
+/// AEGIS-128L encrypt.
+///
+/// # Safety
+/// Caller must ensure AES hardware support is available.
+#[inline]
+#[target_feature(enable = "aes")]
+pub unsafe fn encrypt(
+    key: &[u8; 16],
+    nonce: &[u8; 16],
+    aad: &[u8],
+    data: &mut [u8],
+    tag: &mut [u8; 16],
+) {
+    // === Initialize state ===
+    let mut key_block = Intrinsics::load(key);
+    let mut nonce_block = Intrinsics::load(nonce);
+    let mut c0 = Intrinsics::load(&C0);
+    let mut c1 = Intrinsics::load(&C1);
 
-    /// Temporary blocks for intermediate calculations (avoid stack temporaries)
-    tmp_m0: Intrinsics,
-    tmp_m1: Intrinsics,
-    tmp_z0: Intrinsics,
-    tmp_z1: Intrinsics,
-    tmp_t: Intrinsics,
+    // s0 = key ^ nonce
+    let mut s0 = key_block.xor(&nonce_block);
+    let mut s1 = Intrinsics::load(&C1);
+    let mut s2 = Intrinsics::load(&C0);
+    let mut s3 = Intrinsics::load(&C1);
+    let mut s4 = key_block.xor(&nonce_block);
+    let mut s5 = key_block.xor(&c0);
+    let mut s6 = key_block.xor(&c1);
+    let mut s7 = key_block.xor(&c0);
 
-    /// Temporary for new state during update
-    new_s0: Intrinsics,
-    new_s1: Intrinsics,
-    new_s2: Intrinsics,
-    new_s3: Intrinsics,
-    new_s4: Intrinsics,
-    new_s5: Intrinsics,
-    new_s6: Intrinsics,
-    new_s7: Intrinsics,
+    // Clean up init temps
+    c0.zeroize();
+    c1.zeroize();
 
-    /// Temporary byte buffers for conversions
-    len_block: [u8; 16],
-    block_tmp: [u8; 32],
-    tag_tmp: [u8; 16],
+    // 10 init rounds with (nonce, key)
+    for _ in 0..10 {
+        update(
+            &mut s0, &mut s1, &mut s2, &mut s3,
+            &mut s4, &mut s5, &mut s6, &mut s7,
+            &nonce_block, &key_block,
+        );
+    }
 
-    /// Drop sentinel for testing
-    __drop_sentinel: DropSentinel,
+    // Clean up key/nonce blocks
+    key_block.zeroize();
+    nonce_block.zeroize();
+
+    // === Absorb AAD ===
+    let mut aad_iter = aad.chunks_exact(32);
+    for block in aad_iter.by_ref() {
+        let mut m0 = Intrinsics::load(block[..16].try_into().unwrap());
+        let mut m1 = Intrinsics::load(block[16..].try_into().unwrap());
+        update(
+            &mut s0, &mut s1, &mut s2, &mut s3,
+            &mut s4, &mut s5, &mut s6, &mut s7,
+            &m0, &m1,
+        );
+        m0.zeroize();
+        m1.zeroize();
+    }
+
+    // Partial AAD block
+    let aad_remainder = aad_iter.remainder();
+    if !aad_remainder.is_empty() {
+        let mut padded = [0u8; 32];
+        padded[..aad_remainder.len()].copy_from_slice(aad_remainder);
+        let mut m0 = Intrinsics::load(padded[..16].try_into().unwrap());
+        let mut m1 = Intrinsics::load(padded[16..].try_into().unwrap());
+        update(
+            &mut s0, &mut s1, &mut s2, &mut s3,
+            &mut s4, &mut s5, &mut s6, &mut s7,
+            &m0, &m1,
+        );
+        m0.zeroize();
+        m1.zeroize();
+        padded.zeroize();
+    }
+
+    // === Encrypt data ===
+    let msg_len = data.len();
+    let mut data_iter = data.chunks_exact_mut(32);
+    for block in data_iter.by_ref() {
+        // Compute keystream: z0 = s1 ^ s6 ^ (s2 & s3)
+        let mut z0 = s1.xor(&s6);
+        let mut t0 = s2.and(&s3);
+        z0.xor_assign(&t0);
+        t0.zeroize();
+
+        // z1 = s2 ^ s5 ^ (s6 & s7)
+        let mut z1 = s2.xor(&s5);
+        let mut t1 = s6.and(&s7);
+        z1.xor_assign(&t1);
+        t1.zeroize();
+
+        // Load plaintext
+        let mut m0 = Intrinsics::load(block[..16].try_into().unwrap());
+        let mut m1 = Intrinsics::load(block[16..].try_into().unwrap());
+
+        // Encrypt: ciphertext = plaintext ^ keystream
+        let mut c0 = m0.xor(&z0);
+        let mut c1 = m1.xor(&z1);
+        c0.store((&mut block[..16]).try_into().unwrap());
+        c1.store((&mut block[16..]).try_into().unwrap());
+        c0.zeroize();
+        c1.zeroize();
+        z0.zeroize();
+        z1.zeroize();
+
+        // Update state with plaintext
+        update(
+            &mut s0, &mut s1, &mut s2, &mut s3,
+            &mut s4, &mut s5, &mut s6, &mut s7,
+            &m0, &m1,
+        );
+        m0.zeroize();
+        m1.zeroize();
+    }
+
+    // Partial data block
+    let data_remainder = data_iter.into_remainder();
+    if !data_remainder.is_empty() {
+        let len = data_remainder.len();
+        let mut padded = [0u8; 32];
+        padded[..len].copy_from_slice(data_remainder);
+
+        // Compute keystream
+        let mut z0 = s1.xor(&s6);
+        let mut t0 = s2.and(&s3);
+        z0.xor_assign(&t0);
+        t0.zeroize();
+
+        let mut z1 = s2.xor(&s5);
+        let mut t1 = s6.and(&s7);
+        z1.xor_assign(&t1);
+        t1.zeroize();
+
+        // Load padded plaintext
+        let mut m0 = Intrinsics::load(padded[..16].try_into().unwrap());
+        let mut m1 = Intrinsics::load(padded[16..].try_into().unwrap());
+
+        // Encrypt
+        let mut c0 = m0.xor(&z0);
+        let mut c1 = m1.xor(&z1);
+        z0.zeroize();
+        z1.zeroize();
+
+        // Store only the valid ciphertext bytes
+        let mut ct_buf = [0u8; 32];
+        c0.store((&mut ct_buf[..16]).try_into().unwrap());
+        c1.store((&mut ct_buf[16..]).try_into().unwrap());
+        data_remainder.copy_from_slice(&ct_buf[..len]);
+        c0.zeroize();
+        c1.zeroize();
+
+        // Update state with padded plaintext
+        update(
+            &mut s0, &mut s1, &mut s2, &mut s3,
+            &mut s4, &mut s5, &mut s6, &mut s7,
+            &m0, &m1,
+        );
+        m0.zeroize();
+        m1.zeroize();
+
+        padded.zeroize();
+        ct_buf.zeroize();
+    }
+
+    // === Finalize ===
+    let mut len_block = [0u8; 16];
+    let mut ad_bits = (aad.len() as u64) * 8;
+    let mut msg_bits = (msg_len as u64) * 8;
+    u64_to_le(&mut ad_bits, (&mut len_block[..8]).try_into().unwrap());
+    u64_to_le(&mut msg_bits, (&mut len_block[8..]).try_into().unwrap());
+
+    let mut len_intrinsic = Intrinsics::load(&len_block);
+    let mut t = s2.xor(&len_intrinsic);
+    len_intrinsic.zeroize();
+
+    let mut t_buf = [0u8; 16];
+    t.store(&mut t_buf);
+    t.zeroize();
+
+    // 7 finalization rounds with (t, t)
+    for _ in 0..7 {
+        let mut t_block = Intrinsics::load(&t_buf);
+        update(
+            &mut s0, &mut s1, &mut s2, &mut s3,
+            &mut s4, &mut s5, &mut s6, &mut s7,
+            &t_block, &t_block,
+        );
+        t_block.zeroize();
+    }
+
+    // Compute tag = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5 ^ S6
+    let mut tag_block = s0.xor(&s1);
+    tag_block.xor_assign(&s2);
+    tag_block.xor_assign(&s3);
+    tag_block.xor_assign(&s4);
+    tag_block.xor_assign(&s5);
+    tag_block.xor_assign(&s6);
+    tag_block.store(tag);
+    tag_block.zeroize();
+
+    // === Zeroize all state ===
+    s0.zeroize();
+    s1.zeroize();
+    s2.zeroize();
+    s3.zeroize();
+    s4.zeroize();
+    s5.zeroize();
+    s6.zeroize();
+    s7.zeroize();
+    len_block.zeroize();
+    t_buf.zeroize();
 }
 
-impl Default for Aegis128LState {
-    fn default() -> Self {
-        Self {
-            s0: Intrinsics::default(),
-            s1: Intrinsics::default(),
-            s2: Intrinsics::default(),
-            s3: Intrinsics::default(),
-            s4: Intrinsics::default(),
-            s5: Intrinsics::default(),
-            s6: Intrinsics::default(),
-            s7: Intrinsics::default(),
-            tmp_m0: Intrinsics::default(),
-            tmp_m1: Intrinsics::default(),
-            tmp_z0: Intrinsics::default(),
-            tmp_z1: Intrinsics::default(),
-            tmp_t: Intrinsics::default(),
-            new_s0: Intrinsics::default(),
-            new_s1: Intrinsics::default(),
-            new_s2: Intrinsics::default(),
-            new_s3: Intrinsics::default(),
-            new_s4: Intrinsics::default(),
-            new_s5: Intrinsics::default(),
-            new_s6: Intrinsics::default(),
-            new_s7: Intrinsics::default(),
-            len_block: [0; 16],
-            block_tmp: [0; 32],
-            tag_tmp: [0; 16],
-            __drop_sentinel: DropSentinel::default(),
-        }
-    }
-}
+/// AEGIS-128L decrypt.
+///
+/// # Safety
+/// Caller must ensure AES hardware support is available.
+#[inline]
+#[target_feature(enable = "aes")]
+pub unsafe fn decrypt(
+    key: &[u8; 16],
+    nonce: &[u8; 16],
+    aad: &[u8],
+    data: &mut [u8],
+    expected_tag: &[u8; 16],
+) -> bool {
+    // === Initialize state ===
+    let mut key_block = Intrinsics::load(key);
+    let mut nonce_block = Intrinsics::load(nonce);
+    let mut c0 = Intrinsics::load(&C0);
+    let mut c1 = Intrinsics::load(&C1);
 
-impl core::fmt::Debug for Aegis128LState {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Aegis128LState {{ [protected] }}")
-    }
-}
+    let mut s0 = key_block.xor(&nonce_block);
+    let mut s1 = Intrinsics::load(&C1);
+    let mut s2 = Intrinsics::load(&C0);
+    let mut s3 = Intrinsics::load(&C1);
+    let mut s4 = key_block.xor(&nonce_block);
+    let mut s5 = key_block.xor(&c0);
+    let mut s6 = key_block.xor(&c1);
+    let mut s7 = key_block.xor(&c0);
 
-impl Aegis128LState {
-    /// Access the scratch buffer for partial block operations.
-    #[inline]
-    pub fn block_tmp(&mut self) -> &mut [u8; 32] {
-        &mut self.block_tmp
+    c0.zeroize();
+    c1.zeroize();
+
+    // 10 init rounds
+    for _ in 0..10 {
+        update(
+            &mut s0, &mut s1, &mut s2, &mut s3,
+            &mut s4, &mut s5, &mut s6, &mut s7,
+            &nonce_block, &key_block,
+        );
     }
 
-    /// Initialize state from key and nonce.
-    ///
-    /// # Safety
-    /// Caller must ensure AES hardware support is available.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub unsafe fn init(&mut self, key: &[u8; 16], nonce: &[u8; 16]) {
-        // Load key, nonce, constants
-        self.tmp_m0 = Intrinsics::load(key);
-        self.tmp_m1 = Intrinsics::load(nonce);
-        self.tmp_z0 = Intrinsics::load(&C0);
-        self.tmp_z1 = Intrinsics::load(&C1);
+    key_block.zeroize();
+    nonce_block.zeroize();
 
-        // key_xor_nonce
-        self.tmp_t = self.tmp_m0.xor(&self.tmp_m1);
-
-        // S0 = key ^ nonce
-        self.s0 = Intrinsics::load(key);
-        self.s0 = self.s0.xor(&Intrinsics::load(nonce));
-
-        // S1 = C1
-        self.s1 = Intrinsics::load(&C1);
-
-        // S2 = C0
-        self.s2 = Intrinsics::load(&C0);
-
-        // S3 = C1
-        self.s3 = Intrinsics::load(&C1);
-
-        // S4 = key ^ nonce
-        self.s4 = Intrinsics::load(key);
-        self.s4 = self.s4.xor(&Intrinsics::load(nonce));
-
-        // S5 = key ^ C0
-        self.s5 = Intrinsics::load(key);
-        self.s5 = self.s5.xor(&Intrinsics::load(&C0));
-
-        // S6 = key ^ C1
-        self.s6 = Intrinsics::load(key);
-        self.s6 = self.s6.xor(&Intrinsics::load(&C1));
-
-        // S7 = key ^ C0
-        self.s7 = Intrinsics::load(key);
-        self.s7 = self.s7.xor(&Intrinsics::load(&C0));
-
-        // Run 10 Update rounds with (nonce, key)
-        for _ in 0..10 {
-            self.tmp_m0 = Intrinsics::load(nonce);
-            self.tmp_m1 = Intrinsics::load(key);
-            unsafe { self.update() };
-        }
+    // === Absorb AAD ===
+    let mut aad_iter = aad.chunks_exact(32);
+    for block in aad_iter.by_ref() {
+        let mut m0 = Intrinsics::load(block[..16].try_into().unwrap());
+        let mut m1 = Intrinsics::load(block[16..].try_into().unwrap());
+        update(
+            &mut s0, &mut s1, &mut s2, &mut s3,
+            &mut s4, &mut s5, &mut s6, &mut s7,
+            &m0, &m1,
+        );
+        m0.zeroize();
+        m1.zeroize();
     }
 
-    /// Core state update function.
-    ///
-    /// Uses tmp_m0 and tmp_m1 as input (M0, M1).
-    /// ```text
-    /// S'0 = AESRound(S7, S0 ^ M0)
-    /// S'1 = AESRound(S0, S1)
-    /// S'2 = AESRound(S1, S2)
-    /// S'3 = AESRound(S2, S3)
-    /// S'4 = AESRound(S3, S4 ^ M1)
-    /// S'5 = AESRound(S4, S5)
-    /// S'6 = AESRound(S5, S6)
-    /// S'7 = AESRound(S6, S7)
-    /// ```
-    #[inline]
-    #[target_feature(enable = "aes")]
-    unsafe fn update(&mut self) {
-        // S0 ^ M0
-        self.tmp_t = self.s0.xor(&self.tmp_m0);
-        self.new_s0 = self.s7.aes_enc(&self.tmp_t);
-
-        self.new_s1 = self.s0.aes_enc(&self.s1);
-        self.new_s2 = self.s1.aes_enc(&self.s2);
-        self.new_s3 = self.s2.aes_enc(&self.s3);
-
-        // S4 ^ M1
-        self.tmp_t = self.s4.xor(&self.tmp_m1);
-        self.new_s4 = self.s3.aes_enc(&self.tmp_t);
-
-        self.new_s5 = self.s4.aes_enc(&self.s5);
-        self.new_s6 = self.s5.aes_enc(&self.s6);
-        self.new_s7 = self.s6.aes_enc(&self.s7);
-
-        // Move new state to current state
-        core::mem::swap(&mut self.s0, &mut self.new_s0);
-        core::mem::swap(&mut self.s1, &mut self.new_s1);
-        core::mem::swap(&mut self.s2, &mut self.new_s2);
-        core::mem::swap(&mut self.s3, &mut self.new_s3);
-        core::mem::swap(&mut self.s4, &mut self.new_s4);
-        core::mem::swap(&mut self.s5, &mut self.new_s5);
-        core::mem::swap(&mut self.s6, &mut self.new_s6);
-        core::mem::swap(&mut self.s7, &mut self.new_s7);
+    let aad_remainder = aad_iter.remainder();
+    if !aad_remainder.is_empty() {
+        let mut padded = [0u8; 32];
+        padded[..aad_remainder.len()].copy_from_slice(aad_remainder);
+        let mut m0 = Intrinsics::load(padded[..16].try_into().unwrap());
+        let mut m1 = Intrinsics::load(padded[16..].try_into().unwrap());
+        update(
+            &mut s0, &mut s1, &mut s2, &mut s3,
+            &mut s4, &mut s5, &mut s6, &mut s7,
+            &m0, &m1,
+        );
+        m0.zeroize();
+        m1.zeroize();
+        padded.zeroize();
     }
 
-    /// Absorb a 256-bit block of associated data.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub unsafe fn absorb(&mut self, ad: &[u8; 32]) {
-        self.tmp_m0 = Intrinsics::load(ad[..16].try_into().unwrap());
-        self.tmp_m1 = Intrinsics::load(ad[16..].try_into().unwrap());
-        unsafe { self.update() };
-    }
+    // === Decrypt data ===
+    let ct_len = data.len();
+    let mut data_iter = data.chunks_exact_mut(32);
+    for block in data_iter.by_ref() {
+        // Compute keystream
+        let mut z0 = s1.xor(&s6);
+        let mut t0 = s2.and(&s3);
+        z0.xor_assign(&t0);
+        t0.zeroize();
 
-    /// Encrypt a 256-bit plaintext block in-place.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub unsafe fn enc(&mut self, block: &mut [u8; 32]) {
-        // z0 = S1 ^ S6 ^ (S2 & S3)
-        self.tmp_t = self.s2.and(&self.s3);
-        self.tmp_z0 = self.s1.xor(&self.s6);
-        self.tmp_z0 = self.tmp_z0.xor(&self.tmp_t);
-
-        // z1 = S2 ^ S5 ^ (S6 & S7)
-        self.tmp_t = self.s6.and(&self.s7);
-        self.tmp_z1 = self.s2.xor(&self.s5);
-        self.tmp_z1 = self.tmp_z1.xor(&self.tmp_t);
-
-        // Load plaintext into tmp_m0, tmp_m1
-        self.tmp_m0 = Intrinsics::load(block[..16].try_into().unwrap());
-        self.tmp_m1 = Intrinsics::load(block[16..].try_into().unwrap());
-
-        // out0 = t0 ^ z0, out1 = t1 ^ z1
-        self.tmp_t = self.tmp_m0.xor(&self.tmp_z0);
-        self.tmp_t.store((&mut block[..16]).try_into().unwrap());
-
-        self.tmp_t = self.tmp_m1.xor(&self.tmp_z1);
-        self.tmp_t.store((&mut block[16..]).try_into().unwrap());
-
-        // Update state with plaintext (tmp_m0, tmp_m1 still hold plaintext)
-        unsafe { self.update() };
-    }
-
-    /// Encrypt a partial plaintext block (< 32 bytes) in-place.
-    ///
-    /// Uses block_tmp as scratch space. The `len` bytes at the start of
-    /// block_tmp are the plaintext, and will be replaced with ciphertext.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub unsafe fn enc_partial(&mut self, len: usize) {
-        debug_assert!(len > 0 && len < 32);
-
-        // Zero-pad the partial plaintext (already in block_tmp[..len])
-        self.block_tmp[len..].fill(0);
-
-        // z0 = S1 ^ S6 ^ (S2 & S3)
-        self.tmp_t = self.s2.and(&self.s3);
-        self.tmp_z0 = self.s1.xor(&self.s6);
-        self.tmp_z0 = self.tmp_z0.xor(&self.tmp_t);
-
-        // z1 = S2 ^ S5 ^ (S6 & S7)
-        self.tmp_t = self.s6.and(&self.s7);
-        self.tmp_z1 = self.s2.xor(&self.s5);
-        self.tmp_z1 = self.tmp_z1.xor(&self.tmp_t);
-
-        // Load zero-padded plaintext
-        self.tmp_m0 = Intrinsics::load(self.block_tmp[..16].try_into().unwrap());
-        self.tmp_m1 = Intrinsics::load(self.block_tmp[16..].try_into().unwrap());
-
-        // Encrypt: ciphertext = plaintext ^ z
-        self.tmp_t = self.tmp_m0.xor(&self.tmp_z0);
-        self.tmp_t.store((&mut self.block_tmp[..16]).try_into().unwrap());
-
-        self.tmp_t = self.tmp_m1.xor(&self.tmp_z1);
-        self.tmp_t.store((&mut self.block_tmp[16..]).try_into().unwrap());
-
-        // Update with zero-padded plaintext (tmp_m0, tmp_m1 still hold it)
-        unsafe { self.update() };
-    }
-
-    /// Decrypt a 256-bit ciphertext block in-place.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub unsafe fn dec(&mut self, block: &mut [u8; 32]) {
-        // z0 = S1 ^ S6 ^ (S2 & S3)
-        self.tmp_t = self.s2.and(&self.s3);
-        self.tmp_z0 = self.s1.xor(&self.s6);
-        self.tmp_z0 = self.tmp_z0.xor(&self.tmp_t);
-
-        // z1 = S2 ^ S5 ^ (S6 & S7)
-        self.tmp_t = self.s6.and(&self.s7);
-        self.tmp_z1 = self.s2.xor(&self.s5);
-        self.tmp_z1 = self.tmp_z1.xor(&self.tmp_t);
+        let mut z1 = s2.xor(&s5);
+        let mut t1 = s6.and(&s7);
+        z1.xor_assign(&t1);
+        t1.zeroize();
 
         // Load ciphertext
-        self.tmp_t = Intrinsics::load(block[..16].try_into().unwrap());
-        // Decrypt: plaintext = ciphertext ^ z0
-        self.tmp_m0 = self.tmp_t.xor(&self.tmp_z0);
-        self.tmp_m0.store((&mut block[..16]).try_into().unwrap());
+        let mut ct0 = Intrinsics::load(block[..16].try_into().unwrap());
+        let mut ct1 = Intrinsics::load(block[16..].try_into().unwrap());
 
-        self.tmp_t = Intrinsics::load(block[16..].try_into().unwrap());
-        // Decrypt: plaintext = ciphertext ^ z1
-        self.tmp_m1 = self.tmp_t.xor(&self.tmp_z1);
-        self.tmp_m1.store((&mut block[16..]).try_into().unwrap());
+        // Decrypt: plaintext = ciphertext ^ keystream
+        let mut m0 = ct0.xor(&z0);
+        let mut m1 = ct1.xor(&z1);
+        m0.store((&mut block[..16]).try_into().unwrap());
+        m1.store((&mut block[16..]).try_into().unwrap());
+        ct0.zeroize();
+        ct1.zeroize();
+        z0.zeroize();
+        z1.zeroize();
 
-        // Update state with PLAINTEXT (tmp_m0, tmp_m1)
-        unsafe { self.update() };
-    }
-
-    /// Decrypt a partial ciphertext block (< 32 bytes) in-place.
-    ///
-    /// Uses block_tmp as scratch space. The `len` bytes at the start of
-    /// block_tmp are the ciphertext, and will be replaced with plaintext.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub unsafe fn dec_partial(&mut self, len: usize) {
-        debug_assert!(len > 0 && len < 32);
-
-        // Zero-pad the partial ciphertext (already in block_tmp[..len])
-        self.block_tmp[len..].fill(0);
-
-        // z0 = S1 ^ S6 ^ (S2 & S3)
-        self.tmp_t = self.s2.and(&self.s3);
-        self.tmp_z0 = self.s1.xor(&self.s6);
-        self.tmp_z0 = self.tmp_z0.xor(&self.tmp_t);
-
-        // z1 = S2 ^ S5 ^ (S6 & S7)
-        self.tmp_t = self.s6.and(&self.s7);
-        self.tmp_z1 = self.s2.xor(&self.s5);
-        self.tmp_z1 = self.tmp_z1.xor(&self.tmp_t);
-
-        // Decrypt: padded_plaintext = padded_ciphertext ^ z
-        self.tmp_t = Intrinsics::load(self.block_tmp[..16].try_into().unwrap());
-        self.tmp_m0 = self.tmp_t.xor(&self.tmp_z0);
-        self.tmp_m0.store((&mut self.block_tmp[..16]).try_into().unwrap());
-
-        self.tmp_t = Intrinsics::load(self.block_tmp[16..].try_into().unwrap());
-        self.tmp_m1 = self.tmp_t.xor(&self.tmp_z1);
-        self.tmp_m1.store((&mut self.block_tmp[16..]).try_into().unwrap());
-
-        // Zero the padding bytes (keep only actual plaintext)
-        self.block_tmp[len..].fill(0);
-
-        // Update with zero-padded plaintext
-        self.tmp_m0 = Intrinsics::load(self.block_tmp[..16].try_into().unwrap());
-        self.tmp_m1 = Intrinsics::load(self.block_tmp[16..].try_into().unwrap());
-        unsafe { self.update() };
-    }
-
-    /// Finalize and produce 128-bit tag.
-    #[inline]
-    #[target_feature(enable = "aes")]
-    pub unsafe fn finalize(&mut self, ad_len: usize, msg_len: usize, tag: &mut [u8; 16]) {
-        // t = S2 ^ (LE64(ad_len_bits) || LE64(msg_len_bits))
-        let mut ad_bits = (ad_len as u64) * 8;
-        let mut msg_bits = (msg_len as u64) * 8;
-
-        u64_to_le(
-            &mut ad_bits,
-            (&mut self.len_block[..8]).try_into().unwrap(),
+        // Update state with plaintext
+        update(
+            &mut s0, &mut s1, &mut s2, &mut s3,
+            &mut s4, &mut s5, &mut s6, &mut s7,
+            &m0, &m1,
         );
-        u64_to_le(
-            &mut msg_bits,
-            (&mut self.len_block[8..]).try_into().unwrap(),
-        );
-
-        // t = S2 ^ len_block (computed once and stored)
-        self.tmp_t = Intrinsics::load(&self.len_block);
-        self.tmp_t = self.s2.xor(&self.tmp_t);
-        self.tmp_t.store(&mut self.tag_tmp);
-
-        // Run 7 Update rounds with (t, t)
-        for _ in 0..7 {
-            self.tmp_m0 = Intrinsics::load(&self.tag_tmp);
-            self.tmp_m1 = Intrinsics::load(&self.tag_tmp);
-            unsafe { self.update() };
-        }
-
-        // tag = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5 ^ S6
-        self.tmp_t = self.s0.xor(&self.s1);
-        self.tmp_t = self.tmp_t.xor(&self.s2);
-        self.tmp_t = self.tmp_t.xor(&self.s3);
-        self.tmp_t = self.tmp_t.xor(&self.s4);
-        self.tmp_t = self.tmp_t.xor(&self.s5);
-        self.tmp_t = self.tmp_t.xor(&self.s6);
-
-        self.tmp_t.store(tag);
+        m0.zeroize();
+        m1.zeroize();
     }
+
+    // Partial data block
+    let data_remainder = data_iter.into_remainder();
+    if !data_remainder.is_empty() {
+        let len = data_remainder.len();
+        let mut padded = [0u8; 32];
+        padded[..len].copy_from_slice(data_remainder);
+
+        // Compute keystream
+        let mut z0 = s1.xor(&s6);
+        let mut t0 = s2.and(&s3);
+        z0.xor_assign(&t0);
+        t0.zeroize();
+
+        let mut z1 = s2.xor(&s5);
+        let mut t1 = s6.and(&s7);
+        z1.xor_assign(&t1);
+        t1.zeroize();
+
+        // Load padded ciphertext
+        let mut ct0 = Intrinsics::load(padded[..16].try_into().unwrap());
+        let mut ct1 = Intrinsics::load(padded[16..].try_into().unwrap());
+
+        // Decrypt
+        let mut pt0 = ct0.xor(&z0);
+        let mut pt1 = ct1.xor(&z1);
+        ct0.zeroize();
+        ct1.zeroize();
+        z0.zeroize();
+        z1.zeroize();
+
+        // Store plaintext to temp buffer
+        let mut pt_buf = [0u8; 32];
+        pt0.store((&mut pt_buf[..16]).try_into().unwrap());
+        pt1.store((&mut pt_buf[16..]).try_into().unwrap());
+
+        // Copy only valid plaintext bytes
+        data_remainder.copy_from_slice(&pt_buf[..len]);
+
+        // Update state with zero-padded plaintext
+        pt_buf[len..].fill(0);
+        let mut m0 = Intrinsics::load(pt_buf[..16].try_into().unwrap());
+        let mut m1 = Intrinsics::load(pt_buf[16..].try_into().unwrap());
+        pt0.zeroize();
+        pt1.zeroize();
+
+        update(
+            &mut s0, &mut s1, &mut s2, &mut s3,
+            &mut s4, &mut s5, &mut s6, &mut s7,
+            &m0, &m1,
+        );
+        m0.zeroize();
+        m1.zeroize();
+
+        padded.zeroize();
+        pt_buf.zeroize();
+    }
+
+    // === Finalize ===
+    let mut len_block = [0u8; 16];
+    let mut ad_bits = (aad.len() as u64) * 8;
+    let mut msg_bits = (ct_len as u64) * 8;
+    u64_to_le(&mut ad_bits, (&mut len_block[..8]).try_into().unwrap());
+    u64_to_le(&mut msg_bits, (&mut len_block[8..]).try_into().unwrap());
+
+    let mut len_intrinsic = Intrinsics::load(&len_block);
+    let mut t = s2.xor(&len_intrinsic);
+    len_intrinsic.zeroize();
+
+    let mut t_buf = [0u8; 16];
+    t.store(&mut t_buf);
+    t.zeroize();
+
+    // 7 finalization rounds
+    for _ in 0..7 {
+        let mut t_block = Intrinsics::load(&t_buf);
+        update(
+            &mut s0, &mut s1, &mut s2, &mut s3,
+            &mut s4, &mut s5, &mut s6, &mut s7,
+            &t_block, &t_block,
+        );
+        t_block.zeroize();
+    }
+
+    // Compute tag
+    let mut tag_block = s0.xor(&s1);
+    tag_block.xor_assign(&s2);
+    tag_block.xor_assign(&s3);
+    tag_block.xor_assign(&s4);
+    tag_block.xor_assign(&s5);
+    tag_block.xor_assign(&s6);
+
+    let mut computed_tag = [0u8; 16];
+    tag_block.store(&mut computed_tag);
+    tag_block.zeroize();
+
+    // Constant-time tag comparison
+    let tag_ok = memutil::constant_time_eq(&computed_tag, expected_tag);
+
+    // === Zeroize all state ===
+    s0.zeroize();
+    s1.zeroize();
+    s2.zeroize();
+    s3.zeroize();
+    s4.zeroize();
+    s5.zeroize();
+    s6.zeroize();
+    s7.zeroize();
+    len_block.zeroize();
+    t_buf.zeroize();
+    computed_tag.zeroize();
+
+    // Zeroize data on tag mismatch
+    if !tag_ok {
+        data.zeroize();
+    }
+
+    tag_ok
+}
+
+/// Core state update function.
+///
+/// Updates state in-place using mutable references.
+/// All intermediate values are explicitly zeroized.
+#[inline(always)]
+unsafe fn update(
+    s0: &mut Intrinsics,
+    s1: &mut Intrinsics,
+    s2: &mut Intrinsics,
+    s3: &mut Intrinsics,
+    s4: &mut Intrinsics,
+    s5: &mut Intrinsics,
+    s6: &mut Intrinsics,
+    s7: &mut Intrinsics,
+    m0: &Intrinsics,
+    m1: &Intrinsics,
+) {
+    // Compute XOR temps for s0^m0 and s4^m1
+    let mut t0 = s0.xor(m0);
+    let mut t4 = s4.xor(m1);
+
+    // Compute all new state values
+    let mut ns0 = s7.aes_enc(&t0);
+    let mut ns1 = s0.aes_enc(s1);
+    let mut ns2 = s1.aes_enc(s2);
+    let mut ns3 = s2.aes_enc(s3);
+    let mut ns4 = s3.aes_enc(&t4);
+    let mut ns5 = s4.aes_enc(s5);
+    let mut ns6 = s5.aes_enc(s6);
+    let mut ns7 = s6.aes_enc(s7);
+
+    // Zeroize XOR temps
+    t0.zeroize();
+    t4.zeroize();
+
+    // Move new state to old state (zeroizes ns* via move_to)
+    ns0.move_to(s0);
+    ns1.move_to(s1);
+    ns2.move_to(s2);
+    ns3.move_to(s3);
+    ns4.move_to(s4);
+    ns5.move_to(s5);
+    ns6.move_to(s6);
+    ns7.move_to(s7);
 }

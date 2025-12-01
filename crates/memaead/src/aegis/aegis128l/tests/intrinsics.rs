@@ -5,6 +5,7 @@
 //! AES intrinsics tests.
 
 use memutil::hex_to_bytes;
+use zeroize::Zeroize;
 
 use crate::aegis::intrinsics::Intrinsics;
 
@@ -21,12 +22,17 @@ fn test_aes_round() {
     let expected = hex_to_bytes("7a7b4e5638782546a8c0477a3b813f43");
 
     unsafe {
-        let block = Intrinsics::load(input[..].try_into().unwrap());
-        let round_key = Intrinsics::load(rk[..].try_into().unwrap());
-        let result = block.aes_enc(&round_key);
+        let mut block = Intrinsics::load(input[..].try_into().unwrap());
+        let mut round_key = Intrinsics::load(rk[..].try_into().unwrap());
+        let mut result = block.aes_enc(&round_key);
 
         let mut out = [0u8; 16];
         result.store(&mut out);
         assert_eq!(out[..], expected[..], "AESRound mismatch");
+
+        // Zeroize all intrinsics before drop
+        block.zeroize();
+        round_key.zeroize();
+        result.zeroize();
     }
 }
