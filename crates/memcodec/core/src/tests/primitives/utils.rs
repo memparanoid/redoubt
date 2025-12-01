@@ -86,7 +86,7 @@ pub(crate) fn test_bytes_required<T: BytesRequired>(value: &T) {
 /// Tests encode(original) -> decode into recovered -> assert using custom comparator
 pub(crate) fn test_roundtrip_with<T, F>(original_value: T, initial_recovered: T, compare: F)
 where
-    T: Encode + Decode + BytesRequired + Clone,
+    T: Encode + Decode + BytesRequired + Clone + Default + PartialEq + core::fmt::Debug,
     F: Fn(&T, &T) -> bool,
 {
     let mut original = original_value.clone();
@@ -101,6 +101,10 @@ where
         .encode_into(&mut buf)
         .expect("Failed to encode_into(..)");
 
+    // Verify zeroization after encode
+    #[cfg(feature = "zeroize")]
+    assert_eq!(original, T::default(), "original must be zeroized after encode_into");
+
     let mut recovered = initial_recovered;
     recovered
         .decode_from(&mut buf.as_mut_slice())
@@ -112,7 +116,7 @@ where
 /// For each pair (T_0, T_1) from the set, runs the 4 combinations with custom comparator
 pub(crate) fn test_all_pairs_with<T, F>(set: &[T], compare: F)
 where
-    T: Encode + Decode + BytesRequired + Clone,
+    T: Encode + Decode + BytesRequired + Clone + Default + PartialEq + core::fmt::Debug,
     F: Fn(&T, &T) -> bool,
 {
     for i in 0..set.len() {
@@ -134,7 +138,7 @@ where
 /// For each pair using PartialEq (convenience wrapper)
 pub(crate) fn test_all_pairs<T>(set: &[T])
 where
-    T: Encode + Decode + BytesRequired + Clone + PartialEq,
+    T: Encode + Decode + BytesRequired + Clone + Default + PartialEq + core::fmt::Debug,
 {
     test_all_pairs_with(set, |a, b| a == b);
 }

@@ -34,8 +34,10 @@ macro_rules! impl_traits_for_primitives {
                     let result = self.try_encode_into(buf);
 
                     #[cfg(feature = "zeroize")]
+                    self.zeroize();
+
+                    #[cfg(feature = "zeroize")]
                     if result.is_err() {
-                        self.zeroize();
                         buf.zeroize();
                     }
 
