@@ -11,27 +11,6 @@ use crate::EncodeError;
 
 use super::utils::test_collection_varying_capacities;
 
-fn test_string_varying_capacities(set: &[u8]) {
-    test_collection_varying_capacities(
-        set,
-        |cap| String::with_capacity(cap),
-        |s, slice| {
-            s.clear();
-            // Convert bytes to valid ASCII chars (mod 128)
-            for &b in slice {
-                s.push((b % 128) as char);
-            }
-        },
-        |a, b| a == b,
-    );
-}
-
-#[test]
-fn test_string_varying_capacities_u8() {
-    let set = equidistant_unsigned::<u8>(EQUIDISTANT_SAMPLE_SIZE);
-    test_string_varying_capacities(&set);
-}
-
 // string_bytes_required
 
 #[test]
@@ -93,6 +72,63 @@ fn test_string_try_encode_propagates_encode_slice_error() {
     ));
 }
 
+// Encode
+
+#[test]
+fn test_string_encode_into_propagates_try_encode_into_error() {
+    use crate::error::CodecBufferError;
+    use crate::traits::Encode;
+    use memzer::ZeroizationProbe;
+
+    // Force try_encode_into to fail via buffer too small, then check zeroization
+    let mut s = String::from("hello");
+    let mut buf = Buffer::new(1); // Too small
+
+    let result = s.encode_into(&mut buf);
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
+    ));
+    // Check zeroization
+    assert!(s.is_empty());
+    assert!(buf.is_zeroized());
+}
+
+// EncodeSlice
+
+#[test]
+fn test_string_encode_slice_ok() {
+    use crate::collections::helpers::header_size;
+    use crate::traits::EncodeSlice;
+
+    let mut slice = [String::from("hello"), String::from("world")];
+    let buf_size = 2 * header_size() + 5 + 5; // 2 headers + "hello" + "world"
+    let mut buf = Buffer::new(buf_size);
+
+    let result = String::encode_slice_into(&mut slice, &mut buf);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_string_encode_slice_propagates_encode_into_error() {
+    use crate::error::CodecBufferError;
+    use crate::traits::EncodeSlice;
+
+    let mut slice = [String::from("hello"), String::from("world")];
+    let mut buf = Buffer::new(1); // Too small
+
+    let result = String::encode_slice_into(&mut slice, &mut buf);
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
+    ));
+}
+
 // TryDecode
 
 #[test]
@@ -132,30 +168,6 @@ fn test_string_try_decode_utf8_validation_error() {
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 }
 
-// Encode
-
-#[test]
-fn test_string_encode_into_propagates_try_encode_into_error() {
-    use crate::error::CodecBufferError;
-    use crate::traits::Encode;
-    use memzer::ZeroizationProbe;
-
-    // Force try_encode_into to fail via buffer too small, then check zeroization
-    let mut s = String::from("hello");
-    let mut buf = Buffer::new(1); // Too small
-
-    let result = s.encode_into(&mut buf);
-
-    assert!(result.is_err());
-    assert!(matches!(
-        result,
-        Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
-    ));
-    // Check zeroization
-    assert!(s.is_empty());
-    assert!(buf.is_zeroized());
-}
-
 // Decode
 
 #[test]
@@ -175,39 +187,6 @@ fn test_string_decode_from_propagates_try_decode_from_error() {
     // Check zeroization - string should be cleared
     assert!(s.is_empty());
     assert!(slice.iter().all(|&b| b == 0));
-}
-
-// EncodeSlice
-
-#[test]
-fn test_string_encode_slice_ok() {
-    use crate::collections::helpers::header_size;
-    use crate::traits::EncodeSlice;
-
-    let mut slice = [String::from("hello"), String::from("world")];
-    let buf_size = 2 * header_size() + 5 + 5; // 2 headers + "hello" + "world"
-    let mut buf = Buffer::new(buf_size);
-
-    let result = String::encode_slice_into(&mut slice, &mut buf);
-
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test_string_encode_slice_propagates_encode_into_error() {
-    use crate::error::CodecBufferError;
-    use crate::traits::EncodeSlice;
-
-    let mut slice = [String::from("hello"), String::from("world")];
-    let mut buf = Buffer::new(1); // Too small
-
-    let result = String::encode_slice_into(&mut slice, &mut buf);
-
-    assert!(result.is_err());
-    assert!(matches!(
-        result,
-        Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
-    ));
 }
 
 // DecodeSlice
@@ -244,4 +223,27 @@ fn test_string_decode_slice_propagates_decode_from_error() {
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+}
+
+// Integration test
+
+fn test_string_varying_capacities(set: &[u8]) {
+    test_collection_varying_capacities(
+        set,
+        |cap| String::with_capacity(cap),
+        |s, slice| {
+            s.clear();
+            // Convert bytes to valid ASCII chars (mod 128)
+            for &b in slice {
+                s.push((b % 128) as char);
+            }
+        },
+        |a, b| a == b,
+    );
+}
+
+#[test]
+fn test_string_varying_capacities_u8() {
+    let set = equidistant_unsigned::<u8>(EQUIDISTANT_SAMPLE_SIZE);
+    test_string_varying_capacities(&set);
 }
