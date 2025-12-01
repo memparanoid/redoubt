@@ -6,7 +6,7 @@ use membuffer::Buffer;
 use zeroize::Zeroize;
 
 use crate::error::{DecodeError, EncodeError, OverflowError};
-use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc};
+use crate::traits::{BytesRequired, CodecZeroize, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc};
 
 /// Behavior control for error injection testing in memcodec.
 #[derive(Debug, Clone, PartialEq, Eq, Zeroize)]
@@ -139,5 +139,14 @@ impl PreAlloc for TestBreaker {
 
     fn prealloc(&mut self, _size: usize) {
         // No-op: collection uses Default::default() when ZERO_INIT = false
+    }
+}
+
+impl CodecZeroize for TestBreaker {
+    /// TestBreaker is complex (contains Vec<u8>), cannot be fast-zeroized.
+    const FAST_ZEROIZE: bool = false;
+
+    fn codec_zeroize(&mut self) {
+        self.data.codec_zeroize();
     }
 }

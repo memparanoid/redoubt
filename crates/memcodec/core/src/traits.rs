@@ -61,3 +61,25 @@ pub(crate) trait PreAlloc: Default {
     const ZERO_INIT: bool;
     fn prealloc(&mut self, size: usize);
 }
+
+/// Zeroization trait for codec types.
+///
+/// `FAST_ZEROIZE` indicates if the type can be zeroed with a fast memset.
+/// - `true`: Primitives (no internal pointers, memset is safe and sufficient)
+/// - `false`: Complex types like Vec (need recursive zeroization due to internal pointers)
+///
+/// For `Vec<T>`:
+/// - `FAST_ZEROIZE` is ALWAYS `false` (Vec has ptr/len/capacity)
+/// - If `T::FAST_ZEROIZE` is `true`, memset the contents + spare capacity
+/// - If `T::FAST_ZEROIZE` is `false`, recurse into each element + memset spare capacity
+pub(crate) trait CodecZeroize {
+    const FAST_ZEROIZE: bool;
+    fn codec_zeroize(&mut self);
+}
+
+/// Blanket impl when zeroize feature is disabled - everything is a no-op.
+#[cfg(not(feature = "zeroize"))]
+impl<T> CodecZeroize for T {
+    const FAST_ZEROIZE: bool = true;
+    fn codec_zeroize(&mut self) {}
+}

@@ -94,6 +94,16 @@ macro_rules! impl_traits_for_primitives {
                     // No-op: collection must preallocate memory with zeroes
                 }
             }
+
+            #[cfg(feature = "zeroize")]
+            impl $crate::traits::CodecZeroize for $ty {
+                const FAST_ZEROIZE: bool = true;
+
+                #[inline(always)]
+                fn codec_zeroize(&mut self) {
+                    // No-op: collection handles zeroization via memset
+                }
+            }
         )*
     };
 }
