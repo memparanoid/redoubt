@@ -7,12 +7,11 @@
 //! Uses local variables with explicit zeroization of all intermediates.
 //! All Intrinsics are either zeroized explicitly or via move_to.
 
-#![allow(unsafe_op_in_unsafe_fn)]
-
 use zeroize::Zeroize;
 
 use memutil::u64_to_le;
 
+use crate::aegis::aegis128l::consts::BLOCK_SIZE;
 use crate::aegis::intrinsics::Intrinsics;
 
 /// Fibonacci constant C0
@@ -72,7 +71,7 @@ pub unsafe fn encrypt(
     nonce_block.zeroize();
 
     // === Absorb AAD ===
-    let mut aad_iter = aad.chunks_exact(32);
+    let mut aad_iter = aad.chunks_exact(BLOCK_SIZE);
     for block in aad_iter.by_ref() {
         let mut m0 = Intrinsics::load(block[..16].try_into().unwrap());
         let mut m1 = Intrinsics::load(block[16..].try_into().unwrap());
@@ -88,7 +87,7 @@ pub unsafe fn encrypt(
     // Partial AAD block
     let aad_remainder = aad_iter.remainder();
     if !aad_remainder.is_empty() {
-        let mut padded = [0u8; 32];
+        let mut padded = [0u8; BLOCK_SIZE];
         padded[..aad_remainder.len()].copy_from_slice(aad_remainder);
         let mut m0 = Intrinsics::load(padded[..16].try_into().unwrap());
         let mut m1 = Intrinsics::load(padded[16..].try_into().unwrap());
@@ -104,7 +103,7 @@ pub unsafe fn encrypt(
 
     // === Encrypt data ===
     let msg_len = data.len();
-    let mut data_iter = data.chunks_exact_mut(32);
+    let mut data_iter = data.chunks_exact_mut(BLOCK_SIZE);
     for block in data_iter.by_ref() {
         // Compute keystream: z0 = s1 ^ s6 ^ (s2 & s3)
         let mut z0 = s1.xor(&s6);
@@ -146,7 +145,7 @@ pub unsafe fn encrypt(
     let data_remainder = data_iter.into_remainder();
     if !data_remainder.is_empty() {
         let len = data_remainder.len();
-        let mut padded = [0u8; 32];
+        let mut padded = [0u8; BLOCK_SIZE];
         padded[..len].copy_from_slice(data_remainder);
 
         // Compute keystream
@@ -171,7 +170,7 @@ pub unsafe fn encrypt(
         z1.zeroize();
 
         // Store only the valid ciphertext bytes
-        let mut ct_buf = [0u8; 32];
+        let mut ct_buf = [0u8; BLOCK_SIZE];
         c0.store((&mut ct_buf[..16]).try_into().unwrap());
         c1.store((&mut ct_buf[16..]).try_into().unwrap());
         data_remainder.copy_from_slice(&ct_buf[..len]);
@@ -284,7 +283,7 @@ pub unsafe fn decrypt(
     nonce_block.zeroize();
 
     // === Absorb AAD ===
-    let mut aad_iter = aad.chunks_exact(32);
+    let mut aad_iter = aad.chunks_exact(BLOCK_SIZE);
     for block in aad_iter.by_ref() {
         let mut m0 = Intrinsics::load(block[..16].try_into().unwrap());
         let mut m1 = Intrinsics::load(block[16..].try_into().unwrap());
@@ -299,7 +298,7 @@ pub unsafe fn decrypt(
 
     let aad_remainder = aad_iter.remainder();
     if !aad_remainder.is_empty() {
-        let mut padded = [0u8; 32];
+        let mut padded = [0u8; BLOCK_SIZE];
         padded[..aad_remainder.len()].copy_from_slice(aad_remainder);
         let mut m0 = Intrinsics::load(padded[..16].try_into().unwrap());
         let mut m1 = Intrinsics::load(padded[16..].try_into().unwrap());
@@ -315,7 +314,7 @@ pub unsafe fn decrypt(
 
     // === Decrypt data ===
     let ct_len = data.len();
-    let mut data_iter = data.chunks_exact_mut(32);
+    let mut data_iter = data.chunks_exact_mut(BLOCK_SIZE);
     for block in data_iter.by_ref() {
         // Compute keystream
         let mut z0 = s1.xor(&s6);
@@ -356,7 +355,7 @@ pub unsafe fn decrypt(
     let data_remainder = data_iter.into_remainder();
     if !data_remainder.is_empty() {
         let len = data_remainder.len();
-        let mut padded = [0u8; 32];
+        let mut padded = [0u8; BLOCK_SIZE];
         padded[..len].copy_from_slice(data_remainder);
 
         // Compute keystream
@@ -383,7 +382,7 @@ pub unsafe fn decrypt(
         z1.zeroize();
 
         // Store plaintext to temp buffer
-        let mut pt_buf = [0u8; 32];
+        let mut pt_buf = [0u8; BLOCK_SIZE];
         pt0.store((&mut pt_buf[..16]).try_into().unwrap());
         pt1.store((&mut pt_buf[16..]).try_into().unwrap());
 
@@ -476,7 +475,7 @@ pub unsafe fn decrypt(
 /// Updates state in-place using mutable references.
 /// All intermediate values are explicitly zeroized.
 #[inline(always)]
-unsafe fn update(
+fn update(
     s0: &mut Intrinsics,
     s1: &mut Intrinsics,
     s2: &mut Intrinsics,

@@ -21,74 +21,70 @@ pub struct Intrinsics(uint8x16_t);
 
 impl Intrinsics {
     /// Create a zeroed block.
-    #[inline]
-    #[target_feature(enable = "aes")]
+    #[inline(always)]
     pub fn zero() -> Self {
-        Self(vdupq_n_u8(0))
+        Self(unsafe { vdupq_n_u8(0) })
     }
 
     /// Load 16 bytes into a block.
-    #[inline]
-    #[target_feature(enable = "aes")]
+    #[inline(always)]
     pub fn load(bytes: &[u8; 16]) -> Self {
         Self(unsafe { vld1q_u8(bytes.as_ptr()) })
     }
 
     /// Store block to 16 bytes.
-    #[inline]
-    #[target_feature(enable = "aes")]
+    #[inline(always)]
     pub fn store(&self, out: &mut [u8; 16]) {
-        unsafe { vst1q_u8(out.as_mut_ptr(), self.0) }
+        unsafe { vst1q_u8(out.as_mut_ptr(), self.0) };
     }
 
     /// XOR two blocks.
-    #[inline]
-    #[target_feature(enable = "aes")]
+    #[inline(always)]
     pub fn xor(&self, other: &Self) -> Self {
-        Self(veorq_u8(self.0, other.0))
+        Self(unsafe { veorq_u8(self.0, other.0) })
     }
 
     /// AND two blocks.
-    #[inline]
-    #[target_feature(enable = "aes")]
+    #[inline(always)]
     pub fn and(&self, other: &Self) -> Self {
-        Self(vandq_u8(self.0, other.0))
+        Self(unsafe { vandq_u8(self.0, other.0) })
     }
 
     /// AES encryption round: SubBytes + ShiftRows + MixColumns + XOR round_key
-    #[inline]
-    #[target_feature(enable = "aes")]
+    #[inline(always)]
     pub fn aes_enc(&self, round_key: &Self) -> Self {
-        let zero = vdupq_n_u8(0);
-        let after_sub_shift = vaeseq_u8(self.0, zero);
-        let after_mix = vaesmcq_u8(after_sub_shift);
-        Self(veorq_u8(after_mix, round_key.0))
+        unsafe {
+            let zero = vdupq_n_u8(0);
+            let after_sub_shift = vaeseq_u8(self.0, zero);
+            let after_mix = vaesmcq_u8(after_sub_shift);
+            Self(veorq_u8(after_mix, round_key.0))
+        }
     }
 
     // === In-place operations ===
 
     /// Move value to dest, zeroizing both old dest and self.
-    #[inline]
+    #[inline(always)]
     pub fn move_to(&mut self, dest: &mut Self) {
         core::mem::swap(self, dest);
-        self.zeroize();  // self now has old dest value, zeroize it
+        self.zeroize();
     }
 
     /// XOR in-place: self = self ^ other
     #[inline(always)]
-    pub unsafe fn xor_assign(&mut self, other: &Self) {
-        unsafe { self.0 = veorq_u8(self.0, other.0) };
+    pub fn xor_assign(&mut self, other: &Self) {
+        self.0 = unsafe { veorq_u8(self.0, other.0) };
     }
 
     /// AND in-place: self = self & other
     #[inline(always)]
-    pub unsafe fn and_assign(&mut self, other: &Self) {
-        unsafe { self.0 = vandq_u8(self.0, other.0) };
+    pub fn and_assign(&mut self, other: &Self) {
+        self.0 = unsafe { vandq_u8(self.0, other.0) };
     }
 
     /// AES encryption round in-place: self = AES(self, round_key)
     #[inline(always)]
-    pub unsafe fn aes_enc_assign(&mut self, round_key: &Self) {
+    pub fn aes_enc_assign(&mut self, round_key: &Self) {
         unsafe {
             let zero = vdupq_n_u8(0);
             let after_sub_shift = vaeseq_u8(self.0, zero);
