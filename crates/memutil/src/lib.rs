@@ -222,3 +222,38 @@ pub fn fast_zeroize_vec<T>(vec: &mut Vec<T>) {
         core::ptr::read_volatile(vec.as_ptr() as *const u8);
     }
 }
+
+/// Zeroizes only the spare capacity of a Vec, leaving active elements untouched.
+///
+/// This zeros the memory region between `len` and `capacity`. Useful when
+/// elements have already been zeroized individually (e.g., complex types with
+/// internal pointers) and only the spare capacity needs cleanup.
+///
+/// # Example
+///
+/// ```
+/// use memutil::zeroize_spare_capacity;
+///
+/// let mut vec = vec![0xFFu8; 100];
+/// vec.truncate(10);  // len = 10, capacity = 100, spare has 0xFF
+///
+/// // Zero only spare capacity, leaving first 10 bytes as 0xFF
+/// zeroize_spare_capacity(&mut vec);
+///
+/// assert!(vec.iter().all(|&b| b == 0xFF));  // Active elements unchanged
+/// ```
+#[inline(always)]
+pub fn zeroize_spare_capacity<T>(vec: &mut Vec<T>) {
+    let spare = vec.capacity() - vec.len();
+    if spare == 0 {
+        return;
+    }
+
+    let byte_len = spare * core::mem::size_of::<T>();
+    unsafe {
+        let spare_ptr = vec.as_mut_ptr().add(vec.len()) as *mut u8;
+        core::ptr::write_bytes(spare_ptr, 0, byte_len);
+        // Volatile read prevents optimizer from removing the write
+        core::ptr::read_volatile(spare_ptr);
+    }
+}

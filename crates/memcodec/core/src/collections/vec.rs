@@ -182,27 +182,7 @@ impl<T: CodecZeroize> CodecZeroize for Vec<T> {
                 elem.codec_zeroize();
             }
             // Then zeroize spare capacity
-            zeroize_spare_capacity(self);
+            memutil::zeroize_spare_capacity(self);
         }
-    }
-}
-
-/// Zeroize the spare capacity of a Vec without touching the elements.
-///
-/// This zeros the memory region between `len` and `capacity`.
-#[cfg(feature = "zeroize")]
-#[inline(always)]
-fn zeroize_spare_capacity<T>(vec: &mut Vec<T>) {
-    let spare = vec.capacity() - vec.len();
-    if spare == 0 {
-        return;
-    }
-
-    let byte_len = spare * core::mem::size_of::<T>();
-    unsafe {
-        let spare_ptr = vec.as_mut_ptr().add(vec.len()) as *mut u8;
-        core::ptr::write_bytes(spare_ptr, 0, byte_len);
-        // Volatile read prevents optimizer from removing the write
-        core::ptr::read_volatile(spare_ptr);
     }
 }
