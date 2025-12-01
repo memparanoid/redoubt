@@ -1,0 +1,33 @@
+   Compiling membench v0.0.1 (/Users/fedehoerth/Work/memora/crates/membench)
+    Finished `bench` profile [optimized] target(s) in 14.05s
+     Running benches/cipherbox.rs (target/release/deps/cipherbox-5ab2212a4fc3f1a1)
+Gnuplot not found, using plotters backend
+Benchmarking cipherbox_roundtrip/memcode_chacha
+Benchmarking cipherbox_roundtrip/memcode_chacha: Warming up for 3.0000 s
+Benchmarking cipherbox_roundtrip/memcode_chacha: Collecting 100 samples in estimated 9.8896 s (200 iterations)
+Benchmarking cipherbox_roundtrip/memcode_chacha: Analyzing
+cipherbox_roundtrip/memcode_chacha
+                        time:   [49.735 ms 49.983 ms 50.262 ms]
+                        thrpt:  [39.791 MiB/s 40.014 MiB/s 40.213 MiB/s]
+                 change:
+                        time:   [-11.757% -7.0706% -3.6590%] (p = 0.00 < 0.05)
+                        thrpt:  [+3.7979% +7.6086% +13.324%]
+                        Performance has improved.
+Found 11 outliers among 100 measurements (11.00%)
+  7 (7.00%) high mild
+  4 (4.00%) high severe
+Benchmarking cipherbox_roundtrip/memcodec_aegis128l
+Benchmarking cipherbox_roundtrip/memcodec_aegis128l: Warming up for 3.0000 s
+Benchmarking cipherbox_roundtrip/memcodec_aegis128l: Collecting 100 samples in estimated 7.3253 s (10k iterations)
+Benchmarking cipherbox_roundtrip/memcodec_aegis128l: Analyzing
+cipherbox_roundtrip/memcodec_aegis128l
+                        time:   [679.24 µs 701.10 µs 736.27 µs]
+                        thrpt:  [2.6527 GiB/s 2.7858 GiB/s 2.8754 GiB/s]
+                 change:
+                        time:   [-15.776% -11.053% -5.8766%] (p = 0.00 < 0.05)
+                        thrpt:  [+6.2435% +12.427% +18.730%]
+                        Performance has improved.
+Found 13 outliers among 100 measurements (13.00%)
+  7 (7.00%) high mild
+  6 (6.00%) high severe
+

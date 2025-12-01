@@ -17,12 +17,6 @@ where
         + core::ops::Mul<Output = T>,
     u128: From<T>,
 {
-    let max: u128 = u128::from(T::try_from(u128::MAX).unwrap_or_else(|_| {
-        // T is smaller than u128, get its max
-        T::try_from((1u128 << (core::mem::size_of::<T>() * 8)) - 1).unwrap_or_else(|_| T::from(0))
-    }));
-
-    // Actually get T::MAX properly
     let t_max = if core::mem::size_of::<T>() >= 16 {
         u128::MAX
     } else {
@@ -33,8 +27,11 @@ where
     let mut result = Vec::with_capacity(n);
 
     for i in 0..n {
-        let val = (i as u128) * step;
-        let val = val.min(t_max);
+        let val = if i == n - 1 {
+            t_max // Force last element to be MAX
+        } else {
+            (i as u128) * step
+        };
         if let Ok(v) = T::try_from(val) {
             result.push(v);
         }
@@ -66,7 +63,11 @@ where
     let mut result = Vec::with_capacity(n);
 
     for i in 0..n {
-        let val = (t_min as i128).wrapping_add((i as u128 * step) as i128);
+        let val = if i == n - 1 {
+            t_max // Force last element to be MAX
+        } else {
+            (t_min as i128).wrapping_add((i as u128 * step) as i128)
+        };
         if let Ok(v) = T::try_from(val) {
             result.push(v);
         }
@@ -126,4 +127,135 @@ where
     T: Encode + Decode + BytesRequired + Clone + PartialEq,
 {
     test_all_pairs_with(set, |a, b| a == b);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn verify_equidistant_unsigned<T>(n: usize)
+    where
+        T: Copy
+            + From<u8>
+            + TryFrom<u128>
+            + core::ops::Add<Output = T>
+            + core::ops::Div<Output = T>
+            + core::ops::Mul<Output = T>
+            + core::ops::Sub<Output = T>
+            + PartialOrd
+            + core::fmt::Debug,
+        u128: From<T>,
+    {
+        let set = equidistant_unsigned::<T>(n);
+
+        assert_eq!(set.len(), n, "incorrect count");
+
+        assert_eq!(u128::from(set[0]), 0, "first element must be 0");
+
+        let t_max = if core::mem::size_of::<T>() >= 16 {
+            u128::MAX
+        } else {
+            (1u128 << (core::mem::size_of::<T>() * 8)) - 1
+        };
+        assert_eq!(u128::from(set[n - 1]), t_max, "last element must be MAX");
+
+        let expected_step = t_max / (n as u128 - 1);
+        // Check all pairs except the last (which jumps to forced MAX)
+        for i in 1..(n - 1) {
+            let prev = u128::from(set[i - 1]);
+            let curr = u128::from(set[i]);
+            let diff = curr - prev;
+            assert!(
+                diff <= expected_step + 1,
+                "distance {} between elements {} and {} exceeds step {} + 1",
+                diff,
+                i - 1,
+                i,
+                expected_step
+            );
+        }
+    }
+
+    fn verify_equidistant_signed<T>(n: usize)
+    where
+        T: Copy + TryFrom<i128> + core::fmt::Debug,
+        i128: From<T>,
+    {
+        let set = equidistant_signed::<T>(n);
+
+        assert_eq!(set.len(), n, "incorrect count");
+
+        let t_min: i128 = if core::mem::size_of::<T>() >= 16 {
+            i128::MIN
+        } else {
+            -(1i128 << (core::mem::size_of::<T>() * 8 - 1))
+        };
+
+        let t_max: i128 = if core::mem::size_of::<T>() >= 16 {
+            i128::MAX
+        } else {
+            (1i128 << (core::mem::size_of::<T>() * 8 - 1)) - 1
+        };
+
+        assert_eq!(i128::from(set[0]), t_min, "first element must be MIN");
+
+        assert_eq!(i128::from(set[n - 1]), t_max, "last element must be MAX");
+
+        let range = (t_max as i128).wrapping_sub(t_min as i128) as u128;
+        let expected_step = range / (n as u128 - 1);
+        // Check all pairs except the last (which jumps to forced MAX)
+        for i in 1..(n - 1) {
+            let prev = i128::from(set[i - 1]);
+            let curr = i128::from(set[i]);
+            let diff = (curr.wrapping_sub(prev)) as u128;
+            assert!(
+                diff <= expected_step + 1,
+                "distance {} between elements {} and {} exceeds step {} + 1",
+                diff,
+                i - 1,
+                i,
+                expected_step
+            );
+        }
+    }
+
+    #[test]
+    fn test_equidistant_unsigned_u8() {
+        verify_equidistant_unsigned::<u8>(250);
+    }
+
+    #[test]
+    fn test_equidistant_unsigned_u16() {
+        verify_equidistant_unsigned::<u16>(250);
+    }
+
+    #[test]
+    fn test_equidistant_unsigned_u32() {
+        verify_equidistant_unsigned::<u32>(250);
+    }
+
+    #[test]
+    fn test_equidistant_unsigned_u64() {
+        verify_equidistant_unsigned::<u64>(250);
+    }
+
+    #[test]
+    fn test_equidistant_signed_i8() {
+        verify_equidistant_signed::<i8>(250);
+    }
+
+    #[test]
+    fn test_equidistant_signed_i16() {
+        verify_equidistant_signed::<i16>(250);
+    }
+
+    #[test]
+    fn test_equidistant_signed_i32() {
+        verify_equidistant_signed::<i32>(250);
+    }
+
+    #[test]
+    fn test_equidistant_signed_i64() {
+        verify_equidistant_signed::<i64>(250);
+    }
 }
