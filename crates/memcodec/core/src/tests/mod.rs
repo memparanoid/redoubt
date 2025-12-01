@@ -7,5 +7,6 @@ mod bench;
 
 mod buffer;
 mod collections;
+mod error;
 mod primitives;
 mod support;
