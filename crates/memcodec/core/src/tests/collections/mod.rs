@@ -4,6 +4,7 @@
 
 mod allocked_vec;
 mod array;
+mod helpers;
 mod string;
 mod utils;
 mod vec;
