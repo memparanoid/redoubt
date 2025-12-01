@@ -7,7 +7,7 @@ use membuffer::Buffer;
 use memzer::ZeroizationProbe;
 
 use crate::error::{CodecBufferError, DecodeBufferError, DecodeError, EncodeError};
-use crate::traits::{BytesRequired, Decode, Encode};
+use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice};
 
 /// Generates n equidistant values in [0, MAX] for unsigned types
 pub(crate) fn equidistant_unsigned<T>(n: usize) -> Vec<T>
@@ -157,6 +157,47 @@ where
     }
 }
 
+/// Tests that encode_slice_into fails with CapacityExceeded when buffer is too small
+pub(crate) fn test_encode_slice_insufficient_buffer<T: EncodeSlice>(slice: &mut [T]) {
+    if slice.is_empty() {
+        return;
+    }
+    let bytes_required = slice.len() * core::mem::size_of::<T>();
+    let insufficient_bytes = bytes_required - 1;
+    let mut buf = Buffer::new(insufficient_bytes);
+
+    let result = T::encode_slice_into(slice, &mut buf);
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(EncodeError::CodecBufferError(
+            CodecBufferError::CapacityExceeded
+        ))
+    ));
+}
+
+/// Tests that decode_slice_from fails with OutOfBounds when buffer is too small
+pub(crate) fn test_decode_slice_insufficient_buffer<T: DecodeSlice>(slice: &mut [T]) {
+    if slice.is_empty() {
+        return;
+    }
+    let bytes_required = slice.len() * core::mem::size_of::<T>();
+    let insufficient_bytes = bytes_required - 1;
+    let mut vec = vec![0u8; insufficient_bytes];
+    let mut buf = vec.as_mut_slice();
+
+    let result = T::decode_slice_from(slice, &mut buf);
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(DecodeError::DecodeBufferError(
+            DecodeBufferError::OutOfBounds
+        ))
+    ));
+}
+
 /// Tests encode(original) -> decode into recovered -> assert using custom comparator
 pub(crate) fn test_roundtrip_with<T, F>(original_value: T, initial_recovered: T, compare: F)
 where
@@ -194,7 +235,7 @@ where
 /// For each pair (T_0, T_1) from the set, runs the 4 combinations with custom comparator
 pub(crate) fn test_all_pairs_with<T, F>(set: &[T], compare: F)
 where
-    T: Encode + Decode + BytesRequired + Clone + Default + PartialEq + core::fmt::Debug,
+    T: Encode + Decode + EncodeSlice + DecodeSlice + BytesRequired + Clone + Default + PartialEq + core::fmt::Debug,
     F: Fn(&T, &T) -> bool,
 {
     for i in 0..set.len() {
@@ -207,6 +248,9 @@ where
 
             test_encode_insufficient_buffer(&mut t0.clone());
             test_encode_insufficient_buffer(&mut t1.clone());
+
+            test_encode_slice_insufficient_buffer(&mut [t0.clone(), t1.clone()]);
+            test_decode_slice_insufficient_buffer(&mut [t0.clone(), t1.clone()]);
 
             test_decode_insufficient_buffer(&mut t0.clone());
             test_decode_insufficient_buffer(&mut t1.clone());
@@ -222,7 +266,7 @@ where
 /// For each pair using PartialEq (convenience wrapper)
 pub(crate) fn test_all_pairs<T>(set: &[T])
 where
-    T: Encode + Decode + BytesRequired + Clone + Default + PartialEq + core::fmt::Debug,
+    T: Encode + Decode + EncodeSlice + DecodeSlice + BytesRequired + Clone + Default + PartialEq + core::fmt::Debug,
 {
     test_all_pairs_with(set, |a, b| a == b);
 }

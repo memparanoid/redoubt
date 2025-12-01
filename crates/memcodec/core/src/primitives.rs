@@ -45,6 +45,7 @@ macro_rules! impl_traits_for_primitives {
                 }
             }
 
+            /// Caller is responsible for zeroizing slice and buffer on error.
             impl $crate::traits::EncodeSlice for $ty {
                 #[inline(always)]
                 fn encode_slice_into(slice: &mut [Self], buf: &mut membuffer::Buffer) -> Result<(), $crate::error::EncodeError> {
@@ -76,6 +77,7 @@ macro_rules! impl_traits_for_primitives {
                 }
             }
 
+            /// Caller is responsible for zeroizing slice and buffer on error.
             impl $crate::traits::DecodeSlice for $ty {
                 #[inline(always)]
                 fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError> {
