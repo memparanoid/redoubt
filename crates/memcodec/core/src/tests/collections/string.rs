@@ -108,3 +108,26 @@ fn test_string_try_decode_propagates_process_header_error() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 }
+
+#[test]
+fn test_string_try_decode_propagates_utf8_validation_error() {
+    use crate::collections::helpers::header_size;
+    use crate::traits::{Encode, TryDecode};
+    use crate::DecodeError;
+
+    // Encode valid string
+    let mut s = String::from("hello");
+    let mut buf = Buffer::new(header_size() + s.len());
+    s.encode_into(&mut buf).expect("encode failed");
+
+    // Corrupt buffer with invalid UTF-8 (0xFF is never valid)
+    let data_start = header_size();
+    buf.as_mut_slice()[data_start] = 0xFF;
+
+    // Decode should fail UTF-8 validation
+    let mut decoded = String::new();
+    let result = decoded.try_decode_from(&mut buf.as_mut_slice());
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+}
