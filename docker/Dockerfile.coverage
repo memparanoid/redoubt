@@ -78,6 +78,8 @@ RUN mkdir -p crates/memprotect/src && echo "// stub" > crates/memprotect/src/lib
     mkdir -p crates/memaead/src && echo "// stub" > crates/memaead/src/lib.rs && \
     mkdir -p crates/membench/src && echo "// stub" > crates/membench/src/lib.rs && \
     mkdir -p crates/membench/benches && echo "fn main() {}" > crates/membench/benches/aead.rs && \
+    echo "fn main() {}" > crates/membench/benches/aead_aegis128l.rs && \
+    echo "fn main() {}" > crates/membench/benches/cipherbox.rs && \
     echo "fn main() {}" > crates/membench/benches/codec.rs && \
     mkdir -p crates/memcodec/src && echo "// stub" > crates/memcodec/src/lib.rs && \
     mkdir -p crates/memcodec/core/src && echo "// stub" > crates/memcodec/core/src/lib.rs && \

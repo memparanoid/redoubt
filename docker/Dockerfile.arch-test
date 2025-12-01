@@ -59,6 +59,8 @@ RUN mkdir -p crates/memprotect/src && echo "// stub" > crates/memprotect/src/lib
     mkdir -p crates/memcrypt/src && echo "// stub" > crates/memcrypt/src/lib.rs && \
     mkdir -p crates/membench/src && echo "// stub" > crates/membench/src/lib.rs && \
     mkdir -p crates/membench/benches && echo "fn main() {}" > crates/membench/benches/aead.rs && \
+    echo "fn main() {}" > crates/membench/benches/aead_aegis128l.rs && \
+    echo "fn main() {}" > crates/membench/benches/cipherbox.rs && \
     echo "fn main() {}" > crates/membench/benches/codec.rs
 
 # Pre-fetch dependencies
