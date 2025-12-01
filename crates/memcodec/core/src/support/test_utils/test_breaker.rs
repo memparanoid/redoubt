@@ -1,0 +1,139 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+use membuffer::Buffer;
+use zeroize::Zeroize;
+
+use crate::error::{DecodeError, EncodeError, OverflowError};
+use crate::traits::{BytesRequired, Decode, Encode, TryDecode, TryEncode};
+
+/// Behavior control for error injection testing in memcodec.
+#[derive(Debug, Clone, PartialEq, Eq, Zeroize)]
+pub enum TestBreakerBehaviour {
+    /// Normal behavior (no error injection).
+    None,
+    /// Force `mem_bytes_required()` to return `usize::MAX`.
+    BytesRequiredReturnMax,
+    /// Force `mem_bytes_required()` to return a specific value.
+    BytesRequiredReturn(usize),
+    /// Force `mem_bytes_required()` to return an overflow error.
+    ForceBytesRequiredOverflow,
+    /// Force `encode_into()` to return an error.
+    ForceEncodeError,
+    /// Force `decode_from()` to return an error.
+    ForceDecodeError,
+}
+
+impl Default for TestBreakerBehaviour {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+/// Test fixture for error injection and edge case testing in memcodec.
+#[derive(Debug, Clone, Zeroize)]
+pub struct TestBreaker {
+    /// Controls error injection behavior.
+    pub behaviour: TestBreakerBehaviour,
+    /// Test data buffer.
+    pub data: Vec<u8>,
+}
+
+impl Default for TestBreaker {
+    fn default() -> Self {
+        Self {
+            behaviour: TestBreakerBehaviour::None,
+            data: vec![0xAA; 1024],
+        }
+    }
+}
+
+impl TestBreaker {
+    /// Creates a new test breaker with the specified behavior and data size.
+    pub fn new(behaviour: TestBreakerBehaviour, size: usize) -> Self {
+        Self {
+            behaviour,
+            data: vec![0xAA; size],
+        }
+    }
+
+    /// Creates a new test breaker with default data and specified behavior.
+    pub fn with_behaviour(behaviour: TestBreakerBehaviour) -> Self {
+        Self {
+            behaviour,
+            ..Default::default()
+        }
+    }
+
+    /// Changes the error injection behavior.
+    pub fn set_behaviour(&mut self, behaviour: TestBreakerBehaviour) {
+        self.behaviour = behaviour;
+    }
+
+    /// Checks if the data buffer is fully zeroized.
+    pub fn is_zeroized(&self) -> bool {
+        self.data.iter().all(|&b| b == 0)
+    }
+}
+
+impl BytesRequired for TestBreaker {
+    fn mem_bytes_required(&self) -> Result<usize, OverflowError> {
+        match &self.behaviour {
+            TestBreakerBehaviour::BytesRequiredReturnMax => Ok(usize::MAX),
+            TestBreakerBehaviour::BytesRequiredReturn(n) => Ok(*n),
+            TestBreakerBehaviour::ForceBytesRequiredOverflow => Err(OverflowError {
+                reason: "TestBreaker forced overflow".into(),
+            }),
+            _ => self.data.mem_bytes_required(),
+        }
+    }
+}
+
+impl TryEncode for TestBreaker {
+    fn try_encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
+        if self.behaviour == TestBreakerBehaviour::ForceEncodeError {
+            return Err(EncodeError::OverflowError(OverflowError {
+                reason: "TestBreaker forced encode error".into(),
+            }));
+        }
+        self.data.try_encode_into(buf)
+    }
+}
+
+impl Encode for TestBreaker {
+    fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
+        if self.behaviour == TestBreakerBehaviour::ForceEncodeError {
+            return Err(EncodeError::OverflowError(OverflowError {
+                reason: "TestBreaker forced encode error".into(),
+            }));
+        }
+        self.data.encode_into(buf)
+    }
+}
+
+impl TryDecode for TestBreaker {
+    fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
+        if self.behaviour == TestBreakerBehaviour::ForceDecodeError {
+            return Err(DecodeError::PreconditionViolated);
+        }
+        self.data.try_decode_from(buf)
+    }
+}
+
+impl Decode for TestBreaker {
+    fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
+        if self.behaviour == TestBreakerBehaviour::ForceDecodeError {
+            return Err(DecodeError::PreconditionViolated);
+        }
+        self.data.decode_from(buf)
+    }
+}
+
+impl PartialEq for TestBreaker {
+    fn eq(&self, other: &Self) -> bool {
+        self.data == other.data
+    }
+}
+
+impl Eq for TestBreaker {}

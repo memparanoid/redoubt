@@ -16,6 +16,7 @@ path = "src/lib.rs"
 default = []
 zeroize = []
 benchmark = []
+test_utils = ["zeroize"]
 
 [dependencies]
 memalloc.workspace  = true
