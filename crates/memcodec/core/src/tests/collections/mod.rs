@@ -3,4 +3,5 @@
 // See LICENSE in the repository root for full license text.
 
 mod allocked_vec;
+mod utils;
 mod vec;

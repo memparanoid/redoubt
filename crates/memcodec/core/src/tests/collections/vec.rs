@@ -4,11 +4,13 @@
 
 use membuffer::Buffer;
 
+use super::utils::test_collection_varying_capacities;
 use crate::collections::helpers::{
     bytes_required_sum, decode_fields, encode_fields, to_bytes_required_dyn_ref, to_decode_dyn_mut,
     to_encode_dyn_mut,
 };
 use crate::error::{DecodeError, EncodeError, OverflowError};
+use crate::tests::primitives::utils::{equidistant_signed, equidistant_unsigned};
 use crate::traits::{BytesRequired, Decode, Encode};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -108,4 +110,44 @@ fn test_two_vecs_roundtrip() {
         b: original_b,
     };
     assert_eq!(original, decoded);
+}
+
+fn test_vec_varying_capacities_generic<T>(set: &[T])
+where
+    T: Clone + PartialEq + core::fmt::Debug,
+    Vec<T>: Encode + Decode + BytesRequired + Clone,
+{
+    test_collection_varying_capacities(
+        set,
+        |cap| Vec::with_capacity(cap),
+        |vec, slice| {
+            vec.clear();
+            vec.extend_from_slice(slice);
+        },
+        |a, b| a == b,
+    );
+}
+
+#[test]
+fn test_vec_u8_varying_capacities() {
+    let set = equidistant_unsigned::<u8>(250);
+    test_vec_varying_capacities_generic(&set);
+}
+
+#[test]
+fn test_vec_u16_varying_capacities() {
+    let set = equidistant_unsigned::<u16>(250);
+    test_vec_varying_capacities_generic(&set);
+}
+
+#[test]
+fn test_vec_u32_varying_capacities() {
+    let set = equidistant_unsigned::<u32>(250);
+    test_vec_varying_capacities_generic(&set);
+}
+
+#[test]
+fn test_vec_i32_varying_capacities() {
+    let set = equidistant_signed::<i32>(250);
+    test_vec_varying_capacities_generic(&set);
 }
