@@ -27,3 +27,26 @@ fn test_u64_all_pairs() {
     let set = equidistant_unsigned::<u64>(EQUIDISTANT_SAMPLE_SIZE);
     test_all_pairs(&set);
 }
+
+#[test]
+fn test_u128_all_pairs() {
+    let set = equidistant_unsigned::<u128>(EQUIDISTANT_SAMPLE_SIZE);
+    test_all_pairs(&set);
+}
+
+#[test]
+fn test_usize_all_pairs() {
+    #[cfg(target_pointer_width = "64")]
+    let set: Vec<usize> = equidistant_unsigned::<u64>(EQUIDISTANT_SAMPLE_SIZE)
+        .into_iter()
+        .map(|x| x as usize)
+        .collect();
+
+    #[cfg(target_pointer_width = "32")]
+    let set: Vec<usize> = equidistant_unsigned::<u32>(EQUIDISTANT_SAMPLE_SIZE)
+        .into_iter()
+        .map(|x| x as usize)
+        .collect();
+
+    test_all_pairs(&set);
+}

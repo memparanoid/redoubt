@@ -27,3 +27,26 @@ fn test_i64_all_pairs() {
     let set = equidistant_signed::<i64>(EQUIDISTANT_SAMPLE_SIZE);
     test_all_pairs(&set);
 }
+
+#[test]
+fn test_i128_all_pairs() {
+    let set = equidistant_signed::<i128>(EQUIDISTANT_SAMPLE_SIZE);
+    test_all_pairs(&set);
+}
+
+#[test]
+fn test_isize_all_pairs() {
+    #[cfg(target_pointer_width = "64")]
+    let set: Vec<isize> = equidistant_signed::<i64>(EQUIDISTANT_SAMPLE_SIZE)
+        .into_iter()
+        .map(|x| x as isize)
+        .collect();
+
+    #[cfg(target_pointer_width = "32")]
+    let set: Vec<isize> = equidistant_signed::<i32>(EQUIDISTANT_SAMPLE_SIZE)
+        .into_iter()
+        .map(|x| x as isize)
+        .collect();
+
+    test_all_pairs(&set);
+}
