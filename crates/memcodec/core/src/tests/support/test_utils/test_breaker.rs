@@ -22,23 +22,21 @@ fn test_behaviour_default() {
 fn test_default() {
     let tb = TestBreaker::default();
     assert_eq!(tb.behaviour, TestBreakerBehaviour::None);
-    assert_eq!(tb.data.len(), 1024);
-    assert!(tb.data.iter().all(|&b| b == 0xAA));
+    assert_eq!(tb.data, 0xDEADBEEF);
 }
 
 #[test]
 fn test_new() {
     let tb = TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 512);
     assert_eq!(tb.behaviour, TestBreakerBehaviour::ForceEncodeError);
-    assert_eq!(tb.data.len(), 512);
-    assert!(tb.data.iter().all(|&b| b == 0xAA));
+    assert_eq!(tb.data, 512);
 }
 
 #[test]
 fn test_with_behaviour() {
     let tb = TestBreaker::with_behaviour(TestBreakerBehaviour::ForceEncodeError);
     assert_eq!(tb.behaviour, TestBreakerBehaviour::ForceEncodeError);
-    assert_eq!(tb.data.len(), 1024);
+    assert_eq!(tb.data, 0xDEADBEEF);
 }
 
 #[test]
@@ -55,7 +53,7 @@ fn test_is_zeroized() {
     let mut tb = TestBreaker::new(TestBreakerBehaviour::None, 100);
     assert!(!tb.is_zeroized());
 
-    tb.data.fill(0);
+    tb.data = 0;
     assert!(tb.is_zeroized());
 }
 
@@ -122,7 +120,7 @@ fn test_force_decode_error() {
 #[test]
 fn test_roundtrip() {
     let mut original = TestBreaker::new(TestBreakerBehaviour::None, 256);
-    let original_data = original.data.clone();
+    let original_data = original.data;
 
     let bytes_required = original
         .mem_bytes_required()
@@ -141,9 +139,10 @@ fn test_roundtrip() {
 }
 
 // EncodeSlice
+
 #[test]
 fn test_encode_slice_error() {
-    let mut vec: Vec<TestBreaker> = vec![
+    let mut vec = vec![
         TestBreaker::new(TestBreakerBehaviour::None, 10),
         TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 10),
     ];
@@ -155,9 +154,9 @@ fn test_encode_slice_error() {
 }
 
 // DecodeSlice
+
 #[test]
 fn test_decode_slice_error() {
-    // First encode valid data
     let mut vec = vec![
         TestBreaker::new(TestBreakerBehaviour::None, 100),
         TestBreaker::new(TestBreakerBehaviour::ForceDecodeError, 100),
@@ -179,12 +178,12 @@ fn test_zero_init_is_false() {
 #[test]
 fn test_prealloc() {
     let mut tb = TestBreaker::default();
-    assert_eq!(tb.data.len(), 1024);
+    assert_eq!(tb.data, 0xDEADBEEF);
 
     // PreAlloc is no-op for TestBreaker (ZERO_INIT = false)
     tb.prealloc(999);
 
     // Data should remain unchanged
-    assert_eq!(tb.data.len(), 1024);
+    assert_eq!(tb.data, 0xDEADBEEF);
     assert_eq!(tb.behaviour, TestBreakerBehaviour::None);
 }

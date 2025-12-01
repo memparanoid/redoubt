@@ -36,26 +36,23 @@ impl Default for TestBreakerBehaviour {
 pub struct TestBreaker {
     /// Controls error injection behavior.
     pub behaviour: TestBreakerBehaviour,
-    /// Test data buffer.
-    pub data: Vec<u8>,
+    /// Test data.
+    pub data: usize,
 }
 
 impl Default for TestBreaker {
     fn default() -> Self {
         Self {
             behaviour: TestBreakerBehaviour::None,
-            data: vec![0xAA; 1024],
+            data: 0xDEADBEEF,
         }
     }
 }
 
 impl TestBreaker {
-    /// Creates a new test breaker with the specified behavior and data size.
-    pub fn new(behaviour: TestBreakerBehaviour, size: usize) -> Self {
-        Self {
-            behaviour,
-            data: vec![0xAA; size],
-        }
+    /// Creates a new test breaker with the specified behavior and data value.
+    pub fn new(behaviour: TestBreakerBehaviour, data: usize) -> Self {
+        Self { behaviour, data }
     }
 
     /// Creates a new test breaker with default data and specified behavior.
@@ -71,9 +68,9 @@ impl TestBreaker {
         self.behaviour = behaviour;
     }
 
-    /// Checks if the data buffer is fully zeroized.
+    /// Checks if the data is zeroized.
     pub fn is_zeroized(&self) -> bool {
-        self.data.iter().all(|&b| b == 0)
+        self.data == 0
     }
 }
 
@@ -143,10 +140,10 @@ impl PreAlloc for TestBreaker {
 }
 
 impl CodecZeroize for TestBreaker {
-    /// TestBreaker is complex (contains Vec<u8>), cannot be fast-zeroized.
+    /// Keep FAST_ZEROIZE = false to test recursive zeroization path.
     const FAST_ZEROIZE: bool = false;
 
     fn codec_zeroize(&mut self) {
-        self.data.codec_zeroize();
+        self.data.zeroize();
     }
 }
