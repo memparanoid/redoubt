@@ -75,3 +75,20 @@ fn test_string_try_encode_propagates_write_header_error() {
         Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
     ));
 }
+
+#[test]
+fn test_string_try_encode_propagates_encode_slice_error() {
+    use crate::collections::helpers::header_size;
+    use crate::error::CodecBufferError;
+
+    let mut s = String::from("hello");
+    let mut buf = Buffer::new(header_size()); // Fits header, not data
+
+    let result = s.try_encode_into(&mut buf);
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
+    ));
+}
