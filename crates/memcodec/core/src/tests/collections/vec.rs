@@ -12,7 +12,7 @@ use super::utils::test_collection_varying_capacities;
 
 #[test]
 fn test_vec_test_breaker_varying_capacities() {
-    let set: Vec<TestBreaker> = (0..250)
+    let set: Vec<_> = (0..250)
         .map(|i| TestBreaker::new(TestBreakerBehaviour::None, i))
         .collect();
 
@@ -31,7 +31,7 @@ fn test_vec_test_breaker_varying_capacities() {
 
 #[test]
 fn test_bytes_required_element_error() {
-    let vec: Vec<TestBreaker> = vec![
+    let vec = vec![
         TestBreaker::new(TestBreakerBehaviour::None, 10),
         TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10),
     ];
@@ -40,7 +40,7 @@ fn test_bytes_required_element_error() {
 
 #[test]
 fn test_bytes_required_overflow() {
-    let vec: Vec<TestBreaker> = vec![
+    let vec = vec![
         TestBreaker::new(TestBreakerBehaviour::BytesRequiredReturnMax, 10),
         TestBreaker::new(TestBreakerBehaviour::BytesRequiredReturn(1), 10),
     ];
@@ -51,36 +51,66 @@ fn test_bytes_required_overflow() {
 
 #[test]
 fn test_encode_bytes_required_error() {
-    let mut vec: Vec<TestBreaker> = vec![
-        TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10),
-    ];
+    let mut vec = vec![TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10)];
     let mut buf = Buffer::new(1024);
 
-    assert!(vec.encode_into(&mut buf).is_err());
+    let result = vec.encode_into(&mut buf);
+
+    assert!(result.is_err());
 }
 
 #[test]
 fn test_encode_buffer_too_small() {
-    let mut vec: Vec<TestBreaker> = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-    ];
+    let mut vec = vec![TestBreaker::new(TestBreakerBehaviour::None, 100)];
     let mut buf = Buffer::new(1); // Too small
 
-    assert!(vec.encode_into(&mut buf).is_err());
+    let result = vec.encode_into(&mut buf);
+
+    assert!(result.is_err());
 }
 
 #[test]
 fn test_encode_element_error() {
-    let mut vec: Vec<TestBreaker> = vec![
+    let mut vec = vec![
         TestBreaker::new(TestBreakerBehaviour::None, 10),
         TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 10),
     ];
     let mut buf = Buffer::new(1024);
 
-    assert!(vec.encode_into(&mut buf).is_err());
+    let result = vec.encode_into(&mut buf);
+
+    assert!(result.is_err());
     // Assert zeroization!
     assert!(vec.iter().all(|tb| tb.is_zeroized()));
     assert!(buf.is_zeroized());
+}
+
+// EncodeSlice
+
+#[test]
+fn test_encode_slice_ok() {
+    let mut slice = [
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
+    ];
+    let mut buf = Buffer::new(1024);
+
+    let result = Vec::<TestBreaker>::encode_slice_into(&mut slice, &mut buf);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_encode_slice_error() {
+    let mut slice = [
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
+        vec![TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 10)],
+    ];
+    let mut buf = Buffer::new(1024);
+
+    let result = Vec::<TestBreaker>::encode_slice_into(&mut slice, &mut buf);
+
+    assert!(result.is_err());
 }
 
 // Decode
@@ -90,13 +120,15 @@ fn test_decode_buffer_too_small() {
     let mut vec: Vec<TestBreaker> = Vec::new();
     let mut buf = [0u8; 1];
 
-    assert!(vec.decode_from(&mut buf.as_mut_slice()).is_err());
+    let result = vec.decode_from(&mut buf.as_mut_slice());
+
+    assert!(result.is_err());
 }
 
 #[test]
 fn test_decode_element_error() {
     // First encode valid data
-    let mut vec: Vec<TestBreaker> = vec![
+    let mut vec = vec![
         TestBreaker::new(TestBreakerBehaviour::None, 100),
         TestBreaker::new(TestBreakerBehaviour::None, 100),
     ];
@@ -112,38 +144,12 @@ fn test_decode_element_error() {
     let mut decoded: Vec<TestBreaker> = Vec::new();
     let mut slice = &mut buf.as_mut_slice()[..truncated];
 
-    assert!(decoded.decode_from(&mut slice).is_err());
+    let result = decoded.decode_from(&mut slice);
+
+    assert!(result.is_err());
     // Assert zeroization!
     assert!(decoded.iter().all(|tb| tb.is_zeroized()));
     assert!(slice.iter().all(|&b| b == 0));
-}
-
-// EncodeSlice
-
-#[test]
-fn test_encode_slice_ok() {
-    let mut slice: [Vec<TestBreaker>; 2] = [
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
-    ];
-    let mut buf = Buffer::new(1024);
-
-    let result = Vec::<TestBreaker>::encode_slice_into(&mut slice, &mut buf);
-
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test_encode_slice_error() {
-    let mut slice: [Vec<TestBreaker>; 2] = [
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
-        vec![TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 10)],
-    ];
-    let mut buf = Buffer::new(1024);
-
-    let result = Vec::<TestBreaker>::encode_slice_into(&mut slice, &mut buf);
-
-    assert!(result.is_err());
 }
 
 // DecodeSlice
@@ -151,7 +157,7 @@ fn test_encode_slice_error() {
 #[test]
 fn test_decode_slice_ok() {
     // First encode valid data
-    let mut slice: [Vec<TestBreaker>; 2] = [
+    let mut slice = [
         vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
         vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
     ];
@@ -161,6 +167,7 @@ fn test_decode_slice_ok() {
 
     // Decode
     let mut decoded: [Vec<TestBreaker>; 2] = [Vec::new(), Vec::new()];
+
     let result = Vec::<TestBreaker>::decode_slice_from(&mut decoded, &mut buf.as_mut_slice());
 
     assert!(result.is_ok());
@@ -168,7 +175,7 @@ fn test_decode_slice_ok() {
 
 #[test]
 fn test_decode_slice_error() {
-    let mut slice: [Vec<TestBreaker>; 2] = [
+    let mut slice = [
         vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
         vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
     ];
