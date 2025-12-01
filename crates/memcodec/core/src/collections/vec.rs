@@ -151,20 +151,41 @@ where
     }
 }
 
+#[inline(always)]
+pub(crate) fn vec_prealloc<T: PreAlloc>(vec: &mut Vec<T>, size: usize, zero_init: bool) {
+    vec.clear();
+    if zero_init {
+        vec.shrink_to_fit();
+        vec.reserve_exact(size);
+        memutil::fast_zeroize_vec(vec);
+        unsafe { vec.set_len(size) };
+    } else {
+        vec.resize_with(size, Default::default);
+    }
+}
+
 impl<T: PreAlloc> PreAlloc for Vec<T> {
     /// Vec can NEVER be zero-initialized (has ptr/len/capacity).
     const ZERO_INIT: bool = false;
 
     fn prealloc(&mut self, size: usize) {
-        self.clear();
-        if T::ZERO_INIT {
-            self.shrink_to_fit();
-            self.reserve_exact(size);
-            memutil::fast_zeroize_vec(self);
-            unsafe { self.set_len(size) };
-        } else {
-            self.resize_with(size, Default::default);
+        vec_prealloc(self, size, T::ZERO_INIT);
+    }
+}
+
+#[cfg(feature = "zeroize")]
+#[inline(always)]
+pub(crate) fn vec_codec_zeroize<T: CodecZeroize>(vec: &mut Vec<T>, fast: bool) {
+    if fast {
+        // T is a primitive - memset entire allocation (contents + spare capacity)
+        memutil::fast_zeroize_vec(vec);
+    } else {
+        // T is complex - recurse into each element first
+        for elem in vec.iter_mut() {
+            elem.codec_zeroize();
         }
+        // Then zeroize spare capacity
+        memutil::zeroize_spare_capacity(vec);
     }
 }
 
@@ -174,16 +195,6 @@ impl<T: CodecZeroize> CodecZeroize for Vec<T> {
     const FAST_ZEROIZE: bool = false;
 
     fn codec_zeroize(&mut self) {
-        if T::FAST_ZEROIZE {
-            // T is a primitive - memset entire allocation (contents + spare capacity)
-            memutil::fast_zeroize_vec(self);
-        } else {
-            // T is complex - recurse into each element first
-            for elem in self.iter_mut() {
-                elem.codec_zeroize();
-            }
-            // Then zeroize spare capacity
-            memutil::zeroize_spare_capacity(self);
-        }
+        vec_codec_zeroize(self, T::FAST_ZEROIZE);
     }
 }

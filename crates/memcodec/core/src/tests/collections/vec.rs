@@ -52,8 +52,14 @@ fn test_bytes_required_element_error() {
 fn test_bytes_required_overflow() {
     // Two elements each returning usize::MAX / 2 will overflow on the second iteration
     let vec = vec![
-        TestBreaker::new(TestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2), 10),
-        TestBreaker::new(TestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2), 10),
+        TestBreaker::new(
+            TestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2),
+            10,
+        ),
+        TestBreaker::new(
+            TestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2),
+            10,
+        ),
     ];
 
     let result = vec.mem_bytes_required();
@@ -71,7 +77,10 @@ fn test_bytes_required_overflow() {
 
 #[test]
 fn test_encode_bytes_required_error() {
-    let mut vec = vec![TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10)];
+    let mut vec = vec![TestBreaker::new(
+        TestBreakerBehaviour::ForceBytesRequiredOverflow,
+        10,
+    )];
     let mut buf = Buffer::new(1024);
 
     let result = vec.encode_into(&mut buf);
@@ -206,27 +215,56 @@ fn test_decode_slice_error() {
     assert!(result.is_err());
 }
 
-// PreAlloc
+// vec_prealloc
 
 #[test]
-fn test_prealloc_zero_init_true() {
-    // Vec<Vec<u8>> exercises the ZERO_INIT = true branch in prealloc
-    // because Vec<u8>::ZERO_INIT = u8::ZERO_INIT = true
-    let mut original: Vec<Vec<u8>> = vec![vec![1, 2, 3], vec![4, 5], vec![6, 7, 8, 9]];
-    let original_clone = original.clone();
+fn test_vec_prealloc_zero_init_true() {
+    use crate::collections::vec::vec_prealloc;
 
-    let bytes_required = original
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
-    let mut buf = Buffer::new(bytes_required);
-    original
-        .encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    let mut vec: Vec<TestBreaker> = Vec::new();
+    vec_prealloc(&mut vec, 10, true);
 
-    let mut decoded: Vec<Vec<u8>> = Vec::new();
-    decoded
-        .decode_from(&mut buf.as_mut_slice())
-        .expect("Failed to decode_from(..)");
+    assert_eq!(vec.len(), 10);
+    // Fast path memsets to 0
+    assert!(vec.iter().all(|tb| tb.data == 0));
+}
 
-    assert_eq!(decoded, original_clone);
+#[test]
+fn test_vec_prealloc_zero_init_false() {
+    use crate::collections::vec::vec_prealloc;
+
+    let mut vec: Vec<TestBreaker> = Vec::new();
+    vec_prealloc(&mut vec, 5, false);
+
+    assert_eq!(vec.len(), 5);
+    assert!(vec.iter().all(|tb| tb.data == 104729)); // Default value
+}
+
+// vec_codec_zeroize
+
+#[test]
+fn test_vec_codec_zeroize_fast_true() {
+    use crate::collections::vec::vec_codec_zeroize;
+
+    let mut vec: Vec<TestBreaker> = vec![
+        TestBreaker::new(TestBreakerBehaviour::None, 100),
+        TestBreaker::new(TestBreakerBehaviour::None, 200),
+    ];
+    vec_codec_zeroize(&mut vec, true);
+
+    // Fast path just memsets, data becomes 0
+    assert!(vec.iter().all(|tb| tb.data == 0));
+}
+
+#[test]
+fn test_vec_codec_zeroize_fast_false() {
+    use crate::collections::vec::vec_codec_zeroize;
+
+    let mut vec: Vec<TestBreaker> = vec![
+        TestBreaker::new(TestBreakerBehaviour::None, 100),
+        TestBreaker::new(TestBreakerBehaviour::None, 200),
+    ];
+    vec_codec_zeroize(&mut vec, false);
+
+    assert!(vec.iter().all(|tb| tb.is_zeroized()));
 }
