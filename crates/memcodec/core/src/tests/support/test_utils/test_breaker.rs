@@ -22,7 +22,7 @@ fn test_behaviour_default() {
 fn test_default() {
     let tb = TestBreaker::default();
     assert_eq!(tb.behaviour, TestBreakerBehaviour::None);
-    assert_eq!(tb.data, 0xDEADBEEF);
+    assert_eq!(tb.data, 104729);
 }
 
 #[test]
@@ -36,7 +36,7 @@ fn test_new() {
 fn test_with_behaviour() {
     let tb = TestBreaker::with_behaviour(TestBreakerBehaviour::ForceEncodeError);
     assert_eq!(tb.behaviour, TestBreakerBehaviour::ForceEncodeError);
-    assert_eq!(tb.data, 0xDEADBEEF);
+    assert_eq!(tb.data, 104729);
 }
 
 #[test]
@@ -178,12 +178,12 @@ fn test_zero_init_is_false() {
 #[test]
 fn test_prealloc() {
     let mut tb = TestBreaker::default();
-    assert_eq!(tb.data, 0xDEADBEEF);
+    assert_eq!(tb.data, 104729);
 
     // PreAlloc is no-op for TestBreaker (ZERO_INIT = false)
     tb.prealloc(999);
 
     // Data should remain unchanged
-    assert_eq!(tb.data, 0xDEADBEEF);
+    assert_eq!(tb.data, 104729);
     assert_eq!(tb.behaviour, TestBreakerBehaviour::None);
 }

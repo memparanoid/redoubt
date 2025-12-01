@@ -44,7 +44,7 @@ impl Default for TestBreaker {
     fn default() -> Self {
         Self {
             behaviour: TestBreakerBehaviour::None,
-            data: 0xDEADBEEF,
+            data: 104729,
         }
     }
 }
