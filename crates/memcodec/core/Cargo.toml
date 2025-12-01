@@ -18,7 +18,9 @@ zeroize = []
 benchmark = []
 
 [dependencies]
-memutil.workspace   = true
+memalloc.workspace  = true
 membuffer.workspace = true
+memutil.workspace   = true
+memzer.workspace    = true
 thiserror.workspace = true
 zeroize.workspace   = true

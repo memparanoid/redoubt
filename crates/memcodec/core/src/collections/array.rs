@@ -11,7 +11,7 @@ use crate::wrappers::Primitive;
 
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
-    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc, TryDecode, TryEncode,
+    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, TryDecode, TryEncode,
 };
 
 use super::helpers::{header_size, process_header, write_header};
@@ -20,8 +20,8 @@ use super::helpers::{header_size, process_header, write_header};
 #[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
-fn cleanup_encode_error<T>(vec: &mut Vec<T>, buf: &mut Buffer) {
-    memutil::fast_zeroize_vec(vec);
+fn cleanup_encode_error<T, const N: usize>(arr: &mut [T; N], buf: &mut Buffer) {
+    memutil::fast_zeroize_slice(arr.as_mut_slice());
     buf.zeroize();
 }
 
@@ -29,12 +29,12 @@ fn cleanup_encode_error<T>(vec: &mut Vec<T>, buf: &mut Buffer) {
 #[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
-fn cleanup_decode_error<T>(vec: &mut Vec<T>, buf: &mut &mut [u8]) {
-    memutil::fast_zeroize_vec(vec);
+fn cleanup_decode_error<T, const N: usize>(arr: &mut [T; N], buf: &mut &mut [u8]) {
+    memutil::fast_zeroize_slice(arr.as_mut_slice());
     memutil::fast_zeroize_slice(*buf);
 }
 
-impl<T> BytesRequired for Vec<T>
+impl<T, const N: usize> BytesRequired for [T; N]
 where
     T: BytesRequired,
 {
@@ -46,7 +46,7 @@ where
 
             if new_bytes_required < bytes_required {
                 return Err(OverflowError {
-                    reason: "Plase claude: fill with error message".into(),
+                    reason: "Array bytes_required overflow".into(),
                 });
             }
 
@@ -57,12 +57,12 @@ where
     }
 }
 
-impl<T> TryEncode for Vec<T>
+impl<T, const N: usize> TryEncode for [T; N]
 where
     T: EncodeSlice + BytesRequired,
 {
     fn try_encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
-        let mut size = Primitive::new(self.len());
+        let mut size = Primitive::new(N);
         let mut bytes_required = Primitive::new(self.mem_bytes_required()?);
 
         write_header(buf, &mut size, &mut bytes_required)?;
@@ -71,7 +71,7 @@ where
     }
 }
 
-impl<T> Encode for Vec<T>
+impl<T, const N: usize> Encode for [T; N]
 where
     T: EncodeSlice + BytesRequired,
 {
@@ -83,14 +83,14 @@ where
         if result.is_err() {
             cleanup_encode_error(self, buf);
         } else {
-            memutil::fast_zeroize_vec(self);
+            memutil::fast_zeroize_slice(self.as_mut_slice());
         }
 
         result
     }
 }
 
-impl<T> EncodeSlice for Vec<T>
+impl<T, const N: usize> EncodeSlice for [T; N]
 where
     T: EncodeSlice + BytesRequired,
 {
@@ -103,23 +103,28 @@ where
     }
 }
 
-impl<T> TryDecode for Vec<T>
+impl<T, const N: usize> TryDecode for [T; N]
 where
     T: DecodeSlice,
 {
     #[inline(always)]
     fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-        let mut size = Primitive::new(0);
+        let mut size = Primitive::new(0usize);
 
         process_header(buf, &mut size)?;
 
-        self.prealloc(*size);
+        // Validate that encoded size matches array size
+        if *size != N {
+            return Err(DecodeError::PreconditionViolated);
+        }
+
+        drop(size);
 
         T::decode_slice_from(self.as_mut_slice(), buf)
     }
 }
 
-impl<T> Decode for Vec<T>
+impl<T, const N: usize> Decode for [T; N]
 where
     T: DecodeSlice,
 {
@@ -135,7 +140,7 @@ where
     }
 }
 
-impl<T> DecodeSlice for Vec<T>
+impl<T, const N: usize> DecodeSlice for [T; N]
 where
     T: DecodeSlice,
 {
@@ -145,17 +150,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-impl<T> PreAlloc for Vec<T> {
-    fn prealloc(&mut self, size: usize) {
-        self.clear();
-        self.shrink_to_fit();
-        self.reserve_exact(size);
-
-        memutil::fast_zeroize_vec(self);
-
-        unsafe { self.set_len(size) };
     }
 }

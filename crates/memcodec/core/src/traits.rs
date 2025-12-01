@@ -53,5 +53,5 @@ pub trait DecodeBuffer {
 }
 
 pub(crate) trait PreAlloc {
-    fn prealloc(&mut self, size: &usize);
+    fn prealloc(&mut self, size: usize);
 }

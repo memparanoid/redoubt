@@ -20,8 +20,12 @@ use super::helpers::{header_size, process_header, write_header};
 #[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
-fn cleanup_encode_error<T>(vec: &mut Vec<T>, buf: &mut Buffer) {
-    memutil::fast_zeroize_vec(vec);
+fn cleanup_encode_error(s: &mut String, buf: &mut Buffer) {
+    // SAFETY: We're zeroizing and then clearing, so UTF-8 invariant is restored
+    unsafe {
+        memutil::fast_zeroize_slice(s.as_bytes_mut());
+    }
+    s.clear();
     buf.zeroize();
 }
 
@@ -29,52 +33,43 @@ fn cleanup_encode_error<T>(vec: &mut Vec<T>, buf: &mut Buffer) {
 #[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
-fn cleanup_decode_error<T>(vec: &mut Vec<T>, buf: &mut &mut [u8]) {
-    memutil::fast_zeroize_vec(vec);
+fn cleanup_decode_error(s: &mut String, buf: &mut &mut [u8]) {
+    // SAFETY: We're zeroizing and then clearing, so UTF-8 invariant is restored
+    unsafe {
+        memutil::fast_zeroize_slice(s.as_bytes_mut());
+    }
+    s.clear();
     memutil::fast_zeroize_slice(*buf);
 }
 
-impl<T> BytesRequired for Vec<T>
-where
-    T: BytesRequired,
-{
+impl BytesRequired for String {
     fn mem_bytes_required(&self) -> Result<usize, OverflowError> {
-        let mut bytes_required = header_size();
+        let bytes_required = header_size().wrapping_add(self.len());
 
-        for elem in self.iter() {
-            let new_bytes_required = bytes_required.wrapping_add(elem.mem_bytes_required()?);
-
-            if new_bytes_required < bytes_required {
-                return Err(OverflowError {
-                    reason: "Plase claude: fill with error message".into(),
-                });
-            }
-
-            bytes_required = new_bytes_required;
+        if bytes_required < header_size() {
+            return Err(OverflowError {
+                reason: "String bytes_required overflow".into(),
+            });
         }
 
         Ok(bytes_required)
     }
 }
 
-impl<T> TryEncode for Vec<T>
-where
-    T: EncodeSlice + BytesRequired,
-{
+impl TryEncode for String {
     fn try_encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
         let mut size = Primitive::new(self.len());
         let mut bytes_required = Primitive::new(self.mem_bytes_required()?);
 
         write_header(buf, &mut size, &mut bytes_required)?;
 
-        T::encode_slice_into(self.as_mut_slice(), buf)
+        // SAFETY: We only read from the bytes, not modify them
+        let bytes = unsafe { self.as_bytes_mut() };
+        u8::encode_slice_into(bytes, buf)
     }
 }
 
-impl<T> Encode for Vec<T>
-where
-    T: EncodeSlice + BytesRequired,
-{
+impl Encode for String {
     #[inline(always)]
     fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
         let result = self.try_encode_into(buf);
@@ -83,17 +78,18 @@ where
         if result.is_err() {
             cleanup_encode_error(self, buf);
         } else {
-            memutil::fast_zeroize_vec(self);
+            // SAFETY: We're zeroizing and then clearing, so UTF-8 invariant is restored
+            unsafe {
+                memutil::fast_zeroize_slice(self.as_bytes_mut());
+            }
+            self.clear();
         }
 
         result
     }
 }
 
-impl<T> EncodeSlice for Vec<T>
-where
-    T: EncodeSlice + BytesRequired,
-{
+impl EncodeSlice for String {
     fn encode_slice_into(slice: &mut [Self], buf: &mut Buffer) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {
             elem.encode_into(buf)?;
@@ -103,26 +99,29 @@ where
     }
 }
 
-impl<T> TryDecode for Vec<T>
-where
-    T: DecodeSlice,
-{
+impl TryDecode for String {
     #[inline(always)]
     fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-        let mut size = Primitive::new(0);
+        let mut size = Primitive::new(0usize);
 
         process_header(buf, &mut size)?;
 
         self.prealloc(*size);
 
-        T::decode_slice_from(self.as_mut_slice(), buf)
+        // SAFETY: prealloc sets len, we decode into those bytes
+        let bytes = unsafe { self.as_bytes_mut() };
+        u8::decode_slice_from(bytes, buf)?;
+
+        // Validate UTF-8
+        if std::str::from_utf8(self.as_bytes()).is_err() {
+            return Err(DecodeError::PreconditionViolated);
+        }
+
+        Ok(())
     }
 }
 
-impl<T> Decode for Vec<T>
-where
-    T: DecodeSlice,
-{
+impl Decode for String {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         let result = self.try_decode_from(buf);
 
@@ -135,10 +134,7 @@ where
     }
 }
 
-impl<T> DecodeSlice for Vec<T>
-where
-    T: DecodeSlice,
-{
+impl DecodeSlice for String {
     fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         for elem in slice.iter_mut() {
             elem.decode_from(buf)?;
@@ -148,14 +144,18 @@ where
     }
 }
 
-impl<T> PreAlloc for Vec<T> {
+impl PreAlloc for String {
     fn prealloc(&mut self, size: usize) {
         self.clear();
         self.shrink_to_fit();
         self.reserve_exact(size);
 
-        memutil::fast_zeroize_vec(self);
-
-        unsafe { self.set_len(size) };
+        // SAFETY: We're setting len after reserving capacity
+        // The bytes will be written by decode before being read as UTF-8
+        unsafe {
+            let vec = self.as_mut_vec();
+            memutil::fast_zeroize_vec(vec);
+            vec.set_len(size);
+        }
     }
 }
