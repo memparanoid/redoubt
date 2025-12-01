@@ -7,7 +7,9 @@ use memzer::ZeroizationProbe;
 use zeroize::Zeroize;
 
 use crate::error::{DecodeError, EncodeError, OverflowError};
-use crate::traits::{BytesRequired, CodecZeroize, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc};
+use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc};
+#[cfg(feature = "zeroize")]
+use crate::traits::{CodecZeroize, FastZeroize};
 
 /// Behavior control for error injection testing in memcodec.
 #[derive(Debug, Clone, PartialEq, Eq, Zeroize)]
@@ -135,10 +137,14 @@ impl PreAlloc for TestBreaker {
     }
 }
 
-impl CodecZeroize for TestBreaker {
+#[cfg(feature = "zeroize")]
+impl FastZeroize for TestBreaker {
     /// Keep FAST_ZEROIZE = false to test recursive zeroization path.
     const FAST_ZEROIZE: bool = false;
+}
 
+#[cfg(feature = "zeroize")]
+impl CodecZeroize for TestBreaker {
     fn codec_zeroize(&mut self) {
         self.behaviour = TestBreakerBehaviour::None;
         self.data.zeroize();

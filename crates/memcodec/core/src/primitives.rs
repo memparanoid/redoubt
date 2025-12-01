@@ -96,9 +96,12 @@ macro_rules! impl_traits_for_primitives {
             }
 
             #[cfg(feature = "zeroize")]
-            impl $crate::traits::CodecZeroize for $ty {
+            impl $crate::traits::FastZeroize for $ty {
                 const FAST_ZEROIZE: bool = true;
+            }
 
+            #[cfg(feature = "zeroize")]
+            impl $crate::traits::CodecZeroize for $ty {
                 #[inline(always)]
                 fn codec_zeroize(&mut self) {
                     // No-op: collection handles zeroization via memset

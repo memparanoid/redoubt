@@ -242,6 +242,7 @@ fn test_vec_prealloc_zero_init_false() {
 
 // vec_codec_zeroize
 
+#[cfg(feature = "zeroize")]
 #[test]
 fn test_vec_codec_zeroize_fast_true() {
     use crate::collections::vec::vec_codec_zeroize;
@@ -256,6 +257,7 @@ fn test_vec_codec_zeroize_fast_true() {
     assert!(vec.iter().all(|tb| tb.is_zeroized()));
 }
 
+#[cfg(feature = "zeroize")]
 #[test]
 fn test_vec_codec_zeroize_fast_false() {
     use crate::collections::vec::vec_codec_zeroize;

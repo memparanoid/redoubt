@@ -7,11 +7,11 @@
 use membuffer::Buffer;
 
 use crate::collections::helpers::{
-    bytes_required_sum, decode_fields, encode_fields, to_bytes_required_dyn_ref, to_decode_dyn_mut,
-    to_encode_dyn_mut,
+    bytes_required_sum, decode_fields, encode_fields, to_bytes_required_dyn_ref,
+    to_decode_zeroize_dyn_mut, to_encode_zeroize_dyn_mut,
 };
 use crate::error::{DecodeError, EncodeError, OverflowError};
-use crate::traits::{BytesRequired, Decode, Encode};
+use crate::traits::{BytesRequired, Decode, DecodeZeroize, Encode, EncodeZeroize};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct MixedData {
@@ -96,39 +96,39 @@ impl BytesRequired for MixedData {
 
 impl Encode for MixedData {
     fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
-        let collection: [&mut dyn Encode; 11] = [
-            to_encode_dyn_mut(&mut self.bytes_1k),
-            to_encode_dyn_mut(&mut self.bytes_2k),
-            to_encode_dyn_mut(&mut self.bytes_4k),
-            to_encode_dyn_mut(&mut self.bytes_8k),
-            to_encode_dyn_mut(&mut self.bytes_16k),
-            to_encode_dyn_mut(&mut self.bytes_32k),
-            to_encode_dyn_mut(&mut self.bytes_64k),
-            to_encode_dyn_mut(&mut self.bytes_128k),
-            to_encode_dyn_mut(&mut self.bytes_256k),
-            to_encode_dyn_mut(&mut self.bytes_512k),
-            to_encode_dyn_mut(&mut self.bytes_1m),
+        let mut collection: [&mut dyn EncodeZeroize; 11] = [
+            to_encode_zeroize_dyn_mut(&mut self.bytes_1k),
+            to_encode_zeroize_dyn_mut(&mut self.bytes_2k),
+            to_encode_zeroize_dyn_mut(&mut self.bytes_4k),
+            to_encode_zeroize_dyn_mut(&mut self.bytes_8k),
+            to_encode_zeroize_dyn_mut(&mut self.bytes_16k),
+            to_encode_zeroize_dyn_mut(&mut self.bytes_32k),
+            to_encode_zeroize_dyn_mut(&mut self.bytes_64k),
+            to_encode_zeroize_dyn_mut(&mut self.bytes_128k),
+            to_encode_zeroize_dyn_mut(&mut self.bytes_256k),
+            to_encode_zeroize_dyn_mut(&mut self.bytes_512k),
+            to_encode_zeroize_dyn_mut(&mut self.bytes_1m),
         ];
-        encode_fields(collection.into_iter(), buf)
+        encode_fields(&mut collection, buf)
     }
 }
 
 impl Decode for MixedData {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-        let collection: [&mut dyn Decode; 11] = [
-            to_decode_dyn_mut(&mut self.bytes_1k),
-            to_decode_dyn_mut(&mut self.bytes_2k),
-            to_decode_dyn_mut(&mut self.bytes_4k),
-            to_decode_dyn_mut(&mut self.bytes_8k),
-            to_decode_dyn_mut(&mut self.bytes_16k),
-            to_decode_dyn_mut(&mut self.bytes_32k),
-            to_decode_dyn_mut(&mut self.bytes_64k),
-            to_decode_dyn_mut(&mut self.bytes_128k),
-            to_decode_dyn_mut(&mut self.bytes_256k),
-            to_decode_dyn_mut(&mut self.bytes_512k),
-            to_decode_dyn_mut(&mut self.bytes_1m),
+        let mut collection: [&mut dyn DecodeZeroize; 11] = [
+            to_decode_zeroize_dyn_mut(&mut self.bytes_1k),
+            to_decode_zeroize_dyn_mut(&mut self.bytes_2k),
+            to_decode_zeroize_dyn_mut(&mut self.bytes_4k),
+            to_decode_zeroize_dyn_mut(&mut self.bytes_8k),
+            to_decode_zeroize_dyn_mut(&mut self.bytes_16k),
+            to_decode_zeroize_dyn_mut(&mut self.bytes_32k),
+            to_decode_zeroize_dyn_mut(&mut self.bytes_64k),
+            to_decode_zeroize_dyn_mut(&mut self.bytes_128k),
+            to_decode_zeroize_dyn_mut(&mut self.bytes_256k),
+            to_decode_zeroize_dyn_mut(&mut self.bytes_512k),
+            to_decode_zeroize_dyn_mut(&mut self.bytes_1m),
         ];
-        decode_fields(collection.into_iter(), buf)
+        decode_fields(&mut collection, buf)
     }
 }
 

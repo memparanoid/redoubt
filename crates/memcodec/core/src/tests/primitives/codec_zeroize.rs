@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::traits::CodecZeroize;
+#[cfg(feature = "zeroize")]
+use crate::traits::{CodecZeroize, FastZeroize};
 
+#[cfg(feature = "zeroize")]
 #[test]
 fn test_codec_zeroize_is_noop() {
     let mut val: u64 = 12345;
@@ -14,21 +16,22 @@ fn test_codec_zeroize_is_noop() {
     assert_eq!(val, 12345);
 }
 
+#[cfg(feature = "zeroize")]
 #[test]
 fn test_fast_zeroize_is_true() {
-    assert!(bool::FAST_ZEROIZE);
-    assert!(u8::FAST_ZEROIZE);
-    assert!(u16::FAST_ZEROIZE);
-    assert!(u32::FAST_ZEROIZE);
-    assert!(u64::FAST_ZEROIZE);
-    assert!(u128::FAST_ZEROIZE);
-    assert!(usize::FAST_ZEROIZE);
-    assert!(i8::FAST_ZEROIZE);
-    assert!(i16::FAST_ZEROIZE);
-    assert!(i32::FAST_ZEROIZE);
-    assert!(i64::FAST_ZEROIZE);
-    assert!(i128::FAST_ZEROIZE);
-    assert!(isize::FAST_ZEROIZE);
-    assert!(f32::FAST_ZEROIZE);
-    assert!(f64::FAST_ZEROIZE);
+    assert!(<bool as FastZeroize>::FAST_ZEROIZE);
+    assert!(<u8 as FastZeroize>::FAST_ZEROIZE);
+    assert!(<u16 as FastZeroize>::FAST_ZEROIZE);
+    assert!(<u32 as FastZeroize>::FAST_ZEROIZE);
+    assert!(<u64 as FastZeroize>::FAST_ZEROIZE);
+    assert!(<u128 as FastZeroize>::FAST_ZEROIZE);
+    assert!(<usize as FastZeroize>::FAST_ZEROIZE);
+    assert!(<i8 as FastZeroize>::FAST_ZEROIZE);
+    assert!(<i16 as FastZeroize>::FAST_ZEROIZE);
+    assert!(<i32 as FastZeroize>::FAST_ZEROIZE);
+    assert!(<i64 as FastZeroize>::FAST_ZEROIZE);
+    assert!(<i128 as FastZeroize>::FAST_ZEROIZE);
+    assert!(<isize as FastZeroize>::FAST_ZEROIZE);
+    assert!(<f32 as FastZeroize>::FAST_ZEROIZE);
+    assert!(<f64 as FastZeroize>::FAST_ZEROIZE);
 }

@@ -8,7 +8,7 @@ use membuffer::Buffer;
 use zeroize::Zeroize;
 
 use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
-use crate::traits::{BytesRequired, CodecBuffer, Decode, DecodeBuffer, Encode};
+use crate::traits::{BytesRequired, CodecBuffer, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize};
 use crate::wrappers::Primitive;
 
 pub fn header_size() -> usize {
@@ -70,6 +70,18 @@ pub fn to_decode_dyn_mut<T: Decode>(x: &mut T) -> &mut dyn Decode {
     x
 }
 
+/// Convert a mutable reference to `&mut dyn EncodeZeroize`.
+#[inline(always)]
+pub fn to_encode_zeroize_dyn_mut<T: EncodeZeroize>(x: &mut T) -> &mut dyn EncodeZeroize {
+    x
+}
+
+/// Convert a mutable reference to `&mut dyn DecodeZeroize`.
+#[inline(always)]
+pub fn to_decode_zeroize_dyn_mut<T: DecodeZeroize>(x: &mut T) -> &mut dyn DecodeZeroize {
+    x
+}
+
 /// Sum bytes required from an iterator of `&dyn BytesRequired`.
 pub fn bytes_required_sum<'a>(
     iter: impl Iterator<Item = &'a dyn BytesRequired>,
@@ -91,46 +103,66 @@ pub fn bytes_required_sum<'a>(
     Ok(*total)
 }
 
-/// Encode fields from an iterator of `&mut dyn Encode`.
-/// On error with zeroize feature, zeroizes the buffer.
-pub fn encode_fields<'a>(
+/// Try to encode fields from an iterator of `&mut dyn Encode`.
+/// Does not handle zeroization - caller is responsible for cleanup on error.
+fn try_encode_fields<'a>(
     iter: impl Iterator<Item = &'a mut dyn Encode>,
     buf: &mut Buffer,
 ) -> Result<(), EncodeError> {
     for field in iter {
-        let result = field.encode_into(buf);
-
-        #[cfg(feature = "zeroize")]
-        if result.is_err() {
-            buf.zeroize();
-            return result;
-        }
-
-        #[cfg(not(feature = "zeroize"))]
-        result?;
+        field.encode_into(buf)?;
     }
-
     Ok(())
 }
 
-/// Decode fields from an iterator of `&mut dyn Decode`.
-/// On error with zeroize feature, zeroizes the buffer.
-pub fn decode_fields<'a>(
+/// Encode fields from an iterator of `&mut dyn EncodeZeroize`.
+/// On error with zeroize feature, zeroizes all fields and the buffer.
+pub fn encode_fields<'a>(
+    fields: &mut [&'a mut dyn EncodeZeroize],
+    buf: &mut Buffer,
+) -> Result<(), EncodeError> {
+    let iter = fields.iter_mut().map(|f| *f as &mut dyn Encode);
+    let result = try_encode_fields(iter, buf);
+
+    #[cfg(feature = "zeroize")]
+    if result.is_err() {
+        for field in fields.iter_mut() {
+            field.codec_zeroize();
+        }
+        buf.zeroize();
+    }
+
+    result
+}
+
+/// Try to decode fields from an iterator of `&mut dyn Decode`.
+/// Does not handle zeroization - caller is responsible for cleanup on error.
+fn try_decode_fields<'a>(
     iter: impl Iterator<Item = &'a mut dyn Decode>,
     buf: &mut &mut [u8],
 ) -> Result<(), DecodeError> {
     for field in iter {
-        let result = field.decode_from(buf);
+        field.decode_from(buf)?;
+    }
+    Ok(())
+}
 
-        #[cfg(feature = "zeroize")]
-        if result.is_err() {
-            memutil::fast_zeroize_slice(*buf);
-            return result;
+/// Decode fields from a slice of `&mut dyn DecodeZeroize`.
+/// On error with zeroize feature, zeroizes all fields and the buffer.
+pub fn decode_fields<'a>(
+    fields: &mut [&'a mut dyn DecodeZeroize],
+    buf: &mut &mut [u8],
+) -> Result<(), DecodeError> {
+    let iter = fields.iter_mut().map(|f| *f as &mut dyn Decode);
+    let result = try_decode_fields(iter, buf);
+
+    #[cfg(feature = "zeroize")]
+    if result.is_err() {
+        for field in fields.iter_mut() {
+            field.codec_zeroize();
         }
-
-        #[cfg(not(feature = "zeroize"))]
-        result?;
+        memutil::fast_zeroize_slice(*buf);
     }
 
-    Ok(())
+    result
 }

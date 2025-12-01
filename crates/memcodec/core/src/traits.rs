@@ -62,7 +62,7 @@ pub(crate) trait PreAlloc: Default {
     fn prealloc(&mut self, size: usize);
 }
 
-/// Zeroization trait for codec types.
+/// Fast zeroization indicator trait.
 ///
 /// `FAST_ZEROIZE` indicates if the type can be zeroed with a fast memset.
 /// - `true`: Primitives (no internal pointers, memset is safe and sufficient)
@@ -72,14 +72,32 @@ pub(crate) trait PreAlloc: Default {
 /// - `FAST_ZEROIZE` is ALWAYS `false` (Vec has ptr/len/capacity)
 /// - If `T::FAST_ZEROIZE` is `true`, memset the contents + spare capacity
 /// - If `T::FAST_ZEROIZE` is `false`, recurse into each element + memset spare capacity
-pub(crate) trait CodecZeroize {
+pub trait FastZeroize {
     const FAST_ZEROIZE: bool;
+}
+
+/// Zeroization trait for codec types (dyn-compatible).
+pub trait CodecZeroize {
     fn codec_zeroize(&mut self);
 }
 
 /// Blanket impl when zeroize feature is disabled - everything is a no-op.
 #[cfg(not(feature = "zeroize"))]
-impl<T> CodecZeroize for T {
+impl<T> FastZeroize for T {
     const FAST_ZEROIZE: bool = true;
+}
+
+#[cfg(not(feature = "zeroize"))]
+impl<T> CodecZeroize for T {
     fn codec_zeroize(&mut self) {}
 }
+
+/// Supertrait combining Encode + CodecZeroize for derive macro helpers.
+/// Used by encode_fields to zeroize all fields on error.
+pub trait EncodeZeroize: Encode + CodecZeroize {}
+impl<T: Encode + CodecZeroize> EncodeZeroize for T {}
+
+/// Supertrait combining Decode + CodecZeroize for derive macro helpers.
+/// Used by decode_fields to zeroize all fields on error.
+pub trait DecodeZeroize: Decode + CodecZeroize {}
+impl<T: Decode + CodecZeroize> DecodeZeroize for T {}

@@ -6,12 +6,12 @@ use membuffer::Buffer;
 use memzer::ZeroizationProbe;
 
 use crate::collections::helpers::{
-    bytes_required_sum, decode_fields, encode_fields, to_bytes_required_dyn_ref, to_decode_dyn_mut,
-    to_encode_dyn_mut,
+    bytes_required_sum, decode_fields, encode_fields, to_bytes_required_dyn_ref,
+    to_decode_dyn_mut, to_decode_zeroize_dyn_mut, to_encode_dyn_mut, to_encode_zeroize_dyn_mut,
 };
 use crate::error::OverflowError;
 use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
-use crate::traits::{BytesRequired, Decode, Encode};
+use crate::traits::{BytesRequired, Decode, DecodeZeroize, Encode, EncodeZeroize};
 
 // to_bytes_required_dyn_ref
 
@@ -123,12 +123,12 @@ fn test_encode_fields_ok() {
     let mut tb2 = TestBreaker::new(TestBreakerBehaviour::None, 200);
     let mut buf = Buffer::new(1024);
 
-    let mut refs: Vec<&mut dyn Encode> = vec![
-        to_encode_dyn_mut(&mut tb1),
-        to_encode_dyn_mut(&mut tb2),
+    let mut refs: [&mut dyn EncodeZeroize; 2] = [
+        to_encode_zeroize_dyn_mut(&mut tb1),
+        to_encode_zeroize_dyn_mut(&mut tb2),
     ];
 
-    let result = encode_fields(refs.iter_mut().map(|r| &mut **r), &mut buf);
+    let result = encode_fields(&mut refs, &mut buf);
 
     assert!(result.is_ok());
 }
@@ -139,16 +139,18 @@ fn test_encode_fields_propagates_error() {
     let mut tb2 = TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 200);
     let mut buf = Buffer::new(1024);
 
-    let mut refs: Vec<&mut dyn Encode> = vec![
-        to_encode_dyn_mut(&mut tb1),
-        to_encode_dyn_mut(&mut tb2),
+    let mut refs: [&mut dyn EncodeZeroize; 2] = [
+        to_encode_zeroize_dyn_mut(&mut tb1),
+        to_encode_zeroize_dyn_mut(&mut tb2),
     ];
 
-    let result = encode_fields(refs.iter_mut().map(|r| &mut **r), &mut buf);
+    let result = encode_fields(&mut refs, &mut buf);
 
     assert!(result.is_err());
 
     // Assert zeroization!
+    assert!(tb1.is_zeroized());
+    assert!(tb2.is_zeroized());
     assert!(buf.is_zeroized());
 }
 
@@ -161,25 +163,22 @@ fn test_decode_fields_ok() {
     let mut tb2 = TestBreaker::new(TestBreakerBehaviour::None, 200);
     let mut buf = Buffer::new(1024);
 
-    let mut encode_refs: Vec<&mut dyn Encode> = vec![
-        to_encode_dyn_mut(&mut tb1),
-        to_encode_dyn_mut(&mut tb2),
+    let mut encode_refs: [&mut dyn EncodeZeroize; 2] = [
+        to_encode_zeroize_dyn_mut(&mut tb1),
+        to_encode_zeroize_dyn_mut(&mut tb2),
     ];
-    encode_fields(encode_refs.iter_mut().map(|r| &mut **r), &mut buf).expect("Failed to encode");
+    encode_fields(&mut encode_refs, &mut buf).expect("Failed to encode");
 
     // Decode
     let mut decoded1 = TestBreaker::default();
     let mut decoded2 = TestBreaker::default();
 
-    let mut decode_refs: Vec<&mut dyn Decode> = vec![
-        to_decode_dyn_mut(&mut decoded1),
-        to_decode_dyn_mut(&mut decoded2),
+    let mut decode_refs: [&mut dyn DecodeZeroize; 2] = [
+        to_decode_zeroize_dyn_mut(&mut decoded1),
+        to_decode_zeroize_dyn_mut(&mut decoded2),
     ];
 
-    let result = decode_fields(
-        decode_refs.iter_mut().map(|r| &mut **r),
-        &mut buf.as_mut_slice(),
-    );
+    let result = decode_fields(&mut decode_refs, &mut buf.as_mut_slice());
 
     assert!(result.is_ok());
     assert_eq!(decoded1.data, 100);
@@ -192,16 +191,18 @@ fn test_decode_fields_propagates_error() {
     let mut decoded2 = TestBreaker::default();
     let mut buf = [0u8; 1]; // Too small
 
-    let mut decode_refs: Vec<&mut dyn Decode> = vec![
-        to_decode_dyn_mut(&mut decoded1),
-        to_decode_dyn_mut(&mut decoded2),
+    let mut decode_refs: [&mut dyn DecodeZeroize; 2] = [
+        to_decode_zeroize_dyn_mut(&mut decoded1),
+        to_decode_zeroize_dyn_mut(&mut decoded2),
     ];
 
     let mut slice = buf.as_mut_slice();
-    let result = decode_fields(decode_refs.iter_mut().map(|r| &mut **r), &mut slice);
+    let result = decode_fields(&mut decode_refs, &mut slice);
 
     assert!(result.is_err());
 
     // Assert zeroization!
+    assert!(decoded1.is_zeroized());
+    assert!(decoded2.is_zeroized());
     assert!(slice.iter().all(|&b| b == 0));
 }
