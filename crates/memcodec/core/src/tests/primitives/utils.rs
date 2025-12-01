@@ -6,7 +6,7 @@ use membuffer::Buffer;
 #[cfg(feature = "zeroize")]
 use memzer::ZeroizationProbe;
 
-use crate::error::{CodecBufferError, EncodeError};
+use crate::error::{CodecBufferError, DecodeBufferError, DecodeError, EncodeError};
 use crate::traits::{BytesRequired, Decode, Encode};
 
 /// Generates n equidistant values in [0, MAX] for unsigned types
@@ -91,26 +91,69 @@ pub(crate) fn test_encode_insufficient_buffer<T>(value: &mut T)
 where
     T: Encode + BytesRequired + Default + PartialEq + core::fmt::Debug,
 {
-    let bytes_required = value.mem_bytes_required().expect("Failed to get bytes_required");
-    if bytes_required == 0 {
-        return; // Can't test with 0 bytes
-    }
-    let insufficient = bytes_required - 1;
-    let mut buf = Buffer::new(insufficient);
+    let bytes_required = value
+        .mem_bytes_required()
+        .expect("Failed to get bytes_required");
+    let insufficient_bytes = bytes_required - 1;
+    let mut buf = Buffer::new(insufficient_bytes);
 
     let result = value.encode_into(&mut buf);
 
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
+        Err(EncodeError::CodecBufferError(
+            CodecBufferError::CapacityExceeded
+        ))
     ));
 
     // Assert zeroization on error
     #[cfg(feature = "zeroize")]
     {
-        assert_eq!(*value, T::default(), "value must be zeroized after encode error");
-        assert!(buf.is_zeroized(), "buffer must be zeroized after encode error");
+        assert_eq!(
+            *value,
+            T::default(),
+            "value must be zeroized after encode error"
+        );
+        assert!(
+            buf.is_zeroized(),
+            "buffer must be zeroized after encode error"
+        );
+    }
+}
+
+/// Tests that decode_from fails with OutOfBounds when buffer is too small
+pub(crate) fn test_decode_insufficient_buffer<T>(value: &mut T)
+where
+    T: Decode + BytesRequired + Default + PartialEq + core::fmt::Debug,
+{
+    let bytes_required = core::mem::size_of::<T>();
+    let insufficient_bytes = bytes_required - 1;
+    let mut vec = vec![0u8; insufficient_bytes];
+    let mut buf = vec.as_mut_slice();
+
+    let result = value.decode_from(&mut buf);
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(DecodeError::DecodeBufferError(
+            DecodeBufferError::OutOfBounds
+        ))
+    ));
+
+    // Assert zeroization on error
+    #[cfg(feature = "zeroize")]
+    {
+        assert_eq!(
+            *value,
+            T::default(),
+            "value must be zeroized after decode error"
+        );
+        assert!(
+            buf.iter().all(|&b| b == 0),
+            "buffer must be zeroized after decode error"
+        );
     }
 }
 
@@ -134,7 +177,11 @@ where
 
     // Verify zeroization after encode
     #[cfg(feature = "zeroize")]
-    assert_eq!(original, T::default(), "original must be zeroized after encode_into");
+    assert_eq!(
+        original,
+        T::default(),
+        "original must be zeroized after encode_into"
+    );
 
     let mut recovered = initial_recovered;
     recovered
@@ -160,6 +207,9 @@ where
 
             test_encode_insufficient_buffer(&mut t0.clone());
             test_encode_insufficient_buffer(&mut t1.clone());
+
+            test_decode_insufficient_buffer(&mut t0.clone());
+            test_decode_insufficient_buffer(&mut t1.clone());
 
             test_roundtrip_with(t0.clone(), t0.clone(), &compare);
             test_roundtrip_with(t0.clone(), t1.clone(), &compare);
