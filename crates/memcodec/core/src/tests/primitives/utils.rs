@@ -76,6 +76,13 @@ where
     result
 }
 
+/// Tests that mem_bytes_required returns Ok(size_of::<T>()) for primitives
+pub(crate) fn test_bytes_required<T: BytesRequired>(value: &T) {
+    let result = value.mem_bytes_required();
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), core::mem::size_of::<T>());
+}
+
 /// Tests encode(original) -> decode into recovered -> assert using custom comparator
 pub(crate) fn test_roundtrip_with<T, F>(original_value: T, initial_recovered: T, compare: F)
 where
@@ -112,6 +119,9 @@ where
         for j in i..set.len() {
             let t0 = set[i].clone();
             let t1 = set[j].clone();
+
+            test_bytes_required(&t0);
+            test_bytes_required(&t1);
 
             test_roundtrip_with(t0.clone(), t0.clone(), &compare);
             test_roundtrip_with(t0.clone(), t1.clone(), &compare);
