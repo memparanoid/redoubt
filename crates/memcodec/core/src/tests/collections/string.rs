@@ -131,3 +131,48 @@ fn test_string_try_decode_propagates_utf8_validation_error() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 }
+
+// Encode
+
+#[test]
+fn test_string_encode_into_propagates_try_encode_into_error() {
+    use crate::error::CodecBufferError;
+    use crate::traits::Encode;
+    use memzer::ZeroizationProbe;
+
+    // Force try_encode_into to fail via buffer too small, then check zeroization
+    let mut s = String::from("hello");
+    let mut buf = Buffer::new(1); // Too small
+
+    let result = s.encode_into(&mut buf);
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
+    ));
+    // Check zeroization
+    assert!(s.is_empty());
+    assert!(buf.is_zeroized());
+}
+
+// Decode
+
+#[test]
+fn test_string_decode_from_propagates_try_decode_from_error() {
+    use crate::traits::Decode;
+    use crate::DecodeError;
+
+    // Start with a string with data to verify zeroization
+    let mut s = String::from("existing data");
+    let mut buf = [0u8; 1]; // Too small for header
+    let mut slice = buf.as_mut_slice();
+
+    let result = s.decode_from(&mut slice);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+    // Check zeroization - string should be cleared
+    assert!(s.is_empty());
+    assert!(slice.iter().all(|&b| b == 0));
+}
