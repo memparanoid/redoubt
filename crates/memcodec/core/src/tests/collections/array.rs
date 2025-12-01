@@ -88,7 +88,7 @@ fn test_encode_element_error() {
     assert!(result.is_err());
 
     // Assert zeroization!
-    assert!(arr.iter().all(|tb| tb.data == 0));
+    assert!(arr.iter().all(|tb| tb.is_zeroized()));
     assert!(buf.is_zeroized());
 }
 
@@ -175,7 +175,7 @@ fn test_decode_element_error() {
     assert!(result.is_err());
 
     // Assert zeroization!
-    assert!(decoded.iter().all(|tb| tb.data == 0));
+    assert!(decoded.iter().all(|tb| tb.is_zeroized()));
     assert!(slice.iter().all(|&b| b == 0));
 }
 

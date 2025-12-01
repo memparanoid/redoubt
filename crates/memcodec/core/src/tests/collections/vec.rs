@@ -226,7 +226,7 @@ fn test_vec_prealloc_zero_init_true() {
 
     assert_eq!(vec.len(), 10);
     // Fast path memsets to 0
-    assert!(vec.iter().all(|tb| tb.data == 0));
+    assert!(vec.iter().all(|tb| tb.is_zeroized()));
 }
 
 #[test]
@@ -253,7 +253,7 @@ fn test_vec_codec_zeroize_fast_true() {
     vec_codec_zeroize(&mut vec, true);
 
     // Fast path just memsets, data becomes 0
-    assert!(vec.iter().all(|tb| tb.data == 0));
+    assert!(vec.iter().all(|tb| tb.is_zeroized()));
 }
 
 #[test]
