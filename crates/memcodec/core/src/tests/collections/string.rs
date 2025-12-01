@@ -180,6 +180,20 @@ fn test_string_decode_from_propagates_try_decode_from_error() {
 // EncodeSlice
 
 #[test]
+fn test_string_encode_slice_ok() {
+    use crate::collections::helpers::header_size;
+    use crate::traits::EncodeSlice;
+
+    let mut slice = [String::from("hello"), String::from("world")];
+    let buf_size = 2 * header_size() + 5 + 5; // 2 headers + "hello" + "world"
+    let mut buf = Buffer::new(buf_size);
+
+    let result = String::encode_slice_into(&mut slice, &mut buf);
+
+    assert!(result.is_ok());
+}
+
+#[test]
 fn test_string_encode_slice_propagates_encode_into_error() {
     use crate::error::CodecBufferError;
     use crate::traits::EncodeSlice;
@@ -197,6 +211,26 @@ fn test_string_encode_slice_propagates_encode_into_error() {
 }
 
 // DecodeSlice
+
+#[test]
+fn test_string_decode_slice_ok() {
+    use crate::collections::helpers::header_size;
+    use crate::traits::{DecodeSlice, Encode, EncodeSlice};
+
+    // Encode first
+    let mut slice = [String::from("hello"), String::from("world")];
+    let buf_size = 2 * header_size() + 5 + 5;
+    let mut buf = Buffer::new(buf_size);
+    String::encode_slice_into(&mut slice, &mut buf).expect("encode failed");
+
+    // Decode
+    let mut decoded = [String::new(), String::new()];
+    let result = String::decode_slice_from(&mut decoded, &mut buf.as_mut_slice());
+
+    assert!(result.is_ok());
+    assert_eq!(decoded[0], "hello");
+    assert_eq!(decoded[1], "world");
+}
 
 #[test]
 fn test_string_decode_slice_propagates_decode_from_error() {
