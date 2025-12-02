@@ -122,3 +122,18 @@ where
         collection_zeroed(&mut self.iter().map(to_zeroization_probe_dyn_ref))
     }
 }
+
+// === === === === === === === === === ===
+// String
+// === === === === === === === === === ===
+impl Zeroizable for String {
+    fn self_zeroize(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizationProbe for String {
+    fn is_zeroized(&self) -> bool {
+        memutil::is_slice_zeroized(self.as_bytes())
+    }
+}

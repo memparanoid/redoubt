@@ -9,6 +9,18 @@ use super::support::utils::{is_zeroed_array, is_zeroed_slice, is_zeroed_vec};
 const SIZE: usize = (u16::MAX / 4) as usize;
 
 #[test]
+fn test_string() {
+    let mut s = "A".repeat(SIZE);
+
+    assert!(!s.is_zeroized());
+
+    s.self_zeroize();
+
+    assert!(s.is_zeroized());
+    assert!(is_zeroed_slice(s.as_bytes()));
+}
+
+#[test]
 fn test_vec() {
     let mut vec = Vec::<u8>::new();
     vec.resize_with(SIZE, || u8::MAX);
