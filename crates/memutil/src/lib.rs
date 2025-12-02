@@ -104,6 +104,26 @@ impl_le_conversions!(usize, 4, usize_from_le, usize_to_le);
 #[cfg(target_pointer_width = "64")]
 impl_le_conversions!(usize, 8, usize_from_le, usize_to_le);
 
+/// Verifies that a slice is zeroized.
+///
+/// Checks that all bytes in the slice are zero.
+///
+/// # Example
+///
+/// ```
+/// use memutil::is_slice_zeroized;
+///
+/// let zeroed = [0u8; 10];
+/// assert!(is_slice_zeroized(&zeroed));
+///
+/// let not_zeroed = [0u8, 1, 0, 0];
+/// assert!(!is_slice_zeroized(&not_zeroed));
+/// ```
+#[inline(always)]
+pub fn is_slice_zeroized(slice: &[u8]) -> bool {
+    slice.iter().all(|&b| b == 0)
+}
+
 /// Verifies that a `Vec<u8>` is fully zeroized, including spare capacity.
 ///
 /// This function checks **the entire allocation** (from index 0 to capacity),
