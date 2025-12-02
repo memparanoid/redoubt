@@ -4,8 +4,6 @@
 
 use crate::traits::{Zeroizable, ZeroizationProbe};
 
-use super::support::utils::{is_zeroed_array, is_zeroed_slice, is_zeroed_vec};
-
 const SIZE: usize = (u16::MAX / 4) as usize;
 
 #[test]
@@ -17,7 +15,7 @@ fn test_string() {
     s.self_zeroize();
 
     assert!(s.is_zeroized());
-    assert!(is_zeroed_slice(s.as_bytes()));
+    assert!(memutil::is_slice_zeroized(s.as_bytes()));
 }
 
 #[test]
@@ -35,7 +33,7 @@ fn test_vec() {
     vec.self_zeroize();
 
     assert!(vec.is_zeroized());
-    assert!(is_zeroed_vec(&vec));
+    assert!(memutil::is_vec_fully_zeroized(&vec));
 }
 
 #[test]
@@ -52,7 +50,7 @@ fn test_array() {
     array.self_zeroize();
 
     assert!(array.is_zeroized());
-    assert!(is_zeroed_array(&array));
+    assert!(memutil::is_slice_zeroized(&array));
 }
 
 #[test]
@@ -70,5 +68,5 @@ fn test_slice() {
     slice.self_zeroize();
 
     assert!(slice.is_zeroized());
-    assert!(is_zeroed_slice(slice));
+    assert!(memutil::is_slice_zeroized(slice));
 }
