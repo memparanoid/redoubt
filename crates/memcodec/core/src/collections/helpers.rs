@@ -8,7 +8,9 @@ use membuffer::Buffer;
 use zeroize::Zeroize;
 
 use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
-use crate::traits::{BytesRequired, CodecBuffer, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize};
+use crate::traits::{
+    BytesRequired, CodecBuffer, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize,
+};
 use crate::wrappers::Primitive;
 
 pub fn header_size() -> usize {
@@ -109,22 +111,30 @@ pub fn encode_fields<'a>(
     iter: impl Iterator<Item = &'a mut dyn EncodeZeroize>,
     buf: &mut Buffer,
 ) -> Result<(), EncodeError> {
-    let mut fields: Vec<&'a mut dyn EncodeZeroize> = iter.collect();
-
     let mut result = Ok(());
-    for field in fields.iter_mut() {
+
+    for field in iter {
+        if result.is_err() {
+            #[cfg(feature = "zeroize")]
+            {
+                field.codec_zeroize();
+            }
+
+            continue;
+        }
+
         if let Err(e) = field.encode_into(buf) {
             result = Err(e);
+
+            #[cfg(feature = "zeroize")]
+            {
+                field.codec_zeroize();
+                buf.zeroize();
+            }
+
+            #[cfg(not(feature = "zeroize"))]
             break;
         }
-    }
-
-    #[cfg(feature = "zeroize")]
-    if result.is_err() {
-        for field in fields.iter_mut() {
-            field.codec_zeroize();
-        }
-        buf.zeroize();
     }
 
     result
@@ -136,22 +146,30 @@ pub fn decode_fields<'a>(
     iter: impl Iterator<Item = &'a mut dyn DecodeZeroize>,
     buf: &mut &mut [u8],
 ) -> Result<(), DecodeError> {
-    let mut fields: Vec<&'a mut dyn DecodeZeroize> = iter.collect();
-
     let mut result = Ok(());
-    for field in fields.iter_mut() {
+
+    for field in iter {
+        if result.is_err() {
+            #[cfg(feature = "zeroize")]
+            {
+                field.codec_zeroize();
+            }
+
+            continue;
+        }
+
         if let Err(e) = field.decode_from(buf) {
             result = Err(e);
+
+            #[cfg(feature = "zeroize")]
+            {
+                field.codec_zeroize();
+                memutil::fast_zeroize_slice(*buf);
+            }
+
+            #[cfg(not(feature = "zeroize"))]
             break;
         }
-    }
-
-    #[cfg(feature = "zeroize")]
-    if result.is_err() {
-        for field in fields.iter_mut() {
-            field.codec_zeroize();
-        }
-        memutil::fast_zeroize_slice(*buf);
     }
 
     result
