@@ -4,6 +4,7 @@
 
 use memutil::is_vec_fully_zeroized;
 use memzer::AssertZeroizeOnDrop;
+use zeroize::Zeroize;
 
 use crate::allocked_vec::{AllockedVec, AllockedVecBehaviour, AllockedVecError};
 
@@ -452,4 +453,56 @@ fn test_as_capacity_mut_slice_allows_writing_beyond_len() {
     // Verify via as_capacity_slice
     let slice = vec.as_capacity_slice();
     assert_eq!(slice, &[1, 2, 3, 4, 5]);
+}
+
+#[test]
+fn test_set_len_restores_len_after_zeroize() {
+    let mut vec = AllockedVec::with_capacity(5);
+    vec.push(1u8).expect("Failed to push(1)");
+    vec.push(2u8).expect("Failed to push(2)");
+    vec.push(3u8).expect("Failed to push(3)");
+
+    assert_eq!(vec.len(), 3);
+
+    let old_len = vec.len();
+    vec.zeroize();
+
+    assert_eq!(vec.len(), 0);
+
+    // SAFETY: old_len <= capacity, elements are initialized (zeroized in place)
+    unsafe { vec.set_len(old_len) };
+
+    assert_eq!(vec.len(), 3);
+    assert_eq!(vec.as_slice(), &[0, 0, 0]); // Data was zeroized
+}
+
+#[test]
+fn test_set_len_can_shrink() {
+    let mut vec = AllockedVec::with_capacity(5);
+    vec.push(1u8).expect("Failed to push(1)");
+    vec.push(2u8).expect("Failed to push(2)");
+    vec.push(3u8).expect("Failed to push(3)");
+
+    // SAFETY: 1 <= len, elements at 0..1 are initialized
+    unsafe { vec.set_len(1) };
+
+    assert_eq!(vec.len(), 1);
+    assert_eq!(vec.as_slice(), &[1]);
+}
+
+#[test]
+fn test_set_len_can_grow_within_capacity() {
+    let mut vec = AllockedVec::with_capacity(5);
+    vec.push(1u8).expect("Failed to push(1)");
+    vec.push(2u8).expect("Failed to push(2)");
+
+    // Write to spare capacity first
+    vec.as_capacity_mut_slice()[2] = 3;
+    vec.as_capacity_mut_slice()[3] = 4;
+
+    // SAFETY: 4 <= capacity, elements at 0..4 are initialized
+    unsafe { vec.set_len(4) };
+
+    assert_eq!(vec.len(), 4);
+    assert_eq!(vec.as_slice(), &[1, 2, 3, 4]);
 }

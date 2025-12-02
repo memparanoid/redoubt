@@ -4,7 +4,6 @@
 
 use thiserror::Error;
 
-use memutil::fast_zeroize_vec;
 use memzer::{DropSentinel, MemZer, ZeroizationProbe};
 use zeroize::Zeroize;
 
@@ -132,6 +131,7 @@ impl memzer::Zeroizable for AllockedVecBehaviour {
 /// # example().unwrap();
 /// ```
 #[derive(Debug, MemZer)]
+#[cfg_attr(any(test, feature = "test_utils"), derive(Clone))]
 pub struct AllockedVec<T>
 where
     T: Zeroize + ZeroizationProbe,
@@ -143,9 +143,23 @@ where
     __drop_sentinel: DropSentinel,
 }
 
+#[cfg(any(test, feature = "test_utils"))]
+impl<T: PartialEq + Zeroize + ZeroizationProbe> PartialEq for AllockedVec<T> {
+    fn eq(&self, other: &Self) -> bool {
+        // Skip __drop_sentinel (metadata that changes during zeroization)
+        // Use `&` instead of `&&` to avoid branches and easier testing.
+        (self.inner == other.inner)
+            & (self.has_been_sealed == other.has_been_sealed)
+            & (self.behaviour == other.behaviour)
+    }
+}
+
+#[cfg(any(test, feature = "test_utils"))]
+impl<T: Eq + Zeroize + ZeroizationProbe> Eq for AllockedVec<T> {}
+
 impl<T: Zeroize + ZeroizationProbe> Zeroize for AllockedVec<T> {
     fn zeroize(&mut self) {
-        fast_zeroize_vec(&mut self.inner);
+        self.inner.zeroize();
         self.has_been_sealed.zeroize();
         #[cfg(any(test, feature = "test_utils"))]
         self.behaviour.zeroize();
@@ -655,6 +669,44 @@ where
     #[inline(always)]
     pub fn as_capacity_mut_slice(&mut self) -> &mut [T] {
         unsafe { core::slice::from_raw_parts_mut(self.inner.as_mut_ptr(), self.inner.capacity()) }
+    }
+
+    /// Sets the length of the vector without any checks.
+    ///
+    /// This is useful after operations like `zeroize()` that clear the vector's
+    /// length but preserve the underlying data, allowing the length to be restored.
+    ///
+    /// # Safety
+    ///
+    /// - `new_len` must be less than or equal to `capacity()`.
+    /// - Elements at indices `0..new_len` must be properly initialized.
+    /// - This method is only available with the `unsafe` feature.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use memalloc::AllockedVec;
+    /// use zeroize::Zeroize;
+    ///
+    /// let mut vec = AllockedVec::with_capacity(5);
+    /// vec.push(1u8).unwrap();
+    /// vec.push(2u8).unwrap();
+    /// assert_eq!(vec.len(), 2);
+    ///
+    /// let old_len = vec.len();
+    /// vec.zeroize();  // Sets len to 0
+    /// assert_eq!(vec.len(), 0);
+    ///
+    /// // SAFETY: old_len <= capacity and elements were zeroized in place
+    /// unsafe { vec.set_len(old_len) };
+    /// assert_eq!(vec.len(), 2);
+    /// assert_eq!(vec.as_slice(), &[0, 0]);  // Data was zeroized
+    /// ```
+    #[cfg(any(test, feature = "unsafe"))]
+    #[inline(always)]
+    pub unsafe fn set_len(&mut self, new_len: usize) {
+        debug_assert!(new_len <= self.capacity());
+        unsafe { self.inner.set_len(new_len) };
     }
 }
 
