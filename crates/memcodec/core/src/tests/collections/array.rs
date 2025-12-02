@@ -214,7 +214,7 @@ fn test_array_encode_decode_roundtrip() {
     // Assert zeroization!
     {
         assert!(buf.as_slice().iter().all(|&b| b == 0));
-        assert!(arr.iter().all(|tb| tb.is_zeroized()));
+        assert!(arr.is_zeroized());
     }
 }
 
@@ -248,9 +248,7 @@ fn perm_test_array_encode_into_propagates_error_at_any_position() {
         // Assert zeroization!
         {
             assert!(buf.is_zeroized());
-            assert!(arr_clone
-                .iter()
-                .all(|inner| inner.iter().all(|tb| tb.is_zeroized())));
+            assert!(arr_clone.is_zeroized());
         }
     });
 }
@@ -274,32 +272,39 @@ fn perm_test_array_decode_from_propagates_error_at_any_position() {
     recovered_arr[0][0].set_behaviour(TestBreakerBehaviour::ForceDecodeError);
 
     index_permutations(arr.len(), |idx_perm| {
+        // Encode
         let mut arr_clone = arr;
-        let mut recovered_arr_clone = recovered_arr;
-        apply_permutation(&mut recovered_arr_clone, idx_perm);
+        apply_permutation(&mut arr_clone, idx_perm);
 
         let mut buf = Buffer::new(bytes_required);
         arr_clone
             .encode_into(&mut buf)
             .expect("Failed to encode_into(..)");
 
-        let mut decode_vec = buf.as_slice().to_vec();
-        let mut decode_buf = decode_vec.as_mut_slice();
-        let result = recovered_arr_clone.decode_from(&mut decode_buf);
+        // Decode
+        {
+            let mut recovered_arr_clone = recovered_arr;
+            apply_permutation(&mut recovered_arr_clone, idx_perm);
 
-        assert!(result.is_err());
-        assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
+            let mut decode_buf = buf.as_mut_slice();
+            let result = recovered_arr_clone.decode_from(&mut decode_buf);
+
+            assert!(result.is_err());
+            assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
+
+            #[cfg(feature = "zeroize")]
+            // Assert zeroization!
+            {
+                assert!(decode_buf.is_zeroized());
+                assert!(recovered_arr_clone.is_zeroized());
+            }
+        }
 
         #[cfg(feature = "zeroize")]
         // Assert zeroization!
         {
-            assert!(decode_buf.is_zeroized());
-            assert!(arr_clone
-                .iter()
-                .all(|inner| inner.iter().all(|tb| tb.is_zeroized())));
-            assert!(recovered_arr_clone
-                .iter()
-                .all(|inner| inner.iter().all(|tb| tb.is_zeroized())));
+            assert!(buf.as_slice().iter().all(|&b| b == 0));
+            assert!(arr_clone.is_zeroized());
         }
     });
 }
@@ -351,9 +356,11 @@ fn perm_test_array_encode_decode_roundtrip() {
         // Assert zeroization!
         {
             assert!(buf.as_slice().iter().all(|&b| b == 0));
-            assert!(arr_clone
-                .iter()
-                .all(|inner| inner.iter().all(|tb| tb.is_zeroized())));
+            assert!(
+                arr_clone
+                    .iter()
+                    .all(|inner| inner.iter().all(|tb| tb.is_zeroized()))
+            );
         }
     });
 }
