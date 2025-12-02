@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use membuffer::Buffer;
+use memzer::ZeroizationProbe;
 
 use crate::traits::{BytesRequired, CodecBuffer, Decode, Encode};
 
@@ -19,10 +20,9 @@ pub(crate) fn test_collection_varying_capacities<T, C, F, G, H>(
     create_with_capacity: F,
     fill_from_slice: G,
     compare: H,
-)
-where
+) where
     T: Clone,
-    C: Encode + Decode + BytesRequired + Clone,
+    C: Encode + Decode + BytesRequired + Clone + ZeroizationProbe,
     F: Fn(usize) -> C,
     G: Fn(&mut C, &[T]),
     H: Fn(&C, &C) -> bool,
@@ -56,14 +56,25 @@ where
                 .write_slice(buf.as_slice().to_vec().as_mut_slice())
                 .expect("Failed to write_slice(..)");
 
+            let mut decode_buf = buf_clone.as_mut_slice();
             recovered
-                .decode_from(&mut buf_clone.as_mut_slice())
+                .decode_from(&mut decode_buf)
                 .expect("Failed to decode_from(..)");
 
             assert!(
                 compare(&original, &recovered),
                 "decoded collection must match original"
             );
+
+            #[cfg(feature = "zeroize")]
+            // Assert zeroization!
+            {
+                assert!(decode_buf.is_zeroized(), "buf must be zeroized after decode");
+                assert!(
+                    original_clone.is_zeroized(),
+                    "original must be zeroized after encode"
+                );
+            }
         }
     }
 }

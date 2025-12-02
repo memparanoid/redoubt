@@ -68,7 +68,6 @@ impl TryEncode for String {
 
         write_header(buf, &mut size, &mut bytes_required)?;
 
-        // SAFETY: We only read from the bytes, not modify them
         let bytes = unsafe { self.as_bytes_mut() };
         u8::encode_slice_into(bytes, buf)
     }

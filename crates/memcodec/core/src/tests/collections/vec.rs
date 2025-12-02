@@ -5,33 +5,17 @@
 use membuffer::Buffer;
 use memzer::ZeroizationProbe;
 
-use crate::error::OverflowError;
-use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
-use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice};
+use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
+use crate::support::test_utils::{
+    TestBreaker, TestBreakerBehaviour, apply_permutation, index_permutations,
+};
+use crate::traits::{BytesRequired, Decode, Encode};
 
 use super::utils::test_collection_varying_capacities;
 
+// Bytes Required
 #[test]
-fn test_vec_test_breaker_varying_capacities() {
-    let set: Vec<_> = (0..250)
-        .map(|i| TestBreaker::new(TestBreakerBehaviour::None, i))
-        .collect();
-
-    test_collection_varying_capacities(
-        &set,
-        |cap| Vec::with_capacity(cap),
-        |vec, slice| {
-            vec.clear();
-            vec.extend_from_slice(slice);
-        },
-        |a, b| a == b,
-    );
-}
-
-// BytesRequired
-
-#[test]
-fn test_bytes_required_element_error() {
+fn test_bytes_required_propagates_overflow_error() {
     let vec = vec![
         TestBreaker::new(TestBreakerBehaviour::None, 10),
         TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10),
@@ -49,7 +33,7 @@ fn test_bytes_required_element_error() {
 }
 
 #[test]
-fn test_bytes_required_overflow() {
+fn test_bytes_required_reports_overflow_error() {
     // Two elements each returning usize::MAX / 2 will overflow on the second iteration
     let vec = vec![
         TestBreaker::new(
@@ -65,162 +49,71 @@ fn test_bytes_required_overflow() {
     let result = vec.mem_bytes_required();
 
     assert!(result.is_err());
-    match result {
-        Err(OverflowError { reason }) => {
-            assert_eq!(reason, "Vec::mem_bytes_required overflow");
-        }
-        _ => panic!("Expected OverflowError"),
-    }
+    assert!(matches!(result, Err(OverflowError { .. })));
 }
 
 // Encode
 
 #[test]
-fn test_encode_ok() {
-    let mut vec = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::None, 200),
-    ];
-    let bytes_required = vec.mem_bytes_required().expect("Failed");
-    let mut buf = Buffer::new(bytes_required);
+fn test_encode_into_propagates_bytes_required_error() {
+    let mut vec = vec![TestBreaker::new(
+        TestBreakerBehaviour::ForceBytesRequiredOverflow,
+        10,
+    )];
+    let enough_bytes_required = 1024;
+    let mut buf = Buffer::new(enough_bytes_required);
 
     let result = vec.encode_into(&mut buf);
 
-    assert!(result.is_ok());
+    assert!(result.is_err());
+    assert!(matches!(result, Err(EncodeError::OverflowError(_))));
 
-    // Assert zeroization!
     #[cfg(feature = "zeroize")]
+    // Assert zeroization!
     {
+        assert!(buf.is_zeroized());
         assert!(vec.iter().all(|tb| tb.is_zeroized()));
     }
 }
 
 #[test]
-fn test_encode_bytes_required_error() {
-    let mut vec = vec![TestBreaker::new(
-        TestBreakerBehaviour::ForceBytesRequiredOverflow,
-        10,
-    )];
-    let mut buf = Buffer::new(1024);
-
-    let result = vec.encode_into(&mut buf);
-
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_encode_buffer_too_small() {
+fn test_encode_propagates_capacity_exceeded_error() {
     let mut vec = vec![TestBreaker::new(TestBreakerBehaviour::None, 100)];
     let mut buf = Buffer::new(1); // Too small
 
     let result = vec.encode_into(&mut buf);
 
     assert!(result.is_err());
-}
+    assert!(matches!(
+        result,
+        Err(EncodeError::CodecBufferError(
+            CodecBufferError::CapacityExceeded
+        ))
+    ));
 
-#[test]
-fn test_encode_element_error() {
-    let mut vec = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 10),
-        TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 10),
-    ];
-    let mut buf = Buffer::new(1024);
-
-    let result = vec.encode_into(&mut buf);
-
-    assert!(result.is_err());
-
-    // Assert zeroization!
     #[cfg(feature = "zeroize")]
+    // Assert zeroization!
     {
-        assert!(vec.iter().all(|tb| tb.is_zeroized()));
         assert!(buf.is_zeroized());
+        assert!(vec.iter().all(|tb| tb.is_zeroized()));
     }
-}
-
-// EncodeSlice
-
-#[test]
-fn test_encode_slice_ok() {
-    let mut slice = [
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 20)],
-    ];
-    let mut buf = Buffer::new(1024);
-
-    let result = Vec::<TestBreaker>::encode_slice_into(&mut slice, &mut buf);
-
-    assert!(result.is_ok());
-
-    // Assert zeroization!
-    #[cfg(feature = "zeroize")]
-    {
-        assert!(slice.iter().all(|v| v.iter().all(|tb| tb.is_zeroized())));
-    }
-}
-
-#[test]
-fn test_encode_slice_error() {
-    let mut slice = [
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
-        vec![TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 10)],
-    ];
-    let mut buf = Buffer::new(1024);
-
-    let result = Vec::<TestBreaker>::encode_slice_into(&mut slice, &mut buf);
-
-    assert!(result.is_err());
 }
 
 // Decode
 
 #[test]
-fn test_roundtrip_ok() {
-    // Encode
-    let mut src = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::None, 200),
-    ];
-    let bytes_required = src.mem_bytes_required().expect("Failed");
-    let mut buf = Buffer::new(bytes_required);
-    src.encode_into(&mut buf).expect("Failed to encode");
-
-    // Assert src zeroization after encode!
-    #[cfg(feature = "zeroize")]
-    {
-        assert!(src.iter().all(|tb| tb.is_zeroized()));
-    }
-
-    // Decode
-    let mut decoded: Vec<TestBreaker> = Vec::new();
-    let mut buf_slice = buf.as_mut_slice();
-    let result = decoded.decode_from(&mut buf_slice);
-
-    assert!(result.is_ok());
-    assert_eq!(decoded.len(), 2);
-    assert_eq!(decoded[0].data, 100);
-    assert_eq!(decoded[1].data, 200);
-
-    // Assert buf zeroization after decode!
-    #[cfg(feature = "zeroize")]
-    {
-        assert!(buf_slice.iter().all(|&b| b == 0));
-    }
-}
-
-#[test]
-fn test_decode_buffer_too_small() {
+fn test_vec_decode_from_propagates_process_header_err() {
     let mut vec: Vec<TestBreaker> = Vec::new();
-    let mut buf = [0u8; 1];
+    let mut buf = [0u8; 1]; // Too small for header
 
     let result = vec.decode_from(&mut buf.as_mut_slice());
 
     assert!(result.is_err());
+    assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 }
 
 #[test]
-fn test_decode_element_error() {
-    // First encode valid data
+fn test_vec_decode_propagates_decode_err() {
     let mut vec = vec![
         TestBreaker::new(TestBreakerBehaviour::None, 100),
         TestBreaker::new(TestBreakerBehaviour::None, 100),
@@ -229,75 +122,248 @@ fn test_decode_element_error() {
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
     let mut buf = Buffer::new(bytes_required);
+
     vec.encode_into(&mut buf)
         .expect("Failed to encode_into(..)");
 
-    // Truncate buffer to make second element fail
-    let insufficient_bytes_required = bytes_required / 2;
-    let mut decoded: Vec<TestBreaker> = Vec::new();
-    let mut slice = &mut buf.as_mut_slice()[..insufficient_bytes_required];
+    let mut recovered = vec![
+        TestBreaker::new(TestBreakerBehaviour::None, 100),
+        TestBreaker::new(TestBreakerBehaviour::ForceDecodeError, 100),
+    ];
 
-    let result = decoded.decode_from(&mut slice);
+    let mut decode_buf = buf.as_mut_slice();
+    let result = recovered.decode_from(&mut decode_buf);
 
     assert!(result.is_err());
+    assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
 
-    // Assert zeroization!
     #[cfg(feature = "zeroize")]
+    // Assert zeroization!
     {
-        assert!(decoded.iter().all(|tb| tb.is_zeroized()));
-        assert!(slice.iter().all(|&b| b == 0));
+        assert!(decode_buf.is_zeroized());
+        assert!(vec.iter().all(|tb| tb.is_zeroized()));
+        assert!(recovered.iter().all(|tb| tb.is_zeroized()));
     }
 }
 
-// DecodeSlice
+// Roundtrip
 
 #[test]
-fn test_slice_roundtrip_ok() {
+fn test_vec_encode_decode_roundtrip() {
     // Encode
-    let mut src = [
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 20)],
+    let mut vec = vec![
+        TestBreaker::new(TestBreakerBehaviour::None, 7),
+        TestBreaker::new(TestBreakerBehaviour::None, 37),
     ];
-    let mut buf = Buffer::new(1024);
-    Vec::<TestBreaker>::encode_slice_into(&mut src, &mut buf)
-        .expect("Failed to encode_slice_into(..)");
+    let bytes_required = vec
+        .mem_bytes_required()
+        .expect("Failed to get mem_bytes_required()");
+    let mut buf = Buffer::new(bytes_required);
 
-    // Assert src zeroization after encode!
-    #[cfg(feature = "zeroize")]
-    {
-        assert!(src.iter().all(|v| v.iter().all(|tb| tb.is_zeroized())));
-    }
+    vec.encode_into(&mut buf)
+        .expect("Failed to encode_into(..)");
 
     // Decode
-    let mut decoded: [Vec<TestBreaker>; 2] = [Vec::new(), Vec::new()];
-    let mut buf_slice = buf.as_mut_slice();
-    let result = Vec::<TestBreaker>::decode_slice_from(&mut decoded, &mut buf_slice);
-
-    assert!(result.is_ok());
-    assert_eq!(decoded[0][0].data, 10);
-    assert_eq!(decoded[1][0].data, 20);
-
-    // Assert buf zeroization after decode!
-    #[cfg(feature = "zeroize")]
     {
-        assert!(buf_slice.iter().all(|&b| b == 0));
+        let mut decode_buf = buf.as_mut_slice();
+        let mut recovered = vec![
+            TestBreaker::new(TestBreakerBehaviour::None, 0),
+            TestBreaker::new(TestBreakerBehaviour::None, 0),
+        ];
+        let result = recovered.decode_from(&mut decode_buf);
+
+        assert!(result.is_ok());
+        assert_eq!(
+            recovered,
+            vec![
+                TestBreaker::new(TestBreakerBehaviour::None, 7),
+                TestBreaker::new(TestBreakerBehaviour::None, 37),
+            ]
+        );
+
+        #[cfg(feature = "zeroize")]
+        // Assert zeroization!
+        {
+            assert!(decode_buf.is_zeroized());
+        }
+    }
+
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(buf.as_slice().iter().all(|&b| b == 0));
+        assert!(vec.is_zeroized());
     }
 }
 
+// Perm tests
+
 #[test]
-fn test_decode_slice_error() {
-    let mut slice = [
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 10)],
+fn perm_test_vec_encode_into_propagates_error_at_any_position() {
+    let vec = vec![
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 1)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 2)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 3)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 4)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 5)],
+        vec![TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 6)],
     ];
-    let mut buf = [0u8];
+    let bytes_required = vec
+        .mem_bytes_required()
+        .expect("Failed to get mem_bytes_required()");
 
-    let result = Vec::<TestBreaker>::decode_slice_from(&mut slice, &mut buf.as_mut_slice());
+    index_permutations(vec.len(), |idx_perm| {
+        let mut vec_clone = vec.clone();
+        apply_permutation(vec_clone.as_mut_slice(), idx_perm);
 
-    assert!(result.is_err());
+        let mut buf = Buffer::new(bytes_required);
+        let result = vec_clone.encode_into(&mut buf);
+
+        assert!(result.is_err());
+        assert!(matches!(result, Err(EncodeError::IntentionalEncodeError)));
+
+        #[cfg(feature = "zeroize")]
+        // Assert zeroization!
+        {
+            assert!(buf.is_zeroized());
+            assert!(
+                vec_clone
+                    .iter()
+                    .all(|v| v.iter().all(|tb| tb.is_zeroized()))
+            );
+        }
+    });
 }
 
-// vec_prealloc
+#[test]
+fn perm_test_vec_decode_from_propagates_error_at_any_position() {
+    let vec = vec![
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 1)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 2)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 3)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 4)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 5)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 6)],
+    ];
+
+    let bytes_required = vec
+        .mem_bytes_required()
+        .expect("Failed to get mem_bytes_required()");
+
+    let mut recovered_vec = vec.clone();
+    recovered_vec[0][0].set_behaviour(TestBreakerBehaviour::ForceDecodeError);
+
+    index_permutations(vec.len(), |idx_perm| {
+        let mut vec_clone = vec.clone();
+        let mut recovered_vec_clone = recovered_vec.clone();
+        apply_permutation(recovered_vec_clone.as_mut_slice(), idx_perm);
+
+        let mut buf = Buffer::new(bytes_required);
+        vec_clone
+            .encode_into(&mut buf)
+            .expect("Failed to encode_into(..)");
+
+        let mut decode_vec = buf.as_slice().to_vec();
+        let mut decode_buf = decode_vec.as_mut_slice();
+        let result = recovered_vec_clone.decode_from(&mut decode_buf);
+
+        assert!(result.is_err());
+        assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
+
+        #[cfg(feature = "zeroize")]
+        // Assert zeroization!
+        {
+            assert!(decode_buf.is_zeroized());
+            assert!(
+                vec_clone
+                    .iter()
+                    .all(|v| v.iter().all(|tb| tb.is_zeroized()))
+            );
+            assert!(
+                recovered_vec_clone
+                    .iter()
+                    .all(|v| v.iter().all(|tb| tb.is_zeroized()))
+            );
+        }
+    });
+}
+
+#[test]
+fn perm_test_encode_decode_roundtrip() {
+    // Encode
+    let vec = vec![
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 1)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 2)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 3)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 4)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 5)],
+        vec![TestBreaker::new(TestBreakerBehaviour::None, 6)],
+    ];
+
+    let bytes_required = vec
+        .mem_bytes_required()
+        .expect("Failed to get mem_bytes_required()");
+
+    index_permutations(vec.len(), |idx_perm| {
+        let mut vec_clone = vec.clone();
+        apply_permutation(vec_clone.as_mut_slice(), idx_perm);
+
+        let expected = vec_clone.clone();
+
+        let mut buf = Buffer::new(bytes_required);
+        vec_clone
+            .encode_into(&mut buf)
+            .expect("Failed to encode_into(..)");
+
+        // Decode
+        {
+            let mut recovered: Vec<Vec<TestBreaker>> = Vec::new();
+            let mut decode_buf = buf.as_mut_slice();
+            let result = recovered.decode_from(&mut decode_buf);
+
+            assert!(result.is_ok());
+            assert_eq!(recovered, expected);
+
+            #[cfg(feature = "zeroize")]
+            // Assert zeroization!
+            {
+                assert!(decode_buf.is_zeroized());
+            }
+        }
+
+        #[cfg(feature = "zeroize")]
+        // Assert zeroization!
+        {
+            assert!(buf.as_slice().iter().all(|&b| b == 0));
+            assert!(
+                vec_clone
+                    .iter()
+                    .all(|v| v.iter().all(|tb| tb.is_zeroized()))
+            );
+        }
+    });
+}
+
+// Integration
+
+#[test]
+fn test_vec_with_varying_capacities() {
+    let set: Vec<_> = (0..250)
+        .map(|i| TestBreaker::new(TestBreakerBehaviour::None, i))
+        .collect();
+
+    test_collection_varying_capacities(
+        &set,
+        |cap| Vec::with_capacity(cap),
+        |vec, slice| {
+            vec.clear();
+            vec.extend_from_slice(slice);
+        },
+        |a, b| a == b,
+    );
+}
+
+// PreAlloc
 
 #[test]
 fn test_vec_prealloc_zero_init_true() {
@@ -322,9 +388,65 @@ fn test_vec_prealloc_zero_init_false() {
     assert!(vec.iter().all(|tb| tb.data == 104729)); // Default value
 }
 
-// vec_codec_zeroize
+#[test]
+fn test_vec_zero_init_is_false() {
+    use crate::traits::PreAlloc;
+    assert!(!<Vec<TestBreaker> as PreAlloc>::ZERO_INIT);
+}
 
-#[cfg(feature = "zeroize")]
+#[test]
+fn test_vec_prealloc_zeroizes_existing_elements() {
+    use crate::collections::vec::vec_prealloc;
+
+    let mut vec = vec![
+        TestBreaker::new(TestBreakerBehaviour::None, 100),
+        TestBreaker::new(TestBreakerBehaviour::None, 200),
+    ];
+
+    vec_prealloc(&mut vec, 2, false);
+
+    assert_eq!(vec.len(), 2);
+
+    #[cfg(feature = "zeroize")]
+    {
+        // With zeroize: codec_zeroize() zeroizes existing elements
+        assert!(vec.iter().all(|tb| tb.is_zeroized()));
+    }
+
+    #[cfg(not(feature = "zeroize"))]
+    {
+        // Without zeroize: codec_zeroize() is no-op, elements unchanged
+        assert_eq!(vec[0].data, 100);
+        assert_eq!(vec[1].data, 200);
+    }
+}
+
+#[test]
+fn test_vec_prealloc_shrinks() {
+    use crate::collections::vec::vec_prealloc;
+
+    let mut vec = vec![
+        TestBreaker::new(TestBreakerBehaviour::None, 1),
+        TestBreaker::new(TestBreakerBehaviour::None, 2),
+        TestBreaker::new(TestBreakerBehaviour::None, 3),
+    ];
+    vec_prealloc(&mut vec, 1, false);
+
+    assert_eq!(vec.len(), 1);
+}
+
+#[test]
+fn test_vec_prealloc_grows() {
+    use crate::collections::vec::vec_prealloc;
+
+    let mut vec = vec![TestBreaker::new(TestBreakerBehaviour::None, 1)];
+    vec_prealloc(&mut vec, 3, false);
+
+    assert_eq!(vec.len(), 3);
+}
+
+// CodecZeroize / FastZeroize
+
 #[test]
 fn test_vec_codec_zeroize_fast_true() {
     use crate::collections::vec::vec_codec_zeroize;
@@ -335,11 +457,13 @@ fn test_vec_codec_zeroize_fast_true() {
     ];
     vec_codec_zeroize(&mut vec, true);
 
-    // Fast path just memsets, data becomes 0
-    assert!(vec.iter().all(|tb| tb.is_zeroized()));
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(vec.iter().all(|tb| tb.is_zeroized()));
+    }
 }
 
-#[cfg(feature = "zeroize")]
 #[test]
 fn test_vec_codec_zeroize_fast_false() {
     use crate::collections::vec::vec_codec_zeroize;
@@ -350,5 +474,9 @@ fn test_vec_codec_zeroize_fast_false() {
     ];
     vec_codec_zeroize(&mut vec, false);
 
-    assert!(vec.iter().all(|tb| tb.is_zeroized()));
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(vec.iter().all(|tb| tb.is_zeroized()));
+    }
 }

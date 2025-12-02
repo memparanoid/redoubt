@@ -12,7 +12,7 @@ use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, Pre
 use crate::traits::{CodecZeroize, FastZeroize};
 
 /// Behavior control for error injection testing in memcodec.
-#[derive(Debug, Clone, PartialEq, Eq, Zeroize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Zeroize)]
 pub enum TestBreakerBehaviour {
     /// Normal behavior (no error injection).
     None,
@@ -35,12 +35,18 @@ impl Default for TestBreakerBehaviour {
 }
 
 /// Test fixture for error injection and edge case testing in memcodec.
-#[derive(Debug, Clone, Zeroize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct TestBreaker {
     /// Controls error injection behavior.
     pub behaviour: TestBreakerBehaviour,
     /// Test data.
     pub data: usize,
+}
+
+impl Zeroize for TestBreaker {
+    fn zeroize(&mut self) {
+        self.data.zeroize();
+    }
 }
 
 impl Default for TestBreaker {
@@ -103,14 +109,6 @@ impl Decode for TestBreaker {
     }
 }
 
-impl PartialEq for TestBreaker {
-    fn eq(&self, other: &Self) -> bool {
-        self.data == other.data
-    }
-}
-
-impl Eq for TestBreaker {}
-
 impl EncodeSlice for TestBreaker {
     fn encode_slice_into(slice: &mut [Self], buf: &mut Buffer) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {
@@ -146,13 +144,14 @@ impl FastZeroize for TestBreaker {
 #[cfg(feature = "zeroize")]
 impl CodecZeroize for TestBreaker {
     fn codec_zeroize(&mut self) {
-        self.behaviour = TestBreakerBehaviour::None;
-        self.data.zeroize();
+        // behaviour is test metadata, not sensitive data
+        self.zeroize();
     }
 }
 
 impl ZeroizationProbe for TestBreaker {
     fn is_zeroized(&self) -> bool {
-        (self.behaviour == TestBreakerBehaviour::None) & (self.data == 0)
+        // behaviour is test metadata, not part of zeroization check
+        self.data == 0
     }
 }

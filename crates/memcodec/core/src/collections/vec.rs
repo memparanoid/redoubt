@@ -32,7 +32,7 @@ fn cleanup_encode_error<T: FastZeroize + CodecZeroize>(vec: &mut Vec<T>, buf: &m
 #[inline(never)]
 fn cleanup_decode_error<T: FastZeroize + CodecZeroize>(vec: &mut Vec<T>, buf: &mut &mut [u8]) {
     vec.codec_zeroize();
-    memutil::fast_zeroize_slice(*buf);
+    buf.zeroize();
 }
 
 impl<T> BytesRequired for Vec<T>
@@ -81,12 +81,8 @@ where
         let result = self.try_encode_into(buf);
 
         #[cfg(feature = "zeroize")]
-        {
-            if result.is_err() {
-                cleanup_encode_error(self, buf);
-            } else {
-                self.codec_zeroize();
-            }
+        if result.is_err() {
+            cleanup_encode_error(self, buf);
         }
 
         result
@@ -152,19 +148,25 @@ where
 }
 
 #[inline(always)]
-pub(crate) fn vec_prealloc<T: PreAlloc>(vec: &mut Vec<T>, size: usize, zero_init: bool) {
-    vec.clear();
+pub(crate) fn vec_prealloc<T: PreAlloc + CodecZeroize + FastZeroize>(
+    vec: &mut Vec<T>,
+    size: usize,
+    zero_init: bool,
+) {
+    vec.codec_zeroize();
+
     if zero_init {
         vec.shrink_to_fit();
         vec.reserve_exact(size);
         memutil::fast_zeroize_vec(vec);
+
         unsafe { vec.set_len(size) };
     } else {
         vec.resize_with(size, Default::default);
     }
 }
 
-impl<T: PreAlloc> PreAlloc for Vec<T> {
+impl<T: PreAlloc + CodecZeroize + FastZeroize> PreAlloc for Vec<T> {
     /// Vec can NEVER be zero-initialized (has ptr/len/capacity).
     const ZERO_INIT: bool = false;
 

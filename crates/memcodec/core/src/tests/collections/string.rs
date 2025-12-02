@@ -9,13 +9,13 @@ use memzer::ZeroizationProbe;
 use crate::collections::helpers::header_size;
 use crate::collections::string::string_bytes_required;
 use crate::error::{CodecBufferError, OverflowError};
-use crate::tests::primitives::utils::{equidistant_unsigned, EQUIDISTANT_SAMPLE_SIZE};
+use crate::tests::primitives::utils::{EQUIDISTANT_SAMPLE_SIZE, equidistant_unsigned};
 use crate::traits::{Decode, DecodeSlice, Encode, EncodeSlice, TryDecode, TryEncode};
-use crate::{DecodeError, EncodeError};
+use crate::{BytesRequired, DecodeError, EncodeError};
 
 use super::utils::test_collection_varying_capacities;
 
-// string_bytes_required
+// Bytes Required
 
 #[test]
 fn test_string_bytes_required_ok() {
@@ -49,7 +49,9 @@ fn test_string_try_encode_propagates_write_header_error() {
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
+        Err(EncodeError::CodecBufferError(
+            CodecBufferError::CapacityExceeded
+        ))
     ));
 }
 
@@ -63,7 +65,46 @@ fn test_string_try_encode_propagates_encode_slice_error() {
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
+        Err(EncodeError::CodecBufferError(
+            CodecBufferError::CapacityExceeded
+        ))
+    ));
+}
+
+// EncodeSlice
+
+#[test]
+fn test_string_encode_slice_ok() {
+    let mut s_slice = [String::from("hello"), String::from("world")];
+    let buf_size = s_slice
+        .mem_bytes_required()
+        .expect("Failed to get mem_bytes_required()");
+    let mut buf = Buffer::new(buf_size);
+
+    let result = String::encode_slice_into(&mut s_slice, &mut buf);
+
+    assert!(result.is_ok());
+
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(s_slice.iter().all(|s| s.is_zeroized()));
+    }
+}
+
+#[test]
+fn test_string_encode_slice_propagates_encode_into_error() {
+    let mut s_slice = [String::from("hello"), String::from("world")];
+    let mut buf = Buffer::new(1); // Too small
+
+    let result = String::encode_slice_into(&mut s_slice, &mut buf);
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(EncodeError::CodecBufferError(
+            CodecBufferError::CapacityExceeded
+        ))
     ));
 }
 
@@ -80,48 +121,36 @@ fn test_string_encode_into_propagates_try_encode_into_error() {
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
+        Err(EncodeError::CodecBufferError(
+            CodecBufferError::CapacityExceeded
+        ))
     ));
 
-    // Assert zeroization!
     #[cfg(feature = "zeroize")]
+    // Assert zeroization!
     {
-        assert!(s.is_empty());
         assert!(buf.is_zeroized());
+        assert!(s.is_zeroized());
     }
 }
 
-// EncodeSlice
-
 #[test]
-fn test_string_encode_slice_ok() {
-    let mut src = [String::from("hello"), String::from("world")];
-    let buf_size = 2 * header_size() + 5 + 5; // 2 headers + "hello" + "world"
-    let mut buf = Buffer::new(buf_size);
+fn test_string_encode_ok() {
+    let mut s = String::from("hello world");
+    let bytes_required = s
+        .mem_bytes_required()
+        .expect("Failed to get mem_bytes_required()");
+    let mut buf = Buffer::new(bytes_required);
 
-    let result = String::encode_slice_into(&mut src, &mut buf);
+    let result = s.encode_into(&mut buf);
 
     assert!(result.is_ok());
 
-    // Assert zeroization!
     #[cfg(feature = "zeroize")]
+    // Assert zeroization!
     {
-        assert!(src.iter().all(|s| s.is_empty()));
+        assert!(s.is_zeroized());
     }
-}
-
-#[test]
-fn test_string_encode_slice_propagates_encode_into_error() {
-    let mut slice = [String::from("hello"), String::from("world")];
-    let mut buf = Buffer::new(1); // Too small
-
-    let result = String::encode_slice_into(&mut slice, &mut buf);
-
-    assert!(result.is_err());
-    assert!(matches!(
-        result,
-        Err(EncodeError::CodecBufferError(CodecBufferError::CapacityExceeded))
-    ));
 }
 
 // TryDecode
@@ -139,9 +168,12 @@ fn test_string_try_decode_propagates_process_header_error() {
 
 #[test]
 fn test_string_try_decode_utf8_validation_error() {
-    // Encode valid string
     let mut s = String::from("hello");
-    let mut buf = Buffer::new(header_size() + s.len());
+    let bytes_required = s
+        .mem_bytes_required()
+        .expect("Failed to get mem_bytes_required()");
+    let mut buf = Buffer::new(bytes_required);
+
     s.encode_into(&mut buf).expect("encode failed");
 
     // Corrupt buffer with invalid UTF-8 (0xFF is never valid)
@@ -156,69 +188,106 @@ fn test_string_try_decode_utf8_validation_error() {
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 }
 
+// DecodeSlice
+
+#[test]
+fn test_string_slice_roundtrip_ok() {
+    // Encode
+    let mut s_slice = [String::from("hello"), String::from("world")];
+    let bytes_required = s_slice
+        .mem_bytes_required()
+        .expect("Failed to get mem_bytes_required()");
+    let mut buf = Buffer::new(bytes_required);
+
+    String::encode_slice_into(&mut s_slice, &mut buf).expect("encode failed");
+
+    // Decode
+    let mut decoded = [String::new(), String::new()];
+    let mut decode_buf = buf.as_mut_slice();
+    let result = String::decode_slice_from(&mut decoded, &mut decode_buf);
+
+    assert!(result.is_ok());
+    assert_eq!(decoded[0], "hello");
+    assert_eq!(decoded[1], "world");
+
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(s_slice.is_zeroized());
+        assert!(decode_buf.iter().all(|&b| b == 0));
+    }
+}
+
+#[test]
+fn test_string_decode_slice_propagates_decode_from_error() {
+    let mut s_slice = [String::from("existing"), String::from("data")];
+    let mut buf = [0u8; 1]; // Too small
+    let mut decode_buf = buf.as_mut_slice();
+
+    let result = String::decode_slice_from(&mut s_slice, &mut decode_buf);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+}
+
 // Decode
 
 #[test]
 fn test_string_decode_from_propagates_try_decode_from_error() {
     // Start with a string with data to verify zeroization
     let mut s = String::from("existing data");
-    let mut buf = [0u8; 1]; // Too small for header
-    let mut slice = buf.as_mut_slice();
 
-    let result = s.decode_from(&mut slice);
+    let mut buf = [0u8; 1]; // Too small for header
+    let mut decode_buf = buf.as_mut_slice();
+    let result = s.decode_from(&mut decode_buf);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 
-    // Assert zeroization!
     #[cfg(feature = "zeroize")]
+    // Assert zeroization!
     {
-        assert!(s.is_empty());
-        assert!(slice.iter().all(|&b| b == 0));
+        assert!(s.is_zeroized());
+        assert!(decode_buf.iter().all(|&b| b == 0));
     }
 }
 
-// DecodeSlice
+// Roundtrip (this includes test_string_decode_from_ok)
 
 #[test]
-fn test_string_slice_roundtrip_ok() {
+fn test_string_roundtrip_ok() {
     // Encode
-    let mut src = [String::from("hello"), String::from("world")];
-    let buf_size = 2 * header_size() + 5 + 5;
-    let mut buf = Buffer::new(buf_size);
-    String::encode_slice_into(&mut src, &mut buf).expect("encode failed");
+    let mut s = String::from("hello world");
+    let bytes_required = s
+        .mem_bytes_required()
+        .expect("Failed to get mem_bytes_required()");
+    let mut buf = Buffer::new(bytes_required);
 
-    // Assert src zeroization after encode!
-    #[cfg(feature = "zeroize")]
-    {
-        assert!(src.iter().all(|s| s.is_empty()));
-    }
+    s.encode_into(&mut buf).expect("encode failed");
 
     // Decode
-    let mut decoded = [String::new(), String::new()];
-    let mut buf_slice = buf.as_mut_slice();
-    let result = String::decode_slice_from(&mut decoded, &mut buf_slice);
-
-    assert!(result.is_ok());
-    assert_eq!(decoded[0], "hello");
-    assert_eq!(decoded[1], "world");
-
-    // Assert buf zeroization after decode!
-    #[cfg(feature = "zeroize")]
     {
-        assert!(buf_slice.iter().all(|&b| b == 0));
+        let mut decoded = String::new();
+
+        let mut decode_buf = buf.as_mut_slice();
+        let result = decoded.decode_from(&mut decode_buf);
+
+        assert!(result.is_ok());
+        assert_eq!(decoded, "hello world");
+
+        #[cfg(feature = "zeroize")]
+        // Assert zeroization!
+        {
+            assert!(decode_buf.iter().all(|&b| b == 0));
+        }
     }
-}
 
-#[test]
-fn test_string_decode_slice_propagates_decode_from_error() {
-    let mut slice = [String::from("existing"), String::from("data")];
-    let mut buf = [0u8; 1]; // Too small
-
-    let result = String::decode_slice_from(&mut slice, &mut buf.as_mut_slice());
-
-    assert!(result.is_err());
-    assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(buf.as_slice().iter().all(|&b| b == 0));
+        assert!(s.is_zeroized());
+    }
 }
 
 // Integration test
