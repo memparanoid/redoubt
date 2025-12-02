@@ -54,6 +54,26 @@ fn test_bytes_required_overflow() {
 // Encode
 
 #[test]
+fn test_encode_ok() {
+    let mut arr = [
+        TestBreaker::new(TestBreakerBehaviour::None, 100),
+        TestBreaker::new(TestBreakerBehaviour::None, 200),
+    ];
+    let bytes_required = arr.mem_bytes_required().expect("Failed");
+    let mut buf = Buffer::new(bytes_required);
+
+    let result = arr.encode_into(&mut buf);
+
+    assert!(result.is_ok());
+
+    // Assert zeroization!
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(arr.iter().all(|tb| tb.is_zeroized()));
+    }
+}
+
+#[test]
 fn test_encode_bytes_required_error() {
     let mut arr = [TestBreaker::new(
         TestBreakerBehaviour::ForceBytesRequiredOverflow,
@@ -100,15 +120,21 @@ fn test_encode_element_error() {
 
 #[test]
 fn test_encode_slice_ok() {
-    let mut slice = [
-        [TestBreaker::new(TestBreakerBehaviour::None, 10)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 10)],
+    let mut src = [
+        TestBreaker::new(TestBreakerBehaviour::None, 10),
+        TestBreaker::new(TestBreakerBehaviour::None, 20),
     ];
     let mut buf = Buffer::new(1024);
 
-    let result = <[TestBreaker; 1]>::encode_slice_into(&mut slice, &mut buf);
+    let result = TestBreaker::encode_slice_into(&mut src, &mut buf);
 
     assert!(result.is_ok());
+
+    // Assert zeroization!
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(src.iter().all(|tb| tb.is_zeroized()));
+    }
 }
 
 #[test]
@@ -125,6 +151,39 @@ fn test_encode_slice_propagates_encode_into_error() {
 }
 
 // Decode
+
+#[test]
+fn test_roundtrip_ok() {
+    // Encode
+    let mut src = [
+        TestBreaker::new(TestBreakerBehaviour::None, 100),
+        TestBreaker::new(TestBreakerBehaviour::None, 200),
+    ];
+    let bytes_required = src.mem_bytes_required().expect("Failed");
+    let mut buf = Buffer::new(bytes_required);
+    src.encode_into(&mut buf).expect("Failed to encode");
+
+    // Assert src zeroization after encode!
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(src.iter().all(|tb| tb.is_zeroized()));
+    }
+
+    // Decode
+    let mut decoded = [TestBreaker::default(), TestBreaker::default()];
+    let mut buf_slice = buf.as_mut_slice();
+    let result = decoded.decode_from(&mut buf_slice);
+
+    assert!(result.is_ok());
+    assert_eq!(decoded[0].data, 100);
+    assert_eq!(decoded[1].data, 200);
+
+    // Assert buf zeroization after decode!
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(buf_slice.iter().all(|&b| b == 0));
+    }
+}
 
 #[test]
 fn test_decode_buffer_too_small() {
@@ -189,22 +248,35 @@ fn test_decode_element_error() {
 // DecodeSlice
 
 #[test]
-fn test_decode_slice_ok() {
-    // First encode valid data
-    let mut slice = [
-        [TestBreaker::new(TestBreakerBehaviour::None, 10)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 10)],
+fn test_slice_roundtrip_ok() {
+    // Encode
+    let mut src = [
+        TestBreaker::new(TestBreakerBehaviour::None, 10),
+        TestBreaker::new(TestBreakerBehaviour::None, 20),
     ];
     let mut buf = Buffer::new(1024);
-    <[TestBreaker; 1]>::encode_slice_into(&mut slice, &mut buf)
-        .expect("Failed to encode_slice_into(..)");
+    TestBreaker::encode_slice_into(&mut src, &mut buf).expect("Failed to encode");
+
+    // Assert src zeroization after encode!
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(src.iter().all(|tb| tb.is_zeroized()));
+    }
 
     // Decode
-    let mut decoded: [[TestBreaker; 1]; 2] = [[TestBreaker::default()], [TestBreaker::default()]];
-
-    let result = <[TestBreaker; 1]>::decode_slice_from(&mut decoded, &mut buf.as_mut_slice());
+    let mut decoded = [TestBreaker::default(), TestBreaker::default()];
+    let mut buf_slice = buf.as_mut_slice();
+    let result = TestBreaker::decode_slice_from(&mut decoded, &mut buf_slice);
 
     assert!(result.is_ok());
+    assert_eq!(decoded[0].data, 10);
+    assert_eq!(decoded[1].data, 20);
+
+    // Assert buf zeroization after decode!
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(buf_slice.iter().all(|&b| b == 0));
+    }
 }
 
 #[test]

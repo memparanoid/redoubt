@@ -186,26 +186,34 @@ fn test_decode_element_error() {
 // DecodeSlice
 
 #[test]
-fn test_decode_slice_ok() {
-    // First encode valid data
+fn test_slice_roundtrip_ok() {
+    // Encode
     let mut vec1 = AllockedVec::with_capacity(1);
     vec1.push(TestBreaker::new(TestBreakerBehaviour::None, 10))
         .expect("Failed to push(..)");
     let mut vec2 = AllockedVec::with_capacity(1);
-    vec2.push(TestBreaker::new(TestBreakerBehaviour::None, 10))
+    vec2.push(TestBreaker::new(TestBreakerBehaviour::None, 20))
         .expect("Failed to push(..)");
-    let mut slice = [vec1, vec2];
+    let mut src = [vec1, vec2];
     let mut buf = Buffer::new(1024);
-    AllockedVec::<TestBreaker>::encode_slice_into(&mut slice, &mut buf)
+    AllockedVec::<TestBreaker>::encode_slice_into(&mut src, &mut buf)
         .expect("Failed to encode_slice_into(..)");
+
+    // Assert src zeroization after encode!
+    assert!(src.iter().all(|v| v.iter().all(|tb| tb.is_zeroized())));
 
     // Decode
     let mut decoded: [AllockedVec<TestBreaker>; 2] = [AllockedVec::new(), AllockedVec::new()];
+    let mut buf_slice = buf.as_mut_slice();
 
-    let result =
-        AllockedVec::<TestBreaker>::decode_slice_from(&mut decoded, &mut buf.as_mut_slice());
+    let result = AllockedVec::<TestBreaker>::decode_slice_from(&mut decoded, &mut buf_slice);
 
     assert!(result.is_ok());
+    assert_eq!(decoded[0][0].data, 10);
+    assert_eq!(decoded[1][0].data, 20);
+
+    // Assert buf zeroization after decode!
+    assert!(buf_slice.iter().all(|&b| b == 0));
 }
 
 #[test]

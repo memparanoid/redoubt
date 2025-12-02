@@ -126,6 +126,13 @@ fn test_encode_fields_ok() {
     let result = encode_fields(refs.into_iter(), &mut buf);
 
     assert!(result.is_ok());
+
+    // Assert zeroization!
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(tb1.is_zeroized());
+        assert!(tb2.is_zeroized());
+    }
 }
 
 #[test]
@@ -155,8 +162,8 @@ fn test_encode_fields_propagates_error() {
 // decode_fields
 
 #[test]
-fn test_decode_fields_ok() {
-    // First encode
+fn test_fields_roundtrip_ok() {
+    // Encode
     let mut tb1 = TestBreaker::new(TestBreakerBehaviour::None, 100);
     let mut tb2 = TestBreaker::new(TestBreakerBehaviour::None, 200);
     let mut buf = Buffer::new(1024);
@@ -167,6 +174,13 @@ fn test_decode_fields_ok() {
     ];
     encode_fields(encode_refs.into_iter(), &mut buf).expect("Failed to encode");
 
+    // Assert src zeroization after encode!
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(tb1.is_zeroized());
+        assert!(tb2.is_zeroized());
+    }
+
     // Decode
     let mut decoded1 = TestBreaker::default();
     let mut decoded2 = TestBreaker::default();
@@ -176,11 +190,18 @@ fn test_decode_fields_ok() {
         to_decode_zeroize_dyn_mut(&mut decoded2),
     ];
 
-    let result = decode_fields(decode_refs.into_iter(), &mut buf.as_mut_slice());
+    let mut buf_slice = buf.as_mut_slice();
+    let result = decode_fields(decode_refs.into_iter(), &mut buf_slice);
 
     assert!(result.is_ok());
     assert_eq!(decoded1.data, 100);
     assert_eq!(decoded2.data, 200);
+
+    // Assert buf zeroization after decode!
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(buf_slice.iter().all(|&b| b == 0));
+    }
 }
 
 #[test]

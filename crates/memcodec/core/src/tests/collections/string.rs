@@ -95,13 +95,19 @@ fn test_string_encode_into_propagates_try_encode_into_error() {
 
 #[test]
 fn test_string_encode_slice_ok() {
-    let mut slice = [String::from("hello"), String::from("world")];
+    let mut src = [String::from("hello"), String::from("world")];
     let buf_size = 2 * header_size() + 5 + 5; // 2 headers + "hello" + "world"
     let mut buf = Buffer::new(buf_size);
 
-    let result = String::encode_slice_into(&mut slice, &mut buf);
+    let result = String::encode_slice_into(&mut src, &mut buf);
 
     assert!(result.is_ok());
+
+    // Assert zeroization!
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(src.iter().all(|s| s.is_empty()));
+    }
 }
 
 #[test]
@@ -175,20 +181,33 @@ fn test_string_decode_from_propagates_try_decode_from_error() {
 // DecodeSlice
 
 #[test]
-fn test_string_decode_slice_ok() {
-    // Encode first
-    let mut slice = [String::from("hello"), String::from("world")];
+fn test_string_slice_roundtrip_ok() {
+    // Encode
+    let mut src = [String::from("hello"), String::from("world")];
     let buf_size = 2 * header_size() + 5 + 5;
     let mut buf = Buffer::new(buf_size);
-    String::encode_slice_into(&mut slice, &mut buf).expect("encode failed");
+    String::encode_slice_into(&mut src, &mut buf).expect("encode failed");
+
+    // Assert src zeroization after encode!
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(src.iter().all(|s| s.is_empty()));
+    }
 
     // Decode
     let mut decoded = [String::new(), String::new()];
-    let result = String::decode_slice_from(&mut decoded, &mut buf.as_mut_slice());
+    let mut buf_slice = buf.as_mut_slice();
+    let result = String::decode_slice_from(&mut decoded, &mut buf_slice);
 
     assert!(result.is_ok());
     assert_eq!(decoded[0], "hello");
     assert_eq!(decoded[1], "world");
+
+    // Assert buf zeroization after decode!
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(buf_slice.iter().all(|&b| b == 0));
+    }
 }
 
 #[test]
