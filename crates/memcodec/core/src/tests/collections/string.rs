@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use membuffer::Buffer;
+#[cfg(feature = "zeroize")]
 use memzer::ZeroizationProbe;
 
 use crate::collections::helpers::header_size;
@@ -83,8 +84,11 @@ fn test_string_encode_into_propagates_try_encode_into_error() {
     ));
 
     // Assert zeroization!
-    assert!(s.is_empty());
-    assert!(buf.is_zeroized());
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(s.is_empty());
+        assert!(buf.is_zeroized());
+    }
 }
 
 // EncodeSlice
@@ -161,8 +165,11 @@ fn test_string_decode_from_propagates_try_decode_from_error() {
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 
     // Assert zeroization!
-    assert!(s.is_empty());
-    assert!(slice.iter().all(|&b| b == 0));
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(s.is_empty());
+        assert!(slice.iter().all(|&b| b == 0));
+    }
 }
 
 // DecodeSlice

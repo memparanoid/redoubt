@@ -109,9 +109,13 @@ fn test_encode_element_error() {
     let result = vec.encode_into(&mut buf);
 
     assert!(result.is_err());
+
     // Assert zeroization!
-    assert!(vec.iter().all(|tb| tb.is_zeroized()));
-    assert!(buf.is_zeroized());
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(vec.iter().all(|tb| tb.is_zeroized()));
+        assert!(buf.is_zeroized());
+    }
 }
 
 // EncodeSlice
@@ -176,9 +180,13 @@ fn test_decode_element_error() {
     let result = decoded.decode_from(&mut slice);
 
     assert!(result.is_err());
+
     // Assert zeroization!
-    assert!(decoded.iter().all(|tb| tb.is_zeroized()));
-    assert!(slice.iter().all(|&b| b == 0));
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(decoded.iter().all(|tb| tb.is_zeroized()));
+        assert!(slice.iter().all(|&b| b == 0));
+    }
 }
 
 // DecodeSlice

@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use membuffer::Buffer;
+#[cfg(feature = "zeroize")]
 use memzer::ZeroizationProbe;
 
 use crate::collections::helpers::{
@@ -143,9 +144,12 @@ fn test_encode_fields_propagates_error() {
     assert!(result.is_err());
 
     // Assert zeroization!
-    assert!(tb1.is_zeroized());
-    assert!(tb2.is_zeroized());
-    assert!(buf.is_zeroized());
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(tb1.is_zeroized());
+        assert!(tb2.is_zeroized());
+        assert!(buf.is_zeroized());
+    }
 }
 
 // decode_fields
@@ -196,7 +200,10 @@ fn test_decode_fields_propagates_error() {
     assert!(result.is_err());
 
     // Assert zeroization!
-    assert!(decoded1.is_zeroized());
-    assert!(decoded2.is_zeroized());
-    assert!(slice.iter().all(|&b| b == 0));
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(decoded1.is_zeroized());
+        assert!(decoded2.is_zeroized());
+        assert!(slice.iter().all(|&b| b == 0));
+    }
 }
