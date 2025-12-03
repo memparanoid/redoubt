@@ -11,7 +11,9 @@ use crate::collections::helpers::{
     to_decode_zeroize_dyn_mut, to_encode_dyn_mut, to_encode_zeroize_dyn_mut,
 };
 use crate::error::OverflowError;
-use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
+use crate::support::test_utils::{
+    TestBreaker, TestBreakerBehaviour, apply_permutation, index_permutations,
+};
 use crate::traits::{BytesRequired, Decode, DecodeZeroize, Encode, EncodeZeroize};
 
 // to_bytes_required_dyn_ref
@@ -110,56 +112,112 @@ fn test_bytes_required_sum_overflow() {
     assert!(result.is_err());
 }
 
-// encode_fields
+// encode_fields / decode_fields
 
 #[test]
-fn test_encode_fields_ok() {
-    let mut tb1 = TestBreaker::new(TestBreakerBehaviour::None, 100);
-    let mut tb2 = TestBreaker::new(TestBreakerBehaviour::None, 200);
-    let mut buf = Buffer::new(1024);
-
-    let refs: [&mut dyn EncodeZeroize; 2] = [
-        to_encode_zeroize_dyn_mut(&mut tb1),
-        to_encode_zeroize_dyn_mut(&mut tb2),
+fn perm_test_encode_fields_propagates_error_at_any_position() {
+    let fields = [
+        TestBreaker::new(TestBreakerBehaviour::None, 1),
+        TestBreaker::new(TestBreakerBehaviour::None, 2),
+        TestBreaker::new(TestBreakerBehaviour::None, 3),
+        TestBreaker::new(TestBreakerBehaviour::None, 4),
+        TestBreaker::new(TestBreakerBehaviour::None, 5),
+        TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 6),
     ];
+    let bytes_required = fields
+        .mem_bytes_required()
+        .expect("Failed to get mem_bytes_required()");
 
-    let result = encode_fields(refs.into_iter(), &mut buf);
+    index_permutations(fields.len(), |idx_perm| {
+        let mut fields_clone = fields;
+        apply_permutation(&mut fields_clone, idx_perm);
 
-    assert!(result.is_ok());
+        let mut buf = Buffer::new(bytes_required);
 
-    // Assert zeroization!
-    #[cfg(feature = "zeroize")]
-    {
-        assert!(tb1.is_zeroized());
-        assert!(tb2.is_zeroized());
-    }
+        let result = encode_fields(
+            fields_clone
+                .iter_mut()
+                .map(|tb| to_encode_zeroize_dyn_mut(tb)),
+            &mut buf,
+        );
+
+        assert!(result.is_err());
+
+        #[cfg(feature = "zeroize")]
+        // Assert zeroization!
+        {
+            assert!(buf.is_zeroized());
+            assert!(fields_clone.iter().all(|tb| tb.is_zeroized()));
+        }
+    });
 }
 
 #[test]
-fn test_encode_fields_propagates_error() {
-    let mut tb1 = TestBreaker::new(TestBreakerBehaviour::None, 100);
-    let mut tb2 = TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 200);
-    let mut buf = Buffer::new(1024);
-
-    let refs: [&mut dyn EncodeZeroize; 2] = [
-        to_encode_zeroize_dyn_mut(&mut tb1),
-        to_encode_zeroize_dyn_mut(&mut tb2),
+fn perm_test_decode_fields_propagates_error_at_any_position() {
+    let fields = [
+        TestBreaker::new(TestBreakerBehaviour::None, 1),
+        TestBreaker::new(TestBreakerBehaviour::None, 2),
+        TestBreaker::new(TestBreakerBehaviour::None, 3),
+        TestBreaker::new(TestBreakerBehaviour::None, 4),
+        TestBreaker::new(TestBreakerBehaviour::None, 5),
+        TestBreaker::new(TestBreakerBehaviour::None, 6),
     ];
 
-    let result = encode_fields(refs.into_iter(), &mut buf);
+    let bytes_required = fields
+        .iter()
+        .map(|tb| tb.mem_bytes_required().expect("Failed"))
+        .sum();
 
-    assert!(result.is_err());
+    let mut recovered_fields = fields;
+    recovered_fields[0].set_behaviour(TestBreakerBehaviour::ForceDecodeError);
 
-    // Assert zeroization!
-    #[cfg(feature = "zeroize")]
-    {
-        assert!(tb1.is_zeroized());
-        assert!(tb2.is_zeroized());
-        assert!(buf.is_zeroized());
-    }
+    index_permutations(fields.len(), |idx_perm| {
+        // Encode
+        let mut fields_clone = fields;
+        apply_permutation(&mut fields_clone, idx_perm);
+
+        let mut buf = Buffer::new(bytes_required);
+        encode_fields(
+            fields_clone
+                .iter_mut()
+                .map(|tb| to_encode_zeroize_dyn_mut(tb)),
+            &mut buf,
+        )
+        .expect("Failed to encode");
+
+        // Decode
+        {
+            let mut recovered_fields_clone = recovered_fields;
+            apply_permutation(&mut recovered_fields_clone, idx_perm);
+
+            let mut decode_buf = buf.as_mut_slice();
+            let result = decode_fields(
+                recovered_fields_clone
+                    .iter_mut()
+                    .map(|tb| to_decode_zeroize_dyn_mut(tb)),
+                &mut decode_buf,
+            );
+
+            assert!(result.is_err());
+
+            #[cfg(feature = "zeroize")]
+            // Assert zeroization!
+            {
+                assert!(decode_buf.is_zeroized());
+                assert!(recovered_fields_clone.iter().all(|tb| tb.is_zeroized()));
+            }
+        }
+
+        #[cfg(feature = "zeroize")]
+        // Assert zeroization!
+        {
+            assert!(buf.as_slice().iter().all(|&b| b == 0));
+            assert!(fields_clone.iter().all(|tb| tb.is_zeroized()));
+        }
+    });
 }
 
-// decode_fields
+// Roundtrip
 
 #[test]
 fn test_fields_roundtrip_ok() {
@@ -201,30 +259,5 @@ fn test_fields_roundtrip_ok() {
     #[cfg(feature = "zeroize")]
     {
         assert!(buf_slice.iter().all(|&b| b == 0));
-    }
-}
-
-#[test]
-fn test_decode_fields_propagates_error() {
-    let mut decoded1 = TestBreaker::default();
-    let mut decoded2 = TestBreaker::default();
-    let mut buf = [0u8; 1]; // Too small
-
-    let decode_refs: [&mut dyn DecodeZeroize; 2] = [
-        to_decode_zeroize_dyn_mut(&mut decoded1),
-        to_decode_zeroize_dyn_mut(&mut decoded2),
-    ];
-
-    let mut slice = buf.as_mut_slice();
-    let result = decode_fields(decode_refs.into_iter(), &mut slice);
-
-    assert!(result.is_err());
-
-    // Assert zeroization!
-    #[cfg(feature = "zeroize")]
-    {
-        assert!(decoded1.is_zeroized());
-        assert!(decoded2.is_zeroized());
-        assert!(slice.iter().all(|&b| b == 0));
     }
 }

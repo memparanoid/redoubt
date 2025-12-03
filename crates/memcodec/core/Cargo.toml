@@ -23,6 +23,7 @@ memalloc.workspace  = true
 membuffer.workspace = true
 memutil.workspace   = true
 memzer.workspace    = true
+smallvec.workspace  = true
 thiserror.workspace = true
 zeroize.workspace   = true
 

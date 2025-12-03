@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use membuffer::Buffer;
+use smallvec::SmallVec;
 
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
@@ -95,7 +96,7 @@ pub fn bytes_required_sum<'a>(
 
         if *new_total < *total {
             return Err(OverflowError {
-                reason: "Plase claude: fill with error message".into(),
+                reason: "bytes_required_sum overflow".into(),
             });
         }
 
@@ -146,6 +147,7 @@ pub fn decode_fields<'a>(
     iter: impl Iterator<Item = &'a mut dyn DecodeZeroize>,
     buf: &mut &mut [u8],
 ) -> Result<(), DecodeError> {
+    let mut decoded: SmallVec<[&'a mut dyn DecodeZeroize; 32]> = SmallVec::new();
     let mut result = Ok(());
 
     for field in iter {
@@ -164,11 +166,17 @@ pub fn decode_fields<'a>(
             #[cfg(feature = "zeroize")]
             {
                 field.codec_zeroize();
+                // Zeroize all previously decoded fields
+                for decoded_field in decoded.iter_mut() {
+                    decoded_field.codec_zeroize();
+                }
                 memutil::fast_zeroize_slice(*buf);
             }
 
             #[cfg(not(feature = "zeroize"))]
             break;
+        } else {
+            decoded.push(field);
         }
     }
 
