@@ -10,13 +10,13 @@ use super::mem_encode_buf::MemEncodeBuf;
 /// Trait for types that can be systematically zeroized.
 ///
 /// This trait provides a unified interface for zeroizing types, delegating to
-/// [`zeroize::Zeroize`]. `FastZeroizable` is used internally by guards and encoding/decoding
+/// [`zeroize::Zeroize`]. `Zeroizable` is used internally by guards and encoding/decoding
 /// operations to ensure all data is zeroized after use.
 ///
 /// # Example
 ///
 /// ```rust
-/// use memcode_core::FastZeroizable;
+/// use memcode_core::Zeroizable;
 /// use zeroize::Zeroize;
 ///
 /// #[derive(Zeroize)]
@@ -24,13 +24,13 @@ use super::mem_encode_buf::MemEncodeBuf;
 ///     bytes: Vec<u8>,
 /// }
 ///
-/// impl FastZeroizable for Data {
+/// impl Zeroizable for Data {
 ///     fn self_zeroize(&mut self) {
 ///         self.zeroize(); // Delegate to Zeroize
 ///     }
 /// }
 /// ```
-pub trait FastZeroizable {
+pub trait Zeroizable {
     /// Zeroizes the value in place.
     ///
     /// After calling this method, the value should be in a "zeroed" state
@@ -67,7 +67,7 @@ pub trait FastZeroizable {
 /// # Ok(())
 /// # }
 /// ```
-pub trait MemEncode: FastZeroizable {
+pub trait MemEncode: Zeroizable {
     /// Encodes `self` into the buffer, consuming and zeroizing the source.
     ///
     /// # Errors
@@ -108,7 +108,7 @@ pub trait MemEncode: FastZeroizable {
 /// # Ok(())
 /// # }
 /// ```
-pub trait MemDecode: FastZeroizable {
+pub trait MemDecode: Zeroizable {
     /// Decodes data from bytes and returns the number of bytes consumed.
     ///
     /// # Precondition
@@ -226,13 +226,13 @@ pub trait DecodeIterator {
 
 /// Marker trait for types with collection-like encoding.
 ///
-/// Combines [`EncodeIterator`], [`MemEncodable`], and [`FastZeroizable`] for struct-like types.
-pub trait CollectionEncode: EncodeIterator + MemEncodable + FastZeroizable {}
+/// Combines [`EncodeIterator`] and [`MemEncodable`] for struct-like types.
+pub trait CollectionEncode: EncodeIterator + MemEncodable {}
 
 /// Trait for types with collection-like decoding.
 ///
-/// Extends [`DecodeIterator`], [`MemDecodable`], and [`FastZeroizable`] with element count validation.
-pub trait CollectionDecode: DecodeIterator + MemDecodable + FastZeroizable {
+/// Extends [`DecodeIterator`] and [`MemDecodable`] with element count validation.
+pub trait CollectionDecode: DecodeIterator + MemDecodable {
     /// Prepares the collection for decoding with a known element count.
     ///
     /// # Errors

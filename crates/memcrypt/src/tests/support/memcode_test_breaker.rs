@@ -40,8 +40,12 @@ impl DerefMut for MemCodeTestBreaker {
     }
 }
 
+impl memzer::ZeroizeMetadata for MemCodeTestBreaker {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+
 impl FastZeroizable for MemCodeTestBreaker {
-    fn self_zeroize(&mut self) {
+    fn fast_zeroize(&mut self) {
         self.zeroize();
     }
 }

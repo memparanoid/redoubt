@@ -9,7 +9,7 @@ use zeroize::Zeroize;
 use crate::error::{MemDecodeError, MemEncodeError, OverflowError};
 use crate::mem_encode_buf::MemEncodeBuf;
 use crate::traits::{
-    CollectionDecode, CollectionEncode, MemBytesRequired, MemDecodable, MemEncodable, FastZeroizable,
+    CollectionDecode, CollectionEncode, MemBytesRequired, MemDecodable, MemEncodable, Zeroizable,
 };
 
 /// Converts a reference to a trait object (`&dyn MemBytesRequired`).
@@ -22,11 +22,11 @@ pub fn to_bytes_required_dyn_ref<'a, T: MemBytesRequired>(
     x
 }
 
-/// Converts a mutable reference to a trait object (`&mut dyn FastZeroizable`).
+/// Converts a mutable reference to a trait object (`&mut dyn Zeroizable`).
 ///
-/// Helper for creating heterogeneous collections of types implementing `FastZeroizable`.
+/// Helper for creating heterogeneous collections of types implementing `Zeroizable`.
 #[inline(always)]
-pub fn to_zeroizable_dyn_mut<'a, T: FastZeroizable>(x: &'a mut T) -> &'a mut (dyn FastZeroizable + 'a) {
+pub fn to_zeroizable_dyn_mut<'a, T: Zeroizable>(x: &'a mut T) -> &'a mut (dyn Zeroizable + 'a) {
     x
 }
 
@@ -49,10 +49,10 @@ pub fn to_decode_dyn_mut<'a, T: MemDecodable>(x: &'a mut T) -> &'a mut (dyn MemD
 /// Zeroizes all elements in a collection via an iterator.
 pub fn zeroize_collection_iter_mut<T>(collection_iter_mut: &mut dyn Iterator<Item = &mut T>)
 where
-    T: FastZeroizable + ?Sized,
+    T: Zeroizable + ?Sized,
 {
     for elem in collection_iter_mut {
-        (*elem).fast_zeroize();
+        (*elem).self_zeroize();
     }
 }
 
@@ -142,13 +142,13 @@ pub fn drain_into<T>(
     collection_encode: &mut T,
 ) -> Result<(), MemEncodeError>
 where
-    T: CollectionEncode + FastZeroizable + ?Sized,
+    T: CollectionEncode + ?Sized,
 {
     let result: Result<(), MemEncodeError> = try_drain_into(buf, collection_encode);
 
     if result.is_err() {
         buf.zeroize();
-        collection_encode.fast_zeroize();
+        collection_encode.self_zeroize();
     }
 
     result
@@ -240,13 +240,13 @@ where
 /// On error, both the source bytes and destination collection are zeroized.
 pub fn drain_from<T>(bytes: &mut [u8], collection_decode: &mut T) -> Result<usize, MemDecodeError>
 where
-    T: CollectionDecode + FastZeroizable + ?Sized,
+    T: CollectionDecode + ?Sized,
 {
     let result = try_drain_from(bytes, collection_decode);
 
     if let Err(ref _e) = result {
         bytes.zeroize();
-        collection_decode.fast_zeroize();
+        collection_decode.self_zeroize();
     }
 
     result

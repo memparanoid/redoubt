@@ -6,11 +6,17 @@
 source: crates/memzer/derive/src/tests/expand.rs
 expression: pretty(token_stream)
 ---
-impl<'alpha, Tau> memzer_core::Zeroizable for Sigma<'alpha, Tau>
+impl<'alpha, Tau> memzer_core::ZeroizeMetadata for Sigma<'alpha, Tau>
 where
     Tau: Clone,
 {
-    fn self_zeroize(&mut self) {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+impl<'alpha, Tau> memzer_core::FastZeroizable for Sigma<'alpha, Tau>
+where
+    Tau: Clone,
+{
+    fn fast_zeroize(&mut self) {
         self.zeroize();
     }
 }

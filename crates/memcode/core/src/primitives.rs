@@ -4,7 +4,7 @@
 
 //! Trait implementations for primitive integer types.
 //!
-//! This module provides `MemEncode`, `MemDecode`, and `FastZeroizable` implementations
+//! This module provides `MemEncode`, `MemDecode`, and `Zeroizable` implementations
 //! for Rust's primitive unsigned integer types: `u8`, `u16`, `u32`, `u64`, `u128`.
 //!
 //! # Wire Format
@@ -121,7 +121,7 @@ macro_rules! impl_mem_decode_for_primitives {
 macro_rules! impl_zeroizable_for_primitives {
     ($($ty:ty),* $(,)?) => {
         $(
-            impl $crate::traits::FastZeroizable for $ty {
+            impl $crate::traits::Zeroizable for $ty {
                 #[inline(always)]
                 fn self_zeroize(&mut self) {
                     self.zeroize();

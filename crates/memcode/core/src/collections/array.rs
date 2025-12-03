@@ -8,7 +8,7 @@ use crate::error::{MemDecodeError, MemEncodeError, OverflowError};
 use crate::mem_encode_buf::MemEncodeBuf;
 use crate::traits::{
     CollectionDecode, CollectionEncode, DecodeIterator, EncodeIterator, MemBytesRequired,
-    MemDecodable, MemDecode, MemEncodable, MemEncode, MemNumElements, FastZeroizable,
+    MemDecodable, MemDecode, MemEncodable, MemEncode, MemNumElements, Zeroizable,
 };
 
 use super::helpers::{
@@ -19,9 +19,9 @@ use super::helpers::{
 // === === === === === === === === === ===
 // [T; N]
 // === === === === === === === === === ===
-impl<T, const N: usize> FastZeroizable for [T; N]
+impl<T, const N: usize> Zeroizable for [T; N]
 where
-    T: FastZeroizable + Zeroize,
+    T: Zeroizable + Zeroize,
 {
     fn self_zeroize(&mut self) {
         self.zeroize();
