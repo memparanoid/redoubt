@@ -37,13 +37,23 @@ pub fn process_header(buf: &mut &mut [u8], output_size: &mut usize) -> Result<()
         return Err(DecodeError::PreconditionViolated);
     }
 
+    // Infallible: precondition ensures buf.len() >= header_size (2 * usize)
+    // Error branch kept for panic-free guarantees, cannot be tested
     buf.read_usize(output_size)?;
 
     // bytes_required is only used internally for validation
     let mut bytes_required = Primitive::new(0usize);
+
+    // Infallible: precondition ensures buf.len() >= header_size (2 * usize)
+    // Error branch kept for panic-free guarantees, cannot be tested
     buf.read_usize(&mut bytes_required)?;
 
+    if *header_size > *bytes_required {
+        return Err(DecodeError::PreconditionViolated);
+    }
+
     let expected_len = Primitive::new(*bytes_required - *header_size);
+
     if buf.len() < *expected_len {
         return Err(DecodeError::PreconditionViolated);
     }
@@ -147,6 +157,7 @@ pub fn decode_fields<'a>(
     iter: impl Iterator<Item = &'a mut dyn DecodeZeroize>,
     buf: &mut &mut [u8],
 ) -> Result<(), DecodeError> {
+    #[cfg(feature = "zeroize")]
     let mut decoded: SmallVec<[&'a mut dyn DecodeZeroize; 32]> = SmallVec::new();
     let mut result = Ok(());
 
@@ -166,16 +177,19 @@ pub fn decode_fields<'a>(
             #[cfg(feature = "zeroize")]
             {
                 field.codec_zeroize();
+
                 // Zeroize all previously decoded fields
                 for decoded_field in decoded.iter_mut() {
                     decoded_field.codec_zeroize();
                 }
+
                 memutil::fast_zeroize_slice(*buf);
             }
 
             #[cfg(not(feature = "zeroize"))]
             break;
         } else {
+            #[cfg(feature = "zeroize")]
             decoded.push(field);
         }
     }

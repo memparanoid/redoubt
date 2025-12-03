@@ -7,14 +7,138 @@ use membuffer::Buffer;
 use memzer::ZeroizationProbe;
 
 use crate::collections::helpers::{
-    bytes_required_sum, decode_fields, encode_fields, to_bytes_required_dyn_ref, to_decode_dyn_mut,
-    to_decode_zeroize_dyn_mut, to_encode_dyn_mut, to_encode_zeroize_dyn_mut,
+    bytes_required_sum, decode_fields, encode_fields, header_size, process_header,
+    to_bytes_required_dyn_ref, to_decode_dyn_mut, to_decode_zeroize_dyn_mut, to_encode_dyn_mut,
+    to_encode_zeroize_dyn_mut, write_header,
 };
-use crate::error::OverflowError;
+use crate::error::{CodecBufferError, DecodeError, OverflowError};
 use crate::support::test_utils::{
     TestBreaker, TestBreakerBehaviour, apply_permutation, index_permutations,
 };
-use crate::traits::{BytesRequired, Decode, DecodeZeroize, Encode, EncodeZeroize};
+use crate::traits::{BytesRequired, CodecBuffer, Decode, DecodeZeroize, Encode, EncodeZeroize};
+
+// header_size
+
+#[test]
+fn test_header_size() {
+    assert_eq!(header_size(), 2 * size_of::<usize>());
+}
+
+// write_header
+
+#[test]
+fn test_write_header_ok() {
+    let mut size = 42usize;
+    let mut bytes_required = 128usize;
+    let mut buf = Buffer::new(header_size());
+
+    let result = write_header(&mut buf, &mut size, &mut bytes_required);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_write_header_capacity_exceeded_for_size() {
+    let mut size = 42usize;
+    let mut bytes_required = 128usize;
+    let mut buf = Buffer::new(1); // Too small for size
+
+    let result = write_header(&mut buf, &mut size, &mut bytes_required);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CodecBufferError::CapacityExceeded)));
+}
+
+#[test]
+fn test_write_header_capacity_exceeded_for_bytes_required() {
+    let mut size = 42usize;
+    let mut bytes_required = 128usize;
+    let mut buf = Buffer::new(size_of::<usize>()); // Enough for size, too small for bytes_required
+
+    let result = write_header(&mut buf, &mut size, &mut bytes_required);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CodecBufferError::CapacityExceeded)));
+}
+
+// process_header
+#[test]
+fn test_process_header_buffer_too_small_for_header() {
+    // First precondition violated: buf.len() < *header_size
+    let mut output_size = 0usize;
+    let mut buf = [0u8; 1]; // Too small for header
+
+    let result = process_header(&mut buf.as_mut_slice(), &mut output_size);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+}
+
+#[test]
+fn test_process_header_buffer_too_small_for_data() {
+    // Second precondition violated: buf.len() < *expected_len
+    let mut buf = Buffer::new(header_size() + size_of::<u8>()); // only capacity for size.
+
+    let mut size: usize = 20;
+    let mut huge_bytes_required: usize = 1024;
+    let mut data: u8 = 1;
+
+    buf.write(&mut size).expect("Failed to write size");
+    buf.write(&mut huge_bytes_required)
+        .expect("Failed to write bytes_required");
+    // Write some data
+    buf.write(&mut data).expect("Failed to write data");
+
+    let mut read_buf = buf.as_mut_slice();
+    let result = process_header(&mut read_buf, &mut 0);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+}
+
+#[test]
+fn test_process_header_buffer_header_size_gt_bytes_required() {
+    // Third precondition violated: *bytes_required > *header_size
+    let mut buf = Buffer::new(header_size() + size_of::<u8>()); // only capacity for size.
+
+    let mut size: usize = 1;
+    let mut insufficient_bytes_required: usize = header_size() - 1;
+    let mut data: u8 = 1;
+
+    buf.write(&mut size).expect("Failed to write size");
+    buf.write(&mut insufficient_bytes_required)
+        .expect("Failed to write bytes_required");
+    // Write some data
+    buf.write(&mut data).expect("Failed to write data");
+
+    let mut read_buf = buf.as_mut_slice();
+    let result = process_header(&mut read_buf, &mut 0);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+}
+
+#[test]
+fn test_process_header_ok() {
+    let mut buf = Buffer::new(header_size() + size_of::<u8>()); // only capacity for size.
+
+    let mut size: usize = 1;
+    let mut data: u8 = 1;
+    let mut bytes_required: usize = header_size() + data.to_le_bytes().len();
+
+    buf.write(&mut size).expect("Failed to write size");
+    buf.write(&mut bytes_required)
+        .expect("Failed to write bytes_required");
+    // Write some data
+    buf.write(&mut data).expect("Failed to write data");
+
+    let mut output_size = 0;
+    let mut read_buf = buf.as_mut_slice();
+    let result = process_header(&mut read_buf, &mut output_size);
+
+    assert!(result.is_ok());
+    assert_eq!(output_size, 1);
+}
 
 // to_bytes_required_dyn_ref
 
