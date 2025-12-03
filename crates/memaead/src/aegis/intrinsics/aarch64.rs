@@ -5,11 +5,10 @@
 //! ARM Crypto intrinsics for aarch64.
 
 use core::arch::aarch64::{
-    uint8x16_t, vandq_u8, vdupq_n_u8, veorq_u8, vld1q_u8, vst1q_u8,
-    vaeseq_u8, vaesmcq_u8,
+    uint8x16_t, vaeseq_u8, vaesmcq_u8, vandq_u8, vdupq_n_u8, veorq_u8, vld1q_u8, vst1q_u8,
 };
 
-use memzer::{FastZeroizable, ZeroizationProbe};
+use memzer::ZeroizationProbe;
 use zeroize::Zeroize;
 
 /// AES block using ARM Crypto intrinsics.
@@ -20,12 +19,6 @@ use zeroize::Zeroize;
 pub struct Intrinsics(uint8x16_t);
 
 impl Intrinsics {
-    /// Create a zeroed block.
-    #[inline(always)]
-    pub fn zero() -> Self {
-        Self(unsafe { vdupq_n_u8(0) })
-    }
-
     /// Load 16 bytes into a block.
     #[inline(always)]
     pub fn load(bytes: &[u8; 16]) -> Self {
@@ -97,7 +90,7 @@ impl Intrinsics {
 impl Zeroize for Intrinsics {
     #[inline]
     fn zeroize(&mut self) {
-        // SAFETY: vdupq_n_u8 is always safe to call on aarch64, it just creates a zero vector
+        // Overwrite register with zeros
         self.0 = unsafe { vdupq_n_u8(0) };
     }
 }
@@ -105,15 +98,10 @@ impl Zeroize for Intrinsics {
 impl Drop for Intrinsics {
     #[inline]
     fn drop(&mut self) {
-        debug_assert!(self.is_zeroized(), "Intrinsics dropped without zeroization!");
-    }
-}
-
-impl Default for Intrinsics {
-    #[inline]
-    fn default() -> Self {
-        // SAFETY: vdupq_n_u8 is always safe to call on aarch64
-        Self(unsafe { vdupq_n_u8(0) })
+        debug_assert!(
+            self.is_zeroized(),
+            "Intrinsics dropped without zeroization!"
+        );
     }
 }
 
@@ -126,13 +114,8 @@ impl ZeroizationProbe for Intrinsics {
     }
 }
 
-impl memzer::ZeroizeMetadata for Intrinsics {
-    const CAN_BE_BULK_ZEROIZED: bool = false;
-}
-
-impl FastZeroizable for Intrinsics {
-    #[inline]
-    fn fast_zeroize(&mut self) {
-        self.zeroize();
+impl core::fmt::Debug for Intrinsics {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Intrinsics (aarch64) {{ [protected] }}")
     }
 }

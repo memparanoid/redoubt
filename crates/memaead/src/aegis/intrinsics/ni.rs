@@ -5,11 +5,11 @@
 //! AES-NI intrinsics for x86_64.
 
 use core::arch::x86_64::{
-    __m128i, _mm_aesenc_si128, _mm_and_si128, _mm_loadu_si128, _mm_setzero_si128,
-    _mm_storeu_si128, _mm_xor_si128,
+    __m128i, _mm_aesenc_si128, _mm_and_si128, _mm_loadu_si128, _mm_setzero_si128, _mm_storeu_si128,
+    _mm_xor_si128,
 };
 
-use memzer::{FastZeroizable, ZeroizationProbe};
+use memzer::ZeroizationProbe;
 use zeroize::Zeroize;
 
 /// AES block using AES-NI intrinsics.
@@ -20,12 +20,6 @@ use zeroize::Zeroize;
 pub struct Intrinsics(__m128i);
 
 impl Intrinsics {
-    /// Create a zeroed block.
-    #[inline(always)]
-    pub fn zero() -> Self {
-        Self(unsafe { _mm_setzero_si128() })
-    }
-
     /// Load 16 bytes into a block.
     #[inline(always)]
     pub fn load(bytes: &[u8; 16]) -> Self {
@@ -87,7 +81,7 @@ impl Intrinsics {
 impl Zeroize for Intrinsics {
     #[inline]
     fn zeroize(&mut self) {
-        // Overwrite SIMD register with zeros
+        // Overwrite register with zeros
         self.0 = unsafe { _mm_setzero_si128() };
     }
 }
@@ -95,14 +89,10 @@ impl Zeroize for Intrinsics {
 impl Drop for Intrinsics {
     #[inline]
     fn drop(&mut self) {
-        debug_assert!(self.is_zeroized(), "Intrinsics dropped without zeroization!");
-    }
-}
-
-impl Default for Intrinsics {
-    #[inline]
-    fn default() -> Self {
-        Self(unsafe { _mm_setzero_si128() })
+        debug_assert!(
+            self.is_zeroized(),
+            "Intrinsics dropped without zeroization!"
+        );
     }
 }
 
@@ -115,13 +105,8 @@ impl ZeroizationProbe for Intrinsics {
     }
 }
 
-impl memzer::ZeroizeMetadata for Intrinsics {
-    const CAN_BE_BULK_ZEROIZED: bool = false;
-}
-
-impl FastZeroizable for Intrinsics {
-    #[inline]
-    fn fast_zeroize(&mut self) {
-        self.zeroize();
+impl core::fmt::Debug for Intrinsics {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Intrinsics (x86_64) {{ [protected] }}")
     }
 }
