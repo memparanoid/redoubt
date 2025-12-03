@@ -6,7 +6,7 @@
 //!
 //! Based on draft-irtf-cfrg-aegis-aead-18.
 
-pub mod intrinsics;
 pub mod aegis128l;
+pub mod intrinsics;
 
 pub use aegis128l::Aegis128L;
