@@ -635,6 +635,7 @@ name = "memcodec_derive"
 version = "0.0.1"
 dependencies = [
  "insta",
+ "membuffer",
  "memcodec_core",
  "prettyplease",
  "proc-macro-crate",

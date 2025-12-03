@@ -4,7 +4,7 @@
 
 use syn::parse_quote;
 
-use crate::expand;
+use crate::{expand, find_root_with_candidates};
 
 fn pretty(ts: proc_macro2::TokenStream) -> String {
     let file = syn::parse2(ts).unwrap_or_else(|_| {
@@ -13,6 +13,27 @@ fn pretty(ts: proc_macro2::TokenStream) -> String {
         }
     });
     prettyplease::unparse(&file)
+}
+
+#[test]
+fn test_find_root_with_candidates() {
+    let ts_1 = find_root_with_candidates(&["a", "b"]);
+    insta::assert_snapshot!(pretty(ts_1));
+    let ts_2 = find_root_with_candidates(&["a"]);
+    insta::assert_snapshot!(pretty(ts_2));
+
+    // Just to cover all branches
+    // Note: proc-macro-crate uses underscores internally, not hyphens
+    let ts_3 = find_root_with_candidates(&["memcodec_derive", "memcodec_core"]);
+    println!("{:?}", ts_3);
+    assert_eq!(format!("{:?}", ts_3), "TokenStream [Ident { sym: crate }]");
+
+    let ts_4 = find_root_with_candidates(&["memcodec_core", "memcodec_derive"]);
+    println!("{:?}", ts_4);
+    assert_eq!(
+        format!("{:?}", ts_4),
+        "TokenStream [Ident { sym: memcodec_core }]"
+    );
 }
 
 #[test]
