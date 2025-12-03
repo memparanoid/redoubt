@@ -29,16 +29,6 @@ impl Aead for Aegis128L {
         data: &mut [u8],
         tag: &mut Self::Tag,
     ) {
-        // Check AES support at runtime
-        #[cfg(target_arch = "aarch64")]
-        if !std::arch::is_aarch64_feature_detected!("aes") {
-            panic!("AES hardware support required");
-        }
-        #[cfg(target_arch = "x86_64")]
-        if !std::arch::is_x86_feature_detected!("aes") {
-            panic!("AES hardware support required");
-        }
-
         unsafe { state::encrypt(key, nonce, aad, data, tag) }
     }
 
@@ -50,16 +40,6 @@ impl Aead for Aegis128L {
         data: &mut [u8],
         tag: &Self::Tag,
     ) -> Result<(), DecryptError> {
-        // Check AES support at runtime
-        #[cfg(target_arch = "aarch64")]
-        if !std::arch::is_aarch64_feature_detected!("aes") {
-            panic!("AES hardware support required");
-        }
-        #[cfg(target_arch = "x86_64")]
-        if !std::arch::is_x86_feature_detected!("aes") {
-            panic!("AES hardware support required");
-        }
-
         if unsafe { state::decrypt(key, nonce, aad, data, tag) } {
             Ok(())
         } else {
