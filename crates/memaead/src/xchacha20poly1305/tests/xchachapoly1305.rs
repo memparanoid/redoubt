@@ -230,3 +230,20 @@ fn test_empty_aad() {
 
     assert_eq!(&data, original);
 }
+
+// Debug test
+
+#[test]
+fn test_xchacha20poly1305_debug_fmt() {
+    let aead = XChacha20Poly1305::default();
+    let debug_str = format!("{:?}", aead);
+
+    assert!(
+        debug_str.contains("XChacha20Poly1305"),
+        "Expected 'XChacha20Poly1305' in debug output"
+    );
+    assert!(
+        debug_str.contains("[protected]"),
+        "Expected '[protected]' to hide sensitive data"
+    );
+}

@@ -88,3 +88,50 @@ fn test_single_full_block() {
     // Just verify it produces a 16-byte tag without panicking
     assert_eq!(tag.len(), 16);
 }
+
+// Debug tests
+
+#[test]
+fn test_poly1305_debug_fmt() {
+    let poly1305 = Poly1305::default();
+    let debug_str = format!("{:?}", poly1305);
+
+    assert!(
+        debug_str.contains("Poly1305"),
+        "Expected 'Poly1305' in debug output"
+    );
+    assert!(
+        debug_str.contains("[protected]"),
+        "Expected '[protected]' to hide sensitive data"
+    );
+}
+
+#[test]
+fn test_poly1305_block_debug_fmt() {
+    let block = Poly1305Block::default();
+    let debug_str = format!("{:?}", block);
+
+    assert!(
+        debug_str.contains("Poly1305Block"),
+        "Expected 'Poly1305Block' in debug output"
+    );
+    assert!(
+        debug_str.contains("[protected]"),
+        "Expected '[protected]' to hide sensitive data"
+    );
+}
+
+#[test]
+fn test_poly1305_final_debug_fmt() {
+    let final_state = Poly1305Final::default();
+    let debug_str = format!("{:?}", final_state);
+
+    assert!(
+        debug_str.contains("Poly1305Final"),
+        "Expected 'Poly1305Final' in debug output"
+    );
+    assert!(
+        debug_str.contains("[protected]"),
+        "Expected '[protected]' to hide sensitive data"
+    );
+}

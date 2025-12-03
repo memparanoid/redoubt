@@ -157,3 +157,50 @@ fn test_xchacha20_roundtrip() {
     XChaCha20::default().crypt(&key, &xnonce, &mut data);
     assert_eq!(&data[..], &original[..]);
 }
+
+// Debug tests
+
+#[test]
+fn test_chacha20_debug_fmt() {
+    let chacha20 = ChaCha20::default();
+    let debug_str = format!("{:?}", chacha20);
+
+    assert!(
+        debug_str.contains("ChaCha20"),
+        "Expected 'ChaCha20' in debug output"
+    );
+    assert!(
+        debug_str.contains("[protected]"),
+        "Expected '[protected]' to hide sensitive data"
+    );
+}
+
+#[test]
+fn test_hchacha20_debug_fmt() {
+    let hchacha20 = HChaCha20::default();
+    let debug_str = format!("{:?}", hchacha20);
+
+    assert!(
+        debug_str.contains("HChaCha20"),
+        "Expected 'HChaCha20' in debug output"
+    );
+    assert!(
+        debug_str.contains("[protected]"),
+        "Expected '[protected]' to hide sensitive data"
+    );
+}
+
+#[test]
+fn test_xchacha20_debug_fmt() {
+    let xchacha20 = XChaCha20::default();
+    let debug_str = format!("{:?}", xchacha20);
+
+    assert!(
+        debug_str.contains("XChaCha20"),
+        "Expected 'XChaCha20' in debug output"
+    );
+    assert!(
+        debug_str.contains("[protected]"),
+        "Expected '[protected]' to hide sensitive data"
+    );
+}

@@ -28,6 +28,12 @@ pub(crate) struct Poly1305Block {
     __drop_sentinel: DropSentinel,
 }
 
+impl core::fmt::Debug for Poly1305Block {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Poly1305Block {{ [protected] }}")
+    }
+}
+
 /// Work variables for finalization.
 #[derive(Default, Zeroize, MemZer)]
 #[zeroize(drop)]
@@ -42,6 +48,12 @@ pub(crate) struct Poly1305Final {
     le_bytes_tmp: [u8; 4],
     s_u32: u32,
     __drop_sentinel: DropSentinel,
+}
+
+impl core::fmt::Debug for Poly1305Final {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Poly1305Final {{ [protected] }}")
+    }
 }
 
 /// Poly1305 authenticator state.
