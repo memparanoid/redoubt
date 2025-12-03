@@ -28,19 +28,36 @@ mk() {
   crate_name="$1"       # e.g., memcrypt
   features_csv="${2:-}" # e.g., "test_utils" (optional; may be empty)
 
-  # Instrument only this crate; dependencies won't be instrumented.
-  export COVER_CRATES="$crate_name"
+  cd "$REPO_ROOT"
+  echo "[DEBUG] PWD: $(pwd)" >&2
+  echo "[DEBUG] Repo ROOT: $REPO_ROOT" >&2
+  echo "[DEBUG] Crate: $crate_name" >&2
+
+  # Force recompilation of this crate to pick up new COVER_CRATES
+  CARGO_TARGET_DIR="target" cargo +nightly clean -p "$crate_name"
+
+  # Clean and set environment for this specific crate
+  unset COVER_CRATES
+  unset RUSTC_WRAPPER
+  unset RUSTFLAGS
   export RUSTC_WRAPPER="/usr/local/bin/rustc-nocov-deps"
+  export DEBUG_COVERAGE=1
+
+  # Add COVER_CRATES to RUSTFLAGS so cargo recognizes different instrumentation
+  # configs as different build artifacts (forces cache invalidation)
+  export RUSTFLAGS="--cfg=__cover_crates_${crate_name//-/_}"
 
   if [ -n "$features_csv" ]; then
     CARGO_TARGET_DIR="target" \
+      COVER_CRATES="$crate_name" \
       cargo +nightly llvm-cov -p "$crate_name" \
-      --branch --no-report \
+      --branch --show-instantiations --no-report \
       --features "$features_csv"
   else
     CARGO_TARGET_DIR="target" \
+      COVER_CRATES="$crate_name" \
       cargo +nightly llvm-cov -p "$crate_name" \
-      --branch --no-report
+      --branch --show-instantiations --no-report
   fi
 }
 
@@ -58,7 +75,7 @@ if [ $# -ge 1 ]; then
 
   CARGO_TARGET_DIR="target" \
     cargo +nightly llvm-cov report \
-    --branch \
+    --branch --show-instantiations \
     --html --output-dir "$OUT"
 
   echo "Coverage report generated at $OUT/index.html"

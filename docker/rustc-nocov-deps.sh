@@ -117,5 +117,10 @@ for i in "${!rustc_args[@]}"; do
   filtered_args+=("$arg")
 done
 
+# DEBUG: Print filtered arguments
+if [[ -n "${DEBUG_COVERAGE:-}" ]]; then
+  echo "[rustc-nocov] filtered_args: ${filtered_args[*]}" >&2
+fi
+
 # Execute rustc with the filtered arguments
 exec "$real_rustc" "${filtered_args[@]}"
