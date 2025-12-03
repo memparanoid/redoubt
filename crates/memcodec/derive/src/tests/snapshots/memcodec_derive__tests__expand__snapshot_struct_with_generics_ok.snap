@@ -26,9 +26,13 @@ where
         &mut self,
         buf: &mut membuffer::Buffer,
     ) -> Result<(), memcodec_core::EncodeError> {
-        let collection: [&mut dyn memcodec_core::Encode; 2] = [
-            memcodec_core::collections::helpers::to_encode_dyn_mut(&mut self.value),
-            memcodec_core::collections::helpers::to_encode_dyn_mut(&mut self.count),
+        let collection: [&mut dyn memcodec_core::EncodeZeroize; 2] = [
+            memcodec_core::collections::helpers::to_encode_zeroize_dyn_mut(
+                &mut self.value,
+            ),
+            memcodec_core::collections::helpers::to_encode_zeroize_dyn_mut(
+                &mut self.count,
+            ),
         ];
         memcodec_core::collections::helpers::encode_fields(collection.into_iter(), buf)
     }
@@ -37,10 +41,17 @@ impl<T> memcodec_core::Decode for Container<T>
 where
     T: memcodec::BytesRequired + memcodec::Encode + memcodec::Decode,
 {
-    fn decode_from(&mut self, buf: &mut [u8]) -> Result<(), memcodec_core::DecodeError> {
-        let collection: [&mut dyn memcodec_core::Decode; 2] = [
-            memcodec_core::collections::helpers::to_decode_dyn_mut(&mut self.value),
-            memcodec_core::collections::helpers::to_decode_dyn_mut(&mut self.count),
+    fn decode_from(
+        &mut self,
+        buf: &mut &mut [u8],
+    ) -> Result<(), memcodec_core::DecodeError> {
+        let collection: [&mut dyn memcodec_core::DecodeZeroize; 2] = [
+            memcodec_core::collections::helpers::to_decode_zeroize_dyn_mut(
+                &mut self.value,
+            ),
+            memcodec_core::collections::helpers::to_decode_zeroize_dyn_mut(
+                &mut self.count,
+            ),
         ];
         memcodec_core::collections::helpers::decode_fields(collection.into_iter(), buf)
     }

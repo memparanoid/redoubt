@@ -21,20 +21,23 @@ impl memcodec_core::Encode for Data {
         &mut self,
         buf: &mut membuffer::Buffer,
     ) -> Result<(), memcodec_core::EncodeError> {
-        let collection: [&mut dyn memcodec_core::Encode; 3] = [
-            memcodec_core::collections::helpers::to_encode_dyn_mut(&mut self.0),
-            memcodec_core::collections::helpers::to_encode_dyn_mut(&mut self.1),
-            memcodec_core::collections::helpers::to_encode_dyn_mut(&mut self.2),
+        let collection: [&mut dyn memcodec_core::EncodeZeroize; 3] = [
+            memcodec_core::collections::helpers::to_encode_zeroize_dyn_mut(&mut self.0),
+            memcodec_core::collections::helpers::to_encode_zeroize_dyn_mut(&mut self.1),
+            memcodec_core::collections::helpers::to_encode_zeroize_dyn_mut(&mut self.2),
         ];
         memcodec_core::collections::helpers::encode_fields(collection.into_iter(), buf)
     }
 }
 impl memcodec_core::Decode for Data {
-    fn decode_from(&mut self, buf: &mut [u8]) -> Result<(), memcodec_core::DecodeError> {
-        let collection: [&mut dyn memcodec_core::Decode; 3] = [
-            memcodec_core::collections::helpers::to_decode_dyn_mut(&mut self.0),
-            memcodec_core::collections::helpers::to_decode_dyn_mut(&mut self.1),
-            memcodec_core::collections::helpers::to_decode_dyn_mut(&mut self.2),
+    fn decode_from(
+        &mut self,
+        buf: &mut &mut [u8],
+    ) -> Result<(), memcodec_core::DecodeError> {
+        let collection: [&mut dyn memcodec_core::DecodeZeroize; 3] = [
+            memcodec_core::collections::helpers::to_decode_zeroize_dyn_mut(&mut self.0),
+            memcodec_core::collections::helpers::to_decode_zeroize_dyn_mut(&mut self.1),
+            memcodec_core::collections::helpers::to_decode_zeroize_dyn_mut(&mut self.2),
         ];
         memcodec_core::collections::helpers::decode_fields(collection.into_iter(), buf)
     }

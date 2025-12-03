@@ -17,13 +17,16 @@ impl memcodec_core::Encode for Empty {
         &mut self,
         buf: &mut membuffer::Buffer,
     ) -> Result<(), memcodec_core::EncodeError> {
-        let collection: [&mut dyn memcodec_core::Encode; 0] = [];
+        let collection: [&mut dyn memcodec_core::EncodeZeroize; 0] = [];
         memcodec_core::collections::helpers::encode_fields(collection.into_iter(), buf)
     }
 }
 impl memcodec_core::Decode for Empty {
-    fn decode_from(&mut self, buf: &mut [u8]) -> Result<(), memcodec_core::DecodeError> {
-        let collection: [&mut dyn memcodec_core::Decode; 0] = [];
+    fn decode_from(
+        &mut self,
+        buf: &mut &mut [u8],
+    ) -> Result<(), memcodec_core::DecodeError> {
+        let collection: [&mut dyn memcodec_core::DecodeZeroize; 0] = [];
         memcodec_core::collections::helpers::decode_fields(collection.into_iter(), buf)
     }
 }

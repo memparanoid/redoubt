@@ -88,8 +88,8 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
 
         impl #impl_generics #root::Encode for #struct_name #ty_generics #where_clause {
             fn encode_into(&mut self, buf: &mut membuffer::Buffer) -> Result<(), #root::EncodeError> {
-                let collection: [&mut dyn #root::Encode; #len_lit] = [
-                    #( #root::collections::helpers::to_encode_dyn_mut(#mut_refs) ),*
+                let collection: [&mut dyn #root::EncodeZeroize; #len_lit] = [
+                    #( #root::collections::helpers::to_encode_zeroize_dyn_mut(#mut_refs) ),*
                 ];
                 #root::collections::helpers::encode_fields(collection.into_iter(), buf)
             }
@@ -97,8 +97,8 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
 
         impl #impl_generics #root::Decode for #struct_name #ty_generics #where_clause {
             fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), #root::DecodeError> {
-                let collection: [&mut dyn #root::Decode; #len_lit] = [
-                    #( #root::collections::helpers::to_decode_dyn_mut(#mut_refs) ),*
+                let collection: [&mut dyn #root::DecodeZeroize; #len_lit] = [
+                    #( #root::collections::helpers::to_decode_zeroize_dyn_mut(#mut_refs) ),*
                 ];
                 #root::collections::helpers::decode_fields(collection.into_iter(), buf)
             }

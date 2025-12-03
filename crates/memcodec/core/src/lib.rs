@@ -20,4 +20,4 @@ pub mod collections;
 pub use support::test_utils;
 
 pub use error::{DecodeError, EncodeError, OverflowError};
-pub use traits::{BytesRequired, CodecBuffer, Decode, DecodeBuffer, Encode};
+pub use traits::{BytesRequired, CodecBuffer, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize};
