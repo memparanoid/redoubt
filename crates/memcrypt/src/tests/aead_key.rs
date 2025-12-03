@@ -5,7 +5,7 @@
 use chacha20poly1305::Key;
 
 use crate::aead_key::AeadKey;
-use memzer::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
+use memzer::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 use super::support::create_key_from_array;
 
@@ -17,7 +17,7 @@ fn test_aead_key_memguard_traits() {
     // Assert (not) zeroization!
     assert!(!key.is_zeroized());
 
-    key.self_zeroize();
+    key.fast_zeroize();
 
     // Assert zeroization!
     assert!(key.is_zeroized());

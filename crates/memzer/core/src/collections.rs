@@ -4,16 +4,16 @@
 
 //! Trait implementations and helpers for collections (slices, arrays, `Vec<T>`).
 
-use zeroize::Zeroize;
+use super::traits::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
-use super::traits::{Zeroizable, ZeroizationProbe};
-
-/// Converts a mutable reference to a trait object (`&mut dyn Zeroizable`).
+/// Converts a mutable reference to a trait object (`&mut dyn FastZeroizable`).
 ///
 /// Helper for working with heterogeneous collections where elements implement
-/// `Zeroizable` but may have different concrete types.
+/// `FastZeroizable` but may have different concrete types.
 #[inline(always)]
-pub fn to_zeroizable_dyn_mut<'a, T: Zeroizable>(x: &'a mut T) -> &'a mut (dyn Zeroizable + 'a) {
+pub fn to_fast_zeroizable_dyn_mut<'a, T: FastZeroizable>(
+    x: &'a mut T,
+) -> &'a mut (dyn FastZeroizable + 'a) {
     x
 }
 
@@ -30,10 +30,10 @@ pub fn to_zeroization_probe_dyn_ref<'a, T: ZeroizationProbe>(
 
 /// Zeroizes all elements in a collection via an iterator.
 ///
-/// Iterates over `&mut dyn Zeroizable` and calls `.self_zeroize()` on each element.
-pub fn zeroize_collection(collection_iter: &mut dyn Iterator<Item = &mut dyn Zeroizable>) {
+/// Iterates over `&mut dyn FastZeroizable` and calls `.fast_zeroize()` on each element.
+pub fn zeroize_collection(collection_iter: &mut dyn Iterator<Item = &mut dyn FastZeroizable>) {
     for z in collection_iter {
-        z.self_zeroize();
+        z.fast_zeroize();
     }
 }
 
@@ -54,21 +54,30 @@ pub fn collection_zeroed(collection_iter: &mut dyn Iterator<Item = &dyn Zeroizat
 ///
 /// Specialized version of [`zeroize_collection`] optimized for slices.
 #[inline(always)]
-pub fn zeroize_slice_collection(collection_iter: &mut dyn Iterator<Item = &mut dyn Zeroizable>) {
+pub fn zeroize_slice_collection(
+    collection_iter: &mut dyn Iterator<Item = &mut dyn FastZeroizable>,
+) {
     for elem in collection_iter {
-        elem.self_zeroize();
+        elem.fast_zeroize();
     }
 }
 
 // === === === === === === === === === ===
-// [T]
+// [T] - slices
 // === === === === === === === === === ===
-impl<T> Zeroizable for [T]
+impl<T> ZeroizeMetadata for [T]
 where
-    T: Zeroizable,
+    T: FastZeroizable,
 {
-    fn self_zeroize(&mut self) {
-        zeroize_slice_collection(&mut self.iter_mut().map(to_zeroizable_dyn_mut));
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+
+impl<T> FastZeroizable for [T]
+where
+    T: FastZeroizable,
+{
+    fn fast_zeroize(&mut self) {
+        zeroize_slice_collection(&mut self.iter_mut().map(to_fast_zeroizable_dyn_mut));
     }
 }
 
@@ -82,14 +91,25 @@ where
 }
 
 // === === === === === === === === === ===
-// [T; N]
+// [T; N] - arrays
 // === === === === === === === === === ===
-impl<T, const N: usize> Zeroizable for [T; N]
-where
-    T: Zeroize + Zeroizable,
-{
-    fn self_zeroize(&mut self) {
-        self.zeroize();
+impl<T: ZeroizeMetadata, const N: usize> ZeroizeMetadata for [T; N] {
+    // Arrays inherit bulk-zeroize capability from their element type
+    const CAN_BE_BULK_ZEROIZED: bool = T::CAN_BE_BULK_ZEROIZED;
+}
+
+impl<T: ZeroizeMetadata + FastZeroizable, const N: usize> FastZeroizable for [T; N] {
+    #[inline(always)]
+    fn fast_zeroize(&mut self) {
+        if T::CAN_BE_BULK_ZEROIZED {
+            // Fast path: bulk zeroize the entire array
+            memutil::fast_zeroize_slice(self.as_mut_slice());
+        } else {
+            // Slow path: recursively zeroize each element
+            for elem in self.iter_mut() {
+                elem.fast_zeroize();
+            }
+        }
     }
 }
 
@@ -105,69 +125,12 @@ where
 // === === === === === === === === === ===
 // Vec<T>
 // === === === === === === === === === ===
-impl<T> Zeroizable for Vec<T>
-where
-    T: Zeroize + Zeroizable,
-{
-    fn self_zeroize(&mut self) {
-        self.zeroize();
-    }
-}
-
-impl<T> ZeroizationProbe for Vec<T>
-where
-    T: ZeroizationProbe,
-{
-    fn is_zeroized(&self) -> bool {
-        collection_zeroed(&mut self.iter().map(to_zeroization_probe_dyn_ref))
-    }
-}
-
-// === === === === === === === === === ===
-// String
-// === === === === === === === === === ===
-impl Zeroizable for String {
-    fn self_zeroize(&mut self) {
-        self.zeroize();
-    }
-}
-
-impl ZeroizationProbe for String {
-    fn is_zeroized(&self) -> bool {
-        memutil::is_slice_zeroized(self.as_bytes())
-    }
-}
-
-// =============================================================================
-// FastZeroize implementations
-// =============================================================================
-
-use super::traits::FastZeroize;
-
-// Arrays [T; N]
-impl<T: FastZeroize, const N: usize> FastZeroize for [T; N] {
-    // Arrays inherit bulk-zeroize capability from their element type
-    const CAN_BE_BULK_ZEROIZED: bool = T::CAN_BE_BULK_ZEROIZED;
-
-    #[inline(always)]
-    fn fast_zeroize(&mut self) {
-        if T::CAN_BE_BULK_ZEROIZED {
-            // Fast path: bulk zeroize the entire array
-            memutil::fast_zeroize_slice(self.as_mut_slice());
-        } else {
-            // Slow path: recursively zeroize each element
-            for elem in self.iter_mut() {
-                elem.fast_zeroize();
-            }
-        }
-    }
-}
-
-// Vec<T>
-impl<T: FastZeroize> FastZeroize for Vec<T> {
+impl<T: ZeroizeMetadata> ZeroizeMetadata for Vec<T> {
     // Vec can NEVER be bulk-zeroized from outside (has ptr/len/capacity)
     const CAN_BE_BULK_ZEROIZED: bool = false;
+}
 
+impl<T: ZeroizeMetadata + FastZeroizable> FastZeroizable for Vec<T> {
     #[inline(always)]
     fn fast_zeroize(&mut self) {
         if T::CAN_BE_BULK_ZEROIZED {
@@ -183,11 +146,24 @@ impl<T: FastZeroize> FastZeroize for Vec<T> {
     }
 }
 
+impl<T> ZeroizationProbe for Vec<T>
+where
+    T: ZeroizationProbe,
+{
+    fn is_zeroized(&self) -> bool {
+        collection_zeroed(&mut self.iter().map(to_zeroization_probe_dyn_ref))
+    }
+}
+
+// === === === === === === === === === ===
 // String
-impl FastZeroize for String {
+// === === === === === === === === === ===
+impl ZeroizeMetadata for String {
     // String can NEVER be bulk-zeroized from outside (has ptr/len/capacity)
     const CAN_BE_BULK_ZEROIZED: bool = false;
+}
 
+impl FastZeroizable for String {
     #[inline(always)]
     fn fast_zeroize(&mut self) {
         // Safety: String is Vec<u8> internally, and u8::CAN_BE_BULK_ZEROIZED = true
@@ -196,5 +172,11 @@ impl FastZeroize for String {
             let vec_bytes = self.as_mut_vec();
             memutil::fast_zeroize_vec(vec_bytes);
         }
+    }
+}
+
+impl ZeroizationProbe for String {
+    fn is_zeroized(&self) -> bool {
+        memutil::is_slice_zeroized(self.as_bytes())
     }
 }

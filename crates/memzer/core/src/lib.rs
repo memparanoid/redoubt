@@ -10,7 +10,7 @@
 //!
 //! - **[`DropSentinel`]**: Runtime verification that zeroization happened before drop
 //! - **[`ZeroizingMutGuard`]**: RAII guard for mutable references (auto-zeroizes on drop)
-//! - **Traits**: [`Zeroizable`], [`ZeroizationProbe`], [`AssertZeroizeOnDrop`], [`MutGuarded`]
+//! - **Traits**: [`FastZeroizable`], [`ZeroizationProbe`], [`AssertZeroizeOnDrop`], [`MutGuarded`]
 //! - **Derive macro**: `#[derive(MemZer)]` for automatic trait implementations
 //!
 //! For high-level wrappers, see the `memsecret` crate which provides `Secret<T>` and `MemMove`.
@@ -53,7 +53,7 @@
 //! ### Manual Implementation
 //!
 //! ```rust
-//! use memzer_core::{DropSentinel, Zeroizable, ZeroizationProbe, AssertZeroizeOnDrop, collections};
+//! use memzer_core::{DropSentinel, FastZeroizable, ZeroizationProbe, AssertZeroizeOnDrop, collections};
 //! use zeroize::Zeroize;
 //!
 //! #[derive(Zeroize)]
@@ -64,8 +64,8 @@
 //!     __drop_sentinel: DropSentinel,
 //! }
 //!
-//! impl Zeroizable for Credentials {
-//!     fn self_zeroize(&mut self) {
+//! impl FastZeroizable for Credentials {
+//!     fn fast_zeroize(&mut self) {
 //!         self.zeroize();
 //!     }
 //! }
@@ -156,7 +156,7 @@ pub mod assert;
 
 /// Trait implementations and helpers for collections (slices, arrays, `Vec<T>`).
 ///
-/// Provides [`Zeroizable`] and [`ZeroizationProbe`] implementations for standard collection types.
+/// Provides [`FastZeroizable`] and [`ZeroizationProbe`] implementations for standard collection types.
 pub mod collections;
 
 /// Wrapper types for primitive scalars with [`DropSentinel`] support.
@@ -164,5 +164,5 @@ pub mod collections;
 /// Exports: `U8`, `U16`, `U32`, `U64`, `U128`, `USIZE` - each wraps the corresponding primitive type.
 pub mod primitives;
 pub use drop_sentinel::DropSentinel;
-pub use traits::{AssertZeroizeOnDrop, FastZeroize, MutGuarded, Zeroizable, ZeroizationProbe};
+pub use traits::{AssertZeroizeOnDrop, FastZeroize, FastZeroizable, MutGuarded, ZeroizeMetadata, ZeroizationProbe};
 pub use zeroizing_mut_guard::ZeroizingMutGuard;

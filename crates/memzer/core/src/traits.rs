@@ -9,44 +9,6 @@ use zeroize::Zeroize;
 
 use super::drop_sentinel::DropSentinel;
 
-/// Trait for types that can be systematically zeroized.
-///
-/// This trait provides a unified interface for zeroizing types, complementing
-/// the [`zeroize::Zeroize`] trait. `Zeroizable` is used internally by guards
-/// and collections to ensure all fields are zeroized.
-///
-/// # Difference from `Zeroize`
-///
-/// - `Zeroize`: External trait from the `zeroize` crate (standard interface)
-/// - `Zeroizable`: Internal trait for `memzer` (allows custom behavior like [`DropSentinel::zeroize`])
-///
-/// Most types implement `Zeroizable` by delegating to `Zeroize::zeroize()`.
-///
-/// # Example
-///
-/// ```rust
-/// use memzer_core::Zeroizable;
-/// use zeroize::Zeroize;
-///
-/// #[derive(Zeroize)]
-/// struct MyType {
-///     data: Vec<u8>,
-/// }
-///
-/// impl Zeroizable for MyType {
-///     fn self_zeroize(&mut self) {
-///         self.zeroize(); // Delegate to Zeroize
-///     }
-/// }
-/// ```
-pub trait Zeroizable {
-    /// Zeroizes the value in place.
-    ///
-    /// After calling this method, the value should be in a "zeroed" state
-    /// (all bytes set to 0).
-    fn self_zeroize(&mut self);
-}
-
 /// Trait for verifying that a value has been zeroized.
 ///
 /// This trait allows runtime checks to verify that zeroization actually happened.
@@ -55,14 +17,14 @@ pub trait Zeroizable {
 /// # Example
 ///
 /// ```rust
-/// use memzer_core::{ZeroizationProbe, Zeroizable, primitives::U32};
+/// use memzer_core::{ZeroizationProbe, FastZeroizable, primitives::U32};
 ///
 /// let mut value = U32::default();
 /// *value.expose_mut() = 42;
 ///
 /// assert!(!value.is_zeroized());
 ///
-/// value.self_zeroize();
+/// value.fast_zeroize();
 /// assert!(value.is_zeroized());
 /// ```
 pub trait ZeroizationProbe {
@@ -112,9 +74,9 @@ pub trait AssertZeroizeOnDrop {
 ///     // ... use value
 /// } // guard zeroizes on drop
 /// ```
-pub trait MutGuarded<'a, T>: Zeroizable + ZeroizationProbe + AssertZeroizeOnDrop
+pub trait MutGuarded<'a, T>: FastZeroize + ZeroizationProbe + AssertZeroizeOnDrop
 where
-    T: Zeroize + Zeroizable + ZeroizationProbe,
+    T: Zeroize + FastZeroize + ZeroizationProbe,
 {
     /// Exposes an immutable reference to the guarded value.
     fn expose(&self) -> &T;
@@ -123,14 +85,64 @@ where
     fn expose_mut(&mut self) -> &mut T;
 }
 
-/// Trait for types that can be securely zeroized.
+/// Metadata about zeroization strategy for a type.
 ///
-/// This trait replaces the `zeroize` crate entirely, providing both runtime
-/// zeroization and compile-time optimization hints via `CAN_BE_BULK_ZEROIZED`.
+/// This trait provides compile-time information about whether a type can be
+/// bulk-zeroized with memset or requires element-by-element zeroization.
+///
+/// **Note:** This trait is NOT dyn-compatible (has associated constants).
+/// Use [`FastZeroizable`] for trait objects.
+pub trait ZeroizeMetadata {
+    /// Whether this type can be bulk-zeroized with memset.
+    ///
+    /// - `true`: All-zeros is a valid bit pattern (primitives)
+    /// - `false`: Requires element-by-element recursive zeroization (complex types)
+    const CAN_BE_BULK_ZEROIZED: bool;
+}
+
+/// Trait for types that can be zeroized at runtime.
+///
+/// This trait is dyn-compatible, allowing it to be used in trait objects
+/// like `&mut dyn FastZeroizable`.
+///
+/// Use this trait when you need dynamic dispatch for zeroization operations.
+pub trait FastZeroizable {
+    /// Zeroizes the value in place.
+    ///
+    /// After calling this method, all sensitive data should be overwritten with zeros.
+    fn fast_zeroize(&mut self);
+}
+
+/// Combined trait for types with both zeroization metadata and runtime zeroization.
+///
+/// This is the main trait users should implement. It combines:
+/// - [`ZeroizeMetadata`]: Compile-time optimization hints
+/// - [`FastZeroizable`]: Runtime zeroization method (dyn-compatible)
+///
+/// # Usage
+///
+///
+///
+///
+///
+/// ```rust,ignore
+/// use zeroize::Zeroize;
+/// use memzer_core::FastZeroize;
+///
+/// struct MyStruct {
+///     data: Vec<u8>,
+/// }
+///
+/// impl FastZeroize for MyStruct {
+///     const CAN_BE_BULK_ZEROIZED = false;
+///
+///     fn fast_zeroize(&mut self) {
+///         self.zeroize(); // Delegate to zeroize crate
+///     }
+/// }
+/// ```
 ///
 /// # `CAN_BE_BULK_ZEROIZED` Constant
-///
-/// Determines the zeroization strategy:
 ///
 /// ## `CAN_BE_BULK_ZEROIZED = true` (Fast Path)
 ///
@@ -144,20 +156,19 @@ where
 /// Requires element-by-element zeroization because:
 /// - Type contains pointers, references, or heap allocations
 /// - All-zeros may not be a valid representation
-/// - Needs recursive `.fast_zeroize()` calls on each field
+/// - Needs recursive calls on each field
 ///
 /// # Example
 ///
 /// ```rust,ignore
 /// use memzer_core::FastZeroize;
-/// use memutil::zeroize_primitive;
 ///
 /// // Primitive: bulk zeroization
 /// impl FastZeroize for u32 {
 ///     const CAN_BE_BULK_ZEROIZED: bool = true;
 ///
 ///     fn fast_zeroize(&mut self) {
-///         zeroize_primitive(self);
+///         memutil::zeroize_primitive(self);
 ///     }
 /// }
 ///
@@ -169,21 +180,12 @@ where
 /// impl FastZeroize for ApiKey {
 ///     const CAN_BE_BULK_ZEROIZED: bool = false;
 ///
-///     fn zeroize(&mut self) {
-///         self.secret.fast_zeroize(); // Recursive
+///     fn fast_zeroize(&mut self) {
+///         self.secret.fast_zeroize();
 ///     }
 /// }
 /// ```
-pub trait FastZeroize {
-    /// Whether this type can be bulk-zeroized with memset.
-    ///
-    /// - `true`: Safe to use `ptr::write_bytes` (all-zeros is valid)
-    /// - `false`: Requires element-by-element recursive zeroization
-    const CAN_BE_BULK_ZEROIZED: bool;
+pub trait FastZeroize: ZeroizeMetadata + FastZeroizable {}
 
-    /// Zeroizes the value in place.
-    ///
-    /// After calling this method, all sensitive data should be overwritten
-    /// with zeros. The implementation strategy depends on `CAN_BE_BULK_ZEROIZED`.
-    fn fast_zeroize(&mut self);
-}
+// Blanket impl: any type implementing both sub-traits automatically gets FastZeroize
+impl<T: ZeroizeMetadata + FastZeroizable> FastZeroize for T {}

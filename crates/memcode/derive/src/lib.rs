@@ -25,7 +25,7 @@ use syn::{Attribute, Data, DeriveInput, Fields, Ident, Index, LitStr, Meta, pars
 /// # Generated Implementations
 ///
 /// The macro generates the following trait implementations:
-/// - [`Zeroizable`](https://docs.rs/memcode-core/latest/memcode_core/trait.Zeroizable.html)
+/// - [`FastZeroizable`](https://docs.rs/memcode-core/latest/memcode_core/trait.FastZeroizable.html)
 /// - [`MemNumElements`](https://docs.rs/memcode-core/latest/memcode_core/trait.MemNumElements.html)
 /// - [`MemBytesRequired`](https://docs.rs/memcode-core/latest/memcode_core/trait.MemBytesRequired.html)
 /// - [`MemEncode`](https://docs.rs/memcode-core/latest/memcode_core/trait.MemEncode.html)
@@ -214,7 +214,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
 
     // 5) Emit the traits implementations for the struct
     let output = quote! {
-        impl #impl_generics #root::Zeroizable for #struct_name #ty_generics #where_clause {
+        impl #impl_generics #root::FastZeroizable for #struct_name #ty_generics #where_clause {
             #[inline(always)]
             fn self_zeroize(&mut self) {
                 self.zeroize();

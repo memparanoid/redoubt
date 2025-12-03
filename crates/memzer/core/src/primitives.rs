@@ -51,14 +51,6 @@ macro_rules! impl_primitives_mem_zer_traits {
                 }
             }
 
-            impl $crate::traits::Zeroizable for $ty {
-                #[inline(always)]
-                fn self_zeroize(&mut self) {
-                    self.zeroize();
-                }
-
-            }
-
             impl $crate::traits::ZeroizationProbe for $wrapper_ty {
                 #[inline(always)]
                 fn is_zeroized(&self) -> bool {
@@ -66,12 +58,15 @@ macro_rules! impl_primitives_mem_zer_traits {
                 }
             }
 
-            impl $crate::traits::Zeroizable for $wrapper_ty {
+            impl $crate::traits::ZeroizeMetadata for $wrapper_ty {
+                const CAN_BE_BULK_ZEROIZED: bool = true;
+            }
+
+            impl $crate::traits::FastZeroizable for $wrapper_ty {
                 #[inline(always)]
-                fn self_zeroize(&mut self) {
+                fn fast_zeroize(&mut self) {
                     self.zeroize();
                 }
-
             }
 
             impl $crate::traits::AssertZeroizeOnDrop for $wrapper_ty {
@@ -104,24 +99,15 @@ impl crate::traits::ZeroizationProbe for bool {
     }
 }
 
-impl crate::traits::Zeroizable for bool {
-    #[inline(always)]
-    fn self_zeroize(&mut self) {
-        self.zeroize();
-    }
-}
-
-// =============================================================================
-// FastZeroize implementations
-// =============================================================================
-
 /// Implements FastZeroize for primitive numeric types.
 macro_rules! impl_fast_zeroize_primitive {
     ($($ty:ty),* $(,)?) => {
         $(
-            impl crate::traits::FastZeroize for $ty {
+            impl crate::traits::ZeroizeMetadata for $ty {
                 const CAN_BE_BULK_ZEROIZED: bool = true;
+            }
 
+            impl crate::traits::FastZeroizable for $ty {
                 #[inline(always)]
                 fn fast_zeroize(&mut self) {
                     memutil::zeroize_primitive(self);

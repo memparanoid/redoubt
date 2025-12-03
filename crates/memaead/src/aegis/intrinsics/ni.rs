@@ -9,7 +9,7 @@ use core::arch::x86_64::{
     _mm_storeu_si128, _mm_xor_si128,
 };
 
-use memzer::{Zeroizable, ZeroizationProbe};
+use memzer::{FastZeroizable, ZeroizationProbe};
 use zeroize::Zeroize;
 
 /// AES block using AES-NI intrinsics.
@@ -115,9 +115,13 @@ impl ZeroizationProbe for Intrinsics {
     }
 }
 
-impl Zeroizable for Intrinsics {
+impl memzer::ZeroizeMetadata for Intrinsics {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+
+impl FastZeroizable for Intrinsics {
     #[inline]
-    fn self_zeroize(&mut self) {
+    fn fast_zeroize(&mut self) {
         self.zeroize();
     }
 }

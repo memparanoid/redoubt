@@ -5,7 +5,7 @@
 use zeroize::Zeroize;
 
 use memcode::MemEncodeBuf;
-use memzer::{DropSentinel, MemZer, Zeroizable, ZeroizationProbe, ZeroizingMutGuard};
+use memzer::{DropSentinel, MemZer, FastZeroizable, ZeroizationProbe, ZeroizingMutGuard};
 
 use crate::aead_buffer::AeadBuffer;
 use crate::aead_key::AeadKey;
@@ -13,7 +13,7 @@ use crate::xnonce::XNonce;
 
 #[derive(Zeroize, MemZer)]
 #[zeroize(drop)]
-pub struct EncryptionMemZer<'a, T: Zeroize + Zeroizable + ZeroizationProbe + Sized> {
+pub struct EncryptionMemZer<'a, T: Zeroize + FastZeroizable + ZeroizationProbe + Sized> {
     pub aead_key: ZeroizingMutGuard<'a, AeadKey>,
     pub aead_key_size: usize,
     pub xnonce: ZeroizingMutGuard<'a, XNonce>,
@@ -23,7 +23,7 @@ pub struct EncryptionMemZer<'a, T: Zeroize + Zeroizable + ZeroizationProbe + Siz
     __drop_sentinel: DropSentinel,
 }
 
-impl<'a, T: Zeroize + Zeroizable + ZeroizationProbe + Sized> EncryptionMemZer<'a, T> {
+impl<'a, T: Zeroize + FastZeroizable + ZeroizationProbe + Sized> EncryptionMemZer<'a, T> {
     pub fn new(aead_key: &'a mut AeadKey, xnonce: &'a mut XNonce, value: &'a mut T) -> Self {
         let aead_key_size = aead_key.as_ref().len();
 

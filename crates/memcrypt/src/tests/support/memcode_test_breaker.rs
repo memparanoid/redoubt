@@ -10,7 +10,7 @@ use memcode::{
     MemCodeTestBreaker as InnerMemCodeTestBreaker, MemCodeTestBreakerBehaviour, MemCodec,
 };
 use memzer::{
-    AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe, assert::assert_zeroize_on_drop,
+    AssertZeroizeOnDrop, DropSentinel, FastZeroizable, ZeroizationProbe, assert::assert_zeroize_on_drop,
 };
 
 #[derive(Default, Debug, MemCodec, Zeroize)]
@@ -40,7 +40,7 @@ impl DerefMut for MemCodeTestBreaker {
     }
 }
 
-impl Zeroizable for MemCodeTestBreaker {
+impl FastZeroizable for MemCodeTestBreaker {
     fn self_zeroize(&mut self) {
         self.zeroize();
     }

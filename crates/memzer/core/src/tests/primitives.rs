@@ -7,7 +7,7 @@ fn test_primitive_zeroization_roundtrip() {
     macro_rules! run_test_for {
         ($ty:ty, $fn_name:ident, $wrapper_ty:ident) => {{
             use $crate::primitives::$fn_name;
-            use $crate::traits::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
+            use $crate::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
             let mut value = $fn_name();
 
@@ -22,7 +22,7 @@ fn test_primitive_zeroization_roundtrip() {
                 concat!("Not zeroized after mutate for ", stringify!($ty))
             );
 
-            value.self_zeroize();
+            value.fast_zeroize();
 
             assert!(
                 value.is_zeroized(),
@@ -44,7 +44,7 @@ fn test_primitive_zeroization_roundtrip() {
 
 #[test]
 fn test_bool_zeroization_probe() {
-    use crate::traits::{Zeroizable, ZeroizationProbe};
+    use crate::traits::{FastZeroizable, ZeroizationProbe};
 
     let mut value = false;
     assert!(value.is_zeroized(), "false should be considered zeroized");
@@ -52,7 +52,7 @@ fn test_bool_zeroization_probe() {
     value = true;
     assert!(!value.is_zeroized(), "true should NOT be zeroized");
 
-    value.self_zeroize();
+    value.fast_zeroize();
     assert!(value.is_zeroized(), "bool should be zeroized (false) after zeroize");
     assert!(!value);
 }

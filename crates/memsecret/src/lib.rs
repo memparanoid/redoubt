@@ -18,7 +18,7 @@ pub use traits::MemMove;
 use core::fmt;
 
 use memcode::{MemBytesRequired, MemDecodable, MemEncodable};
-use memzer::{DropSentinel, Zeroizable, ZeroizationProbe};
+use memzer::{DropSentinel, FastZeroizable, ZeroizationProbe};
 use zeroize::Zeroize;
 
 /// Wrapper that prevents accidental exposure of sensitive data.
@@ -90,7 +90,7 @@ use zeroize::Zeroize;
 #[zeroize(drop)]
 pub struct Secret<T>
 where
-    T: Zeroize + Zeroizable + ZeroizationProbe + MemEncodable + MemDecodable + MemBytesRequired,
+    T: Zeroize + FastZeroizable + ZeroizationProbe + MemEncodable + MemDecodable + MemBytesRequired,
 {
     inner: T,
     #[memcode(default)]
@@ -99,7 +99,7 @@ where
 
 impl<T> fmt::Debug for Secret<T>
 where
-    T: Zeroize + Zeroizable + ZeroizationProbe + MemEncodable + MemDecodable + MemBytesRequired,
+    T: Zeroize + FastZeroizable + ZeroizationProbe + MemEncodable + MemDecodable + MemBytesRequired,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[REDACTED Secret]")
@@ -108,7 +108,7 @@ where
 
 impl<T> Secret<T>
 where
-    T: Zeroize + Zeroizable + ZeroizationProbe + MemEncodable + MemDecodable + MemBytesRequired,
+    T: Zeroize + FastZeroizable + ZeroizationProbe + MemEncodable + MemDecodable + MemBytesRequired,
 {
     /// Creates a new `Secret` by moving data from `sensitive_data`, zeroizing the source.
     ///

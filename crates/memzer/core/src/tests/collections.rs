@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::traits::{Zeroizable, ZeroizationProbe};
+use crate::traits::{FastZeroizable, ZeroizationProbe};
 
 const SIZE: usize = (u16::MAX / 4) as usize;
 
@@ -12,7 +12,7 @@ fn test_string() {
 
     assert!(!s.is_zeroized());
 
-    s.self_zeroize();
+    s.fast_zeroize();
 
     assert!(s.is_zeroized());
     assert!(memutil::is_slice_zeroized(s.as_bytes()));
@@ -26,11 +26,11 @@ fn test_vec() {
     assert!(!vec.is_zeroized());
 
     for i in 0..SIZE - 1 {
-        vec[i].self_zeroize();
+        vec[i].fast_zeroize();
         assert!(!vec.is_zeroized());
     }
 
-    vec.self_zeroize();
+    vec.fast_zeroize();
 
     assert!(vec.is_zeroized());
     assert!(memutil::is_vec_fully_zeroized(&vec));
@@ -43,11 +43,11 @@ fn test_array() {
     assert!(!array.is_zeroized());
 
     for i in 0..SIZE - 1 {
-        array[i].self_zeroize();
+        array[i].fast_zeroize();
         assert!(!array.is_zeroized());
     }
 
-    array.self_zeroize();
+    array.fast_zeroize();
 
     assert!(array.is_zeroized());
     assert!(memutil::is_slice_zeroized(&array));
@@ -61,11 +61,11 @@ fn test_slice() {
     assert!(!slice.is_zeroized());
 
     for i in 0..SIZE - 1 {
-        slice[i].self_zeroize();
+        slice[i].fast_zeroize();
         assert!(!slice.is_zeroized());
     }
 
-    slice.self_zeroize();
+    slice.fast_zeroize();
 
     assert!(slice.is_zeroized());
     assert!(memutil::is_slice_zeroized(slice));

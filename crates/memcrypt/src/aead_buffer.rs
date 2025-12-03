@@ -8,7 +8,7 @@ use chacha20poly1305::aead::Buffer;
 use zeroize::Zeroize;
 
 use memzer::assert::assert_zeroize_on_drop;
-use memzer::{AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe};
+use memzer::{AssertZeroizeOnDrop, DropSentinel, FastZeroizable, ZeroizationProbe};
 
 use crate::error::CryptoError;
 
@@ -190,8 +190,12 @@ impl std::fmt::Debug for AeadBuffer {
     }
 }
 
-impl Zeroizable for AeadBuffer {
-    fn self_zeroize(&mut self) {
+impl memzer::ZeroizeMetadata for AeadBuffer {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+
+impl FastZeroizable for AeadBuffer {
+    fn fast_zeroize(&mut self) {
         self.zeroize();
     }
 }

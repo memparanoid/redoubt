@@ -7,7 +7,7 @@ use zeroize::Zeroize;
 use crate::assert::assert_zeroize_on_drop;
 use crate::collections::{collection_zeroed, to_zeroization_probe_dyn_ref};
 use crate::drop_sentinel::DropSentinel;
-use crate::traits::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
+use crate::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 use crate::zeroizing_mut_guard::ZeroizingMutGuard;
 
 #[derive(Zeroize)]
@@ -46,8 +46,8 @@ impl AssertZeroizeOnDrop for Foo {
     }
 }
 
-impl Zeroizable for Foo {
-    fn self_zeroize(&mut self) {
+impl FastZeroizable for Foo {
+    fn fast_zeroize(&mut self) {
         self.zeroize();
     }
 }
@@ -102,8 +102,8 @@ impl<'a> AssertZeroizeOnDrop for FunctionalStruct<'a> {
     }
 }
 
-impl<'a> Zeroizable for FunctionalStruct<'a> {
-    fn self_zeroize(&mut self) {
+impl<'a> FastZeroizable for FunctionalStruct<'a> {
+    fn fast_zeroize(&mut self) {
         self.zeroize();
     }
 }

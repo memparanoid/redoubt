@@ -45,7 +45,7 @@ use zeroize::Zeroize;
 /// ```
 ///
 /// The `__drop_sentinel` field tracks whether `.zeroize()` was called before drop.
-/// You'll need to implement `Zeroizable`, `ZeroizationProbe`, and `AssertZeroizeOnDrop`
+/// You'll need to implement `FastZeroizable`, `ZeroizationProbe`, and `AssertZeroizeOnDrop`
 /// manually, or use the `memzer` umbrella crate which provides `#[derive(MemZer)]`.
 ///
 /// # Testing

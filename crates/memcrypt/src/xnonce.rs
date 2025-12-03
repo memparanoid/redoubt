@@ -6,7 +6,7 @@ use chacha20poly1305::XNonce as ChachaXNonce;
 use zeroize::Zeroize;
 
 use memzer::assert::assert_zeroize_on_drop;
-use memzer::{AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe};
+use memzer::{AssertZeroizeOnDrop, DropSentinel, FastZeroizable, ZeroizationProbe};
 
 /// XChaCha20 nonce (24 bytes) with automatic zeroization and drop verification.
 ///
@@ -59,8 +59,12 @@ impl AsRef<ChachaXNonce> for XNonce {
     }
 }
 
-impl Zeroizable for XNonce {
-    fn self_zeroize(&mut self) {
+impl memzer::ZeroizeMetadata for XNonce {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+
+impl FastZeroizable for XNonce {
+    fn fast_zeroize(&mut self) {
         self.zeroize();
     }
 }

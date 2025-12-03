@@ -11,7 +11,7 @@
 //! ## Quick Start
 //!
 //! ```rust
-//! use memzer::{DropSentinel, Zeroizable, ZeroizationProbe, AssertZeroizeOnDrop, MemZer};
+//! use memzer::{DropSentinel, FastZeroizable, ZeroizationProbe, AssertZeroizeOnDrop, MemZer};
 //! use zeroize::Zeroize;
 //!
 //! #[derive(Zeroize, MemZer)]
@@ -33,7 +33,7 @@
 //! ## What's Included
 //!
 //! - **Core types**: [`DropSentinel`], [`ZeroizingMutGuard`]
-//! - **Traits**: [`Zeroizable`], [`ZeroizationProbe`], [`AssertZeroizeOnDrop`], [`MutGuarded`]
+//! - **Traits**: [`FastZeroize`], [`FastZeroizable`], [`ZeroizeMetadata`], [`ZeroizationProbe`], [`AssertZeroizeOnDrop`], [`MutGuarded`]
 //! - **Derive macro**: `#[derive(MemZer)]` for automatic trait implementations
 //! - **Primitives**: Wrapper types for scalars (`U8`, `U16`, `U32`, `U64`, `U128`, `USIZE`)
 //! - **Test helpers**: [`assert_zeroize_on_drop()`](assert::assert_zeroize_on_drop)
@@ -48,7 +48,9 @@
 //! [`memzer-derive`]: https://docs.rs/memzer-derive
 //! [`DropSentinel`]: memzer_core::DropSentinel
 //! [`ZeroizingMutGuard`]: memzer_core::ZeroizingMutGuard
-//! [`Zeroizable`]: memzer_core::Zeroizable
+//! [`FastZeroize`]: memzer_core::FastZeroize
+//! [`FastZeroizable`]: memzer_core::FastZeroizable
+//! [`ZeroizeMetadata`]: memzer_core::ZeroizeMetadata
 //! [`ZeroizationProbe`]: memzer_core::ZeroizationProbe
 //! [`AssertZeroizeOnDrop`]: memzer_core::AssertZeroizeOnDrop
 //! [`MutGuarded`]: memzer_core::MutGuarded// Copyright (C) 2024 Mem Paranoid

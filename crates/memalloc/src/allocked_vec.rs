@@ -97,8 +97,13 @@ impl memzer::ZeroizationProbe for AllockedVecBehaviour {
 }
 
 #[cfg(any(test, feature = "test_utils"))]
-impl memzer::Zeroizable for AllockedVecBehaviour {
-    fn self_zeroize(&mut self) {
+impl memzer::ZeroizeMetadata for AllockedVecBehaviour {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+
+#[cfg(any(test, feature = "test_utils"))]
+impl memzer::FastZeroizable for AllockedVecBehaviour {
+    fn fast_zeroize(&mut self) {
         self.zeroize();
     }
 }

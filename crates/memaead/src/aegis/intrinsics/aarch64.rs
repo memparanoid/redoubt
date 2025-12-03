@@ -9,7 +9,7 @@ use core::arch::aarch64::{
     vaeseq_u8, vaesmcq_u8,
 };
 
-use memzer::{Zeroizable, ZeroizationProbe};
+use memzer::{FastZeroizable, ZeroizationProbe};
 use zeroize::Zeroize;
 
 /// AES block using ARM Crypto intrinsics.
@@ -126,9 +126,13 @@ impl ZeroizationProbe for Intrinsics {
     }
 }
 
-impl Zeroizable for Intrinsics {
+impl memzer::ZeroizeMetadata for Intrinsics {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+
+impl FastZeroizable for Intrinsics {
     #[inline]
-    fn self_zeroize(&mut self) {
+    fn fast_zeroize(&mut self) {
         self.zeroize();
     }
 }

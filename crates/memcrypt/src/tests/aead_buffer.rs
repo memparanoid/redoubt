@@ -4,7 +4,7 @@
 
 use chacha20poly1305::aead::Buffer;
 
-use memzer::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
+use memzer::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 use crate::aead_buffer::AeadBuffer;
 
@@ -19,7 +19,7 @@ fn test_aead_buffer_memguard_traits() {
     // Assert (not) zeroization!
     assert!(!buf.is_zeroized());
 
-    buf.self_zeroize();
+    buf.fast_zeroize();
 
     // Assert zeroization!
     assert!(buf.is_zeroized());

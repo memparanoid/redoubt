@@ -17,7 +17,7 @@ use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Fields, Ident, Index, LitStr, Type, parse_macro_input};
 
-/// Derives `Zeroizable`, `ZeroizationProbe`, and `AssertZeroizeOnDrop` for a struct.
+/// Derives `FastZeroizable`, `ZeroizeMetadata`, `ZeroizationProbe`, and `AssertZeroizeOnDrop` for a struct.
 ///
 /// This macro automatically generates trait implementations for structs that contain
 /// a `DropSentinel` field.
@@ -32,7 +32,7 @@ use syn::{Data, DeriveInput, Fields, Ident, Index, LitStr, Type, parse_macro_inp
 ///
 /// ```rust
 /// use memzer_derive::MemZer;
-/// use memzer_core::{DropSentinel, Zeroizable, ZeroizationProbe};
+/// use memzer_core::{DropSentinel, FastZeroizable, ZeroizationProbe};
 /// use zeroize::Zeroize;
 ///
 /// #[derive(Zeroize, MemZer)]
@@ -178,8 +178,12 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
 
     // 4) Emit the trait implementations for the struct
     let output = quote! {
-        impl #impl_generics #root::Zeroizable for #struct_name #ty_generics #where_clause {
-            fn self_zeroize(&mut self) {
+        impl #impl_generics #root::ZeroizeMetadata for #struct_name #ty_generics #where_clause {
+            const CAN_BE_BULK_ZEROIZED: bool = false;
+        }
+
+        impl #impl_generics #root::FastZeroizable for #struct_name #ty_generics #where_clause {
+            fn fast_zeroize(&mut self) {
                 self.zeroize();
             }
         }

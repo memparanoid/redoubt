@@ -6,7 +6,7 @@ use chacha20poly1305::{AeadInOut, KeyInit, XChaCha20Poly1305, aead::Buffer};
 use zeroize::{Zeroize, Zeroizing};
 
 use memcode::MemDecodable;
-use memzer::{Zeroizable, ZeroizationProbe};
+use memzer::{FastZeroizable, ZeroizationProbe};
 
 use crate::AeadKey;
 use crate::XNonce;
@@ -102,7 +102,7 @@ pub fn decrypt_mem_decodable<T>(
     ciphertext: &mut Vec<u8>,
 ) -> Result<Zeroizing<T>, CryptoError>
 where
-    T: MemDecodable + Default + Zeroize + Zeroizable + ZeroizationProbe,
+    T: MemDecodable + Default + Zeroize + FastZeroizable + ZeroizationProbe,
 {
     let mut x = DecryptionMemZer::new(aead_key, xnonce, ciphertext);
     decrypt_mem_decodable_with::<T, _>(&mut x, |_, _| {})
@@ -113,7 +113,7 @@ pub fn decrypt_mem_decodable_with<T, F>(
     #[allow(unused)] f: F,
 ) -> Result<Zeroizing<T>, CryptoError>
 where
-    T: MemDecodable + Default + Zeroize + Zeroizable + ZeroizationProbe,
+    T: MemDecodable + Default + Zeroize + FastZeroizable + ZeroizationProbe,
     F: Fn(DecryptStage, &mut DecryptionMemZer),
 {
     // State: NewFromSlice

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use memzer::{Zeroizable, ZeroizationProbe};
+use memzer::{FastZeroizable, ZeroizationProbe};
 
 use crate::allocked_vec::AllockedVecBehaviour;
 
@@ -12,7 +12,7 @@ fn test_allocked_vec_behaviour() {
 
     assert!(!behaviour.is_zeroized());
 
-    behaviour.self_zeroize();
+    behaviour.fast_zeroize();
 
     assert!(behaviour.is_zeroized());
     assert!(matches!(behaviour, AllockedVecBehaviour::None));

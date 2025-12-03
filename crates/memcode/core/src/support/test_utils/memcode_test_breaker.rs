@@ -9,7 +9,7 @@ use crate::error::{MemDecodeError, MemEncodeError, OverflowError};
 use crate::mem_encode_buf::MemEncodeBuf;
 use crate::traits::{
     CollectionDecode, CollectionEncode, DecodeIterator, EncodeIterator, MemBytesRequired,
-    MemDecodable, MemDecode, MemEncodable, MemEncode, MemNumElements, Zeroizable,
+    MemDecodable, MemDecode, MemEncodable, MemEncode, MemNumElements, FastZeroizable,
 };
 
 /// Behavior control for error injection testing in MemCode.
@@ -88,7 +88,7 @@ impl MemCodeTestBreaker {
     }
 }
 
-impl Zeroizable for MemCodeTestBreaker {
+impl FastZeroizable for MemCodeTestBreaker {
     #[inline(always)]
     fn self_zeroize(&mut self) {
         self.zeroize();

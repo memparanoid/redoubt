@@ -4,7 +4,7 @@
 
 use core::fmt::Write;
 
-use crate::traits::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
+use crate::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 use crate::zeroizing_mut_guard::ZeroizingMutGuard;
 
 #[test]
@@ -13,7 +13,7 @@ fn test_guard_assert_zeroization_probe_trait() {
     let mut guard = ZeroizingMutGuard::from(&mut vec);
 
     assert!(!guard.is_zeroized());
-    guard.self_zeroize();
+    guard.fast_zeroize();
     assert!(guard.is_zeroized());
 }
 

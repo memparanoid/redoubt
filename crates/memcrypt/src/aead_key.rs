@@ -6,7 +6,7 @@ use chacha20poly1305::Key;
 use zeroize::Zeroize;
 
 use memzer::{
-    AssertZeroizeOnDrop, DropSentinel, Zeroizable, ZeroizationProbe, assert::assert_zeroize_on_drop,
+    AssertZeroizeOnDrop, DropSentinel, FastZeroizable, ZeroizationProbe, assert::assert_zeroize_on_drop,
 };
 
 /// AEAD key wrapper with automatic zeroization and drop verification.
@@ -105,8 +105,12 @@ impl AssertZeroizeOnDrop for AeadKey {
     }
 }
 
-impl Zeroizable for AeadKey {
-    fn self_zeroize(&mut self) {
+impl memzer::ZeroizeMetadata for AeadKey {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+
+impl FastZeroizable for AeadKey {
+    fn fast_zeroize(&mut self) {
         self.zeroize();
     }
 }

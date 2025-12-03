@@ -35,7 +35,7 @@
 //! ### Basic Encoding/Decoding
 //!
 //! ```rust
-//! use memcode_core::{MemEncodeBuf, MemEncode, MemDecode, MemBytesRequired, Zeroizable};
+//! use memcode_core::{MemEncodeBuf, MemEncode, MemDecode, MemBytesRequired, FastZeroizable};
 //!
 //! let mut value = vec![1u8, 2, 3, 4, 5];
 //!
@@ -109,7 +109,7 @@
 //!
 //! ### Zeroization
 //!
-//! - **[`Zeroizable`]**: Unified interface for zeroizing types (delegates to `zeroize::Zeroize`)
+//! - **[`FastZeroizable`]**: Unified interface for zeroizing types (delegates to `zeroize::Zeroize`)
 //!
 //! ## Wire Format (Collections)
 //!
@@ -193,7 +193,7 @@
 //! Verify encoding/decoding with zeroization:
 //!
 //! ```rust
-//! use memcode_core::{MemEncodeBuf, MemEncode, MemDecode, MemBytesRequired, Zeroizable};
+//! use memcode_core::{MemEncodeBuf, MemEncode, MemDecode, MemBytesRequired, FastZeroizable};
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!
 //! let mut original = vec![1u8, 2, 3];
@@ -245,7 +245,7 @@ pub use error::{MemDecodeError, MemEncodeBufError, MemEncodeError, OverflowError
 pub use mem_encode_buf::MemEncodeBuf;
 pub use traits::{
     CollectionDecode, CollectionEncode, DecodeIterator, EncodeIterator, MemBytesRequired,
-    MemDecodable, MemDecode, MemEncodable, MemEncode, MemNumElements, Zeroizable,
+    MemDecodable, MemDecode, MemEncodable, MemEncode, MemNumElements, FastZeroizable,
 };
 
 #[cfg(feature = "test_utils")]

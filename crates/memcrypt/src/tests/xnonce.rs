@@ -4,7 +4,7 @@
 
 use chacha20poly1305::XNonce as ChaCha20Poly1305XNonce;
 
-use memzer::{AssertZeroizeOnDrop, Zeroizable, ZeroizationProbe};
+use memzer::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 use crate::xnonce::XNonce;
 
@@ -18,7 +18,7 @@ fn test_xnonce_memguard_traits() {
     // Assert (not) zeroization!
     assert!(!nonce.is_zeroized());
 
-    nonce.self_zeroize();
+    nonce.fast_zeroize();
 
     // Assert zeroization!
     assert!(nonce.is_zeroized());

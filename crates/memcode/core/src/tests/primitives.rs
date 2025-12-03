@@ -205,10 +205,10 @@ fn test_decode_succeeds_with_extra_bytes() {
 fn test_zeroizable() {
     macro_rules! run_test_for {
         ($ty:ty) => {{
-            use $crate::traits::Zeroizable;
+            use $crate::traits::FastZeroizable;
 
             let mut max_value = <$ty>::MAX;
-            max_value.self_zeroize();
+            max_value.fast_zeroize();
 
             assert_eq!(max_value, 0);
         }};
