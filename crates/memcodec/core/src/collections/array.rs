@@ -184,16 +184,25 @@ impl<T: FastZeroize, const N: usize> FastZeroize for [T; N] {
 }
 
 #[cfg(feature = "zeroize")]
+#[inline(always)]
+pub(crate) fn array_codec_zeroize<T: FastZeroize + CodecZeroize, const N: usize>(
+    arr: &mut [T; N],
+    fast: bool,
+) {
+    if fast {
+        // T is a primitive - memset the whole array
+        memutil::fast_zeroize_slice(arr.as_mut_slice());
+    } else {
+        // T is complex - recurse into each element
+        for elem in arr.iter_mut() {
+            elem.codec_zeroize();
+        }
+    }
+}
+
+#[cfg(feature = "zeroize")]
 impl<T: FastZeroize + CodecZeroize, const N: usize> CodecZeroize for [T; N] {
     fn codec_zeroize(&mut self) {
-        if T::FAST_ZEROIZE {
-            // T is a primitive - memset the whole array
-            memutil::fast_zeroize_slice(self.as_mut_slice());
-        } else {
-            // T is complex - recurse into each element
-            for elem in self.iter_mut() {
-                elem.codec_zeroize();
-            }
-        }
+        array_codec_zeroize(self, T::FAST_ZEROIZE);
     }
 }

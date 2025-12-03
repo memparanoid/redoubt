@@ -380,3 +380,39 @@ fn test_array_prealloc_is_noop() {
 
     assert_eq!(arr, arr_clone);
 }
+
+// CodecZeroize / FastZeroize
+
+#[cfg(feature = "zeroize")]
+#[test]
+fn test_array_codec_zeroize_fast_true() {
+    use crate::collections::array::array_codec_zeroize;
+
+    // NOTE: fast=true forces memset of entire array, regardless of T::FAST_ZEROIZE.
+    // This is only safe for types where all-zeros is a valid bit pattern.
+    // TestBreaker happens to be safe (all fields are primitives/Copy), but this
+    // test may break if TestBreaker's layout changes.
+    let mut arr = [
+        TestBreaker::new(TestBreakerBehaviour::None, 100),
+        TestBreaker::new(TestBreakerBehaviour::None, 200),
+    ];
+    array_codec_zeroize(&mut arr, true);
+
+    // Assert zeroization!
+    assert!(arr.iter().all(|tb| tb.is_zeroized()));
+}
+
+#[cfg(feature = "zeroize")]
+#[test]
+fn test_array_codec_zeroize_fast_false() {
+    use crate::collections::array::array_codec_zeroize;
+
+    let mut arr = [
+        TestBreaker::new(TestBreakerBehaviour::None, 100),
+        TestBreaker::new(TestBreakerBehaviour::None, 200),
+    ];
+    array_codec_zeroize(&mut arr, false);
+
+    // Assert zeroization!
+    assert!(arr.iter().all(|tb| tb.is_zeroized()));
+}

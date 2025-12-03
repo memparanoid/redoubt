@@ -447,23 +447,26 @@ fn test_vec_prealloc_grows() {
 
 // CodecZeroize / FastZeroize
 
+#[cfg(feature = "zeroize")]
 #[test]
 fn test_vec_codec_zeroize_fast_true() {
     use crate::collections::vec::vec_codec_zeroize;
 
+    // NOTE: fast=true forces memset of entire vec, regardless of T::FAST_ZEROIZE.
+    // This is only safe for types where all-zeros is a valid bit pattern.
+    // TestBreaker happens to be safe (all fields are primitives/Copy), but this
+    // test may break if TestBreaker's layout changes.
     let mut vec: Vec<TestBreaker> = vec![
         TestBreaker::new(TestBreakerBehaviour::None, 100),
         TestBreaker::new(TestBreakerBehaviour::None, 200),
     ];
     vec_codec_zeroize(&mut vec, true);
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(vec.iter().all(|tb| tb.is_zeroized()));
-    }
+    assert!(vec.iter().all(|tb| tb.is_zeroized()));
 }
 
+#[cfg(feature = "zeroize")]
 #[test]
 fn test_vec_codec_zeroize_fast_false() {
     use crate::collections::vec::vec_codec_zeroize;
@@ -474,9 +477,6 @@ fn test_vec_codec_zeroize_fast_false() {
     ];
     vec_codec_zeroize(&mut vec, false);
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(vec.iter().all(|tb| tb.is_zeroized()));
-    }
+    assert!(vec.iter().all(|tb| tb.is_zeroized()));
 }
