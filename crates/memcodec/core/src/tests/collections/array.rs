@@ -10,7 +10,7 @@ use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
 use crate::support::test_utils::{
     TestBreaker, TestBreakerBehaviour, apply_permutation, index_permutations,
 };
-use crate::traits::{BytesRequired, Decode, Encode};
+use crate::traits::{BytesRequired, Decode, Encode, PreAlloc};
 
 // Bytes Required
 
@@ -363,4 +363,20 @@ fn perm_test_array_encode_decode_roundtrip() {
             );
         }
     });
+}
+
+// PreAlloc
+
+#[test]
+fn test_array_prealloc_is_noop() {
+    let mut arr = [
+        TestBreaker::new(TestBreakerBehaviour::None, 100),
+        TestBreaker::new(TestBreakerBehaviour::None, 200),
+        TestBreaker::new(TestBreakerBehaviour::None, 300),
+    ];
+    let arr_clone = arr;
+
+    arr.prealloc(10);
+
+    assert_eq!(arr, arr_clone);
 }
