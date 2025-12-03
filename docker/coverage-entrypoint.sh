@@ -51,13 +51,13 @@ mk() {
     CARGO_TARGET_DIR="target" \
       COVER_CRATES="$crate_name" \
       cargo +nightly llvm-cov -p "$crate_name" \
-      --branch --show-instantiations --no-report \
+      --branch --no-report \
       --features "$features_csv"
   else
     CARGO_TARGET_DIR="target" \
       COVER_CRATES="$crate_name" \
       cargo +nightly llvm-cov -p "$crate_name" \
-      --branch --show-instantiations --no-report
+      --branch --no-report
   fi
 }
 
@@ -75,7 +75,7 @@ if [ $# -ge 1 ]; then
 
   CARGO_TARGET_DIR="target" \
     cargo +nightly llvm-cov report \
-    --branch --show-instantiations \
+    --branch \
     --html --output-dir "$OUT"
 
   echo "Coverage report generated at $OUT/index.html"
@@ -113,7 +113,7 @@ mk memcodec_derive
 # --- Aggregated HTML report (consumes the profraw generated above) ---
 CARGO_TARGET_DIR="target" \
   cargo +nightly llvm-cov report \
-  --branch --show-instantiations \
+  --branch \
   --html --output-dir "$OUT"
 
 echo "Coverage report generated at $OUT/index.html"
