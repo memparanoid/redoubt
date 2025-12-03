@@ -6,10 +6,10 @@ use zeroize::Zeroize;
 
 use crate::assert::assert_zeroize_on_drop;
 use crate::drop_sentinel::DropSentinel;
-use crate::traits::AssertZeroizeOnDrop;
+use crate::traits::{AssertZeroizeOnDrop, FastZeroizable};
 
 #[test]
-fn functional_test_for_drop_sentinel() {
+fn drop_sentinel_functional_test() {
     struct Test {
         pub __drop_sentinel: DropSentinel,
     }
@@ -85,4 +85,65 @@ fn test_drop_sentinel_is_not_zeroized_on_drop() {
     assert!(!drop_sentinel_clone.is_zeroized());
     drop(drop_sentinel);
     assert!(!drop_sentinel_clone.is_zeroized());
+}
+
+#[test]
+fn test_drop_sentinel_partial_eq() {
+    let mut sentinel1 = DropSentinel::default();
+    let mut sentinel2 = DropSentinel::default();
+
+    // Both pristine (not zeroized) - should be equal
+    assert_eq!(sentinel1, sentinel2);
+
+    // Zeroize first sentinel
+    sentinel1.zeroize();
+    assert_ne!(sentinel1, sentinel2);
+
+    // Zeroize second sentinel - now equal again
+    sentinel2.zeroize();
+    assert_eq!(sentinel1, sentinel2);
+
+    // Reset first sentinel - now different again
+    sentinel1.reset();
+    assert_ne!(sentinel1, sentinel2);
+
+    // Reset second sentinel - equal again
+    sentinel2.reset();
+    assert_eq!(sentinel1, sentinel2);
+}
+
+#[test]
+fn test_drop_sentinel_fast_zeroize() {
+    let mut sentinel = DropSentinel::default();
+    let sentinel_clone = sentinel.clone();
+
+    assert!(!sentinel.is_zeroized());
+    assert!(!sentinel_clone.is_zeroized());
+
+    // fast_zeroize() should mark as zeroized
+    sentinel.fast_zeroize();
+
+    assert!(sentinel.is_zeroized());
+    assert!(sentinel_clone.is_zeroized());
+}
+
+#[test]
+fn test_drop_sentinel_reset() {
+    let mut sentinel = DropSentinel::default();
+    let sentinel_clone = sentinel.clone();
+
+    // Zeroize
+    sentinel.zeroize();
+    assert!(sentinel.is_zeroized());
+    assert!(sentinel_clone.is_zeroized());
+
+    // Reset to pristine state
+    sentinel.reset();
+    assert!(!sentinel.is_zeroized());
+    assert!(!sentinel_clone.is_zeroized());
+
+    // Can zeroize again
+    sentinel.zeroize();
+    assert!(sentinel.is_zeroized());
+    assert!(sentinel_clone.is_zeroized());
 }
