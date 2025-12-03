@@ -4,6 +4,7 @@
 
 use membuffer::Buffer;
 use memzer::ZeroizationProbe;
+use zeroize::Zeroize;
 
 use crate::error::{DecodeError, EncodeError};
 use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
@@ -31,6 +32,16 @@ fn test_new() {
     let tb = TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 512);
     assert_eq!(tb.behaviour, TestBreakerBehaviour::ForceEncodeError);
     assert_eq!(tb.data, 512);
+}
+
+#[test]
+fn test_zeroization() {
+    let mut tb = TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 512);
+
+    assert!(!tb.is_zeroized());
+    tb.zeroize();
+
+    assert!(tb.is_zeroized());
 }
 
 #[test]
@@ -107,8 +118,7 @@ fn test_force_decode_error() {
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
     let mut buf = Buffer::new(bytes_required);
-    tb.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    tb.encode_into(&mut buf).expect("Failed to encode_into(..)");
 
     // Now try to decode with ForceDecodeError
     let mut tb_decode = TestBreaker::with_behaviour(TestBreakerBehaviour::ForceDecodeError);

@@ -126,12 +126,9 @@ pub fn encode_fields<'a>(
     let mut result = Ok(());
 
     for field in iter {
+        #[cfg(feature = "zeroize")]
         if result.is_err() {
-            #[cfg(feature = "zeroize")]
-            {
-                field.codec_zeroize();
-            }
-
+            field.codec_zeroize();
             continue;
         }
 
@@ -163,12 +160,9 @@ pub fn decode_fields<'a>(
     let mut result = Ok(());
 
     for field in iter {
+        #[cfg(feature = "zeroize")]
         if result.is_err() {
-            #[cfg(feature = "zeroize")]
-            {
-                field.codec_zeroize();
-            }
-
+            field.codec_zeroize();
             continue;
         }
 
