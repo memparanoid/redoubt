@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+mod wycheproof_vectors;
+
 mod chacha20;
 mod poly1305;
 mod wycheproof;
-mod wycheproof_vectors;
 mod xchachapoly1305;

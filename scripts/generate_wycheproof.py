@@ -1,37 +1,63 @@
 #!/usr/bin/env python3
 """
-Generates Rust test vectors from Wycheproof XChaCha20-Poly1305 JSON.
+Generates Rust test vectors from Wycheproof JSON.
 
 Usage:
-    python3 crates/memaead/scripts/generate_wycheproof.py
+    python3 scripts/generate_wycheproof.py
 """
 
 import json
 import os
 import urllib.request
 
-WYCHEPROOF_URL = "https://raw.githubusercontent.com/C2SP/wycheproof/main/testvectors_v1/xchacha20_poly1305_test.json"
-OUTPUT_PATH = os.path.join(
-    os.path.dirname(__file__),
-    "..",
-    "crates",
-    "memaead",
-    "src",
-    "xchacha20poly1305",
-    "tests",
-    "wycheproof_vectors.rs",
-)
+# Configuration for multiple test vector sources
+TEST_CONFIGS = [
+    {
+        "name": "XChaCha20-Poly1305",
+        "url": "https://raw.githubusercontent.com/C2SP/wycheproof/main/testvectors_v1/xchacha20_poly1305_test.json",
+        "output": os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "crates",
+            "memaead",
+            "src",
+            "xchacha20poly1305",
+            "tests",
+            "wycheproof_vectors.rs",
+        ),
+    },
+    {
+        "name": "AEGIS-128L",
+        "url": "https://raw.githubusercontent.com/C2SP/wycheproof/main/testvectors_v1/aegis128L_test.json",
+        "output": os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "crates",
+            "memaead",
+            "src",
+            "aegis",
+            "aegis128l",
+            "tests",
+            "wycheproof_vectors.rs",
+        ),
+    },
+]
 
 FLAG_MAP = {
-    "EdgeCaseCiphertext": "Flag::EdgeCaseCiphertext",
-    "EdgeCasePoly1305": "Flag::EdgeCasePoly1305",
-    "EdgeCasePolyKey": "Flag::EdgeCasePolyKey",
-    "EdgeCasePolyKey": "Flag::EdgeCasePolyKey",
-    "EdgeCaseTag": "Flag::EdgeCaseTag",
-    "InvalidNonceSize": "Flag::InvalidNonceSize",
+    # Shared
     "Ktv": "Flag::Ktv",
     "ModifiedTag": "Flag::ModifiedTag",
     "Pseudorandom": "Flag::Pseudorandom",
+    # XChaCha20-Poly1305
+    "EdgeCaseCiphertext": "Flag::EdgeCaseCiphertext",
+    "EdgeCasePoly1305": "Flag::EdgeCasePoly1305",
+    "EdgeCasePolyKey": "Flag::EdgeCasePolyKey",
+    "EdgeCaseTag": "Flag::EdgeCaseTag",
+    "InvalidNonceSize": "Flag::InvalidNonceSize",
+    # AEGIS-128L
+    "OldVersion": "Flag::OldVersion",
+    "TagCollision_1": "Flag::TagCollision1",
+    "TagCollision_2": "Flag::TagCollision2",
 }
 
 RESULT_MAP = {
@@ -41,9 +67,9 @@ RESULT_MAP = {
 }
 
 
-def fetch_json():
+def fetch_json(url):
     """Download Wycheproof test vectors JSON."""
-    with urllib.request.urlopen(WYCHEPROOF_URL) as response:
+    with urllib.request.urlopen(url) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -65,14 +91,14 @@ def escape_string(s):
     return s.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def generate_rust(data):
+def generate_rust(data, source_url):
     """Generate Rust source code from Wycheproof JSON."""
     lines = []
 
     # Header
     lines.append("// Auto-generated from Wycheproof test vectors")
     lines.append("// DO NOT EDIT - run `python3 scripts/generate_wycheproof.py`")
-    lines.append(f"// Source: {WYCHEPROOF_URL}")
+    lines.append(f"// Source: {source_url}")
     lines.append("//")
     lines.append(f"// Algorithm: {data.get('algorithm', 'unknown')}")
     lines.append(f"// Version: {data.get('generatorVersion', 'unknown')}")
@@ -126,20 +152,30 @@ def generate_rust(data):
 
 
 def main():
-    print(f"Fetching Wycheproof test vectors...")
-    data = fetch_json()
+    for config in TEST_CONFIGS:
+        print(f"\n=== Processing {config['name']} ===")
+        print(f"Fetching from {config['url']}...")
 
-    print(f"Generating Rust code...")
-    rust_code = generate_rust(data)
+        try:
+            data = fetch_json(config['url'])
+        except Exception as e:
+            print(f"ERROR: Failed to fetch {config['name']}: {e}")
+            continue
 
-    # Ensure output directory exists
-    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
+        print(f"Generating Rust code...")
+        rust_code = generate_rust(data, config['url'])
 
-    with open(OUTPUT_PATH, "w") as f:
-        f.write(rust_code)
+        # Ensure output directory exists
+        output_path = config['output']
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    num_tests = data.get("numberOfTests", "?")
-    print(f"Written {num_tests} test vectors to {OUTPUT_PATH}")
+        with open(output_path, "w") as f:
+            f.write(rust_code)
+
+        num_tests = data.get("numberOfTests", "?")
+        print(f"Written {num_tests} test vectors to {output_path}")
+
+    print("\n✓ All test vectors generated successfully")
 
 
 if __name__ == "__main__":
