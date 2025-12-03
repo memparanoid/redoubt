@@ -175,6 +175,44 @@ pub fn is_vec_fully_zeroized(vec: &Vec<u8>) -> bool {
     true
 }
 
+/// Zeroizes a single primitive value using volatile write.
+///
+/// Works for all primitive types where all-zeros is a valid representation:
+/// - Integers (u8-u128, i8-i128, usize, isize): zeroed to 0
+/// - Bool: zeroed to `false`
+/// - Floats (f32, f64): zeroed to 0.0
+/// - Char: zeroed to null character '\0'
+///
+/// # Safety
+///
+/// This function is safe because it uses `mem::zeroed()` which is valid
+/// for all primitive types. The volatile write ensures the compiler cannot
+/// optimize away the zeroization.
+///
+/// # Example
+///
+/// ```
+/// use memutil::zeroize_primitive;
+///
+/// let mut x = 42u32;
+/// zeroize_primitive(&mut x);
+/// assert_eq!(x, 0);
+///
+/// let mut flag = true;
+/// zeroize_primitive(&mut flag);
+/// assert_eq!(flag, false);
+///
+/// let mut pi = 3.14f64;
+/// zeroize_primitive(&mut pi);
+/// assert_eq!(pi, 0.0);
+/// ```
+#[inline(always)]
+pub fn zeroize_primitive<T>(val: &mut T) {
+    unsafe {
+        core::ptr::write_volatile(val, core::mem::zeroed());
+    }
+}
+
 /// Fast bulk zeroization that can be vectorized.
 ///
 /// Uses `write_bytes` (memset) + volatile read to prevent the optimizer
