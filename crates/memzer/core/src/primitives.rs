@@ -110,3 +110,27 @@ impl crate::traits::Zeroizable for bool {
         self.zeroize();
     }
 }
+
+// =============================================================================
+// FastZeroize implementations
+// =============================================================================
+
+/// Implements FastZeroize for primitive numeric types.
+macro_rules! impl_fast_zeroize_primitive {
+    ($($ty:ty),* $(,)?) => {
+        $(
+            impl crate::traits::FastZeroize for $ty {
+                const CAN_BE_BULK_ZEROIZED: bool = true;
+
+                #[inline(always)]
+                fn fast_zeroize(&mut self) {
+                    memutil::zeroize_primitive(self);
+                }
+            }
+        )*
+    };
+}
+
+impl_fast_zeroize_primitive!(
+    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, bool, char
+);

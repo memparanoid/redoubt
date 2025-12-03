@@ -137,3 +137,64 @@ impl ZeroizationProbe for String {
         memutil::is_slice_zeroized(self.as_bytes())
     }
 }
+
+// =============================================================================
+// FastZeroize implementations
+// =============================================================================
+
+use super::traits::FastZeroize;
+
+// Arrays [T; N]
+impl<T: FastZeroize, const N: usize> FastZeroize for [T; N] {
+    // Arrays inherit bulk-zeroize capability from their element type
+    const CAN_BE_BULK_ZEROIZED: bool = T::CAN_BE_BULK_ZEROIZED;
+
+    #[inline(always)]
+    fn fast_zeroize(&mut self) {
+        if T::CAN_BE_BULK_ZEROIZED {
+            // Fast path: bulk zeroize the entire array
+            memutil::fast_zeroize_slice(self.as_mut_slice());
+        } else {
+            // Slow path: recursively zeroize each element
+            for elem in self.iter_mut() {
+                elem.fast_zeroize();
+            }
+        }
+    }
+}
+
+// Vec<T>
+impl<T: FastZeroize> FastZeroize for Vec<T> {
+    // Vec can NEVER be bulk-zeroized from outside (has ptr/len/capacity)
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+
+    #[inline(always)]
+    fn fast_zeroize(&mut self) {
+        if T::CAN_BE_BULK_ZEROIZED {
+            // T is primitive: fast zeroize entire allocation (contents + spare capacity)
+            memutil::fast_zeroize_vec(self);
+        } else {
+            // T is complex: recursively zeroize each element, then spare capacity
+            for elem in self.iter_mut() {
+                elem.fast_zeroize();
+            }
+            memutil::zeroize_spare_capacity(self);
+        }
+    }
+}
+
+// String
+impl FastZeroize for String {
+    // String can NEVER be bulk-zeroized from outside (has ptr/len/capacity)
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+
+    #[inline(always)]
+    fn fast_zeroize(&mut self) {
+        // Safety: String is Vec<u8> internally, and u8::CAN_BE_BULK_ZEROIZED = true
+        // SAFETY: This is sound because we're treating String as Vec<u8>
+        unsafe {
+            let vec_bytes = self.as_mut_vec();
+            memutil::fast_zeroize_vec(vec_bytes);
+        }
+    }
+}

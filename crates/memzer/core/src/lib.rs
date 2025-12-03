@@ -164,5 +164,5 @@ pub mod collections;
 /// Exports: `U8`, `U16`, `U32`, `U64`, `U128`, `USIZE` - each wraps the corresponding primitive type.
 pub mod primitives;
 pub use drop_sentinel::DropSentinel;
-pub use traits::{AssertZeroizeOnDrop, MutGuarded, Zeroizable, ZeroizationProbe};
+pub use traits::{AssertZeroizeOnDrop, FastZeroize, MutGuarded, Zeroizable, ZeroizationProbe};
 pub use zeroizing_mut_guard::ZeroizingMutGuard;

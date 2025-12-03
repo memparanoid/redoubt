@@ -3,8 +3,9 @@
 // See LICENSE in the repository root for full license text.
 
 use membuffer::Buffer;
-use smallvec::SmallVec;
 
+#[cfg(feature = "zeroize")]
+use smallvec::SmallVec;
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 

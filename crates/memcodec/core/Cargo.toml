@@ -14,7 +14,7 @@ path = "src/lib.rs"
 
 [features]
 default = []
-zeroize = []
+zeroize = ["dep:smallvec", "dep:zeroize"]
 benchmark = []
 test_utils = []
 
@@ -23,9 +23,10 @@ memalloc.workspace  = true
 membuffer.workspace = true
 memutil.workspace   = true
 memzer.workspace    = true
-smallvec.workspace  = true
+smallvec = { workspace = true, optional = true }
 thiserror.workspace = true
-zeroize.workspace   = true
+zeroize = { workspace = true, optional = true }
 
 [dev-dependencies]
 memalloc = { workspace = true, features = ["test_utils"] }
+zeroize.workspace = true

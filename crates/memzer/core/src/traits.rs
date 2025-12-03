@@ -122,3 +122,68 @@ where
     /// Exposes a mutable reference to the guarded value.
     fn expose_mut(&mut self) -> &mut T;
 }
+
+/// Trait for types that can be securely zeroized.
+///
+/// This trait replaces the `zeroize` crate entirely, providing both runtime
+/// zeroization and compile-time optimization hints via `CAN_BE_BULK_ZEROIZED`.
+///
+/// # `CAN_BE_BULK_ZEROIZED` Constant
+///
+/// Determines the zeroization strategy:
+///
+/// ## `CAN_BE_BULK_ZEROIZED = true` (Fast Path)
+///
+/// All-zeros is a valid bit pattern. Enables:
+/// - Fast vectorized memset operations (`ptr::write_bytes`)
+/// - ~20x performance improvement over byte-by-byte writes
+/// - Safe for: primitives (u8-u128, i8-i128, bool, char, floats)
+///
+/// ## `CAN_BE_BULK_ZEROIZED = false` (Slow Path)
+///
+/// Requires element-by-element zeroization because:
+/// - Type contains pointers, references, or heap allocations
+/// - All-zeros may not be a valid representation
+/// - Needs recursive `.fast_zeroize()` calls on each field
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use memzer_core::FastZeroize;
+/// use memutil::zeroize_primitive;
+///
+/// // Primitive: bulk zeroization
+/// impl FastZeroize for u32 {
+///     const CAN_BE_BULK_ZEROIZED: bool = true;
+///
+///     fn fast_zeroize(&mut self) {
+///         zeroize_primitive(self);
+///     }
+/// }
+///
+/// // Complex type: element-by-element
+/// struct ApiKey {
+///     secret: Vec<u8>,
+/// }
+///
+/// impl FastZeroize for ApiKey {
+///     const CAN_BE_BULK_ZEROIZED: bool = false;
+///
+///     fn zeroize(&mut self) {
+///         self.secret.fast_zeroize(); // Recursive
+///     }
+/// }
+/// ```
+pub trait FastZeroize {
+    /// Whether this type can be bulk-zeroized with memset.
+    ///
+    /// - `true`: Safe to use `ptr::write_bytes` (all-zeros is valid)
+    /// - `false`: Requires element-by-element recursive zeroization
+    const CAN_BE_BULK_ZEROIZED: bool;
+
+    /// Zeroizes the value in place.
+    ///
+    /// After calling this method, all sensitive data should be overwritten
+    /// with zeros. The implementation strategy depends on `CAN_BE_BULK_ZEROIZED`.
+    fn fast_zeroize(&mut self);
+}

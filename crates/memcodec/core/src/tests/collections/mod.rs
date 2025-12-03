@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+#[cfg(feature = "zeroize")]
 mod allocked_vec;
 mod array;
 mod helpers;
