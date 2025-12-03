@@ -17,7 +17,7 @@ use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Fields, Ident, Index, LitStr, Type, parse_macro_input};
 
-/// Derives `FastZeroizable`, `ZeroizeMetadata`, `ZeroizationProbe`, and `AssertZeroizeOnDrop` for a struct.
+/// Derives `ZeroizationProbe` and `AssertZeroizeOnDrop` for a struct.
 ///
 /// This macro automatically generates trait implementations for structs that contain
 /// a `DropSentinel` field.
@@ -178,16 +178,6 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
 
     // 4) Emit the trait implementations for the struct
     let output = quote! {
-        impl #impl_generics #root::ZeroizeMetadata for #struct_name #ty_generics #where_clause {
-            const CAN_BE_BULK_ZEROIZED: bool = false;
-        }
-
-        impl #impl_generics #root::FastZeroizable for #struct_name #ty_generics #where_clause {
-            fn fast_zeroize(&mut self) {
-                self.zeroize();
-            }
-        }
-
         impl #impl_generics #root::ZeroizationProbe for #struct_name #ty_generics #where_clause {
             fn is_zeroized(&self) -> bool {
                 let fields: [&dyn #root::ZeroizationProbe; #len_lit] = [

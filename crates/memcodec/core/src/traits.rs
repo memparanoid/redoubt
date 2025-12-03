@@ -6,6 +6,9 @@ use membuffer::Buffer;
 
 use crate::error::{CodecBufferError, DecodeBufferError, DecodeError, EncodeError, OverflowError};
 
+// Re-export memzer traits for public use in memcodec
+pub use memzer::{FastZeroizable, ZeroizeMetadata};
+
 pub trait BytesRequired {
     fn mem_bytes_required(&self) -> Result<usize, OverflowError>;
 }
@@ -62,42 +65,12 @@ pub(crate) trait PreAlloc: Default {
     fn prealloc(&mut self, size: usize);
 }
 
-/// Fast zeroization indicator trait.
-///
-/// `FAST_ZEROIZE` indicates if the type can be zeroed with a fast memset.
-/// - `true`: Primitives (no internal pointers, memset is safe and sufficient)
-/// - `false`: Complex types like Vec (need recursive zeroization due to internal pointers)
-///
-/// For `Vec<T>`:
-/// - `FAST_ZEROIZE` is ALWAYS `false` (Vec has ptr/len/capacity)
-/// - If `T::FAST_ZEROIZE` is `true`, memset the contents + spare capacity
-/// - If `T::FAST_ZEROIZE` is `false`, recurse into each element + memset spare capacity
-pub trait FastZeroize {
-    const FAST_ZEROIZE: bool;
-}
-
-/// Zeroization trait for codec types (dyn-compatible).
-pub trait CodecZeroize {
-    fn codec_zeroize(&mut self);
-}
-
-/// Blanket impl when zeroize feature is disabled - everything is a no-op.
-#[cfg(not(feature = "zeroize"))]
-impl<T> FastZeroize for T {
-    const FAST_ZEROIZE: bool = true;
-}
-
-#[cfg(not(feature = "zeroize"))]
-impl<T> CodecZeroize for T {
-    fn codec_zeroize(&mut self) {}
-}
-
-/// Supertrait combining Encode + CodecZeroize for derive macro helpers.
+/// Supertrait combining Encode + FastZeroizable for derive macro helpers.
 /// Used by encode_fields to zeroize all fields on error.
-pub trait EncodeZeroize: Encode + CodecZeroize {}
-impl<T: Encode + CodecZeroize> EncodeZeroize for T {}
+pub trait EncodeZeroize: Encode + FastZeroizable {}
+impl<T: Encode + FastZeroizable> EncodeZeroize for T {}
 
-/// Supertrait combining Decode + CodecZeroize for derive macro helpers.
+/// Supertrait combining Decode + FastZeroizable for derive macro helpers.
 /// Used by decode_fields to zeroize all fields on error.
-pub trait DecodeZeroize: Decode + CodecZeroize {}
-impl<T: Decode + CodecZeroize> DecodeZeroize for T {}
+pub trait DecodeZeroize: Decode + FastZeroizable {}
+impl<T: Decode + FastZeroizable> DecodeZeroize for T {}

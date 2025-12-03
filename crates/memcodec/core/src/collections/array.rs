@@ -11,8 +11,8 @@ use crate::wrappers::Primitive;
 
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
-    BytesRequired, CodecZeroize, Decode, DecodeSlice, Encode, EncodeSlice, FastZeroize, TryDecode,
-    TryEncode,
+    BytesRequired, FastZeroizable, Decode, DecodeSlice, Encode, EncodeSlice, TryDecode,
+    TryEncode, ZeroizeMetadata,
 };
 
 use super::helpers::{header_size, process_header, write_header};
@@ -21,11 +21,11 @@ use super::helpers::{header_size, process_header, write_header};
 #[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
-fn cleanup_encode_error<T: FastZeroize + CodecZeroize, const N: usize>(
+fn cleanup_encode_error<T: FastZeroizable + ZeroizeMetadata, const N: usize>(
     arr: &mut [T; N],
     buf: &mut Buffer,
 ) {
-    arr.codec_zeroize();
+    arr.fast_zeroize();
     buf.zeroize();
 }
 
@@ -33,11 +33,11 @@ fn cleanup_encode_error<T: FastZeroize + CodecZeroize, const N: usize>(
 #[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
-fn cleanup_decode_error<T: FastZeroize + CodecZeroize, const N: usize>(
+fn cleanup_decode_error<T: FastZeroizable + ZeroizeMetadata, const N: usize>(
     arr: &mut [T; N],
     buf: &mut &mut [u8],
 ) {
-    arr.codec_zeroize();
+    arr.fast_zeroize();
     memutil::fast_zeroize_slice(*buf);
 }
 
@@ -66,7 +66,7 @@ where
 
 impl<T, const N: usize> TryEncode for [T; N]
 where
-    T: EncodeSlice + BytesRequired + FastZeroize + CodecZeroize,
+    T: EncodeSlice + BytesRequired + FastZeroizable + ZeroizeMetadata,
 {
     fn try_encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
         let mut size = Primitive::new(N);
@@ -80,7 +80,7 @@ where
 
 impl<T, const N: usize> Encode for [T; N]
 where
-    T: EncodeSlice + BytesRequired + FastZeroize + CodecZeroize,
+    T: EncodeSlice + BytesRequired + FastZeroizable + ZeroizeMetadata,
 {
     #[inline(always)]
     fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
@@ -90,7 +90,7 @@ where
         if result.is_err() {
             cleanup_encode_error(self, buf);
         } else {
-            self.codec_zeroize();
+            self.fast_zeroize();
         }
 
         result
@@ -99,7 +99,7 @@ where
 
 impl<T, const N: usize> EncodeSlice for [T; N]
 where
-    T: EncodeSlice + BytesRequired + FastZeroize + CodecZeroize,
+    T: EncodeSlice + BytesRequired + FastZeroizable + ZeroizeMetadata,
 {
     fn encode_slice_into(slice: &mut [Self], buf: &mut Buffer) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {
@@ -112,7 +112,7 @@ where
 
 impl<T, const N: usize> TryDecode for [T; N]
 where
-    T: DecodeSlice + FastZeroize + CodecZeroize,
+    T: DecodeSlice + FastZeroizable + ZeroizeMetadata,
 {
     #[inline(always)]
     fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
@@ -133,7 +133,7 @@ where
 
 impl<T, const N: usize> Decode for [T; N]
 where
-    T: DecodeSlice + FastZeroize + CodecZeroize,
+    T: DecodeSlice + FastZeroizable + ZeroizeMetadata,
 {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         let result = self.try_decode_from(buf);
@@ -149,7 +149,7 @@ where
 
 impl<T, const N: usize> DecodeSlice for [T; N]
 where
-    T: DecodeSlice + FastZeroize + CodecZeroize,
+    T: DecodeSlice + FastZeroizable + ZeroizeMetadata,
 {
     fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         for elem in slice.iter_mut() {
@@ -177,15 +177,8 @@ where
 }
 
 #[cfg(feature = "zeroize")]
-impl<T: FastZeroize, const N: usize> FastZeroize for [T; N] {
-    /// Arrays cannot be fast-zeroized because they may contain complex types.
-    /// Always recurse via codec_zeroize for safety.
-    const FAST_ZEROIZE: bool = false;
-}
-
-#[cfg(feature = "zeroize")]
 #[inline(always)]
-pub(crate) fn array_codec_zeroize<T: FastZeroize + CodecZeroize, const N: usize>(
+pub(crate) fn array_codec_zeroize<T: FastZeroizable + ZeroizeMetadata, const N: usize>(
     arr: &mut [T; N],
     fast: bool,
 ) {
@@ -195,14 +188,7 @@ pub(crate) fn array_codec_zeroize<T: FastZeroize + CodecZeroize, const N: usize>
     } else {
         // T is complex - recurse into each element
         for elem in arr.iter_mut() {
-            elem.codec_zeroize();
+            elem.fast_zeroize();
         }
-    }
-}
-
-#[cfg(feature = "zeroize")]
-impl<T: FastZeroize + CodecZeroize, const N: usize> CodecZeroize for [T; N] {
-    fn codec_zeroize(&mut self) {
-        array_codec_zeroize(self, T::FAST_ZEROIZE);
     }
 }

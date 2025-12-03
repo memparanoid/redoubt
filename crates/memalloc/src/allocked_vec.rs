@@ -4,7 +4,7 @@
 
 use thiserror::Error;
 
-use memzer::{DropSentinel, MemZer, ZeroizationProbe};
+use memzer::{DropSentinel, FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata};
 use zeroize::Zeroize;
 
 /// Error type for `AllockedVec` operations.
@@ -97,12 +97,12 @@ impl memzer::ZeroizationProbe for AllockedVecBehaviour {
 }
 
 #[cfg(any(test, feature = "test_utils"))]
-impl memzer::ZeroizeMetadata for AllockedVecBehaviour {
+impl ZeroizeMetadata for AllockedVecBehaviour {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
 #[cfg(any(test, feature = "test_utils"))]
-impl memzer::FastZeroizable for AllockedVecBehaviour {
+impl FastZeroizable for AllockedVecBehaviour {
     fn fast_zeroize(&mut self) {
         self.zeroize();
     }
@@ -732,5 +732,20 @@ where
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl<T: Zeroize + ZeroizationProbe + ZeroizeMetadata> ZeroizeMetadata for AllockedVec<T> {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+
+impl<T: Zeroize + ZeroizationProbe + FastZeroizable> FastZeroizable for AllockedVec<T> {
+    fn fast_zeroize(&mut self) {
+        self.inner.fast_zeroize();
+        self.has_been_sealed.fast_zeroize();
+        self.__drop_sentinel.fast_zeroize();
+
+        #[cfg(any(test, feature = "test_utils"))]
+        self.behaviour.zeroize();
     }
 }

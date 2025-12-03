@@ -128,3 +128,15 @@ impl Zeroize for DropSentinel {
         self.0.store(false, Ordering::Relaxed);
     }
 }
+
+use crate::{FastZeroizable, ZeroizeMetadata};
+
+impl ZeroizeMetadata for DropSentinel {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+
+impl FastZeroizable for DropSentinel {
+    fn fast_zeroize(&mut self) {
+        self.zeroize();
+    }
+}

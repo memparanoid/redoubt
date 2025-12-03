@@ -12,7 +12,7 @@ use crate::wrappers::Primitive;
 
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
-    BytesRequired, CodecZeroize, Decode, DecodeSlice, Encode, EncodeSlice, FastZeroize, PreAlloc,
+    BytesRequired, FastZeroizable, Decode, DecodeSlice, Encode, EncodeSlice, ZeroizeMetadata, PreAlloc,
     TryDecode, TryEncode,
 };
 
@@ -108,7 +108,7 @@ where
 
 impl<T> TryDecode for AllockedVec<T>
 where
-    T: DecodeSlice + FastZeroize + CodecZeroize + Zeroize + ZeroizationProbe + Default,
+    T: DecodeSlice + FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe + Default,
 {
     #[inline(always)]
     fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
@@ -124,7 +124,7 @@ where
 
 impl<T> Decode for AllockedVec<T>
 where
-    T: DecodeSlice + FastZeroize + CodecZeroize + Zeroize + ZeroizationProbe + Default,
+    T: DecodeSlice + FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe + Default,
 {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         let result = self.try_decode_from(buf);
@@ -139,7 +139,7 @@ where
 
 impl<T> DecodeSlice for AllockedVec<T>
 where
-    T: DecodeSlice + FastZeroize + CodecZeroize + Zeroize + ZeroizationProbe + Default,
+    T: DecodeSlice + FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe + Default,
 {
     fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         for elem in slice.iter_mut() {
@@ -152,12 +152,12 @@ where
 
 impl<T> PreAlloc for AllockedVec<T>
 where
-    T: FastZeroize + CodecZeroize + Zeroize + ZeroizationProbe + Default,
+    T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe + Default,
 {
     const ZERO_INIT: bool = false;
 
     fn prealloc(&mut self, size: usize) {
-        self.codec_zeroize();
+        self.fast_zeroize();
         self.realloc_with_capacity(size);
         self.fill_with_default();
 
@@ -172,26 +172,14 @@ where
 #[cfg(feature = "zeroize")]
 #[inline(always)]
 pub(crate) fn allocked_vec_codec_zeroize<
-    T: Zeroize + ZeroizationProbe + FastZeroize + CodecZeroize,
+    T: Zeroize + ZeroizationProbe + FastZeroizable + ZeroizeMetadata,
 >(
     vec: &mut AllockedVec<T>,
     _fast: bool,
 ) {
     // @TODO: use vec.zeroize() when the new crate is finished.
     for elem in vec.as_mut_slice() {
-        elem.codec_zeroize();
+        elem.fast_zeroize();
     }
 }
 
-#[cfg(feature = "zeroize")]
-impl<T: Zeroize + ZeroizationProbe + FastZeroize> FastZeroize for AllockedVec<T> {
-    /// AllockedVec can NEVER be fast-zeroized from outside (has ptr/len/capacity).
-    const FAST_ZEROIZE: bool = false;
-}
-
-#[cfg(feature = "zeroize")]
-impl<T: Zeroize + ZeroizationProbe + FastZeroize + CodecZeroize> CodecZeroize for AllockedVec<T> {
-    fn codec_zeroize(&mut self) {
-        allocked_vec_codec_zeroize(self, T::FAST_ZEROIZE);
-    }
-}

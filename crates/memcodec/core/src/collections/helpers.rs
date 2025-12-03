@@ -128,7 +128,7 @@ pub fn encode_fields<'a>(
     for field in iter {
         #[cfg(feature = "zeroize")]
         if result.is_err() {
-            field.codec_zeroize();
+            field.fast_zeroize();
             continue;
         }
 
@@ -137,7 +137,7 @@ pub fn encode_fields<'a>(
 
             #[cfg(feature = "zeroize")]
             {
-                field.codec_zeroize();
+                field.fast_zeroize();
                 buf.zeroize();
             }
 
@@ -162,7 +162,7 @@ pub fn decode_fields<'a>(
     for field in iter {
         #[cfg(feature = "zeroize")]
         if result.is_err() {
-            field.codec_zeroize();
+            field.fast_zeroize();
             continue;
         }
 
@@ -171,11 +171,11 @@ pub fn decode_fields<'a>(
 
             #[cfg(feature = "zeroize")]
             {
-                field.codec_zeroize();
+                field.fast_zeroize();
 
                 // Zeroize all previously decoded fields
                 for decoded_field in decoded.iter_mut() {
-                    decoded_field.codec_zeroize();
+                    decoded_field.fast_zeroize();
                 }
 
                 memutil::fast_zeroize_slice(*buf);

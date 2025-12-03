@@ -6,14 +6,6 @@
 source: crates/memzer/derive/src/tests/expand.rs
 expression: pretty(token_stream)
 ---
-impl memzer_core::ZeroizeMetadata for Sigma {
-    const CAN_BE_BULK_ZEROIZED: bool = false;
-}
-impl memzer_core::FastZeroizable for Sigma {
-    fn fast_zeroize(&mut self) {
-        self.zeroize();
-    }
-}
 impl memzer_core::ZeroizationProbe for Sigma {
     fn is_zeroized(&self) -> bool {
         let fields: [&dyn memzer_core::ZeroizationProbe; 1] = [

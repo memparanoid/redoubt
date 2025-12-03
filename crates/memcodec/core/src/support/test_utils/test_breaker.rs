@@ -7,9 +7,10 @@ use memzer::ZeroizationProbe;
 use zeroize::Zeroize;
 
 use crate::error::{DecodeError, EncodeError, OverflowError};
-use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc};
-#[cfg(feature = "zeroize")]
-use crate::traits::{CodecZeroize, FastZeroize};
+use crate::traits::{
+    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, FastZeroizable, PreAlloc,
+    ZeroizeMetadata,
+};
 
 /// Behavior control for error injection testing in memcodec.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Zeroize)]
@@ -131,27 +132,23 @@ impl PreAlloc for TestBreaker {
     const ZERO_INIT: bool = false;
 
     fn prealloc(&mut self, _size: usize) {
-        // No-op: collection uses Default::default() when ZERO_INIT = false
+        // No-op: TestBreaker does not need to prealloc.
     }
 }
 
-#[cfg(feature = "zeroize")]
-impl FastZeroize for TestBreaker {
-    /// Keep FAST_ZEROIZE = false to test recursive zeroization path.
-    const FAST_ZEROIZE: bool = false;
+impl ZeroizeMetadata for TestBreaker {
+    /// Keep CAN_BE_BULK_ZEROIZED = false to test recursive zeroization path.
+    const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
-#[cfg(feature = "zeroize")]
-impl CodecZeroize for TestBreaker {
-    fn codec_zeroize(&mut self) {
-        // behaviour is test metadata, not sensitive data
+impl FastZeroizable for TestBreaker {
+    fn fast_zeroize(&mut self) {
         self.zeroize();
     }
 }
 
 impl ZeroizationProbe for TestBreaker {
     fn is_zeroized(&self) -> bool {
-        // behaviour is test metadata, not part of zeroization check
         self.data == 0
     }
 }

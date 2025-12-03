@@ -484,7 +484,7 @@ fn test_allocked_vec_prealloc_grows() {
     assert_eq!(vec.len(), 3);
 }
 
-// CodecZeroize / FastZeroize
+// FastZeroizable / FastZeroize
 
 #[test]
 fn test_vec_codec_zeroize_fast_true() {

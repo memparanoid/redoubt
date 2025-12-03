@@ -3,7 +3,6 @@
 // See LICENSE in the repository root for full license text.
 
 mod bool;
-mod codec_zeroize;
 mod floats;
 mod prealloc;
 mod signed;
