@@ -1,6 +1,5 @@
 ---
 source: crates/memzer/derive/src/tests/expand.rs
-assertion_line: 24
 expression: pretty(ts_2)
 ---
 compile_error!(

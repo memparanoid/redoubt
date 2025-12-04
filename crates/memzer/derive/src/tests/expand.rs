@@ -41,7 +41,7 @@ fn snapshot_named_struct_with_lifetime_generics_ok() {
         #[derive(MemZer)]
         struct Sigma<'alpha, Tau> where Tau: Clone {
             pub alpha: u8,
-            pub beta: (u32, u64),
+            pub beta: u16,
             pub gamma: &'alpha mut Tau,
             __drop_sentinel: DropSentinel,
         }
@@ -55,7 +55,7 @@ fn snapshot_named_struct_with_lifetime_generics_ok() {
 fn snapshot_named_struct_ok() {
     let derive_input = parse_quote! {
         #[derive(MemZer)]
-        struct Sigma {
+        struct Delta {
             pub alpha: u8,
             __drop_sentinel: DropSentinel,
         }
@@ -69,7 +69,7 @@ fn snapshot_named_struct_ok() {
 fn snapshot_empty_struct_ok() {
     let derive_input = parse_quote! {
         #[derive(MemZer)]
-        struct Sigma {
+        struct Epsilon {
             __drop_sentinel: DropSentinel,
         }
     };
@@ -82,7 +82,7 @@ fn snapshot_empty_struct_ok() {
 fn snapshot_tuple_struct_ok() {
     let derive_input = parse_quote! {
         #[derive(MemZer)]
-        struct Sigma(u8, u16, u32, DropSentinel);
+        struct Zeta(u8, u16, u32, DropSentinel);
     };
 
     let token_stream = expand(derive_input).expect("expand failed");
@@ -93,7 +93,7 @@ fn snapshot_tuple_struct_ok() {
 fn snapshot_named_struct_without_sentinel_fails() {
     let derive_input = parse_quote! {
         #[derive(MemZer)]
-        struct Sigma {
+        struct Eta {
             pub alpha: u8,
         }
     };
@@ -106,7 +106,7 @@ fn snapshot_named_struct_without_sentinel_fails() {
 fn snapshot_tuple_struct_without_sentinel_fails() {
     let derive_input = parse_quote! {
         #[derive(MemZer)]
-        struct Sigma(u8, u16, u32);
+        struct Theta(u8, u16, u32);
     };
 
     let result = expand(derive_input);
@@ -117,7 +117,7 @@ fn snapshot_tuple_struct_without_sentinel_fails() {
 fn snapshot_unit_struct_fails() {
     let derive_input = parse_quote! {
         #[derive(MemZer)]
-        struct Sigma;
+        struct Iota;
     };
 
     let result = expand(derive_input);
@@ -129,8 +129,8 @@ fn snapshot_tuple_struct_with_non_drop_sentinel_types() {
     // Test que el tipo detection funciona con tipos complejos
     let derive_input = parse_quote! {
         #[derive(MemZer)]
-        struct Sigma(
-            &'static str,
+        struct Kappa(
+            Vec<u16>,
             Vec<u8>,
             DropSentinel,
         );
@@ -144,7 +144,7 @@ fn snapshot_tuple_struct_with_non_drop_sentinel_types() {
 fn snapshot_enum_fails() {
     let derive_input = parse_quote! {
         #[derive(MemZer)]
-        enum Sigma {
+        enum Lambda {
             Alpha,
             Beta,
         }
@@ -152,4 +152,95 @@ fn snapshot_enum_fails() {
 
     let result = expand(derive_input);
     assert!(result.is_err());
+}
+
+// === === === === === === === === === ===
+// Tests for #[memzer(skip)]
+// === === === === === === === === === ===
+
+#[test]
+fn snapshot_named_struct_with_memzer_skip_on_one_field() {
+    let derive_input = parse_quote! {
+        #[derive(MemZer)]
+        struct Mu {
+            pub alpha: Vec<u8>,
+            #[memzer(skip)]
+            pub beta: [u8; 32],
+            __drop_sentinel: DropSentinel,
+        }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_tuple_struct_with_memzer_skip() {
+    let derive_input = parse_quote! {
+        #[derive(MemZer)]
+        struct Nu(
+            Vec<u8>,
+            #[memzer(skip)]
+            [u8; 32],
+            DropSentinel,
+        );
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_named_struct_with_memzer_skip_on_immut_ref() {
+    // Test that #[memzer(skip)] works with immutable references
+    let derive_input = parse_quote! {
+        #[derive(MemZer)]
+        struct Xi<'a> {
+            pub alpha: Vec<u8>,
+            #[memzer(skip)]
+            pub beta: &'a str,
+            __drop_sentinel: DropSentinel,
+        }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_named_struct_with_other_list_attr() {
+    // Test that other attributes like #[serde(default)] don't interfere
+    let derive_input = parse_quote! {
+        #[derive(MemZer)]
+        struct Omicron {
+            pub alpha: Vec<u8>,
+            #[serde(default)]
+            pub beta: [u8; 32],
+            __drop_sentinel: DropSentinel,
+        }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_immut_ref_without_skip_fails() {
+    // Test that immutable reference without #[memzer(skip)] produces a helpful error
+    let derive_input = parse_quote! {
+        #[derive(MemZer)]
+        struct Pi<'a> {
+            pub alpha: Vec<u8>,
+            pub beta: &'a str,
+            __drop_sentinel: DropSentinel,
+        }
+    };
+
+    let result = expand(derive_input);
+    assert!(result.is_err());
+
+    // Verify the error message is helpful
+    let err_str = format!("{}", result.unwrap_err());
+    assert!(err_str.contains("immutable reference"));
+    assert!(err_str.contains("#[memzer(skip)]"));
 }

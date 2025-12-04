@@ -2,16 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use memzer_core::{AssertZeroizeOnDrop, DropSentinel, ZeroizationProbe};
+use memzer_core::{AssertZeroizeOnDrop, DropSentinel, FastZeroizable, ZeroizationProbe};
 use memzer_derive::MemZer;
-use zeroize::Zeroize;
 
 fn main() {
-    #[derive(Zeroize, MemZer)]
-    #[zeroize(drop)]
+    #[derive(MemZer)]
     struct SensitiveData {
         pub data: Vec<u8>,
         __drop_sentinel: DropSentinel,
+    }
+
+    impl Drop for SensitiveData {
+        fn drop(&mut self) {
+            self.fast_zeroize();
+        }
     }
 
     impl Default for SensitiveData {
@@ -28,7 +32,7 @@ fn main() {
     // Assert (not) zeroization!
     assert!(!sensitive_data.is_zeroized());
 
-    sensitive_data.zeroize();
+    sensitive_data.fast_zeroize();
 
     // Assert zeroization!
     assert!(sensitive_data.is_zeroized());

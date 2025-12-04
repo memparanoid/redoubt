@@ -6,7 +6,20 @@
 source: crates/memzer/derive/src/tests/expand.rs
 expression: pretty(token_stream)
 ---
-impl memzer_core::ZeroizationProbe for Sigma {
+impl memzer_core::ZeroizeMetadata for Kappa {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+impl memzer_core::FastZeroizable for Kappa {
+    fn fast_zeroize(&mut self) {
+        let fields: [&mut dyn memzer_core::FastZeroizable; 3] = [
+            memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.0),
+            memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.1),
+            memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.2),
+        ];
+        memzer_core::collections::zeroize_collection(&mut fields.into_iter())
+    }
+}
+impl memzer_core::ZeroizationProbe for Kappa {
     fn is_zeroized(&self) -> bool {
         let fields: [&dyn memzer_core::ZeroizationProbe; 2] = [
             memzer_core::collections::to_zeroization_probe_dyn_ref(&self.0),
@@ -15,7 +28,7 @@ impl memzer_core::ZeroizationProbe for Sigma {
         memzer_core::collections::collection_zeroed(&mut fields.into_iter())
     }
 }
-impl memzer_core::AssertZeroizeOnDrop for Sigma {
+impl memzer_core::AssertZeroizeOnDrop for Kappa {
     fn clone_drop_sentinel(&self) -> memzer_core::DropSentinel {
         self.2.clone()
     }

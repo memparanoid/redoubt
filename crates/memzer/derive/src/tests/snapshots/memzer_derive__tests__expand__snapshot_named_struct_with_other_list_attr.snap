@@ -6,13 +6,14 @@
 source: crates/memzer/derive/src/tests/expand.rs
 expression: pretty(token_stream)
 ---
-impl memzer_core::ZeroizeMetadata for Delta {
+impl memzer_core::ZeroizeMetadata for Omicron {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
-impl memzer_core::FastZeroizable for Delta {
+impl memzer_core::FastZeroizable for Omicron {
     fn fast_zeroize(&mut self) {
-        let fields: [&mut dyn memzer_core::FastZeroizable; 2] = [
+        let fields: [&mut dyn memzer_core::FastZeroizable; 3] = [
             memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.alpha),
+            memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.beta),
             memzer_core::collections::to_fast_zeroizable_dyn_mut(
                 &mut self.__drop_sentinel,
             ),
@@ -20,15 +21,16 @@ impl memzer_core::FastZeroizable for Delta {
         memzer_core::collections::zeroize_collection(&mut fields.into_iter())
     }
 }
-impl memzer_core::ZeroizationProbe for Delta {
+impl memzer_core::ZeroizationProbe for Omicron {
     fn is_zeroized(&self) -> bool {
-        let fields: [&dyn memzer_core::ZeroizationProbe; 1] = [
+        let fields: [&dyn memzer_core::ZeroizationProbe; 2] = [
             memzer_core::collections::to_zeroization_probe_dyn_ref(&self.alpha),
+            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.beta),
         ];
         memzer_core::collections::collection_zeroed(&mut fields.into_iter())
     }
 }
-impl memzer_core::AssertZeroizeOnDrop for Delta {
+impl memzer_core::AssertZeroizeOnDrop for Omicron {
     fn clone_drop_sentinel(&self) -> memzer_core::DropSentinel {
         self.__drop_sentinel.clone()
     }

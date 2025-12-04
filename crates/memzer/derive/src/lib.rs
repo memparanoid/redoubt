@@ -15,34 +15,70 @@ use proc_macro::TokenStream;
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
-use syn::{Data, DeriveInput, Fields, Ident, Index, LitStr, Type, parse_macro_input};
+use syn::{Attribute, Data, DeriveInput, Fields, Ident, Index, LitStr, Meta, Type, parse_macro_input};
 
-/// Derives `ZeroizationProbe` and `AssertZeroizeOnDrop` for a struct.
+/// Derives `FastZeroizable`, `ZeroizeMetadata`, `ZeroizationProbe`, and `AssertZeroizeOnDrop` for a struct.
 ///
 /// This macro automatically generates trait implementations for structs that contain
 /// a `DropSentinel` field.
 ///
 /// # Requirements
 ///
-/// - The struct must derive `Zeroize` and use `#[zeroize(drop)]`
 /// - Named structs must have a field named `__drop_sentinel: DropSentinel`
 /// - Tuple structs must have a field of type `DropSentinel`
+/// - All other fields must implement `FastZeroizable`
 ///
-/// # Example
+/// # Attributes
+///
+/// - `#[memzer(drop)]`: Also generates a `Drop` implementation that calls `fast_zeroize()`
+///
+/// # Generated Implementations
+///
+/// Always generated:
+/// - `FastZeroizable`: Zeroizes all fields including `__drop_sentinel`
+/// - `ZeroizeMetadata`: Sets `CAN_BE_BULK_ZEROIZED = false`
+/// - `ZeroizationProbe`: Checks if all non-sentinel fields are zeroized
+/// - `AssertZeroizeOnDrop`: Provides test helpers for verifying zeroization
+///
+/// With `#[memzer(drop)]`:
+/// - `Drop`: Calls `fast_zeroize()` on drop
+///
+/// # Examples
+///
+/// ## Without automatic Drop
 ///
 /// ```rust
 /// use memzer_derive::MemZer;
-/// use memzer_core::{DropSentinel, FastZeroizable, ZeroizationProbe};
-/// use zeroize::Zeroize;
+/// use memzer_core::{DropSentinel, FastZeroizable};
 ///
-/// #[derive(Zeroize, MemZer)]
-/// #[zeroize(drop)]
+/// #[derive(MemZer)]
 /// struct ApiKey {
 ///     key: Vec<u8>,
 ///     __drop_sentinel: DropSentinel,
 /// }
+///
+/// impl Drop for ApiKey {
+///     fn drop(&mut self) {
+///         self.fast_zeroize();
+///     }
+/// }
 /// ```
-#[proc_macro_derive(MemZer)]
+///
+/// ## With automatic Drop
+///
+/// ```rust
+/// use memzer_derive::MemZer;
+/// use memzer_core::{DropSentinel, FastZeroizable};
+///
+/// #[derive(MemZer)]
+/// #[memzer(drop)]
+/// struct ApiKey {
+///     key: Vec<u8>,
+///     __drop_sentinel: DropSentinel,
+/// }
+/// // Drop is automatically generated
+/// ```
+#[proc_macro_derive(MemZer, attributes(memzer))]
 pub fn derive_memzer(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     expand(input).unwrap_or_else(|e| e).into()
@@ -103,55 +139,45 @@ pub(crate) fn is_drop_sentinel_type(ty: &Type) -> bool {
     )
 }
 
+/// Detects if a type is a mutable reference (&mut T).
+///
+/// For mutable references, we should pass `self.field` directly instead of `&mut self.field`
+/// to avoid creating `&mut &mut T`.
+pub(crate) fn is_mut_reference_type(ty: &Type) -> bool {
+    matches!(ty, Type::Reference(r) if r.mutability.is_some())
+}
+
+/// Detects if a type is an immutable reference (&T).
+///
+/// Immutable references cannot be zeroized since we don't have mutable access.
+pub(crate) fn is_immut_reference_type(ty: &Type) -> bool {
+    matches!(ty, Type::Reference(r) if r.mutability.is_none())
+}
+
+/// Checks if a field has the `#[memzer(skip)]` attribute.
+fn has_memzer_skip(attrs: &[Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        matches!(&attr.meta, Meta::List(meta_list)
+            if meta_list.path.is_ident("memzer")
+            && meta_list.tokens.to_string().contains("skip"))
+    })
+}
+
 /// Expands the DeriveInput into the necessary implementation of `MemZer`.
 fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
-    let struct_name = &input.ident; // Name of the struct
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl(); // Get generics
+    let struct_name = &input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    // 1) Resolving the `memzer_core` or `memzer` crate (prefer memzer_core)
+    // 1) Resolve the `memzer_core` or `memzer` crate (prefer memzer_core)
     let root = find_root_with_candidates(&["memzer_core", "memzer"]);
 
-    // 2) Collect references to the struct fields, skipping __drop_sentinel
-    let sentinel_ident = format_ident!("__drop_sentinel");
-    let mut drop_sentinel_field_found = false;
-    let mut drop_sentinel_access: Option<TokenStream2> = None;
-    let mut immut_refs: Vec<TokenStream2> = Vec::new();
-
-    match &input.data {
-        Data::Struct(data) => {
-            match &data.fields {
-                Fields::Named(named) => {
-                    for f in &named.named {
-                        let ident = f.ident.as_ref().unwrap();
-
-                        if *ident == sentinel_ident {
-                            drop_sentinel_field_found = true;
-                            drop_sentinel_access = Some(quote! { self.#sentinel_ident });
-                            continue;
-                        }
-
-                        immut_refs.push(quote! { #root::collections::to_zeroization_probe_dyn_ref(&self.#ident) });
-                    }
-                }
-                Fields::Unnamed(unnamed) => {
-                    for (i, f) in unnamed.unnamed.iter().enumerate() {
-                        // Detect DropSentinel by type in tuple structs
-                        if is_drop_sentinel_type(&f.ty) {
-                            drop_sentinel_field_found = true;
-                            let idx = Index::from(i);
-                            drop_sentinel_access = Some(quote! { self.#idx });
-                            continue;
-                        }
-
-                        let idx = Index::from(i);
-                        immut_refs.push(
-                            quote! { #root::collections::to_zeroization_probe_dyn_ref(&self.#idx) },
-                        );
-                    }
-                }
-                Fields::Unit => {}
-            }
-        }
+    // 2) Get all fields as a Vec
+    let all_fields: Vec<(usize, &syn::Field)> = match &input.data {
+        Data::Struct(data) => match &data.fields {
+            Fields::Named(named) => named.named.iter().enumerate().collect(),
+            Fields::Unnamed(unnamed) => unnamed.unnamed.iter().enumerate().collect(),
+            Fields::Unit => vec![],
+        },
         _ => {
             return Err(syn::Error::new_spanned(
                 &input.ident,
@@ -161,7 +187,39 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         }
     };
 
-    if !drop_sentinel_field_found {
+    // 3) Identify the __drop_sentinel field
+    let sentinel_ident = format_ident!("__drop_sentinel");
+    let mut drop_sentinel_index: Option<usize> = None;
+    let mut drop_sentinel_access: Option<TokenStream2> = None;
+
+    for (i, f) in &all_fields {
+        let is_sentinel = if let Some(ident) = &f.ident {
+            // Named field: check if name is __drop_sentinel
+            if *ident == sentinel_ident {
+                drop_sentinel_index = Some(*i);
+                drop_sentinel_access = Some(quote! { self.#sentinel_ident });
+                true
+            } else {
+                false
+            }
+        } else {
+            // Unnamed field: check if type is DropSentinel
+            if is_drop_sentinel_type(&f.ty) {
+                let idx = Index::from(*i);
+                drop_sentinel_index = Some(*i);
+                drop_sentinel_access = Some(quote! { self.#idx });
+                true
+            } else {
+                false
+            }
+        };
+
+        if is_sentinel {
+            break;
+        }
+    }
+
+    if drop_sentinel_index.is_none() {
         return Err(syn::Error::new_spanned(
             struct_name,
             "MemZer: missing field `__drop_sentinel` (named structs) or field of type `DropSentinel` (tuple structs)",
@@ -169,23 +227,122 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         .to_compile_error());
     }
 
-    // 3) Specify lengths
-    let len = immut_refs.len();
-    let len_lit = syn::LitInt::new(&len.to_string(), Span::call_site());
-
-    // Get the sentinel access (either self.__drop_sentinel or self.N)
     let sentinel_access = drop_sentinel_access.unwrap();
+    let sentinel_idx = drop_sentinel_index.unwrap();
 
-    // 4) Emit the trait implementations for the struct
+    // 4) Validate and filter fields
+    // - Check for immutable references without #[memzer(skip)]
+    // - Filter out fields with #[memzer(skip)]
+    // - Filter out sentinel
+    for (i, f) in &all_fields {
+        if *i == sentinel_idx {
+            continue;
+        }
+
+        if is_immut_reference_type(&f.ty) && !has_memzer_skip(&f.attrs) {
+            let field_name = if let Some(ident) = &f.ident {
+                format!("field `{}`", ident)
+            } else {
+                format!("field at index {}", i)
+            };
+
+            return Err(syn::Error::new_spanned(
+                &f.ty,
+                format!(
+                    "{} has type `&T` (immutable reference) which cannot be zeroized. \
+                     Add `#[memzer(skip)]` to exclude it from zeroization.",
+                    field_name
+                ),
+            )
+            .to_compile_error());
+        }
+    }
+
+    // 5) Generate two sets of field references:
+    //    - immut_refs_without_drop_sentinel: for ZeroizationProbe (excludes sentinel and skipped)
+    //    - mut_refs_with_drop_sentinel: for FastZeroizable (includes sentinel, excludes skipped)
+
+    // For ZeroizationProbe: filter out sentinel and skipped fields
+    // Special handling: if field is already &mut T, pass self.field directly (not &self.field)
+    let (immut_refs_without_drop_sentinel, _): (Vec<TokenStream2>, Vec<TokenStream2>) = all_fields
+        .iter()
+        .filter(|(i, f)| *i != sentinel_idx && !has_memzer_skip(&f.attrs))
+        .map(|(i, f)| {
+            let is_mut_ref = is_mut_reference_type(&f.ty);
+
+            if let Some(ident) = &f.ident {
+                let immut_ref = if is_mut_ref {
+                    quote! { self.#ident }
+                } else {
+                    quote! { &self.#ident }
+                };
+                (immut_ref, quote! { &mut self.#ident })
+            } else {
+                let idx = Index::from(*i);
+                let immut_ref = if is_mut_ref {
+                    quote! { self.#idx }
+                } else {
+                    quote! { &self.#idx }
+                };
+                (immut_ref, quote! { &mut self.#idx })
+            }
+        })
+        .unzip();
+
+    // For FastZeroizable: include ALL fields except skipped (including sentinel)
+    // Special handling: if field is already &mut T, pass self.field directly (not &mut self.field)
+    let (_, mut_refs_with_drop_sentinel): (Vec<TokenStream2>, Vec<TokenStream2>) = all_fields
+        .iter()
+        .filter(|(_, f)| !has_memzer_skip(&f.attrs))
+        .map(|(i, f)| {
+            let is_mut_ref = is_mut_reference_type(&f.ty);
+
+            if let Some(ident) = &f.ident {
+                let mut_ref = if is_mut_ref {
+                    quote! { self.#ident }
+                } else {
+                    quote! { &mut self.#ident }
+                };
+                (quote! { &self.#ident }, mut_ref)
+            } else {
+                let idx = Index::from(*i);
+                let mut_ref = if is_mut_ref {
+                    quote! { self.#idx }
+                } else {
+                    quote! { &mut self.#idx }
+                };
+                (quote! { &self.#idx }, mut_ref)
+            }
+        })
+        .unzip();
+
+    // 5) Calculate lengths
+    let len_without_sentinel = immut_refs_without_drop_sentinel.len();
+    let len_without_sentinel_lit = syn::LitInt::new(&len_without_sentinel.to_string(), Span::call_site());
+
+    let len_with_sentinel = mut_refs_with_drop_sentinel.len();
+    let len_with_sentinel_lit = syn::LitInt::new(&len_with_sentinel.to_string(), Span::call_site());
+
+    // 6) Emit the trait implementations
     let output = quote! {
+        impl #impl_generics #root::ZeroizeMetadata for #struct_name #ty_generics #where_clause {
+            const CAN_BE_BULK_ZEROIZED: bool = false;
+        }
+
+        impl #impl_generics #root::FastZeroizable for #struct_name #ty_generics #where_clause {
+            fn fast_zeroize(&mut self) {
+                let fields: [&mut dyn #root::FastZeroizable; #len_with_sentinel_lit] = [
+                    #( #root::collections::to_fast_zeroizable_dyn_mut(#mut_refs_with_drop_sentinel) ),*
+                ];
+                #root::collections::zeroize_collection(&mut fields.into_iter())
+            }
+        }
+
         impl #impl_generics #root::ZeroizationProbe for #struct_name #ty_generics #where_clause {
             fn is_zeroized(&self) -> bool {
-                let fields: [&dyn #root::ZeroizationProbe; #len_lit] = [
-                    #( #immut_refs ),*
+                let fields: [&dyn #root::ZeroizationProbe; #len_without_sentinel_lit] = [
+                    #( #root::collections::to_zeroization_probe_dyn_ref(#immut_refs_without_drop_sentinel) ),*
                 ];
-                // `fields.into_iter()` produces &dyn ZeroizationProbe directly,
-                // avoiding the double reference (&&) that `.iter()` would create.
-                // No values are copied - we're just iterating over references from the array.
                 #root::collections::collection_zeroed(&mut fields.into_iter())
             }
         }
@@ -201,5 +358,5 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         }
     };
 
-    Ok(output) // Return the generated code
+    Ok(output)
 }
