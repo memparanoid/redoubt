@@ -9,6 +9,24 @@ use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
 use crate::buffer::Buffer;
 
 #[test]
+fn test_buffer_default() {
+    let buf = Buffer::default();
+    assert_eq!(buf.as_slice().len(), 0);
+}
+
+#[test]
+fn test_buffer_new_with_zero_capacity() {
+    let buf = Buffer::new(0);
+    assert_eq!(buf.as_slice().len(), 0);
+}
+
+#[test]
+fn test_buffer_new_with_64_capacity() {
+    let buf = Buffer::new(64);
+    assert_eq!(buf.as_slice().len(), 64);
+}
+
+#[test]
 fn test_buffer_zeroization() {
     let elements = 10;
     let mut buf = Buffer::new(elements);

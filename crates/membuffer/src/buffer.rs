@@ -52,6 +52,12 @@ impl ZeroizationProbe for Buffer {
     }
 }
 
+impl Default for Buffer {
+    fn default() -> Self {
+        Self::new(0)
+    }
+}
+
 impl Buffer {
     pub fn new(capacity: usize) -> Self {
         let mut allocked_vec = AllockedVec::<u8>::with_capacity(capacity);
