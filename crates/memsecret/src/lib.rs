@@ -17,8 +17,8 @@ pub use traits::MemMove;
 
 use core::fmt;
 
-use memcode::{MemBytesRequired, MemDecodable, MemEncodable};
-use memzer::{DropSentinel, FastZeroizable, ZeroizationProbe};
+use memcodec::{BytesRequired, Codec, Decode, Encode};
+use memzer::{DropSentinel, FastZeroizable, MemZer, ZeroizationProbe};
 use zeroize::Zeroize;
 
 /// Wrapper that prevents accidental exposure of sensitive data.
@@ -56,13 +56,13 @@ use zeroize::Zeroize;
 /// // Auto-zeroizes on drop
 /// ```
 ///
-/// # Encoding with memcode
+/// # Encoding with memcodec
 ///
-/// `Secret<T>` can be encoded and decoded via memcode:
+/// `Secret<T>` can be encoded and decoded via memcodec:
 ///
 /// ```rust
 /// use memsecret::Secret;
-/// use memcode::{MemBytesRequired, MemEncode, MemEncodeBuf};
+/// use memcodec::{BytesRequired, Encode, CodecBuffer};
 ///
 /// let mut sensitive_data = vec![1u8, 2, 3];
 /// let mut secret = Secret::from(&mut sensitive_data);
@@ -77,29 +77,29 @@ use zeroize::Zeroize;
 /// secret.expose_mut().push(4);
 /// assert_eq!(secret.expose(), &vec![1u8, 2, 3, 4]);
 ///
-/// // Encode via memcode
-/// let required_capacity = secret.mem_bytes_required().unwrap();
-/// let mut buf = MemEncodeBuf::new(required_capacity);
+/// // Encode via memcodec
+/// let bytes_required = secret.mem_bytes_required().expect("Failed to get mem_bytes_required()");
+/// let mut buf = CodecBuffer::new(bytes_required);
 ///
-/// secret.drain_into(&mut buf).unwrap();
+/// secret.encode_into(&mut buf).unwrap();
 ///
 /// // `secret` is now zeroized
 /// assert!(secret.expose().iter().all(|&b| b == 0));
 /// ```
-#[derive(Zeroize, Default, PartialEq, Eq, memzer::MemZer, memcode::MemCodec)]
+#[derive(Zeroize, Default, PartialEq, Eq, MemZer, Codec)]
 #[zeroize(drop)]
 pub struct Secret<T>
 where
-    T: Zeroize + FastZeroizable + ZeroizationProbe + MemEncodable + MemDecodable + MemBytesRequired,
+    T: Zeroize + FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
 {
     inner: T,
-    #[memcode(default)]
+    #[codec(default)]
     __drop_sentinel: DropSentinel,
 }
 
 impl<T> fmt::Debug for Secret<T>
 where
-    T: Zeroize + FastZeroizable + ZeroizationProbe + MemEncodable + MemDecodable + MemBytesRequired,
+    T: Zeroize + FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[REDACTED Secret]")
@@ -108,7 +108,7 @@ where
 
 impl<T> Secret<T>
 where
-    T: Zeroize + FastZeroizable + ZeroizationProbe + MemEncodable + MemDecodable + MemBytesRequired,
+    T: Zeroize + FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
 {
     /// Creates a new `Secret` by moving data from `sensitive_data`, zeroizing the source.
     ///

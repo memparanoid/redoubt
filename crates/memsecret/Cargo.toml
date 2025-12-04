@@ -13,10 +13,10 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
-memcode.workspace = true
-memutil.workspace = true
-memzer.workspace  = true
-zeroize.workspace = true
+memcodec = { workspace = true, features = ["zeroize"] }
+memutil.workspace   = true
+memzer.workspace    = true
+zeroize.workspace   = true
 
 [features]
 default = []
