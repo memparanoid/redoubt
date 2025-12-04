@@ -104,6 +104,22 @@ fn test_codec_buffer_as_mut_slice() {
 }
 
 #[test]
+fn test_codec_buffer_len() {
+    let capacity = 10;
+    let buf = CodecBuffer::new(capacity);
+
+    // len() should return the capacity
+    assert_eq!(buf.len(), capacity);
+
+    // Verify with different capacities
+    let buf_zero = CodecBuffer::new(0);
+    assert_eq!(buf_zero.len(), 0);
+
+    let buf_large = CodecBuffer::new(1024);
+    assert_eq!(buf_large.len(), 1024);
+}
+
+#[test]
 fn test_codec_buffer_clear() {
     let capacity = 10;
     let mut buf = CodecBuffer::new(capacity);

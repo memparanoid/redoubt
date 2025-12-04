@@ -128,6 +128,11 @@ impl CodecBuffer {
     }
 
     #[inline(always)]
+    pub fn len(&self) -> usize {
+        self.allocked_vec.len()
+    }
+
+    #[inline(always)]
     pub fn write<T>(&mut self, src: &mut T) -> Result<(), CodecBufferError> {
         let len = core::mem::size_of::<T>();
 
