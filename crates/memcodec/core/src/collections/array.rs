@@ -5,15 +5,13 @@
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
-use membuffer::Buffer;
-
-use crate::wrappers::Primitive;
-
+use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
-    BytesRequired, FastZeroizable, Decode, DecodeSlice, Encode, EncodeSlice, TryDecode,
-    TryEncode, ZeroizeMetadata,
+    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, FastZeroizable, TryDecode, TryEncode,
+    ZeroizeMetadata,
 };
+use crate::wrappers::Primitive;
 
 use super::helpers::{header_size, process_header, write_header};
 
@@ -23,7 +21,7 @@ use super::helpers::{header_size, process_header, write_header};
 #[inline(never)]
 fn cleanup_encode_error<T: FastZeroizable + ZeroizeMetadata, const N: usize>(
     arr: &mut [T; N],
-    buf: &mut Buffer,
+    buf: &mut CodecBuffer,
 ) {
     arr.fast_zeroize();
     buf.zeroize();
@@ -68,7 +66,7 @@ impl<T, const N: usize> TryEncode for [T; N]
 where
     T: EncodeSlice + BytesRequired + FastZeroizable + ZeroizeMetadata,
 {
-    fn try_encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
+    fn try_encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         let mut size = Primitive::new(N);
         let mut bytes_required = Primitive::new(self.mem_bytes_required()?);
 
@@ -83,7 +81,7 @@ where
     T: EncodeSlice + BytesRequired + FastZeroizable + ZeroizeMetadata,
 {
     #[inline(always)]
-    fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
+    fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         let result = self.try_encode_into(buf);
 
         #[cfg(feature = "zeroize")]
@@ -101,7 +99,7 @@ impl<T, const N: usize> EncodeSlice for [T; N]
 where
     T: EncodeSlice + BytesRequired + FastZeroizable + ZeroizeMetadata,
 {
-    fn encode_slice_into(slice: &mut [Self], buf: &mut Buffer) -> Result<(), EncodeError> {
+    fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {
             elem.encode_into(buf)?;
         }

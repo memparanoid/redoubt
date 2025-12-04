@@ -19,13 +19,15 @@ benchmark = []
 test_utils = ["zeroize"]
 
 [dependencies]
-memalloc.workspace  = true
-membuffer.workspace = true
 memutil.workspace   = true
 memzer.workspace    = true
 smallvec = { workspace = true, optional = true }
 thiserror.workspace = true
 zeroize = { workspace = true, optional = true }
+
+[dependencies.memalloc]
+workspace = true
+features  = ["unsafe"]
 
 [dev-dependencies]
 memalloc = { workspace = true, features = ["test_utils"] }

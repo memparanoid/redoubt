@@ -5,14 +5,12 @@
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
-use membuffer::Buffer;
-
-use crate::wrappers::Primitive;
-
+use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
     BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc, TryDecode, TryEncode,
 };
+use crate::wrappers::Primitive;
 
 use super::helpers::{header_size, process_header, write_header};
 
@@ -20,7 +18,7 @@ use super::helpers::{header_size, process_header, write_header};
 #[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
-fn cleanup_encode_error(s: &mut String, buf: &mut Buffer) {
+fn cleanup_encode_error(s: &mut String, buf: &mut CodecBuffer) {
     // SAFETY: We're zeroizing and then clearing, so UTF-8 invariant is restored
     unsafe {
         memutil::fast_zeroize_slice(s.as_bytes_mut());
@@ -62,7 +60,7 @@ impl BytesRequired for String {
 }
 
 impl TryEncode for String {
-    fn try_encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
+    fn try_encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         let mut bytes_required = Primitive::new(self.mem_bytes_required()?);
         let mut size = Primitive::new(self.len());
 
@@ -75,7 +73,7 @@ impl TryEncode for String {
 
 impl Encode for String {
     #[inline(always)]
-    fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
+    fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         let result = self.try_encode_into(buf);
 
         #[cfg(feature = "zeroize")]
@@ -94,7 +92,7 @@ impl Encode for String {
 }
 
 impl EncodeSlice for String {
-    fn encode_slice_into(slice: &mut [Self], buf: &mut Buffer) -> Result<(), EncodeError> {
+    fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {
             elem.encode_into(buf)?;
         }

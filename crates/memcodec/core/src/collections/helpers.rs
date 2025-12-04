@@ -2,17 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use membuffer::Buffer;
-
 #[cfg(feature = "zeroize")]
 use smallvec::SmallVec;
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
+use crate::codec_buffer::CodecBuffer;
 use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
-use crate::traits::{
-    BytesRequired, CodecBuffer, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize,
-};
+use crate::traits::{BytesRequired, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize};
 use crate::wrappers::Primitive;
 
 pub fn header_size() -> usize {
@@ -20,7 +17,7 @@ pub fn header_size() -> usize {
 }
 
 pub fn write_header(
-    buf: &mut Buffer,
+    buf: &mut CodecBuffer,
     size: &mut usize,
     bytes_required: &mut usize,
 ) -> Result<(), CodecBufferError> {
@@ -121,7 +118,7 @@ pub fn bytes_required_sum<'a>(
 /// On error with zeroize feature, zeroizes all fields and the buffer.
 pub fn encode_fields<'a>(
     iter: impl Iterator<Item = &'a mut dyn EncodeZeroize>,
-    buf: &mut Buffer,
+    buf: &mut CodecBuffer,
 ) -> Result<(), EncodeError> {
     let mut result = Ok(());
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use membuffer::Buffer;
+use crate::codec_buffer::CodecBuffer;
 #[cfg(feature = "zeroize")]
 use memzer::ZeroizationProbe;
 
@@ -42,7 +42,7 @@ fn test_string_bytes_required_overflow() {
 #[test]
 fn test_string_try_encode_propagates_write_header_error() {
     let mut s = String::from("hello");
-    let mut buf = Buffer::new(1); // Too small for header
+    let mut buf = CodecBuffer::new(1); // Too small for header
 
     let result = s.try_encode_into(&mut buf);
 
@@ -58,7 +58,7 @@ fn test_string_try_encode_propagates_write_header_error() {
 #[test]
 fn test_string_try_encode_propagates_encode_slice_error() {
     let mut s = String::from("hello");
-    let mut buf = Buffer::new(header_size()); // Fits header, not data
+    let mut buf = CodecBuffer::new(header_size()); // Fits header, not data
 
     let result = s.try_encode_into(&mut buf);
 
@@ -79,7 +79,7 @@ fn test_string_encode_slice_ok() {
     let buf_size = s_slice
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = Buffer::new(buf_size);
+    let mut buf = CodecBuffer::new(buf_size);
 
     let result = String::encode_slice_into(&mut s_slice, &mut buf);
 
@@ -95,7 +95,7 @@ fn test_string_encode_slice_ok() {
 #[test]
 fn test_string_encode_slice_propagates_encode_into_error() {
     let mut s_slice = [String::from("hello"), String::from("world")];
-    let mut buf = Buffer::new(1); // Too small
+    let mut buf = CodecBuffer::new(1); // Too small
 
     let result = String::encode_slice_into(&mut s_slice, &mut buf);
 
@@ -114,7 +114,7 @@ fn test_string_encode_slice_propagates_encode_into_error() {
 fn test_string_encode_into_propagates_try_encode_into_error() {
     // Force try_encode_into to fail via buffer too small, then check zeroization
     let mut s = String::from("hello");
-    let mut buf = Buffer::new(1); // Too small
+    let mut buf = CodecBuffer::new(1); // Too small
 
     let result = s.encode_into(&mut buf);
 
@@ -140,7 +140,7 @@ fn test_string_encode_ok() {
     let bytes_required = s
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = Buffer::new(bytes_required);
+    let mut buf = CodecBuffer::new(bytes_required);
 
     let result = s.encode_into(&mut buf);
 
@@ -172,7 +172,7 @@ fn test_string_try_decode_utf8_validation_error() {
     let bytes_required = s
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = Buffer::new(bytes_required);
+    let mut buf = CodecBuffer::new(bytes_required);
 
     s.encode_into(&mut buf).expect("encode failed");
 
@@ -197,7 +197,7 @@ fn test_string_slice_roundtrip_ok() {
     let bytes_required = s_slice
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = Buffer::new(bytes_required);
+    let mut buf = CodecBuffer::new(bytes_required);
 
     String::encode_slice_into(&mut s_slice, &mut buf).expect("encode failed");
 
@@ -261,7 +261,7 @@ fn test_string_roundtrip_ok() {
     let bytes_required = s
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = Buffer::new(bytes_required);
+    let mut buf = CodecBuffer::new(bytes_required);
 
     s.encode_into(&mut buf).expect("encode failed");
 

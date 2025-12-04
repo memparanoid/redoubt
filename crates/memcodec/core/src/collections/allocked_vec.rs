@@ -5,15 +5,15 @@
 use zeroize::Zeroize;
 
 use memalloc::AllockedVec;
-use membuffer::Buffer;
 use memzer::ZeroizationProbe;
 
 use crate::wrappers::Primitive;
 
+use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
-    BytesRequired, FastZeroizable, Decode, DecodeSlice, Encode, EncodeSlice, ZeroizeMetadata, PreAlloc,
-    TryDecode, TryEncode,
+    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, FastZeroizable, PreAlloc, TryDecode,
+    TryEncode, ZeroizeMetadata,
 };
 
 use super::helpers::{header_size, process_header, write_header};
@@ -21,7 +21,7 @@ use super::helpers::{header_size, process_header, write_header};
 /// Cleanup function for encode errors. Marked #[cold] to keep it out of the hot path.
 #[cold]
 #[inline(never)]
-fn cleanup_encode_error<T>(vec: &mut AllockedVec<T>, buf: &mut Buffer)
+fn cleanup_encode_error<T>(vec: &mut AllockedVec<T>, buf: &mut CodecBuffer)
 where
     T: Zeroize + ZeroizationProbe,
 {
@@ -67,7 +67,7 @@ impl<T> TryEncode for AllockedVec<T>
 where
     T: EncodeSlice + BytesRequired + Zeroize + ZeroizationProbe,
 {
-    fn try_encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
+    fn try_encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         let mut size = Primitive::new(self.len());
         let mut bytes_required = Primitive::new(self.mem_bytes_required()?);
 
@@ -82,7 +82,7 @@ where
     T: EncodeSlice + BytesRequired + Zeroize + ZeroizationProbe,
 {
     #[inline(always)]
-    fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
+    fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         let result = self.try_encode_into(buf);
 
         if result.is_err() {
@@ -97,7 +97,7 @@ impl<T> EncodeSlice for AllockedVec<T>
 where
     T: EncodeSlice + BytesRequired + Zeroize + ZeroizationProbe,
 {
-    fn encode_slice_into(slice: &mut [Self], buf: &mut Buffer) -> Result<(), EncodeError> {
+    fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {
             elem.encode_into(buf)?;
         }
@@ -182,4 +182,3 @@ pub(crate) fn allocked_vec_codec_zeroize<
         elem.fast_zeroize();
     }
 }
-

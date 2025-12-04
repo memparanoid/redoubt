@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use membuffer::Buffer;
 use memzer::ZeroizationProbe;
 use zeroize::Zeroize;
 
+use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
     BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, FastZeroizable, PreAlloc,
@@ -93,7 +93,7 @@ impl BytesRequired for TestBreaker {
 }
 
 impl Encode for TestBreaker {
-    fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
+    fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         if self.behaviour == TestBreakerBehaviour::ForceEncodeError {
             return Err(EncodeError::IntentionalEncodeError);
         }
@@ -111,7 +111,7 @@ impl Decode for TestBreaker {
 }
 
 impl EncodeSlice for TestBreaker {
-    fn encode_slice_into(slice: &mut [Self], buf: &mut Buffer) -> Result<(), EncodeError> {
+    fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {
             elem.encode_into(buf)?;
         }

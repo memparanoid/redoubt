@@ -1,0 +1,153 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+//! Secure buffer with locked capacity and automatic zeroization.
+#[cfg(feature = "zeroize")]
+use zeroize::Zeroize;
+
+use memalloc::AllockedVec;
+#[cfg(feature = "zeroize")]
+use memzer::{AssertZeroizeOnDrop, DropSentinel, ZeroizationProbe, assert::assert_zeroize_on_drop};
+
+use crate::error::CodecBufferError;
+
+pub struct CodecBuffer {
+    pub ptr: *mut u8,
+    pub end: *mut u8,
+    pub cursor: *mut u8,
+    allocked_vec: AllockedVec<u8>,
+    #[cfg(feature = "zeroize")]
+    __drop_sentinel: DropSentinel,
+}
+
+#[cfg(feature = "zeroize")]
+impl Zeroize for CodecBuffer {
+    fn zeroize(&mut self) {
+        unsafe {
+            core::ptr::write_volatile(&mut self.ptr, core::ptr::null_mut());
+            core::ptr::write_volatile(&mut self.cursor, core::ptr::null_mut());
+        }
+        self.allocked_vec.zeroize();
+        #[cfg(feature = "zeroize")]
+        self.__drop_sentinel.zeroize();
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl Drop for CodecBuffer {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl AssertZeroizeOnDrop for CodecBuffer {
+    fn clone_drop_sentinel(&self) -> DropSentinel {
+        self.__drop_sentinel.clone()
+    }
+
+    fn assert_zeroize_on_drop(self) {
+        assert_zeroize_on_drop(self);
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl ZeroizationProbe for CodecBuffer {
+    fn is_zeroized(&self) -> bool {
+        (self.ptr == core::ptr::null_mut())
+            & (self.cursor == core::ptr::null_mut())
+            & self.allocked_vec.is_zeroized()
+    }
+}
+
+impl Default for CodecBuffer {
+    fn default() -> Self {
+        Self::new(0)
+    }
+}
+
+impl CodecBuffer {
+    #[inline(always)]
+    fn debug_assert_invariant(&self) {
+        debug_assert!(
+            (self.ptr <= self.cursor) & (self.cursor <= self.end),
+            "Invariant violated: ptr ({:p}) <= cursor ({:p}) <= end ({:p})",
+            self.ptr,
+            self.cursor,
+            self.end
+        );
+    }
+
+    pub fn new(capacity: usize) -> Self {
+        let mut allocked_vec = AllockedVec::<u8>::with_capacity(capacity);
+
+        let ptr = allocked_vec.as_mut_ptr();
+        let end = unsafe { ptr.add(capacity) };
+        let cursor = ptr.clone();
+
+        Self {
+            ptr,
+            end,
+            cursor,
+            allocked_vec,
+            #[cfg(feature = "zeroize")]
+            __drop_sentinel: DropSentinel::default(),
+        }
+    }
+
+    pub fn realloc_with_capacity(&mut self, capacity: usize) {
+        self.allocked_vec.realloc_with_capacity(capacity);
+        self.allocked_vec.fill_with_default();
+    }
+
+    pub fn clear(&mut self) {
+        self.cursor = self.ptr.clone();
+        #[cfg(feature = "zeroize")]
+        self.allocked_vec.zeroize();
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        self.allocked_vec.as_capacity_slice()
+    }
+
+    pub fn as_mut_slice(&mut self) -> &mut [u8] {
+        self.allocked_vec.as_capacity_mut_slice()
+    }
+
+    pub fn write<T>(&mut self, src: &mut T) -> Result<(), CodecBufferError> {
+        let len = core::mem::size_of::<T>();
+
+        unsafe {
+            if self.cursor.add(len) > self.end {
+                return Err(CodecBufferError::CapacityExceeded);
+            }
+
+            core::ptr::copy_nonoverlapping(src as *const T as *const u8, self.cursor, len);
+            self.cursor = self.cursor.add(len);
+        }
+
+        // Invariant must be preserved before returning.
+        self.debug_assert_invariant();
+
+        Ok(())
+    }
+
+    pub fn write_slice<T>(&mut self, src: &mut [T]) -> Result<(), CodecBufferError> {
+        let byte_len = src.len() * core::mem::size_of::<T>();
+
+        unsafe {
+            if self.cursor.add(byte_len) > self.end {
+                return Err(CodecBufferError::CapacityExceeded);
+            }
+
+            core::ptr::copy_nonoverlapping(src.as_ptr() as *const u8, self.cursor, byte_len);
+            self.cursor = self.cursor.add(byte_len);
+        }
+
+        // Invariant must be preserved before returning.
+        self.debug_assert_invariant();
+
+        Ok(())
+    }
+}

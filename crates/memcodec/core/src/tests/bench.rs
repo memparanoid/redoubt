@@ -4,7 +4,7 @@
 
 //! Codec benchmarks - enabled with the `benchmark` feature.
 
-use membuffer::Buffer;
+use crate::codec_buffer::CodecBuffer;
 
 use crate::collections::helpers::{
     bytes_required_sum, decode_fields, encode_fields, to_bytes_required_dyn_ref,
@@ -95,7 +95,7 @@ impl BytesRequired for MixedData {
 }
 
 impl Encode for MixedData {
-    fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError> {
+    fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         let collection: [&mut dyn EncodeZeroize; 11] = [
             to_encode_zeroize_dyn_mut(&mut self.bytes_1k),
             to_encode_zeroize_dyn_mut(&mut self.bytes_2k),
@@ -142,7 +142,7 @@ fn benchmark_codec_roundtrip() {
     // Setup: encode initial data
     let mut data = MixedData::new();
     let buf_size = data.mem_bytes_required().unwrap();
-    let mut global_buf = Buffer::new(buf_size);
+    let mut global_buf = CodecBuffer::new(buf_size);
     data.encode_into(&mut global_buf).unwrap();
 
     let start = Instant::now();
@@ -153,7 +153,7 @@ fn benchmark_codec_roundtrip() {
         data.decode_from(&mut global_buf.as_mut_slice()).unwrap();
         // Encode: writes data back to buf
         let cap = data.mem_bytes_required().unwrap();
-        let mut buf = Buffer::new(cap);
+        let mut buf = CodecBuffer::new(cap);
         data.encode_into(&mut buf).unwrap();
         global_buf = buf;
 

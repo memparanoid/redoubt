@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use membuffer::Buffer;
 use memzer::ZeroizationProbe;
 
-use crate::traits::{BytesRequired, CodecBuffer, Decode, Encode};
+use crate::codec_buffer::CodecBuffer;
+use crate::traits::{BytesRequired, Decode, Encode};
 
 /// Tests collection encode/decode with varying sizes and capacities.
 ///
@@ -38,7 +38,7 @@ pub(crate) fn test_collection_varying_capacities<T, C, F, G, H>(
         let bytes_required = original_clone
             .mem_bytes_required()
             .expect("Failed to get mem_bytes_required()");
-        let mut buf = Buffer::new(bytes_required);
+        let mut buf = CodecBuffer::new(bytes_required);
 
         original_clone
             .encode_into(&mut buf)
@@ -51,7 +51,7 @@ pub(crate) fn test_collection_varying_capacities<T, C, F, G, H>(
             let garbage_len = j.min(set.len());
             fill_from_slice(&mut recovered, &set[0..garbage_len]);
 
-            let mut buf_clone = Buffer::new(buf.as_slice().len());
+            let mut buf_clone = CodecBuffer::new(buf.as_slice().len());
             buf_clone
                 .write_slice(buf.as_slice().to_vec().as_mut_slice())
                 .expect("Failed to write_slice(..)");
@@ -69,7 +69,10 @@ pub(crate) fn test_collection_varying_capacities<T, C, F, G, H>(
             #[cfg(feature = "zeroize")]
             // Assert zeroization!
             {
-                assert!(decode_buf.is_zeroized(), "buf must be zeroized after decode");
+                assert!(
+                    decode_buf.is_zeroized(),
+                    "buf must be zeroized after decode"
+                );
                 assert!(
                     original_clone.is_zeroized(),
                     "original must be zeroized after encode"

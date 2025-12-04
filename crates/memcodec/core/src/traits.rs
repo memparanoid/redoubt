@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use membuffer::Buffer;
-
-use crate::error::{CodecBufferError, DecodeBufferError, DecodeError, EncodeError, OverflowError};
+use crate::codec_buffer::CodecBuffer;
+use crate::error::{DecodeBufferError, DecodeError, EncodeError, OverflowError};
 
 // Re-export memzer traits for public use in memcodec
 pub use memzer::{FastZeroizable, ZeroizeMetadata};
@@ -14,18 +13,18 @@ pub trait BytesRequired {
 }
 
 pub(crate) trait TryEncode: Encode + Sized {
-    fn try_encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError>;
+    fn try_encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError>;
 }
 
 pub trait Encode {
-    fn encode_into(&mut self, buf: &mut Buffer) -> Result<(), EncodeError>;
+    fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError>;
 }
 
 /// Encode a slice of elements into the buffer.
 /// - Primitives: NO zeroize (collection handles it)
 /// - Collections: YES zeroize (handle their own cleanup)
 pub(crate) trait EncodeSlice: Encode + Sized {
-    fn encode_slice_into(slice: &mut [Self], buf: &mut Buffer) -> Result<(), EncodeError>;
+    fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError>;
 }
 
 // @TODO: Doc why this trait is useful
@@ -42,11 +41,6 @@ pub trait Decode {
 /// - Collections: YES zeroize (handle their own cleanup)
 pub(crate) trait DecodeSlice: Decode + Sized {
     fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError>;
-}
-
-pub trait CodecBuffer {
-    fn write<T>(&mut self, src: &mut T) -> Result<(), CodecBufferError>;
-    fn write_slice<T>(&mut self, src: &mut [T]) -> Result<(), CodecBufferError>;
 }
 
 pub trait DecodeBuffer {

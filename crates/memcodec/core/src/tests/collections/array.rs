@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use membuffer::Buffer;
+use crate::codec_buffer::CodecBuffer;
 #[cfg(feature = "zeroize")]
 use memzer::ZeroizationProbe;
 
@@ -61,7 +61,7 @@ fn test_array_encode_into_propagates_bytes_required_error() {
         10,
     )];
     let enough_bytes_required = 1024;
-    let mut buf = Buffer::new(enough_bytes_required);
+    let mut buf = CodecBuffer::new(enough_bytes_required);
 
     let result = arr.encode_into(&mut buf);
 
@@ -79,7 +79,7 @@ fn test_array_encode_into_propagates_bytes_required_error() {
 #[test]
 fn test_array_encode_propagates_capacity_exceeded_error() {
     let mut arr = [TestBreaker::new(TestBreakerBehaviour::None, 100)];
-    let mut buf = Buffer::new(1); // Too small
+    let mut buf = CodecBuffer::new(1); // Too small
 
     let result = arr.encode_into(&mut buf);
 
@@ -122,7 +122,7 @@ fn test_array_decode_from_propagates_size_mismatch_err() {
     let bytes_required = arr
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = Buffer::new(bytes_required);
+    let mut buf = CodecBuffer::new(bytes_required);
     arr.encode_into(&mut buf)
         .expect("Failed to encode_into(..)");
 
@@ -143,7 +143,7 @@ fn test_array_decode_propagates_decode_err() {
     let bytes_required = arr
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = Buffer::new(bytes_required);
+    let mut buf = CodecBuffer::new(bytes_required);
 
     arr.encode_into(&mut buf)
         .expect("Failed to encode_into(..)");
@@ -180,7 +180,7 @@ fn test_array_encode_decode_roundtrip() {
     let bytes_required = arr
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = Buffer::new(bytes_required);
+    let mut buf = CodecBuffer::new(bytes_required);
 
     arr.encode_into(&mut buf)
         .expect("Failed to encode_into(..)");
@@ -238,7 +238,7 @@ fn perm_test_array_encode_into_propagates_error_at_any_position() {
         let mut arr_clone = arr;
         apply_permutation(&mut arr_clone, idx_perm);
 
-        let mut buf = Buffer::new(bytes_required);
+        let mut buf = CodecBuffer::new(bytes_required);
         let result = arr_clone.encode_into(&mut buf);
 
         assert!(result.is_err());
@@ -276,7 +276,7 @@ fn perm_test_array_decode_from_propagates_error_at_any_position() {
         let mut arr_clone = arr;
         apply_permutation(&mut arr_clone, idx_perm);
 
-        let mut buf = Buffer::new(bytes_required);
+        let mut buf = CodecBuffer::new(bytes_required);
         arr_clone
             .encode_into(&mut buf)
             .expect("Failed to encode_into(..)");
@@ -331,7 +331,7 @@ fn perm_test_array_encode_decode_roundtrip() {
 
         let expected = arr_clone;
 
-        let mut buf = Buffer::new(bytes_required);
+        let mut buf = CodecBuffer::new(bytes_required);
         arr_clone
             .encode_into(&mut buf)
             .expect("Failed to encode_into(..)");

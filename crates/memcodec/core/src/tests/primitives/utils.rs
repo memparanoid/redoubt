@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use membuffer::Buffer;
+use crate::codec_buffer::CodecBuffer;
 #[cfg(feature = "zeroize")]
 use memzer::ZeroizationProbe;
 
@@ -95,7 +95,7 @@ where
         .mem_bytes_required()
         .expect("Failed to get bytes_required");
     let insufficient_bytes = bytes_required - 1;
-    let mut buf = Buffer::new(insufficient_bytes);
+    let mut buf = CodecBuffer::new(insufficient_bytes);
 
     let result = value.encode_into(&mut buf);
 
@@ -164,7 +164,7 @@ pub(crate) fn test_encode_slice_insufficient_buffer<T: EncodeSlice>(slice: &mut 
     }
     let bytes_required = slice.len() * core::mem::size_of::<T>();
     let insufficient_bytes = bytes_required - 1;
-    let mut buf = Buffer::new(insufficient_bytes);
+    let mut buf = CodecBuffer::new(insufficient_bytes);
 
     let result = T::encode_slice_into(slice, &mut buf);
 
@@ -206,7 +206,7 @@ where
 {
     let mut original = original_value.clone();
 
-    let mut buf = Buffer::new(
+    let mut buf = CodecBuffer::new(
         original
             .mem_bytes_required()
             .expect("Failed to get mem_bytes_required()"),

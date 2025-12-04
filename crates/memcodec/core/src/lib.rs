@@ -7,7 +7,8 @@
 #[cfg(test)]
 mod tests;
 
-mod buffer;
+mod codec_buffer;
+mod decode_buffer;
 mod error;
 mod primitives;
 mod support;
@@ -16,10 +17,9 @@ mod wrappers;
 
 pub mod collections;
 
+pub use codec_buffer::CodecBuffer;
 pub use error::{DecodeError, EncodeError, OverflowError};
-pub use traits::{
-    BytesRequired, CodecBuffer, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize,
-};
+pub use traits::{BytesRequired, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize};
 
 #[cfg(feature = "test_utils")]
 pub use support::test_utils::{TestBreaker, TestBreakerBehaviour, tamper_encoded_bytes_for_tests};

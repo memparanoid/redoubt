@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use membuffer::Buffer;
+use crate::codec_buffer::CodecBuffer;
 use memzer::ZeroizationProbe;
 use zeroize::Zeroize;
 
@@ -102,7 +102,7 @@ fn test_bytes_required_overflow() {
 #[test]
 fn test_force_encode_error() {
     let mut tb = TestBreaker::with_behaviour(TestBreakerBehaviour::ForceEncodeError);
-    let mut buf = Buffer::new(1024);
+    let mut buf = CodecBuffer::new(1024);
 
     let result = tb.encode_into(&mut buf);
     assert!(matches!(result, Err(EncodeError::IntentionalEncodeError)));
@@ -117,7 +117,7 @@ fn test_force_decode_error() {
     let bytes_required = tb
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = Buffer::new(bytes_required);
+    let mut buf = CodecBuffer::new(bytes_required);
     tb.encode_into(&mut buf).expect("Failed to encode_into(..)");
 
     // Now try to decode with ForceDecodeError
@@ -136,7 +136,7 @@ fn test_roundtrip() {
     let bytes_required = original
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = Buffer::new(bytes_required);
+    let mut buf = CodecBuffer::new(bytes_required);
     original
         .encode_into(&mut buf)
         .expect("Failed to encode_into(..)");
@@ -157,7 +157,7 @@ fn test_encode_slice_error() {
         TestBreaker::new(TestBreakerBehaviour::None, 10),
         TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 10),
     ];
-    let mut buf = Buffer::new(1024);
+    let mut buf = CodecBuffer::new(1024);
 
     let result = vec.encode_into(&mut buf);
 
