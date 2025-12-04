@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use memzer::FastZeroizable;
+
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeBufferError, DecodeError, EncodeError, OverflowError};
-
-// Re-export memzer traits for public use in memcodec
-pub use memzer::{FastZeroizable, ZeroizeMetadata};
 
 pub trait BytesRequired {
     fn mem_bytes_required(&self) -> Result<usize, OverflowError>;

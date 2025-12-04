@@ -3,9 +3,9 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(feature = "zeroize")]
-use smallvec::SmallVec;
+use memzer::FastZeroizable;
 #[cfg(feature = "zeroize")]
-use zeroize::Zeroize;
+use smallvec::SmallVec;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
@@ -135,7 +135,7 @@ pub fn encode_fields<'a>(
             #[cfg(feature = "zeroize")]
             {
                 field.fast_zeroize();
-                buf.zeroize();
+                buf.fast_zeroize();
             }
 
             #[cfg(not(feature = "zeroize"))]

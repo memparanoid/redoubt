@@ -548,21 +548,8 @@ dependencies = [
  "chacha20poly1305",
  "criterion",
  "memaead",
- "membuffer",
- "memcode",
  "memcodec",
  "serde",
- "zeroize",
-]
-
-[[package]]
-name = "membuffer"
-version = "0.0.1"
-dependencies = [
- "memalloc",
- "memutil",
- "memzer",
- "thiserror",
  "zeroize",
 ]
 
@@ -571,43 +558,6 @@ name = "memchr"
 version = "2.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
-
-[[package]]
-name = "memcode"
-version = "0.0.1"
-dependencies = [
- "memcode_core",
- "memcode_derive",
- "zeroize",
-]
-
-[[package]]
-name = "memcode_core"
-version = "0.0.1"
-dependencies = [
- "insta",
- "memzer",
- "pastey",
- "proptest",
- "seq-macro",
- "thiserror",
- "zeroize",
-]
-
-[[package]]
-name = "memcode_derive"
-version = "0.0.1"
-dependencies = [
- "insta",
- "memcode_core",
- "prettyplease",
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn",
- "trybuild",
- "zeroize",
-]
 
 [[package]]
 name = "memcodec"
@@ -622,7 +572,6 @@ name = "memcodec_core"
 version = "0.0.1"
 dependencies = [
  "memalloc",
- "membuffer",
  "memutil",
  "memzer",
  "smallvec",
@@ -635,7 +584,6 @@ name = "memcodec_derive"
 version = "0.0.1"
 dependencies = [
  "insta",
- "membuffer",
  "memcodec_core",
  "prettyplease",
  "proc-macro-crate",
@@ -649,7 +597,7 @@ name = "memcrypt"
 version = "0.0.1"
 dependencies = [
  "chacha20poly1305",
- "memcode",
+ "memcodec",
  "memzer",
  "rand",
  "rand_core",
@@ -678,7 +626,7 @@ dependencies = [
 name = "memsecret"
 version = "0.0.1"
 dependencies = [
- "memcode",
+ "memcodec",
  "memutil",
  "memzer",
  "zeroize",
@@ -1057,12 +1005,6 @@ checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
 ]
-
-[[package]]
-name = "seq-macro"
-version = "0.3.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bc711410fbe7399f390ca1c3b60ad0f53f80e95c5eb935e52268a0e2cd49acc"
 
 [[package]]
 name = "serde"

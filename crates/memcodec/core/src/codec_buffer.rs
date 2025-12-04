@@ -4,11 +4,14 @@
 
 //! Secure buffer with locked capacity and automatic zeroization.
 #[cfg(feature = "zeroize")]
+use memzer::{
+    AssertZeroizeOnDrop, DropSentinel, FastZeroizable, ZeroizationProbe, ZeroizeMetadata,
+    assert::assert_zeroize_on_drop,
+};
+#[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
 use memalloc::AllockedVec;
-#[cfg(feature = "zeroize")]
-use memzer::{AssertZeroizeOnDrop, DropSentinel, ZeroizationProbe, assert::assert_zeroize_on_drop};
 
 use crate::error::CodecBufferError;
 
@@ -22,22 +25,9 @@ pub struct CodecBuffer {
 }
 
 #[cfg(feature = "zeroize")]
-impl Zeroize for CodecBuffer {
-    fn zeroize(&mut self) {
-        unsafe {
-            core::ptr::write_volatile(&mut self.ptr, core::ptr::null_mut());
-            core::ptr::write_volatile(&mut self.cursor, core::ptr::null_mut());
-        }
-        self.allocked_vec.zeroize();
-        #[cfg(feature = "zeroize")]
-        self.__drop_sentinel.zeroize();
-    }
-}
-
-#[cfg(feature = "zeroize")]
 impl Drop for CodecBuffer {
     fn drop(&mut self) {
-        self.zeroize();
+        self.fast_zeroize();
     }
 }
 
@@ -61,6 +51,23 @@ impl ZeroizationProbe for CodecBuffer {
     }
 }
 
+#[cfg(feature = "zeroize")]
+impl ZeroizeMetadata for CodecBuffer {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+
+#[cfg(feature = "zeroize")]
+impl FastZeroizable for CodecBuffer {
+    fn fast_zeroize(&mut self) {
+        unsafe {
+            core::ptr::write_volatile(&mut self.ptr, core::ptr::null_mut());
+            core::ptr::write_volatile(&mut self.cursor, core::ptr::null_mut());
+        }
+        self.allocked_vec.fast_zeroize();
+        self.__drop_sentinel.fast_zeroize();
+    }
+}
+
 impl Default for CodecBuffer {
     fn default() -> Self {
         Self::new(0)
@@ -79,6 +86,7 @@ impl CodecBuffer {
         );
     }
 
+    #[inline(always)]
     pub fn new(capacity: usize) -> Self {
         let mut allocked_vec = AllockedVec::<u8>::with_capacity(capacity);
 
@@ -96,25 +104,30 @@ impl CodecBuffer {
         }
     }
 
+    #[inline(always)]
     pub fn realloc_with_capacity(&mut self, capacity: usize) {
         self.allocked_vec.realloc_with_capacity(capacity);
         self.allocked_vec.fill_with_default();
     }
 
+    #[inline(always)]
     pub fn clear(&mut self) {
         self.cursor = self.ptr.clone();
         #[cfg(feature = "zeroize")]
         self.allocked_vec.zeroize();
     }
 
+    #[inline(always)]
     pub fn as_slice(&self) -> &[u8] {
         self.allocked_vec.as_capacity_slice()
     }
 
+    #[inline(always)]
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
         self.allocked_vec.as_capacity_mut_slice()
     }
 
+    #[inline(always)]
     pub fn write<T>(&mut self, src: &mut T) -> Result<(), CodecBufferError> {
         let len = core::mem::size_of::<T>();
 
@@ -133,6 +146,7 @@ impl CodecBuffer {
         Ok(())
     }
 
+    #[inline(always)]
     pub fn write_slice<T>(&mut self, src: &mut [T]) -> Result<(), CodecBufferError> {
         let byte_len = src.len() * core::mem::size_of::<T>();
 

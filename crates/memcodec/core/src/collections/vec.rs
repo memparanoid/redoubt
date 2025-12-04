@@ -5,11 +5,12 @@
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
+use memzer::{FastZeroizable, ZeroizeMetadata};
+
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
-    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, FastZeroizable, PreAlloc, TryDecode,
-    TryEncode, ZeroizeMetadata,
+    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc, TryDecode, TryEncode,
 };
 use crate::wrappers::Primitive;
 
@@ -19,16 +20,22 @@ use super::helpers::{header_size, process_header, write_header};
 #[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
-fn cleanup_encode_error<T: FastZeroizable + ZeroizeMetadata>(vec: &mut Vec<T>, buf: &mut CodecBuffer) {
+fn cleanup_encode_error<T: FastZeroizable + ZeroizeMetadata>(
+    vec: &mut Vec<T>,
+    buf: &mut CodecBuffer,
+) {
     vec.fast_zeroize();
-    buf.zeroize();
+    buf.fast_zeroize();
 }
 
 /// Cleanup function for decode errors. Marked #[cold] to keep it out of the hot path.
 #[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
-fn cleanup_decode_error<T: FastZeroizable + ZeroizeMetadata>(vec: &mut Vec<T>, buf: &mut &mut [u8]) {
+fn cleanup_decode_error<T: FastZeroizable + ZeroizeMetadata>(
+    vec: &mut Vec<T>,
+    buf: &mut &mut [u8],
+) {
     vec.fast_zeroize();
     buf.zeroize();
 }
@@ -81,6 +88,8 @@ where
         #[cfg(feature = "zeroize")]
         if result.is_err() {
             cleanup_encode_error(self, buf);
+        } else {
+            self.fast_zeroize();
         }
 
         result
@@ -91,6 +100,7 @@ impl<T> EncodeSlice for Vec<T>
 where
     T: EncodeSlice + BytesRequired + FastZeroizable + ZeroizeMetadata,
 {
+    #[inline(always)]
     fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {
             elem.encode_into(buf)?;
@@ -120,6 +130,7 @@ impl<T> Decode for Vec<T>
 where
     T: DecodeSlice + PreAlloc + FastZeroizable + ZeroizeMetadata,
 {
+    #[inline(always)]
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         let result = self.try_decode_from(buf);
 
@@ -136,6 +147,7 @@ impl<T> DecodeSlice for Vec<T>
 where
     T: DecodeSlice + PreAlloc + FastZeroizable + ZeroizeMetadata,
 {
+    #[inline(always)]
     fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         for elem in slice.iter_mut() {
             elem.decode_from(buf)?;
@@ -168,6 +180,7 @@ impl<T: PreAlloc + FastZeroizable + ZeroizeMetadata> PreAlloc for Vec<T> {
     /// Vec can NEVER be zero-initialized (has ptr/len/capacity).
     const ZERO_INIT: bool = false;
 
+    #[inline(always)]
     fn prealloc(&mut self, size: usize) {
         vec_prealloc(self, size, T::ZERO_INIT);
     }
@@ -188,4 +201,3 @@ pub(crate) fn vec_codec_zeroize<T: FastZeroizable + ZeroizeMetadata>(vec: &mut V
         memutil::zeroize_spare_capacity(vec);
     }
 }
-

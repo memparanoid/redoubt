@@ -6,18 +6,18 @@ use crate::codec_buffer::CodecBuffer;
 
 #[cfg(feature = "zeroize")]
 use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
-#[cfg(feature = "zeroize")]
-use zeroize::Zeroize;
 
 #[cfg(feature = "zeroize")]
 #[test]
 fn test_codec_buffer_assert_zeroization_on_drop() {
+    use memzer::FastZeroizable;
+
     let mut buf = CodecBuffer::default();
 
     // Buffer should NOT be zeroized: it's initialized with pointers.
     assert!(!buf.is_zeroized());
 
-    buf.zeroize();
+    buf.fast_zeroize();
 
     assert!(buf.is_zeroized());
 

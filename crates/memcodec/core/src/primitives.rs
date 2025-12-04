@@ -3,6 +3,8 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(feature = "zeroize")]
+use memzer::FastZeroizable;
+#[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
 use crate::error::DecodeError;
@@ -38,7 +40,7 @@ macro_rules! impl_traits_for_primitives {
 
                     #[cfg(feature = "zeroize")]
                     if result.is_err() {
-                        buf.zeroize();
+                        buf.fast_zeroize();
                     }
 
                     result

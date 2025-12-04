@@ -2,9 +2,6 @@
 exclude = ["scripts"]
 members = [
   "crates/memprotect",
-  "crates/memcode",
-  "crates/memcode/core",
-  "crates/memcode/derive",
   "crates/memzer",
   "crates/memzer/core",
   "crates/memzer/derive",
@@ -18,7 +15,6 @@ members = [
   "crates/memcrypt",
   "crates/memalloc",
   "crates/membench",
-  "crates/membuffer",
   "crates/memcodec",
   "crates/memcodec/core",
   "crates/memcodec/derive",
@@ -35,13 +31,9 @@ resolver = "2"
   # Internal crates
   memaead        = { path = "crates/memaead" }
   memalloc       = { path = "crates/memalloc" }
-  membuffer      = { path = "crates/membuffer" }
-  memcode        = { path = "crates/memcode" }
-  memcode_core   = { path = "crates/memcode/core" }
   memcodec        = { path = "crates/memcodec" }
   memcodec_core   = { path = "crates/memcodec/core" }
   memcodec_derive = { path = "crates/memcodec/derive" }
-  memcode_derive  = { path = "crates/memcode/derive" }
   memcrypt       = { path = "crates/memcrypt" }
   memprotect     = { path = "crates/memprotect" }
   memrand        = { path = "crates/memrand" }

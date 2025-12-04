@@ -3,6 +3,8 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(feature = "zeroize")]
+use memzer::FastZeroizable;
+#[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
 use crate::codec_buffer::CodecBuffer;
@@ -19,12 +21,8 @@ use super::helpers::{header_size, process_header, write_header};
 #[cold]
 #[inline(never)]
 fn cleanup_encode_error(s: &mut String, buf: &mut CodecBuffer) {
-    // SAFETY: We're zeroizing and then clearing, so UTF-8 invariant is restored
-    unsafe {
-        memutil::fast_zeroize_slice(s.as_bytes_mut());
-    }
-    s.clear();
-    buf.zeroize();
+    s.fast_zeroize();
+    buf.fast_zeroize();
 }
 
 /// Cleanup function for decode errors. Marked #[cold] to keep it out of the hot path.
@@ -80,10 +78,7 @@ impl Encode for String {
         if result.is_err() {
             cleanup_encode_error(self, buf);
         } else {
-            // SAFETY: We're zeroizing and then clearing, so UTF-8 invariant is restored
-            unsafe {
-                memutil::fast_zeroize_slice(self.as_bytes_mut());
-            }
+            self.fast_zeroize();
             self.clear();
         }
 

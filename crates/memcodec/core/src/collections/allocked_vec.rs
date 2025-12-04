@@ -5,15 +5,14 @@
 use zeroize::Zeroize;
 
 use memalloc::AllockedVec;
-use memzer::ZeroizationProbe;
+use memzer::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
 use crate::wrappers::Primitive;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
-    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, FastZeroizable, PreAlloc, TryDecode,
-    TryEncode, ZeroizeMetadata,
+    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc, TryDecode, TryEncode,
 };
 
 use super::helpers::{header_size, process_header, write_header};
@@ -23,10 +22,10 @@ use super::helpers::{header_size, process_header, write_header};
 #[inline(never)]
 fn cleanup_encode_error<T>(vec: &mut AllockedVec<T>, buf: &mut CodecBuffer)
 where
-    T: Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe,
 {
-    vec.zeroize();
-    buf.zeroize();
+    vec.fast_zeroize();
+    buf.fast_zeroize();
 }
 
 /// Cleanup function for decode errors. Marked #[cold] to keep it out of the hot path.
@@ -34,7 +33,7 @@ where
 #[inline(never)]
 fn cleanup_decode_error<T>(vec: &mut AllockedVec<T>, buf: &mut &mut [u8])
 where
-    T: Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe,
 {
     vec.zeroize();
     memutil::fast_zeroize_slice(*buf);
@@ -42,7 +41,7 @@ where
 
 impl<T> BytesRequired for AllockedVec<T>
 where
-    T: BytesRequired + Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + BytesRequired + Zeroize + ZeroizationProbe,
 {
     fn mem_bytes_required(&self) -> Result<usize, OverflowError> {
         let mut bytes_required = header_size();
@@ -65,7 +64,7 @@ where
 
 impl<T> TryEncode for AllockedVec<T>
 where
-    T: EncodeSlice + BytesRequired + Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + EncodeSlice + BytesRequired + Zeroize + ZeroizationProbe,
 {
     fn try_encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         let mut size = Primitive::new(self.len());
@@ -79,7 +78,7 @@ where
 
 impl<T> Encode for AllockedVec<T>
 where
-    T: EncodeSlice + BytesRequired + Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + EncodeSlice + BytesRequired + Zeroize + ZeroizationProbe,
 {
     #[inline(always)]
     fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
@@ -87,6 +86,8 @@ where
 
         if result.is_err() {
             cleanup_encode_error(self, buf);
+        } else {
+            self.fast_zeroize();
         }
 
         result
@@ -95,7 +96,7 @@ where
 
 impl<T> EncodeSlice for AllockedVec<T>
 where
-    T: EncodeSlice + BytesRequired + Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + EncodeSlice + BytesRequired + Zeroize + ZeroizationProbe,
 {
     fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {

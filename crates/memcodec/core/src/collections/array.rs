@@ -5,11 +5,12 @@
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
+use memzer::{FastZeroizable, ZeroizeMetadata};
+
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
-    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, FastZeroizable, TryDecode, TryEncode,
-    ZeroizeMetadata,
+    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, TryDecode, TryEncode,
 };
 use crate::wrappers::Primitive;
 
@@ -24,7 +25,7 @@ fn cleanup_encode_error<T: FastZeroizable + ZeroizeMetadata, const N: usize>(
     buf: &mut CodecBuffer,
 ) {
     arr.fast_zeroize();
-    buf.zeroize();
+    buf.fast_zeroize();
 }
 
 /// Cleanup function for decode errors. Marked #[cold] to keep it out of the hot path.

@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use memzer::ZeroizationProbe;
+use memzer::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 use zeroize::Zeroize;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};
-use crate::traits::{
-    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, FastZeroizable, PreAlloc,
-    ZeroizeMetadata,
-};
+use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc};
 
 /// Behavior control for error injection testing in memcodec.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Zeroize)]

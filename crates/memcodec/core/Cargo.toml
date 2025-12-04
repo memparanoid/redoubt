@@ -13,7 +13,7 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [features]
-default = []
+default = ["zeroize"]
 zeroize = ["dep:smallvec", "dep:zeroize"]
 benchmark = []
 test_utils = ["zeroize"]
