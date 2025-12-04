@@ -36,15 +36,14 @@
 //! ### Using `ZeroizingMutGuard`
 //!
 //! ```rust
-//! use memzer_core::{ZeroizingMutGuard, ZeroizationProbe, primitives::U64};
+//! use memzer_core::{ZeroizingMutGuard, ZeroizationProbe};
 //!
-//! let mut sensitive = U64::default();
-//! *sensitive.expose_mut() = 0xdeadbeef;
+//! let mut sensitive: u64 = 12345;
 //!
 //! {
 //!     // Guard zeroizes `sensitive` when dropped
 //!     let mut guard = ZeroizingMutGuard::from(&mut sensitive);
-//!     *guard.expose_mut() = 0xcafebabe;
+//!     *guard = 67890;
 //! } // guard drops here → sensitive is zeroized
 //!
 //! assert!(sensitive.is_zeroized());

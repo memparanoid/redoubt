@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use zeroize::Zeroize;
-
 use crate::assert::assert_zeroize_on_drop;
 use crate::drop_sentinel::DropSentinel;
 use crate::traits::{AssertZeroizeOnDrop, FastZeroizable};
@@ -14,15 +12,15 @@ fn drop_sentinel_functional_test() {
         pub __drop_sentinel: DropSentinel,
     }
 
-    impl Zeroize for Test {
-        fn zeroize(&mut self) {
-            self.__drop_sentinel.zeroize();
+    impl FastZeroizable for Test {
+        fn fast_zeroize(&mut self) {
+            self.__drop_sentinel.fast_zeroize();
         }
     }
 
     impl Drop for Test {
         fn drop(&mut self) {
-            self.zeroize();
+            self.fast_zeroize();
         }
     }
 
@@ -62,7 +60,7 @@ fn test_drop_sentinel_zeroizes_clone() {
 
     assert!(!drop_sentinel.is_zeroized());
     assert!(!drop_sentinel_clone.is_zeroized());
-    drop_sentinel.zeroize();
+    drop_sentinel.fast_zeroize();
     assert!(drop_sentinel_clone.is_zeroized());
     assert!(drop_sentinel_clone.is_zeroized());
 }
@@ -96,11 +94,11 @@ fn test_drop_sentinel_partial_eq() {
     assert_eq!(sentinel1, sentinel2);
 
     // Zeroize first sentinel
-    sentinel1.zeroize();
+    sentinel1.fast_zeroize();
     assert_ne!(sentinel1, sentinel2);
 
     // Zeroize second sentinel - now equal again
-    sentinel2.zeroize();
+    sentinel2.fast_zeroize();
     assert_eq!(sentinel1, sentinel2);
 
     // Reset first sentinel - now different again
@@ -133,7 +131,7 @@ fn test_drop_sentinel_reset() {
     let sentinel_clone = sentinel.clone();
 
     // Zeroize
-    sentinel.zeroize();
+    sentinel.fast_zeroize();
     assert!(sentinel.is_zeroized());
     assert!(sentinel_clone.is_zeroized());
 
@@ -143,7 +141,7 @@ fn test_drop_sentinel_reset() {
     assert!(!sentinel_clone.is_zeroized());
 
     // Can zeroize again
-    sentinel.zeroize();
+    sentinel.fast_zeroize();
     assert!(sentinel.is_zeroized());
     assert!(sentinel_clone.is_zeroized());
 }

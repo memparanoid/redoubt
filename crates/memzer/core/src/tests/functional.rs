@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use zeroize::Zeroize;
-
 use crate::assert::assert_zeroize_on_drop;
 use crate::collections::{collection_zeroed, to_zeroization_probe_dyn_ref};
 use crate::drop_sentinel::DropSentinel;
 use crate::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 use crate::zeroizing_mut_guard::ZeroizingMutGuard;
 
-#[derive(Zeroize)]
-#[zeroize(drop)]
 struct Foo {
     pub data: Vec<u8>,
     __drop_sentinel: DropSentinel,
@@ -23,6 +19,19 @@ impl Default for Foo {
             data: vec![1, 2, 3, 4],
             __drop_sentinel: DropSentinel::default(),
         }
+    }
+}
+
+impl FastZeroizable for Foo {
+    fn fast_zeroize(&mut self) {
+        self.data.fast_zeroize();
+        self.__drop_sentinel.fast_zeroize();
+    }
+}
+
+impl Drop for Foo {
+    fn drop(&mut self) {
+        self.fast_zeroize();
     }
 }
 
@@ -46,14 +55,6 @@ impl AssertZeroizeOnDrop for Foo {
     }
 }
 
-impl FastZeroizable for Foo {
-    fn fast_zeroize(&mut self) {
-        self.zeroize();
-    }
-}
-
-#[derive(Zeroize)]
-#[zeroize(drop)]
 struct FunctionalStruct<'a> {
     pub bytes: Vec<u8>,
     pub bytes_16: [u8; 16],
@@ -74,6 +75,16 @@ impl<'a> FunctionalStruct<'a> {
             foo: ZeroizingMutGuard::from(foo),
             __drop_sentinel: DropSentinel::default(),
         }
+    }
+}
+
+impl<'a> FastZeroizable for FunctionalStruct<'a> {
+    fn fast_zeroize(&mut self) {
+        self.bytes.fast_zeroize();
+        self.bytes_16.fast_zeroize();
+        self.bytes_32.fast_zeroize();
+        self.foo.fast_zeroize();
+        self.__drop_sentinel.fast_zeroize();
     }
 }
 
@@ -102,9 +113,9 @@ impl<'a> AssertZeroizeOnDrop for FunctionalStruct<'a> {
     }
 }
 
-impl<'a> FastZeroizable for FunctionalStruct<'a> {
-    fn fast_zeroize(&mut self) {
-        self.zeroize();
+impl<'a> Drop for FunctionalStruct<'a> {
+    fn drop(&mut self) {
+        self.fast_zeroize();
     }
 }
 
@@ -120,7 +131,7 @@ fn test_functionl_struct() {
     // Assert (not) zeroization!
     assert!(!fs.is_zeroized());
 
-    fs.zeroize();
+    fs.fast_zeroize();
 
     // Assert zeroization!
     assert!(fs.is_zeroized());

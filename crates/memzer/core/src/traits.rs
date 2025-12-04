@@ -5,8 +5,6 @@
 // See the LICENSE file for details.
 //! Core traits for systematic zeroization.
 
-use zeroize::Zeroize;
-
 use super::drop_sentinel::DropSentinel;
 
 /// Trait for verifying that a value has been zeroized.
@@ -17,15 +15,15 @@ use super::drop_sentinel::DropSentinel;
 /// # Example
 ///
 /// ```rust
-/// use memzer_core::{ZeroizationProbe, FastZeroizable, primitives::U32};
+/// use memzer_core::{ZeroizationProbe, FastZeroizable};
 ///
-/// let mut value = U32::default();
-/// *value.expose_mut() = 42;
+/// let mut value: u32 = 42;
 ///
 /// assert!(!value.is_zeroized());
 ///
 /// value.fast_zeroize();
 /// assert!(value.is_zeroized());
+/// assert_eq!(value, 0);
 /// ```
 pub trait ZeroizationProbe {
     /// Returns `true` if the value is zeroized (all bytes are 0).
@@ -76,7 +74,7 @@ pub trait AssertZeroizeOnDrop {
 /// ```
 pub trait MutGuarded<'a, T>: FastZeroize + ZeroizationProbe + AssertZeroizeOnDrop
 where
-    T: Zeroize + FastZeroize + ZeroizationProbe,
+    T: FastZeroize + ZeroizationProbe,
 {
     /// Exposes an immutable reference to the guarded value.
     fn expose(&self) -> &T;

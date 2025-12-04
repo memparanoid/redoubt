@@ -8,7 +8,7 @@ extern crate alloc;
 use alloc::sync::Arc;
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use zeroize::Zeroize;
+use crate::{FastZeroizable, ZeroizeMetadata};
 
 /// Runtime verification that zeroization happened before drop.
 ///
@@ -54,13 +54,13 @@ use zeroize::Zeroize;
 ///
 /// ```rust
 /// use memzer_core::DropSentinel;
-/// use zeroize::Zeroize;
+/// use memzer_core::FastZeroizable;
 ///
 /// let mut sentinel = DropSentinel::default();
 /// let sentinel_clone = sentinel.clone();
 ///
 /// assert!(!sentinel_clone.is_zeroized());
-/// sentinel.zeroize();
+/// sentinel.fast_zeroize();
 /// assert!(sentinel_clone.is_zeroized());
 /// ```
 #[derive(Clone, Debug)]
@@ -86,7 +86,7 @@ impl DropSentinel {
     /// use zeroize::Zeroize;
     ///
     /// let mut sentinel = DropSentinel::default();
-    /// sentinel.zeroize();
+    /// sentinel.fast_zeroize();
     /// assert!(sentinel.is_zeroized());
     ///
     /// sentinel.reset();
@@ -109,7 +109,7 @@ impl DropSentinel {
     /// let mut sentinel = DropSentinel::default();
     /// assert!(!sentinel.is_zeroized());
     ///
-    /// sentinel.zeroize();
+    /// sentinel.fast_zeroize();
     /// assert!(sentinel.is_zeroized());
     /// ```
     pub fn is_zeroized(&self) -> bool {
@@ -123,20 +123,12 @@ impl Default for DropSentinel {
     }
 }
 
-impl Zeroize for DropSentinel {
-    fn zeroize(&mut self) {
-        self.0.store(false, Ordering::Relaxed);
-    }
-}
-
-use crate::{FastZeroizable, ZeroizeMetadata};
-
 impl ZeroizeMetadata for DropSentinel {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
 impl FastZeroizable for DropSentinel {
     fn fast_zeroize(&mut self) {
-        self.zeroize();
+        self.0.store(false, Ordering::Relaxed);
     }
 }

@@ -7,8 +7,6 @@
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 
-use zeroize::Zeroize;
-
 use crate::collections::{
     collection_zeroed, to_fast_zeroizable_dyn_mut, to_zeroization_probe_dyn_ref, zeroize_collection,
 };
@@ -34,16 +32,15 @@ use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 /// # Usage
 ///
 /// ```rust
-/// use memzer_core::{ZeroizingMutGuard, ZeroizationProbe, primitives::U64};
+/// use memzer_core::{ZeroizingMutGuard, ZeroizationProbe};
 ///
-/// let mut sensitive = U64::default();
-/// *sensitive.expose_mut() = 0xdeadbeef;
+/// let mut sensitive: u64 = 12345;
 ///
 /// {
 ///     // Guard borrows `sensitive` and zeroizes it on drop
 ///     let mut guard = ZeroizingMutGuard::from(&mut sensitive);
-///     *guard.expose_mut() = 0xcafebabe;
-///     println!("Value: {}", guard.expose());
+///     *guard = 67890;
+///     println!("Value: {}", *guard);
 /// } // guard drops here → sensitive is zeroized
 ///
 /// assert!(sensitive.is_zeroized());
@@ -73,11 +70,9 @@ use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 ///
 /// The guard panics on drop if the wrapped value's [`DropSentinel`] was not
 /// marked as zeroized. This ensures zeroization invariants are enforced.
-#[derive(Zeroize)]
-#[zeroize(drop)]
 pub struct ZeroizingMutGuard<'a, T>
 where
-    T: Zeroize + FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe,
 {
     inner: &'a mut T,
     __drop_sentinel: DropSentinel,
@@ -85,7 +80,7 @@ where
 
 impl<'a, T> fmt::Debug for ZeroizingMutGuard<'a, T>
 where
-    T: Zeroize + FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[REDACTED ZeroizingMutGuard]")
@@ -94,7 +89,7 @@ where
 
 impl<'a, T> ZeroizingMutGuard<'a, T>
 where
-    T: Zeroize + FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe,
 {
     /// Creates a new guard wrapping a mutable reference.
     ///
@@ -104,13 +99,12 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use memzer_core::{ZeroizingMutGuard, primitives::U32};
+    /// use memzer_core::ZeroizingMutGuard;
     ///
-    /// let mut value = U32::default();
-    /// *value.expose_mut() = 42;
+    /// let mut value: u32 = 42;
     ///
     /// let guard = ZeroizingMutGuard::from(&mut value);
-    /// assert_eq!(*guard.expose(), 42);
+    /// assert_eq!(*guard, 42);
     /// ```
     pub fn from(inner: &'a mut T) -> Self {
         Self {
@@ -122,7 +116,7 @@ where
 
 impl<'a, T> Deref for ZeroizingMutGuard<'a, T>
 where
-    T: Zeroize + FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe,
 {
     type Target = T;
 
@@ -133,7 +127,7 @@ where
 
 impl<'a, T> DerefMut for ZeroizingMutGuard<'a, T>
 where
-    T: Zeroize + FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.inner
@@ -142,17 +136,17 @@ where
 
 impl<'a, T> FastZeroizable for ZeroizingMutGuard<'a, T>
 where
-    T: Zeroize + FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe,
 {
     fn fast_zeroize(&mut self) {
-        let elements: [&mut dyn FastZeroizable; 1] = [to_fast_zeroizable_dyn_mut(&mut *self.inner)];
-        zeroize_collection(&mut elements.into_iter());
+        self.inner.fast_zeroize();
+        self.__drop_sentinel.fast_zeroize();
     }
 }
 
 impl<'a, T> AssertZeroizeOnDrop for ZeroizingMutGuard<'a, T>
 where
-    T: Zeroize + FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe,
 {
     fn clone_drop_sentinel(&self) -> crate::drop_sentinel::DropSentinel {
         self.__drop_sentinel.clone()
@@ -165,10 +159,19 @@ where
 
 impl<'a, T> ZeroizationProbe for ZeroizingMutGuard<'a, T>
 where
-    T: Zeroize + FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe,
 {
     fn is_zeroized(&self) -> bool {
-        let elements: [&dyn ZeroizationProbe; 1] = [to_zeroization_probe_dyn_ref(&*self.inner)];
-        collection_zeroed(&mut elements.into_iter())
+        let fields: [&dyn ZeroizationProbe; 1] = [to_zeroization_probe_dyn_ref(&*self.inner)];
+        collection_zeroed(&mut fields.into_iter())
+    }
+}
+
+impl<'a, T> Drop for ZeroizingMutGuard<'a, T>
+where
+    T: FastZeroizable + ZeroizationProbe,
+{
+    fn drop(&mut self) {
+        self.fast_zeroize();
     }
 }
