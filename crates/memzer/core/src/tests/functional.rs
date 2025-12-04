@@ -3,7 +3,9 @@
 // See LICENSE in the repository root for full license text.
 
 use crate::assert::assert_zeroize_on_drop;
-use crate::collections::{collection_zeroed, to_zeroization_probe_dyn_ref};
+use crate::collections::{
+    collection_zeroed, to_fast_zeroizable_dyn_mut, to_zeroization_probe_dyn_ref, zeroize_collection,
+};
 use crate::drop_sentinel::DropSentinel;
 use crate::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 use crate::zeroizing_mut_guard::ZeroizingMutGuard;
@@ -80,11 +82,15 @@ impl<'a> FunctionalStruct<'a> {
 
 impl<'a> FastZeroizable for FunctionalStruct<'a> {
     fn fast_zeroize(&mut self) {
-        self.bytes.fast_zeroize();
-        self.bytes_16.fast_zeroize();
-        self.bytes_32.fast_zeroize();
-        self.foo.fast_zeroize();
-        self.__drop_sentinel.fast_zeroize();
+        let fields: [&mut dyn FastZeroizable; 5] = [
+            to_fast_zeroizable_dyn_mut(&mut self.bytes_16),
+            to_fast_zeroizable_dyn_mut(&mut self.bytes_32),
+            to_fast_zeroizable_dyn_mut(&mut self.bytes),
+            to_fast_zeroizable_dyn_mut(&mut self.foo),
+            to_fast_zeroizable_dyn_mut(&mut self.__drop_sentinel),
+        ];
+
+        zeroize_collection(&mut fields.into_iter());
     }
 }
 
@@ -123,12 +129,12 @@ impl<'a> Drop for FunctionalStruct<'a> {
 fn test_functionl_struct() {
     let mut foo = Foo::default();
 
-    // Assert (not) zeroization!
+    // Assert (not) zeroization! (Foo is not zeroized by default)
     assert!(!foo.is_zeroized());
 
     let mut fs = FunctionalStruct::new(&mut foo);
 
-    // Assert (not) zeroization!
+    // Assert (not) zeroization! (FunctionalStruct is not zeroized due to Foo)
     assert!(!fs.is_zeroized());
 
     fs.fast_zeroize();
