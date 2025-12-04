@@ -53,19 +53,24 @@
 //!
 //! ```rust
 //! use memzer_core::{DropSentinel, FastZeroizable, ZeroizationProbe, AssertZeroizeOnDrop, collections};
-//! use zeroize::Zeroize;
 //!
-//! #[derive(Zeroize)]
-//! #[zeroize(drop)]
 //! struct Credentials {
 //!     username: Vec<u8>,
 //!     password: Vec<u8>,
 //!     __drop_sentinel: DropSentinel,
 //! }
 //!
+//! impl Drop for Credentials {
+//!     fn drop(&mut self) {
+//!         self.fast_zeroize();
+//!     }
+//! }
+//!
 //! impl FastZeroizable for Credentials {
 //!     fn fast_zeroize(&mut self) {
-//!         self.zeroize();
+//!         self.username.fast_zeroize();
+//!         self.password.fast_zeroize();
+//!         self.__drop_sentinel.fast_zeroize();
 //!     }
 //! }
 //!

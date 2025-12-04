@@ -32,15 +32,19 @@ use crate::{FastZeroizable, ZeroizeMetadata};
 ///
 /// Typically used as a field in structs to verify zeroization:
 ///
-/// ```rust
-/// use memzer_core::DropSentinel;
-/// use zeroize::Zeroize;
+/// ```rust,ignore
+/// use memzer_core::{DropSentinel, FastZeroizable};
 ///
-/// #[derive(Zeroize)]
-/// #[zeroize(drop)]
 /// struct Secret {
 ///     data: Vec<u8>,
 ///     __drop_sentinel: DropSentinel,
+/// }
+///
+/// impl Drop for Secret {
+///     fn drop(&mut self) {
+///         self.data.fast_zeroize();
+///         self.__drop_sentinel.fast_zeroize();
+///     }
 /// }
 /// ```
 ///
@@ -82,8 +86,7 @@ impl DropSentinel {
     /// # Example
     ///
     /// ```rust
-    /// use memzer_core::DropSentinel;
-    /// use zeroize::Zeroize;
+    /// use memzer_core::{DropSentinel, FastZeroizable, ZeroizationProbe};
     ///
     /// let mut sentinel = DropSentinel::default();
     /// sentinel.fast_zeroize();
@@ -103,8 +106,7 @@ impl DropSentinel {
     /// # Example
     ///
     /// ```rust
-    /// use memzer_core::DropSentinel;
-    /// use zeroize::Zeroize;
+    /// use memzer_core::{DropSentinel, FastZeroizable, ZeroizationProbe};
     ///
     /// let mut sentinel = DropSentinel::default();
     /// assert!(!sentinel.is_zeroized());
