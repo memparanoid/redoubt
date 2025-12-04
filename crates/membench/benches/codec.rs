@@ -8,9 +8,7 @@ use criterion::{
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
-use membuffer::Buffer;
-use memcode::{MemBytesRequired, MemCodec, MemDecode, MemEncode, MemEncodeBuf};
-use memcodec::{BytesRequired, Codec, Decode, Encode};
+use memcodec::{BytesRequired, Codec, CodecBuffer, Decode, Encode};
 
 // Fast mode: FAST_BENCH=1 cargo bench -p membench --bench codec
 fn is_fast_mode() -> bool {
@@ -31,7 +29,7 @@ fn configure_group(group: &mut criterion::BenchmarkGroup<criterion::measurement:
 
 // === Single struct for all benchmarks ===
 
-#[derive(Clone, Default, Serialize, Deserialize, Zeroize, MemCodec, Codec)]
+#[derive(Clone, Default, Serialize, Deserialize, Zeroize, Codec)]
 struct MixedData {
     bytes_1k: Vec<u8>,
     bytes_2k: Vec<u8>,
@@ -104,27 +102,13 @@ fn bench_encode(c: &mut Criterion) {
         );
     });
 
-    // memcode (v1)
-    group.bench_with_input(BenchmarkId::new("memcode", total_bytes), &data, |b, d| {
-        b.iter_batched(
-            || d.clone(),
-            |mut data| {
-                let size = MemBytesRequired::mem_bytes_required(&data).unwrap();
-                let mut buf = MemEncodeBuf::new(size);
-                data.drain_into(&mut buf).unwrap();
-                black_box(buf)
-            },
-            BatchSize::LargeInput,
-        );
-    });
-
-    // memcodec (v2)
+    // memcodec
     group.bench_with_input(BenchmarkId::new("memcodec", total_bytes), &data, |b, d| {
         b.iter_batched(
             || d.clone(),
             |mut data| {
                 let size = BytesRequired::mem_bytes_required(&data).unwrap();
-                let mut buf = Buffer::new(size);
+                let mut buf = CodecBuffer::new(size);
                 data.encode_into(&mut buf).unwrap();
                 black_box(buf)
             },
@@ -147,14 +131,9 @@ fn bench_decode(c: &mut Criterion) {
     // Prepare encoded buffers
     let bincode_encoded = bincode::serialize(&data).unwrap();
 
-    let mut mc_data = data.clone();
-    let size = MemBytesRequired::mem_bytes_required(&mc_data).unwrap();
-    let mut memcode_buf = MemEncodeBuf::new(size);
-    mc_data.drain_into(&mut memcode_buf).unwrap();
-
     let mut mc2_data = data.clone();
     let size2 = BytesRequired::mem_bytes_required(&mc2_data).unwrap();
-    let mut memcodec_buf = Buffer::new(size2);
+    let mut memcodec_buf = CodecBuffer::new(size2);
     mc2_data.encode_into(&mut memcodec_buf).unwrap();
     let memcodec_encoded: Vec<u8> = memcodec_buf.as_slice().to_vec();
 
@@ -192,24 +171,7 @@ fn bench_decode(c: &mut Criterion) {
         },
     );
 
-    // memcode (v1)
-    group.bench_with_input(
-        BenchmarkId::new("memcode", total_bytes),
-        &memcode_buf,
-        |b, buf| {
-            b.iter_batched(
-                || buf.as_slice().to_vec(),
-                |mut bytes| {
-                    let mut decoded = MixedData::empty();
-                    decoded.drain_from(&mut bytes).unwrap();
-                    black_box(decoded)
-                },
-                BatchSize::LargeInput,
-            );
-        },
-    );
-
-    // memcodec (v2)
+    // memcodec
     group.bench_with_input(
         BenchmarkId::new("memcodec", total_bytes),
         &memcodec_encoded,
@@ -255,30 +217,13 @@ fn bench_roundtrip(c: &mut Criterion) {
         );
     });
 
-    // memcode (v1)
-    group.bench_with_input(BenchmarkId::new("memcode", total_bytes), &data, |b, d| {
-        b.iter_batched(
-            || d.clone(),
-            |mut data| {
-                let size = MemBytesRequired::mem_bytes_required(&data).unwrap();
-                let mut buf = MemEncodeBuf::new(size);
-                data.drain_into(&mut buf).unwrap();
-                let mut bytes = buf.as_slice().to_vec();
-                let mut decoded = MixedData::empty();
-                decoded.drain_from(&mut bytes).unwrap();
-                black_box(decoded)
-            },
-            BatchSize::LargeInput,
-        );
-    });
-
-    // memcodec (v2)
+    // memcodec
     group.bench_with_input(BenchmarkId::new("memcodec", total_bytes), &data, |b, d| {
         b.iter_batched(
             || d.clone(),
             |mut data| {
                 let size = BytesRequired::mem_bytes_required(&data).unwrap();
-                let mut buf = Buffer::new(size);
+                let mut buf = CodecBuffer::new(size);
 
                 data.encode_into(&mut buf).unwrap();
 

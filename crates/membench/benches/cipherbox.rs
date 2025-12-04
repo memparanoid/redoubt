@@ -4,29 +4,24 @@
 
 //! CipherBox benchmarks: full roundtrip (decrypt -> deserialize -> serialize -> encrypt)
 //!
-//! Compares memcode + chacha20poly1305 vs memcodec + aegis128l on 2MB payload.
+//! Benchmarks memcodec + aegis128l on 2MB payload.
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
-use membuffer::Buffer;
-use memcode::{MemBytesRequired, MemCodec, MemDecode, MemEncode, MemEncodeBuf};
-use memcodec::{BytesRequired, Codec, Decode, Encode};
+use memcodec::{BytesRequired, Codec, CodecBuffer, Decode, Encode};
 
-use memaead::xchacha20poly1305::XChacha20Poly1305;
 use memaead::Aead;
 use memaead::Aegis128L;
 
-const KEY_32: [u8; 32] = [0x42; 32];
 const KEY_16: [u8; 16] = [0x42; 16];
-const NONCE_24: [u8; 24] = [0x24; 24];
 const NONCE_16: [u8; 16] = [0x24; 16];
 const AAD: &[u8] = b"";
 
 // === 2MB struct ===
 
-#[derive(Clone, Default, Serialize, Deserialize, Zeroize, MemCodec, Codec)]
+#[derive(Clone, Default, Serialize, Deserialize, Zeroize, Codec)]
 struct Data2MB {
     bytes: Vec<u8>,
 }
@@ -55,50 +50,11 @@ fn bench_cipherbox(c: &mut Criterion) {
     let total_bytes = Data2MB::total_bytes();
     group.throughput(Throughput::Bytes(total_bytes as u64));
 
-    // === memcode + chacha ===
-    {
-        let mut data = Data2MB::new();
-        let mut chacha = XChacha20Poly1305::default();
-
-        let size = MemBytesRequired::mem_bytes_required(&data).unwrap();
-        let mut encode_buf = MemEncodeBuf::new(size);
-        data.drain_into(&mut encode_buf).unwrap();
-
-        let mut ct = encode_buf.as_slice().to_vec();
-        let mut tag = [0u8; 16];
-        chacha.encrypt(&KEY_32, &NONCE_24, AAD, &mut ct, &mut tag);
-
-        group.bench_function("memcode_chacha", |b| {
-            b.iter(|| {
-                // Decrypt
-                chacha
-                    .decrypt(&KEY_32, &NONCE_24, AAD, &mut ct, &tag)
-                    .unwrap();
-
-                // Deserialize
-                let mut decoded = Data2MB::empty();
-                decoded.drain_from(&mut ct).unwrap();
-                data = decoded;
-
-                // Serialize (overwrite ct with encoded data)
-                let mut encode_buf = MemEncodeBuf::new(size);
-                data.drain_into(&mut encode_buf).unwrap();
-                ct.clear();
-                ct.extend_from_slice(encode_buf.as_slice());
-
-                // Encrypt
-                chacha.encrypt(&KEY_32, &NONCE_24, AAD, &mut ct, &mut tag);
-
-                black_box(ct.len())
-            });
-        });
-    }
-
     // === memcodec + aegis128l ===
     {
         let mut data = Data2MB::new();
         let size = BytesRequired::mem_bytes_required(&data).unwrap();
-        let mut encode_buf = Buffer::new(size);
+        let mut encode_buf = CodecBuffer::new(size);
         data.encode_into(&mut encode_buf).unwrap();
 
         let mut ct = encode_buf.as_slice().to_vec();
@@ -119,7 +75,7 @@ fn bench_cipherbox(c: &mut Criterion) {
                 data = decoded;
 
                 // Serialize (overwrite ct with encoded data)
-                let mut encode_buf = Buffer::new(size);
+                let mut encode_buf = CodecBuffer::new(size);
                 data.encode_into(&mut encode_buf).unwrap();
                 ct.clear();
                 ct.extend_from_slice(encode_buf.as_slice());
