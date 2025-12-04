@@ -14,10 +14,6 @@ COPY Cargo.toml Cargo.lock ./
 # Copy all crate Cargo.toml files
 COPY crates/memprotect/Cargo.toml ./crates/memprotect/
 COPY crates/memalloc/Cargo.toml ./crates/memalloc/
-COPY crates/membuffer/Cargo.toml ./crates/membuffer/
-COPY crates/memcode/Cargo.toml ./crates/memcode/
-COPY crates/memcode/core/Cargo.toml ./crates/memcode/core/
-COPY crates/memcode/derive/Cargo.toml ./crates/memcode/derive/
 COPY crates/memzer/Cargo.toml ./crates/memzer/
 COPY crates/memzer/core/Cargo.toml ./crates/memzer/core/
 COPY crates/memzer/derive/Cargo.toml ./crates/memzer/derive/
@@ -37,10 +33,6 @@ COPY crates/memcodec/derive/Cargo.toml ./crates/memcodec/derive/
 # Create stub lib.rs files to satisfy cargo build
 RUN mkdir -p crates/memprotect/src && echo "// stub" > crates/memprotect/src/lib.rs && \
     mkdir -p crates/memalloc/src && echo "// stub" > crates/memalloc/src/lib.rs && \
-    mkdir -p crates/membuffer/src && echo "// stub" > crates/membuffer/src/lib.rs && \
-    mkdir -p crates/memcode/src && echo "// stub" > crates/memcode/src/lib.rs && \
-    mkdir -p crates/memcode/core/src && echo "// stub" > crates/memcode/core/src/lib.rs && \
-    mkdir -p crates/memcode/derive/src && echo "// stub" > crates/memcode/derive/src/lib.rs && \
     mkdir -p crates/memzer/src && echo "// stub" > crates/memzer/src/lib.rs && \
     mkdir -p crates/memzer/core/src && echo "// stub" > crates/memzer/core/src/lib.rs && \
     mkdir -p crates/memzer/derive/src && echo "// stub" > crates/memzer/derive/src/lib.rs && \

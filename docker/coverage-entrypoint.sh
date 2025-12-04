@@ -15,7 +15,7 @@
 #
 # Usage examples:
 #   docker run memora-coverage                          # All crates
-#   docker run memora-coverage memcode-core             # Single crate
+#   docker run memora-coverage memcodec-core            # Single crate
 #   docker run memora-coverage memcrypt "test_utils"    # Crate with features
 # -----------------------------------------------------------------------------
 
@@ -92,9 +92,6 @@ mkdir -p "$OUT"
 # --- Per-crate runs ---
 mk memprotect
 mk memalloc
-mk memcode
-mk memcode_core
-mk memcode_derive
 mk memzer
 mk memzer_core
 mk memzer_derive
