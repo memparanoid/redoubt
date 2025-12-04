@@ -15,7 +15,7 @@ path = "src/lib.rs"
 [features]
 default = []
 zeroize = ["memcodec_core/zeroize"]
-test_utils = []
+test_utils = ["memcodec_core/test_utils"]
 
 [dependencies]
 memcodec_core.workspace   = true
