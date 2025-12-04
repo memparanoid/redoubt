@@ -4,6 +4,7 @@
 
 ---
 source: crates/memcodec/derive/src/tests/expand.rs
+assertion_line: 46
 expression: pretty(token_stream)
 ---
 impl memcodec_core::BytesRequired for Data {
@@ -18,7 +19,7 @@ impl memcodec_core::BytesRequired for Data {
 impl memcodec_core::Encode for Data {
     fn encode_into(
         &mut self,
-        buf: &mut membuffer::Buffer,
+        buf: &mut memcodec_core::CodecBuffer,
     ) -> Result<(), memcodec_core::EncodeError> {
         let collection: [&mut dyn memcodec_core::EncodeZeroize; 2] = [
             memcodec_core::collections::helpers::to_encode_zeroize_dyn_mut(

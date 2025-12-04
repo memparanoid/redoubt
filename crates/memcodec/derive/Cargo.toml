@@ -21,6 +21,5 @@ syn.workspace              = true
 
 [dev-dependencies]
 insta.workspace         = true
-membuffer.workspace     = true
 memcodec_core.workspace = true
 prettyplease.workspace  = true

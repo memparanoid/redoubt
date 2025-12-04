@@ -8,8 +8,8 @@
 mod tests;
 
 use proc_macro::TokenStream;
-use proc_macro2::{Span, TokenStream as TokenStream2};
 use proc_macro_crate::{FoundCrate, crate_name};
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{Attribute, Data, DeriveInput, Fields, Ident, Index, LitStr, Meta, parse_macro_input};
 
@@ -101,7 +101,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         }
 
         impl #impl_generics #root::Encode for #struct_name #ty_generics #where_clause {
-            fn encode_into(&mut self, buf: &mut membuffer::Buffer) -> Result<(), #root::EncodeError> {
+            fn encode_into(&mut self, buf: &mut #root::CodecBuffer) -> Result<(), #root::EncodeError> {
                 let collection: [&mut dyn #root::EncodeZeroize; #len_lit] = [
                     #( #root::collections::helpers::to_encode_zeroize_dyn_mut(#mut_refs) ),*
                 ];
