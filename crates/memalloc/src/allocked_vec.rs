@@ -253,7 +253,7 @@ where
         let mut vec = Self::new();
 
         vec.reserve_exact(capacity)
-            .expect("Infallible: Vec capacity is 0 (seal is false)");
+            .expect("Infallible: Vec capacity is 0 (has_been_sealed is false)");
 
         vec
     }
