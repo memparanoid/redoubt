@@ -99,30 +99,8 @@ pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStr
         }
     }
 
-    let preferred = candidates.first().copied().unwrap_or("memzer");
-    let list = candidates
-        .iter()
-        .map(|s| format!("`{}`", s))
-        .collect::<Vec<_>>()
-        .join(", ");
-    let preferred_dep = format!("`{} = {{ version = \\\"*\\\" }}`", preferred);
-    let alt_dep = if candidates.len() > 1 {
-        let alts = candidates
-            .iter()
-            .skip(1)
-            .map(|s| format!("`{} = {{ version = \\\"*\\\" }}`", s))
-            .collect::<Vec<_>>()
-            .join(" or ");
-        format!(" (preferred) or {}", alts)
-    } else {
-        String::new()
-    };
-
-    let msg = format!(
-        "MemZer: could not find any of the candidate crates: {}. Add {}{} to your Cargo.toml.",
-        list, preferred_dep, alt_dep
-    );
-    let lit = LitStr::new(&msg, Span::call_site());
+    let msg = "MemZer: could not find memzer or memzer_core. Add memzer to Cargo.toml.";
+    let lit = LitStr::new(msg, Span::call_site());
     quote! { compile_error!(#lit); }
 }
 
@@ -144,31 +122,43 @@ pub(crate) fn is_drop_sentinel_type(ty: &Type) -> bool {
 /// For mutable references, we should pass `self.field` directly instead of `&mut self.field`
 /// to avoid creating `&mut &mut T`.
 pub(crate) fn is_mut_reference_type(ty: &Type) -> bool {
-    matches!(ty, Type::Reference(r) if r.mutability.is_some())
+    if let Type::Reference(r) = ty {
+        r.mutability.is_some()
+    } else {
+        false
+    }
 }
 
 /// Detects if a type is an immutable reference (&T).
 ///
 /// Immutable references cannot be zeroized since we don't have mutable access.
 pub(crate) fn is_immut_reference_type(ty: &Type) -> bool {
-    matches!(ty, Type::Reference(r) if r.mutability.is_none())
+    if let Type::Reference(r) = ty {
+        r.mutability.is_none()
+    } else {
+        false
+    }
 }
 
 /// Checks if a field has the `#[memzer(skip)]` attribute.
 fn has_memzer_skip(attrs: &[Attribute]) -> bool {
     attrs.iter().any(|attr| {
-        matches!(&attr.meta, Meta::List(meta_list)
-            if meta_list.path.is_ident("memzer")
-            && meta_list.tokens.to_string().contains("skip"))
+        match &attr.meta {
+            Meta::List(meta_list) =>
+                meta_list.path.is_ident("memzer") && meta_list.tokens.to_string().contains("skip"),
+            _ => false,
+        }
     })
 }
 
 /// Checks if the struct has the `#[memzer(drop)]` attribute.
 fn has_memzer_drop(attrs: &[Attribute]) -> bool {
     attrs.iter().any(|attr| {
-        matches!(&attr.meta, Meta::List(meta_list)
-            if meta_list.path.is_ident("memzer")
-            && meta_list.tokens.to_string().contains("drop"))
+        match &attr.meta {
+            Meta::List(meta_list) =>
+                meta_list.path.is_ident("memzer") && meta_list.tokens.to_string().contains("drop"),
+            _ => false,
+        }
     })
 }
 

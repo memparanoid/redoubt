@@ -1,0 +1,47 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+---
+source: crates/memzer/derive/src/tests/expand.rs
+expression: pretty(token_stream)
+---
+impl<'a> memzer_core::ZeroizeMetadata for Chi<'a> {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+impl<'a> memzer_core::FastZeroizable for Chi<'a> {
+    fn fast_zeroize(&mut self) {
+        let fields: [&mut dyn memzer_core::FastZeroizable; 4] = [
+            memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.alpha),
+            memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.gamma),
+            memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.delta),
+            memzer_core::collections::to_fast_zeroizable_dyn_mut(
+                &mut self.__drop_sentinel,
+            ),
+        ];
+        memzer_core::collections::zeroize_collection(&mut fields.into_iter())
+    }
+}
+impl<'a> memzer_core::ZeroizationProbe for Chi<'a> {
+    fn is_zeroized(&self) -> bool {
+        let fields: [&dyn memzer_core::ZeroizationProbe; 3] = [
+            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.alpha),
+            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.gamma),
+            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.delta),
+        ];
+        memzer_core::collections::collection_zeroed(&mut fields.into_iter())
+    }
+}
+impl<'a> memzer_core::AssertZeroizeOnDrop for Chi<'a> {
+    fn clone_drop_sentinel(&self) -> memzer_core::DropSentinel {
+        self.__drop_sentinel.clone()
+    }
+    fn assert_zeroize_on_drop(self) {
+        memzer_core::assert::assert_zeroize_on_drop(self);
+    }
+}
+impl<'a> Drop for Chi<'a> {
+    fn drop(&mut self) {
+        self.fast_zeroize();
+    }
+}

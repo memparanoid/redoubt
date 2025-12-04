@@ -225,6 +225,26 @@ fn snapshot_named_struct_with_other_list_attr() {
 }
 
 #[test]
+fn snapshot_named_struct_with_path_and_namevalue_attrs() {
+    // Test that Meta::Path and Meta::NameValue attributes don't interfere
+    // This covers the `_ => false` branch in has_memzer_skip
+    let derive_input = parse_quote! {
+        #[derive(MemZer)]
+        struct Omega {
+            pub alpha: Vec<u8>,
+            #[allow(dead_code)]
+            pub beta: [u8; 32],
+            #[doc = "Some documentation"]
+            pub gamma: u64,
+            __drop_sentinel: DropSentinel,
+        }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
 fn snapshot_immut_ref_without_skip_fails() {
     // Test that immutable reference without #[memzer(skip)] produces a helpful error
     let derive_input = parse_quote! {
@@ -243,6 +263,39 @@ fn snapshot_immut_ref_without_skip_fails() {
     let err_str = format!("{}", result.unwrap_err());
     assert!(err_str.contains("immutable reference"));
     assert!(err_str.contains("#[memzer(skip)]"));
+}
+
+#[test]
+fn snapshot_tuple_immut_ref_without_skip_fails() {
+    // Test that immutable reference in tuple struct without #[memzer(skip)] produces a helpful error
+    let derive_input = parse_quote! {
+        #[derive(MemZer)]
+        struct Phi<'a>(Vec<u8>, &'a str, DropSentinel);
+    };
+
+    let result = expand(derive_input);
+    assert!(result.is_err());
+
+    // Verify the error message is helpful and shows field index
+    let err_str = format!("{}", result.unwrap_err());
+    assert!(err_str.contains("immutable reference"));
+    assert!(err_str.contains("#[memzer(skip)]"));
+    assert!(err_str.contains("index"));
+}
+
+// === === === === === === === === === ===
+// Tests for tuple structs with &mut T
+// === === === === === === === === === ===
+
+#[test]
+fn snapshot_tuple_struct_with_mut_ref() {
+    let derive_input = parse_quote! {
+        #[derive(MemZer)]
+        struct Upsilon<'a>(u8, &'a mut Vec<u8>, DropSentinel);
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
 }
 
 // === === === === === === === === === ===
@@ -287,6 +340,77 @@ fn snapshot_named_struct_with_generics_and_memzer_drop() {
             pub beta: &'a mut T,
             __drop_sentinel: DropSentinel,
         }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_named_struct_with_struct_level_path_attrs() {
+    // Test that Meta::Path and Meta::NameValue at struct level don't interfere
+    // This covers the `_ => false` branch in has_memzer_drop
+    let derive_input = parse_quote! {
+        #[derive(MemZer)]
+        #[repr(C)]
+        #[doc = "A test struct"]
+        struct Psi {
+            pub alpha: Vec<u8>,
+            pub beta: u64,
+            __drop_sentinel: DropSentinel,
+        }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_named_struct_with_multiple_memzer_attrs() {
+    // Test struct with multiple different #[memzer(...)] attributes
+    // This covers multiple branches in a single test:
+    // - #[memzer(drop)] on struct
+    // - #[memzer(skip)] on a field
+    // - #[memzer(other)] on a field (False branch of contains("skip"))
+    // - Normal field without attributes
+    let derive_input = parse_quote! {
+        #[derive(MemZer)]
+        #[memzer(drop)]
+        struct Chi<'a> {
+            pub alpha: Vec<u8>,
+            #[memzer(skip)]
+            pub beta: &'a str,
+            #[memzer(custom_attr)]
+            pub gamma: [u8; 32],
+            pub delta: u64,
+            __drop_sentinel: DropSentinel,
+        }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_tuple_struct_with_multiple_memzer_attrs() {
+    // Test tuple struct with multiple different #[memzer(...)] attributes
+    // This covers multiple branches in a single test:
+    // - #[memzer(drop)] on struct
+    // - #[memzer(skip)] on a field
+    // - #[memzer(other)] on a field (False branch of contains("skip"))
+    // - Normal field without attributes
+    let derive_input = parse_quote! {
+        #[derive(MemZer)]
+        #[memzer(drop)]
+        struct Psi<'a>(
+            Vec<u8>,
+            #[memzer(skip)]
+            &'a str,
+            #[memzer(custom_attr)]
+            [u8; 32],
+            u64,
+            DropSentinel,
+        );
     };
 
     let token_stream = expand(derive_input).expect("expand failed");
