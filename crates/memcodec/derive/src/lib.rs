@@ -11,10 +11,14 @@ use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use proc_macro_crate::{FoundCrate, crate_name};
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, Ident, Index, LitStr, parse_macro_input};
+use syn::{Attribute, Data, DeriveInput, Fields, Ident, Index, LitStr, Meta, parse_macro_input};
 
 /// Derives `BytesRequired`, `Encode`, and `Decode` for a struct.
-#[proc_macro_derive(Codec)]
+///
+/// # Attributes
+///
+/// - `#[codec(default)]` on a field: Skip encoding/decoding, use `Default::default()`
+#[proc_macro_derive(Codec, attributes(codec))]
 pub fn derive_codec(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     expand(input).unwrap_or_else(|e| e).into()
@@ -36,6 +40,15 @@ pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStr
     let msg = "Codec: could not find memcodec or memcodec_core. Add memcodec to Cargo.toml.";
     let lit = LitStr::new(msg, Span::call_site());
     quote! { compile_error!(#lit); }
+}
+
+/// Checks if a field has the `#[codec(default)]` attribute.
+fn has_codec_default(attrs: &[Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        matches!(&attr.meta, Meta::List(meta_list)
+            if meta_list.path.is_ident("codec")
+            && meta_list.tokens.to_string().contains("default"))
+    })
 }
 
 fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
@@ -60,9 +73,10 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         }
     };
 
-    // Generate field references
+    // Generate field references (filter out fields with #[codec(default)])
     let (immut_refs, mut_refs): (Vec<TokenStream2>, Vec<TokenStream2>) = fields
         .iter()
+        .filter(|(_, f)| !has_codec_default(&f.attrs))
         .map(|(i, f)| {
             if let Some(ident) = &f.ident {
                 (quote! { &self.#ident }, quote! { &mut self.#ident })

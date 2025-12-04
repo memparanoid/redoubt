@@ -99,3 +99,62 @@ fn snapshot_enum_fails() {
     let result = expand(derive_input);
     assert!(result.is_err());
 }
+
+// #[codec(default)]
+
+#[test]
+fn snapshot_named_struct_ok_with_codec_default() {
+    let derive_input = parse_quote! {
+        #[derive(Codec)]
+        struct Sigma {
+            pub alpha: Vec<u8>,
+            pub beta: [u8; 32],
+            #[codec(default)]
+            pub gamma: [u8; 16],
+        }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_tuple_struct_ok_with_codec_default() {
+    let derive_input = parse_quote! {
+        #[derive(Codec)]
+        struct Sigma(Vec<u8>, [u8; 32], #[codec(default)] [u8; 16]);
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_named_struct_with_non_default_codec_attr() {
+    let derive_input = parse_quote! {
+        #[derive(Codec)]
+        struct Sigma {
+            pub alpha: Vec<u8>,
+            #[codec(skip)]
+            pub beta: [u8; 32],
+        }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_named_struct_with_other_list_attr() {
+    let derive_input = parse_quote! {
+        #[derive(Codec)]
+        struct Sigma {
+            pub alpha: Vec<u8>,
+            #[serde(default)]
+            pub beta: [u8; 32],
+        }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}

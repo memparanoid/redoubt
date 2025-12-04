@@ -124,7 +124,7 @@ impl DecodeBuffer for &mut [u8] {
         #[cfg(feature = "zeroize")]
         memutil::fast_zeroize_slice(&mut self[..byte_len]);
 
-        // Shrink the slice
+        // Shrink the slice - consume the bytes we read
         *self = &mut core::mem::take(self)[byte_len..];
 
         Ok(())

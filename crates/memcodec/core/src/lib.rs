@@ -16,8 +16,10 @@ mod wrappers;
 
 pub mod collections;
 
-#[cfg(feature = "test_utils")]
-pub use support::test_utils;
-
 pub use error::{DecodeError, EncodeError, OverflowError};
-pub use traits::{BytesRequired, CodecBuffer, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize};
+pub use traits::{
+    BytesRequired, CodecBuffer, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize,
+};
+
+#[cfg(feature = "test_utils")]
+pub use support::test_utils::{TestBreaker, TestBreakerBehaviour, tamper_encoded_bytes_for_tests};
