@@ -163,6 +163,15 @@ fn has_memzer_skip(attrs: &[Attribute]) -> bool {
     })
 }
 
+/// Checks if the struct has the `#[memzer(drop)]` attribute.
+fn has_memzer_drop(attrs: &[Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        matches!(&attr.meta, Meta::List(meta_list)
+            if meta_list.path.is_ident("memzer")
+            && meta_list.tokens.to_string().contains("drop"))
+    })
+}
+
 /// Expands the DeriveInput into the necessary implementation of `MemZer`.
 fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     let struct_name = &input.ident;
@@ -323,7 +332,22 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     let len_with_sentinel = mut_refs_with_drop_sentinel.len();
     let len_with_sentinel_lit = syn::LitInt::new(&len_with_sentinel.to_string(), Span::call_site());
 
-    // 6) Emit the trait implementations
+    // 6) Check if we should generate Drop implementation
+    let should_generate_drop = has_memzer_drop(&input.attrs);
+
+    // 7) Emit the trait implementations
+    let drop_impl = if should_generate_drop {
+        quote! {
+            impl #impl_generics Drop for #struct_name #ty_generics #where_clause {
+                fn drop(&mut self) {
+                    self.fast_zeroize();
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     let output = quote! {
         impl #impl_generics #root::ZeroizeMetadata for #struct_name #ty_generics #where_clause {
             const CAN_BE_BULK_ZEROIZED: bool = false;
@@ -356,6 +380,8 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
                 #root::assert::assert_zeroize_on_drop(self);
             }
         }
+
+        #drop_impl
     };
 
     Ok(output)

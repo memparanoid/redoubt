@@ -244,3 +244,51 @@ fn snapshot_immut_ref_without_skip_fails() {
     assert!(err_str.contains("immutable reference"));
     assert!(err_str.contains("#[memzer(skip)]"));
 }
+
+// === === === === === === === === === ===
+// Tests for #[memzer(drop)]
+// === === === === === === === === === ===
+
+#[test]
+fn snapshot_named_struct_with_memzer_drop() {
+    let derive_input = parse_quote! {
+        #[derive(MemZer)]
+        #[memzer(drop)]
+        struct Rho {
+            pub alpha: Vec<u8>,
+            pub beta: [u8; 32],
+            __drop_sentinel: DropSentinel,
+        }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_tuple_struct_with_memzer_drop() {
+    let derive_input = parse_quote! {
+        #[derive(MemZer)]
+        #[memzer(drop)]
+        struct Sigma(Vec<u8>, [u8; 32], DropSentinel);
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
+
+#[test]
+fn snapshot_named_struct_with_generics_and_memzer_drop() {
+    let derive_input = parse_quote! {
+        #[derive(MemZer)]
+        #[memzer(drop)]
+        struct Tau<'a, T> where T: Clone {
+            pub alpha: u8,
+            pub beta: &'a mut T,
+            __drop_sentinel: DropSentinel,
+        }
+    };
+
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
+}
