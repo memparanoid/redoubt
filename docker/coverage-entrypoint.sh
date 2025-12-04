@@ -102,6 +102,8 @@ mk memsecret
 mk memrand
 mk memutil
 mk memvault
+mk memvault_core
+mk memvault_derive
 mk memcrypt
 mk memaead
 mk memcodec

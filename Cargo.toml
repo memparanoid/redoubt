@@ -13,6 +13,8 @@ members = [
   "crates/memrand",
   "crates/memutil",
   "crates/memvault",
+  "crates/memvault/core",
+  "crates/memvault/derive",
   "crates/memcrypt",
   "crates/memalloc",
   "crates/membench",
@@ -46,6 +48,8 @@ resolver = "2"
   memsecret      = { path = "crates/memsecret" }
   memutil        = { path = "crates/memutil" }
   memvault       = { path = "crates/memvault" }
+  memvault_core  = { path = "crates/memvault/core" }
+  memvault_derive = { path = "crates/memvault/derive" }
   memzer         = { path = "crates/memzer" }
   memzer_core    = { path = "crates/memzer/core" }
   memzer_derive  = { path = "crates/memzer/derive" }

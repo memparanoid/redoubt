@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Memvault
+//! Memvault Derive
 //!
-//! Proxy crate that re-exports memvault_core and memvault_derive.
+//! Procedural macros for memvault.
 
-pub use memvault_core::*;
-pub use memvault_derive::*;
+#[cfg(test)]
+mod tests;

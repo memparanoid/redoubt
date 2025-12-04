@@ -1,5 +1,5 @@
 [package]
-name = "memvault"
+name = "memvault_core"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,7 +7,5 @@ edition = "2024"
 path = "src/lib.rs"
 
 [dependencies]
-memvault_core = { path = "core" }
-memvault_derive = { path = "derive" }
 
 [dev-dependencies]

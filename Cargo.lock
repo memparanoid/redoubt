@@ -693,14 +693,19 @@ dependencies = [
 
 [[package]]
 name = "memvault"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
- "criterion",
- "memcode",
- "memcrypt",
- "memzer",
- "proptest",
+ "memvault_core",
+ "memvault_derive",
 ]
+
+[[package]]
+name = "memvault_core"
+version = "0.1.0"
+
+[[package]]
+name = "memvault_derive"
+version = "0.1.0"
 
 [[package]]
 name = "memzer"
