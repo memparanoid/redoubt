@@ -139,7 +139,7 @@ impl FastZeroizable for AllockedVecBehaviour {
 #[cfg_attr(any(test, feature = "test_utils"), derive(Clone))]
 pub struct AllockedVec<T>
 where
-    T: Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe,
 {
     inner: Vec<T>,
     has_been_sealed: bool,
@@ -149,7 +149,9 @@ where
 }
 
 #[cfg(any(test, feature = "test_utils"))]
-impl<T: PartialEq + Zeroize + ZeroizationProbe> PartialEq for AllockedVec<T> {
+impl<T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe + PartialEq> PartialEq
+    for AllockedVec<T>
+{
     fn eq(&self, other: &Self) -> bool {
         // Skip __drop_sentinel (metadata that changes during zeroization)
         // Use `&` instead of `&&` to avoid branches and easier testing.
@@ -160,19 +162,15 @@ impl<T: PartialEq + Zeroize + ZeroizationProbe> PartialEq for AllockedVec<T> {
 }
 
 #[cfg(any(test, feature = "test_utils"))]
-impl<T: Eq + Zeroize + ZeroizationProbe> Eq for AllockedVec<T> {}
+impl<T: FastZeroizable + ZeroizeMetadata + Eq + Zeroize + ZeroizationProbe> Eq for AllockedVec<T> {}
 
-impl<T: Zeroize + ZeroizationProbe> Zeroize for AllockedVec<T> {
+impl<T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe> Zeroize for AllockedVec<T> {
     fn zeroize(&mut self) {
-        self.inner.zeroize();
-        self.has_been_sealed.zeroize();
-        #[cfg(any(test, feature = "test_utils"))]
-        self.behaviour.zeroize();
-        self.__drop_sentinel.zeroize();
+        self.fast_zeroize();
     }
 }
 
-impl<T: Zeroize + ZeroizationProbe> Drop for AllockedVec<T> {
+impl<T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe> Drop for AllockedVec<T> {
     fn drop(&mut self) {
         self.zeroize();
     }
@@ -180,7 +178,7 @@ impl<T: Zeroize + ZeroizationProbe> Drop for AllockedVec<T> {
 
 impl<T> AllockedVec<T>
 where
-    T: Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe,
 {
     pub(crate) fn realloc_with<F>(&mut self, capacity: usize, #[allow(unused)] mut hook: F)
     where
@@ -717,7 +715,7 @@ where
 
 impl<T> Default for AllockedVec<T>
 where
-    T: Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe,
 {
     fn default() -> Self {
         Self::new()
@@ -726,7 +724,7 @@ where
 
 impl<T> core::ops::Deref for AllockedVec<T>
 where
-    T: Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe,
 {
     type Target = [T];
 
@@ -735,11 +733,15 @@ where
     }
 }
 
-impl<T: Zeroize + ZeroizationProbe + ZeroizeMetadata> ZeroizeMetadata for AllockedVec<T> {
+impl<T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe + ZeroizeMetadata>
+    ZeroizeMetadata for AllockedVec<T>
+{
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
-impl<T: Zeroize + ZeroizationProbe + FastZeroizable> FastZeroizable for AllockedVec<T> {
+impl<T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe + FastZeroizable>
+    FastZeroizable for AllockedVec<T>
+{
     fn fast_zeroize(&mut self) {
         self.inner.fast_zeroize();
         self.has_been_sealed.fast_zeroize();
