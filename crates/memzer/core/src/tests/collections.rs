@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::collections::{array_fast_zeroize, vec_fast_zeroize};
+use crate::collections::{slice_fast_zeroize, vec_fast_zeroize};
 use crate::traits::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
 const SIZE: usize = (u16::MAX / 4) as usize;
@@ -83,7 +83,7 @@ fn test_array() {
 }
 
 #[test]
-fn test_array_fast_zeroize_fast_true() {
+fn test_slice_fast_zeroize_fast_true() {
     // NOTE: fast=true forces memset of entire array, regardless of T::CAN_BE_BULK_ZEROIZED.
     // This is only safe for types where all-zeros is a valid bit pattern.
     // ComplexType happens to be safe (all fields are primitives/Copy), but this
@@ -96,14 +96,14 @@ fn test_array_fast_zeroize_fast_true() {
 
     assert!(!arr.is_zeroized());
 
-    array_fast_zeroize(&mut arr, true);
+    slice_fast_zeroize(arr.as_mut_slice(), true);
 
     // Assert zeroization!
     assert!(arr.is_zeroized());
 }
 
 #[test]
-fn test_array_fast_zeroize_fast_false() {
+fn test_slice_fast_zeroize_fast_false() {
     // Test fast=false path: recursive zeroization
     let mut arr = [
         ComplexType::new(100),
@@ -113,7 +113,7 @@ fn test_array_fast_zeroize_fast_false() {
 
     assert!(!arr.is_zeroized());
 
-    array_fast_zeroize(&mut arr, false);
+    slice_fast_zeroize(&mut arr, false);
 
     // Assert zeroization!
     assert!(arr.is_zeroized());

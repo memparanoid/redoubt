@@ -4,6 +4,8 @@
 
 //! Trait implementations and helpers for collections (slices, arrays, `Vec<T>`).
 
+use core::sync::atomic::{Ordering, compiler_fence};
+
 use super::traits::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
 /// Converts a mutable reference to a trait object (`&mut dyn FastZeroizable`).
@@ -34,6 +36,7 @@ pub fn to_zeroization_probe_dyn_ref<'a, T: ZeroizationProbe>(
 pub fn zeroize_collection(collection_iter: &mut dyn Iterator<Item = &mut dyn FastZeroizable>) {
     for z in collection_iter {
         z.fast_zeroize();
+        compiler_fence(Ordering::SeqCst);
     }
 }
 
@@ -50,40 +53,49 @@ pub fn collection_zeroed(collection_iter: &mut dyn Iterator<Item = &dyn Zeroizat
     true
 }
 
-/// Zeroizes all elements in a slice collection via an iterator.
-///
-/// Specialized version of [`zeroize_collection`] optimized for slices.
-#[inline(always)]
-pub fn zeroize_slice_collection(
-    collection_iter: &mut dyn Iterator<Item = &mut dyn FastZeroizable>,
-) {
-    for elem in collection_iter {
-        elem.fast_zeroize();
-    }
-}
-
 // === === === === === === === === === ===
 // [T] - slices
 // === === === === === === === === === ===
+/// Zeroizes an array using either bulk memset or recursive element zeroization.
+///
+/// When `fast=true`, forces bulk memset regardless of `T::CAN_BE_BULK_ZEROIZED`.
+/// When `fast=false`, recursively zeroizes each element.
+///
+/// This function is exposed for testing both code paths independently.
+#[inline(always)]
+pub(crate) fn slice_fast_zeroize<T: FastZeroizable + ZeroizeMetadata>(slice: &mut [T], fast: bool) {
+    if fast {
+        // Fast path: bulk zeroize the entire array
+        memutil::fast_zeroize_slice(slice);
+        compiler_fence(Ordering::SeqCst);
+    } else {
+        // Slow path: recursively zeroize each element
+        for elem in slice.iter_mut() {
+            elem.fast_zeroize();
+            compiler_fence(Ordering::SeqCst);
+        }
+    }
+}
+
 impl<T> ZeroizeMetadata for [T]
 where
-    T: FastZeroizable,
+    T: FastZeroizable + ZeroizeMetadata,
 {
-    const CAN_BE_BULK_ZEROIZED: bool = false;
+    const CAN_BE_BULK_ZEROIZED: bool = T::CAN_BE_BULK_ZEROIZED;
 }
 
 impl<T> FastZeroizable for [T]
 where
-    T: FastZeroizable,
+    T: FastZeroizable + ZeroizeMetadata,
 {
     fn fast_zeroize(&mut self) {
-        zeroize_slice_collection(&mut self.iter_mut().map(to_fast_zeroizable_dyn_mut));
+        slice_fast_zeroize(self, T::CAN_BE_BULK_ZEROIZED);
     }
 }
 
 impl<T> ZeroizationProbe for [T]
 where
-    T: ZeroizationProbe,
+    T: ZeroizeMetadata + FastZeroizable + ZeroizationProbe,
 {
     fn is_zeroized(&self) -> bool {
         collection_zeroed(&mut self.iter().map(to_zeroization_probe_dyn_ref))
@@ -100,22 +112,6 @@ where
 /// When `fast=false`, recursively zeroizes each element.
 ///
 /// This function is exposed for testing both code paths independently.
-#[inline(always)]
-pub(crate) fn array_fast_zeroize<T: FastZeroizable + ZeroizeMetadata, const N: usize>(
-    arr: &mut [T; N],
-    fast: bool,
-) {
-    if fast {
-        // Fast path: bulk zeroize the entire array
-        memutil::fast_zeroize_slice(arr.as_mut_slice());
-    } else {
-        // Slow path: recursively zeroize each element
-        for elem in arr.iter_mut() {
-            elem.fast_zeroize();
-        }
-    }
-}
-
 impl<T: ZeroizeMetadata, const N: usize> ZeroizeMetadata for [T; N] {
     // Arrays inherit bulk-zeroize capability from their element type
     const CAN_BE_BULK_ZEROIZED: bool = T::CAN_BE_BULK_ZEROIZED;
@@ -124,7 +120,7 @@ impl<T: ZeroizeMetadata, const N: usize> ZeroizeMetadata for [T; N] {
 impl<T: ZeroizeMetadata + FastZeroizable, const N: usize> FastZeroizable for [T; N] {
     #[inline(always)]
     fn fast_zeroize(&mut self) {
-        array_fast_zeroize(self, T::CAN_BE_BULK_ZEROIZED);
+        slice_fast_zeroize(self, T::CAN_BE_BULK_ZEROIZED);
     }
 }
 
@@ -152,12 +148,15 @@ pub(crate) fn vec_fast_zeroize<T: FastZeroizable + ZeroizeMetadata>(vec: &mut Ve
     if fast {
         // T is primitive: fast zeroize entire allocation (contents + spare capacity)
         memutil::fast_zeroize_vec(vec);
+        compiler_fence(Ordering::SeqCst);
     } else {
         // T is complex: recursively zeroize each element, then spare capacity
         for elem in vec.iter_mut() {
             elem.fast_zeroize();
+            compiler_fence(Ordering::SeqCst);
         }
         memutil::zeroize_spare_capacity(vec);
+        compiler_fence(Ordering::SeqCst);
     }
 }
 

@@ -6,6 +6,7 @@
 extern crate alloc;
 
 use alloc::sync::Arc;
+use core::ptr;
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use crate::{FastZeroizable, ZeroizeMetadata};
@@ -131,6 +132,9 @@ impl ZeroizeMetadata for DropSentinel {
 
 impl FastZeroizable for DropSentinel {
     fn fast_zeroize(&mut self) {
-        self.0.store(false, Ordering::Relaxed);
+        // SAFETY: Using volatile write to prevent compiler from optimizing away the store
+        unsafe {
+            ptr::write_volatile(&mut *self.0.as_ptr(), false);
+        }
     }
 }

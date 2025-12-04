@@ -6,10 +6,9 @@
 
 use core::fmt;
 use core::ops::{Deref, DerefMut};
+use core::sync::atomic::{Ordering, compiler_fence};
 
-use crate::collections::{
-    collection_zeroed, to_fast_zeroizable_dyn_mut, to_zeroization_probe_dyn_ref, zeroize_collection,
-};
+use crate::collections::{collection_zeroed, to_zeroization_probe_dyn_ref};
 
 use super::assert::assert_zeroize_on_drop;
 use super::drop_sentinel::DropSentinel;
@@ -140,7 +139,10 @@ where
 {
     fn fast_zeroize(&mut self) {
         self.inner.fast_zeroize();
+        compiler_fence(Ordering::SeqCst);
+
         self.__drop_sentinel.fast_zeroize();
+        compiler_fence(Ordering::SeqCst);
     }
 }
 
