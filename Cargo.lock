@@ -522,10 +522,10 @@ checksum = "df1d3c3b53da64cf5760482273a98e575c651a67eec7f77df96b5b642de8f039"
 name = "memaead"
 version = "0.0.1"
 dependencies = [
+ "memrand",
  "memutil",
  "memzer",
  "thiserror",
- "zeroize",
 ]
 
 [[package]]
@@ -536,7 +536,6 @@ dependencies = [
  "memutil",
  "memzer",
  "thiserror",
- "zeroize",
 ]
 
 [[package]]
@@ -576,7 +575,6 @@ dependencies = [
  "memzer",
  "smallvec",
  "thiserror",
- "zeroize",
 ]
 
 [[package]]
@@ -602,7 +600,6 @@ dependencies = [
  "rand",
  "rand_core",
  "thiserror",
- "zeroize",
 ]
 
 [[package]]
@@ -629,15 +626,11 @@ dependencies = [
  "memcodec",
  "memutil",
  "memzer",
- "zeroize",
 ]
 
 [[package]]
 name = "memutil"
 version = "0.0.1"
-dependencies = [
- "zeroize",
-]
 
 [[package]]
 name = "memvault"
@@ -661,7 +654,6 @@ version = "0.0.1"
 dependencies = [
  "memzer_core",
  "memzer_derive",
- "zeroize",
 ]
 
 [[package]]
@@ -670,7 +662,6 @@ version = "0.0.1"
 dependencies = [
  "memutil",
  "pastey",
- "zeroize",
 ]
 
 [[package]]
@@ -685,7 +676,6 @@ dependencies = [
  "quote",
  "syn",
  "trybuild",
- "zeroize",
 ]
 
 [[package]]
