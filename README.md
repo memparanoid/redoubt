@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 <p align="center">
-    <img src="/logo.png" alt="Redoubt">
+    <img src="/logo.png" width="320" alt="Redoubt">
 </p>
 
 > A systematic framework for secure memory handling in Rust.
