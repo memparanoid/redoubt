@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(feature = "zeroize")]
-use zeroize::Zeroize;
-
 use memzer::{FastZeroizable, ZeroizeMetadata};
 
 use crate::codec_buffer::CodecBuffer;
@@ -37,7 +34,7 @@ fn cleanup_decode_error<T: FastZeroizable + ZeroizeMetadata>(
     buf: &mut &mut [u8],
 ) {
     vec.fast_zeroize();
-    buf.zeroize();
+    buf.fast_zeroize();
 }
 
 impl<T> BytesRequired for Vec<T>

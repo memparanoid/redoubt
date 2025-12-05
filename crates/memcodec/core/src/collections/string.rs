@@ -4,8 +4,6 @@
 
 #[cfg(feature = "zeroize")]
 use memzer::FastZeroizable;
-#[cfg(feature = "zeroize")]
-use zeroize::Zeroize;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};

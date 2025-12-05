@@ -3,15 +3,12 @@
 // See LICENSE in the repository root for full license text.
 
 //! Secure buffer with locked capacity and automatic zeroization.
+use memalloc::AllockedVec;
 #[cfg(feature = "zeroize")]
 use memzer::{
     AssertZeroizeOnDrop, DropSentinel, FastZeroizable, ZeroizationProbe, ZeroizeMetadata,
     assert::assert_zeroize_on_drop,
 };
-#[cfg(feature = "zeroize")]
-use zeroize::Zeroize;
-
-use memalloc::AllockedVec;
 
 use crate::error::CodecBufferError;
 
@@ -114,7 +111,7 @@ impl CodecBuffer {
     pub fn clear(&mut self) {
         self.cursor = self.ptr.clone();
         #[cfg(feature = "zeroize")]
-        self.allocked_vec.zeroize();
+        self.allocked_vec.fast_zeroize();
     }
 
     #[inline(always)]
@@ -129,7 +126,7 @@ impl CodecBuffer {
 
     #[inline(always)]
     pub fn len(&self) -> usize {
-        self.allocked_vec.len()
+        self.allocked_vec.as_capacity_slice().len()
     }
 
     #[inline(always)]

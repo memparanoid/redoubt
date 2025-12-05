@@ -3,14 +3,13 @@
 // See LICENSE in the repository root for full license text.
 
 use memzer::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
-use zeroize::Zeroize;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc};
 
 /// Behavior control for error injection testing in memcodec.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Zeroize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TestBreakerBehaviour {
     /// Normal behavior (no error injection).
     None,
@@ -39,12 +38,6 @@ pub struct TestBreaker {
     pub behaviour: TestBreakerBehaviour,
     /// Test data.
     pub data: usize,
-}
-
-impl Zeroize for TestBreaker {
-    fn zeroize(&mut self) {
-        self.data.zeroize();
-    }
 }
 
 impl Default for TestBreaker {
@@ -140,7 +133,7 @@ impl ZeroizeMetadata for TestBreaker {
 
 impl FastZeroizable for TestBreaker {
     fn fast_zeroize(&mut self) {
-        self.zeroize();
+        self.data.fast_zeroize();
     }
 }
 

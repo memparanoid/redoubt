@@ -3,8 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use crate::codec_buffer::CodecBuffer;
-use memzer::ZeroizationProbe;
-use zeroize::Zeroize;
+use memzer::{FastZeroizable, ZeroizationProbe};
 
 use crate::error::{DecodeError, EncodeError};
 use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
@@ -39,7 +38,7 @@ fn test_zeroization() {
     let mut tb = TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 512);
 
     assert!(!tb.is_zeroized());
-    tb.zeroize();
+    tb.fast_zeroize();
 
     assert!(tb.is_zeroized());
 }

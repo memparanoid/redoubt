@@ -4,8 +4,6 @@
 
 #[cfg(feature = "zeroize")]
 use memzer::FastZeroizable;
-#[cfg(feature = "zeroize")]
-use zeroize::Zeroize;
 
 use crate::error::DecodeError;
 
@@ -36,7 +34,7 @@ macro_rules! impl_traits_for_primitives {
                     let result = self.try_encode_into(buf);
 
                     #[cfg(feature = "zeroize")]
-                    self.zeroize();
+                    self.fast_zeroize();
 
                     #[cfg(feature = "zeroize")]
                     if result.is_err() {
@@ -71,8 +69,8 @@ macro_rules! impl_traits_for_primitives {
 
                     #[cfg(feature = "zeroize")]
                     if result.is_err() {
-                        self.zeroize();
-                        buf.zeroize();
+                        self.fast_zeroize();
+                        buf.fast_zeroize();
                     }
 
                     result

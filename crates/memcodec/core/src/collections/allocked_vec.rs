@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use zeroize::Zeroize;
-
 use memalloc::AllockedVec;
 use memzer::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
@@ -22,7 +20,7 @@ use super::helpers::{header_size, process_header, write_header};
 #[inline(never)]
 fn cleanup_encode_error<T>(vec: &mut AllockedVec<T>, buf: &mut CodecBuffer)
 where
-    T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
 {
     vec.fast_zeroize();
     buf.fast_zeroize();
@@ -33,15 +31,15 @@ where
 #[inline(never)]
 fn cleanup_decode_error<T>(vec: &mut AllockedVec<T>, buf: &mut &mut [u8])
 where
-    T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
 {
-    vec.zeroize();
+    vec.fast_zeroize();
     memutil::fast_zeroize_slice(*buf);
 }
 
 impl<T> BytesRequired for AllockedVec<T>
 where
-    T: FastZeroizable + ZeroizeMetadata + BytesRequired + Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + BytesRequired + ZeroizationProbe,
 {
     fn mem_bytes_required(&self) -> Result<usize, OverflowError> {
         let mut bytes_required = header_size();
@@ -64,7 +62,7 @@ where
 
 impl<T> TryEncode for AllockedVec<T>
 where
-    T: FastZeroizable + ZeroizeMetadata + EncodeSlice + BytesRequired + Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + EncodeSlice + BytesRequired + ZeroizationProbe,
 {
     fn try_encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         let mut size = Primitive::new(self.len());
@@ -78,7 +76,7 @@ where
 
 impl<T> Encode for AllockedVec<T>
 where
-    T: FastZeroizable + ZeroizeMetadata + EncodeSlice + BytesRequired + Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + EncodeSlice + BytesRequired + ZeroizationProbe,
 {
     #[inline(always)]
     fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
@@ -96,7 +94,7 @@ where
 
 impl<T> EncodeSlice for AllockedVec<T>
 where
-    T: FastZeroizable + ZeroizeMetadata + EncodeSlice + BytesRequired + Zeroize + ZeroizationProbe,
+    T: FastZeroizable + ZeroizeMetadata + EncodeSlice + BytesRequired + ZeroizationProbe,
 {
     fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {
@@ -109,7 +107,7 @@ where
 
 impl<T> TryDecode for AllockedVec<T>
 where
-    T: DecodeSlice + FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe + Default,
+    T: DecodeSlice + FastZeroizable + ZeroizeMetadata + ZeroizationProbe + Default,
 {
     #[inline(always)]
     fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
@@ -125,7 +123,7 @@ where
 
 impl<T> Decode for AllockedVec<T>
 where
-    T: DecodeSlice + FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe + Default,
+    T: DecodeSlice + FastZeroizable + ZeroizeMetadata + ZeroizationProbe + Default,
 {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         let result = self.try_decode_from(buf);
@@ -140,7 +138,7 @@ where
 
 impl<T> DecodeSlice for AllockedVec<T>
 where
-    T: DecodeSlice + FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe + Default,
+    T: DecodeSlice + FastZeroizable + ZeroizeMetadata + ZeroizationProbe + Default,
 {
     fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         for elem in slice.iter_mut() {
@@ -153,7 +151,7 @@ where
 
 impl<T> PreAlloc for AllockedVec<T>
 where
-    T: FastZeroizable + ZeroizeMetadata + Zeroize + ZeroizationProbe + Default,
+    T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe + Default,
 {
     const ZERO_INIT: bool = false;
 
@@ -172,9 +170,7 @@ where
 
 #[cfg(feature = "zeroize")]
 #[inline(always)]
-pub(crate) fn allocked_vec_codec_zeroize<
-    T: Zeroize + ZeroizationProbe + FastZeroizable + ZeroizeMetadata,
->(
+pub(crate) fn allocked_vec_codec_zeroize<T: ZeroizationProbe + FastZeroizable + ZeroizeMetadata>(
     vec: &mut AllockedVec<T>,
     _fast: bool,
 ) {
