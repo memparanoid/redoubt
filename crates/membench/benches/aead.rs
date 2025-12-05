@@ -59,7 +59,8 @@ fn bench_encrypt(c: &mut Criterion) {
                 || pt.clone(),
                 |mut buf| {
                     let mut tag = vec![0u8; tag_size];
-                    aead.encrypt(key, nonce, AAD, &mut buf, &mut tag);
+                    aead.encrypt(key, nonce, AAD, &mut buf, &mut tag)
+                        .expect("Failed to encrypt(..)");
                     black_box((buf, tag))
                 },
                 BatchSize::SmallInput,
@@ -104,7 +105,6 @@ fn bench_encrypt(c: &mut Criterion) {
                 BatchSize::SmallInput,
             );
         });
-
     }
 
     group.finish();
@@ -122,7 +122,9 @@ fn bench_decrypt(c: &mut Criterion) {
 
         let mut plaintext = vec![0xAB; size];
         let mut our_tag = vec![0u8; tag_size];
-        aead_setup.encrypt(key, nonce, AAD, &mut plaintext, &mut our_tag);
+        aead_setup
+            .encrypt(key, nonce, AAD, &mut plaintext, &mut our_tag)
+            .expect("Failed to encrypt(..)");
         let our_ciphertext = plaintext; // now contains ciphertext
 
         // RustCrypto needs ciphertext || tag format
@@ -156,7 +158,8 @@ fn bench_decrypt(c: &mut Criterion) {
                 b.iter_batched(
                     || ct.clone(),
                     |mut buf| {
-                        aead.decrypt(key, nonce, AAD, &mut buf, tag).unwrap();
+                        aead.decrypt(key, nonce, AAD, &mut buf, tag)
+                            .expect("Failed to decrypt(..)");
                         black_box(buf)
                     },
                     BatchSize::SmallInput,
@@ -232,7 +235,6 @@ fn bench_decrypt(c: &mut Criterion) {
                 );
             },
         );
-
     }
 
     group.finish();

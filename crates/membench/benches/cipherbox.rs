@@ -63,12 +63,14 @@ fn bench_cipherbox(c: &mut Criterion) {
 
         let mut ct = encode_buf.as_slice().to_vec();
         let mut tag = vec![0u8; tag_size];
-        aead.encrypt(key, nonce, AAD, &mut ct, &mut tag);
+        aead.encrypt(key, nonce, AAD, &mut ct, &mut tag)
+            .expect("Failed to encrypt(..)");
 
         group.bench_function("memcodec_aead", |b| {
             b.iter(|| {
                 // Decrypt
-                aead.decrypt(key, nonce, AAD, &mut ct, &tag).unwrap();
+                aead.decrypt(key, nonce, AAD, &mut ct, &tag)
+                    .expect("Failed to decrypt(..)");
 
                 // Deserialize
                 let mut decoded = Data2MB::empty();
@@ -82,7 +84,8 @@ fn bench_cipherbox(c: &mut Criterion) {
                 ct.extend_from_slice(encode_buf.as_slice());
 
                 // Encrypt
-                aead.encrypt(key, nonce, AAD, &mut ct, &mut tag);
+                aead.encrypt(key, nonce, AAD, &mut ct, &mut tag)
+                    .expect("Failed to encrypt(..)");
 
                 black_box(ct.len())
             });

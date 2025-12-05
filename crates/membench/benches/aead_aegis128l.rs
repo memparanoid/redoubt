@@ -37,25 +37,22 @@ fn bench_encrypt_2mb(c: &mut Criterion) {
         );
     });
 
-    group.bench_with_input(
-        BenchmarkId::new("memaead", size),
-        &plaintext,
-        |b, pt| {
-            let mut aead = MemAead::new();
-            let key = &KEY_16[..aead.key_size()];
-            let nonce = &NONCE_16[..aead.nonce_size()];
-            let tag_size = aead.tag_size();
-            b.iter_batched(
-                || pt.clone(),
-                |mut buf| {
-                    let mut tag = vec![0u8; tag_size];
-                    aead.encrypt(key, nonce, &[], &mut buf, &mut tag);
-                    black_box((buf, tag))
-                },
-                BatchSize::LargeInput,
-            );
-        },
-    );
+    group.bench_with_input(BenchmarkId::new("memaead", size), &plaintext, |b, pt| {
+        let mut aead = MemAead::new();
+        let key = &KEY_16[..aead.key_size()];
+        let nonce = &NONCE_16[..aead.nonce_size()];
+        let tag_size = aead.tag_size();
+        b.iter_batched(
+            || pt.clone(),
+            |mut buf| {
+                let mut tag = vec![0u8; tag_size];
+                aead.encrypt(key, nonce, &[], &mut buf, &mut tag)
+                    .expect("Failed to encrypt(..)");
+                black_box((buf, tag))
+            },
+            BatchSize::LargeInput,
+        );
+    });
 
     group.finish();
 }
@@ -97,7 +94,9 @@ fn bench_decrypt_2mb(c: &mut Criterion) {
 
     let mut memaead_plaintext = vec![0xAB; size];
     let mut memaead_tag = vec![0u8; tag_size];
-    memaead_aead_setup.encrypt(key, nonce, &[], &mut memaead_plaintext, &mut memaead_tag);
+    memaead_aead_setup
+        .encrypt(key, nonce, &[], &mut memaead_plaintext, &mut memaead_tag)
+        .expect("Failed to encrypt(..)");
     let memaead_ciphertext = memaead_plaintext;
 
     group.bench_with_input(
@@ -110,7 +109,8 @@ fn bench_decrypt_2mb(c: &mut Criterion) {
             b.iter_batched(
                 || ct.clone(),
                 |mut buf| {
-                    aead.decrypt(key, nonce, &[], &mut buf, tag).unwrap();
+                    aead.decrypt(key, nonce, &[], &mut buf, tag)
+                        .expect("Failed to decrypt(..)");
                     black_box(buf)
                 },
                 BatchSize::LargeInput,
