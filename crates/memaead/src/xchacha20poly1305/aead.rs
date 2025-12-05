@@ -7,8 +7,7 @@
 //! All sensitive state is zeroized on drop using memzer.
 
 use memutil::{constant_time_eq, u64_to_le};
-use zeroize::Zeroize;
-use memzer::{DropSentinel, MemZer};
+use memzer::{DropSentinel, FastZeroizable, MemZer};
 
 use crate::{Aead, DecryptError};
 
@@ -18,8 +17,8 @@ use super::poly1305::Poly1305;
 use super::types::{AeadKey, XNonce};
 
 /// XChaCha20-Poly1305 AEAD with guaranteed zeroization.
-#[derive(Zeroize, MemZer)]
-#[zeroize(drop)]
+#[derive(MemZer)]
+#[memzer(drop)]
 pub struct XChacha20Poly1305 {
     xchacha: XChaCha20,
     poly: Poly1305,
@@ -65,7 +64,7 @@ impl XChacha20Poly1305 {
         self.poly.update(&self.len_block);
 
         self.poly.finalize(&mut self.expected_tag);
-        self.len_block.zeroize();
+        self.len_block.fast_zeroize();
     }
 }
 
@@ -89,7 +88,7 @@ impl Aead for XChacha20Poly1305 {
         self.compute_tag(aad, data);
 
         tag.copy_from_slice(&self.expected_tag);
-        self.expected_tag.zeroize();
+        self.expected_tag.fast_zeroize();
     }
 
     fn decrypt(
@@ -105,14 +104,14 @@ impl Aead for XChacha20Poly1305 {
         self.compute_tag(aad, data);
 
         if !constant_time_eq(&self.expected_tag, tag) {
-            data.zeroize();
-            self.poly_key.zeroize();
-            self.expected_tag.zeroize();
+            data.fast_zeroize();
+            self.poly_key.fast_zeroize();
+            self.expected_tag.fast_zeroize();
             return Err(DecryptError::AuthenticationFailed);
         }
 
         self.xchacha.crypt(key, nonce, data);
-        self.expected_tag.zeroize();
+        self.expected_tag.fast_zeroize();
 
         Ok(())
     }

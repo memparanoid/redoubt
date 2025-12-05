@@ -7,16 +7,14 @@
 //! Implements the Poly1305 one-time authenticator (RFC 8439).
 //! All sensitive state is zeroized on drop using memzer.
 
-use zeroize::Zeroize;
-
 use memutil::{u32_from_le, u32_to_le};
-use memzer::{DropSentinel, MemZer};
+use memzer::{DropSentinel, FastZeroizable, MemZer};
 
 use super::consts::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 
 /// Work variables for block processing.
-#[derive(Default, Zeroize, MemZer)]
-#[zeroize(drop)]
+#[derive(Default, MemZer)]
+#[memzer(drop)]
 pub(crate) struct Poly1305Block {
     t: [u32; 4],
     s: [u64; 4],
@@ -35,8 +33,8 @@ impl core::fmt::Debug for Poly1305Block {
 }
 
 /// Work variables for finalization.
-#[derive(Default, Zeroize, MemZer)]
-#[zeroize(drop)]
+#[derive(Default, MemZer)]
+#[memzer(drop)]
 pub(crate) struct Poly1305Final {
     d: [u64; 5], // reduced accumulator
     g: [u64; 4], // h + 5 for comparison
@@ -57,8 +55,8 @@ impl core::fmt::Debug for Poly1305Final {
 }
 
 /// Poly1305 authenticator state.
-#[derive(Default, Zeroize, MemZer)]
-#[zeroize(drop)]
+#[derive(Default, MemZer)]
+#[memzer(drop)]
 pub(crate) struct Poly1305 {
     r: [u32; 5],
     s: [u8; 16],
@@ -122,7 +120,7 @@ impl Poly1305 {
 
         self.r[4] = self.block.t[3] >> 8;
 
-        self.block.zeroize();
+        self.block.fast_zeroize();
     }
 
     fn process_block(&mut self, block: &[u8], hibit: u32) {
@@ -227,7 +225,7 @@ impl Poly1305 {
         self.acc[3] = self.block.d[3];
         self.acc[4] = self.block.d[4];
 
-        self.block.zeroize();
+        self.block.fast_zeroize();
     }
 
     pub fn update(&mut self, data: &[u8]) {
@@ -242,7 +240,7 @@ impl Poly1305 {
 
             if self.buffer_len == BLOCK_SIZE {
                 self.block.tmp.copy_from_slice(&self.buffer);
-                self.buffer.zeroize();
+                self.buffer.fast_zeroize();
                 self.buffer_len = 0;
                 self.process_block_from_tmp(1);
             }
@@ -278,7 +276,7 @@ impl Poly1305 {
             }
             self.buffer[self.buffer_len] = 0x01;
             self.block.tmp.copy_from_slice(&self.buffer);
-            self.buffer.zeroize();
+            self.buffer.fast_zeroize();
             self.buffer_len = 0;
             self.process_block_from_tmp(0); // hibit=0 for partial block
         }
@@ -421,7 +419,7 @@ impl Poly1305 {
                 .expect("infallible: output[12..16] is exactly 4 bytes"),
         );
 
-        self.finalize.zeroize();
+        self.finalize.fast_zeroize();
     }
 
     #[cfg(test)]
@@ -430,7 +428,7 @@ impl Poly1305 {
         state.init(key);
         state.update(data);
         state.finalize(output);
-        state.zeroize();
+        state.fast_zeroize();
     }
 }
 

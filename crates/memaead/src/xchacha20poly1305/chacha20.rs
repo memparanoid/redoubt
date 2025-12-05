@@ -6,10 +6,8 @@
 //!
 //! All sensitive state is zeroized on drop using memzer.
 
-use zeroize::Zeroize;
-
 use memutil::{u32_from_le, u32_to_le};
-use memzer::{DropSentinel, MemZer};
+use memzer::{DropSentinel, FastZeroizable, MemZer};
 
 use super::consts::{
     CHACHA20_BLOCK_SIZE, CHACHA20_NONCE_SIZE, HCHACHA20_NONCE_SIZE, KEY_SIZE, XNONCE_SIZE,
@@ -17,8 +15,8 @@ use super::consts::{
 use super::types::{AeadKey, XNonce};
 
 /// ChaCha20 cipher state with guaranteed zeroization.
-#[derive(Zeroize, MemZer)]
-#[zeroize(drop)]
+#[derive(MemZer)]
+#[memzer(drop)]
 pub(crate) struct ChaCha20 {
     initial: [u32; 16],
     working: [u32; 16],
@@ -160,7 +158,7 @@ impl ChaCha20 {
             );
         }
 
-        self.initial.zeroize();
+        self.initial.fast_zeroize();
     }
 
     #[cfg(test)]
@@ -173,7 +171,7 @@ impl ChaCha20 {
     ) {
         self.generate_block(key, nonce, counter);
         output.copy_from_slice(&self.keystream);
-        self.keystream.zeroize();
+        self.keystream.fast_zeroize();
     }
 
     pub fn crypt(
@@ -191,7 +189,7 @@ impl ChaCha20 {
             }
         }
 
-        self.keystream.zeroize();
+        self.keystream.fast_zeroize();
     }
 }
 
@@ -202,8 +200,8 @@ impl core::fmt::Debug for ChaCha20 {
 }
 
 /// HChaCha20 state for subkey derivation.
-#[derive(Zeroize, MemZer)]
-#[zeroize(drop)]
+#[derive(MemZer)]
+#[memzer(drop)]
 pub(crate) struct HChaCha20 {
     state: [u32; 16],
     le_bytes_tmp: [u8; 4],
@@ -330,7 +328,7 @@ impl HChaCha20 {
         }
 
         // state[4..12] not written to output, zeroize remaining
-        self.state[4..12].zeroize();
+        self.state[4..12].fast_zeroize();
     }
 }
 
@@ -341,8 +339,8 @@ impl core::fmt::Debug for HChaCha20 {
 }
 
 /// XChaCha20 cipher state with guaranteed zeroization.
-#[derive(Zeroize, MemZer)]
-#[zeroize(drop)]
+#[derive(MemZer)]
+#[memzer(drop)]
 pub(crate) struct XChaCha20 {
     subkey: [u8; KEY_SIZE],
     nonce: [u8; CHACHA20_NONCE_SIZE],
@@ -380,9 +378,9 @@ impl XChaCha20 {
         self.chacha.generate_block(&self.subkey, &self.nonce, 0);
         output.copy_from_slice(&self.chacha.keystream[0..KEY_SIZE]);
 
-        self.subkey.zeroize();
-        self.nonce.zeroize();
-        self.chacha.keystream.zeroize();
+        self.subkey.fast_zeroize();
+        self.nonce.fast_zeroize();
+        self.chacha.keystream.fast_zeroize();
     }
 
     /// Encrypt/decrypt data in-place (counter=1)
@@ -400,8 +398,8 @@ impl XChaCha20 {
 
         self.chacha.crypt(&self.subkey, &self.nonce, 1, data);
 
-        self.subkey.zeroize();
-        self.nonce.zeroize();
+        self.subkey.fast_zeroize();
+        self.nonce.fast_zeroize();
     }
 }
 
