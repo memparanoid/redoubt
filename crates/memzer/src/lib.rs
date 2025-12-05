@@ -12,10 +12,9 @@
 //!
 //! ```rust
 //! use memzer::{DropSentinel, FastZeroizable, ZeroizationProbe, AssertZeroizeOnDrop, MemZer};
-//! use zeroize::Zeroize;
 //!
-//! #[derive(Zeroize, MemZer)]
-//! #[zeroize(drop)]
+//! #[derive(MemZer)]
+//! #[memzer(drop)]
 //! struct ApiKey {
 //!     key: Vec<u8>,
 //!     __drop_sentinel: DropSentinel,

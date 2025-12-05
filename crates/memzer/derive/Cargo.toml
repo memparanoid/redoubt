@@ -24,4 +24,3 @@ syn.workspace              = true
 insta.workspace        = true
 prettyplease.workspace = true
 trybuild.workspace     = true
-zeroize.workspace      = true
