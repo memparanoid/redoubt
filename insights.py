@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Project insights: code metrics, test coverage, and assertion counts.
+Project insights: generates INSIGHTS.md with code metrics and coverage.
 No external dependencies - stdlib only.
 """
 
 import subprocess
 import re
-import os
 from pathlib import Path
+from datetime import datetime
 
 def run_cmd(cmd, cwd=None):
     """Run command and return output."""
@@ -20,11 +20,51 @@ def run_cmd(cmd, cwd=None):
     )
     return result.stdout
 
+def parse_coverage_html():
+    """Parse coverage/html/index.html and extract coverage percentages."""
+    coverage_path = Path('coverage/html/index.html')
+    if not coverage_path.exists():
+        return None
+
+    content = coverage_path.read_text()
+
+    pattern = r"<tr class='light-row-bold'><td><pre>Totals</pre></td>" \
+              r"<td[^>]*><pre>\s*([\d.]+)%\s*\((\d+)/(\d+)\)</pre></td>" \
+              r"<td[^>]*><pre>\s*([\d.]+)%\s*\((\d+)/(\d+)\)</pre></td>" \
+              r"<td[^>]*><pre>\s*([\d.]+)%\s*\((\d+)/(\d+)\)</pre></td>" \
+              r"<td[^>]*><pre>\s*([\d.]+)%\s*\((\d+)/(\d+)\)</pre></td>"
+
+    match = re.search(pattern, content)
+    if not match:
+        return None
+
+    return {
+        'function': {
+            'percent': float(match.group(1)),
+            'covered': int(match.group(2)),
+            'total': int(match.group(3))
+        },
+        'line': {
+            'percent': float(match.group(4)),
+            'covered': int(match.group(5)),
+            'total': int(match.group(6))
+        },
+        'region': {
+            'percent': float(match.group(7)),
+            'covered': int(match.group(8)),
+            'total': int(match.group(9))
+        },
+        'branch': {
+            'percent': float(match.group(10)),
+            'covered': int(match.group(11)),
+            'total': int(match.group(12))
+        }
+    }
+
 def parse_tokei_rust(output):
     """Parse tokei output and extract Rust stats."""
     for line in output.split('\n'):
         if line.strip().startswith('Rust'):
-            # Format: Rust  Files  Lines  Code  Comments  Blanks
             parts = line.split()
             if len(parts) >= 6:
                 try:
@@ -47,7 +87,6 @@ def find_crates():
         for item in crates_dir.iterdir():
             if item.is_dir() and (item / 'Cargo.toml').exists():
                 crates.append(item)
-            # Check for nested crates (e.g., memcodec/core)
             for subitem in item.iterdir():
                 if subitem.is_dir() and (subitem / 'Cargo.toml').exists():
                     crates.append(subitem)
@@ -56,10 +95,10 @@ def find_crates():
 def count_assertions(path):
     """Count assertion macros in Rust files."""
     counts = {
-        'assert_eq!': 0,
         'assert!': 0,
-        'debug_assert_eq!': 0,
-        'debug_assert!': 0
+        'assert_eq!': 0,
+        'debug_assert!': 0,
+        'debug_assert_eq!': 0
     }
 
     for rust_file in Path(path).rglob('*.rs'):
@@ -72,48 +111,76 @@ def count_assertions(path):
 
     return counts
 
-def main():
-    print("=" * 80)
-    print("MEMORA PROJECT INSIGHTS")
-    print("=" * 80)
+def coverage_bar(percent):
+    """Generate a visual coverage bar."""
+    filled = int(percent / 10)
+    empty = 10 - filled
+    bar = '█' * filled + '░' * empty
+    return f"`{bar}`"
 
-    # 1. Full project stats
-    print("\n📊 FULL PROJECT STATS (including tests)")
-    print("-" * 80)
+def main():
+    lines = []
+
+    # Header with logo
+    lines.append("""<picture>
+    <p align="center">
+    <source media="(prefers-color-scheme: dark)" width="320" srcset="/logo_light.png">
+    <source media="(prefers-color-scheme: light)" width="320" srcset="/logo_light.png">
+    <img alt="Redoubt" width="320" src="/logo_light.png">
+    </p>
+</picture>
+
+<h1 align="center">Project Insights</h1>
+""")
+
+    lines.append(f"<p align=\"center\"><em>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}</em></p>\n")
+    lines.append("---\n")
+
+    # Coverage Section
+    coverage = parse_coverage_html()
+    if coverage:
+        lines.append("## 📊 Test Coverage\n")
+        lines.append("| Metric | Coverage | Covered | Total |")
+        lines.append("|--------|----------|---------|-------|")
+        lines.append(f"| **Function** | {coverage_bar(coverage['function']['percent'])} **{coverage['function']['percent']:.2f}%** | {coverage['function']['covered']:,} | {coverage['function']['total']:,} |")
+        lines.append(f"| **Line** | {coverage_bar(coverage['line']['percent'])} **{coverage['line']['percent']:.2f}%** | {coverage['line']['covered']:,} | {coverage['line']['total']:,} |")
+        lines.append(f"| **Region** | {coverage_bar(coverage['region']['percent'])} **{coverage['region']['percent']:.2f}%** | {coverage['region']['covered']:,} | {coverage['region']['total']:,} |")
+        lines.append(f"| **Branch** | {coverage_bar(coverage['branch']['percent'])} **{coverage['branch']['percent']:.2f}%** | {coverage['branch']['covered']:,} | {coverage['branch']['total']:,} |")
+        lines.append("")
+    else:
+        lines.append("## 📊 Test Coverage\n")
+        lines.append("> ⚠️ Coverage data not available. Run `./coverage.sh` to generate.\n")
+
+    # Code Stats Section
+    lines.append("## 📈 Code Statistics\n")
+
     full_output = run_cmd("tokei crates --sort code")
-    print(full_output)
     full_stats = parse_tokei_rust(full_output)
 
-    # 2. Production code only (exclude tests/benches)
-    print("\n🔧 PRODUCTION CODE (excluding tests/benches)")
-    print("-" * 80)
     prod_output = run_cmd("tokei crates --sort code --exclude '**/tests/**' --exclude '**/benches/**'")
-    print(prod_output)
     prod_stats = parse_tokei_rust(prod_output)
 
-    # 3. Calculate test code
     if full_stats and prod_stats:
         test_code = full_stats['code'] - prod_stats['code']
         test_lines = full_stats['lines'] - prod_stats['lines']
+        test_files = full_stats['files'] - prod_stats['files']
 
-        print("\n📝 TEST CODE DIFFERENCE")
-        print("-" * 80)
-        print(f"{'Metric':<20} {'Production':<15} {'Tests':<15} {'Total':<15}")
-        print("-" * 80)
-        print(f"{'Code lines':<20} {prod_stats['code']:<15,} {test_code:<15,} {full_stats['code']:<15,}")
-        print(f"{'Total lines':<20} {prod_stats['lines']:<15,} {test_lines:<15,} {full_stats['lines']:<15,}")
-        print(f"{'Files':<20} {prod_stats['files']:<15,} {full_stats['files'] - prod_stats['files']:<15,} {full_stats['files']:<15,}")
+        lines.append("| Metric | Production | Tests | Total |")
+        lines.append("|--------|------------|-------|-------|")
+        lines.append(f"| **Code Lines** | {prod_stats['code']:,} | {test_code:,} | {full_stats['code']:,} |")
+        lines.append(f"| **Total Lines** | {prod_stats['lines']:,} | {test_lines:,} | {full_stats['lines']:,} |")
+        lines.append(f"| **Files** | {prod_stats['files']:,} | {test_files:,} | {full_stats['files']:,} |")
+        lines.append(f"| **Comments** | {prod_stats['comments']:,} | - | {full_stats['comments']:,} |")
+        lines.append("")
 
         if prod_stats['code'] > 0:
             ratio = test_code / prod_stats['code']
-            print(f"\n📈 Test/Code Ratio: {ratio:.2f}x ({test_code:,} test lines / {prod_stats['code']:,} prod lines)")
+            lines.append(f"> **Test/Code Ratio:** `{ratio:.2f}x` — {test_code:,} test lines / {prod_stats['code']:,} production lines\n")
 
-    # 4. Run tests and count
-    print("\n🧪 RUNNING TESTS")
-    print("-" * 80)
+    # Test Count Section
+    lines.append("## 🧪 Tests\n")
+
     test_output = run_cmd("cargo test --workspace --lib 2>&1")
-
-    # Parse test results
     test_counts = []
     for line in test_output.split('\n'):
         if 'test result:' in line and 'passed' in line:
@@ -122,32 +189,35 @@ def main():
                 test_counts.append(int(match.group(1)))
 
     total_tests = sum(test_counts)
-    print(f"Total tests: {total_tests}")
 
-    if prod_stats and total_tests > 0:
-        lines_per_test = prod_stats['code'] / total_tests
-        print(f"Lines per test: {lines_per_test:.1f}")
-
-    # 5. Count assertions
-    print("\n✅ ASSERTION COUNTS")
-    print("-" * 80)
-    assertions = count_assertions('.')
+    # Assertions
+    assertions = count_assertions('crates')
     total_assertions = sum(assertions.values())
 
-    for macro, count in sorted(assertions.items(), key=lambda x: x[1], reverse=True):
-        print(f"{macro:<25} {count:>10,}")
-    print("-" * 80)
-    print(f"{'TOTAL':<25} {total_assertions:>10,}")
-
+    lines.append("| Metric | Count |")
+    lines.append("|--------|-------|")
+    lines.append(f"| **Total Tests** | {total_tests:,} |")
+    lines.append(f"| **Total Assertions** | {total_assertions:,} |")
     if total_tests > 0:
-        assertions_per_test = total_assertions / total_tests
-        print(f"\nAssertions per test: {assertions_per_test:.1f}")
+        lines.append(f"| **Assertions/Test** | {total_assertions / total_tests:.1f} |")
+    if prod_stats and prod_stats['code'] > 0:
+        lines.append(f"| **Lines/Test** | {prod_stats['code'] / total_tests:.1f} |")
+    lines.append("")
 
-    # 6. Per-crate breakdown
-    print("\n📦 PER-CRATE BREAKDOWN (production code only)")
-    print("-" * 80)
-    print(f"{'Crate':<30} {'Code':<12} {'Tests':<10}")
-    print("-" * 80)
+    # Assertion breakdown
+    lines.append("<details>")
+    lines.append("<summary>Assertion Breakdown</summary>\n")
+    lines.append("| Macro | Count |")
+    lines.append("|-------|-------|")
+    for macro, count in sorted(assertions.items(), key=lambda x: x[1], reverse=True):
+        lines.append(f"| `{macro}` | {count:,} |")
+    lines.append("")
+    lines.append("</details>\n")
+
+    # Per-crate breakdown
+    lines.append("## 📦 Per-Crate Breakdown\n")
+    lines.append("| Crate | Production Code | Tests |")
+    lines.append("|-------|-----------------|-------|")
 
     crates = find_crates()
     crate_stats = []
@@ -155,30 +225,38 @@ def main():
     for crate_path in crates:
         crate_name = str(crate_path).replace('crates/', '')
 
-        # Get production code
         prod_out = run_cmd(
             "tokei --exclude '**/tests/**' --exclude '**/benches/**'",
             cwd=str(crate_path)
         )
         prod = parse_tokei_rust(prod_out)
 
-        # Get test count
         test_out = run_cmd("cargo test --lib 2>&1", cwd=str(crate_path))
-        # Find last occurrence of "N passed"
         matches = re.findall(r'(\d+) passed', test_out)
         tests = int(matches[-1]) if matches else 0
 
-        if prod:
+        if prod and prod['code'] > 0:
             crate_stats.append((crate_name, prod['code'], tests))
-            print(f"{crate_name:<30} {prod['code']:>12,} {tests:>10}")
+            lines.append(f"| `{crate_name}` | {prod['code']:,} | {tests} |")
 
-    print("-" * 80)
     if crate_stats:
         total_prod = sum(c[1] for c in crate_stats)
-        total_tests = sum(c[2] for c in crate_stats)
-        print(f"{'TOTAL':<30} {total_prod:>12,} {total_tests:>10}")
+        total_crate_tests = sum(c[2] for c in crate_stats)
+        lines.append(f"| **Total** | **{total_prod:,}** | **{total_crate_tests}** |")
 
-    print("=" * 80)
+    lines.append("")
+
+    # Footer
+    lines.append("---\n")
+    lines.append("<p align=\"center\"><sub>Generated with <code>python insights.py</code></sub></p>")
+
+    # Write to file
+    output = '\n'.join(lines)
+    Path('INSIGHTS.md').write_text(output)
+    print(f"✅ Generated INSIGHTS.md")
+    print(f"   Coverage: {coverage['line']['percent']:.2f}% lines" if coverage else "   Coverage: N/A")
+    print(f"   Tests: {total_tests}")
+    print(f"   Assertions: {total_assertions}")
 
 if __name__ == '__main__':
     main()

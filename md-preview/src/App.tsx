@@ -1,11 +1,18 @@
-import { useState, type CSSProperties, type FC, type ReactNode } from 'react'
+import { useState, useEffect, type CSSProperties, type FC } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
-import readme from '@root/README.md?raw'
+// ─────────────────────────────────────────────────────────────────────────────
+// Utils
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getFileFromUrl(): string {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('file') || 'README.md'
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Theme
@@ -238,13 +245,14 @@ const createMarkdownComponents = (t: Theme, dark: boolean): Components => {
 interface HeaderProps {
   dark: boolean
   theme: Theme
+  filename: string
 }
 
-const Header: FC<HeaderProps> = ({ dark, theme }) => (
+const Header: FC<HeaderProps> = ({ dark, theme, filename }) => (
   <div style={createHeaderStyle(dark)}>
     <div style={HEADER_TITLE_STYLE}>
       <IconBook />
-      <span style={{ fontWeight: 600, fontSize: 14 }}>README</span>
+      <span style={{ fontWeight: 600, fontSize: 14 }}>{filename}</span>
     </div>
     <div style={HEADER_ACTIONS_STYLE}>
       <button style={createIconButtonStyle(theme)}><IconList /></button>
@@ -271,20 +279,50 @@ const ThemeToggle: FC<ThemeToggleProps> = ({ dark, theme, onToggle }) => (
 
 const App: FC = () => {
   const [dark, setDark] = useState(true)
+  const [markdown, setMarkdown] = useState<string>('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [filename] = useState(getFileFromUrl)
+
   const theme = dark ? THEME_DARK : THEME_LIGHT
   const components = createMarkdownComponents(theme, dark)
+
+  useEffect(() => {
+    const fetchMarkdown = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const response = await fetch(`/api/markdown?file=${encodeURIComponent(filename)}`)
+        if (!response.ok) {
+          throw new Error(await response.text())
+        }
+        const text = await response.text()
+        setMarkdown(text)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load markdown')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchMarkdown()
+  }, [filename])
 
   return (
     <div style={createRootStyle(theme)}>
       <ThemeToggle dark={dark} theme={theme} onToggle={() => setDark(d => !d)} />
 
       <div style={CONTAINER_STYLE}>
-        <Header dark={dark} theme={theme} />
+        <Header dark={dark} theme={theme} filename={filename} />
 
         <article style={ARTICLE_STYLE}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={components}>
-            {readme}
-          </ReactMarkdown>
+          {loading && <p style={{ color: theme.fgMuted }}>Loading...</p>}
+          {error && <p style={{ color: '#f85149' }}>Error: {error}</p>}
+          {!loading && !error && (
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={components}>
+              {markdown}
+            </ReactMarkdown>
+          )}
         </article>
       </div>
     </div>

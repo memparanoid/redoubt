@@ -1,5 +1,5 @@
 {
-  "name": "readme-preview",
+  "name": "md-preview",
   "private": true,
   "type": "module",
   "scripts": {
