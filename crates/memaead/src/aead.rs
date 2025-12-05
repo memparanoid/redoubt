@@ -15,7 +15,7 @@
 //! - **x86_64/aarch64 with AES**: Uses AEGIS-128L (hardware-accelerated)
 //! - **Otherwise**: Falls back to XChaCha20-Poly1305
 
-use memrand::{EntropyError, EntropySource, SystemEntropySource};
+use memrand::{EntropyError, SystemEntropySource};
 
 use crate::{AeadBackend, DecryptError};
 
@@ -33,27 +33,27 @@ use crate::xchacha20poly1305::consts::{
 };
 
 /// Internal enum representing the selected backend implementation.
-enum AeadBackendImpl<E: EntropySource> {
+enum AeadBackendImpl {
     #[cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), not(target_os = "wasi")))]
-    Aegis128L(Aegis128L<E>),
-    XChacha20Poly1305(XChacha20Poly1305<E>),
+    Aegis128L(Aegis128L<SystemEntropySource>),
+    XChacha20Poly1305(XChacha20Poly1305<SystemEntropySource>),
 }
 
 /// AEAD with automatic backend selection based on CPU capabilities.
 ///
 /// Provides a unified interface for authenticated encryption with associated data,
 /// automatically selecting the fastest available implementation.
-pub struct Aead<E: EntropySource> {
-    backend: AeadBackendImpl<E>,
+pub struct Aead {
+    backend: AeadBackendImpl,
 }
 
-impl Default for Aead<SystemEntropySource> {
+impl Default for Aead {
     fn default() -> Self {
-        Self::new(SystemEntropySource {})
+        Self::new()
     }
 }
 
-impl<E: EntropySource> Aead<E> {
+impl Aead {
     /// Creates a new AEAD instance with runtime backend selection.
     ///
     /// # Backend Selection Logic
@@ -62,11 +62,11 @@ impl<E: EntropySource> Aead<E> {
     /// - **x86_64**: Checks for AES-NI
     /// - **aarch64**: Checks for ARM Crypto Extensions
     /// - **Other architectures**: XChaCha20-Poly1305
-    pub fn new(entropy: E) -> Self {
+    pub fn new() -> Self {
         #[cfg(target_os = "wasi")]
         {
             Self {
-                backend: AeadBackendImpl::XChacha20Poly1305(XChacha20Poly1305::new(entropy)),
+                backend: AeadBackendImpl::XChacha20Poly1305(XChacha20Poly1305::default()),
             }
         }
 
@@ -77,11 +77,11 @@ impl<E: EntropySource> Aead<E> {
 
             if aes_detection::get() {
                 Self {
-                    backend: AeadBackendImpl::Aegis128L(Aegis128L::new(entropy)),
+                    backend: AeadBackendImpl::Aegis128L(Aegis128L::default()),
                 }
             } else {
                 Self {
-                    backend: AeadBackendImpl::XChacha20Poly1305(XChacha20Poly1305::new(entropy)),
+                    backend: AeadBackendImpl::XChacha20Poly1305(XChacha20Poly1305::default()),
                 }
             }
         }
@@ -90,7 +90,7 @@ impl<E: EntropySource> Aead<E> {
         #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
         {
             Self {
-                backend: AeadBackendImpl::XChacha20Poly1305(XChacha20Poly1305::new(entropy)),
+                backend: AeadBackendImpl::XChacha20Poly1305(XChacha20Poly1305::default()),
             }
         }
     }
@@ -251,7 +251,7 @@ impl<E: EntropySource> Aead<E> {
     }
 }
 
-impl<E: EntropySource> core::fmt::Debug for Aead<E> {
+impl core::fmt::Debug for Aead {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Aead {{ backend: {} }}", self.backend_name())
     }

@@ -18,5 +18,3 @@ pub(crate) use traits::AeadBackend;
 #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 pub use aegis::Aegis128L;
 
-// Re-export entropy types for convenience
-pub use memrand::{EntropySource, SystemEntropySource};
