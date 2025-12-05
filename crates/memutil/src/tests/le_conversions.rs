@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod le_conversions_tests {
-    use memutil::*;
+    use crate::*;
 
     // u16 tests
     #[test]

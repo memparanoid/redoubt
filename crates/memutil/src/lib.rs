@@ -7,6 +7,9 @@
 //! All conversion functions zeroize source data after reading to prevent
 //! sensitive data from lingering on the stack.
 
+#[cfg(test)]
+mod tests;
+
 /// Constant-time equality comparison for byte slices.
 ///
 /// Returns `true` if slices are equal, `false` otherwise.
@@ -359,5 +362,45 @@ pub fn is_spare_capacity_zeroized<T>(vec: &Vec<T>) -> bool {
         core::slice::from_raw_parts(spare_ptr, spare_len)
             .iter()
             .all(|&b| b == 0)
+    }
+}
+
+/// Attempts to split a mutable slice at the given index.
+///
+/// Returns `None` if `mid > slice.len()`, otherwise returns `Some((left, right))`
+/// where `left = &mut slice[..mid]` and `right = &mut slice[mid..]`.
+///
+/// This is the fallible version of [`slice::split_at_mut`], which panics on out-of-bounds.
+///
+/// # Example
+///
+/// ```
+/// use memutil::try_split_at_mut;
+///
+/// let mut data = [1, 2, 3, 4, 5];
+///
+/// // Valid split
+/// let (left, right) = try_split_at_mut(&mut data, 2).unwrap();
+/// assert_eq!(left, &[1, 2]);
+/// assert_eq!(right, &[3, 4, 5]);
+///
+/// // Out of bounds
+/// assert!(try_split_at_mut(&mut data, 10).is_none());
+///
+/// // Edge cases
+/// let (left, right) = try_split_at_mut(&mut data, 0).unwrap();
+/// assert_eq!(left, &[]);
+/// assert_eq!(right, &[1, 2, 3, 4, 5]);
+///
+/// let (left, right) = try_split_at_mut(&mut data, 5).unwrap();
+/// assert_eq!(left, &[1, 2, 3, 4, 5]);
+/// assert_eq!(right, &[]);
+/// ```
+#[inline(always)]
+pub fn try_split_at_mut<T>(slice: &mut [T], mid: usize) -> Option<(&mut [T], &mut [T])> {
+    if mid <= slice.len() {
+        Some(slice.split_at_mut(mid))
+    } else {
+        None
     }
 }
