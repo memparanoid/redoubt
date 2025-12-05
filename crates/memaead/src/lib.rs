@@ -16,8 +16,14 @@ pub use aead::Aead;
 pub use error::DecryptError;
 pub(crate) use traits::AeadBackend;
 
-#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
 pub mod aegis;
 
-#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
 pub use aegis::Aegis128L;
