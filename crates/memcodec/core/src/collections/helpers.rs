@@ -16,6 +16,7 @@ pub fn header_size() -> usize {
     2 * size_of::<usize>()
 }
 
+#[inline(always)]
 pub fn write_header(
     buf: &mut CodecBuffer,
     size: &mut usize,
@@ -94,6 +95,7 @@ pub fn to_decode_zeroize_dyn_mut<T: DecodeZeroize>(x: &mut T) -> &mut dyn Decode
 }
 
 /// Sum bytes required from an iterator of `&dyn BytesRequired`.
+#[inline(always)]
 pub fn bytes_required_sum<'a>(
     iter: impl Iterator<Item = &'a dyn BytesRequired>,
 ) -> Result<usize, OverflowError> {
@@ -116,6 +118,7 @@ pub fn bytes_required_sum<'a>(
 
 /// Encode fields from an iterator of `&mut dyn EncodeZeroize`.
 /// On error with zeroize feature, zeroizes all fields and the buffer.
+#[inline(always)]
 pub fn encode_fields<'a>(
     iter: impl Iterator<Item = &'a mut dyn EncodeZeroize>,
     buf: &mut CodecBuffer,
@@ -148,6 +151,7 @@ pub fn encode_fields<'a>(
 
 /// Decode fields from an iterator of `&mut dyn DecodeZeroize`.
 /// On error with zeroize feature, zeroizes all fields and the buffer.
+#[inline(always)]
 pub fn decode_fields<'a>(
     iter: impl Iterator<Item = &'a mut dyn DecodeZeroize>,
     buf: &mut &mut [u8],

@@ -47,6 +47,7 @@ impl<E: EntropySource> XChacha20Poly1305<E> {
         }
     }
 
+    #[inline(always)]
     fn compute_tag(&mut self, aad: &[u8], ciphertext: &[u8]) {
         self.poly.init(&self.poly_key);
         self.poly.update_padded(aad);
@@ -87,6 +88,7 @@ where
     type Nonce = XNonce;
     type Tag = [u8; TAG_SIZE];
 
+    #[inline(always)]
     fn encrypt(
         &mut self,
         key: &Self::Key,
@@ -105,6 +107,7 @@ where
         self.expected_tag.fast_zeroize();
     }
 
+    #[inline(always)]
     fn decrypt(
         &mut self,
         key: &Self::Key,

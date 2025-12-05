@@ -90,7 +90,7 @@ impl ChaCha20 {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     fn init_state(
         &mut self,
         key: &[u8; KEY_SIZE],
@@ -121,7 +121,7 @@ impl ChaCha20 {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     fn do_rounds(&mut self) {
         for _ in 0..10 {
             self.quarter_round(0, 4, 8, 12);
@@ -137,6 +137,7 @@ impl ChaCha20 {
     }
 
     /// Generate keystream block into self.keystream
+    #[inline(always)]
     fn generate_block(
         &mut self,
         key: &[u8; KEY_SIZE],
@@ -174,6 +175,7 @@ impl ChaCha20 {
         self.keystream.fast_zeroize();
     }
 
+    #[inline(always)]
     pub fn crypt(
         &mut self,
         key: &[u8; KEY_SIZE],
@@ -271,6 +273,7 @@ impl HChaCha20 {
         }
     }
 
+    #[inline(always)]
     pub fn derive(
         &mut self,
         key: &[u8; KEY_SIZE],
@@ -363,6 +366,7 @@ impl Default for XChaCha20 {
 
 impl XChaCha20 {
     /// Generate Poly1305 key from XChaCha20 keystream (counter=0)
+    #[inline(always)]
     pub fn generate_poly_key(&mut self, key: &AeadKey, xnonce: &XNonce, output: &mut AeadKey) {
         self.hchacha.derive(
             key,
@@ -384,6 +388,7 @@ impl XChaCha20 {
     }
 
     /// Encrypt/decrypt data in-place (counter=1)
+    #[inline(always)]
     pub fn crypt(&mut self, key: &AeadKey, xnonce: &XNonce, data: &mut [u8]) {
         self.hchacha.derive(
             key,

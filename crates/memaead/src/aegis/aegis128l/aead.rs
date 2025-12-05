@@ -41,6 +41,7 @@ where
     type Nonce = Aegis128LNonce;
     type Tag = Aegis128LTag;
 
+    #[inline(always)]
     fn encrypt(
         &mut self,
         key: &Self::Key,
@@ -52,6 +53,7 @@ where
         unsafe { state::encrypt(key, nonce, aad, data, tag) }
     }
 
+    #[inline(always)]
     fn decrypt(
         &mut self,
         key: &Self::Key,

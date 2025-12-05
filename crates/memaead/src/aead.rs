@@ -128,6 +128,7 @@ impl Aead {
     /// # Panics
     ///
     /// Panics if key, nonce, or tag slice sizes don't match the selected backend's requirements.
+    #[inline(always)]
     pub fn encrypt(
         &mut self,
         key: &[u8],
@@ -183,6 +184,7 @@ impl Aead {
     /// # Panics
     ///
     /// Panics if key, nonce, or tag slice sizes don't match the selected backend's requirements.
+    #[inline(always)]
     pub fn decrypt(
         &mut self,
         key: &[u8],
@@ -230,6 +232,7 @@ impl Aead {
     /// # Errors
     ///
     /// Returns [`EntropyError`] if the entropy source fails.
+    #[inline]
     pub fn generate_nonce(&mut self) -> Result<Vec<u8>, EntropyError> {
         match &mut self.backend {
             #[cfg(all(
@@ -244,6 +247,7 @@ impl Aead {
     }
 
     /// Returns the key size in bytes for the selected backend.
+    #[inline]
     pub fn key_size(&self) -> usize {
         match &self.backend {
             #[cfg(all(
@@ -256,6 +260,7 @@ impl Aead {
     }
 
     /// Returns the nonce size in bytes for the selected backend.
+    #[inline]
     pub fn nonce_size(&self) -> usize {
         match &self.backend {
             #[cfg(all(
@@ -268,6 +273,7 @@ impl Aead {
     }
 
     /// Returns the tag size in bytes for the selected backend.
+    #[inline]
     pub fn tag_size(&self) -> usize {
         match &self.backend {
             #[cfg(all(

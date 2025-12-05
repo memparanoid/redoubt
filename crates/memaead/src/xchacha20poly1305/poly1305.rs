@@ -69,6 +69,7 @@ pub(crate) struct Poly1305 {
 }
 
 impl Poly1305 {
+    #[inline(always)]
     pub fn init(&mut self, key: &[u8; KEY_SIZE]) {
         self.acc = [0; 5];
         self.buffer_len = 0;
@@ -76,6 +77,7 @@ impl Poly1305 {
         self.s.copy_from_slice(&key[16..32]);
     }
 
+    #[inline(always)]
     fn clamp_r(&mut self, r_bytes: &[u8]) {
         self.block.le_bytes_tmp[0] = r_bytes[0];
         self.block.le_bytes_tmp[1] = r_bytes[1];
@@ -123,11 +125,13 @@ impl Poly1305 {
         self.block.fast_zeroize();
     }
 
+    #[inline(always)]
     fn process_block(&mut self, block: &[u8], hibit: u32) {
         self.block.tmp.copy_from_slice(block);
         self.process_block_from_tmp(hibit);
     }
 
+    #[inline(always)]
     fn process_block_from_tmp(&mut self, hibit: u32) {
         self.block.le_bytes_tmp[0] = self.block.tmp[0];
         self.block.le_bytes_tmp[1] = self.block.tmp[1];
@@ -228,6 +232,7 @@ impl Poly1305 {
         self.block.fast_zeroize();
     }
 
+    #[inline(always)]
     pub fn update(&mut self, data: &[u8]) {
         let mut pos = 0;
 
@@ -259,6 +264,7 @@ impl Poly1305 {
     }
 
     /// Update with data and pad to 16-byte boundary with zeros (RFC 8439 AEAD)
+    #[inline(always)]
     pub fn update_padded(&mut self, data: &[u8]) {
         self.update(data);
         let pad_len = (BLOCK_SIZE - (data.len() % BLOCK_SIZE)) % BLOCK_SIZE;
@@ -267,6 +273,7 @@ impl Poly1305 {
         }
     }
 
+    #[inline(always)]
     pub fn finalize(&mut self, output: &mut [u8; TAG_SIZE]) {
         // Process remaining buffered bytes with padding
         if self.buffer_len > 0 {
