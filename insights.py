@@ -111,6 +111,37 @@ def count_assertions(path):
 
     return counts
 
+def strip_ansi(text):
+    """Remove ANSI escape codes from text."""
+    return re.sub(r'\x1b\[[0-9;]*m', '', text)
+
+def run_cargo_audit():
+    """Run cargo audit and return results."""
+    result = subprocess.run(
+        "cargo audit 2>&1",
+        shell=True,
+        capture_output=True,
+        text=True
+    )
+    output = strip_ansi(result.stdout + result.stderr)
+
+    # Check for vulnerabilities
+    has_vulnerabilities = 'vulnerability' in output.lower() and 'found' in output.lower()
+
+    # Count advisories scanned
+    advisories_match = re.search(r'Loaded (\d+) security advisories', output)
+    advisories = int(advisories_match.group(1)) if advisories_match else 0
+
+    # Count crates scanned
+    crates_match = re.search(r'Scanning.*\((\d+) crate dependencies\)', output)
+    crates_scanned = int(crates_match.group(1)) if crates_match else 0
+
+    return {
+        'clean': not has_vulnerabilities,
+        'advisories': advisories,
+        'crates_scanned': crates_scanned
+    }
+
 
 def main():
     lines = []
@@ -144,6 +175,14 @@ def main():
     else:
         lines.append("## 📊 Test Coverage\n")
         lines.append("> ⚠️ Coverage data not available. Run `./coverage.sh` to generate.\n")
+
+    # Security Audit Section
+    lines.append("## 🔒 Security Audit\n")
+    audit = run_cargo_audit()
+    if audit['clean']:
+        lines.append(f"✅ **No vulnerabilities found** — scanned {audit['crates_scanned']} crates against {audit['advisories']} advisories\n")
+    else:
+        lines.append(f"⚠️ **Vulnerabilities detected** — run `cargo audit` for details\n")
 
     # Code Stats Section
     lines.append("## 📈 Code Statistics\n")

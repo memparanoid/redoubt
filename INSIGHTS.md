@@ -8,7 +8,7 @@
 
 <h1 align="center">Project Insights</h1>
 
-<p align="center"><em>Generated on 2025-12-05 18:15</em></p>
+<p align="center"><em>Generated on 2025-12-05 18:34</em></p>
 
 ---
 
@@ -20,6 +20,10 @@
 | **Line** | **99.65%** | 2,837 | 2,847 |
 | **Region** | **99.57%** | 4,160 | 4,178 |
 | **Branch** | **98.31%** | 175 | 178 |
+
+## 🔒 Security Audit
+
+✅ **No vulnerabilities found** — scanned 168 crates against 883 advisories
 
 ## 📈 Code Statistics
 
