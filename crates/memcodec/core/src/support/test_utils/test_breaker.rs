@@ -4,9 +4,19 @@
 
 use memzer::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
+use crate::DecodeZeroize;
 use crate::codec_buffer::CodecBuffer;
+use crate::collections::helpers::{
+    bytes_required_sum, decode_fields, encode_fields, to_bytes_required_dyn_ref,
+    to_decode_zeroize_dyn_mut, to_encode_zeroize_dyn_mut,
+};
 use crate::error::{DecodeError, EncodeError, OverflowError};
-use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc};
+use crate::traits::{
+    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, EncodeZeroize, PreAlloc,
+};
+
+// En memcodec test_breaker.rs
+const MAGIC: usize = 0xDEADBEEF;
 
 /// Behavior control for error injection testing in memcodec.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +48,8 @@ pub struct TestBreaker {
     pub behaviour: TestBreakerBehaviour,
     /// Test data.
     pub data: usize,
+    /// Magic data, if tampered, decode will fail
+    magic: usize,
 }
 
 impl Default for TestBreaker {
@@ -45,6 +57,7 @@ impl Default for TestBreaker {
         Self {
             behaviour: TestBreakerBehaviour::None,
             data: 104729,
+            magic: MAGIC,
         }
     }
 }
@@ -52,7 +65,11 @@ impl Default for TestBreaker {
 impl TestBreaker {
     /// Creates a new test breaker with the specified behavior and data value.
     pub fn new(behaviour: TestBreakerBehaviour, data: usize) -> Self {
-        Self { behaviour, data }
+        Self {
+            behaviour,
+            data,
+            magic: MAGIC,
+        }
     }
 
     /// Creates a new test breaker with default data and specified behavior.
@@ -77,7 +94,14 @@ impl BytesRequired for TestBreaker {
             TestBreakerBehaviour::ForceBytesRequiredOverflow => Err(OverflowError {
                 reason: "TestBreaker forced overflow".into(),
             }),
-            _ => self.data.mem_bytes_required(),
+            _ => {
+                let fields: [&dyn BytesRequired; 2] = [
+                    to_bytes_required_dyn_ref(&self.data),
+                    to_bytes_required_dyn_ref(&self.magic),
+                ];
+
+                bytes_required_sum(fields.into_iter())
+            }
         }
     }
 }
@@ -87,7 +111,13 @@ impl Encode for TestBreaker {
         if self.behaviour == TestBreakerBehaviour::ForceEncodeError {
             return Err(EncodeError::IntentionalEncodeError);
         }
-        self.data.encode_into(buf)
+
+        let fields: [&mut dyn EncodeZeroize; 2] = [
+            to_encode_zeroize_dyn_mut(&mut self.data),
+            to_encode_zeroize_dyn_mut(&mut self.magic),
+        ];
+
+        encode_fields(fields.into_iter(), buf)
     }
 }
 
@@ -96,7 +126,19 @@ impl Decode for TestBreaker {
         if self.behaviour == TestBreakerBehaviour::ForceDecodeError {
             return Err(DecodeError::IntentionalDecodeError);
         }
-        self.data.decode_from(buf)
+
+        let fields: [&mut dyn DecodeZeroize; 2] = [
+            to_decode_zeroize_dyn_mut(&mut self.data),
+            to_decode_zeroize_dyn_mut(&mut self.magic),
+        ];
+
+        decode_fields(fields.into_iter(), buf)?;
+
+        if self.magic != MAGIC {
+            return Err(DecodeError::IntentionalDecodeError);
+        }
+
+        Ok(())
     }
 }
 
