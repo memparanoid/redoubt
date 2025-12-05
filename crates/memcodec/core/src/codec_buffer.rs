@@ -105,6 +105,10 @@ impl CodecBuffer {
     pub fn realloc_with_capacity(&mut self, capacity: usize) {
         self.allocked_vec.realloc_with_capacity(capacity);
         self.allocked_vec.fill_with_default();
+
+        self.ptr = self.allocked_vec.as_mut_ptr();
+        self.end = unsafe { self.ptr.add(capacity) };
+        self.cursor = self.ptr.clone();
     }
 
     #[inline(always)]

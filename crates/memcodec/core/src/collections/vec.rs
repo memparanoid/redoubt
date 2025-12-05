@@ -182,19 +182,3 @@ impl<T: PreAlloc + FastZeroizable + ZeroizeMetadata> PreAlloc for Vec<T> {
         vec_prealloc(self, size, T::ZERO_INIT);
     }
 }
-
-#[cfg(feature = "zeroize")]
-#[inline(always)]
-pub(crate) fn vec_codec_zeroize<T: FastZeroizable + ZeroizeMetadata>(vec: &mut Vec<T>, fast: bool) {
-    if fast {
-        // T is a primitive - memset entire allocation (contents + spare capacity)
-        memutil::fast_zeroize_vec(vec);
-    } else {
-        // T is complex - recurse into each element first
-        for elem in vec.iter_mut() {
-            elem.fast_zeroize();
-        }
-        // Then zeroize spare capacity
-        memutil::zeroize_spare_capacity(vec);
-    }
-}

@@ -7,9 +7,8 @@ use memzer::ZeroizationProbe;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
-use crate::support::test_utils::{
-    TestBreaker, TestBreakerBehaviour, apply_permutation, index_permutations,
-};
+use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
+use crate::tests::utils::{apply_permutation, index_permutations};
 use crate::traits::{BytesRequired, Decode, Encode, PreAlloc};
 
 fn make_allocked_vec(items: &[TestBreaker]) -> AllockedVec<TestBreaker> {
@@ -458,6 +457,7 @@ fn test_allocked_vec_prealloc_zeroizes_existing_elements() {
 
     #[cfg(not(feature = "zeroize"))]
     {
+        // @TODO: codec_zeroize() no longer exists
         // Without zeroize: codec_zeroize() is no-op, elements unchanged
         assert_eq!(vec[0].data, 100);
         assert_eq!(vec[1].data, 200);
@@ -482,42 +482,4 @@ fn test_allocked_vec_prealloc_grows() {
     vec.prealloc(3);
 
     assert_eq!(vec.len(), 3);
-}
-
-// FastZeroizable / FastZeroize
-
-#[test]
-fn test_vec_codec_zeroize_fast_true() {
-    use crate::collections::allocked_vec::allocked_vec_codec_zeroize;
-
-    let mut vec = make_allocked_vec(&[
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::None, 200),
-    ]);
-    allocked_vec_codec_zeroize(&mut vec, true);
-
-    #[cfg(feature = "zeroize")]
-    // Assert zeroization!
-    {
-        // @TODO: use vec.is_zeroized() when new crate is finished.
-        assert!(vec.iter().all(|tb| tb.is_zeroized()));
-    }
-}
-
-#[test]
-fn test_vec_codec_zeroize_fast_false() {
-    use crate::collections::allocked_vec::allocked_vec_codec_zeroize;
-
-    let mut vec = make_allocked_vec(&[
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::None, 200),
-    ]);
-    allocked_vec_codec_zeroize(&mut vec, false);
-
-    #[cfg(feature = "zeroize")]
-    // Assert zeroization!
-    {
-        // @TODO: use vec.is_zeroized() when new crate is finished.
-        assert!(vec.iter().all(|tb| tb.is_zeroized()));
-    }
 }

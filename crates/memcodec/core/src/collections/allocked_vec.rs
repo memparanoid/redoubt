@@ -167,15 +167,3 @@ where
         debug_assert_eq!(self.len(), size);
     }
 }
-
-#[cfg(feature = "zeroize")]
-#[inline(always)]
-pub(crate) fn allocked_vec_codec_zeroize<T: ZeroizationProbe + FastZeroizable + ZeroizeMetadata>(
-    vec: &mut AllockedVec<T>,
-    _fast: bool,
-) {
-    // @TODO: use vec.zeroize() when the new crate is finished.
-    for elem in vec.as_mut_slice() {
-        elem.fast_zeroize();
-    }
-}

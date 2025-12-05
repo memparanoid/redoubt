@@ -12,9 +12,8 @@ use crate::collections::helpers::{
     to_encode_zeroize_dyn_mut, write_header,
 };
 use crate::error::{CodecBufferError, DecodeError, OverflowError};
-use crate::support::test_utils::{
-    TestBreaker, TestBreakerBehaviour, apply_permutation, index_permutations,
-};
+use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
+use crate::tests::utils::{apply_permutation, index_permutations};
 use crate::traits::{BytesRequired, Decode, DecodeZeroize, Encode, EncodeZeroize};
 
 // header_size

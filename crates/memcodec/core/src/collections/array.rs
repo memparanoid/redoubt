@@ -171,20 +171,3 @@ where
         // Arrays are fixed-size, nothing to preallocate
     }
 }
-
-#[cfg(feature = "zeroize")]
-#[inline(always)]
-pub(crate) fn array_codec_zeroize<T: FastZeroizable + ZeroizeMetadata, const N: usize>(
-    arr: &mut [T; N],
-    fast: bool,
-) {
-    if fast {
-        // T is a primitive - memset the whole array
-        memutil::fast_zeroize_slice(arr.as_mut_slice());
-    } else {
-        // T is complex - recurse into each element
-        for elem in arr.iter_mut() {
-            elem.fast_zeroize();
-        }
-    }
-}

@@ -5,9 +5,7 @@
 /// Tampers with encoded bytes by clearing the buffer.
 ///
 /// Used in tests to simulate corrupted or invalid encoded data.
-pub fn tamper_encoded_bytes_for_tests(bytes: &mut Vec<u8>) {
+#[cfg(any(test, feature = "test_utils"))]
+pub fn tamper_encoded_bytes_for_tests(_bytes: &mut Vec<u8>) {
     // no-op
 }
-
-#[cfg(test)]
-mod tests {}

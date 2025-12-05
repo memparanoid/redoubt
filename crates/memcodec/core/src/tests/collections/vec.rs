@@ -6,9 +6,8 @@ use memzer::ZeroizationProbe;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
-use crate::support::test_utils::{
-    TestBreaker, TestBreakerBehaviour, apply_permutation, index_permutations,
-};
+use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
+use crate::tests::utils::{apply_permutation, index_permutations};
 use crate::traits::{BytesRequired, Decode, Encode};
 
 use super::utils::test_collection_varying_capacities;
@@ -432,40 +431,4 @@ fn test_vec_prealloc_grows() {
     vec_prealloc(&mut vec, 3, false);
 
     assert_eq!(vec.len(), 3);
-}
-
-// FastZeroizable / FastZeroize
-
-#[cfg(feature = "zeroize")]
-#[test]
-fn test_vec_codec_zeroize_fast_true() {
-    use crate::collections::vec::vec_codec_zeroize;
-
-    // NOTE: fast=true forces memset of entire vec, regardless of T::CAN_BE_BULK_ZEROIZED.
-    // This is only safe for types where all-zeros is a valid bit pattern.
-    // TestBreaker happens to be safe (all fields are primitives/Copy), but this
-    // test may break if TestBreaker's layout changes.
-    let mut vec: Vec<TestBreaker> = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::None, 200),
-    ];
-    vec_codec_zeroize(&mut vec, true);
-
-    // Assert zeroization!
-    assert!(vec.iter().all(|tb| tb.is_zeroized()));
-}
-
-#[cfg(feature = "zeroize")]
-#[test]
-fn test_vec_codec_zeroize_fast_false() {
-    use crate::collections::vec::vec_codec_zeroize;
-
-    let mut vec: Vec<TestBreaker> = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::None, 200),
-    ];
-    vec_codec_zeroize(&mut vec, false);
-
-    // Assert zeroization!
-    assert!(vec.iter().all(|tb| tb.is_zeroized()));
 }
