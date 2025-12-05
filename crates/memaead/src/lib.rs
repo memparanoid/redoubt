@@ -7,11 +7,16 @@ pub mod aegis;
 
 pub mod xchacha20poly1305;
 
+mod aead;
 mod error;
 mod traits;
 
+pub use aead::Aead;
 pub use error::DecryptError;
-pub use traits::AeadBackend;
+pub(crate) use traits::AeadBackend;
 
 #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 pub use aegis::Aegis128L;
+
+// Re-export entropy types for convenience
+pub use memrand::{EntropySource, SystemEntropySource};

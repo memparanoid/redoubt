@@ -33,21 +33,20 @@ pub struct XChacha20Poly1305<E: EntropySource> {
     __drop_sentinel: DropSentinel,
 }
 
-impl Default for XChacha20Poly1305<SystemEntropySource> {
-    fn default() -> Self {
+impl<E: EntropySource> XChacha20Poly1305<E> {
+    /// Creates a new XChaCha20-Poly1305 instance with the provided entropy source.
+    pub fn new(entropy: E) -> Self {
         Self {
             xchacha: XChaCha20::default(),
             poly: Poly1305::default(),
             poly_key: [0; KEY_SIZE],
             expected_tag: [0; TAG_SIZE],
             len_block: [0; TAG_SIZE],
-            nonce_gen: NonceSessionGenerator::new(SystemEntropySource {}),
+            nonce_gen: NonceSessionGenerator::new(entropy),
             __drop_sentinel: DropSentinel::default(),
         }
     }
-}
 
-impl<E: EntropySource> XChacha20Poly1305<E> {
     fn compute_tag(&mut self, aad: &[u8], ciphertext: &[u8]) {
         self.poly.init(&self.poly_key);
         self.poly.update_padded(aad);
@@ -71,6 +70,12 @@ impl<E: EntropySource> XChacha20Poly1305<E> {
 
         self.poly.finalize(&mut self.expected_tag);
         self.len_block.fast_zeroize();
+    }
+}
+
+impl Default for XChacha20Poly1305<SystemEntropySource> {
+    fn default() -> Self {
+        Self::new(SystemEntropySource {})
     }
 }
 

@@ -8,8 +8,9 @@
 //! Based on draft-irtf-cfrg-aegis-aead-18.
 
 mod aead;
-mod consts;
 mod state;
+
+pub(crate) mod consts;
 
 pub use aead::Aegis128L;
 

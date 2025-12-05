@@ -10,7 +10,8 @@ repository.workspace = true
 version.workspace   = true
 
 [dependencies]
-memrand.workspace   = true
-memutil.workspace   = true
-memzer.workspace    = true
-thiserror.workspace = true
+cpufeatures.workspace = true
+memrand.workspace     = true
+memutil.workspace     = true
+memzer.workspace      = true
+thiserror.workspace   = true

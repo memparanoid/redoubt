@@ -18,11 +18,18 @@ pub struct Aegis128L<E: EntropySource> {
     nonce_gen: NonceSessionGenerator<E, NONCE_SIZE>,
 }
 
+impl<E: EntropySource> Aegis128L<E> {
+    /// Creates a new AEGIS-128L instance with the provided entropy source.
+    pub fn new(entropy: E) -> Self {
+        Self {
+            nonce_gen: NonceSessionGenerator::new(entropy),
+        }
+    }
+}
+
 impl Default for Aegis128L<SystemEntropySource> {
     fn default() -> Self {
-        Self {
-            nonce_gen: NonceSessionGenerator::new(SystemEntropySource {}),
-        }
+        Self::new(SystemEntropySource {})
     }
 }
 
