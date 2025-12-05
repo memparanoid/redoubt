@@ -2,14 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use chacha20poly1305::{AeadInOut, KeyInit, XChaCha20Poly1305, aead::Buffer};
-use zeroize::{Zeroize, Zeroizing};
+use memaead::Aead;
+use memcodec::Decode;
+use memzer::{FastZeroizable, ZeroizationProbe, ZeroizingGuard};
 
-use memcode::MemDecodable;
-use memzer::{FastZeroizable, ZeroizationProbe};
-
-use crate::AeadKey;
-use crate::XNonce;
 use crate::consts::AAD;
 use crate::error::CryptoError;
 use crate::guards::DecryptionMemZer;
@@ -17,13 +13,12 @@ use crate::guards::DecryptionMemZer;
 #[derive(PartialEq, Eq, Debug)]
 #[allow(unused)]
 pub enum DecryptStage {
-    NewFromSlice,
-    AeadBufferFillWithCiphertext,
+    SplitCiphertextAndTag,
     Decrypt,
-    DrainFrom,
+    Decode,
 }
 
-/// Decrypts a MemDecodable value using an in-place, allocation-free pipeline.
+/// Decrypts a Decode value using an in-place, allocation-free pipeline.
 ///
 /// # Safety & Guarantees
 /// - **No re-allocations:** Internal buffers are pre-reserved to match ciphertext length.
@@ -46,7 +41,7 @@ pub enum DecryptStage {
 /// - [`CryptoError::InvalidKeyLength`] if the key size is invalid.
 /// - [`CryptoError::AeadBufferNotZeroized`] if the AEAD buffer is not fully zeroized before reserving.
 /// - [`CryptoError::Decrypt`] if AEAD decryption fails.
-/// - [`CryptoError::MemDecode`] if `MemDecodable` fails to reconstruct `T`.
+/// - [`CryptoError::Decode`] if `Decode` fails to reconstruct `T`.
 ///
 /// # Example
 ///
@@ -96,101 +91,77 @@ pub enum DecryptStage {
 /// assert!(recovered.iter().all(|&v| v == 6317));
 /// # Ok::<(), memcrypt::CryptoError>(())
 /// ```
-pub fn decrypt_mem_decodable<T>(
-    aead_key: &mut AeadKey,
-    xnonce: &mut XNonce,
-    ciphertext: &mut Vec<u8>,
-) -> Result<Zeroizing<T>, CryptoError>
+pub fn decrypt_decodable<T>(
+    aead: &mut Aead,
+    aead_key: &mut [u8],
+    nonce: &mut [u8],
+    ciphertext_with_tag: &mut Vec<u8>,
+) -> Result<ZeroizingGuard<T>, CryptoError>
 where
-    T: MemDecodable + Default + Zeroize + FastZeroizable + ZeroizationProbe,
+    T: Default + Decode + FastZeroizable + ZeroizationProbe,
 {
-    let mut x = DecryptionMemZer::new(aead_key, xnonce, ciphertext);
-    decrypt_mem_decodable_with::<T, _>(&mut x, |_, _| {})
+    let mut x = DecryptionMemZer::new(aead_key, nonce, ciphertext_with_tag);
+    decrypt_mem_decodable_with::<T, _>(aead, &mut x, |_, _| {})
 }
 
 pub fn decrypt_mem_decodable_with<T, F>(
+    aead: &mut Aead,
     x: &mut DecryptionMemZer,
     #[allow(unused)] f: F,
-) -> Result<Zeroizing<T>, CryptoError>
+) -> Result<ZeroizingGuard<T>, CryptoError>
 where
-    T: MemDecodable + Default + Zeroize + FastZeroizable + ZeroizationProbe,
+    T: Default + Decode + FastZeroizable + ZeroizationProbe,
     F: Fn(DecryptStage, &mut DecryptionMemZer),
 {
-    // State: NewFromSlice
-    let cipher = {
+    // Stage: SplitCiphertextAndTag
+    let (mut ciphertext, tag) = {
         #[cfg(test)]
-        f(DecryptStage::NewFromSlice, x);
+        f(DecryptStage::SplitCiphertextAndTag, x);
 
-        let key_slice = &x.aead_key.as_ref().as_slice()[0..x.aead_key_size];
+        let result =
+            memutil::try_split_at_mut_from_end(&mut x.ciphertext_with_tag, aead.tag_size());
 
-        // wipe unused
-        x.aead_key_size.zeroize();
-
-        // SAFETY NOTE: `XChaCha20Poly1305::new_from_slice` creates the cipher from a slice.
-        // The `chacha20poly1305` crate is compiled with feature `zeroize`, which ensures
-        // the cipher's internal state is zeroized on Drop. We also zeroize our local key buffer.
-        let cipher = XChaCha20Poly1305::new_from_slice(key_slice).map_err(|_| {
-            x.zeroize();
-            CryptoError::InvalidKeyLength
-        })?;
-
-        // wipe unused
-        x.aead_key.zeroize();
-
-        cipher
+        match result {
+            Some((ciphertext, tag)) => (ciphertext, tag),
+            None => {
+                x.fast_zeroize();
+                return Err(CryptoError::CiphertextTooShort);
+            }
+        }
     };
-
-    // Stage: AeadBufferFillWithCiphertext
-    {
-        #[cfg(test)]
-        f(DecryptStage::AeadBufferFillWithCiphertext, x);
-
-        // Prepare AEAD buffer
-        x.aead_buffer
-            .zeroized_reserve_exact(x.ciphertext.len())
-            .map_err(|_| {
-                x.zeroize();
-                CryptoError::AeadBufferNotZeroized
-            })?;
-        x.aead_buffer
-            .extend_from_slice(&x.ciphertext)
-            .expect("Infallible: AeadBuffer has been reserved with enough length");
-
-        // wipe unused
-        x.ciphertext.zeroize();
-    }
 
     // Stage: Decrypt
     {
         #[cfg(test)]
         f(DecryptStage::Decrypt, x);
 
-        cipher
-            .decrypt_in_place(x.xnonce.as_ref(), AAD, &mut x.aead_buffer)
-            .map_err(|_| {
-                x.zeroize();
-                CryptoError::Decrypt
+        let aead_key = &mut x.aead_key[0..x.aead_key_size];
+
+        aead.decrypt(aead_key, &x.nonce, AAD, ciphertext, tag)
+            .map_err(|e| {
+                x.fast_zeroize();
+                return CryptoError::Decrypt(e);
             })?;
 
         // wipe unused
-        x.xnonce.zeroize();
+        x.aead_key_size.fast_zeroize();
+        x.aead_key.fast_zeroize();
+        x.nonce.fast_zeroize();
     }
 
-    // Stage: DrainFrom
-    let mut value = T::default();
-
-    {
+    // Stage: Decode
+    let result = {
         #[cfg(test)]
-        f(DecryptStage::DrainFrom, x);
+        f(DecryptStage::Decode, x);
 
-        value.drain_from(x.aead_buffer.as_mut()).map_err(|e| {
-            x.zeroize();
-            CryptoError::MemDecode(e)
+        let mut value = T::default();
+        value.decode_from(&mut ciphertext).map_err(|e| {
+            x.fast_zeroize();
+            return CryptoError::Decode(e);
         })?;
 
-        // wipe unused
-        x.aead_buffer.zeroize();
-    }
+        ZeroizingGuard::new(value)
+    };
 
-    Ok(Zeroizing::new(value))
+    Ok(result)
 }

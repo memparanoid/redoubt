@@ -2,26 +2,24 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use zeroize::Zeroize;
-
 use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
 
 use crate::guards::{DecryptionMemZer, EncryptionMemZer};
 
-use super::support::{MemCodeTestBreaker, create_key_from_array, create_xnonce_from_array};
+use super::support::{TestBreaker, create_key_from_array, create_xnonce_from_array};
 
 #[test]
 fn test_encryption_mem_guard() {
     let mut aead_key = create_key_from_array([u8::MAX; 32]);
     let mut xnonce = create_xnonce_from_array([u8::MAX; 24]);
 
-    let mut test_breaker = MemCodeTestBreaker::default();
+    let mut test_breaker = TestBreaker::default();
 
     let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
 
     assert!(!x.is_zeroized());
 
-    x.zeroize();
+    x.fast_zeroize();
 
     // Assert zeroization!
     assert!(x.is_zeroized());
@@ -40,7 +38,7 @@ fn test_decryption_mem_guard() {
 
     assert!(!x.is_zeroized());
 
-    x.zeroize();
+    x.fast_zeroize();
 
     // Assert zeroization!
     assert!(x.is_zeroized());

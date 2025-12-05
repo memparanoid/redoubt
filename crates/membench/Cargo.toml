@@ -9,7 +9,6 @@ description = "Benchmarks for memora crates - not published"
 criterion = "0.5"
 memaead.workspace = true
 memcodec = { workspace = true, features = ["zeroize"] }
-chacha20poly1305.workspace = true
 aegis = { version = "0.9.5", features = ["pure-rust"] }
 bincode = "1.3"
 serde = { version = "1.0", features = ["derive"] }

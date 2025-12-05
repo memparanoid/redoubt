@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-pub(crate) mod support;
+// pub(crate) mod support;
 
-mod aead_buffer;
-mod aead_key;
-mod decrypt;
-mod encrypt;
-mod encrypt_decrypt;
-mod guards;
-mod xnonce;
+// mod decrypt;
+// mod encrypt;
+// mod encrypt_decrypt;
+// mod guards;

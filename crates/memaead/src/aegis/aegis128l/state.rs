@@ -27,8 +27,7 @@ const C1: [u8; 16] = [
 ///
 /// # Safety
 /// Caller must ensure AES hardware support is available.
-#[inline]
-#[target_feature(enable = "aes")]
+#[inline(always)]
 pub unsafe fn encrypt(
     key: &[u8; 16],
     nonce: &[u8; 16],
@@ -59,9 +58,16 @@ pub unsafe fn encrypt(
     // 10 init rounds with (nonce, key)
     for _ in 0..10 {
         update(
-            &mut s0, &mut s1, &mut s2, &mut s3,
-            &mut s4, &mut s5, &mut s6, &mut s7,
-            &nonce_block, &key_block,
+            &mut s0,
+            &mut s1,
+            &mut s2,
+            &mut s3,
+            &mut s4,
+            &mut s5,
+            &mut s6,
+            &mut s7,
+            &nonce_block,
+            &key_block,
         );
     }
 
@@ -75,9 +81,7 @@ pub unsafe fn encrypt(
         let mut m0 = Intrinsics::load(block[..16].try_into().unwrap());
         let mut m1 = Intrinsics::load(block[16..].try_into().unwrap());
         update(
-            &mut s0, &mut s1, &mut s2, &mut s3,
-            &mut s4, &mut s5, &mut s6, &mut s7,
-            &m0, &m1,
+            &mut s0, &mut s1, &mut s2, &mut s3, &mut s4, &mut s5, &mut s6, &mut s7, &m0, &m1,
         );
         m0.fast_zeroize();
         m1.fast_zeroize();
@@ -91,9 +95,7 @@ pub unsafe fn encrypt(
         let mut m0 = Intrinsics::load(padded[..16].try_into().unwrap());
         let mut m1 = Intrinsics::load(padded[16..].try_into().unwrap());
         update(
-            &mut s0, &mut s1, &mut s2, &mut s3,
-            &mut s4, &mut s5, &mut s6, &mut s7,
-            &m0, &m1,
+            &mut s0, &mut s1, &mut s2, &mut s3, &mut s4, &mut s5, &mut s6, &mut s7, &m0, &m1,
         );
         m0.fast_zeroize();
         m1.fast_zeroize();
@@ -132,9 +134,7 @@ pub unsafe fn encrypt(
 
         // Update state with plaintext
         update(
-            &mut s0, &mut s1, &mut s2, &mut s3,
-            &mut s4, &mut s5, &mut s6, &mut s7,
-            &m0, &m1,
+            &mut s0, &mut s1, &mut s2, &mut s3, &mut s4, &mut s5, &mut s6, &mut s7, &m0, &m1,
         );
         m0.fast_zeroize();
         m1.fast_zeroize();
@@ -178,9 +178,7 @@ pub unsafe fn encrypt(
 
         // Update state with padded plaintext
         update(
-            &mut s0, &mut s1, &mut s2, &mut s3,
-            &mut s4, &mut s5, &mut s6, &mut s7,
-            &m0, &m1,
+            &mut s0, &mut s1, &mut s2, &mut s3, &mut s4, &mut s5, &mut s6, &mut s7, &m0, &m1,
         );
         m0.fast_zeroize();
         m1.fast_zeroize();
@@ -208,9 +206,8 @@ pub unsafe fn encrypt(
     for _ in 0..7 {
         let mut t_block = Intrinsics::load(&t_buf);
         update(
-            &mut s0, &mut s1, &mut s2, &mut s3,
-            &mut s4, &mut s5, &mut s6, &mut s7,
-            &t_block, &t_block,
+            &mut s0, &mut s1, &mut s2, &mut s3, &mut s4, &mut s5, &mut s6, &mut s7, &t_block,
+            &t_block,
         );
         t_block.fast_zeroize();
     }
@@ -242,8 +239,7 @@ pub unsafe fn encrypt(
 ///
 /// # Safety
 /// Caller must ensure AES hardware support is available.
-#[inline]
-#[target_feature(enable = "aes")]
+#[inline(always)]
 pub unsafe fn decrypt(
     key: &[u8; 16],
     nonce: &[u8; 16],
@@ -272,9 +268,16 @@ pub unsafe fn decrypt(
     // 10 init rounds
     for _ in 0..10 {
         update(
-            &mut s0, &mut s1, &mut s2, &mut s3,
-            &mut s4, &mut s5, &mut s6, &mut s7,
-            &nonce_block, &key_block,
+            &mut s0,
+            &mut s1,
+            &mut s2,
+            &mut s3,
+            &mut s4,
+            &mut s5,
+            &mut s6,
+            &mut s7,
+            &nonce_block,
+            &key_block,
         );
     }
 
@@ -287,9 +290,7 @@ pub unsafe fn decrypt(
         let mut m0 = Intrinsics::load(block[..16].try_into().unwrap());
         let mut m1 = Intrinsics::load(block[16..].try_into().unwrap());
         update(
-            &mut s0, &mut s1, &mut s2, &mut s3,
-            &mut s4, &mut s5, &mut s6, &mut s7,
-            &m0, &m1,
+            &mut s0, &mut s1, &mut s2, &mut s3, &mut s4, &mut s5, &mut s6, &mut s7, &m0, &m1,
         );
         m0.fast_zeroize();
         m1.fast_zeroize();
@@ -302,9 +303,7 @@ pub unsafe fn decrypt(
         let mut m0 = Intrinsics::load(padded[..16].try_into().unwrap());
         let mut m1 = Intrinsics::load(padded[16..].try_into().unwrap());
         update(
-            &mut s0, &mut s1, &mut s2, &mut s3,
-            &mut s4, &mut s5, &mut s6, &mut s7,
-            &m0, &m1,
+            &mut s0, &mut s1, &mut s2, &mut s3, &mut s4, &mut s5, &mut s6, &mut s7, &m0, &m1,
         );
         m0.fast_zeroize();
         m1.fast_zeroize();
@@ -342,9 +341,7 @@ pub unsafe fn decrypt(
 
         // Update state with plaintext
         update(
-            &mut s0, &mut s1, &mut s2, &mut s3,
-            &mut s4, &mut s5, &mut s6, &mut s7,
-            &m0, &m1,
+            &mut s0, &mut s1, &mut s2, &mut s3, &mut s4, &mut s5, &mut s6, &mut s7, &m0, &m1,
         );
         m0.fast_zeroize();
         m1.fast_zeroize();
@@ -396,9 +393,7 @@ pub unsafe fn decrypt(
         pt1.fast_zeroize();
 
         update(
-            &mut s0, &mut s1, &mut s2, &mut s3,
-            &mut s4, &mut s5, &mut s6, &mut s7,
-            &m0, &m1,
+            &mut s0, &mut s1, &mut s2, &mut s3, &mut s4, &mut s5, &mut s6, &mut s7, &m0, &m1,
         );
         m0.fast_zeroize();
         m1.fast_zeroize();
@@ -426,9 +421,8 @@ pub unsafe fn decrypt(
     for _ in 0..7 {
         let mut t_block = Intrinsics::load(&t_buf);
         update(
-            &mut s0, &mut s1, &mut s2, &mut s3,
-            &mut s4, &mut s5, &mut s6, &mut s7,
-            &t_block, &t_block,
+            &mut s0, &mut s1, &mut s2, &mut s3, &mut s4, &mut s5, &mut s6, &mut s7, &t_block,
+            &t_block,
         );
         t_block.fast_zeroize();
     }

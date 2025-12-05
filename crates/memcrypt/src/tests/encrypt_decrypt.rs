@@ -5,16 +5,13 @@
 use crate::decrypt::decrypt_mem_decodable;
 use crate::encrypt::encrypt_mem_encodable;
 
-use super::support::{
-    MemCodeTestBreaker, MemCodeTestBreakerBehaviour, create_key_from_array,
-    create_xnonce_from_array,
-};
+use super::support::{TestBreaker, TestBreakerBehaviour, create_key_from_array, create_xnonce_from_array};
 
 #[test]
 fn test_encrypt_decrypt_roundtrip() {
     let mut aead_key = create_key_from_array([1u8; 32]);
     let mut xnonce = create_xnonce_from_array([2u8; 24]);
-    let mut test_breaker = MemCodeTestBreaker::new(MemCodeTestBreakerBehaviour::None);
+    let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
 
     let test_breaker_snapshot = format!("{:?}", test_breaker);
 
@@ -26,7 +23,7 @@ fn test_encrypt_decrypt_roundtrip() {
     };
 
     let recovered_test_breaker =
-        decrypt_mem_decodable::<MemCodeTestBreaker>(&mut aead_key, &mut xnonce, &mut ciphertext)
+        decrypt_mem_decodable::<TestBreaker>(&mut aead_key, &mut xnonce, &mut ciphertext)
             .expect("Failed to decrypt_mem_decodable(..)");
 
     let recovered_test_breaker_snapshot = format!("{:?}", &*recovered_test_breaker);

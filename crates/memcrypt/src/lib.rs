@@ -5,18 +5,12 @@
 #[cfg(test)]
 mod tests;
 
-mod aead_buffer;
-mod aead_key;
 mod consts;
 mod decrypt;
 mod encrypt;
 mod error;
 mod guards;
-mod xnonce;
 
-pub use aead_buffer::{AeadBuffer, CapacityExceededError};
-pub use aead_key::AeadKey;
-pub use decrypt::decrypt_mem_decodable;
-pub use encrypt::encrypt_mem_encodable;
+pub use decrypt::decrypt_decodable;
+pub use encrypt::encrypt_encodable;
 pub use error::CryptoError;
-pub use xnonce::XNonce;

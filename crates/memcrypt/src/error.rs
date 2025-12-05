@@ -4,28 +4,29 @@
 
 use thiserror::Error;
 
-use memcode::{MemDecodeError, MemEncodeBufError, MemEncodeError, OverflowError};
+use memaead::DecryptError;
+use memcodec::{DecodeError, EncodeError, OverflowError};
 
 #[derive(Debug, Error)]
 pub enum CryptoError {
-    #[error("MemDecodeError: {0}")]
-    MemDecode(#[from] MemDecodeError),
+    #[error("EncodeError: {0}")]
+    Encode(#[from] EncodeError),
 
-    #[error("MemEncodeError: {0}")]
-    MemEncode(#[from] MemEncodeError),
+    #[error("DecodeError: {0}")]
+    Decode(#[from] DecodeError),
 
-    #[error("MemEncodeBufError: {0}")]
-    MemEncodeBuf(#[from] MemEncodeBufError),
+    #[error("DecryptError: {0}")]
+    Decrypt(#[from] DecryptError),
 
     #[error("OverflowError: {0}")]
     Overflow(#[from] OverflowError),
-
-    #[error("DecryptError")]
-    Decrypt,
 
     #[error("InvalidKeyLengthError")]
     InvalidKeyLength,
 
     #[error("AeadBufferNotZeroizedError")]
     AeadBufferNotZeroized,
+
+    #[error("CiphertextTooShort")]
+    CiphertextTooShort,
 }

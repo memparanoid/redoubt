@@ -2,23 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use memcode::MemEncodeError;
+use memcodec::EncodeError;
 use memzer::ZeroizationProbe;
 
 use crate::encrypt::{EncryptStage, encrypt_mem_encodable_with};
 use crate::error::CryptoError;
 use crate::guards::EncryptionMemZer;
 
-use super::support::{
-    MemCodeTestBreaker, MemCodeTestBreakerBehaviour, create_key_from_array,
-    create_xnonce_from_array,
-};
+use super::support::{TestBreaker, TestBreakerBehaviour, create_key_from_array, create_xnonce_from_array};
 
 #[test]
 fn test_encrypt_mem_encodable_stage_mem_bytes_required_failure() {
     let mut aead_key = create_key_from_array([1u8; 32]);
     let mut xnonce = create_xnonce_from_array([2u8; 24]);
-    let mut test_breaker = MemCodeTestBreaker::new(MemCodeTestBreakerBehaviour::None);
+    let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
@@ -28,7 +25,7 @@ fn test_encrypt_mem_encodable_stage_mem_bytes_required_failure() {
     let result = encrypt_mem_encodable_with(&mut x, |stage, x| match stage {
         EncryptStage::MemBytesRequired => {
             x.value
-                .change_behaviour(MemCodeTestBreakerBehaviour::ForceBytesRequiredUsizeMax);
+                .set_behaviour(TestBreakerBehaviour::BytesRequiredReturnMax);
         }
         EncryptStage::DrainInto
         | EncryptStage::AeadBufferFillWithPlaintext
@@ -48,7 +45,7 @@ fn test_encrypt_mem_encodable_stage_mem_bytes_required_failure() {
 fn test_encrypt_mem_encodable_stage_drain_into_failure() {
     let mut aead_key = create_key_from_array([1u8; 32]);
     let mut xnonce = create_xnonce_from_array([2u8; 24]);
-    let mut test_breaker = MemCodeTestBreaker::new(MemCodeTestBreakerBehaviour::None);
+    let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
@@ -59,7 +56,7 @@ fn test_encrypt_mem_encodable_stage_drain_into_failure() {
         EncryptStage::MemBytesRequired => {}
         EncryptStage::DrainInto => {
             x.value
-                .change_behaviour(MemCodeTestBreakerBehaviour::ForceEncodeError);
+                .set_behaviour(TestBreakerBehaviour::ForceEncodeError);
         }
         EncryptStage::AeadBufferFillWithPlaintext | EncryptStage::Encrypt => {
             unreachable!("Encrypt algorithm will fail at EncryptStage::DrainInto")
@@ -69,8 +66,8 @@ fn test_encrypt_mem_encodable_stage_drain_into_failure() {
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(CryptoError::MemEncode(
-            MemEncodeError::IntentionalEncodeError
+        Err(CryptoError::Encode(
+            EncodeError::IntentionalEncodeError
         ))
     ));
 
@@ -82,7 +79,7 @@ fn test_encrypt_mem_encodable_stage_drain_into_failure() {
 fn test_encrypt_mem_encodable_stage_aead_buffer_fill_with_plaintext_failure() {
     let mut aead_key = create_key_from_array([1u8; 32]);
     let mut xnonce = create_xnonce_from_array([2u8; 24]);
-    let mut test_breaker = MemCodeTestBreaker::new(MemCodeTestBreakerBehaviour::None);
+    let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
@@ -116,7 +113,7 @@ fn test_encrypt_mem_encodable_stage_aead_buffer_fill_with_plaintext_failure() {
 fn test_encrypt_mem_encodable_stage_encrypt_failure() {
     let mut aead_key = create_key_from_array([1u8; 32]);
     let mut xnonce = create_xnonce_from_array([2u8; 24]);
-    let mut test_breaker = MemCodeTestBreaker::new(MemCodeTestBreakerBehaviour::None);
+    let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
@@ -143,7 +140,7 @@ fn test_encrypt_mem_encodable_stage_encrypt_failure() {
 fn test_encrypt_mem_encodable_ok() {
     let mut aead_key = create_key_from_array([1u8; 32]);
     let mut xnonce = create_xnonce_from_array([2u8; 24]);
-    let mut test_breaker = MemCodeTestBreaker::new(MemCodeTestBreakerBehaviour::None);
+    let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
