@@ -13,7 +13,8 @@ use crate::guards::EncryptionMemZer;
 #[derive(PartialEq, Eq, Debug)]
 #[allow(unused)]
 pub enum EncryptStage {
-    MemBytesRequired,
+    BytesRequired,
+    CodecBufLen,
     EncodeInto,
     Encrypt,
 }
@@ -43,7 +44,7 @@ pub enum EncryptStage {
 ///
 /// # Example
 ///
-/// ```
+/// ```rust,ignore
 /// use memcrypt::{AeadKey, XNonce, encrypt_mem_encodable};
 /// use memzer::ZeroizationProbe;
 ///
@@ -82,29 +83,54 @@ where
     T: BytesRequired + Encode + FastZeroizable + ZeroizationProbe,
 {
     let mut x = EncryptionMemZer::new(aead_key, nonce, value);
-    encrypt_mem_encodable_with(aead, &mut x, |_, _| {})
+    encrypt_encodable_with(aead, &mut x, |_, _| {})
 }
 
-pub fn encrypt_mem_encodable_with<'a, T, F>(
+#[inline(always)]
+pub fn encrypt_encodable_with<'a, T, F>(
     aead: &mut Aead,
     x: &mut EncryptionMemZer<'a, T>,
-    #[allow(unused)] f: F,
+    #[allow(unused)] mut f: F,
 ) -> Result<ZeroizingGuard<Vec<u8>>, CryptoError>
 where
     T: BytesRequired + Encode + FastZeroizable + ZeroizationProbe,
     F: Fn(EncryptStage, &mut EncryptionMemZer<'a, T>),
 {
-    // Stage: MemBytesRequired
+    encrypt_encodable_with_impl(aead, x, &mut f)
+}
+
+#[inline(always)]
+fn encrypt_encodable_with_impl<'a, T>(
+    aead: &mut Aead,
+    x: &mut EncryptionMemZer<'a, T>,
+    #[allow(unused)] f: &mut dyn Fn(EncryptStage, &mut EncryptionMemZer<'a, T>),
+) -> Result<ZeroizingGuard<Vec<u8>>, CryptoError>
+where
+    T: BytesRequired + Encode + FastZeroizable + ZeroizationProbe,
+{
+    // Stage: BytesRequired
     {
         #[cfg(test)]
-        f(EncryptStage::MemBytesRequired, x);
+        f(EncryptStage::BytesRequired, x);
 
         x.bytes_required = x.value.mem_bytes_required().map_err(|err| {
             x.fast_zeroize();
             CryptoError::Overflow(err)
         })?;
-        x.buf
-            .realloc_with_capacity(x.bytes_required + aead.tag_size());
+    }
+
+    // Stage: CodecBufLen
+    {
+        #[cfg(test)]
+        f(EncryptStage::CodecBufLen, x);
+
+        x.codec_buf_len = x
+            .bytes_required
+            .checked_add(aead.tag_size())
+            .ok_or_else(|| {
+                x.fast_zeroize();
+                return CryptoError::PlaintextTooLong;
+            })?;
     }
 
     // Stage: EncodeInto
@@ -112,6 +138,7 @@ where
         #[cfg(test)]
         f(EncryptStage::EncodeInto, x);
 
+        x.buf.realloc_with_capacity(x.codec_buf_len);
         x.value.encode_into(&mut x.buf).map_err(|err| {
             x.fast_zeroize();
             CryptoError::Encode(err)
@@ -129,19 +156,25 @@ where
 
         // wipe unused
         x.aead_key_size.fast_zeroize();
+        x.bytes_required.fast_zeroize();
 
-        aead.encrypt(aead_key, &mut x.nonce, AAD, plaintext, tag);
+        if let Err(e) = aead.encrypt(aead_key, &mut x.nonce, AAD, plaintext, tag) {
+            x.fast_zeroize();
+            return Err(CryptoError::Aead(e));
+        }
 
         // wipe unused
         x.aead_key.fast_zeroize();
         x.nonce.fast_zeroize();
 
         let mut ciphertext_with_tag = Vec::new();
-        ciphertext_with_tag.reserve_exact(x.bytes_required + aead.tag_size());
+        ciphertext_with_tag.reserve_exact(x.codec_buf_len);
         ciphertext_with_tag.extend_from_slice(plaintext);
         ciphertext_with_tag.extend_from_slice(tag);
 
+        // wipe
         x.buf.fast_zeroize();
+        x.codec_buf_len.fast_zeroize();
 
         ZeroizingGuard::new(ciphertext_with_tag)
     };

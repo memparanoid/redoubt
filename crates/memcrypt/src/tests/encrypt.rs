@@ -2,35 +2,37 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use memaead::{Aead, AeadError};
 use memcodec::EncodeError;
+use memcodec::support::test_utils::{TestBreaker, TestBreakerBehaviour};
 use memzer::ZeroizationProbe;
 
-use crate::encrypt::{EncryptStage, encrypt_mem_encodable_with};
+use crate::encrypt::{EncryptStage, encrypt_encodable_with};
 use crate::error::CryptoError;
 use crate::guards::EncryptionMemZer;
 
-use super::support::{TestBreaker, TestBreakerBehaviour, create_key_from_array, create_xnonce_from_array};
+use super::utils::{create_aead_key, create_nonce};
 
 #[test]
-fn test_encrypt_mem_encodable_stage_mem_bytes_required_failure() {
-    let mut aead_key = create_key_from_array([1u8; 32]);
-    let mut xnonce = create_xnonce_from_array([2u8; 24]);
+fn test_encrypt_encodable_stage_bytes_required_overflow() {
+    let mut aead = Aead::new();
+    let mut aead_key = create_aead_key(&aead, 1);
+    let mut nonce = create_nonce(&aead, 2);
+
     let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
 
-    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+    let mut x = EncryptionMemZer::new(&mut aead_key, &mut nonce, &mut test_breaker);
 
-    let result = encrypt_mem_encodable_with(&mut x, |stage, x| match stage {
-        EncryptStage::MemBytesRequired => {
+    let result = encrypt_encodable_with(&mut aead, &mut x, |stage, x| match stage {
+        EncryptStage::BytesRequired => {
             x.value
-                .set_behaviour(TestBreakerBehaviour::BytesRequiredReturnMax);
+                .set_behaviour(TestBreakerBehaviour::ForceBytesRequiredOverflow);
         }
-        EncryptStage::DrainInto
-        | EncryptStage::AeadBufferFillWithPlaintext
-        | EncryptStage::Encrypt => {
-            unreachable!("Encrypt algorithm will fail at EncryptStage::MemBytesRequired")
+        EncryptStage::CodecBufLen | EncryptStage::EncodeInto | EncryptStage::Encrypt => {
+            unreachable!("Encrypt algorithm will fail at EncryptStage::BytesRequired")
         }
     });
 
@@ -42,33 +44,62 @@ fn test_encrypt_mem_encodable_stage_mem_bytes_required_failure() {
 }
 
 #[test]
-fn test_encrypt_mem_encodable_stage_drain_into_failure() {
-    let mut aead_key = create_key_from_array([1u8; 32]);
-    let mut xnonce = create_xnonce_from_array([2u8; 24]);
+fn test_encrypt_encodable_stage_codec_buf_len_overflow() {
+    let mut aead = Aead::new();
+    let mut aead_key = create_aead_key(&aead, 1);
+    let mut nonce = create_nonce(&aead, 2);
+
     let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
 
-    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+    let mut x = EncryptionMemZer::new(&mut aead_key, &mut nonce, &mut test_breaker);
 
-    let result = encrypt_mem_encodable_with(&mut x, |stage, x| match stage {
-        EncryptStage::MemBytesRequired => {}
-        EncryptStage::DrainInto => {
+    let result = encrypt_encodable_with(&mut aead, &mut x, |stage, x| match stage {
+        EncryptStage::BytesRequired => {
             x.value
-                .set_behaviour(TestBreakerBehaviour::ForceEncodeError);
+                .set_behaviour(TestBreakerBehaviour::BytesRequiredReturnMax);
         }
-        EncryptStage::AeadBufferFillWithPlaintext | EncryptStage::Encrypt => {
-            unreachable!("Encrypt algorithm will fail at EncryptStage::DrainInto")
+        EncryptStage::CodecBufLen => {}
+        EncryptStage::EncodeInto | EncryptStage::Encrypt => {
+            unreachable!("Encrypt algorithm will fail at EncryptStage::MemBytesRequired")
+        }
+    });
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CryptoError::PlaintextTooLong)));
+
+    // Assert zeroization!
+    assert!(x.is_zeroized());
+}
+
+#[test]
+fn test_encrypt_encodable_stage_encrypt_failure() {
+    let mut aead = Aead::new();
+    let mut aead_key = create_aead_key(&aead, 1);
+    let mut nonce = create_nonce(&aead, 2);
+
+    let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
+
+    // Assert (not) zeroization!
+    assert!(!test_breaker.is_zeroized());
+
+    let mut x = EncryptionMemZer::new(&mut aead_key, &mut nonce, &mut test_breaker);
+
+    let result = encrypt_encodable_with(&mut aead, &mut x, |stage, x| match stage {
+        EncryptStage::BytesRequired => {}
+        EncryptStage::CodecBufLen => {}
+        EncryptStage::EncodeInto => {}
+        EncryptStage::Encrypt => {
+            x.aead_key_size = 12; // Too small for XChacha20Poly1305 & Aegis128L
         }
     });
 
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(CryptoError::Encode(
-            EncodeError::IntentionalEncodeError
-        ))
+        Err(CryptoError::Aead(AeadError::InvalidKeySize))
     ));
 
     // Assert zeroization!
@@ -76,77 +107,53 @@ fn test_encrypt_mem_encodable_stage_drain_into_failure() {
 }
 
 #[test]
-fn test_encrypt_mem_encodable_stage_aead_buffer_fill_with_plaintext_failure() {
-    let mut aead_key = create_key_from_array([1u8; 32]);
-    let mut xnonce = create_xnonce_from_array([2u8; 24]);
+fn test_encrypt_encodable_stage_encode_into_failure() {
+    let mut aead = Aead::new();
+    let mut aead_key = create_aead_key(&aead, 1);
+    let mut nonce = create_nonce(&aead, 2);
+
     let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
 
-    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
+    let mut x = EncryptionMemZer::new(&mut aead_key, &mut nonce, &mut test_breaker);
 
-    let result = encrypt_mem_encodable_with(&mut x, |stage, x| match stage {
-        EncryptStage::MemBytesRequired => {}
-        EncryptStage::DrainInto => {}
-        EncryptStage::AeadBufferFillWithPlaintext => {
-            x.aead_buffer
-                .zeroized_reserve_exact(3)
-                .expect("Failed to zeroized_reserve_exact()");
-            x.aead_buffer
-                .drain_slice(&mut [1, 2, 3])
-                .expect("Failed to drain_slice()");
+    let result = encrypt_encodable_with(&mut aead, &mut x, |stage, x| match stage {
+        EncryptStage::BytesRequired => {}
+        EncryptStage::CodecBufLen => {}
+        EncryptStage::EncodeInto => {
+            x.value
+                .set_behaviour(TestBreakerBehaviour::ForceEncodeError);
         }
         EncryptStage::Encrypt => {
-            unreachable!("Encrypt algorithm will fail at EncryptStage::DrainInto")
+            unreachable!("Encrypt algorithm will fail at EncryptStage::EncodeInto")
         }
     });
 
     assert!(result.is_err());
-    assert!(matches!(result, Err(CryptoError::AeadBufferNotZeroized)));
+    assert!(matches!(
+        result,
+        Err(CryptoError::Encode(EncodeError::IntentionalEncodeError))
+    ));
 
     // Assert zeroization!
     assert!(x.is_zeroized());
 }
 
 #[test]
-fn test_encrypt_mem_encodable_stage_encrypt_failure() {
-    let mut aead_key = create_key_from_array([1u8; 32]);
-    let mut xnonce = create_xnonce_from_array([2u8; 24]);
+fn test_encrypt_encodable_ok() {
+    let mut aead = Aead::new();
+    let mut aead_key = create_aead_key(&aead, 1);
+    let mut nonce = create_nonce(&aead, 2);
+
     let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
 
-    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
-
-    let result = encrypt_mem_encodable_with(&mut x, |stage, x| match stage {
-        EncryptStage::MemBytesRequired => {}
-        EncryptStage::DrainInto => {}
-        EncryptStage::AeadBufferFillWithPlaintext => {}
-        EncryptStage::Encrypt => {
-            x.aead_key_size = 16;
-        }
-    });
-
-    assert!(result.is_err());
-    assert!(matches!(result, Err(CryptoError::InvalidKeyLength)));
-
-    // Assert zeroization!
-    assert!(x.is_zeroized());
-}
-
-#[test]
-fn test_encrypt_mem_encodable_ok() {
-    let mut aead_key = create_key_from_array([1u8; 32]);
-    let mut xnonce = create_xnonce_from_array([2u8; 24]);
-    let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
-
-    // Assert (not) zeroization!
-    assert!(!test_breaker.is_zeroized());
-
-    let mut x = EncryptionMemZer::new(&mut aead_key, &mut xnonce, &mut test_breaker);
-    let result = encrypt_mem_encodable_with(&mut x, |_, _| {});
+    let mut x = EncryptionMemZer::new(&mut aead_key, &mut nonce, &mut test_breaker);
+    let result = encrypt_encodable_with(&mut aead, &mut x, |_, _| {});
 
     assert!(result.is_ok());
 

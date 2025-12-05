@@ -2,191 +2,172 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use memcodec::tamper_encoded_bytes_for_tests;
+use memaead::{Aead, AeadError};
+use memcodec::DecodeError;
+use memcodec::support::test_utils::{
+    TestBreaker, TestBreakerBehaviour, tamper_encoded_bytes_for_tests,
+};
 use memzer::ZeroizationProbe;
 
-use crate::decrypt::{DecryptStage, decrypt_mem_decodable_with};
-use crate::encrypt::encrypt_mem_encodable;
+use crate::decrypt::{DecryptStage, decrypt_decodable_with};
+use crate::encrypt::encrypt_encodable;
 use crate::error::CryptoError;
 use crate::guards::DecryptionMemZer;
 
-use super::support::{TestBreaker, TestBreakerBehaviour, create_key_from_array, create_xnonce_from_array};
+use super::utils::{create_aead_key, create_nonce};
 
 #[test]
-fn test_decrypt_mem_decodable_stage_new_from_slice_failure() {
-    let mut aead_key = create_key_from_array([1u8; 32]);
-    let mut xnonce = create_xnonce_from_array([2u8; 24]);
-    let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
+fn test_decrypt_decodable_stage_validate_ciphertext_len_failure() {
+    let mut aead = Aead::new();
+    let mut aead_key = create_aead_key(&aead, 1);
+    let mut nonce = create_nonce(&aead, 2);
+
+    let test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
 
-    let mut ciphertext = {
-        let mut aead_key_clone = create_key_from_array([1u8; 32]);
-        let mut xnonce_clone = create_xnonce_from_array([2u8; 24]);
-        encrypt_mem_encodable(&mut aead_key_clone, &mut xnonce_clone, &mut test_breaker)
-            .expect("Failed to encrypt_serializable(..)")
-    };
+    let mut ciphertext = Vec::<u8>::new();
 
-    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+    let mut x = DecryptionMemZer::new(&mut aead_key, &mut nonce, &mut ciphertext);
 
-    let result =
-        decrypt_mem_decodable_with::<TestBreaker, _>(&mut x, |stage, x| match stage {
-            DecryptStage::NewFromSlice => {
-                x.aead_key_size = 16;
-            }
-            DecryptStage::AeadBufferFillWithCiphertext
-            | DecryptStage::Decrypt
-            | DecryptStage::DrainFrom => {
-                unreachable!("Decrypt algorithm will fail at DecryptStage::NewFromSlice")
-            }
-        });
+    let result = decrypt_decodable_with::<TestBreaker, _>(&mut aead, &mut x, |_, _| {});
 
     assert!(result.is_err());
-    assert!(matches!(result, Err(CryptoError::InvalidKeyLength)));
+    assert!(matches!(
+        result,
+        Err(CryptoError::CiphertextWithTagTooShort)
+    ));
 
     // Assert zeroization!
     assert!(x.is_zeroized());
 }
 
 #[test]
-fn test_decrypt_mem_decodable_stage_aead_buffer_fill_with_ciphertext_failure() {
-    let mut aead_key = create_key_from_array([1u8; 32]);
-    let mut xnonce = create_xnonce_from_array([2u8; 24]);
+fn test_decrypt_decodable_stage_decrypt_failure() {
+    let mut aead = Aead::new();
+    let mut aead_key = create_aead_key(&aead, 1);
+    let mut nonce = create_nonce(&aead, 2);
+
     let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
 
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
 
     let mut ciphertext = {
-        let mut aead_key_clone = create_key_from_array([1u8; 32]);
-        let mut xnonce_clone = create_xnonce_from_array([2u8; 24]);
-        encrypt_mem_encodable(&mut aead_key_clone, &mut xnonce_clone, &mut test_breaker)
-            .expect("Failed to encrypt_serializable(..)")
+        let mut aead = Aead::new();
+        let mut aead_key_clone = aead_key.clone();
+        let mut nonce_clone = nonce.clone();
+
+        encrypt_encodable(
+            &mut aead,
+            &mut aead_key_clone,
+            &mut nonce_clone,
+            &mut test_breaker,
+        )
+        .expect("Failed to encrypt_serializable(..)")
     };
 
-    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+    let mut x = DecryptionMemZer::new(&mut aead_key, &mut nonce, &mut ciphertext);
 
     let result =
-        decrypt_mem_decodable_with::<TestBreaker, _>(&mut x, |stage, x| match stage {
-            DecryptStage::NewFromSlice => {}
-            DecryptStage::AeadBufferFillWithCiphertext => {
-                x.aead_buffer
-                    .zeroized_reserve_exact(3)
-                    .expect("Failed to zeroized_reserve_exact()");
-                x.aead_buffer
-                    .drain_slice(&mut [1, 2, 3])
-                    .expect("Failed to drain_slice()");
-            }
-            DecryptStage::Decrypt | DecryptStage::DrainFrom => {
-                unreachable!("Decrypt algorithm will fail at DecryptStage::NewFromSlice")
-            }
-        });
-
-    assert!(result.is_err());
-    assert!(matches!(result, Err(CryptoError::AeadBufferNotZeroized)));
-
-    // Assert zeroization!
-    assert!(x.is_zeroized());
-}
-
-#[test]
-fn test_decrypt_mem_decodable_stage_decrypt_failure() {
-    let mut aead_key = create_key_from_array([1u8; 32]);
-    let mut xnonce = create_xnonce_from_array([2u8; 24]);
-    let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
-
-    // Assert (not) zeroization!
-    assert!(!test_breaker.is_zeroized());
-
-    let mut ciphertext = {
-        let mut aead_key_clone = create_key_from_array([1u8; 32]);
-        let mut xnonce_clone = create_xnonce_from_array([2u8; 24]);
-        encrypt_mem_encodable(&mut aead_key_clone, &mut xnonce_clone, &mut test_breaker)
-            .expect("Failed to encrypt_serializable(..)")
-    };
-
-    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
-
-    let result = decrypt_mem_decodable_with::<TestBreaker, _>(&mut x, |stage, x| {
-        match stage {
-            DecryptStage::NewFromSlice => {}
-            DecryptStage::AeadBufferFillWithCiphertext => {}
+        decrypt_decodable_with::<TestBreaker, _>(&mut aead, &mut x, |stage, x| match stage {
+            DecryptStage::ValidateCiphertextWithTagLen => {}
             DecryptStage::Decrypt => {
-                // Tamper aead_buffer (ciphertext already copied there)
-                x.aead_buffer.tamper(|bytes| bytes[0] ^= 1);
+                x.aead_key_size = 12; // Too small for XChacha20Poly1305 & Aegis128L
             }
-            DecryptStage::DrainFrom => {
+            DecryptStage::Decode => {
                 unreachable!("Decrypt algorithm will fail at DecryptStage::Decrypt")
             }
-        }
-    });
+        });
 
     assert!(result.is_err());
-    assert!(matches!(result, Err(CryptoError::Decrypt)));
+    assert!(matches!(
+        result,
+        Err(CryptoError::Aead(AeadError::InvalidKeySize))
+    ));
 
     // Assert zeroization!
     assert!(x.is_zeroized());
 }
 
 #[test]
-fn test_decrypt_mem_decodable_stage_drain_from_failure() {
-    let mut aead_key = create_key_from_array([1u8; 32]);
-    let mut xnonce = create_xnonce_from_array([2u8; 24]);
-    let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
+fn test_decrypt_decodable_stage_decode_failure() {
+    let mut aead = Aead::new();
+    let mut aead_key = create_aead_key(&aead, 1);
+    let mut nonce = create_nonce(&aead, 2);
+
+    let mut test_breaker = TestBreaker::new(TestBreakerBehaviour::None, 100);
 
     // Assert (not) zeroization!
     assert!(!test_breaker.is_zeroized());
 
     let mut ciphertext = {
-        let mut aead_key_clone = create_key_from_array([1u8; 32]);
-        let mut xnonce_clone = create_xnonce_from_array([2u8; 24]);
-        encrypt_mem_encodable(&mut aead_key_clone, &mut xnonce_clone, &mut test_breaker)
-            .expect("Failed to encrypt_serializable(..)")
+        let mut aead = Aead::new();
+        let mut aead_key_clone = aead_key.clone();
+        let mut nonce_clone = nonce.clone();
+
+        encrypt_encodable(
+            &mut aead,
+            &mut aead_key_clone,
+            &mut nonce_clone,
+            &mut test_breaker,
+        )
+        .expect("Failed to encrypt_serializable(..)")
     };
 
-    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+    let mut x = DecryptionMemZer::new(&mut aead_key, &mut nonce, &mut ciphertext);
 
     let result =
-        decrypt_mem_decodable_with::<TestBreaker, _>(&mut x, |stage, x| match stage {
-            DecryptStage::NewFromSlice => {}
-            DecryptStage::AeadBufferFillWithCiphertext => {}
+        decrypt_decodable_with::<TestBreaker, _>(&mut aead, &mut x, |stage, x| match stage {
+            DecryptStage::ValidateCiphertextWithTagLen => {}
             DecryptStage::Decrypt => {}
-            DecryptStage::DrainFrom => {
-                x.aead_buffer.tamper(|bytes| {
-                    tamper_encoded_bytes_for_tests(bytes);
-                });
+            DecryptStage::Decode => {
+                tamper_encoded_bytes_for_tests(&mut x.ciphertext_with_tag);
             }
         });
 
     assert!(result.is_err());
-    assert!(matches!(result, Err(CryptoError::Decode(_))));
+    assert!(matches!(
+        result,
+        Err(CryptoError::Decode(DecodeError::IntentionalDecodeError))
+    ));
 
     // Assert zeroization!
     assert!(x.is_zeroized());
 }
 
 #[test]
-fn test_decrypt_mem_decodable_ok() {
-    let mut aead_key = create_key_from_array([1u8; 32]);
-    let mut xnonce = create_xnonce_from_array([2u8; 24]);
-    let mut test_breaker = TestBreaker::with_behaviour(TestBreakerBehaviour::None);
+fn test_decrypt_decodable_ok() {
+    let mut aead = Aead::new();
+    let mut aead_key = create_aead_key(&aead, 1);
+    let mut nonce = create_nonce(&aead, 2);
+
+    let test_breaker = TestBreaker::new(TestBreakerBehaviour::None, 100);
+    let mut test_breaker_clone = test_breaker.clone();
 
     // Assert (not) zeroization!
-    assert!(!test_breaker.is_zeroized());
+    assert!(!test_breaker_clone.is_zeroized());
 
     let mut ciphertext = {
-        let mut aead_key_clone = create_key_from_array([1u8; 32]);
-        let mut xnonce_clone = create_xnonce_from_array([2u8; 24]);
-        encrypt_mem_encodable(&mut aead_key_clone, &mut xnonce_clone, &mut test_breaker)
-            .expect("Failed to encrypt_serializable(..)")
+        let mut aead = Aead::new();
+        let mut aead_key_clone = aead_key.clone();
+        let mut nonce_clone = nonce.clone();
+
+        encrypt_encodable(
+            &mut aead,
+            &mut aead_key_clone,
+            &mut nonce_clone,
+            &mut test_breaker_clone,
+        )
+        .expect("Failed to encrypt_serializable(..)")
     };
 
-    let mut x = DecryptionMemZer::new(&mut aead_key, &mut xnonce, &mut ciphertext);
+    let mut x = DecryptionMemZer::new(&mut aead_key, &mut nonce, &mut ciphertext);
+    let recovered = decrypt_decodable_with::<TestBreaker, _>(&mut aead, &mut x, |_, _| {})
+        .expect("Failed to decrypt_decodable_with(..)");
 
-    let result = decrypt_mem_decodable_with::<TestBreaker, _>(&mut x, |_, _| {});
-
-    assert!(result.is_ok());
+    assert_eq!(test_breaker, *recovered);
 
     // Assert zeroization!
     assert!(x.is_zeroized());

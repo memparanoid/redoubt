@@ -8,9 +8,10 @@ use memzer::{DropSentinel, FastZeroizable, MemZer, ZeroizationProbe, ZeroizingMu
 #[derive(MemZer)]
 #[memzer(drop)]
 pub struct EncryptionMemZer<'a, T: BytesRequired + FastZeroizable + ZeroizationProbe + Sized> {
-    pub aead_key: ZeroizingMutGuard<'a, [u8]>,
     pub aead_key_size: usize,
     pub bytes_required: usize,
+    pub codec_buf_len: usize,
+    pub aead_key: ZeroizingMutGuard<'a, [u8]>,
     pub nonce: ZeroizingMutGuard<'a, [u8]>,
     pub value: ZeroizingMutGuard<'a, T>,
     pub buf: CodecBuffer,
@@ -24,6 +25,7 @@ impl<'a, T: BytesRequired + FastZeroizable + ZeroizationProbe + Sized> Encryptio
         Self {
             aead_key_size,
             bytes_required: 0,
+            codec_buf_len: 0,
             aead_key: ZeroizingMutGuard::from(aead_key),
             nonce: ZeroizingMutGuard::from(nonce),
             value: ZeroizingMutGuard::from(value),

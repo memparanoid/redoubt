@@ -13,7 +13,7 @@ use crate::guards::DecryptionMemZer;
 #[derive(PartialEq, Eq, Debug)]
 #[allow(unused)]
 pub enum DecryptStage {
-    SplitCiphertextAndTag,
+    ValidateCiphertextWithTagLen,
     Decrypt,
     Decode,
 }
@@ -45,7 +45,7 @@ pub enum DecryptStage {
 ///
 /// # Example
 ///
-/// ```
+/// ```rust,ignore
 /// use memcrypt::{AeadKey, XNonce, encrypt_mem_encodable, decrypt_mem_decodable};
 ///
 /// let mut key = AeadKey::default();
@@ -101,33 +101,43 @@ where
     T: Default + Decode + FastZeroizable + ZeroizationProbe,
 {
     let mut x = DecryptionMemZer::new(aead_key, nonce, ciphertext_with_tag);
-    decrypt_mem_decodable_with::<T, _>(aead, &mut x, |_, _| {})
+    decrypt_decodable_with::<T, _>(aead, &mut x, |_, _| {})
 }
 
-pub fn decrypt_mem_decodable_with<T, F>(
+#[inline(always)]
+pub fn decrypt_decodable_with<T, F>(
     aead: &mut Aead,
     x: &mut DecryptionMemZer,
-    #[allow(unused)] f: F,
+    #[allow(unused)] mut f: F,
 ) -> Result<ZeroizingGuard<T>, CryptoError>
 where
     T: Default + Decode + FastZeroizable + ZeroizationProbe,
     F: Fn(DecryptStage, &mut DecryptionMemZer),
 {
-    // Stage: SplitCiphertextAndTag
-    let (mut ciphertext, tag) = {
+    decrypt_decodable_with_impl(aead, x, &mut f)
+}
+
+#[inline(always)]
+fn decrypt_decodable_with_impl<T>(
+    aead: &mut Aead,
+    x: &mut DecryptionMemZer,
+    #[allow(unused)] f: &mut dyn Fn(DecryptStage, &mut DecryptionMemZer),
+) -> Result<ZeroizingGuard<T>, CryptoError>
+where
+    T: Default + Decode + FastZeroizable + ZeroizationProbe,
+{
+    // Stage: ValidateCiphertextWithTagLen
+    let ciphertext_len = {
         #[cfg(test)]
-        f(DecryptStage::SplitCiphertextAndTag, x);
+        f(DecryptStage::ValidateCiphertextWithTagLen, x);
 
-        let result =
-            memutil::try_split_at_mut_from_end(&mut x.ciphertext_with_tag, aead.tag_size());
-
-        match result {
-            Some((ciphertext, tag)) => (ciphertext, tag),
-            None => {
-                x.fast_zeroize();
-                return Err(CryptoError::CiphertextTooShort);
-            }
-        }
+        x.ciphertext_with_tag
+            .len()
+            .checked_sub(aead.tag_size())
+            .ok_or_else(|| {
+                x.fast_zeroize(); // limpia antes de salir
+                CryptoError::CiphertextWithTagTooShort
+            })?
     };
 
     // Stage: Decrypt
@@ -136,11 +146,12 @@ where
         f(DecryptStage::Decrypt, x);
 
         let aead_key = &mut x.aead_key[0..x.aead_key_size];
+        let (ciphertext, tag) = x.ciphertext_with_tag.split_at_mut(ciphertext_len);
 
         aead.decrypt(aead_key, &x.nonce, AAD, ciphertext, tag)
             .map_err(|e| {
                 x.fast_zeroize();
-                return CryptoError::Decrypt(e);
+                return CryptoError::Aead(e);
             })?;
 
         // wipe unused
@@ -155,10 +166,15 @@ where
         f(DecryptStage::Decode, x);
 
         let mut value = T::default();
-        value.decode_from(&mut ciphertext).map_err(|e| {
-            x.fast_zeroize();
-            return CryptoError::Decode(e);
-        })?;
+        value
+            .decode_from(&mut x.ciphertext_with_tag.as_mut())
+            .map_err(|e| {
+                x.fast_zeroize();
+                return CryptoError::Decode(e);
+            })?;
+
+        // wipe unused
+        x.ciphertext_with_tag.fast_zeroize();
 
         ZeroizingGuard::new(value)
     };

@@ -23,6 +23,7 @@ thiserror.workspace        = true
 
 [dev-dependencies]
 memcodec = { workspace = true, features = ["test_utils"] }
+memrand.workspace          = true
 
 [features]
 test_utils = []
