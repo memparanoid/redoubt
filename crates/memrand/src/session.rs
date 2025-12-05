@@ -31,27 +31,23 @@ pub(crate) type COUNTER = u32;
 /// use memrand::{SystemEntropySource, NonceSessionGenerator, NonceGenerator};
 ///
 /// let entropy = SystemEntropySource {};
-/// let mut generator = NonceSessionGenerator::new(&entropy);
+/// let mut generator = NonceSessionGenerator::new(entropy);
 ///
-/// let mut nonce = [0u8; 24];
-/// generator.fill_current_xnonce(&mut nonce)?;
+/// let nonce = generator.generate_nonce()?;
 /// ```
-pub struct NonceSessionGenerator<'a, const NONCE_SIZE: usize> {
-    entropy: &'a dyn EntropySource,
+pub struct NonceSessionGenerator<E: EntropySource, const NONCE_SIZE: usize> {
+    entropy: E,
     counter: COUNTER,
 }
 
-impl<'a, const NONCE_SIZE: usize> NonceSessionGenerator<'a, NONCE_SIZE> {
-    /// Creates a new XNonce session generator with counter initialized to 0.
+impl<E: EntropySource, const NONCE_SIZE: usize> NonceSessionGenerator<E, NONCE_SIZE> {
+    /// Creates a new nonce session generator with counter initialized to 0.
     ///
     /// # Arguments
     ///
-    /// * `entropy` - Entropy source for generating random nonce prefixes
-    pub fn new(entropy: &'a dyn EntropySource) -> Self {
-        Self {
-            entropy,
-            counter: 0,
-        }
+    /// * `entropy` - Entropy source for generating random nonce suffixes
+    pub fn new(entropy: E) -> Self {
+        Self { entropy, counter: 0 }
     }
 
     #[cfg(test)]
@@ -60,8 +56,8 @@ impl<'a, const NONCE_SIZE: usize> NonceSessionGenerator<'a, NONCE_SIZE> {
     }
 }
 
-impl<'a, const NONCE_SIZE: usize> NonceGenerator<NONCE_SIZE>
-    for NonceSessionGenerator<'a, NONCE_SIZE>
+impl<E: EntropySource, const NONCE_SIZE: usize> NonceGenerator<NONCE_SIZE>
+    for NonceSessionGenerator<E, NONCE_SIZE>
 {
     fn generate_nonce(&mut self) -> Result<[u8; NONCE_SIZE], crate::EntropyError> {
         let mut nonce = [0u8; NONCE_SIZE];

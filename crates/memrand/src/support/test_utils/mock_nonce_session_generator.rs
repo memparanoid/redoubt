@@ -15,20 +15,17 @@ pub enum MockNonceSessionGeneratorBehaviour {
     FailAtFillBytes,
 }
 
-/// Mock XNonce generator for testing.
+/// Mock nonce generator for testing.
 ///
-/// Wraps [`XNonceSessionGenerator`] but allows simulating failures via [`MockNonceSessionGeneratorBehaviour`].
-pub struct MockNonceSessionGenerator<'a, const NONCE_SIZE: usize> {
-    inner: NonceSessionGenerator<'a, NONCE_SIZE>,
+/// Wraps [`NonceSessionGenerator`] but allows simulating failures via [`MockNonceSessionGeneratorBehaviour`].
+pub struct MockNonceSessionGenerator<E: EntropySource, const NONCE_SIZE: usize> {
+    inner: NonceSessionGenerator<E, NONCE_SIZE>,
     behaviour: MockNonceSessionGeneratorBehaviour,
 }
 
-impl<'a, const NONCE_SIZE: usize> MockNonceSessionGenerator<'a, NONCE_SIZE> {
+impl<E: EntropySource, const NONCE_SIZE: usize> MockNonceSessionGenerator<E, NONCE_SIZE> {
     /// Creates a new mock nonce generator with the specified behavior.
-    pub fn new(
-        entropy: &'a dyn EntropySource,
-        behaviour: MockNonceSessionGeneratorBehaviour,
-    ) -> Self {
+    pub fn new(entropy: E, behaviour: MockNonceSessionGeneratorBehaviour) -> Self {
         Self {
             inner: NonceSessionGenerator::new(entropy),
             behaviour,
@@ -41,8 +38,8 @@ impl<'a, const NONCE_SIZE: usize> MockNonceSessionGenerator<'a, NONCE_SIZE> {
     }
 }
 
-impl<'a, const NONCE_SIZE: usize> NonceGenerator<NONCE_SIZE>
-    for MockNonceSessionGenerator<'a, NONCE_SIZE>
+impl<E: EntropySource, const NONCE_SIZE: usize> NonceGenerator<NONCE_SIZE>
+    for MockNonceSessionGenerator<E, NONCE_SIZE>
 {
     fn generate_nonce(&mut self) -> Result<[u8; NONCE_SIZE], EntropyError> {
         match self.behaviour {

@@ -32,7 +32,7 @@
 //! entropy.fill_bytes(&mut key).expect("Failed to generate entropy");
 //!
 //! // Create nonce generator
-//! let mut nonce_gen = NonceSessionGenerator::<24>::new(&entropy);
+//! let mut nonce_gen = NonceSessionGenerator::<SystemEntropySource, 24>::new(SystemEntropySource {});
 //! let nonce = nonce_gen.generate_nonce().expect("Failed to generate nonce");
 //! ```
 //!

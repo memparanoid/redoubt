@@ -2,16 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::SystemEntropySource;
 use crate::error::EntropyError;
-use crate::support::test_utils::{MockNonceSessionGenerator, MockNonceSessionGeneratorBehaviour};
+use crate::support::test_utils::{
+    MockEntropySource, MockEntropySourceBehaviour, MockNonceSessionGenerator,
+    MockNonceSessionGeneratorBehaviour,
+};
 use crate::traits::NonceGenerator;
 
 #[test]
 fn test_mock_nonce_generator_behaviour_none() {
-    let entropy = SystemEntropySource {};
-    let mut mock =
-        MockNonceSessionGenerator::<24>::new(&entropy, MockNonceSessionGeneratorBehaviour::None);
+    let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
+    let mut mock = MockNonceSessionGenerator::<_, 24>::new(
+        entropy,
+        MockNonceSessionGeneratorBehaviour::None,
+    );
 
     let result = mock.generate_nonce();
 
@@ -20,9 +24,9 @@ fn test_mock_nonce_generator_behaviour_none() {
 
 #[test]
 fn test_mock_nonce_generator_behaviour_fail_at_fill_bytes() {
-    let entropy = SystemEntropySource {};
-    let mut mock = MockNonceSessionGenerator::<24>::new(
-        &entropy,
+    let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
+    let mut mock = MockNonceSessionGenerator::<_, 24>::new(
+        entropy,
         MockNonceSessionGeneratorBehaviour::FailAtFillBytes,
     );
 
@@ -34,9 +38,11 @@ fn test_mock_nonce_generator_behaviour_fail_at_fill_bytes() {
 
 #[test]
 fn test_mock_nonce_generator_change_behaviour() {
-    let entropy = SystemEntropySource {};
-    let mut mock =
-        MockNonceSessionGenerator::<24>::new(&entropy, MockNonceSessionGeneratorBehaviour::None);
+    let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
+    let mut mock = MockNonceSessionGenerator::<_, 24>::new(
+        entropy,
+        MockNonceSessionGeneratorBehaviour::None,
+    );
 
     // First works
     assert!(mock.generate_nonce().is_ok());

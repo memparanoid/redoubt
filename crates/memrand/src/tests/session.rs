@@ -7,13 +7,12 @@ use core::mem::size_of;
 use crate::error::EntropyError;
 use crate::session::{COUNTER, NonceSessionGenerator};
 use crate::support::test_utils::{MockEntropySource, MockEntropySourceBehaviour};
-use crate::system::SystemEntropySource;
 use crate::traits::NonceGenerator;
 
 #[test]
 fn test_nonce_session_generator_counter_increments() {
-    let entropy = SystemEntropySource {};
-    let mut session = NonceSessionGenerator::<16>::new(&entropy);
+    let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
+    let mut session = NonceSessionGenerator::<_, 16>::new(entropy);
 
     // Counter at: 0
     {
@@ -51,8 +50,8 @@ fn test_nonce_session_generator_counter_increments() {
 
 #[test]
 fn test_nonce_session_generator_counter_wraps() {
-    let entropy = SystemEntropySource {};
-    let mut session = NonceSessionGenerator::<16>::new(&entropy);
+    let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
+    let mut session = NonceSessionGenerator::<_, 16>::new(entropy);
 
     // Set counter to COUNTER::MAX - 1
     session.set_counter_for_test(COUNTER::MAX - 1);
@@ -94,7 +93,7 @@ fn test_nonce_session_generator_counter_wraps() {
 #[test]
 fn test_nonce_session_generator_propagates_entropy_error() {
     let mock_entropy = MockEntropySource::new(MockEntropySourceBehaviour::FailAtFillBytes);
-    let mut session = NonceSessionGenerator::<16>::new(&mock_entropy);
+    let mut session = NonceSessionGenerator::<_, 16>::new(mock_entropy);
 
     let result = session.generate_nonce();
 
