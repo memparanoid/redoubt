@@ -111,12 +111,6 @@ def count_assertions(path):
 
     return counts
 
-def coverage_bar(percent):
-    """Generate a visual coverage bar."""
-    filled = int(percent / 10)
-    empty = 10 - filled
-    bar = '█' * filled + '░' * empty
-    return f"`{bar}`"
 
 def main():
     lines = []
@@ -142,10 +136,10 @@ def main():
         lines.append("## 📊 Test Coverage\n")
         lines.append("| Metric | Coverage | Covered | Total |")
         lines.append("|--------|----------|---------|-------|")
-        lines.append(f"| **Function** | {coverage_bar(coverage['function']['percent'])} **{coverage['function']['percent']:.2f}%** | {coverage['function']['covered']:,} | {coverage['function']['total']:,} |")
-        lines.append(f"| **Line** | {coverage_bar(coverage['line']['percent'])} **{coverage['line']['percent']:.2f}%** | {coverage['line']['covered']:,} | {coverage['line']['total']:,} |")
-        lines.append(f"| **Region** | {coverage_bar(coverage['region']['percent'])} **{coverage['region']['percent']:.2f}%** | {coverage['region']['covered']:,} | {coverage['region']['total']:,} |")
-        lines.append(f"| **Branch** | {coverage_bar(coverage['branch']['percent'])} **{coverage['branch']['percent']:.2f}%** | {coverage['branch']['covered']:,} | {coverage['branch']['total']:,} |")
+        lines.append(f"| **Function** | **{coverage['function']['percent']:.2f}%** | {coverage['function']['covered']:,} | {coverage['function']['total']:,} |")
+        lines.append(f"| **Line** | **{coverage['line']['percent']:.2f}%** | {coverage['line']['covered']:,} | {coverage['line']['total']:,} |")
+        lines.append(f"| **Region** | **{coverage['region']['percent']:.2f}%** | {coverage['region']['covered']:,} | {coverage['region']['total']:,} |")
+        lines.append(f"| **Branch** | **{coverage['branch']['percent']:.2f}%** | {coverage['branch']['covered']:,} | {coverage['branch']['total']:,} |")
         lines.append("")
     else:
         lines.append("## 📊 Test Coverage\n")
