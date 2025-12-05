@@ -71,7 +71,7 @@ use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 /// marked as zeroized. This ensures zeroization invariants are enforced.
 pub struct ZeroizingMutGuard<'a, T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + ?Sized,
 {
     inner: &'a mut T,
     __drop_sentinel: DropSentinel,
@@ -79,7 +79,7 @@ where
 
 impl<'a, T> fmt::Debug for ZeroizingMutGuard<'a, T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + ?Sized,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[REDACTED ZeroizingMutGuard]")
@@ -88,7 +88,7 @@ where
 
 impl<'a, T> ZeroizingMutGuard<'a, T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + ?Sized,
 {
     /// Creates a new guard wrapping a mutable reference.
     ///
@@ -115,7 +115,7 @@ where
 
 impl<'a, T> Deref for ZeroizingMutGuard<'a, T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + ?Sized,
 {
     type Target = T;
 
@@ -126,7 +126,7 @@ where
 
 impl<'a, T> DerefMut for ZeroizingMutGuard<'a, T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + ?Sized,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.inner
@@ -135,7 +135,7 @@ where
 
 impl<'a, T> FastZeroizable for ZeroizingMutGuard<'a, T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + ?Sized,
 {
     fn fast_zeroize(&mut self) {
         self.inner.fast_zeroize();
@@ -148,7 +148,7 @@ where
 
 impl<'a, T> AssertZeroizeOnDrop for ZeroizingMutGuard<'a, T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + ?Sized,
 {
     fn clone_drop_sentinel(&self) -> crate::drop_sentinel::DropSentinel {
         self.__drop_sentinel.clone()
@@ -161,17 +161,16 @@ where
 
 impl<'a, T> ZeroizationProbe for ZeroizingMutGuard<'a, T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + ?Sized,
 {
     fn is_zeroized(&self) -> bool {
-        let fields: [&dyn ZeroizationProbe; 1] = [to_zeroization_probe_dyn_ref(&*self.inner)];
-        collection_zeroed(&mut fields.into_iter())
+        self.inner.is_zeroized()
     }
 }
 
 impl<'a, T> Drop for ZeroizingMutGuard<'a, T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + ?Sized,
 {
     fn drop(&mut self) {
         self.fast_zeroize();

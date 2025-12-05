@@ -8,7 +8,7 @@ use crate::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 use crate::zeroizing_mut_guard::ZeroizingMutGuard;
 
 #[test]
-fn test_guard_assert_zeroization_probe_trait() {
+fn test_zeroizing_mut_guard_assert_zeroization_probe_trait() {
     let mut vec = vec![1u8, 2, 3, 4, 5];
     let mut guard = ZeroizingMutGuard::from(&mut vec);
 
@@ -18,7 +18,7 @@ fn test_guard_assert_zeroization_probe_trait() {
 }
 
 #[test]
-fn test_guard_assert_zeroed_on_drop_trait() {
+fn test_zeroizing_mut_guard_assert_zeroed_on_drop_trait() {
     let mut vec = vec![1u8, 2, 3, 4, 5];
     let guard = ZeroizingMutGuard::from(&mut vec);
 
@@ -26,7 +26,7 @@ fn test_guard_assert_zeroed_on_drop_trait() {
 }
 
 #[test]
-fn test_guard_guared_trait() {
+fn test_zeroizing_mut_guard_guared_trait() {
     let mut vec = vec![1u8, 2, 3, 4, 5];
     let mut guard = ZeroizingMutGuard::from(&mut vec);
 
@@ -47,7 +47,7 @@ fn test_guard_guared_trait() {
 }
 
 #[test]
-fn test_guard_debug() {
+fn test_zeroizing_mut_guard_debug() {
     let mut inner = vec![1u8, 2, 3];
     let guard = ZeroizingMutGuard::from(&mut inner);
 
@@ -57,4 +57,24 @@ fn test_guard_debug() {
         buf, "[REDACTED ZeroizingMutGuard]",
         "Debug should redact ZeroizingMutGuard"
     );
+}
+
+#[test]
+fn test_zeroizing_mut_guard_on_slice() {
+    struct SliceStruct<'a> {
+        pub guarded_slice: ZeroizingMutGuard<'a, [u8]>,
+    }
+
+    let mut slice = [1, 2, 3, 4, 5];
+    let mut s = SliceStruct {
+        guarded_slice: ZeroizingMutGuard::from(slice.as_mut_slice()),
+    };
+
+    (*s.guarded_slice)[4] = 10;
+
+    assert_eq!(s.guarded_slice.as_ref(), [1, 2, 3, 4, 10]);
+
+    drop(s);
+
+    assert!(slice.is_zeroized());
 }
