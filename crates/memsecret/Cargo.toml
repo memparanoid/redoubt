@@ -16,7 +16,6 @@ path = "src/lib.rs"
 memcodec = { workspace = true, features = ["zeroize"] }
 memutil.workspace   = true
 memzer.workspace    = true
-zeroize.workspace   = true
 
 [features]
 default = []

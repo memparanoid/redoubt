@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use zeroize::Zeroize;
-
 use memutil::is_vec_fully_zeroized;
+use memzer::{DropSentinel, MemZer};
 
 use crate::collections::move_vec;
 use crate::traits::MemMove;
@@ -92,7 +91,7 @@ test_vec_mem_move!(
 /// Test that `move_vec` zeroizes destination before reserve.
 ///
 /// Uses MutByte wrappers with external mutable references to verify
-/// that dst.zeroize() is called before reserve_exact.
+/// that dst.fast_zeroize() is called before reserve_exact.
 ///
 /// Test cases:
 /// - Sanity check: verify Vec drop does NOT zeroize MutByte references
@@ -101,21 +100,25 @@ test_vec_mem_move!(
 /// - src.len() == dst.capacity() (boundary case)
 #[test]
 fn test_move_vec_zeroizes_before_reserve() {
-    #[derive(Zeroize)]
+    #[derive(MemZer)]
     struct MutByte<'a> {
         inner: &'a mut u8,
+        __drop_sentinel: DropSentinel,
     }
 
     impl<'a> MutByte<'a> {
         fn new(inner: &'a mut u8) -> Self {
-            Self { inner }
+            Self {
+                inner,
+                __drop_sentinel: DropSentinel::default(),
+            }
         }
     }
 
     // Case: Sanity Check
     // We MUST verify that dropping Vec<MutByte> does NOT zeroize the referenced values.
     // If drop DID zeroize, our subsequent test cases would be invalid because we couldn't
-    // distinguish between zeroization from `move_vec` calling `dst.zeroize()` vs
+    // distinguish between zeroization from `move_vec` calling `dst.fast_zeroize()` vs
     // zeroization from `drop(dst)`.
     {
         let mut a = 1u8;

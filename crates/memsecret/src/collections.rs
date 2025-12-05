@@ -6,7 +6,7 @@
 
 use core::mem;
 
-use zeroize::Zeroize;
+use memzer::{FastZeroizable, ZeroizeMetadata};
 
 use crate::MemMove;
 
@@ -35,9 +35,9 @@ pub(crate) fn move_slice<T: Default>(src: &mut [T], dst: &mut [T]) {
 /// This ensures no unzeroized data remains in `dst`'s spare capacity
 /// before expanding.
 #[inline]
-pub(crate) fn move_vec<T: Zeroize>(src: &mut Vec<T>, dst: &mut Vec<T>) {
+pub(crate) fn move_vec<T: FastZeroizable + ZeroizeMetadata>(src: &mut Vec<T>, dst: &mut Vec<T>) {
     // CRITICAL: Zeroize dst to clear spare capacity BEFORE taking ownership
-    dst.zeroize();
+    dst.fast_zeroize();
 
     // Reserve exact capacity to avoid reallocation
     dst.reserve_exact(src.len());

@@ -19,7 +19,6 @@ use core::fmt;
 
 use memcodec::{BytesRequired, Codec, Decode, Encode};
 use memzer::{DropSentinel, FastZeroizable, MemZer, ZeroizationProbe};
-use zeroize::Zeroize;
 
 /// Wrapper that prevents accidental exposure of sensitive data.
 ///
@@ -86,11 +85,11 @@ use zeroize::Zeroize;
 /// // `secret` is now zeroized
 /// assert!(secret.expose().iter().all(|&b| b == 0));
 /// ```
-#[derive(Zeroize, Default, PartialEq, Eq, MemZer, Codec)]
-#[zeroize(drop)]
+#[derive(Default, PartialEq, Eq, MemZer, Codec)]
+#[memzer(drop)]
 pub struct Secret<T>
 where
-    T: Zeroize + FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
+    T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
 {
     inner: T,
     #[codec(default)]
@@ -99,7 +98,7 @@ where
 
 impl<T> fmt::Debug for Secret<T>
 where
-    T: Zeroize + FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
+    T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[REDACTED Secret]")
@@ -108,7 +107,7 @@ where
 
 impl<T> Secret<T>
 where
-    T: Zeroize + FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
+    T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
 {
     /// Creates a new `Secret` by moving data from `sensitive_data`, zeroizing the source.
     ///
