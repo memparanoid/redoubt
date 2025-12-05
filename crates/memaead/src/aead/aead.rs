@@ -17,7 +17,7 @@
 
 use memrand::{EntropyError, SystemEntropySource};
 
-use crate::error::DecryptError;
+use crate::error::AeadError;
 use crate::feature_detector::FeatureDetector;
 use crate::traits::AeadBackend;
 
@@ -125,9 +125,10 @@ impl Aead {
     /// * `data` - Plaintext to encrypt (modified in-place to ciphertext)
     /// * `tag` - Output authentication tag (16 bytes)
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if key, nonce, or tag slice sizes don't match the selected backend's requirements.
+    /// Returns [`AeadError::InvalidKeySize`], [`AeadError::InvalidNonceSize`], or
+    /// [`AeadError::InvalidTagSize`] if slice sizes don't match the selected backend's requirements.
     #[inline(always)]
     pub fn encrypt(
         &mut self,
@@ -136,7 +137,7 @@ impl Aead {
         aad: &[u8],
         data: &mut [u8],
         tag: &mut [u8],
-    ) {
+    ) -> Result<(), AeadError> {
         match &mut self.backend {
             #[cfg(all(
                 any(target_arch = "x86_64", target_arch = "aarch64"),
@@ -144,25 +145,23 @@ impl Aead {
             ))]
             AeadBackendImpl::Aegis128L(backend) => {
                 let key: &[u8; AEGIS_KEY_SIZE] =
-                    key.try_into().expect("Key must be 16 bytes for AEGIS-128L");
-                let nonce: &[u8; AEGIS_NONCE_SIZE] = nonce
-                    .try_into()
-                    .expect("Nonce must be 16 bytes for AEGIS-128L");
+                    key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
+                let nonce: &[u8; AEGIS_NONCE_SIZE] =
+                    nonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
                 let tag_out: &mut [u8; AEGIS_TAG_SIZE] =
-                    tag.try_into().expect("Tag must be 16 bytes for AEGIS-128L");
+                    tag.try_into().map_err(|_| AeadError::InvalidTagSize)?;
                 backend.encrypt(key, nonce, aad, data, tag_out);
+                Ok(())
             }
             AeadBackendImpl::XChacha20Poly1305(backend) => {
-                let key: &[u8; XCHACHA_KEY_SIZE] = key
-                    .try_into()
-                    .expect("Key must be 32 bytes for XChaCha20-Poly1305");
-                let nonce: &[u8; XCHACHA_NONCE_SIZE] = nonce
-                    .try_into()
-                    .expect("Nonce must be 24 bytes for XChaCha20-Poly1305");
-                let tag_out: &mut [u8; XCHACHA_TAG_SIZE] = tag
-                    .try_into()
-                    .expect("Tag must be 16 bytes for XChaCha20-Poly1305");
+                let key: &[u8; XCHACHA_KEY_SIZE] =
+                    key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
+                let nonce: &[u8; XCHACHA_NONCE_SIZE] =
+                    nonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
+                let tag_out: &mut [u8; XCHACHA_TAG_SIZE] =
+                    tag.try_into().map_err(|_| AeadError::InvalidTagSize)?;
                 backend.encrypt(key, nonce, aad, data, tag_out);
+                Ok(())
             }
         }
     }
@@ -179,11 +178,9 @@ impl Aead {
     ///
     /// # Errors
     ///
-    /// Returns [`DecryptError::AuthenticationFailed`] if tag verification fails.
-    ///
-    /// # Panics
-    ///
-    /// Panics if key, nonce, or tag slice sizes don't match the selected backend's requirements.
+    /// Returns [`AeadError::AuthenticationFailed`] if tag verification fails.
+    /// Returns [`AeadError::InvalidKeySize`], [`AeadError::InvalidNonceSize`], or
+    /// [`AeadError::InvalidTagSize`] if slice sizes don't match the selected backend's requirements.
     #[inline(always)]
     pub fn decrypt(
         &mut self,
@@ -192,7 +189,7 @@ impl Aead {
         aad: &[u8],
         data: &mut [u8],
         tag: &[u8],
-    ) -> Result<(), DecryptError> {
+    ) -> Result<(), AeadError> {
         match &mut self.backend {
             #[cfg(all(
                 any(target_arch = "x86_64", target_arch = "aarch64"),
@@ -200,24 +197,20 @@ impl Aead {
             ))]
             AeadBackendImpl::Aegis128L(backend) => {
                 let key: &[u8; AEGIS_KEY_SIZE] =
-                    key.try_into().expect("Key must be 16 bytes for AEGIS-128L");
-                let nonce: &[u8; AEGIS_NONCE_SIZE] = nonce
-                    .try_into()
-                    .expect("Nonce must be 16 bytes for AEGIS-128L");
+                    key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
+                let nonce: &[u8; AEGIS_NONCE_SIZE] =
+                    nonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
                 let tag_ref: &[u8; AEGIS_TAG_SIZE] =
-                    tag.try_into().expect("Tag must be 16 bytes for AEGIS-128L");
+                    tag.try_into().map_err(|_| AeadError::InvalidTagSize)?;
                 backend.decrypt(key, nonce, aad, data, tag_ref)
             }
             AeadBackendImpl::XChacha20Poly1305(backend) => {
-                let key: &[u8; XCHACHA_KEY_SIZE] = key
-                    .try_into()
-                    .expect("Key must be 32 bytes for XChaCha20-Poly1305");
-                let nonce: &[u8; XCHACHA_NONCE_SIZE] = nonce
-                    .try_into()
-                    .expect("Nonce must be 24 bytes for XChaCha20-Poly1305");
-                let tag_ref: &[u8; XCHACHA_TAG_SIZE] = tag
-                    .try_into()
-                    .expect("Tag must be 16 bytes for XChaCha20-Poly1305");
+                let key: &[u8; XCHACHA_KEY_SIZE] =
+                    key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
+                let nonce: &[u8; XCHACHA_NONCE_SIZE] =
+                    nonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
+                let tag_ref: &[u8; XCHACHA_TAG_SIZE] =
+                    tag.try_into().map_err(|_| AeadError::InvalidTagSize)?;
                 backend.decrypt(key, nonce, aad, data, tag_ref)
             }
         }

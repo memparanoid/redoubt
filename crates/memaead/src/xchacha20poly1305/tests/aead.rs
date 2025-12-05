@@ -8,7 +8,8 @@ use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
 
 use crate::traits::AeadBackend;
 use crate::xchacha20poly1305::consts::TAG_SIZE;
-use crate::xchacha20poly1305::{DecryptError, XChacha20Poly1305};
+use crate::xchacha20poly1305::XChacha20Poly1305;
+use crate::AeadError;
 
 #[test]
 fn test_aead_zeroization_on_drop() {
@@ -120,7 +121,7 @@ fn test_modified_tag_rejected() {
     let result = cipher.decrypt(&key, &xnonce, aad, &mut data, &tag);
 
     assert!(result.is_err());
-    assert!(matches!(result, Err(DecryptError::AuthenticationFailed)));
+    assert!(matches!(result, Err(AeadError::AuthenticationFailed)));
 
     // Ciphertext must be zeroized on auth failure
     assert!(data.iter().all(|&b| b == 0));
@@ -144,7 +145,7 @@ fn test_modified_ciphertext_rejected() {
     let result = cipher.decrypt(&key, &xnonce, aad, &mut data, &tag);
 
     assert!(result.is_err());
-    assert!(matches!(result, Err(DecryptError::AuthenticationFailed)));
+    assert!(matches!(result, Err(AeadError::AuthenticationFailed)));
 
     // Ciphertext must be zeroized on auth failure
     assert!(data.iter().all(|&b| b == 0));
@@ -164,7 +165,7 @@ fn test_modified_aad_rejected() {
     let result = cipher.decrypt(&key, &xnonce, b"HEADER", &mut data, &tag);
 
     assert!(result.is_err());
-    assert!(matches!(result, Err(DecryptError::AuthenticationFailed)));
+    assert!(matches!(result, Err(AeadError::AuthenticationFailed)));
 
     // Ciphertext must be zeroized on auth failure
     assert!(data.iter().all(|&b| b == 0));

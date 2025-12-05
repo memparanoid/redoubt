@@ -13,7 +13,7 @@ mod feature_detector;
 mod traits;
 
 pub use aead::Aead;
-pub use error::DecryptError;
+pub use error::AeadError;
 pub(crate) use traits::AeadBackend;
 
 #[cfg(all(

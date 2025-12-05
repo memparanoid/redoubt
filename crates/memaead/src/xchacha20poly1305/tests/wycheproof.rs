@@ -4,9 +4,9 @@
 
 use memutil::hex_to_bytes;
 
+use crate::AeadError;
 use crate::traits::AeadBackend;
 use crate::xchacha20poly1305::XChacha20Poly1305;
-use crate::xchacha20poly1305::DecryptError;
 use crate::xchacha20poly1305::consts::*;
 
 #[allow(dead_code)]
@@ -87,11 +87,9 @@ fn xchacha20poly1305_encrypt(
     aad: &[u8],
     data: &mut [u8],
     tag_out: &mut [u8; TAG_SIZE],
-) -> Result<(), DecryptError> {
-    let key: &[u8; KEY_SIZE] = key.try_into().map_err(|_| DecryptError::InvalidNonceSize)?;
-    let xnonce: &[u8; XNONCE_SIZE] = xnonce
-        .try_into()
-        .map_err(|_| DecryptError::InvalidNonceSize)?;
+) -> Result<(), AeadError> {
+    let key: &[u8; KEY_SIZE] = key.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
+    let xnonce: &[u8; XNONCE_SIZE] = xnonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
     let mut cipher = XChacha20Poly1305::default();
     cipher.encrypt(key, xnonce, aad, data, tag_out);
     Ok(())
@@ -103,23 +101,20 @@ fn xchacha20poly1305_decrypt(
     aad: &[u8],
     data: &mut [u8],
     tag: &[u8; TAG_SIZE],
-) -> Result<(), DecryptError> {
-    let key: &[u8; KEY_SIZE] = key.try_into().map_err(|_| DecryptError::InvalidNonceSize)?;
-    let xnonce: &[u8; XNONCE_SIZE] = xnonce
-        .try_into()
-        .map_err(|_| DecryptError::InvalidNonceSize)?;
+) -> Result<(), AeadError> {
+    let key: &[u8; KEY_SIZE] = key.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
+    let xnonce: &[u8; XNONCE_SIZE] = xnonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
     let mut cipher = XChacha20Poly1305::default();
     cipher.decrypt(key, xnonce, aad, data, tag)
 }
 
 /// Run a single test case and return Ok if behavior matches expected result
 fn run_test_case(tc: &TestCase) -> Result<(), String> {
-    use crate::xchacha20poly1305::DecryptError;
+    use crate::error::AeadError;
 
     let key = hex_to_bytes(&tc.key);
     let nonce = hex_to_bytes(&tc.iv);
     let aad = hex_to_bytes(&tc.aad);
-    let mut data = hex_to_bytes(&tc.ct);
     let tag_vec = hex_to_bytes(&tc.tag);
     let tag: [u8; TAG_SIZE] = match tag_vec.try_into() {
         Ok(t) => t,
@@ -128,10 +123,14 @@ fn run_test_case(tc: &TestCase) -> Result<(), String> {
             // but Wycheproof tests include these cases
             return match tc.result {
                 TestResult::Invalid => Ok(()), // Expected to fail
-                TestResult::Valid => Err(format!("tc_id {}: invalid tag size on valid test", tc.tc_id)),
+                TestResult::Valid => Err(format!(
+                    "tc_id {}: invalid tag size on valid test",
+                    tc.tc_id
+                )),
             };
         }
     };
+    let mut data = hex_to_bytes(&tc.ct);
 
     let result = xchacha20poly1305_decrypt(&key, &nonce, &aad, &mut data, &tag);
 
@@ -155,7 +154,7 @@ fn run_test_case(tc: &TestCase) -> Result<(), String> {
             "tc_id {} ({}): expected invalid but decryption succeeded",
             tc.tc_id, tc.comment
         )),
-        (TestResult::Invalid, Err(DecryptError::InvalidNonceSize)) => {
+        (TestResult::Invalid, Err(AeadError::InvalidNonceSize)) => {
             // InvalidNonceSize flag should map to this error
             if tc.flags.contains(&Flag::InvalidNonceSize) {
                 Ok(())
@@ -166,12 +165,12 @@ fn run_test_case(tc: &TestCase) -> Result<(), String> {
                 ))
             }
         }
-        (TestResult::Invalid, Err(DecryptError::AuthenticationFailed)) => {
+        (TestResult::Invalid, Err(AeadError::AuthenticationFailed)) => {
             // ModifiedTag and other auth failures
             Ok(())
         }
-        (TestResult::Invalid, Err(DecryptError::CiphertextTooShort)) => {
-            // Shouldn't happen with new API (tag is separate), but handle it
+        (TestResult::Invalid, Err(AeadError::InvalidTagSize | AeadError::InvalidKeySize)) => {
+            // Size validation errors (invalid test vectors)
             Ok(())
         }
     }
@@ -222,7 +221,7 @@ fn test_wycheproof_all() {
 #[test]
 fn test_wycheproof_valid_with_flipped_tag() {
     use super::wycheproof_vectors::test_vectors;
-    use crate::xchacha20poly1305::DecryptError;
+    use crate::AeadError;
 
     let vectors = test_vectors();
     let mut failures = Vec::new();
@@ -245,7 +244,7 @@ fn test_wycheproof_valid_with_flipped_tag() {
         let result = xchacha20poly1305_decrypt(&key, &nonce, &aad, &mut data, &tag);
 
         match result {
-            Err(DecryptError::AuthenticationFailed) => {
+            Err(AeadError::AuthenticationFailed) => {
                 // Expected
             }
             Ok(()) => {
@@ -302,17 +301,20 @@ fn test_wycheproof_roundtrip() {
         // Re-encrypt
         let mut re_encrypted_ct = data; // plaintext
         let mut re_encrypted_tag = [0u8; TAG_SIZE];
-        if let Err(e) = xchacha20poly1305_encrypt(&key, &nonce, &aad, &mut re_encrypted_ct, &mut re_encrypted_tag) {
+        if let Err(e) = xchacha20poly1305_encrypt(
+            &key,
+            &nonce,
+            &aad,
+            &mut re_encrypted_ct,
+            &mut re_encrypted_tag,
+        ) {
             failures.push(format!("tc_id {}: encrypt failed: {:?}", tc.tc_id, e));
             continue;
         }
 
         // Verify roundtrip
         if re_encrypted_ct != original_ct || re_encrypted_tag != original_tag {
-            failures.push(format!(
-                "tc_id {}: roundtrip mismatch",
-                tc.tc_id
-            ));
+            failures.push(format!("tc_id {}: roundtrip mismatch", tc.tc_id));
         }
     }
 

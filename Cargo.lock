@@ -513,6 +513,7 @@ version = "0.0.1"
 dependencies = [
  "memaead",
  "memcodec",
+ "memrand",
  "memutil",
  "memzer",
  "rand",

@@ -8,7 +8,7 @@ use memrand::{
     EntropyError, EntropySource, NonceGenerator, NonceSessionGenerator, SystemEntropySource,
 };
 
-use crate::{AeadBackend, DecryptError};
+use crate::{AeadBackend, AeadError};
 
 use super::consts::{Aegis128LKey, Aegis128LNonce, Aegis128LTag, NONCE_SIZE};
 use super::state;
@@ -61,11 +61,11 @@ where
         aad: &[u8],
         data: &mut [u8],
         tag: &Self::Tag,
-    ) -> Result<(), DecryptError> {
+    ) -> Result<(), AeadError> {
         if unsafe { state::decrypt(key, nonce, aad, data, tag) } {
             Ok(())
         } else {
-            Err(DecryptError::AuthenticationFailed)
+            Err(AeadError::AuthenticationFailed)
         }
     }
 

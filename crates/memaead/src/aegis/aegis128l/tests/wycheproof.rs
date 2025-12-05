@@ -6,10 +6,10 @@
 
 use memutil::hex_to_bytes;
 
-use crate::traits::AeadBackend;
-use crate::aegis::Aegis128L;
-use crate::DecryptError;
 use super::super::consts::*;
+use crate::AeadError;
+use crate::aegis::Aegis128L;
+use crate::traits::AeadBackend;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,8 +55,8 @@ fn run_test_case(tc: &TestCase) -> Result<(), String> {
     let key = hex_to_bytes(&tc.key);
     let nonce = hex_to_bytes(&tc.iv);
     let aad = hex_to_bytes(&tc.aad);
-    let mut data = hex_to_bytes(&tc.ct);
     let tag_vec = hex_to_bytes(&tc.tag);
+    let mut data = hex_to_bytes(&tc.ct);
 
     // Validate sizes
     let key: [u8; KEY_SIZE] = match key.try_into() {
@@ -202,7 +202,7 @@ fn test_wycheproof_valid_with_flipped_tag() {
         let result = cipher.decrypt(&key, &nonce, &aad, &mut data, &tag);
 
         match result {
-            Err(DecryptError::AuthenticationFailed) => {}
+            Err(AeadError::AuthenticationFailed) => {}
             Ok(()) => {
                 failures.push(format!(
                     "tc_id {}: flipped tag accepted (should fail)",
@@ -210,10 +210,7 @@ fn test_wycheproof_valid_with_flipped_tag() {
                 ));
             }
             Err(e) => {
-                failures.push(format!(
-                    "tc_id {}: unexpected error: {:?}",
-                    tc.tc_id, e
-                ));
+                failures.push(format!("tc_id {}: unexpected error: {:?}", tc.tc_id, e));
             }
         }
     }
@@ -265,10 +262,7 @@ fn test_wycheproof_roundtrip() {
         cipher.encrypt(&key, &nonce, &aad, &mut re_ct, &mut re_tag);
 
         if re_ct != original_ct || re_tag != original_tag {
-            failures.push(format!(
-                "tc_id {}: roundtrip mismatch",
-                tc.tc_id
-            ));
+            failures.push(format!("tc_id {}: roundtrip mismatch", tc.tc_id));
         }
     }
 

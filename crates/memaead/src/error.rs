@@ -4,19 +4,18 @@
 
 //! Common AEAD error types.
 
-/// Errors that can occur during AEAD decryption.
+/// Errors that can occur during AEAD operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
-pub enum DecryptError {
+pub enum AeadError {
     #[error("authentication failed: tag mismatch")]
     AuthenticationFailed,
 
-    /// Only used in tests with dynamic slices.
-    #[cfg(test)]
+    #[error("invalid key size")]
+    InvalidKeySize,
+
     #[error("invalid nonce size")]
     InvalidNonceSize,
 
-    /// Only used in tests with dynamic slices.
-    #[cfg(test)]
-    #[error("ciphertext too short")]
-    CiphertextTooShort,
+    #[error("invalid tag size")]
+    InvalidTagSize,
 }

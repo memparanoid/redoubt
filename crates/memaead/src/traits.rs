@@ -6,7 +6,7 @@
 
 use memrand::EntropyError;
 
-use crate::DecryptError;
+use crate::AeadError;
 
 /// Authenticated Encryption with Associated Data (AEAD) backend trait.
 pub trait AeadBackend {
@@ -32,7 +32,7 @@ pub trait AeadBackend {
         aad: &[u8],
         data: &mut [u8],
         tag: &Self::Tag,
-    ) -> Result<(), DecryptError>;
+    ) -> Result<(), AeadError>;
 
     /// Generate a unique nonce for encryption.
     fn generate_nonce(&mut self) -> Result<Self::Nonce, EntropyError>;

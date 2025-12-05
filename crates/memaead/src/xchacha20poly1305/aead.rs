@@ -12,7 +12,7 @@ use memrand::{
 use memutil::{constant_time_eq, u64_to_le};
 use memzer::{DropSentinel, FastZeroizable, MemZer};
 
-use crate::{AeadBackend, DecryptError};
+use crate::{AeadBackend, AeadError};
 
 use super::chacha20::XChaCha20;
 use super::consts::{KEY_SIZE, TAG_SIZE, XNONCE_SIZE};
@@ -115,7 +115,7 @@ where
         aad: &[u8],
         data: &mut [u8],
         tag: &Self::Tag,
-    ) -> Result<(), DecryptError> {
+    ) -> Result<(), AeadError> {
         self.xchacha
             .generate_poly_key(key, nonce, &mut self.poly_key);
         self.compute_tag(aad, data);
@@ -124,7 +124,7 @@ where
             data.fast_zeroize();
             self.poly_key.fast_zeroize();
             self.expected_tag.fast_zeroize();
-            return Err(DecryptError::AuthenticationFailed);
+            return Err(AeadError::AuthenticationFailed);
         }
 
         self.xchacha.crypt(key, nonce, data);

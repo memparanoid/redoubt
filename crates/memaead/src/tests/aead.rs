@@ -42,7 +42,8 @@ fn test_xchacha20poly1305_roundtrip() {
     let original = plaintext.clone();
 
     // Encrypt
-    aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag);
+    aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag)
+        .expect("Encryption failed");
 
     // Verify ciphertext is different from plaintext
     assert_ne!(
@@ -75,7 +76,8 @@ fn test_aegis128l_roundtrip() {
     let original = plaintext.clone();
 
     // Encrypt
-    aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag);
+    aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag)
+        .expect("Encryption failed");
 
     // Verify ciphertext is different from plaintext
     assert_ne!(
@@ -103,7 +105,8 @@ fn test_xchacha20poly1305_wrong_tag_fails() {
     let mut tag = vec![0u8; aead.tag_size()];
 
     // Encrypt
-    aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag);
+    aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag)
+        .expect("Encryption failed");
 
     // Tamper with tag
     tag[0] ^= 1;
@@ -129,7 +132,8 @@ fn test_aegis128l_wrong_tag_fails() {
     let mut tag = vec![0u8; aead.tag_size()];
 
     // Encrypt
-    aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag);
+    aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag)
+        .expect("Encryption failed");
 
     // Tamper with tag
     tag[0] ^= 1;
