@@ -150,6 +150,7 @@ mod tests;
 /// Contains [`DropSentinel`], the core type used to verify that `.zeroize()` was called.
 mod drop_sentinel;
 mod traits;
+mod zeroizing_guard;
 mod zeroizing_mut_guard;
 
 /// Test helpers for verifying zeroization behavior in tests.
@@ -169,4 +170,5 @@ pub mod collections;
 pub mod primitives;
 pub use drop_sentinel::DropSentinel;
 pub use traits::{AssertZeroizeOnDrop, FastZeroize, FastZeroizable, MutGuarded, ZeroizeMetadata, ZeroizationProbe};
+pub use zeroizing_guard::ZeroizingGuard;
 pub use zeroizing_mut_guard::ZeroizingMutGuard;

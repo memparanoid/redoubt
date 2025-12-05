@@ -6,5 +6,6 @@ mod assert;
 mod collections;
 mod drop_sentinel;
 mod functional;
-mod mut_guard;
 mod primitives;
+mod zeroizing_guard;
+mod zeroizing_mut_guard;

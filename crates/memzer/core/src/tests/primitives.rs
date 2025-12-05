@@ -9,14 +9,29 @@ fn test_primitive_zeroization_roundtrip() {
     macro_rules! run_test_for {
         ($ty:ty) => {{
             let mut value: $ty = 0;
-            assert!(value.is_zeroized(), concat!("Zero value should be zeroized for ", stringify!($ty)));
+            assert!(
+                value.is_zeroized(),
+                concat!("Zero value should be zeroized for ", stringify!($ty))
+            );
 
             value = <$ty>::MAX;
-            assert!(!value.is_zeroized(), concat!("MAX value should not be zeroized for ", stringify!($ty)));
+            assert!(
+                !value.is_zeroized(),
+                concat!("MAX value should not be zeroized for ", stringify!($ty))
+            );
 
             value.fast_zeroize();
-            assert!(value.is_zeroized(), concat!("Value should be zeroized after fast_zeroize for ", stringify!($ty)));
-            assert_eq!(value, 0, concat!("Value should be 0 after zeroize for ", stringify!($ty)));
+            assert!(
+                value.is_zeroized(),
+                concat!(
+                    "Value should be zeroized after fast_zeroize for ",
+                    stringify!($ty)
+                )
+            );
+            assert_eq!(
+                value, 0,
+                concat!("Value should be 0 after zeroize for ", stringify!($ty))
+            );
         }};
     }
 
@@ -45,7 +60,10 @@ fn test_bool_zeroization_probe() {
     assert!(!value.is_zeroized(), "true should NOT be zeroized");
 
     value.fast_zeroize();
-    assert!(value.is_zeroized(), "bool should be zeroized (false) after zeroize");
+    assert!(
+        value.is_zeroized(),
+        "bool should be zeroized (false) after zeroize"
+    );
     assert!(!value);
 }
 
@@ -61,7 +79,10 @@ fn test_float_zeroization() {
     assert!(!value_f32.is_zeroized(), "1.5 f32 should not be zeroized");
 
     value_f32.fast_zeroize();
-    assert!(value_f32.is_zeroized(), "f32 should be zeroized after fast_zeroize");
+    assert!(
+        value_f32.is_zeroized(),
+        "f32 should be zeroized after fast_zeroize"
+    );
     assert_eq!(value_f32, 0.0);
 
     // f64
@@ -69,10 +90,16 @@ fn test_float_zeroization() {
     assert!(value_f64.is_zeroized(), "0.0 f64 should be zeroized");
 
     value_f64 = 3.14159;
-    assert!(!value_f64.is_zeroized(), "3.14159 f64 should not be zeroized");
+    assert!(
+        !value_f64.is_zeroized(),
+        "3.14159 f64 should not be zeroized"
+    );
 
     value_f64.fast_zeroize();
-    assert!(value_f64.is_zeroized(), "f64 should be zeroized after fast_zeroize");
+    assert!(
+        value_f64.is_zeroized(),
+        "f64 should be zeroized after fast_zeroize"
+    );
     assert_eq!(value_f64, 0.0);
 }
 
@@ -87,6 +114,9 @@ fn test_char_zeroization() {
     assert!(!value.is_zeroized(), "'A' should not be zeroized");
 
     value.fast_zeroize();
-    assert!(value.is_zeroized(), "char should be zeroized after fast_zeroize");
+    assert!(
+        value.is_zeroized(),
+        "char should be zeroized after fast_zeroize"
+    );
     assert_eq!(value, '\0');
 }
