@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
-pub mod aegis;
+#[cfg(test)]
+mod tests;
 
 pub mod xchacha20poly1305;
 
@@ -16,5 +16,7 @@ pub use error::DecryptError;
 pub(crate) use traits::AeadBackend;
 
 #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
-pub use aegis::Aegis128L;
+pub mod aegis;
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+pub use aegis::Aegis128L;

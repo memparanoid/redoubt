@@ -19,12 +19,18 @@ use memrand::{EntropyError, SystemEntropySource};
 
 use crate::{AeadBackend, DecryptError};
 
-#[cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), not(target_os = "wasi")))]
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
 use crate::aegis::aegis128l::consts::{
     KEY_SIZE as AEGIS_KEY_SIZE, NONCE_SIZE as AEGIS_NONCE_SIZE, TAG_SIZE as AEGIS_TAG_SIZE,
 };
 
-#[cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), not(target_os = "wasi")))]
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
 use crate::aegis::Aegis128L;
 
 use crate::xchacha20poly1305::XChacha20Poly1305;
@@ -34,7 +40,10 @@ use crate::xchacha20poly1305::consts::{
 
 /// Internal enum representing the selected backend implementation.
 enum AeadBackendImpl {
-    #[cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), not(target_os = "wasi")))]
+    #[cfg(all(
+        any(target_arch = "x86_64", target_arch = "aarch64"),
+        not(target_os = "wasi")
+    ))]
     Aegis128L(Aegis128L<SystemEntropySource>),
     XChacha20Poly1305(XChacha20Poly1305<SystemEntropySource>),
 }
@@ -45,12 +54,6 @@ enum AeadBackendImpl {
 /// automatically selecting the fastest available implementation.
 pub struct Aead {
     backend: AeadBackendImpl,
-}
-
-impl Default for Aead {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl Aead {
@@ -74,7 +77,7 @@ impl Aead {
         #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
         {
             cpufeatures::new!(aes_detection, "aes");
-
+            let b = aes_detection::get;
             if aes_detection::get() {
                 Self {
                     backend: AeadBackendImpl::Aegis128L(Aegis128L::default()),
@@ -95,10 +98,12 @@ impl Aead {
         }
     }
 
-    /// Returns a string describing the selected backend.
-    pub fn backend_name(&self) -> &'static str {
+    pub(crate) fn backend_name(&self) -> &'static str {
         match &self.backend {
-            #[cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), not(target_os = "wasi")))]
+            #[cfg(all(
+                any(target_arch = "x86_64", target_arch = "aarch64"),
+                not(target_os = "wasi")
+            ))]
             AeadBackendImpl::Aegis128L(_) => "AEGIS-128L",
             AeadBackendImpl::XChacha20Poly1305(_) => "XChaCha20-Poly1305",
         }
@@ -126,7 +131,10 @@ impl Aead {
         tag: &mut [u8],
     ) {
         match &mut self.backend {
-            #[cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), not(target_os = "wasi")))]
+            #[cfg(all(
+                any(target_arch = "x86_64", target_arch = "aarch64"),
+                not(target_os = "wasi")
+            ))]
             AeadBackendImpl::Aegis128L(backend) => {
                 let key: &[u8; AEGIS_KEY_SIZE] =
                     key.try_into().expect("Key must be 16 bytes for AEGIS-128L");
@@ -178,7 +186,10 @@ impl Aead {
         tag: &[u8],
     ) -> Result<(), DecryptError> {
         match &mut self.backend {
-            #[cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), not(target_os = "wasi")))]
+            #[cfg(all(
+                any(target_arch = "x86_64", target_arch = "aarch64"),
+                not(target_os = "wasi")
+            ))]
             AeadBackendImpl::Aegis128L(backend) => {
                 let key: &[u8; AEGIS_KEY_SIZE] =
                     key.try_into().expect("Key must be 16 bytes for AEGIS-128L");
@@ -215,7 +226,10 @@ impl Aead {
     /// Returns [`EntropyError`] if the entropy source fails.
     pub fn generate_nonce(&mut self) -> Result<Vec<u8>, EntropyError> {
         match &mut self.backend {
-            #[cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), not(target_os = "wasi")))]
+            #[cfg(all(
+                any(target_arch = "x86_64", target_arch = "aarch64"),
+                not(target_os = "wasi")
+            ))]
             AeadBackendImpl::Aegis128L(backend) => backend.generate_nonce().map(|n| n.to_vec()),
             AeadBackendImpl::XChacha20Poly1305(backend) => {
                 backend.generate_nonce().map(|n| n.to_vec())
@@ -226,7 +240,10 @@ impl Aead {
     /// Returns the key size in bytes for the selected backend.
     pub fn key_size(&self) -> usize {
         match &self.backend {
-            #[cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), not(target_os = "wasi")))]
+            #[cfg(all(
+                any(target_arch = "x86_64", target_arch = "aarch64"),
+                not(target_os = "wasi")
+            ))]
             AeadBackendImpl::Aegis128L(_) => AEGIS_KEY_SIZE,
             AeadBackendImpl::XChacha20Poly1305(_) => XCHACHA_KEY_SIZE,
         }
@@ -235,7 +252,10 @@ impl Aead {
     /// Returns the nonce size in bytes for the selected backend.
     pub fn nonce_size(&self) -> usize {
         match &self.backend {
-            #[cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), not(target_os = "wasi")))]
+            #[cfg(all(
+                any(target_arch = "x86_64", target_arch = "aarch64"),
+                not(target_os = "wasi")
+            ))]
             AeadBackendImpl::Aegis128L(_) => AEGIS_NONCE_SIZE,
             AeadBackendImpl::XChacha20Poly1305(_) => XCHACHA_NONCE_SIZE,
         }
@@ -244,9 +264,30 @@ impl Aead {
     /// Returns the tag size in bytes for the selected backend.
     pub fn tag_size(&self) -> usize {
         match &self.backend {
-            #[cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), not(target_os = "wasi")))]
+            #[cfg(all(
+                any(target_arch = "x86_64", target_arch = "aarch64"),
+                not(target_os = "wasi")
+            ))]
             AeadBackendImpl::Aegis128L(_) => AEGIS_TAG_SIZE,
             AeadBackendImpl::XChacha20Poly1305(_) => XCHACHA_TAG_SIZE,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_xchacha20poly1305() -> Self {
+        Self {
+            backend: AeadBackendImpl::XChacha20Poly1305(XChacha20Poly1305::default()),
+        }
+    }
+
+    #[cfg(test)]
+    #[cfg(all(
+        any(target_arch = "x86_64", target_arch = "aarch64"),
+        not(target_os = "wasi")
+    ))]
+    pub(crate) fn with_aegis128l() -> Self {
+        Self {
+            backend: AeadBackendImpl::Aegis128L(Aegis128L::default()),
         }
     }
 }
