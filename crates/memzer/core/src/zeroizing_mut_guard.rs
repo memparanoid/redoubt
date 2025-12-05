@@ -8,8 +8,6 @@ use core::fmt;
 use core::ops::{Deref, DerefMut};
 use core::sync::atomic::{Ordering, compiler_fence};
 
-use crate::collections::{collection_zeroed, to_zeroization_probe_dyn_ref};
-
 use super::assert::assert_zeroize_on_drop;
 use super::drop_sentinel::DropSentinel;
 use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
