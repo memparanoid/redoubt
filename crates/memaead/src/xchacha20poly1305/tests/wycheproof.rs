@@ -4,7 +4,7 @@
 
 use memutil::hex_to_bytes;
 
-use crate::traits::Aead;
+use crate::traits::AeadBackend;
 use crate::xchacha20poly1305::XChacha20Poly1305;
 use crate::xchacha20poly1305::DecryptError;
 use crate::xchacha20poly1305::consts::*;

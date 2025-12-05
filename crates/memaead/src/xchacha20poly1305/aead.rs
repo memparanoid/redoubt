@@ -9,7 +9,7 @@
 use memutil::{constant_time_eq, u64_to_le};
 use memzer::{DropSentinel, FastZeroizable, MemZer};
 
-use crate::{Aead, DecryptError};
+use crate::{AeadBackend, DecryptError};
 
 use super::chacha20::XChaCha20;
 use super::consts::{KEY_SIZE, TAG_SIZE};
@@ -68,7 +68,7 @@ impl XChacha20Poly1305 {
     }
 }
 
-impl Aead for XChacha20Poly1305 {
+impl AeadBackend for XChacha20Poly1305 {
     type Key = AeadKey;
     type Nonce = XNonce;
     type Tag = [u8; TAG_SIZE];

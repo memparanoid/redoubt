@@ -6,7 +6,7 @@
 
 use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
 
-use crate::traits::Aead;
+use crate::traits::AeadBackend;
 use crate::xchacha20poly1305::consts::TAG_SIZE;
 use crate::xchacha20poly1305::{DecryptError, XChacha20Poly1305};
 

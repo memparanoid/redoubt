@@ -6,7 +6,7 @@
 
 use memutil::hex_to_bytes;
 
-use crate::traits::Aead;
+use crate::traits::AeadBackend;
 use crate::aegis::Aegis128L;
 use crate::DecryptError;
 use super::super::consts::*;

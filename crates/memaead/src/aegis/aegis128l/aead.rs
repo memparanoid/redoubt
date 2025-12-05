@@ -4,7 +4,7 @@
 
 //! AEGIS-128L AEAD implementation.
 
-use crate::{Aead, DecryptError};
+use crate::{AeadBackend, DecryptError};
 
 use super::consts::{Aegis128LKey, Aegis128LNonce, Aegis128LTag};
 use super::state;
@@ -16,7 +16,7 @@ use super::state;
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Aegis128L;
 
-impl Aead for Aegis128L {
+impl AeadBackend for Aegis128L {
     type Key = Aegis128LKey;
     type Nonce = Aegis128LNonce;
     type Tag = Aegis128LTag;

@@ -8,7 +8,7 @@ use memutil::hex_to_bytes;
 
 use crate::aegis::aegis128l::aead::Aegis128L;
 use crate::aegis::aegis128l::consts::{Aegis128LKey, Aegis128LNonce, Aegis128LTag};
-use crate::Aead;
+use crate::AeadBackend;
 
 /// A.2.4 - Test Vector 3 via high-level API (32-byte msg, 8-byte ad)
 #[test]

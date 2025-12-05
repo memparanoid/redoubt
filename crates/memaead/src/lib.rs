@@ -11,7 +11,7 @@ mod error;
 mod traits;
 
 pub use error::DecryptError;
-pub use traits::Aead;
+pub use traits::AeadBackend;
 
 #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 pub use aegis::Aegis128L;

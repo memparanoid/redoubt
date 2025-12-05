@@ -6,8 +6,8 @@
 
 use crate::DecryptError;
 
-/// Authenticated Encryption with Associated Data (AEAD) trait.
-pub trait Aead {
+/// Authenticated Encryption with Associated Data (AEAD) backend trait.
+pub trait AeadBackend {
     type Key;
     type Nonce;
     type Tag;
