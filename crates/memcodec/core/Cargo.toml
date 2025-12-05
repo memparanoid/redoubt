@@ -30,4 +30,3 @@ features  = ["unsafe"]
 
 [dev-dependencies]
 memalloc = { workspace = true, features = ["test_utils"] }
-zeroize.workspace = true

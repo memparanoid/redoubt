@@ -5,7 +5,7 @@
 //! AES intrinsics tests.
 
 use memutil::hex_to_bytes;
-use zeroize::Zeroize;
+use memzer::FastZeroizable;
 
 use crate::aegis::intrinsics::Intrinsics;
 
@@ -30,7 +30,7 @@ fn test_aes_round() {
     assert_eq!(out[..], expected[..], "AESRound mismatch");
 
     // Zeroize all intrinsics before drop
-    block.zeroize();
-    round_key.zeroize();
-    result.zeroize();
+    block.fast_zeroize();
+    round_key.fast_zeroize();
+    result.fast_zeroize();
 }

@@ -8,8 +8,7 @@ use core::arch::aarch64::{
     uint8x16_t, vaeseq_u8, vaesmcq_u8, vandq_u8, vdupq_n_u8, veorq_u8, vld1q_u8, vst1q_u8,
 };
 
-use memzer::ZeroizationProbe;
-use zeroize::Zeroize;
+use memzer::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
 /// AES block using ARM Crypto intrinsics.
 ///
@@ -60,7 +59,7 @@ impl Intrinsics {
     #[inline(always)]
     pub fn move_to(&mut self, dest: &mut Self) {
         core::mem::swap(self, dest);
-        self.zeroize();
+        self.fast_zeroize();
     }
 
     /// XOR in-place: self = self ^ other
@@ -87,9 +86,13 @@ impl Intrinsics {
     }
 }
 
-impl Zeroize for Intrinsics {
+impl ZeroizeMetadata for Intrinsics {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+
+impl FastZeroizable for Intrinsics {
     #[inline]
-    fn zeroize(&mut self) {
+    fn fast_zeroize(&mut self) {
         // Overwrite register with zeros
         self.0 = unsafe { vdupq_n_u8(0) };
     }

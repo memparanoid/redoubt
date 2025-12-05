@@ -9,8 +9,7 @@ use core::arch::x86_64::{
     _mm_xor_si128,
 };
 
-use memzer::ZeroizationProbe;
-use zeroize::Zeroize;
+use memzer::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
 /// AES block using AES-NI intrinsics.
 ///
@@ -56,7 +55,7 @@ impl Intrinsics {
     #[inline(always)]
     pub fn move_to(&mut self, dest: &mut Self) {
         core::mem::swap(self, dest);
-        self.zeroize();
+        self.fast_zeroize();
     }
 
     /// XOR in-place: self = self ^ other
@@ -78,9 +77,13 @@ impl Intrinsics {
     }
 }
 
-impl Zeroize for Intrinsics {
+impl ZeroizeMetadata for Intrinsics {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+
+impl FastZeroizable for Intrinsics {
     #[inline]
-    fn zeroize(&mut self) {
+    fn fast_zeroize(&mut self) {
         // Overwrite register with zeros
         self.0 = unsafe { _mm_setzero_si128() };
     }

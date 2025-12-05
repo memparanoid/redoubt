@@ -5,8 +5,7 @@
 //! Tests for AES intrinsics using RFC test vectors.
 
 use memutil::hex_to_bytes;
-use memzer::ZeroizationProbe;
-use zeroize::Zeroize;
+use memzer::{FastZeroizable, ZeroizationProbe};
 
 use crate::aegis::intrinsics::Intrinsics;
 
@@ -51,9 +50,9 @@ fn test_aes_round_rfc_vector() {
     assert_eq!(&output, &expected, "AESRound output mismatch");
 
     // Zeroize before drop
-    block_in.zeroize();
-    block_rk.zeroize();
-    result.zeroize();
+    block_in.fast_zeroize();
+    block_rk.fast_zeroize();
+    result.fast_zeroize();
 }
 
 #[test]
@@ -76,9 +75,9 @@ fn test_xor() {
     assert_eq!(&output, &expected);
 
     // Zeroize before drop
-    block_a.zeroize();
-    block_b.zeroize();
-    result.zeroize();
+    block_a.fast_zeroize();
+    block_b.fast_zeroize();
+    result.fast_zeroize();
 }
 
 #[test]
@@ -101,9 +100,9 @@ fn test_and() {
     assert_eq!(&output, &expected);
 
     // Zeroize before drop
-    block_a.zeroize();
-    block_b.zeroize();
-    result.zeroize();
+    block_a.fast_zeroize();
+    block_b.fast_zeroize();
+    result.fast_zeroize();
 }
 
 #[test]
@@ -127,8 +126,8 @@ fn test_xor_in_place() {
     assert_eq!(&output, &expected);
 
     // Zeroize before drop
-    block_a.zeroize();
-    block_b.zeroize();
+    block_a.fast_zeroize();
+    block_b.fast_zeroize();
 }
 
 #[test]
@@ -152,8 +151,8 @@ fn test_and_in_place() {
     assert_eq!(&output, &expected);
 
     // Zeroize before drop
-    block_a.zeroize();
-    block_b.zeroize();
+    block_a.fast_zeroize();
+    block_b.fast_zeroize();
 }
 
 #[test]
@@ -177,8 +176,8 @@ fn test_aes_enc_in_place() {
     assert_eq!(&output, &expected);
 
     // Zeroize before drop
-    block.zeroize();
-    rk.zeroize();
+    block.fast_zeroize();
+    rk.fast_zeroize();
 }
 
 #[test]
@@ -204,7 +203,7 @@ fn test_move_to() {
     assert!(src.is_zeroized(), "Source should be zeroized after move_to");
 
     // Zeroize dst before drop
-    dst.zeroize();
+    dst.fast_zeroize();
 }
 
 #[test]
@@ -240,7 +239,7 @@ fn test_debug_fmt() {
     );
 
     // Zeroize before drop
-    intrinsic.zeroize();
+    intrinsic.fast_zeroize();
 }
 
 #[test]
@@ -267,7 +266,7 @@ fn test_drop_succeeds_when_zeroized() {
     let data = hex_to_bytes_16("000102030405060708090a0b0c0d0e0f");
     let mut intrinsic = Intrinsics::load(&data);
 
-    intrinsic.zeroize();
+    intrinsic.fast_zeroize();
 
     // Should drop cleanly without panic
     drop(intrinsic);

@@ -7,9 +7,8 @@
 //! Uses local variables with explicit zeroization of all intermediates.
 //! All Intrinsics are either zeroized explicitly or via move_to.
 
-use zeroize::Zeroize;
-
 use memutil::u64_to_le;
+use memzer::FastZeroizable;
 
 use crate::aegis::aegis128l::consts::BLOCK_SIZE;
 use crate::aegis::intrinsics::Intrinsics;
@@ -54,8 +53,8 @@ pub unsafe fn encrypt(
     let mut s7 = key_block.xor(&c0);
 
     // Clean up init temps
-    c0.zeroize();
-    c1.zeroize();
+    c0.fast_zeroize();
+    c1.fast_zeroize();
 
     // 10 init rounds with (nonce, key)
     for _ in 0..10 {
@@ -67,8 +66,8 @@ pub unsafe fn encrypt(
     }
 
     // Clean up key/nonce blocks
-    key_block.zeroize();
-    nonce_block.zeroize();
+    key_block.fast_zeroize();
+    nonce_block.fast_zeroize();
 
     // === Absorb AAD ===
     let mut aad_iter = aad.chunks_exact(BLOCK_SIZE);
@@ -80,8 +79,8 @@ pub unsafe fn encrypt(
             &mut s4, &mut s5, &mut s6, &mut s7,
             &m0, &m1,
         );
-        m0.zeroize();
-        m1.zeroize();
+        m0.fast_zeroize();
+        m1.fast_zeroize();
     }
 
     // Partial AAD block
@@ -96,9 +95,9 @@ pub unsafe fn encrypt(
             &mut s4, &mut s5, &mut s6, &mut s7,
             &m0, &m1,
         );
-        m0.zeroize();
-        m1.zeroize();
-        padded.zeroize();
+        m0.fast_zeroize();
+        m1.fast_zeroize();
+        padded.fast_zeroize();
     }
 
     // === Encrypt data ===
@@ -109,13 +108,13 @@ pub unsafe fn encrypt(
         let mut z0 = s1.xor(&s6);
         let mut t0 = s2.and(&s3);
         z0.xor_in_place(&t0);
-        t0.zeroize();
+        t0.fast_zeroize();
 
         // z1 = s2 ^ s5 ^ (s6 & s7)
         let mut z1 = s2.xor(&s5);
         let mut t1 = s6.and(&s7);
         z1.xor_in_place(&t1);
-        t1.zeroize();
+        t1.fast_zeroize();
 
         // Load plaintext
         let mut m0 = Intrinsics::load(block[..16].try_into().unwrap());
@@ -126,10 +125,10 @@ pub unsafe fn encrypt(
         let mut c1 = m1.xor(&z1);
         c0.store((&mut block[..16]).try_into().unwrap());
         c1.store((&mut block[16..]).try_into().unwrap());
-        c0.zeroize();
-        c1.zeroize();
-        z0.zeroize();
-        z1.zeroize();
+        c0.fast_zeroize();
+        c1.fast_zeroize();
+        z0.fast_zeroize();
+        z1.fast_zeroize();
 
         // Update state with plaintext
         update(
@@ -137,8 +136,8 @@ pub unsafe fn encrypt(
             &mut s4, &mut s5, &mut s6, &mut s7,
             &m0, &m1,
         );
-        m0.zeroize();
-        m1.zeroize();
+        m0.fast_zeroize();
+        m1.fast_zeroize();
     }
 
     // Partial data block
@@ -152,12 +151,12 @@ pub unsafe fn encrypt(
         let mut z0 = s1.xor(&s6);
         let mut t0 = s2.and(&s3);
         z0.xor_in_place(&t0);
-        t0.zeroize();
+        t0.fast_zeroize();
 
         let mut z1 = s2.xor(&s5);
         let mut t1 = s6.and(&s7);
         z1.xor_in_place(&t1);
-        t1.zeroize();
+        t1.fast_zeroize();
 
         // Load padded plaintext
         let mut m0 = Intrinsics::load(padded[..16].try_into().unwrap());
@@ -166,16 +165,16 @@ pub unsafe fn encrypt(
         // Encrypt
         let mut c0 = m0.xor(&z0);
         let mut c1 = m1.xor(&z1);
-        z0.zeroize();
-        z1.zeroize();
+        z0.fast_zeroize();
+        z1.fast_zeroize();
 
         // Store only the valid ciphertext bytes
         let mut ct_buf = [0u8; BLOCK_SIZE];
         c0.store((&mut ct_buf[..16]).try_into().unwrap());
         c1.store((&mut ct_buf[16..]).try_into().unwrap());
         data_remainder.copy_from_slice(&ct_buf[..len]);
-        c0.zeroize();
-        c1.zeroize();
+        c0.fast_zeroize();
+        c1.fast_zeroize();
 
         // Update state with padded plaintext
         update(
@@ -183,11 +182,11 @@ pub unsafe fn encrypt(
             &mut s4, &mut s5, &mut s6, &mut s7,
             &m0, &m1,
         );
-        m0.zeroize();
-        m1.zeroize();
+        m0.fast_zeroize();
+        m1.fast_zeroize();
 
-        padded.zeroize();
-        ct_buf.zeroize();
+        padded.fast_zeroize();
+        ct_buf.fast_zeroize();
     }
 
     // === Finalize ===
@@ -199,11 +198,11 @@ pub unsafe fn encrypt(
 
     let mut len_intrinsic = Intrinsics::load(&len_block);
     let mut t = s2.xor(&len_intrinsic);
-    len_intrinsic.zeroize();
+    len_intrinsic.fast_zeroize();
 
     let mut t_buf = [0u8; 16];
     t.store(&mut t_buf);
-    t.zeroize();
+    t.fast_zeroize();
 
     // 7 finalization rounds with (t, t)
     for _ in 0..7 {
@@ -213,7 +212,7 @@ pub unsafe fn encrypt(
             &mut s4, &mut s5, &mut s6, &mut s7,
             &t_block, &t_block,
         );
-        t_block.zeroize();
+        t_block.fast_zeroize();
     }
 
     // Compute tag = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5 ^ S6
@@ -224,19 +223,19 @@ pub unsafe fn encrypt(
     tag_block.xor_in_place(&s5);
     tag_block.xor_in_place(&s6);
     tag_block.store(tag);
-    tag_block.zeroize();
+    tag_block.fast_zeroize();
 
     // === Zeroize all state ===
-    s0.zeroize();
-    s1.zeroize();
-    s2.zeroize();
-    s3.zeroize();
-    s4.zeroize();
-    s5.zeroize();
-    s6.zeroize();
-    s7.zeroize();
-    len_block.zeroize();
-    t_buf.zeroize();
+    s0.fast_zeroize();
+    s1.fast_zeroize();
+    s2.fast_zeroize();
+    s3.fast_zeroize();
+    s4.fast_zeroize();
+    s5.fast_zeroize();
+    s6.fast_zeroize();
+    s7.fast_zeroize();
+    len_block.fast_zeroize();
+    t_buf.fast_zeroize();
 }
 
 /// AEGIS-128L decrypt.
@@ -267,8 +266,8 @@ pub unsafe fn decrypt(
     let mut s6 = key_block.xor(&c1);
     let mut s7 = key_block.xor(&c0);
 
-    c0.zeroize();
-    c1.zeroize();
+    c0.fast_zeroize();
+    c1.fast_zeroize();
 
     // 10 init rounds
     for _ in 0..10 {
@@ -279,8 +278,8 @@ pub unsafe fn decrypt(
         );
     }
 
-    key_block.zeroize();
-    nonce_block.zeroize();
+    key_block.fast_zeroize();
+    nonce_block.fast_zeroize();
 
     // === Absorb AAD ===
     let mut aad_iter = aad.chunks_exact(BLOCK_SIZE);
@@ -292,8 +291,8 @@ pub unsafe fn decrypt(
             &mut s4, &mut s5, &mut s6, &mut s7,
             &m0, &m1,
         );
-        m0.zeroize();
-        m1.zeroize();
+        m0.fast_zeroize();
+        m1.fast_zeroize();
     }
 
     let aad_remainder = aad_iter.remainder();
@@ -307,9 +306,9 @@ pub unsafe fn decrypt(
             &mut s4, &mut s5, &mut s6, &mut s7,
             &m0, &m1,
         );
-        m0.zeroize();
-        m1.zeroize();
-        padded.zeroize();
+        m0.fast_zeroize();
+        m1.fast_zeroize();
+        padded.fast_zeroize();
     }
 
     // === Decrypt data ===
@@ -320,12 +319,12 @@ pub unsafe fn decrypt(
         let mut z0 = s1.xor(&s6);
         let mut t0 = s2.and(&s3);
         z0.xor_in_place(&t0);
-        t0.zeroize();
+        t0.fast_zeroize();
 
         let mut z1 = s2.xor(&s5);
         let mut t1 = s6.and(&s7);
         z1.xor_in_place(&t1);
-        t1.zeroize();
+        t1.fast_zeroize();
 
         // Load ciphertext
         let mut ct0 = Intrinsics::load(block[..16].try_into().unwrap());
@@ -336,10 +335,10 @@ pub unsafe fn decrypt(
         let mut m1 = ct1.xor(&z1);
         m0.store((&mut block[..16]).try_into().unwrap());
         m1.store((&mut block[16..]).try_into().unwrap());
-        ct0.zeroize();
-        ct1.zeroize();
-        z0.zeroize();
-        z1.zeroize();
+        ct0.fast_zeroize();
+        ct1.fast_zeroize();
+        z0.fast_zeroize();
+        z1.fast_zeroize();
 
         // Update state with plaintext
         update(
@@ -347,8 +346,8 @@ pub unsafe fn decrypt(
             &mut s4, &mut s5, &mut s6, &mut s7,
             &m0, &m1,
         );
-        m0.zeroize();
-        m1.zeroize();
+        m0.fast_zeroize();
+        m1.fast_zeroize();
     }
 
     // Partial data block
@@ -362,12 +361,12 @@ pub unsafe fn decrypt(
         let mut z0 = s1.xor(&s6);
         let mut t0 = s2.and(&s3);
         z0.xor_in_place(&t0);
-        t0.zeroize();
+        t0.fast_zeroize();
 
         let mut z1 = s2.xor(&s5);
         let mut t1 = s6.and(&s7);
         z1.xor_in_place(&t1);
-        t1.zeroize();
+        t1.fast_zeroize();
 
         // Load padded ciphertext
         let mut ct0 = Intrinsics::load(padded[..16].try_into().unwrap());
@@ -376,10 +375,10 @@ pub unsafe fn decrypt(
         // Decrypt
         let mut pt0 = ct0.xor(&z0);
         let mut pt1 = ct1.xor(&z1);
-        ct0.zeroize();
-        ct1.zeroize();
-        z0.zeroize();
-        z1.zeroize();
+        ct0.fast_zeroize();
+        ct1.fast_zeroize();
+        z0.fast_zeroize();
+        z1.fast_zeroize();
 
         // Store plaintext to temp buffer
         let mut pt_buf = [0u8; BLOCK_SIZE];
@@ -393,19 +392,19 @@ pub unsafe fn decrypt(
         pt_buf[len..].fill(0);
         let mut m0 = Intrinsics::load(pt_buf[..16].try_into().unwrap());
         let mut m1 = Intrinsics::load(pt_buf[16..].try_into().unwrap());
-        pt0.zeroize();
-        pt1.zeroize();
+        pt0.fast_zeroize();
+        pt1.fast_zeroize();
 
         update(
             &mut s0, &mut s1, &mut s2, &mut s3,
             &mut s4, &mut s5, &mut s6, &mut s7,
             &m0, &m1,
         );
-        m0.zeroize();
-        m1.zeroize();
+        m0.fast_zeroize();
+        m1.fast_zeroize();
 
-        padded.zeroize();
-        pt_buf.zeroize();
+        padded.fast_zeroize();
+        pt_buf.fast_zeroize();
     }
 
     // === Finalize ===
@@ -417,11 +416,11 @@ pub unsafe fn decrypt(
 
     let mut len_intrinsic = Intrinsics::load(&len_block);
     let mut t = s2.xor(&len_intrinsic);
-    len_intrinsic.zeroize();
+    len_intrinsic.fast_zeroize();
 
     let mut t_buf = [0u8; 16];
     t.store(&mut t_buf);
-    t.zeroize();
+    t.fast_zeroize();
 
     // 7 finalization rounds
     for _ in 0..7 {
@@ -431,7 +430,7 @@ pub unsafe fn decrypt(
             &mut s4, &mut s5, &mut s6, &mut s7,
             &t_block, &t_block,
         );
-        t_block.zeroize();
+        t_block.fast_zeroize();
     }
 
     // Compute tag
@@ -444,27 +443,27 @@ pub unsafe fn decrypt(
 
     let mut computed_tag = [0u8; 16];
     tag_block.store(&mut computed_tag);
-    tag_block.zeroize();
+    tag_block.fast_zeroize();
 
     // Constant-time tag comparison
     let tag_ok = memutil::constant_time_eq(&computed_tag, expected_tag);
 
     // === Zeroize all state ===
-    s0.zeroize();
-    s1.zeroize();
-    s2.zeroize();
-    s3.zeroize();
-    s4.zeroize();
-    s5.zeroize();
-    s6.zeroize();
-    s7.zeroize();
-    len_block.zeroize();
-    t_buf.zeroize();
-    computed_tag.zeroize();
+    s0.fast_zeroize();
+    s1.fast_zeroize();
+    s2.fast_zeroize();
+    s3.fast_zeroize();
+    s4.fast_zeroize();
+    s5.fast_zeroize();
+    s6.fast_zeroize();
+    s7.fast_zeroize();
+    len_block.fast_zeroize();
+    t_buf.fast_zeroize();
+    computed_tag.fast_zeroize();
 
     // Zeroize data on tag mismatch
     if !tag_ok {
-        data.zeroize();
+        data.fast_zeroize();
     }
 
     tag_ok
@@ -502,8 +501,8 @@ fn update(
     let mut ns7 = s6.aes_enc(s7);
 
     // Zeroize XOR temps
-    t0.zeroize();
-    t4.zeroize();
+    t0.fast_zeroize();
+    t4.fast_zeroize();
 
     // Move new state to old state (zeroizes ns* via move_to)
     ns0.move_to(s0);
