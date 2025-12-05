@@ -208,43 +208,6 @@ fn snapshot_named_struct_with_memzer_skip_on_immut_ref() {
 }
 
 #[test]
-fn snapshot_named_struct_with_other_list_attr() {
-    // Test that other attributes like #[serde(default)] don't interfere
-    let derive_input = parse_quote! {
-        #[derive(MemZer)]
-        struct Omicron {
-            pub alpha: Vec<u8>,
-            #[serde(default)]
-            pub beta: [u8; 32],
-            __drop_sentinel: DropSentinel,
-        }
-    };
-
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
-}
-
-#[test]
-fn snapshot_named_struct_with_path_and_namevalue_attrs() {
-    // Test that Meta::Path and Meta::NameValue attributes don't interfere
-    // This covers the `_ => false` branch in has_memzer_skip
-    let derive_input = parse_quote! {
-        #[derive(MemZer)]
-        struct Omega {
-            pub alpha: Vec<u8>,
-            #[allow(dead_code)]
-            pub beta: [u8; 32],
-            #[doc = "Some documentation"]
-            pub gamma: u64,
-            __drop_sentinel: DropSentinel,
-        }
-    };
-
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
-}
-
-#[test]
 fn snapshot_immut_ref_without_skip_fails() {
     // Test that immutable reference without #[memzer(skip)] produces a helpful error
     let derive_input = parse_quote! {
@@ -347,34 +310,20 @@ fn snapshot_named_struct_with_generics_and_memzer_drop() {
 }
 
 #[test]
-fn snapshot_named_struct_with_struct_level_path_attrs() {
-    // Test that Meta::Path and Meta::NameValue at struct level don't interfere
-    // This covers the `_ => false` branch in has_memzer_drop
-    let derive_input = parse_quote! {
-        #[derive(MemZer)]
-        #[repr(C)]
-        #[doc = "A test struct"]
-        struct Psi {
-            pub alpha: Vec<u8>,
-            pub beta: u64,
-            __drop_sentinel: DropSentinel,
-        }
-    };
-
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
-}
-
-#[test]
 fn snapshot_named_struct_with_multiple_memzer_attrs() {
-    // Test struct with multiple different #[memzer(...)] attributes
-    // This covers multiple branches in a single test:
+    // Comprehensive test with multiple attribute types:
     // - #[memzer(drop)] on struct
+    // - Meta::Path (#[repr(C)]) and Meta::NameValue (#[doc = "..."]) at struct level
     // - #[memzer(skip)] on a field
     // - #[memzer(other)] on a field (False branch of contains("skip"))
+    // - Meta::Path (#[allow(dead_code)]) on a field
+    // - Meta::NameValue (#[doc = "..."]) on a field
+    // - Meta::List non-memzer (#[arbitrary(config)]) on a field
     // - Normal field without attributes
     let derive_input = parse_quote! {
         #[derive(MemZer)]
+        #[repr(C)]
+        #[doc = "Comprehensive test struct"]
         #[memzer(drop)]
         struct Chi<'a> {
             pub alpha: Vec<u8>,
@@ -382,7 +331,11 @@ fn snapshot_named_struct_with_multiple_memzer_attrs() {
             pub beta: &'a str,
             #[memzer(custom_attr)]
             pub gamma: [u8; 32],
+            #[allow(dead_code)]
             pub delta: u64,
+            #[arbitrary(config)]
+            #[doc = "Field documentation"]
+            pub epsilon: u32,
             __drop_sentinel: DropSentinel,
         }
     };
@@ -393,14 +346,18 @@ fn snapshot_named_struct_with_multiple_memzer_attrs() {
 
 #[test]
 fn snapshot_tuple_struct_with_multiple_memzer_attrs() {
-    // Test tuple struct with multiple different #[memzer(...)] attributes
-    // This covers multiple branches in a single test:
+    // Comprehensive test with multiple attribute types:
     // - #[memzer(drop)] on struct
+    // - Meta::Path (#[repr(C)]) and Meta::NameValue (#[doc = "..."]) at struct level
     // - #[memzer(skip)] on a field
     // - #[memzer(other)] on a field (False branch of contains("skip"))
+    // - Meta::Path (#[allow(dead_code)]) on a field
+    // - Meta::NameValue (#[doc = "..."]) on a field
     // - Normal field without attributes
     let derive_input = parse_quote! {
         #[derive(MemZer)]
+        #[repr(C)]
+        #[doc = "Comprehensive tuple test struct"]
         #[memzer(drop)]
         struct Psi<'a>(
             Vec<u8>,
@@ -408,6 +365,8 @@ fn snapshot_tuple_struct_with_multiple_memzer_attrs() {
             &'a str,
             #[memzer(custom_attr)]
             [u8; 32],
+            #[allow(dead_code)]
+            #[doc = "Tuple field doc"]
             u64,
             DropSentinel,
         );

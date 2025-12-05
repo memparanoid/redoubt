@@ -11,10 +11,11 @@ impl<'a> memzer_core::ZeroizeMetadata for Chi<'a> {
 }
 impl<'a> memzer_core::FastZeroizable for Chi<'a> {
     fn fast_zeroize(&mut self) {
-        let fields: [&mut dyn memzer_core::FastZeroizable; 4] = [
+        let fields: [&mut dyn memzer_core::FastZeroizable; 5] = [
             memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.alpha),
             memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.gamma),
             memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.delta),
+            memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.epsilon),
             memzer_core::collections::to_fast_zeroizable_dyn_mut(
                 &mut self.__drop_sentinel,
             ),
@@ -24,10 +25,11 @@ impl<'a> memzer_core::FastZeroizable for Chi<'a> {
 }
 impl<'a> memzer_core::ZeroizationProbe for Chi<'a> {
     fn is_zeroized(&self) -> bool {
-        let fields: [&dyn memzer_core::ZeroizationProbe; 3] = [
+        let fields: [&dyn memzer_core::ZeroizationProbe; 4] = [
             memzer_core::collections::to_zeroization_probe_dyn_ref(&self.alpha),
             memzer_core::collections::to_zeroization_probe_dyn_ref(&self.gamma),
             memzer_core::collections::to_zeroization_probe_dyn_ref(&self.delta),
+            memzer_core::collections::to_zeroization_probe_dyn_ref(&self.epsilon),
         ];
         memzer_core::collections::collection_zeroed(&mut fields.into_iter())
     }
