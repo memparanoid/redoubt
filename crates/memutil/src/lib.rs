@@ -141,8 +141,7 @@ pub fn is_slice_zeroized(slice: &[u8]) -> bool {
 /// # Example
 ///
 /// ```
-/// use memutil::is_vec_fully_zeroized;
-/// use zeroize::Zeroize;
+/// use memutil::{fast_zeroize_vec, is_vec_fully_zeroized};
 ///
 /// let mut vec = vec![1u8, 2, 3, 4, 5];
 /// vec.truncate(2); // len = 2, capacity = 5
@@ -155,8 +154,8 @@ pub fn is_slice_zeroized(slice: &[u8]) -> bool {
 /// // Spare capacity [2..5] still contains old data
 /// assert!(!is_vec_fully_zeroized(&vec));
 ///
-/// // Zeroize clears BOTH active elements AND spare capacity
-/// vec.zeroize();
+/// // fast_zeroize_vec clears BOTH active elements AND spare capacity
+/// fast_zeroize_vec(&mut vec);
 /// assert!(is_vec_fully_zeroized(&vec));
 /// ```
 #[inline(never)]

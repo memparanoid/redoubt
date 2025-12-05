@@ -4,8 +4,7 @@
 
 #[cfg(test)]
 mod is_vec_fully_zeroized_tests {
-    use memutil::is_vec_fully_zeroized;
-    use zeroize::Zeroize;
+    use memutil::{fast_zeroize_vec, is_vec_fully_zeroized};
 
     #[test]
     fn test_is_vec_fully_zeroized_empty() {
@@ -30,7 +29,7 @@ mod is_vec_fully_zeroized_tests {
         let mut vec = vec![1u8, 2, 3, 4, 5];
         assert!(!is_vec_fully_zeroized(&vec));
 
-        vec.zeroize();
+        fast_zeroize_vec(&mut vec);
         assert!(is_vec_fully_zeroized(&vec));
     }
 
@@ -47,8 +46,8 @@ mod is_vec_fully_zeroized_tests {
         // Spare capacity still contains old data
         assert!(!is_vec_fully_zeroized(&vec));
 
-        // Zeroize clears BOTH active elements AND spare capacity
-        vec.zeroize();
+        // fast_zeroize_vec clears BOTH active elements AND spare capacity
+        fast_zeroize_vec(&mut vec);
         assert!(is_vec_fully_zeroized(&vec));
     }
 
@@ -60,7 +59,7 @@ mod is_vec_fully_zeroized_tests {
         // Reserve doesn't clear the existing data
         assert!(!is_vec_fully_zeroized(&vec));
 
-        vec.zeroize();
+        fast_zeroize_vec(&mut vec);
         assert!(is_vec_fully_zeroized(&vec));
     }
 }

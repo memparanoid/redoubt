@@ -15,4 +15,3 @@ path = "src/lib.rs"
 [dependencies]
 
 [dev-dependencies]
-zeroize.workspace = true
