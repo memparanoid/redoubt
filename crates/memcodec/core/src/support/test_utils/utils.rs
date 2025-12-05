@@ -6,6 +6,8 @@
 ///
 /// Used in tests to simulate corrupted or invalid encoded data.
 #[cfg(any(test, feature = "test_utils"))]
-pub fn tamper_encoded_bytes_for_tests(_bytes: &mut Vec<u8>) {
-    // no-op
+pub fn tamper_encoded_bytes_for_tests(bytes: &mut [u8]) {
+    for byte in bytes.iter_mut() {
+        *byte ^= 0xFF;
+    }
 }
