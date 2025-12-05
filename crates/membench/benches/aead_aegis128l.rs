@@ -12,7 +12,6 @@ use criterion::{
 
 use aegis::aegis128l::Aegis128L;
 
-use memaead::Aegis128L as MemAegis128L;
 use memaead::Aead as MemAead;
 
 const KEY_16: [u8; 16] = [0x42; 16];
@@ -38,18 +37,25 @@ fn bench_encrypt_2mb(c: &mut Criterion) {
         );
     });
 
-    group.bench_with_input(BenchmarkId::new("memaead_aegis128l", size), &plaintext, |b, pt| {
-        let mut aead = MemAegis128L::default();
-        b.iter_batched(
-            || pt.clone(),
-            |mut buf| {
-                let mut tag = [0u8; 16];
-                aead.encrypt(&KEY_16, &NONCE_16, &[], &mut buf, &mut tag);
-                black_box((buf, tag))
-            },
-            BatchSize::LargeInput,
-        );
-    });
+    group.bench_with_input(
+        BenchmarkId::new("memaead", size),
+        &plaintext,
+        |b, pt| {
+            let mut aead = MemAead::new();
+            let key = &KEY_16[..aead.key_size()];
+            let nonce = &NONCE_16[..aead.nonce_size()];
+            let tag_size = aead.tag_size();
+            b.iter_batched(
+                || pt.clone(),
+                |mut buf| {
+                    let mut tag = vec![0u8; tag_size];
+                    aead.encrypt(key, nonce, &[], &mut buf, &mut tag);
+                    black_box((buf, tag))
+                },
+                BatchSize::LargeInput,
+            );
+        },
+    );
 
     group.finish();
 }
@@ -83,22 +89,28 @@ fn bench_decrypt_2mb(c: &mut Criterion) {
         },
     );
 
-    // Pre-encrypt with memaead AEGIS-128L
+    // Pre-encrypt with memaead
+    let mut memaead_aead_setup = MemAead::new();
+    let key = &KEY_16[..memaead_aead_setup.key_size()];
+    let nonce = &NONCE_16[..memaead_aead_setup.nonce_size()];
+    let tag_size = memaead_aead_setup.tag_size();
+
     let mut memaead_plaintext = vec![0xAB; size];
-    let mut memaead_aead = MemAegis128L::default();
-    let mut memaead_tag = [0u8; 16];
-    memaead_aead.encrypt(&KEY_16, &NONCE_16, &[], &mut memaead_plaintext, &mut memaead_tag);
+    let mut memaead_tag = vec![0u8; tag_size];
+    memaead_aead_setup.encrypt(key, nonce, &[], &mut memaead_plaintext, &mut memaead_tag);
     let memaead_ciphertext = memaead_plaintext;
 
     group.bench_with_input(
-        BenchmarkId::new("memaead_aegis128l", size),
-        &(memaead_ciphertext.clone(), memaead_tag),
-        |b, (ct, tag): &(Vec<u8>, [u8; 16])| {
-            let mut aead = MemAegis128L::default();
+        BenchmarkId::new("memaead", size),
+        &(memaead_ciphertext.clone(), memaead_tag.clone()),
+        |b, (ct, tag)| {
+            let mut aead = MemAead::new();
+            let key = &KEY_16[..aead.key_size()];
+            let nonce = &NONCE_16[..aead.nonce_size()];
             b.iter_batched(
                 || ct.clone(),
                 |mut buf| {
-                    aead.decrypt(&KEY_16, &NONCE_16, &[], &mut buf, tag).unwrap();
+                    aead.decrypt(key, nonce, &[], &mut buf, tag).unwrap();
                     black_box(buf)
                 },
                 BatchSize::LargeInput,

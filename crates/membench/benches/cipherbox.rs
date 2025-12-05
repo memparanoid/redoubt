@@ -13,7 +13,6 @@ use zeroize::Zeroize;
 use memcodec::{BytesRequired, Codec, CodecBuffer, Decode, Encode};
 
 use memaead::Aead;
-use memaead::Aegis128L;
 
 const KEY_16: [u8; 16] = [0x42; 16];
 const NONCE_16: [u8; 16] = [0x24; 16];
@@ -50,24 +49,26 @@ fn bench_cipherbox(c: &mut Criterion) {
     let total_bytes = Data2MB::total_bytes();
     group.throughput(Throughput::Bytes(total_bytes as u64));
 
-    // === memcodec + aegis128l ===
+    // === memcodec + aead ===
     {
         let mut data = Data2MB::new();
         let size = BytesRequired::mem_bytes_required(&data).unwrap();
         let mut encode_buf = CodecBuffer::new(size);
         data.encode_into(&mut encode_buf).unwrap();
 
-        let mut ct = encode_buf.as_slice().to_vec();
-        let mut tag = [0u8; 16];
-        let mut aegis = Aegis128L::default();
-        aegis.encrypt(&KEY_16, &NONCE_16, AAD, &mut ct, &mut tag);
+        let mut aead = Aead::new();
+        let key = &KEY_16[..aead.key_size()];
+        let nonce = &NONCE_16[..aead.nonce_size()];
+        let tag_size = aead.tag_size();
 
-        group.bench_function("memcodec_aegis128l", |b| {
+        let mut ct = encode_buf.as_slice().to_vec();
+        let mut tag = vec![0u8; tag_size];
+        aead.encrypt(key, nonce, AAD, &mut ct, &mut tag);
+
+        group.bench_function("memcodec_aead", |b| {
             b.iter(|| {
                 // Decrypt
-                aegis
-                    .decrypt(&KEY_16, &NONCE_16, AAD, &mut ct, &tag)
-                    .unwrap();
+                aead.decrypt(key, nonce, AAD, &mut ct, &tag).unwrap();
 
                 // Deserialize
                 let mut decoded = Data2MB::empty();
@@ -81,7 +82,7 @@ fn bench_cipherbox(c: &mut Criterion) {
                 ct.extend_from_slice(encode_buf.as_slice());
 
                 // Encrypt
-                aegis.encrypt(&KEY_16, &NONCE_16, AAD, &mut ct, &mut tag);
+                aead.encrypt(key, nonce, AAD, &mut ct, &mut tag);
 
                 black_box(ct.len())
             });

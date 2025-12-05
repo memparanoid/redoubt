@@ -22,7 +22,6 @@ use aegis::aegis128x4::Aegis128X4;
 use aegis::aegis256::Aegis256;
 
 // Ours
-use memaead::xchacha20poly1305::{XChacha20Poly1305, TAG_SIZE};
 use memaead::Aead as MemAead;
 
 const KEY: [u8; 32] = [0x42; 32];
@@ -52,12 +51,15 @@ fn bench_encrypt(c: &mut Criterion) {
 
         // Ours (iter_batched separates clone from measured code)
         group.bench_with_input(BenchmarkId::new("memaead", size), &plaintext, |b, pt| {
-            let mut cipher = XChacha20Poly1305::default();
+            let mut aead = MemAead::new();
+            let key = &KEY[..aead.key_size()];
+            let nonce = &NONCE[..aead.nonce_size()];
+            let tag_size = aead.tag_size();
             b.iter_batched(
                 || pt.clone(),
                 |mut buf| {
-                    let mut tag = [0u8; TAG_SIZE];
-                    cipher.encrypt(&KEY, &NONCE, AAD, &mut buf, &mut tag);
+                    let mut tag = vec![0u8; tag_size];
+                    aead.encrypt(key, nonce, AAD, &mut buf, &mut tag);
                     black_box((buf, tag))
                 },
                 BatchSize::SmallInput,
@@ -113,9 +115,14 @@ fn bench_decrypt(c: &mut Criterion) {
 
     for size in [64, 256, 1024, 4096, 16384, 65536] {
         // Pre-encrypt with our implementation
+        let mut aead_setup = MemAead::new();
+        let key = &KEY[..aead_setup.key_size()];
+        let nonce = &NONCE[..aead_setup.nonce_size()];
+        let tag_size = aead_setup.tag_size();
+
         let mut plaintext = vec![0xAB; size];
-        let mut our_tag = [0u8; TAG_SIZE];
-        XChacha20Poly1305::default().encrypt(&KEY, &NONCE, AAD, &mut plaintext, &mut our_tag);
+        let mut our_tag = vec![0u8; tag_size];
+        aead_setup.encrypt(key, nonce, AAD, &mut plaintext, &mut our_tag);
         let our_ciphertext = plaintext; // now contains ciphertext
 
         // RustCrypto needs ciphertext || tag format
@@ -141,13 +148,15 @@ fn bench_decrypt(c: &mut Criterion) {
         // Ours (iter_batched separates clone from measured code)
         group.bench_with_input(
             BenchmarkId::new("memaead", size),
-            &(our_ciphertext.clone(), our_tag),
+            &(our_ciphertext.clone(), our_tag.clone()),
             |b, (ct, tag)| {
-                let mut cipher = XChacha20Poly1305::default();
+                let mut aead = MemAead::new();
+                let key = &KEY[..aead.key_size()];
+                let nonce = &NONCE[..aead.nonce_size()];
                 b.iter_batched(
                     || ct.clone(),
                     |mut buf| {
-                        cipher.decrypt(&KEY, &NONCE, AAD, &mut buf, tag).unwrap();
+                        aead.decrypt(key, nonce, AAD, &mut buf, tag).unwrap();
                         black_box(buf)
                     },
                     BatchSize::SmallInput,
