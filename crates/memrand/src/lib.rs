@@ -12,17 +12,17 @@
 //! ## Core Types
 //!
 //! - [`SystemEntropySource`]: OS-level CSPRNG (via `getrandom`)
-//! - [`XNonceSessionGenerator`]: Session-based 192-bit nonce generator
+//! - [`NonceSessionGenerator`]: Session-based nonce generator with configurable size
 //!
 //! ## Traits
 //!
 //! - [`EntropySource`]: Interface for CSPRNGs
-//! - [`XNonceGenerator`]: Interface for XChaCha20 nonce generation
+//! - [`NonceGenerator`]: Interface for nonce generation
 //!
 //! ## Example
 //!
 //! ```rust
-//! use memrand::{SystemEntropySource, XNonceSessionGenerator, XNonceGenerator, EntropySource};
+//! use memrand::{SystemEntropySource, NonceSessionGenerator, NonceGenerator, EntropySource};
 //!
 //! // Create entropy source
 //! let entropy = SystemEntropySource {};
@@ -32,9 +32,8 @@
 //! entropy.fill_bytes(&mut key).expect("Failed to generate entropy");
 //!
 //! // Create nonce generator
-//! let mut nonce_gen = XNonceSessionGenerator::new(&entropy);
-//! let mut nonce = [0u8; 24];
-//! nonce_gen.fill_current_xnonce(&mut nonce).expect("Failed to generate nonce");
+//! let mut nonce_gen = NonceSessionGenerator::<24>::new(&entropy);
+//! let nonce = nonce_gen.generate_nonce().expect("Failed to generate nonce");
 //! ```
 //!
 //! ## Integration with Memora
@@ -64,9 +63,9 @@ mod system;
 mod traits;
 
 pub use error::EntropyError;
-pub use session::XNonceSessionGenerator;
+pub use session::NonceSessionGenerator;
 pub use system::SystemEntropySource;
-pub use traits::{EntropySource, XNonceGenerator};
+pub use traits::{EntropySource, NonceGenerator};
 
 #[cfg(any(test, feature = "test_utils"))]
 pub use support::test_utils;

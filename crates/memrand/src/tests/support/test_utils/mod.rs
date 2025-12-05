@@ -3,4 +3,4 @@
 // See LICENSE in the repository root for full license text.
 
 mod mock_entropy_source;
-mod mock_x_nonce_session_generator;
+mod mock_nonce_session_generator;

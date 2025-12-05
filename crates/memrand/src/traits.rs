@@ -23,7 +23,7 @@ pub trait EntropySource {
 /// Implementations generate unique nonces suitable for AEAD encryption with
 /// XChaCha20-Poly1305. Each nonce must be unique per encryption operation with
 /// the same key to maintain security guarantees.
-pub trait XNonceGenerator {
+pub trait NonceGenerator<const N: usize> {
     /// Fills the buffer with a unique 192-bit (24-byte) nonce.
     ///
     /// # Expected buffer size
@@ -35,5 +35,5 @@ pub trait XNonceGenerator {
     ///
     /// Returns [`EntropyError::EntropyNotAvailable`] if the underlying entropy
     /// source fails to provide random data.
-    fn fill_current_xnonce(&mut self, current_xnonce: &mut [u8]) -> Result<(), EntropyError>;
+    fn generate_nonce(&mut self) -> Result<[u8; N], EntropyError>;
 }

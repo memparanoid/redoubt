@@ -2,102 +2,101 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use core::mem::size_of;
+
 use crate::error::EntropyError;
-use crate::session::XNonceSessionGenerator;
+use crate::session::{COUNTER, NonceSessionGenerator};
 use crate::support::test_utils::{MockEntropySource, MockEntropySourceBehaviour};
 use crate::system::SystemEntropySource;
-use crate::traits::XNonceGenerator;
+use crate::traits::NonceGenerator;
 
 #[test]
-fn test_xnonce_session_generator_counter_increments() {
+fn test_nonce_session_generator_counter_increments() {
     let entropy = SystemEntropySource {};
-    let mut session = XNonceSessionGenerator::new(&entropy);
-    let mut xnonce = [0u8; 24];
+    let mut session = NonceSessionGenerator::<16>::new(&entropy);
 
     // Counter at: 0
     {
-        session
-            .fill_current_xnonce(&mut xnonce)
-            .expect("Failed to fill_current_xnonce() (#0)");
-        // Counter part (last 8 bytes) should increment
-        let counter = u64::from_le_bytes(xnonce[16..24].try_into().unwrap());
+        let nonce = session
+            .generate_nonce()
+            .expect("Failed to generate_nonce() (#0)");
+        // Counter part (first bytes) should increment
+        let counter = COUNTER::from_le_bytes(nonce[0..size_of::<COUNTER>()].try_into().unwrap());
 
         assert_eq!(counter, 0);
     }
 
     // Counter at: 1
     {
-        session
-            .fill_current_xnonce(&mut xnonce)
-            .expect("Failed to fill_current_xnonce() (#0)");
-        // Counter part (last 8 bytes) should increment
-        let counter = u64::from_le_bytes(xnonce[16..24].try_into().unwrap());
+        let nonce = session
+            .generate_nonce()
+            .expect("Failed to generate_nonce() (#1)");
+        // Counter part (first bytes) should increment
+        let counter = COUNTER::from_le_bytes(nonce[0..size_of::<COUNTER>()].try_into().unwrap());
 
         assert_eq!(counter, 1);
     }
 
     // Counter at: 2
     {
-        session
-            .fill_current_xnonce(&mut xnonce)
-            .expect("Failed to fill_current_xnonce() (#0)");
-        // Counter part (last 8 bytes) should increment
-        let counter = u64::from_le_bytes(xnonce[16..24].try_into().unwrap());
+        let nonce = session
+            .generate_nonce()
+            .expect("Failed to generate_nonce() (#2)");
+        // Counter part (first bytes) should increment
+        let counter = COUNTER::from_le_bytes(nonce[0..size_of::<COUNTER>()].try_into().unwrap());
 
         assert_eq!(counter, 2);
     }
 }
 
 #[test]
-fn test_xnonce_session_generator_counter_wraps() {
+fn test_nonce_session_generator_counter_wraps() {
     let entropy = SystemEntropySource {};
-    let mut session = XNonceSessionGenerator::new(&entropy);
-    let mut xnonce = [0u8; 24];
+    let mut session = NonceSessionGenerator::<16>::new(&entropy);
 
-    // Set counter to u64::MAX - 1
-    session.set_counter_for_test(u64::MAX - 1);
+    // Set counter to COUNTER::MAX - 1
+    session.set_counter_for_test(COUNTER::MAX - 1);
 
-    // Counter at: u64::MAX - 1
+    // Counter at: COUNTER::MAX - 1
     {
-        session
-            .fill_current_xnonce(&mut xnonce)
-            .expect("Failed to fill_current_xnonce() (#0)");
-        // Counter part (last 8 bytes) should increment
-        let counter = u64::from_le_bytes(xnonce[16..24].try_into().unwrap());
+        let nonce = session
+            .generate_nonce()
+            .expect("Failed to generate_nonce() (#0)");
+        // Counter part (first bytes) should increment
+        let counter = COUNTER::from_le_bytes(nonce[0..size_of::<COUNTER>()].try_into().unwrap());
 
-        assert_eq!(counter, u64::MAX - 1);
+        assert_eq!(counter, COUNTER::MAX - 1);
     }
 
-    // Counter at: counter = u64::MAX
+    // Counter at: COUNTER::MAX
     {
-        session
-            .fill_current_xnonce(&mut xnonce)
-            .expect("Failed to fill_current_xnonce() (#0)");
-        // Counter part (last 8 bytes) should increment
-        let counter = u64::from_le_bytes(xnonce[16..24].try_into().unwrap());
+        let nonce = session
+            .generate_nonce()
+            .expect("Failed to generate_nonce() (#1)");
+        // Counter part (first bytes) should increment
+        let counter = COUNTER::from_le_bytes(nonce[0..size_of::<COUNTER>()].try_into().unwrap());
 
-        assert_eq!(counter, u64::MAX);
+        assert_eq!(counter, COUNTER::MAX);
     }
 
     // Counter at: 0 (wrapped)
     {
-        session
-            .fill_current_xnonce(&mut xnonce)
-            .expect("Failed to fill_current_xnonce() (#0)");
-        // Counter part (last 8 bytes) should increment
-        let counter = u64::from_le_bytes(xnonce[16..24].try_into().unwrap());
+        let nonce = session
+            .generate_nonce()
+            .expect("Failed to generate_nonce() (#2)");
+        // Counter part (first bytes) should increment
+        let counter = COUNTER::from_le_bytes(nonce[0..size_of::<COUNTER>()].try_into().unwrap());
 
         assert_eq!(counter, 0);
     }
 }
 
 #[test]
-fn test_xnonce_session_generator_propagates_entropy_error() {
+fn test_nonce_session_generator_propagates_entropy_error() {
     let mock_entropy = MockEntropySource::new(MockEntropySourceBehaviour::FailAtFillBytes);
-    let mut session = XNonceSessionGenerator::new(&mock_entropy);
-    let mut xnonce = [0u8; 24];
+    let mut session = NonceSessionGenerator::<16>::new(&mock_entropy);
 
-    let result = session.fill_current_xnonce(&mut xnonce);
+    let result = session.generate_nonce();
 
     assert!(result.is_err());
     assert!(matches!(result, Err(EntropyError::EntropyNotAvailable)));

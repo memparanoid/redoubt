@@ -7,9 +7,9 @@
 //! Provides mock implementations with configurable behavior for testing.
 
 mod mock_entropy_source;
-mod mock_x_nonce_session_generator;
+mod mock_nonce_session_generator;
 
 pub use mock_entropy_source::{MockEntropySource, MockEntropySourceBehaviour};
-pub use mock_x_nonce_session_generator::{
-    MockXNonceGeneratorBehaviour, MockXNonceSessionGenerator,
+pub use mock_nonce_session_generator::{
+    MockNonceSessionGenerator, MockNonceSessionGeneratorBehaviour,
 };
