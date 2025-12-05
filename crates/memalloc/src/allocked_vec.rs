@@ -107,7 +107,7 @@ impl FastZeroizable for AllockedVecBehaviour {
 ///
 /// # Type Parameters
 ///
-/// - `T`: The element type. Must implement `Zeroize` for automatic cleanup.
+/// - `T`: The element type. Must implement `FastZeroizable`, `ZeroizeMetadata`, and `ZeroizationProbe` for automatic cleanup.
 ///
 /// # Example
 ///
@@ -670,7 +670,7 @@ where
     ///
     /// ```rust
     /// use memalloc::AllockedVec;
-    /// use zeroize::Zeroize;
+    /// use memzer::FastZeroizable;
     ///
     /// let mut vec = AllockedVec::with_capacity(5);
     /// vec.push(1u8).unwrap();
@@ -678,11 +678,8 @@ where
     /// assert_eq!(vec.len(), 2);
     ///
     /// let old_len = vec.len();
-    /// vec.zeroize();  // Sets len to 0
-    /// assert_eq!(vec.len(), 0);
+    /// vec.fast_zeroize();
     ///
-    /// // SAFETY: old_len <= capacity and elements were zeroized in place
-    /// unsafe { vec.set_len(old_len) };
     /// assert_eq!(vec.len(), 2);
     /// assert_eq!(vec.as_slice(), &[0, 0]);  // Data was zeroized
     /// ```
