@@ -48,7 +48,6 @@ resolver = "2"
 
   # External dependencies
   cpufeatures      = "0.2.17"
-  poly1305         = "0.8.0"
   smallvec         = "1.15.1"
   getrandom        = "0.3"
   libc             = "0.2.177"
@@ -62,7 +61,6 @@ resolver = "2"
   subtle           = "2.6"
   syn              = "2.0.108"
   thiserror        = "2.0.16"
-  zeroize          = { version = "1.8.1", features = ["zeroize_derive"] }
 
   # Dev dependencies
   criterion    = "0.5"
