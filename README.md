@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-![Redoubt](/logo.png)
+<p align="center">
+    <img src="/logo.png" alt="Redoubt">
+</p>
 
 > A systematic framework for secure memory handling in Rust.
 
