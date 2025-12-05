@@ -61,27 +61,6 @@ fn test_slice() {
     assert!(memutil::is_slice_zeroized(slice));
 }
 
-// === === === === === === === === === ===
-// [T; N] - arrays
-// === === === === === === === === === ===
-
-#[test]
-fn test_array() {
-    let mut array = [u8::MAX; SIZE];
-
-    assert!(!array.is_zeroized());
-
-    for i in 0..SIZE - 1 {
-        array[i].fast_zeroize();
-        assert!(!array.is_zeroized());
-    }
-
-    array.fast_zeroize();
-
-    assert!(array.is_zeroized());
-    assert!(memutil::is_slice_zeroized(&array));
-}
-
 #[test]
 fn test_slice_fast_zeroize_fast_true() {
     // NOTE: fast=true forces memset of entire array, regardless of T::CAN_BE_BULK_ZEROIZED.
@@ -117,6 +96,27 @@ fn test_slice_fast_zeroize_fast_false() {
 
     // Assert zeroization!
     assert!(arr.is_zeroized());
+}
+
+// === === === === === === === === === ===
+// [T; N] - arrays
+// === === === === === === === === === ===
+
+#[test]
+fn test_array() {
+    let mut array = [u8::MAX; SIZE];
+
+    assert!(!array.is_zeroized());
+
+    for i in 0..SIZE - 1 {
+        array[i].fast_zeroize();
+        assert!(!array.is_zeroized());
+    }
+
+    array.fast_zeroize();
+
+    assert!(array.is_zeroized());
+    assert!(memutil::is_slice_zeroized(&array));
 }
 
 // === === === === === === === === === ===
@@ -178,6 +178,31 @@ fn test_vec_fast_zeroize_fast_false() {
     vec_fast_zeroize(&mut vec, false);
 
     // Assert zeroization!
+    assert!(vec.is_zeroized());
+}
+
+#[test]
+fn test_vec_spare_capacity_recursive_zeroize() {
+    // Test that Vec<Vec<ComplexType>> properly zeroizes:
+    // - Inner Vec elements (ComplexType values)
+    // - Outer Vec elements (inner Vec structures)
+    // - Spare capacity at both levels
+    let mut vec = vec![
+        vec![ComplexType::new(100)],
+        vec![ComplexType::new(200), ComplexType::new(300)],
+        vec![
+            ComplexType::new(400),
+            ComplexType::new(500),
+            ComplexType::new(600),
+        ],
+    ];
+
+    // Not zeroized initially
+    assert!(!vec.is_zeroized());
+
+    vec.fast_zeroize();
+
+    // After fast_zeroize, all elements and spare capacity should be zeroed
     assert!(vec.is_zeroized());
 }
 
