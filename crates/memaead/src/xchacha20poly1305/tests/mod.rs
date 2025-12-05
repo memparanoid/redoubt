@@ -4,7 +4,7 @@
 
 mod wycheproof_vectors;
 
+mod aead;
 mod chacha20;
 mod poly1305;
 mod wycheproof;
-mod xchachapoly1305;

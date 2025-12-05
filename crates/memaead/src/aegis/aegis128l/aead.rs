@@ -4,19 +4,32 @@
 
 //! AEGIS-128L AEAD implementation.
 
+use memrand::{
+    EntropyError, EntropySource, NonceGenerator, NonceSessionGenerator, SystemEntropySource,
+};
+
 use crate::{AeadBackend, DecryptError};
 
-use super::consts::{Aegis128LKey, Aegis128LNonce, Aegis128LTag};
+use super::consts::{Aegis128LKey, Aegis128LNonce, Aegis128LTag, NONCE_SIZE};
 use super::state;
 
-/// AEGIS-128L AEAD.
-///
-/// This is a zero-sized wrapper that provides the Aead trait implementation.
-/// All state is managed internally using local variables for register optimization.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct Aegis128L;
+/// AEGIS-128L AEAD with nonce generation.
+pub struct Aegis128L<E: EntropySource> {
+    nonce_gen: NonceSessionGenerator<E, NONCE_SIZE>,
+}
 
-impl AeadBackend for Aegis128L {
+impl Default for Aegis128L<SystemEntropySource> {
+    fn default() -> Self {
+        Self {
+            nonce_gen: NonceSessionGenerator::new(SystemEntropySource {}),
+        }
+    }
+}
+
+impl<E> AeadBackend for Aegis128L<E>
+where
+    E: EntropySource,
+{
     type Key = Aegis128LKey;
     type Nonce = Aegis128LNonce;
     type Tag = Aegis128LTag;
@@ -45,5 +58,9 @@ impl AeadBackend for Aegis128L {
         } else {
             Err(DecryptError::AuthenticationFailed)
         }
+    }
+
+    fn generate_nonce(&mut self) -> Result<Self::Nonce, EntropyError> {
+        self.nonce_gen.generate_nonce()
     }
 }

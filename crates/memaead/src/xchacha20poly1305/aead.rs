@@ -6,29 +6,34 @@
 //!
 //! All sensitive state is zeroized on drop using memzer.
 
+use memrand::{
+    EntropyError, EntropySource, NonceGenerator, NonceSessionGenerator, SystemEntropySource,
+};
 use memutil::{constant_time_eq, u64_to_le};
 use memzer::{DropSentinel, FastZeroizable, MemZer};
 
 use crate::{AeadBackend, DecryptError};
 
 use super::chacha20::XChaCha20;
-use super::consts::{KEY_SIZE, TAG_SIZE};
+use super::consts::{KEY_SIZE, TAG_SIZE, XNONCE_SIZE};
 use super::poly1305::Poly1305;
 use super::types::{AeadKey, XNonce};
 
 /// XChaCha20-Poly1305 AEAD with guaranteed zeroization.
 #[derive(MemZer)]
 #[memzer(drop)]
-pub struct XChacha20Poly1305 {
+pub struct XChacha20Poly1305<E: EntropySource> {
     xchacha: XChaCha20,
     poly: Poly1305,
     poly_key: [u8; KEY_SIZE],
     expected_tag: [u8; TAG_SIZE],
     len_block: [u8; TAG_SIZE],
+    #[memzer(skip)]
+    nonce_gen: NonceSessionGenerator<E, XNONCE_SIZE>,
     __drop_sentinel: DropSentinel,
 }
 
-impl Default for XChacha20Poly1305 {
+impl Default for XChacha20Poly1305<SystemEntropySource> {
     fn default() -> Self {
         Self {
             xchacha: XChaCha20::default(),
@@ -36,12 +41,13 @@ impl Default for XChacha20Poly1305 {
             poly_key: [0; KEY_SIZE],
             expected_tag: [0; TAG_SIZE],
             len_block: [0; TAG_SIZE],
+            nonce_gen: NonceSessionGenerator::new(SystemEntropySource {}),
             __drop_sentinel: DropSentinel::default(),
         }
     }
 }
 
-impl XChacha20Poly1305 {
+impl<E: EntropySource> XChacha20Poly1305<E> {
     fn compute_tag(&mut self, aad: &[u8], ciphertext: &[u8]) {
         self.poly.init(&self.poly_key);
         self.poly.update_padded(aad);
@@ -68,7 +74,10 @@ impl XChacha20Poly1305 {
     }
 }
 
-impl AeadBackend for XChacha20Poly1305 {
+impl<E> AeadBackend for XChacha20Poly1305<E>
+where
+    E: memrand::EntropySource,
+{
     type Key = AeadKey;
     type Nonce = XNonce;
     type Tag = [u8; TAG_SIZE];
@@ -115,9 +124,13 @@ impl AeadBackend for XChacha20Poly1305 {
 
         Ok(())
     }
+
+    fn generate_nonce(&mut self) -> Result<Self::Nonce, EntropyError> {
+        self.nonce_gen.generate_nonce()
+    }
 }
 
-impl core::fmt::Debug for XChacha20Poly1305 {
+impl<E: EntropySource> core::fmt::Debug for XChacha20Poly1305<E> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "XChacha20Poly1305 {{ [protected] }}")
     }
