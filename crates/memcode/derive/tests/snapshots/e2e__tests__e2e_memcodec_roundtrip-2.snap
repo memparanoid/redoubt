@@ -1,5 +1,0 @@
----
-source: crates/memcode/derive/tests/e2e.rs
-expression: snapshot_2
----
-bytes_required: 384, num_elements: 2
