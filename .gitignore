@@ -4,5 +4,6 @@
 .github
 .passphrase.sh
 .tools
+node_modules
 target
 coverage
