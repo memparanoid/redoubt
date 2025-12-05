@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-# Memora 🔒
+![Redoubt](/logo.png)
 
-> A systematic framework for secure memory handling in Rust
+> A systematic framework for secure memory handling in Rust.
 
 Memora provides a comprehensive set of tools and abstractions for handling sensitive data in memory securely. It combines multiple security techniques to prevent common vulnerabilities:
 
