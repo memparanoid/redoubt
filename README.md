@@ -1,10 +1,10 @@
-// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
-// SPDX-License-Identifier: GPL-3.0-only
-// See LICENSE in the repository root for full license text.
-
-<p align="center">
-    <img src="/logo.png" width="320" alt="Redoubt">
-</p>
+<picture>
+    <p align="center">
+    <source media="(prefers-color-scheme: dark)" width="320" srcset="/logo_light.png">
+    <source media="(prefers-color-scheme: light)" width="320" srcset="/logo_light.png">
+    <img alt="Redoubt" width="320" src="/logo_light.png">
+    </p>
+</picture>
 
 > A systematic framework for secure memory handling in Rust.
 
