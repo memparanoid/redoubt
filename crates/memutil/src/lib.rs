@@ -315,3 +315,50 @@ pub fn zeroize_spare_capacity<T>(vec: &mut Vec<T>) {
         core::ptr::read_volatile(spare_ptr);
     }
 }
+
+/// Checks if the spare capacity of a Vec<T> is fully zeroized.
+///
+/// This function reads the spare capacity region (from len to capacity) at the
+/// byte level without constructing any T values. Returns true if all bytes in
+/// spare capacity are zero, or if there is no spare capacity.
+///
+/// # Safety
+///
+/// This is safe because:
+/// - We only read bytes, never construct T values
+/// - Vec guarantees the allocation is valid for capacity elements
+/// - We only access memory between len and capacity
+///
+/// # Example
+///
+/// ```
+/// use memutil::{zeroize_spare_capacity, is_spare_capacity_zeroized};
+///
+/// let mut vec = vec![1u32, 2, 3, 4, 5];
+/// vec.truncate(2);  // len = 2, capacity = 5, spare has old data
+///
+/// assert!(!is_spare_capacity_zeroized(&vec));
+///
+/// zeroize_spare_capacity(&mut vec);
+/// assert!(is_spare_capacity_zeroized(&vec));
+/// ```
+#[inline(never)]
+pub fn is_spare_capacity_zeroized<T>(vec: &Vec<T>) -> bool {
+    let len = vec.len();
+    let cap = vec.capacity();
+
+    if cap == len {
+        return true; // No spare capacity
+    }
+
+    let len_bytes = len * core::mem::size_of::<T>();
+    let cap_bytes = cap * core::mem::size_of::<T>();
+
+    unsafe {
+        let spare_ptr = vec.as_ptr().cast::<u8>().add(len_bytes);
+        let spare_len = cap_bytes - len_bytes;
+        core::slice::from_raw_parts(spare_ptr, spare_len)
+            .iter()
+            .all(|&b| b == 0)
+    }
+}
