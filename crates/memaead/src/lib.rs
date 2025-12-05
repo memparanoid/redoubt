@@ -9,6 +9,7 @@ pub mod xchacha20poly1305;
 
 mod aead;
 mod error;
+mod feature_detector;
 mod traits;
 
 pub use aead::Aead;

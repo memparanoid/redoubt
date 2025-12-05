@@ -17,7 +17,9 @@
 
 use memrand::{EntropyError, SystemEntropySource};
 
-use crate::{AeadBackend, DecryptError};
+use crate::error::DecryptError;
+use crate::feature_detector::FeatureDetector;
+use crate::traits::AeadBackend;
 
 #[cfg(all(
     any(target_arch = "x86_64", target_arch = "aarch64"),
@@ -57,15 +59,8 @@ pub struct Aead {
 }
 
 impl Aead {
-    /// Creates a new AEAD instance with runtime backend selection.
-    ///
-    /// # Backend Selection Logic
-    ///
-    /// - **WASI**: Always XChaCha20-Poly1305
-    /// - **x86_64**: Checks for AES-NI
-    /// - **aarch64**: Checks for ARM Crypto Extensions
-    /// - **Other architectures**: XChaCha20-Poly1305
-    pub fn new() -> Self {
+    #[inline(always)]
+    pub(crate) fn new_with_feature_detector(feature_detector: FeatureDetector) -> Self {
         #[cfg(target_os = "wasi")]
         {
             Self {
@@ -76,9 +71,7 @@ impl Aead {
         #[cfg(not(target_os = "wasi"))]
         #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
         {
-            cpufeatures::new!(aes_detection, "aes");
-            let b = aes_detection::get;
-            if aes_detection::get() {
+            if feature_detector.has_aes() {
                 Self {
                     backend: AeadBackendImpl::Aegis128L(Aegis128L::default()),
                 }
@@ -96,6 +89,19 @@ impl Aead {
                 backend: AeadBackendImpl::XChacha20Poly1305(XChacha20Poly1305::default()),
             }
         }
+    }
+
+    /// Creates a new AEAD instance with runtime backend selection.
+    ///
+    /// # Backend Selection Logic
+    ///
+    /// - **WASI**: Always XChaCha20-Poly1305
+    /// - **x86_64**: Checks for AES-NI
+    /// - **aarch64**: Checks for ARM Crypto Extensions
+    /// - **Other architectures**: XChaCha20-Poly1305
+    pub fn new() -> Self {
+        let feature_detector = FeatureDetector::new();
+        Aead::new_with_feature_detector(feature_detector)
     }
 
     pub(crate) fn backend_name(&self) -> &'static str {

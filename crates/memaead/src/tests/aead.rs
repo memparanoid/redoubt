@@ -2,7 +2,32 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::aead::Aead;
+use crate::{
+    aead::Aead,
+    feature_detector::{FeatureDetector, FeatureDetectorBehaviour},
+};
+
+#[test]
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+fn test_aegis128l_backend_detection() {
+    let mut feature_detector = FeatureDetector::new();
+    feature_detector.change_behaviour(FeatureDetectorBehaviour::ForceAesTrue);
+    let aead = Aead::new_with_feature_detector(feature_detector);
+
+    assert_eq!(aead.backend_name(), "AEGIS-128L");
+}
+
+#[test]
+fn test_xchacha20poly1305_backend_fallback() {
+    let mut feature_detector = FeatureDetector::new();
+    feature_detector.change_behaviour(FeatureDetectorBehaviour::ForceAesFalse);
+    let aead = Aead::new_with_feature_detector(feature_detector);
+
+    assert_eq!(aead.backend_name(), "XChaCha20-Poly1305");
+}
 
 #[test]
 fn test_xchacha20poly1305_roundtrip() {
