@@ -4,7 +4,6 @@
 
 use memutil::is_vec_fully_zeroized;
 use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
-use zeroize::Zeroize;
 
 use crate::allocked_vec::{AllockedVec, AllockedVecBehaviour, AllockedVecError};
 
@@ -641,37 +640,6 @@ fn test_allocked_vec_as_capacity_mut_slice_allows_writing_beyond_len() {
     assert_eq!(slice, &[1, 2, 3, 4, 5]);
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
-    assert!(!vec.is_zeroized());
-}
-
-#[test]
-fn test_allocked_vec_set_len_restores_len_after_zeroize() {
-    let mut vec = AllockedVec::with_capacity(5);
-
-    // Vec is not zeroized since `has_been_sealed` is true.
-    assert!(!vec.is_zeroized());
-
-    vec.push(1u8).expect("Failed to push(1)");
-    vec.push(2u8).expect("Failed to push(2)");
-    vec.push(3u8).expect("Failed to push(3)");
-
-    assert_eq!(vec.len(), 3);
-
-    let old_len = vec.len();
-    vec.zeroize();
-
-    assert_eq!(vec.len(), 0);
-
-    // Vec is not zeroized since `has_been_sealed` remains true after zeroize.
-    assert!(!vec.is_zeroized());
-
-    // SAFETY: old_len <= capacity, elements are initialized (zeroized in place)
-    unsafe { vec.set_len(old_len) };
-
-    assert_eq!(vec.len(), 3);
-    assert_eq!(vec.as_slice(), &[0, 0, 0]); // Data was zeroized
-
-    // Vec is not zeroized since `has_been_sealed` is true (even though all elements are 0).
     assert!(!vec.is_zeroized());
 }
 

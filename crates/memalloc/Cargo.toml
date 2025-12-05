@@ -17,7 +17,6 @@ unsafe = []
 memzer.workspace    = true
 memutil.workspace   = true
 thiserror.workspace = true
-zeroize.workspace   = true
 
 [dev-dependencies]
 insta.workspace = true
