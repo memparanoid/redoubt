@@ -47,7 +47,10 @@ impl<E: EntropySource, const NONCE_SIZE: usize> NonceSessionGenerator<E, NONCE_S
     ///
     /// * `entropy` - Entropy source for generating random nonce suffixes
     pub fn new(entropy: E) -> Self {
-        Self { entropy, counter: 0 }
+        Self {
+            entropy,
+            counter: 0,
+        }
     }
 
     #[cfg(test)]
