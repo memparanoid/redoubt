@@ -170,7 +170,7 @@ const createMarkdownComponents = (t: Theme, dark: boolean): Components => {
 
     hr: () => <hr style={{ height: '.25em', padding: 0, margin: '24px 0', backgroundColor: t.borderMuted, border: 0 }} />,
 
-    img: ({ src, alt }) => <img src={src} alt={alt} style={{ maxWidth: '100%', boxSizing: 'border-box' }} />,
+    img: ({ src, alt, width, height }) => <img src={src} alt={alt} width={width} height={height} style={{ maxWidth: '100%', boxSizing: 'border-box' }} />,
 
     pre: ({ children }) => (
       <pre style={{ padding: 16, overflow: 'auto', fontSize: '85%', lineHeight: 1.45, backgroundColor: t.codeBg, borderRadius: 6, marginTop: 0, marginBottom: 16 }}>
