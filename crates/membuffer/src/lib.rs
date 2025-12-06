@@ -13,14 +13,17 @@
 #[cfg(test)]
 mod tests;
 
-mod error;
-mod portable;
 #[cfg(unix)]
 mod protected;
+
+#[cfg(unix)]
+pub use protected::{ProtectedBuffer, ProtectionStrategy};
+
+mod error;
+mod portable;
+mod traits;
 mod utils;
 
 pub use error::ProtectedBufferError;
 pub use portable::PortableBuffer;
-
-#[cfg(unix)]
-pub use protected::{ProtectedBuffer, ProtectionStrategy};
+pub use traits::Buffer;

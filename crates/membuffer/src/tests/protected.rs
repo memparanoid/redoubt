@@ -337,11 +337,110 @@ fn test_protected_buffer_lock_increases_vmlck() {
     );
 }
 
+// open
+
+#[serial(rlimit)]
+#[test]
+fn test_protected_buffer_open_propagates_unprotect_error() {
+    let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
+        .expect("expected ProtectedBuffer creation to succeed");
+
+    buffer.munmap();
+
+    let result = buffer.open(|_| Ok(()));
+
+    assert!(matches!(
+        result,
+        Err(ProtectedBufferError::UnprotectionFailed)
+    ));
+}
+
+#[serial(rlimit)]
+#[test]
+fn test_protected_buffer_open_fails_if_not_available() {
+    let mut protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
+        .expect("Failed to create ProtectedBuffer");
+    protected_buffer.fast_zeroize();
+
+    let result = protected_buffer.open(|_| Ok(()));
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(ProtectedBufferError::PageNoLongerAvailable)
+    ));
+}
+
+#[serial(rlimit)]
+#[test]
+fn test_protected_buffer_open_propagates_callback_error() {
+    #[derive(Debug)]
+    struct TestCallbackError {
+        _code: u32,
+    }
+
+    let mut protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
+        .expect("expected ProtectedBuffer creation to succeed");
+
+    let result = protected_buffer.open(|_bytes| {
+        Err(ProtectedBufferError::open_mut_callback_error(
+            TestCallbackError { _code: 42 },
+        ))
+    });
+
+    match result {
+        Err(ProtectedBufferError::OpenMutCallbackError(inner)) => {
+            let expected_inner = TestCallbackError { _code: 42 };
+            let debug_str = format!("{:?}", inner);
+            let expected_debug_str = format!("{:?}", expected_inner);
+
+            assert_eq!(debug_str, expected_debug_str);
+        }
+        Err(other) => panic!("expected OpenMutCallbackError, got {:?}", other),
+        Ok(_) => panic!("expected Err, got Ok"),
+    }
+}
+
+#[serial(rlimit)]
+#[test]
+fn test_protected_buffer_open_propagates_protect_error_and_zeroizes_slice() {
+    let mut protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
+        .expect("expected ProtectedBuffer creation to succeed");
+    let protected_buffer_clone = protected_buffer.clone();
+    let result = protected_buffer.open(|_bytes| {
+        protected_buffer_clone.munmap();
+        Ok(())
+    });
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(ProtectedBufferError::ProtectionFailed)
+    ));
+
+    // Assert zeroization!
+    assert!(protected_buffer.is_zeroized());
+}
+
+#[serial(rlimit)]
+#[test]
+fn test_protected_buffer_open_happypath() {
+    let mut protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
+        .expect("expected ProtectedBuffer creation to succeed");
+
+    protected_buffer
+        .open(|bytes| {
+            assert!(bytes.is_zeroized());
+            Ok(())
+        })
+        .expect("Failed to open(..)");
+}
+
 // open_mut
 
 #[serial(rlimit)]
 #[test]
-fn test_protected_buffer_open_mut_propagates_unprotect_error_and_zeroizes_buf() {
+fn test_protected_buffer_open_mut_propagates_unprotect_error() {
     let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
         .expect("expected ProtectedBuffer creation to succeed");
 
@@ -353,14 +452,11 @@ fn test_protected_buffer_open_mut_propagates_unprotect_error_and_zeroizes_buf() 
         result,
         Err(ProtectedBufferError::UnprotectionFailed)
     ));
-
-    // Assert zeroization!
-    assert!(buffer.is_zeroized());
 }
 
 #[serial(rlimit)]
 #[test]
-fn test_protected_buffer_open_mut_fails_if_not_available_and_zeroizes_buf() {
+fn test_protected_buffer_open_mut_fails_if_not_available() {
     let mut protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
         .expect("Failed to create ProtectedBuffer");
     protected_buffer.fast_zeroize();
@@ -372,14 +468,11 @@ fn test_protected_buffer_open_mut_fails_if_not_available_and_zeroizes_buf() {
         result,
         Err(ProtectedBufferError::PageNoLongerAvailable)
     ));
-
-    // Assert zeroization!
-    assert!(protected_buffer.is_zeroized());
 }
 
 #[serial(rlimit)]
 #[test]
-fn test_protected_buffer_open_mut_propagates_callback_error_and_zeroizes_buf() {
+fn test_protected_buffer_open_mut_propagates_callback_error() {
     #[derive(Debug)]
     struct TestCallbackError {
         _code: u32,
@@ -401,33 +494,15 @@ fn test_protected_buffer_open_mut_propagates_callback_error_and_zeroizes_buf() {
             let expected_debug_str = format!("{:?}", expected_inner);
 
             assert_eq!(debug_str, expected_debug_str);
-
-            // Assert zeroization!
-            assert!(protected_buffer.is_zeroized());
         }
         Err(other) => panic!("expected OpenMutCallbackError, got {:?}", other),
         Ok(_) => panic!("expected Err, got Ok"),
     }
 }
 
-// open
 #[serial(rlimit)]
 #[test]
-fn test_protected_buffer_open_happypath() {
-    let mut protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
-        .expect("expected ProtectedBuffer creation to succeed");
-
-    protected_buffer
-        .open(|bytes| {
-            assert!(bytes.is_zeroized());
-            Ok(())
-        })
-        .expect("Failed to open(..)");
-}
-
-#[serial(rlimit)]
-#[test]
-fn test_protected_buffer_open_mut_propagates_protect_error_and_zeroizes_buf() {
+fn test_protected_buffer_open_mut_propagates_protect_error_and_zeroizes_slice() {
     let mut protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
         .expect("expected ProtectedBuffer creation to succeed");
     let protected_buffer_clone = protected_buffer.clone();

@@ -146,10 +146,44 @@ impl ProtectedBuffer {
         Ok(())
     }
 
-    fn try_open_mut(
-        &self,
-        f: &mut dyn Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
-    ) -> Result<(), ProtectedBufferError> {
+    pub(crate) fn munmap(&self) {
+        unsafe { libc::munmap(self.ptr as *mut libc::c_void, self.capacity) };
+    }
+
+    pub(crate) fn munlock(&self) {
+        unsafe {
+            libc::munlock(self.ptr as *const _, self.capacity);
+        };
+    }
+
+    pub fn open<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
+    where
+        F: Fn(&[u8]) -> Result<(), ProtectedBufferError>,
+    {
+        if !self.available.load(Ordering::Acquire) {
+            return Err(ProtectedBufferError::PageNoLongerAvailable);
+        }
+
+        self.unprotect()?;
+
+        {
+            let slice = unsafe { core::slice::from_raw_parts(self.ptr, self.len) };
+            f(slice)?;
+        }
+
+        self.protect().map_err(|e| {
+            self.dismiss();
+            self.fast_zeroize();
+            return e;
+        })?;
+
+        Ok(())
+    }
+
+    pub fn open_mut<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
+    where
+        F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
+    {
         if !self.available.load(Ordering::Acquire) {
             return Err(ProtectedBufferError::PageNoLongerAvailable);
         }
@@ -161,39 +195,13 @@ impl ProtectedBuffer {
             f(slice)?;
         }
 
-        self.protect()?;
-
-        Ok(())
-    }
-
-    pub(crate) fn munmap(&self) {
-        unsafe { libc::munmap(self.ptr as *mut libc::c_void, self.capacity) };
-    }
-
-    pub(crate) fn munlock(&self) {
-        unsafe {
-            libc::munlock(self.ptr as *const _, self.capacity);
-        };
-    }
-    pub fn open_mut<F>(&mut self, mut f: F) -> Result<(), ProtectedBufferError>
-    where
-        F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
-    {
-        let result = self.try_open_mut(&mut f);
-
-        if result.is_err() {
+        self.protect().map_err(|e| {
             self.dismiss();
             self.fast_zeroize();
-        }
+            return e;
+        })?;
 
-        result
-    }
-
-    pub fn open<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
-    where
-        F: Fn(&[u8]) -> Result<(), ProtectedBufferError>,
-    {
-        self.open_mut(|bytes| f(bytes))
+        Ok(())
     }
 
     /// Get the length of data in the buffer.
