@@ -153,6 +153,9 @@ mod traits;
 mod zeroizing_guard;
 mod zeroizing_mut_guard;
 
+/// Trait implementations for raw pointers (`*mut T`, `*const T`).
+mod pointers;
+
 /// Test helpers for verifying zeroization behavior in tests.
 ///
 /// Primary export: [`assert_zeroize_on_drop()`](self::assert::assert_zeroize_on_drop).
@@ -168,7 +171,10 @@ pub mod collections;
 ///
 /// Exports: `U8`, `U16`, `U32`, `U64`, `U128`, `USIZE` - each wraps the corresponding primitive type.
 pub mod primitives;
+
 pub use drop_sentinel::DropSentinel;
-pub use traits::{AssertZeroizeOnDrop, FastZeroize, FastZeroizable, MutGuarded, ZeroizeMetadata, ZeroizationProbe};
+pub use traits::{
+    AssertZeroizeOnDrop, FastZeroizable, FastZeroize, MutGuarded, ZeroizationProbe, ZeroizeMetadata,
+};
 pub use zeroizing_guard::ZeroizingGuard;
 pub use zeroizing_mut_guard::ZeroizingMutGuard;

@@ -103,6 +103,7 @@ mk memvault_core
 mk memvault_derive
 mk memcrypt
 mk memaead
+mk membuffer
 mk memcodec
 mk memcodec zeroize
 mk memcodec_core

@@ -70,4 +70,5 @@ RUN echo "=== Architecture Info ===" && \
 CMD ["sh", "-c", "echo '=== Testing memutil ===' && cargo test -p memutil --release && \
      echo '=== Testing memcodec_core ===' && cargo test -p memcodec_core --release && \
      echo '=== Testing memaead ===' && cargo test -p memaead --release && \
+     echo '=== Testing membuffer ===' && cargo test -p membuffer --release && \
      echo '=== ALL ARCH TESTS PASSED ==='"]

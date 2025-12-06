@@ -1,0 +1,22 @@
+[package]
+name = "membuffer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+default = []
+no_std = []
+
+[dependencies]
+libc = { workspace = true, optional = true }
+memzer.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[dev-dependencies]
