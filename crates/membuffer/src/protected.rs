@@ -8,6 +8,7 @@
 //! and mprotect to control access (best-effort).
 
 use core::ptr;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use memzer::{DropSentinel, FastZeroizable, MemZer};
 
@@ -31,9 +32,9 @@ pub enum TryCreateStage {
 }
 
 #[derive(MemZer)]
-#[cfg_attr(test, derive(Debug, Clone))]
+#[cfg_attr(test, derive(Debug))]
 pub struct ProtectedBuffer {
-    available: bool,
+    available: AtomicBool,
     ptr: *mut u8,
     len: usize,
     capacity: usize,
@@ -74,7 +75,7 @@ impl ProtectedBuffer {
             len,
             capacity,
             protection_strategy,
-            available: true,
+            available: AtomicBool::new(true),
             __drop_sentinel: DropSentinel::default(),
         };
 
@@ -149,7 +150,7 @@ impl ProtectedBuffer {
         &self,
         f: &mut dyn Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
     ) -> Result<(), ProtectedBufferError> {
-        if !self.available {
+        if !self.available.load(Ordering::Acquire) {
             return Err(ProtectedBufferError::PageNoLongerAvailable);
         }
 
@@ -211,7 +212,7 @@ impl ProtectedBuffer {
     }
 
     pub(crate) fn dismiss(&mut self) {
-        if !self.available {
+        if !self.available.load(Ordering::Acquire) {
             return;
         }
 
@@ -235,7 +236,7 @@ impl ProtectedBuffer {
             }
         }
 
-        self.available = false;
+        self.available.store(false, Ordering::Release);
     }
 
     #[cfg(test)]
@@ -248,5 +249,19 @@ impl Drop for ProtectedBuffer {
     fn drop(&mut self) {
         self.dismiss();
         self.fast_zeroize();
+    }
+}
+
+#[cfg(test)]
+impl Clone for ProtectedBuffer {
+    fn clone(&self) -> Self {
+        Self {
+            available: AtomicBool::new(self.available.load(Ordering::Relaxed)),
+            ptr: self.ptr,
+            len: self.len,
+            capacity: self.capacity,
+            protection_strategy: self.protection_strategy.clone(),
+            __drop_sentinel: self.__drop_sentinel.clone(),
+        }
     }
 }
