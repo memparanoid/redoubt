@@ -12,4 +12,10 @@ pub trait Buffer {
     fn open_mut<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
     where
         F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>;
+
+    fn len(&self) -> usize;
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }

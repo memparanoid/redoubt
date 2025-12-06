@@ -11,12 +11,50 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
+use memzer::{DropSentinel, FastZeroizable, MemZer};
+
+use crate::error::ProtectedBufferError;
+use crate::traits::Buffer;
+
+#[derive(MemZer)]
+#[memzer(drop)]
 pub struct PortableBuffer {
-    data: Vec<u8>,
+    inner: Vec<u8>,
+    __drop_sentinel: DropSentinel,
 }
 
-impl PortableBuffer {}
+impl PortableBuffer {
+    pub fn create(len: usize) -> Self {
+        let mut inner = Vec::with_capacity(len);
+        // Safety: we just allocated this capacity, setting len to capacity
+        // leaves uninitialized memory but open_mut will handle it
+        unsafe {
+            inner.set_len(len);
+        }
 
-impl Drop for PortableBuffer {
-    fn drop(&mut self) {}
+        Self {
+            inner,
+            __drop_sentinel: DropSentinel::default(),
+        }
+    }
+}
+
+impl Buffer for PortableBuffer {
+    fn open<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
+    where
+        F: Fn(&[u8]) -> Result<(), ProtectedBufferError>,
+    {
+        f(&self.inner)
+    }
+
+    fn open_mut<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
+    where
+        F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
+    {
+        f(&mut self.inner)
+    }
+
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
 }

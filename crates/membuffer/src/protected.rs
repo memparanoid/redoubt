@@ -157,16 +157,6 @@ impl ProtectedBuffer {
         };
     }
 
-    /// Get the length of data in the buffer.
-    pub fn len(&self) -> usize {
-        self.len
-    }
-
-    /// Check if buffer is empty.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
     pub(crate) fn zeroize_slice(&self) {
         let slice = unsafe { core::slice::from_raw_parts_mut(self.ptr, self.capacity) };
         slice.fast_zeroize();
@@ -253,6 +243,10 @@ impl Buffer for ProtectedBuffer {
         })?;
 
         Ok(())
+    }
+
+    fn len(&self) -> usize {
+        self.len
     }
 }
 
