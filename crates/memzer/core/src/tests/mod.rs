@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 mod assert;
+mod atomics;
 mod collections;
 mod drop_sentinel;
 mod functional;

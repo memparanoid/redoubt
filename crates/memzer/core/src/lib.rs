@@ -156,6 +156,9 @@ mod zeroizing_mut_guard;
 /// Trait implementations for raw pointers (`*mut T`, `*const T`).
 mod pointers;
 
+/// Trait implementations for Atomics
+mod atomics;
+
 /// Test helpers for verifying zeroization behavior in tests.
 ///
 /// Primary export: [`assert_zeroize_on_drop()`](self::assert::assert_zeroize_on_drop).
