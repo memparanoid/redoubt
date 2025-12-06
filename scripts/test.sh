@@ -16,11 +16,11 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 echo "Building test Docker image..."
 DOCKER_BUILDKIT=1 docker build -f "$PROJECT_ROOT/docker/Dockerfile.test" -t memora-test "$PROJECT_ROOT"
 
-echo "Running tests with capabilities (mlock, mprotect, madvise, prctl)..."
+echo "Running tests with capabilities (mprotect, madvise, prctl)..."
 docker run --rm \
-  --cap-add=IPC_LOCK \
   --cap-add=SYS_RESOURCE \
   --cap-add=SYS_ADMIN \
+  --ulimit memlock=67108864:67108864 \
   -v memora-cargo-cache:/usr/local/cargo/registry \
   -v memora-target-cache:/workspace/target \
   memora-test "$@"

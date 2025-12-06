@@ -24,9 +24,9 @@ DOCKER_BUILDKIT=1 docker build -f "$PROJECT_ROOT/docker/Dockerfile.coverage" -t 
 
 echo "Running coverage with capabilities..."
 docker run --rm \
-  --cap-add=IPC_LOCK \
   --cap-add=SYS_RESOURCE \
   --cap-add=SYS_ADMIN \
+  --ulimit memlock=67108864:67108864 \
   -v "$COVERAGE_DIR:/.coverage" \
   -v memora-cargo-cache:/usr/local/cargo/registry \
   -v memora-coverage-target-cache:/workspace/target \

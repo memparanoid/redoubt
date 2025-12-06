@@ -69,6 +69,7 @@ resolver = "2"
   insta        = { version = "1.43.2", features = ["redactions"] }
   prettyplease = "0.2.37"
   proptest     = "1.9.0"
+  serial_test  = "3.2.0"
   trybuild     = "1.0"
 
 [profile.release]

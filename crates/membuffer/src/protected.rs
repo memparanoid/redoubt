@@ -9,16 +9,36 @@
 
 use core::ptr;
 
-use memzer::{
-    AssertZeroizeOnDrop, DropSentinel, FastZeroizable, ZeroizationProbe, ZeroizeMetadata,
-};
+use memzer::{DropSentinel, FastZeroizable, MemZer};
 
+use crate::error::ProtectedBufferError;
+use crate::utils::fill_with_pattern;
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum ProtectionStrategy {
+    /// mlock + mprotect (full protection)
+    MemProtected,
+    /// mlock only (no mprotect toggling)
+    MemNonProtected,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+#[allow(dead_code)]
+pub enum TryCreateStage {
+    Lock,
+    Protect,
+    FillWithPattern0,
+}
+
+#[derive(MemZer)]
+#[cfg_attr(test, derive(Debug, Clone))]
 pub struct ProtectedBuffer {
+    available: bool,
     ptr: *mut u8,
     len: usize,
     capacity: usize,
-    mlock: bool,
-    mprotect: bool,
+    #[memzer(skip)]
+    protection_strategy: ProtectionStrategy,
     __drop_sentinel: DropSentinel,
 }
 
@@ -27,12 +47,16 @@ unsafe impl Send for ProtectedBuffer {}
 unsafe impl Sync for ProtectedBuffer {}
 
 impl ProtectedBuffer {
-    pub fn try_create() -> Option<Self> {
+    pub(crate) fn try_create_with(
+        protection_strategy: ProtectionStrategy,
+        len: usize,
+        #[allow(unused_variables)] hook: &mut dyn Fn(TryCreateStage, &mut ProtectedBuffer),
+    ) -> Result<Self, ProtectedBufferError> {
         let capacity = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
         let ptr = unsafe {
             libc::mmap(
                 ptr::null_mut(),
-                page_size,
+                capacity,
                 libc::PROT_READ | libc::PROT_WRITE,
                 libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
                 -1,
@@ -41,43 +65,134 @@ impl ProtectedBuffer {
         };
 
         if ptr == libc::MAP_FAILED {
-            return None;
+            return Err(ProtectedBufferError::PageCreationFailed);
         }
 
         let ptr = ptr as *mut u8;
-
-        Some(Self {
+        let mut protected_buffer = Self {
             ptr,
-            len: 0,
-            mlock: false,
-            mprotect: false,
-            capacity: page_size,
+            len,
+            capacity,
+            protection_strategy,
+            available: true,
             __drop_sentinel: DropSentinel::default(),
-        })
+        };
+
+        #[cfg(test)]
+        hook(TryCreateStage::Lock, &mut protected_buffer);
+        protected_buffer.lock().map_err(|e| {
+            protected_buffer.dismiss();
+            return e;
+        })?;
+
+        #[cfg(test)]
+        hook(TryCreateStage::Protect, &mut protected_buffer);
+        protected_buffer.protect().map_err(|e| {
+            protected_buffer.dismiss();
+            return e;
+        })?;
+
+        #[cfg(test)]
+        hook(TryCreateStage::FillWithPattern0, &mut protected_buffer);
+        protected_buffer.open_mut(|bytes| {
+            fill_with_pattern(bytes, 0u8);
+            Ok(())
+        })?;
+
+        Ok(protected_buffer)
     }
 
-    pub fn open_mut(&self) -> &mut [u8] {
-        if self.mprotect {
-            unsafe {
-                libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_READ);
+    pub fn try_create(
+        protection_strategy: ProtectionStrategy,
+        len: usize,
+    ) -> Result<Self, ProtectedBufferError> {
+        Self::try_create_with(protection_strategy, len, &mut |_, _| {})
+    }
+
+    pub(crate) fn unprotect(&self) -> Result<(), ProtectedBufferError> {
+        if self.protection_strategy == ProtectionStrategy::MemProtected {
+            let unprotection_failed =
+                unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_WRITE) } != 0;
+
+            if unprotection_failed {
+                return Err(ProtectedBufferError::UnprotectionFailed);
             }
         }
 
-        unsafe { core::slice::from_raw_parts_mut(self.ptr, self.len) }
+        Ok(())
     }
 
-    /// Close read access to the buffer.
-    pub fn close_read(&self) {
-        if self.mprotect {
-            unsafe {
-                libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_NONE);
+    pub(crate) fn protect(&self) -> Result<(), ProtectedBufferError> {
+        if self.protection_strategy == ProtectionStrategy::MemProtected {
+            let protection_failed =
+                unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_NONE) } != 0;
+
+            if protection_failed {
+                return Err(ProtectedBufferError::ProtectionFailed);
             }
         }
+
+        Ok(())
     }
 
-    /// Get the raw pointer (for serialization).
-    pub fn as_ptr(&self) -> *mut u8 {
-        self.ptr
+    fn lock(&self) -> Result<(), ProtectedBufferError> {
+        let mlock_failed = unsafe { libc::mlock(self.ptr as *const _, self.capacity) } != 0;
+
+        if mlock_failed {
+            return Err(ProtectedBufferError::LockFailed);
+        }
+
+        Ok(())
+    }
+
+    fn try_open_mut(
+        &self,
+        f: &mut dyn Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError> {
+        if !self.available {
+            return Err(ProtectedBufferError::PageNoLongerAvailable);
+        }
+
+        self.unprotect()?;
+
+        {
+            let slice = unsafe { core::slice::from_raw_parts_mut(self.ptr, self.len) };
+            f(slice)?;
+        }
+
+        self.protect()?;
+
+        Ok(())
+    }
+
+    pub(crate) fn munmap(&self) {
+        unsafe { libc::munmap(self.ptr as *mut libc::c_void, self.capacity) };
+    }
+
+    pub(crate) fn munlock(&self) {
+        unsafe {
+            libc::munlock(self.ptr as *const _, self.capacity);
+        };
+    }
+    pub fn open_mut<F>(&mut self, mut f: F) -> Result<(), ProtectedBufferError>
+    where
+        F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
+    {
+        let result = self.try_open_mut(&mut f);
+
+        if result.is_err() {
+            self.dismiss();
+            self.fast_zeroize();
+        }
+
+        result
+    }
+
+    pub fn open<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
+    where
+        F: Fn(&[u8]) -> Result<(), ProtectedBufferError>,
+    {
+        self.open_mut(|bytes| f(bytes))
     }
 
     /// Get the length of data in the buffer.
@@ -87,41 +202,51 @@ impl ProtectedBuffer {
 
     /// Check if buffer is empty.
     pub fn is_empty(&self) -> bool {
-        self.len == 0
+        self.len() == 0
     }
 
-    /// Check if mlock succeeded.
-    pub fn is_mlocked(&self) -> bool {
-        self.mlock
+    pub(crate) fn zeroize_slice(&self) {
+        let slice = unsafe { core::slice::from_raw_parts_mut(self.ptr, self.capacity) };
+        slice.fast_zeroize();
     }
-}
 
-impl FastZeroizable for ProtectedBuffer {
-    fn fast_zeroize(&mut self) {
-        unsafe {
-            ptr::write_volatile(&mut self.ptr, ptr::null_mut());
+    pub(crate) fn dismiss(&mut self) {
+        if !self.available {
+            return;
         }
 
-        self.len.fast_zeroize();
-        self.capacity.fast_zeroize();
-        self.mlock.fast_zeroize();
-        self.mprotect.fast_zeroize();
-        self.__drop_sentinel.fast_zeroize();
+        unsafe {
+            let can_write = if self.protection_strategy == ProtectionStrategy::MemProtected {
+                libc::mprotect(
+                    self.ptr as *mut _,
+                    self.capacity,
+                    libc::PROT_READ | libc::PROT_WRITE,
+                ) == 0
+            } else {
+                true
+            };
+
+            // If !can_write: leak the page but keep it locked and protected
+            // Catastrophic state, but no sensitive data escapes to swap
+            if can_write {
+                self.zeroize_slice();
+                self.munlock();
+                self.munmap();
+            }
+        }
+
+        self.available = false;
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_self_ptr(&self, f: &mut dyn Fn(*mut u8)) {
+        f(self.ptr);
     }
 }
 
 impl Drop for ProtectedBuffer {
     fn drop(&mut self) {
-        unsafe {
-            if self.mprotect {
-                libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_WRITE);
-            }
-
-            core::ptr::write_bytes(self.ptr, 0, self.capacity); // zeroize
-            libc::munlock(self.ptr as *const _, self.capacity);
-            libc::munmap(self.ptr as *mut _, self.capacity);
-        }
-
+        self.dismiss();
         self.fast_zeroize();
     }
 }
