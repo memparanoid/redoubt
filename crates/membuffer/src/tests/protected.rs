@@ -10,6 +10,7 @@ use memzer::{FastZeroizable, ZeroizationProbe};
 
 use crate::error::ProtectedBufferError;
 use crate::protected::{ProtectedBuffer, ProtectionStrategy, TryCreateStage};
+use crate::traits::Buffer;
 use crate::utils::fill_with_pattern;
 
 /// Reads the amount of locked memory (in kB) for the current process.

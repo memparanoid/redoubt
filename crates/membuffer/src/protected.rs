@@ -13,6 +13,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use memzer::{DropSentinel, FastZeroizable, MemZer};
 
 use crate::error::ProtectedBufferError;
+use crate::traits::Buffer;
 use crate::utils::fill_with_pattern;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -82,14 +83,14 @@ impl ProtectedBuffer {
         #[cfg(test)]
         hook(TryCreateStage::Lock, &mut protected_buffer);
         protected_buffer.lock().map_err(|e| {
-            protected_buffer.dismiss();
+            protected_buffer.dispose();
             return e;
         })?;
 
         #[cfg(test)]
         hook(TryCreateStage::Protect, &mut protected_buffer);
         protected_buffer.protect().map_err(|e| {
-            protected_buffer.dismiss();
+            protected_buffer.dispose();
             return e;
         })?;
 
@@ -156,54 +157,6 @@ impl ProtectedBuffer {
         };
     }
 
-    pub fn open<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
-    where
-        F: Fn(&[u8]) -> Result<(), ProtectedBufferError>,
-    {
-        if !self.available.load(Ordering::Acquire) {
-            return Err(ProtectedBufferError::PageNoLongerAvailable);
-        }
-
-        self.unprotect()?;
-
-        {
-            let slice = unsafe { core::slice::from_raw_parts(self.ptr, self.len) };
-            f(slice)?;
-        }
-
-        self.protect().map_err(|e| {
-            self.dismiss();
-            self.fast_zeroize();
-            return e;
-        })?;
-
-        Ok(())
-    }
-
-    pub fn open_mut<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
-    where
-        F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
-    {
-        if !self.available.load(Ordering::Acquire) {
-            return Err(ProtectedBufferError::PageNoLongerAvailable);
-        }
-
-        self.unprotect()?;
-
-        {
-            let slice = unsafe { core::slice::from_raw_parts_mut(self.ptr, self.len) };
-            f(slice)?;
-        }
-
-        self.protect().map_err(|e| {
-            self.dismiss();
-            self.fast_zeroize();
-            return e;
-        })?;
-
-        Ok(())
-    }
-
     /// Get the length of data in the buffer.
     pub fn len(&self) -> usize {
         self.len
@@ -219,7 +172,7 @@ impl ProtectedBuffer {
         slice.fast_zeroize();
     }
 
-    pub(crate) fn dismiss(&mut self) {
+    pub(crate) fn dispose(&mut self) {
         if !self.available.load(Ordering::Acquire) {
             return;
         }
@@ -253,9 +206,59 @@ impl ProtectedBuffer {
     }
 }
 
+impl Buffer for ProtectedBuffer {
+    fn open<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
+    where
+        F: Fn(&[u8]) -> Result<(), ProtectedBufferError>,
+    {
+        if !self.available.load(Ordering::Acquire) {
+            return Err(ProtectedBufferError::PageNoLongerAvailable);
+        }
+
+        self.unprotect()?;
+
+        {
+            let slice = unsafe { core::slice::from_raw_parts(self.ptr, self.len) };
+            f(slice)?;
+        }
+
+        self.protect().map_err(|e| {
+            self.dispose();
+            self.fast_zeroize();
+            e
+        })?;
+
+        Ok(())
+    }
+
+    fn open_mut<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
+    where
+        F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
+    {
+        if !self.available.load(Ordering::Acquire) {
+            return Err(ProtectedBufferError::PageNoLongerAvailable);
+        }
+
+        self.unprotect()?;
+
+        {
+            let slice = unsafe { core::slice::from_raw_parts_mut(self.ptr, self.len) };
+            f(slice)?;
+        }
+
+        self.protect().map_err(|e| {
+            self.dispose();
+            self.fast_zeroize();
+            e
+        })?;
+
+        Ok(())
+    }
+}
+
 impl Drop for ProtectedBuffer {
     fn drop(&mut self) {
-        self.dismiss();
+        self.dispose();
         self.fast_zeroize();
     }
 }
