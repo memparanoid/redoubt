@@ -785,6 +785,7 @@ dependencies = [
  "membuffer",
  "memguard",
  "memrand",
+ "memzer",
  "thiserror",
 ]
 

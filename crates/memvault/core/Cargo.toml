@@ -17,3 +17,4 @@ memrand.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+memzer.workspace = true
