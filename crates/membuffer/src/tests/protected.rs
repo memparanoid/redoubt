@@ -469,7 +469,7 @@ fn test_protected_buffer_open_fails_if_not_available() {
 #[cfg(target_os = "linux")]
 #[serial(rlimit)]
 #[test]
-fn test_protected_buffer_open_propagates_unprotect_error() {
+fn test_protected_buffer_open_aborts_on_unprotect_error() {
     let exit_code = run_in_fork(|| {
         let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
             .expect("expected ProtectedBuffer creation to succeed");
@@ -520,7 +520,7 @@ fn test_protected_buffer_open_propagates_callback_error() {
 #[cfg(target_os = "linux")]
 #[serial(rlimit)]
 #[test]
-fn test_protected_buffer_open_propagates_protect_error_and_zeroizes_slice() {
+fn test_protected_buffer_open_aborts_on_protect_error_and_zeroizes_slice() {
     let exit_code = run_in_fork(|| {
         let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
             .expect("expected ProtectedBuffer creation to succeed");
@@ -533,6 +533,8 @@ fn test_protected_buffer_open_propagates_protect_error_and_zeroizes_slice() {
         match result {
             Err(e) => {
                 assert!(matches!(e, ProtectedBufferError::ProtectionFailed));
+                // Assert zeroization!
+                assert!(buffer.is_zeroized());
                 ProtectedBuffer::abort_from_error(&e)
             }
             Ok(_) => {} // Should not succeed (will exit with code 0)
@@ -567,7 +569,7 @@ fn test_protected_buffer_open_mut_fails_if_not_available() {
 #[cfg(target_os = "linux")]
 #[serial(rlimit)]
 #[test]
-fn test_protected_buffer_open_mut_propagates_unprotect_error() {
+fn test_protected_buffer_open_mut_aborts_on_unprotect_error() {
     let exit_code = run_in_fork(|| {
         let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
             .expect("expected ProtectedBuffer creation to succeed");
@@ -618,7 +620,7 @@ fn test_protected_buffer_open_mut_propagates_callback_error() {
 #[cfg(target_os = "linux")]
 #[serial(rlimit)]
 #[test]
-fn test_protected_buffer_open_mut_propagates_protect_error_and_zeroizes_slice() {
+fn test_protected_buffer_open_mut_aborts_on_protect_error_and_zeroizes_slice() {
     let exit_code = run_in_fork(|| {
         let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
             .expect("expected ProtectedBuffer creation to succeed");
@@ -631,6 +633,8 @@ fn test_protected_buffer_open_mut_propagates_protect_error_and_zeroizes_slice() 
         match result {
             Err(e) => {
                 assert!(matches!(e, ProtectedBufferError::ProtectionFailed));
+                // Assert zeroization!
+                assert!(buffer.is_zeroized());
                 ProtectedBuffer::abort_from_error(&e)
             }
             Ok(_) => {} // Should not succeed (will exit with code 0)
