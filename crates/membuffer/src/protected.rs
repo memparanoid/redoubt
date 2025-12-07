@@ -252,14 +252,15 @@ impl ProtectedBuffer {
     fn handle_page_protection_error(&self, err: BufferError) -> BufferError {
         if let BufferError::Page(PageError::Protection(ref page_protection_error)) = err {
             match page_protection_error {
-                PageProtectionError::ProtectionFailed | PageProtectionError::UnprotectionFailed => {
+                PageProtectionError::LockFailed
+                | PageProtectionError::ProtectionFailed
+                | PageProtectionError::UnprotectionFailed => {
                     // dispose() zeroizes the slice via ptr, then munlock/munmap
                     // We don't zeroize the struct metadata - it's not sensitive
                     // Safety: we're about to abort anyway
                     self.dispose();
                     Self::abort_from_error(page_protection_error);
                 }
-                _ => {}
             }
         }
         err

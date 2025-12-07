@@ -63,7 +63,7 @@ pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), MemBufferError>) -> Result<()
 
     unsafe {
         (*BUFFER.0.get())
-            .as_mut()
+            .as_ref()
             .expect("buffer not initialized")
             .open(f)?;
     }
