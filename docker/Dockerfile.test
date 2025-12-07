@@ -14,7 +14,7 @@ WORKDIR /workspace
 COPY Cargo.toml Cargo.lock ./
 
 # Copy all crate Cargo.toml files
-COPY crates/memprotect/Cargo.toml ./crates/memprotect/
+COPY crates/memguard/Cargo.toml ./crates/memguard/
 COPY crates/memalloc/Cargo.toml ./crates/memalloc/
 COPY crates/memzer/Cargo.toml ./crates/memzer/
 COPY crates/memzer/core/Cargo.toml ./crates/memzer/core/
@@ -34,7 +34,7 @@ COPY crates/memcodec/derive/Cargo.toml ./crates/memcodec/derive/
 COPY crates/membuffer/Cargo.toml ./crates/membuffer/
 
 # Create stub lib.rs files to satisfy cargo build
-RUN mkdir -p crates/memprotect/src && echo "// stub" > crates/memprotect/src/lib.rs && \
+RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs && \
     mkdir -p crates/memalloc/src && echo "// stub" > crates/memalloc/src/lib.rs && \
     mkdir -p crates/memzer/src && echo "// stub" > crates/memzer/src/lib.rs && \
     mkdir -p crates/memzer/core/src && echo "// stub" > crates/memzer/core/src/lib.rs && \

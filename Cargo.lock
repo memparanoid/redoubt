@@ -658,7 +658,9 @@ dependencies = [
  "chacha20poly1305",
  "criterion",
  "memaead",
+ "membuffer",
  "memcodec",
+ "memutil",
  "serde",
  "zeroize",
 ]
@@ -729,11 +731,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "memprotect"
+name = "memguard"
 version = "0.0.1"
 dependencies = [
  "libc",
- "proptest",
+ "libseccomp",
+ "serial_test",
 ]
 
 [[package]]

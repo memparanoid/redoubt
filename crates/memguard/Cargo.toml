@@ -1,0 +1,22 @@
+[package]
+name = "memguard"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Process-level memory protection via prctl"
+categories = ["memory-management", "os"]
+keywords = ["security", "memory", "prctl", "dumpable"]
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+default = []
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc.workspace = true
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+libseccomp.workspace = true
+serial_test.workspace = true

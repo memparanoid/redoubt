@@ -90,7 +90,7 @@ cargo +nightly llvm-cov clean
 mkdir -p "$OUT"
 
 # --- Per-crate runs ---
-mk memprotect
+mk memguard
 mk memalloc
 mk memzer
 mk memzer_core
