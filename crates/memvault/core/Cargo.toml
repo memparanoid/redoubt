@@ -14,5 +14,6 @@ no_std = []
 membuffer.workspace = true
 memguard.workspace = true
 memrand.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]

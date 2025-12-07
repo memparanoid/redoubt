@@ -12,9 +12,11 @@ use alloc::boxed::Box;
 use core::cell::UnsafeCell;
 use core::sync::atomic::{AtomicU8, Ordering};
 
-use membuffer::{Buffer, BufferError};
+use membuffer::{Buffer, BufferError as MemBufferError};
 
-use super::buffer::create_initialized_buffer;
+use crate::BufferError;
+
+use super::super::buffer::create_initialized_buffer;
 
 /// Initialization state: not yet attempted
 const STATE_UNINIT: u8 = 0;
@@ -54,7 +56,7 @@ fn init_slow() {
     }
 }
 
-pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError> {
+pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), MemBufferError>) -> Result<(), BufferError> {
     if INIT_STATE.load(Ordering::Acquire) != STATE_DONE {
         init_slow();
     }
@@ -63,6 +65,8 @@ pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), B
         (*BUFFER.0.get())
             .as_mut()
             .expect("buffer not initialized")
-            .open(f)
+            .open(f)?;
     }
+
+    Ok(())
 }

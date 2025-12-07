@@ -14,11 +14,11 @@ use memrand::{EntropySource, SystemEntropySource};
 #[cfg(all(unix, not(target_os = "wasi")))]
 use membuffer::{ProtectedBuffer, ProtectionStrategy};
 
-pub const BUFFER_SIZE: usize = 4096;
+pub const MASTER_KEY_LEN: usize = 64;
 
 #[cfg(any(target_os = "wasi", not(unix)))]
 pub fn create_buffer(_is_guarded: bool) -> Box<dyn Buffer> {
-    Box::new(PortableBuffer::create(BUFFER_SIZE))
+    Box::new(PortableBuffer::create(MASTER_KEY_LEN))
 }
 
 #[cfg(all(unix, not(target_os = "wasi")))]
@@ -29,9 +29,9 @@ pub fn create_buffer(is_guarded: bool) -> Box<dyn Buffer> {
         ProtectionStrategy::MemProtected
     };
 
-    match ProtectedBuffer::try_create(strategy, BUFFER_SIZE) {
+    match ProtectedBuffer::try_create(strategy, MASTER_KEY_LEN) {
         Ok(buffer) => Box::new(buffer),
-        Err(_) => Box::new(PortableBuffer::create(BUFFER_SIZE)),
+        Err(_) => Box::new(PortableBuffer::create(MASTER_KEY_LEN)),
     }
 }
 

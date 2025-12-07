@@ -8,7 +8,10 @@
 
 #![cfg_attr(all(feature = "no_std", not(test)), no_std)]
 
-pub mod storage;
+mod error;
+pub mod master_key;
+
+pub use error::BufferError;
 
 #[cfg(test)]
 mod tests;

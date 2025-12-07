@@ -4,9 +4,9 @@
 
 //! Storage backend implementations
 
-use membuffer::BufferError;
+use membuffer::BufferError as MemBufferError;
 
-mod buffer;
+use crate::BufferError;
 
 #[cfg(not(feature = "no_std"))]
 mod std;
@@ -15,7 +15,7 @@ mod std;
 mod portable;
 
 pub fn open(
-    f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
+    f: &mut dyn FnMut(&[u8]) -> Result<(), MemBufferError>,
 ) -> Result<(), BufferError> {
     #[cfg(not(feature = "no_std"))]
     {
