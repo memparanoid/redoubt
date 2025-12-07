@@ -12,7 +12,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use memzer::{DropSentinel, FastZeroizable, MemZer};
 
-use crate::error::{LibcPageError, ProtectedBufferError};
+use crate::error::{PageError, PageProtectionError, ProtectedBufferError};
 use crate::traits::Buffer;
 use crate::utils::fill_with_pattern;
 
@@ -29,7 +29,6 @@ pub(crate) trait TryBuffer {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) enum AbortCode {
-    PageCreationError = 41isize,
     LockFailed = 42isize,
     ProtectionFailed = 43isize,
     UnprotectionFailed = 44isize,
@@ -81,7 +80,9 @@ impl ProtectedBuffer {
         let mlock_failed = unsafe { libc::mlock(self.ptr as *const _, self.capacity) } != 0;
 
         if mlock_failed {
-            return Err(ProtectedBufferError::LibcPage(LibcPageError::LockFailed));
+            return Err(ProtectedBufferError::Page(PageError::Protection(
+                PageProtectionError::LockFailed,
+            )));
         }
 
         Ok(())
@@ -105,9 +106,7 @@ impl ProtectedBuffer {
         };
 
         if ptr == libc::MAP_FAILED {
-            return Err(ProtectedBufferError::LibcPage(
-                LibcPageError::PageCreationFailed,
-            ));
+            return Err(ProtectedBufferError::Page(PageError::CreationFailed));
         }
 
         let ptr = ptr as *mut u8;
@@ -124,6 +123,7 @@ impl ProtectedBuffer {
         hook(TryCreateStage::Lock, &mut protected_buffer);
         protected_buffer.lock().map_err(|e| {
             protected_buffer.dispose();
+            protected_buffer.fast_zeroize();
             return e;
         })?;
 
@@ -152,19 +152,16 @@ impl ProtectedBuffer {
         Self::try_create_with(protection_strategy, len, &mut |_, _| {})
     }
 
-    pub(crate) fn abort_from_error(error: &LibcPageError) {
+    pub(crate) fn abort_from_error(error: &PageProtectionError) {
         match error {
-            LibcPageError::LockFailed => {
+            PageProtectionError::LockFailed => {
                 Self::abort(AbortCode::LockFailed);
             }
-            LibcPageError::ProtectionFailed => {
+            PageProtectionError::ProtectionFailed => {
                 Self::abort(AbortCode::ProtectionFailed);
             }
-            LibcPageError::UnprotectionFailed => {
+            PageProtectionError::UnprotectionFailed => {
                 Self::abort(AbortCode::UnprotectionFailed);
-            }
-            LibcPageError::PageCreationFailed => {
-                Self::abort(AbortCode::PageCreationError);
             }
         }
     }
@@ -175,9 +172,9 @@ impl ProtectedBuffer {
                 unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_WRITE) } != 0;
 
             if unprotection_failed {
-                return Err(ProtectedBufferError::LibcPage(
-                    LibcPageError::UnprotectionFailed,
-                ));
+                return Err(ProtectedBufferError::Page(PageError::Protection(
+                    PageProtectionError::UnprotectionFailed,
+                )));
             }
         }
 
@@ -190,9 +187,9 @@ impl ProtectedBuffer {
                 unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_NONE) } != 0;
 
             if protection_failed {
-                return Err(ProtectedBufferError::LibcPage(
-                    LibcPageError::ProtectionFailed,
-                ));
+                return Err(ProtectedBufferError::Page(PageError::Protection(
+                    PageProtectionError::ProtectionFailed,
+                )));
             }
         }
 
@@ -296,11 +293,15 @@ impl Buffer for ProtectedBuffer {
         match result {
             Ok(_) => Ok(()),
             Err(err) => match &err {
-                ProtectedBufferError::LibcPage(libc_err @ LibcPageError::ProtectionFailed)
-                | ProtectedBufferError::LibcPage(libc_err @ LibcPageError::UnprotectionFailed) => {
+                ProtectedBufferError::Page(PageError::Protection(
+                    page_protection_error @ PageProtectionError::ProtectionFailed,
+                ))
+                | ProtectedBufferError::Page(PageError::Protection(
+                    page_protection_error @ PageProtectionError::UnprotectionFailed,
+                )) => {
                     self.dispose();
                     self.fast_zeroize();
-                    Self::abort_from_error(libc_err);
+                    Self::abort_from_error(page_protection_error);
                     Err(err)
                 }
                 _ => Err(err),
@@ -321,11 +322,15 @@ impl Buffer for ProtectedBuffer {
         match result {
             Ok(_) => Ok(()),
             Err(err) => match &err {
-                ProtectedBufferError::LibcPage(libc_err @ LibcPageError::ProtectionFailed)
-                | ProtectedBufferError::LibcPage(libc_err @ LibcPageError::UnprotectionFailed) => {
+                ProtectedBufferError::Page(PageError::Protection(
+                    page_protection_error @ PageProtectionError::ProtectionFailed,
+                ))
+                | ProtectedBufferError::Page(PageError::Protection(
+                    page_protection_error @ PageProtectionError::UnprotectionFailed,
+                )) => {
                     self.dispose();
                     self.fast_zeroize();
-                    Self::abort_from_error(libc_err);
+                    Self::abort_from_error(page_protection_error);
                     Err(err)
                 }
                 _ => Err(err),

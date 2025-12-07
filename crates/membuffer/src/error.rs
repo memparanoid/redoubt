@@ -5,11 +5,10 @@
 //! Error types for membuffer.
 use thiserror::Error;
 
+/// Errors from memory protection syscalls (mlock, mprotect).
+/// Used with abort_from_error for exhaustive matching.
 #[derive(Debug, Error)]
-pub enum LibcPageError {
-    #[error("failed to create page")]
-    PageCreationFailed,
-
+pub enum PageProtectionError {
     #[error("failed to lock page")]
     LockFailed,
 
@@ -20,10 +19,20 @@ pub enum LibcPageError {
     UnprotectionFailed,
 }
 
+/// All page-related errors.
+#[derive(Debug, Error)]
+pub enum PageError {
+    #[error("failed to create page")]
+    CreationFailed,
+
+    #[error("{0}")]
+    Protection(#[from] PageProtectionError),
+}
+
 #[derive(Debug, Error)]
 pub enum ProtectedBufferError {
-    #[error("LibcPageError: {0}")]
-    LibcPage(#[from] LibcPageError),
+    #[error("PageError: {0}")]
+    Page(#[from] PageError),
 
     #[error("page is no longer available")]
     PageNoLongerAvailable,

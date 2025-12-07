@@ -8,7 +8,7 @@ use serial_test::serial;
 
 use memzer::{FastZeroizable, ZeroizationProbe};
 
-use crate::error::{LibcPageError, ProtectedBufferError};
+use crate::error::{PageError, PageProtectionError, ProtectedBufferError};
 #[cfg(target_os = "linux")]
 use crate::protected::{AbortCode, TryCreateStage};
 use crate::protected::{ProtectedBuffer, ProtectionStrategy};
@@ -198,6 +198,8 @@ fn run_protected_buffer_open_happy_path_test(strategy: ProtectionStrategy) {
 
 // try_create
 
+/// Test PageCreationFailed error using rlimit (not subprocess/seccomp).
+/// This error doesn't go through abort_from_error.
 #[serial(rlimit)]
 #[test]
 fn test_protected_buffer_try_create_reports_page_creation_failed_error() {
@@ -216,9 +218,7 @@ fn test_protected_buffer_try_create_reports_page_creation_failed_error() {
     let result = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10);
     assert!(matches!(
         result,
-        Err(ProtectedBufferError::LibcPage(
-            LibcPageError::PageCreationFailed
-        ))
+        Err(ProtectedBufferError::Page(PageError::CreationFailed))
     ));
 
     unsafe { libc::setrlimit(libc::RLIMIT_AS, &original) };
@@ -240,8 +240,8 @@ fn subprocess_test_protected_buffer_try_create_reports_lock_failed_error() {
     );
 
     match result {
-        Err(ProtectedBufferError::LibcPage(ref libc_err)) => {
-            ProtectedBuffer::abort_from_error(libc_err)
+        Err(ProtectedBufferError::Page(PageError::Protection(ref prot_err))) => {
+            ProtectedBuffer::abort_from_error(prot_err)
         }
         Err(_) => {}
         Ok(_) => {}
@@ -279,9 +279,9 @@ fn subprocess_test_protected_buffer_try_create_reports_protection_failed_error()
     );
 
     match result {
-        Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::ProtectionFailed)) => {
-            ProtectedBuffer::abort_from_error(libc_err)
-        }
+        Err(ProtectedBufferError::Page(PageError::Protection(
+            ref page_protection_error @ PageProtectionError::ProtectionFailed,
+        ))) => ProtectedBuffer::abort_from_error(page_protection_error),
         Err(_) => {}
         Ok(_) => {}
     }
@@ -318,9 +318,11 @@ fn subprocess_test_protected_buffer_propagates_fill_with_pattern_0_error() {
     );
 
     match result {
-        Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::UnprotectionFailed)) => {
+        Err(ProtectedBufferError::Page(PageError::Protection(
+            ref page_protection_error @ PageProtectionError::UnprotectionFailed,
+        ))) => {
             // The first syscall of `FillWithPattern0` stage is unprotect
-            ProtectedBuffer::abort_from_error(libc_err)
+            ProtectedBuffer::abort_from_error(page_protection_error)
         }
         Err(_) => {}
         Ok(_) => {}
@@ -537,10 +539,12 @@ fn subprocess_test_protected_buffer_open_aborts_on_protect_error_and_zeroizes_sl
     });
 
     match result {
-        Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::ProtectionFailed)) => {
+        Err(ProtectedBufferError::Page(PageError::Protection(
+            ref page_protection_error @ PageProtectionError::ProtectionFailed,
+        ))) => {
             // Assert zeroization!
             assert!(buffer.is_zeroized());
-            ProtectedBuffer::abort_from_error(libc_err)
+            ProtectedBuffer::abort_from_error(page_protection_error)
         }
         Err(_) => {}
         Ok(_) => {}
@@ -653,10 +657,12 @@ fn subprocess_test_protected_buffer_open_mut_aborts_on_protect_error_and_zeroize
     });
 
     match result {
-        Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::ProtectionFailed)) => {
+        Err(ProtectedBufferError::Page(PageError::Protection(
+            ref page_protection_error @ PageProtectionError::ProtectionFailed,
+        ))) => {
             // Assert zeroization!
             assert!(buffer.is_zeroized());
-            ProtectedBuffer::abort_from_error(libc_err)
+            ProtectedBuffer::abort_from_error(page_protection_error)
         }
         Err(_) => {}
         Ok(_) => {}
