@@ -18,6 +18,15 @@ use crate::error::{PageError, PageProtectionError, ProtectedBufferError};
 use crate::traits::Buffer;
 
 pub(crate) trait TryBuffer {
+    fn handle_page_protection_error(&mut self, err: ProtectedBufferError) -> ProtectedBufferError;
+    fn try_open_impl(
+        &mut self,
+        f: &mut dyn Fn(&[u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError>;
+    fn try_open_mut_impl(
+        &mut self,
+        f: &mut dyn Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError>;
     fn try_open(
         &mut self,
         f: &mut dyn Fn(&[u8]) -> Result<(), ProtectedBufferError>,
@@ -246,8 +255,26 @@ impl ProtectedBuffer {
     pub(crate) fn with_self_ptr(&self, f: &mut dyn Fn(*mut u8)) {
         f(self.ptr);
     }
+}
 
-    fn try_open_unguarded(
+impl TryBuffer for ProtectedBuffer {
+    #[cold]
+    #[inline(never)]
+    fn handle_page_protection_error(&mut self, err: ProtectedBufferError) -> ProtectedBufferError {
+        if let ProtectedBufferError::Page(PageError::Protection(ref page_protection_error)) = err {
+            match page_protection_error {
+                PageProtectionError::ProtectionFailed | PageProtectionError::UnprotectionFailed => {
+                    self.dispose();
+                    self.fast_zeroize();
+                    Self::abort_from_error(page_protection_error);
+                }
+                _ => {}
+            }
+        }
+        err
+    }
+    #[inline(always)]
+    fn try_open_impl(
         &mut self,
         f: &mut dyn Fn(&[u8]) -> Result<(), ProtectedBufferError>,
     ) -> Result<(), ProtectedBufferError> {
@@ -263,7 +290,8 @@ impl ProtectedBuffer {
         Ok(())
     }
 
-    fn try_open_mut_unguarded(
+    #[inline(always)]
+    fn try_open_mut_impl(
         &mut self,
         f: &mut dyn Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
     ) -> Result<(), ProtectedBufferError> {
@@ -278,9 +306,8 @@ impl ProtectedBuffer {
 
         Ok(())
     }
-}
 
-impl TryBuffer for ProtectedBuffer {
+    #[inline(always)]
     fn try_open(
         &mut self,
         f: &mut dyn Fn(&[u8]) -> Result<(), ProtectedBufferError>,
@@ -289,27 +316,16 @@ impl TryBuffer for ProtectedBuffer {
             return Err(ProtectedBufferError::PageNoLongerAvailable);
         }
 
-        let result = self.try_open_unguarded(f);
+        let result = self.try_open_impl(f);
 
-        match result {
-            Ok(_) => Ok(()),
-            Err(err) => match &err {
-                ProtectedBufferError::Page(PageError::Protection(
-                    page_protection_error @ PageProtectionError::ProtectionFailed,
-                ))
-                | ProtectedBufferError::Page(PageError::Protection(
-                    page_protection_error @ PageProtectionError::UnprotectionFailed,
-                )) => {
-                    self.dispose();
-                    self.fast_zeroize();
-                    Self::abort_from_error(page_protection_error);
-                    Err(err)
-                }
-                _ => Err(err),
-            },
+        if result.is_ok() {
+            return result;
         }
+
+        Err(self.handle_page_protection_error(result.unwrap_err()))
     }
 
+    #[inline(always)]
     fn try_open_mut(
         &mut self,
         f: &mut dyn Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
@@ -318,29 +334,18 @@ impl TryBuffer for ProtectedBuffer {
             return Err(ProtectedBufferError::PageNoLongerAvailable);
         }
 
-        let result = self.try_open_mut_unguarded(f);
+        let result = self.try_open_mut_impl(f);
 
-        match result {
-            Ok(_) => Ok(()),
-            Err(err) => match &err {
-                ProtectedBufferError::Page(PageError::Protection(
-                    page_protection_error @ PageProtectionError::ProtectionFailed,
-                ))
-                | ProtectedBufferError::Page(PageError::Protection(
-                    page_protection_error @ PageProtectionError::UnprotectionFailed,
-                )) => {
-                    self.dispose();
-                    self.fast_zeroize();
-                    Self::abort_from_error(page_protection_error);
-                    Err(err)
-                }
-                _ => Err(err),
-            },
+        if result.is_ok() {
+            return result;
         }
+
+        Err(self.handle_page_protection_error(result.unwrap_err()))
     }
 }
 
 impl Buffer for ProtectedBuffer {
+    #[inline(always)]
     fn open<F>(&mut self, mut f: F) -> Result<(), ProtectedBufferError>
     where
         F: Fn(&[u8]) -> Result<(), ProtectedBufferError>,
@@ -348,6 +353,7 @@ impl Buffer for ProtectedBuffer {
         self.try_open(&mut f)
     }
 
+    #[inline(always)]
     fn open_mut<F>(&mut self, mut f: F) -> Result<(), ProtectedBufferError>
     where
         F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
@@ -355,6 +361,7 @@ impl Buffer for ProtectedBuffer {
         self.try_open_mut(&mut f)
     }
 
+    #[inline(always)]
     fn len(&self) -> usize {
         self.len
     }

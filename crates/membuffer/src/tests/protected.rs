@@ -6,14 +6,17 @@ use core::cell::Cell;
 
 use serial_test::serial;
 
+use memutil::fill_bytes_with_pattern;
 use memzer::{FastZeroizable, ZeroizationProbe};
 
-use crate::error::{PageError, PageProtectionError, ProtectedBufferError};
+#[cfg(target_os = "linux")]
+use crate::error::PageProtectionError;
 #[cfg(target_os = "linux")]
 use crate::protected::{AbortCode, TryCreateStage};
+
+use crate::error::{PageError, ProtectedBufferError};
 use crate::protected::{ProtectedBuffer, ProtectionStrategy};
 use crate::traits::Buffer;
-use crate::utils::fill_with_pattern;
 
 /// Runs an ignored test as a subprocess and returns its exit code.
 /// This avoids fork() issues with inherited locks.
@@ -123,7 +126,7 @@ fn run_protected_buffer_open_happy_path_test(strategy: ProtectionStrategy) {
         protected_buffer
             .open_mut(|bytes| {
                 callback_executed.set(true);
-                fill_with_pattern(bytes, 1);
+                fill_bytes_with_pattern(bytes, 1);
                 Ok(())
             })
             .expect("Failed to open_mut(..)");
@@ -302,11 +305,11 @@ fn test_protected_buffer_try_create_reports_protection_failed_error() {
     );
 }
 
-/// Subprocess for test_protected_buffer_propagates_fill_with_pattern_0_error
+/// Subprocess for test_protected_buffer_propagates_fill_bytes_with_pattern_0_error
 #[cfg(target_os = "linux")]
 #[test]
 #[ignore]
-fn subprocess_test_protected_buffer_propagates_fill_with_pattern_0_error() {
+fn subprocess_test_protected_buffer_propagates_fill_bytes_with_pattern_0_error() {
     let result = ProtectedBuffer::try_create_with(
         ProtectionStrategy::MemProtected,
         10,
@@ -332,9 +335,9 @@ fn subprocess_test_protected_buffer_propagates_fill_with_pattern_0_error() {
 #[cfg(target_os = "linux")]
 #[serial(rlimit)]
 #[test]
-fn test_protected_buffer_propagates_fill_with_pattern_0_error() {
+fn test_protected_buffer_propagates_fill_bytes_with_pattern_0_error() {
     let exit_code = run_test_as_subprocess(
-        "tests::protected::subprocess_test_protected_buffer_propagates_fill_with_pattern_0_error",
+        "tests::protected::subprocess_test_protected_buffer_propagates_fill_bytes_with_pattern_0_error",
     );
 
     assert_eq!(
@@ -364,7 +367,7 @@ fn test_protected_buffer_protect_prevents_read_unprotect_allows_read() {
     // Modify content to fill with u8::MAX
     protected_buffer
         .open_mut(|bytes| {
-            fill_with_pattern(bytes, u8::MAX);
+            fill_bytes_with_pattern(bytes, u8::MAX);
             Ok(())
         })
         .expect("Failed to open_mut(..)");

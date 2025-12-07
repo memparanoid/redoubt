@@ -4,12 +4,12 @@
 
 use core::cell::Cell;
 
+use memutil::fill_bytes_with_pattern;
 use memzer::{FastZeroizable, ZeroizationProbe};
 
 use crate::error::ProtectedBufferError;
 use crate::portable::PortableBuffer;
 use crate::traits::Buffer;
-use crate::utils::fill_with_pattern;
 
 // create
 
@@ -23,7 +23,7 @@ fn test_portable_buffer_happypath() {
         portable_buffer
             .open_mut(|bytes| {
                 callback_executed.set(true);
-                fill_with_pattern(bytes, 0);
+                fill_bytes_with_pattern(bytes, 0);
                 Ok(())
             })
             .expect("Failed to open_mut(..)");
@@ -49,7 +49,7 @@ fn test_portable_buffer_happypath() {
         portable_buffer
             .open_mut(|bytes| {
                 callback_executed.set(true);
-                fill_with_pattern(bytes, 1);
+                fill_bytes_with_pattern(bytes, 1);
                 Ok(())
             })
             .expect("Failed to open_mut(..)");
@@ -104,7 +104,7 @@ fn test_portable_buffer_open_happypath() {
 
     portable_buffer
         .open_mut(|bytes| {
-            fill_with_pattern(bytes, 0);
+            fill_bytes_with_pattern(bytes, 0);
             Ok(())
         })
         .expect("Failed to open_mut(..)");
