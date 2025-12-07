@@ -127,20 +127,20 @@ fn test_portable_buffer_open_propagates_callback_error() {
     let mut portable_buffer = PortableBuffer::create(10);
 
     let result = portable_buffer.open(|_bytes| {
-        Err(ProtectedBufferError::open_mut_callback_error(
-            TestCallbackError { _code: 42 },
-        ))
+        Err(ProtectedBufferError::callback_error(TestCallbackError {
+            _code: 42,
+        }))
     });
 
     match result {
-        Err(ProtectedBufferError::OpenMutCallbackError(inner)) => {
+        Err(ProtectedBufferError::CallbackError(inner)) => {
             let expected_inner = TestCallbackError { _code: 42 };
             let debug_str = format!("{:?}", inner);
             let expected_debug_str = format!("{:?}", expected_inner);
 
             assert_eq!(debug_str, expected_debug_str);
         }
-        Err(other) => panic!("expected OpenMutCallbackError, got {:?}", other),
+        Err(other) => panic!("expected CallbackError, got {:?}", other),
         Ok(_) => panic!("expected Err, got Ok"),
     }
 }
@@ -157,20 +157,20 @@ fn test_portable_buffer_open_mut_propagates_callback_error() {
     let mut portable_buffer = PortableBuffer::create(10);
 
     let result = portable_buffer.open_mut(|_bytes| {
-        Err(ProtectedBufferError::open_mut_callback_error(
-            TestCallbackError { _code: 42 },
-        ))
+        Err(ProtectedBufferError::callback_error(TestCallbackError {
+            _code: 42,
+        }))
     });
 
     match result {
-        Err(ProtectedBufferError::OpenMutCallbackError(inner)) => {
+        Err(ProtectedBufferError::CallbackError(inner)) => {
             let expected_inner = TestCallbackError { _code: 42 };
             let debug_str = format!("{:?}", inner);
             let expected_debug_str = format!("{:?}", expected_inner);
 
             assert_eq!(debug_str, expected_debug_str);
         }
-        Err(other) => panic!("expected OpenMutCallbackError, got {:?}", other),
+        Err(other) => panic!("expected CallbackError, got {:?}", other),
         Ok(_) => panic!("expected Err, got Ok"),
     }
 }

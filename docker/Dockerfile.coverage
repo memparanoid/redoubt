@@ -5,7 +5,10 @@ RUN apk add --no-cache \
   linux-headers \
   build-base \
   bash \
-  lcov
+  lcov \
+  libseccomp-dev \
+  libseccomp-static
+
 
 # Install cargo-llvm-cov and nightly toolchain
 RUN cargo install cargo-llvm-cov

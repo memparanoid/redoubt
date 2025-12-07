@@ -4,7 +4,9 @@ RUN apk add --no-cache \
   musl-dev \
   linux-headers \
   build-base \
-  bash
+  bash \
+  libseccomp-dev \
+  libseccomp-static
 
 WORKDIR /workspace
 

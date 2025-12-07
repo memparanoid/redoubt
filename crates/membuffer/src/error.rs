@@ -21,12 +21,12 @@ pub enum ProtectedBufferError {
     #[error("page is no longer available")]
     PageNoLongerAvailable,
 
-    #[error("open_mut callback error: {0:?}")]
-    OpenMutCallbackError(Box<dyn core::fmt::Debug + Send + Sync + 'static>),
+    #[error("callback error: {0:?}")]
+    CallbackError(Box<dyn core::fmt::Debug + Send + Sync + 'static>),
 }
 
 impl ProtectedBufferError {
-    pub fn open_mut_callback_error<E: core::fmt::Debug + Send + Sync + 'static>(e: E) -> Self {
-        Self::OpenMutCallbackError(Box::new(e))
+    pub fn callback_error<E: core::fmt::Debug + Send + Sync + 'static>(e: E) -> Self {
+        Self::CallbackError(Box::new(e))
     }
 }

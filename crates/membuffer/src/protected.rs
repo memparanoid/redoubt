@@ -16,20 +16,38 @@ use crate::error::ProtectedBufferError;
 use crate::traits::Buffer;
 use crate::utils::fill_with_pattern;
 
+pub(crate) trait TryBuffer {
+    fn try_open(
+        &mut self,
+        f: &mut dyn Fn(&[u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError>;
+    fn try_open_mut(
+        &mut self,
+        f: &mut dyn Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError>;
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub(crate) enum AbortCode {
+    LockFailed = 42isize,
+    ProtectionFailed = 43isize,
+    UnprotectionFailed = 44isize,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+#[allow(dead_code)]
+pub(crate) enum TryCreateStage {
+    Lock,
+    Protect,
+    FillWithPattern0,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ProtectionStrategy {
     /// mlock + mprotect (full protection)
     MemProtected,
     /// mlock only (no mprotect toggling)
     MemNonProtected,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-#[allow(dead_code)]
-pub enum TryCreateStage {
-    Lock,
-    Protect,
-    FillWithPattern0,
 }
 
 #[derive(MemZer)]
@@ -49,6 +67,27 @@ unsafe impl Send for ProtectedBuffer {}
 unsafe impl Sync for ProtectedBuffer {}
 
 impl ProtectedBuffer {
+    fn abort(_code: AbortCode) {
+        #[cfg(test)]
+        unsafe {
+            libc::_exit(_code as libc::c_int)
+        }
+        #[cfg(not(test))]
+        unsafe {
+            libc::abort()
+        }
+    }
+
+    fn lock(&self) -> Result<(), ProtectedBufferError> {
+        let mlock_failed = unsafe { libc::mlock(self.ptr as *const _, self.capacity) } != 0;
+
+        if mlock_failed {
+            return Err(ProtectedBufferError::LockFailed);
+        }
+
+        Ok(())
+    }
+
     pub(crate) fn try_create_with(
         protection_strategy: ProtectionStrategy,
         len: usize,
@@ -91,6 +130,7 @@ impl ProtectedBuffer {
         hook(TryCreateStage::Protect, &mut protected_buffer);
         protected_buffer.protect().map_err(|e| {
             protected_buffer.dispose();
+            protected_buffer.fast_zeroize();
             return e;
         })?;
 
@@ -109,6 +149,21 @@ impl ProtectedBuffer {
         len: usize,
     ) -> Result<Self, ProtectedBufferError> {
         Self::try_create_with(protection_strategy, len, &mut |_, _| {})
+    }
+
+    pub(crate) fn abort_from_error(error: &ProtectedBufferError) {
+        match error {
+            ProtectedBufferError::LockFailed => {
+                Self::abort(AbortCode::LockFailed);
+            }
+            ProtectedBufferError::ProtectionFailed => {
+                Self::abort(AbortCode::ProtectionFailed);
+            }
+            ProtectedBufferError::UnprotectionFailed => {
+                Self::abort(AbortCode::UnprotectionFailed);
+            }
+            _ => unsafe { libc::abort() },
+        }
     }
 
     pub(crate) fn unprotect(&self) -> Result<(), ProtectedBufferError> {
@@ -132,16 +187,6 @@ impl ProtectedBuffer {
             if protection_failed {
                 return Err(ProtectedBufferError::ProtectionFailed);
             }
-        }
-
-        Ok(())
-    }
-
-    fn lock(&self) -> Result<(), ProtectedBufferError> {
-        let mlock_failed = unsafe { libc::mlock(self.ptr as *const _, self.capacity) } != 0;
-
-        if mlock_failed {
-            return Err(ProtectedBufferError::LockFailed);
         }
 
         Ok(())
@@ -196,15 +241,11 @@ impl ProtectedBuffer {
     }
 }
 
-impl Buffer for ProtectedBuffer {
-    fn open<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
-    where
-        F: Fn(&[u8]) -> Result<(), ProtectedBufferError>,
-    {
-        if !self.available.load(Ordering::Acquire) {
-            return Err(ProtectedBufferError::PageNoLongerAvailable);
-        }
-
+impl TryBuffer for ProtectedBuffer {
+    fn try_open(
+        &mut self,
+        f: &mut dyn Fn(&[u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError> {
         self.unprotect()?;
 
         {
@@ -212,23 +253,15 @@ impl Buffer for ProtectedBuffer {
             f(slice)?;
         }
 
-        self.protect().map_err(|e| {
-            self.dispose();
-            self.fast_zeroize();
-            e
-        })?;
+        self.protect()?;
 
         Ok(())
     }
 
-    fn open_mut<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
-    where
-        F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
-    {
-        if !self.available.load(Ordering::Acquire) {
-            return Err(ProtectedBufferError::PageNoLongerAvailable);
-        }
-
+    fn try_open_mut(
+        &mut self,
+        f: &mut dyn Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError> {
         self.unprotect()?;
 
         {
@@ -236,13 +269,61 @@ impl Buffer for ProtectedBuffer {
             f(slice)?;
         }
 
-        self.protect().map_err(|e| {
-            self.dispose();
-            self.fast_zeroize();
-            e
-        })?;
+        self.protect()?;
 
         Ok(())
+    }
+}
+
+impl Buffer for ProtectedBuffer {
+    fn open<F>(&mut self, mut f: F) -> Result<(), ProtectedBufferError>
+    where
+        F: Fn(&[u8]) -> Result<(), ProtectedBufferError>,
+    {
+        if !self.available.load(Ordering::Acquire) {
+            return Err(ProtectedBufferError::PageNoLongerAvailable);
+        }
+
+        let result = self.try_open(&mut f);
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(err) => match err {
+                ProtectedBufferError::ProtectionFailed
+                | ProtectedBufferError::UnprotectionFailed => {
+                    self.dispose();
+                    self.fast_zeroize();
+                    Self::abort_from_error(&err);
+                    Err(err)
+                }
+                _ => Err(err),
+            },
+        }
+    }
+
+    fn open_mut<F>(&mut self, mut f: F) -> Result<(), ProtectedBufferError>
+    where
+        F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
+    {
+        if !self.available.load(Ordering::Acquire) {
+            return Err(ProtectedBufferError::PageNoLongerAvailable);
+        }
+
+        let result = self.try_open_mut(&mut f);
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(err) => match err {
+                ProtectedBufferError::ProtectionFailed
+                | ProtectedBufferError::UnprotectionFailed => {
+                    self.dispose();
+                    self.fast_zeroize();
+                    Self::abort_from_error(&err);
+                    Err(err)
+                }
+                _ => Err(err),
+            },
+        }
     }
 
     fn len(&self) -> usize {
