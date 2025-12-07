@@ -52,6 +52,7 @@ RUN mkdir -p crates/memprotect/src && echo "// stub" > crates/memprotect/src/lib
     echo "fn main() {}" > crates/membench/benches/aead_aegis128l.rs && \
     echo "fn main() {}" > crates/membench/benches/cipherbox.rs && \
     echo "fn main() {}" > crates/membench/benches/codec.rs && \
+    echo "fn main() {}" > crates/membench/benches/protected_buffer.rs && \
     mkdir -p crates/memcodec/src && echo "// stub" > crates/memcodec/src/lib.rs && \
     mkdir -p crates/memcodec/core/src && echo "// stub" > crates/memcodec/core/src/lib.rs && \
     mkdir -p crates/memcodec/derive/src && echo "// stub" > crates/memcodec/derive/src/lib.rs && \

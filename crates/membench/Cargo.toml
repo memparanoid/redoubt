@@ -8,6 +8,8 @@ description = "Benchmarks for memora crates - not published"
 [dev-dependencies]
 criterion = "0.5"
 memaead.workspace = true
+membuffer.workspace = true
+memutil.workspace = true
 memcodec = { workspace = true, features = ["zeroize"] }
 aegis = { version = "0.9.5", features = ["pure-rust"] }
 bincode = "1.3"
@@ -29,4 +31,8 @@ harness = false
 
 [[bench]]
 name = "cipherbox"
+harness = false
+
+[[bench]]
+name = "protected_buffer"
 harness = false
