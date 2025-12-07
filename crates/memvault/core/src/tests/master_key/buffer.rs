@@ -7,7 +7,7 @@ use memzer::ZeroizationProbe;
 use crate::master_key::buffer::{create_buffer, create_initialized_buffer};
 use crate::master_key::consts::MASTER_KEY_LEN;
 #[cfg(target_os = "linux")]
-use crate::tests::utils::{block_mem_syscalls, run_test_as_subprocess};
+use crate::tests::utils::{block_entropy_syscalls, block_mem_syscalls, run_test_as_subprocess};
 
 #[test]
 fn test_create_buffer_returns_correct_length() {
@@ -75,4 +75,24 @@ fn subprocess_create_buffer_falls_back_to_portable() {
             Ok(())
         })
         .expect("Failed to open buffer");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn test_create_initialized_buffer_panics_on_entropy_failure() {
+    let exit_code = run_test_as_subprocess(
+        "tests::master_key::buffer::subprocess_create_initialized_buffer_panics_on_entropy_failure",
+    );
+    // Rust panic exits with code 101
+    assert_eq!(exit_code, Some(101), "subprocess should have panicked");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore]
+fn subprocess_create_initialized_buffer_panics_on_entropy_failure() {
+    block_entropy_syscalls();
+
+    // This should panic with "CRITICAL: Entropy not available"
+    let _ = create_initialized_buffer();
 }

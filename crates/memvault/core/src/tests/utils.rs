@@ -20,6 +20,25 @@ pub fn block_mem_syscalls() {
     filter.load().expect("Failed to load seccomp filter");
 }
 
+#[cfg(target_os = "linux")]
+pub fn block_entropy_syscalls() {
+    use libseccomp::{ScmpAction, ScmpFilterContext, ScmpSyscall};
+
+    let mut filter = ScmpFilterContext::new(ScmpAction::Allow).expect("Failed to create filter");
+
+    // Block getrandom syscall and /dev/urandom fallback
+    for syscall in &["getrandom", "read", "openat"] {
+        filter
+            .add_rule(
+                ScmpAction::Errno(libc::EPERM),
+                ScmpSyscall::from_name(syscall).unwrap(),
+            )
+            .expect("Failed to add rule");
+    }
+
+    filter.load().expect("Failed to load seccomp filter");
+}
+
 pub fn run_test_as_subprocess(test_name: &str) -> Option<i32> {
     let exe = std::env::current_exe().expect("Failed to get current exe");
     let output = std::process::Command::new(exe)
