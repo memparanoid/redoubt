@@ -14,7 +14,7 @@ use memrand::{EntropySource, SystemEntropySource};
 #[cfg(all(unix, not(target_os = "wasi")))]
 use membuffer::{ProtectedBuffer, ProtectionStrategy};
 
-pub const MASTER_KEY_LEN: usize = 64;
+use super::consts::MASTER_KEY_LEN;
 
 #[cfg(any(target_os = "wasi", not(unix)))]
 pub fn create_buffer(_is_guarded: bool) -> Box<dyn Buffer> {

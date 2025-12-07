@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::master_key::buffer::MASTER_KEY_LEN;
+use membuffer::BufferError;
+
+use crate::master_key::consts::MASTER_KEY_LEN;
 use crate::master_key::storage::std::open;
 use crate::tests::run::run_test_as_subprocess;
 
@@ -30,6 +32,15 @@ fn test_open_returns_same_bytes_on_subsequent_calls() {
         Ok(())
     })
     .expect("Failed to open std buffer");
+}
+
+#[test]
+fn test_open_propagates_callback_error() {
+    #[derive(Debug)]
+    struct CustomCallbackError {}
+
+    let result = open(&mut |_| Err(BufferError::callback_error(CustomCallbackError {})));
+    assert!(result.is_err());
 }
 
 #[test]

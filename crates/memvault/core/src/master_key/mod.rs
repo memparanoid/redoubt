@@ -9,6 +9,7 @@ use membuffer::BufferError as MemBufferError;
 use crate::BufferError;
 
 pub mod buffer;
+pub mod consts;
 pub mod storage;
 
 pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), MemBufferError>) -> Result<(), BufferError> {

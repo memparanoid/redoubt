@@ -4,7 +4,8 @@
 
 use memzer::ZeroizationProbe;
 
-use crate::master_key::buffer::{MASTER_KEY_LEN, create_buffer, create_initialized_buffer};
+use crate::master_key::buffer::{create_buffer, create_initialized_buffer};
+use crate::master_key::consts::MASTER_KEY_LEN;
 
 #[test]
 fn test_create_buffer_returns_correct_length() {
