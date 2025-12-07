@@ -14,7 +14,7 @@ use crate::error::PageProtectionError;
 #[cfg(target_os = "linux")]
 use crate::protected::{AbortCode, TryCreateStage};
 
-use crate::error::{PageError, ProtectedBufferError};
+use crate::error::{PageError, BufferError};
 use crate::protected::{ProtectedBuffer, ProtectionStrategy};
 use crate::traits::Buffer;
 
@@ -221,7 +221,7 @@ fn test_protected_buffer_try_create_reports_page_creation_failed_error() {
     let result = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10);
     assert!(matches!(
         result,
-        Err(ProtectedBufferError::Page(PageError::CreationFailed))
+        Err(BufferError::Page(PageError::CreationFailed))
     ));
 
     unsafe { libc::setrlimit(libc::RLIMIT_AS, &original) };
@@ -243,7 +243,7 @@ fn subprocess_test_protected_buffer_try_create_reports_lock_failed_error() {
     );
 
     match result {
-        Err(ProtectedBufferError::Page(PageError::Protection(ref prot_err))) => {
+        Err(BufferError::Page(PageError::Protection(ref prot_err))) => {
             ProtectedBuffer::abort_from_error(prot_err)
         }
         Err(_) => {}
@@ -282,7 +282,7 @@ fn subprocess_test_protected_buffer_try_create_reports_protection_failed_error()
     );
 
     match result {
-        Err(ProtectedBufferError::Page(PageError::Protection(
+        Err(BufferError::Page(PageError::Protection(
             ref page_protection_error @ PageProtectionError::ProtectionFailed,
         ))) => ProtectedBuffer::abort_from_error(page_protection_error),
         Err(_) => {}
@@ -321,7 +321,7 @@ fn subprocess_test_protected_buffer_propagates_fill_bytes_with_pattern_0_error()
     );
 
     match result {
-        Err(ProtectedBufferError::Page(PageError::Protection(
+        Err(BufferError::Page(PageError::Protection(
             ref page_protection_error @ PageProtectionError::UnprotectionFailed,
         ))) => {
             // The first syscall of `FillWithPattern0` stage is unprotect
@@ -465,7 +465,7 @@ fn test_protected_buffer_open_fails_if_not_available() {
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(ProtectedBufferError::PageNoLongerAvailable)
+        Err(BufferError::PageNoLongerAvailable)
     ));
 }
 
@@ -509,13 +509,13 @@ fn test_protected_buffer_open_propagates_callback_error() {
         .expect("expected ProtectedBuffer creation to succeed");
 
     let result = protected_buffer.open(&mut |_bytes| {
-        Err(ProtectedBufferError::callback_error(TestCallbackError {
+        Err(BufferError::callback_error(TestCallbackError {
             _code: 42,
         }))
     });
 
     match result {
-        Err(ProtectedBufferError::CallbackError(inner)) => {
+        Err(BufferError::CallbackError(inner)) => {
             let debug_str = format!("{:?}", inner);
 
             let expected_inner = TestCallbackError { _code: 42 };
@@ -542,7 +542,7 @@ fn subprocess_test_protected_buffer_open_aborts_on_protect_error_and_zeroizes_sl
     });
 
     match result {
-        Err(ProtectedBufferError::Page(PageError::Protection(
+        Err(BufferError::Page(PageError::Protection(
             ref page_protection_error @ PageProtectionError::ProtectionFailed,
         ))) => {
             // Assert zeroization!
@@ -583,7 +583,7 @@ fn test_protected_buffer_open_mut_fails_if_not_available() {
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(ProtectedBufferError::PageNoLongerAvailable)
+        Err(BufferError::PageNoLongerAvailable)
     ));
 }
 
@@ -627,13 +627,13 @@ fn test_protected_buffer_open_mut_propagates_callback_error() {
         .expect("expected ProtectedBuffer creation to succeed");
 
     let result = protected_buffer.open_mut(&mut |_bytes| {
-        Err(ProtectedBufferError::callback_error(TestCallbackError {
+        Err(BufferError::callback_error(TestCallbackError {
             _code: 42,
         }))
     });
 
     match result {
-        Err(ProtectedBufferError::CallbackError(inner)) => {
+        Err(BufferError::CallbackError(inner)) => {
             let debug_str = format!("{:?}", inner);
 
             let expected_inner = TestCallbackError { _code: 42 };
@@ -660,7 +660,7 @@ fn subprocess_test_protected_buffer_open_mut_aborts_on_protect_error_and_zeroize
     });
 
     match result {
-        Err(ProtectedBufferError::Page(PageError::Protection(
+        Err(BufferError::Page(PageError::Protection(
             ref page_protection_error @ PageProtectionError::ProtectionFailed,
         ))) => {
             // Assert zeroization!

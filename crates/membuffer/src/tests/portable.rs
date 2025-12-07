@@ -7,7 +7,7 @@ use core::cell::Cell;
 use memutil::fill_bytes_with_pattern;
 use memzer::{FastZeroizable, ZeroizationProbe};
 
-use crate::error::ProtectedBufferError;
+use crate::error::BufferError;
 use crate::portable::PortableBuffer;
 use crate::traits::Buffer;
 
@@ -127,13 +127,13 @@ fn test_portable_buffer_open_propagates_callback_error() {
     let mut portable_buffer = PortableBuffer::create(10);
 
     let result = portable_buffer.open(&mut |_bytes| {
-        Err(ProtectedBufferError::callback_error(TestCallbackError {
+        Err(BufferError::callback_error(TestCallbackError {
             _code: 42,
         }))
     });
 
     match result {
-        Err(ProtectedBufferError::CallbackError(inner)) => {
+        Err(BufferError::CallbackError(inner)) => {
             let expected_inner = TestCallbackError { _code: 42 };
             let debug_str = format!("{:?}", inner);
             let expected_debug_str = format!("{:?}", expected_inner);
@@ -157,13 +157,13 @@ fn test_portable_buffer_open_mut_propagates_callback_error() {
     let mut portable_buffer = PortableBuffer::create(10);
 
     let result = portable_buffer.open_mut(&mut |_bytes| {
-        Err(ProtectedBufferError::callback_error(TestCallbackError {
+        Err(BufferError::callback_error(TestCallbackError {
             _code: 42,
         }))
     });
 
     match result {
-        Err(ProtectedBufferError::CallbackError(inner)) => {
+        Err(BufferError::CallbackError(inner)) => {
             let expected_inner = TestCallbackError { _code: 42 };
             let debug_str = format!("{:?}", inner);
             let expected_debug_str = format!("{:?}", expected_inner);

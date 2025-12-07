@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 
 use memzer::{DropSentinel, FastZeroizable, MemZer};
 
-use crate::error::ProtectedBufferError;
+use crate::error::BufferError;
 use crate::traits::Buffer;
 
 #[derive(MemZer)]
@@ -46,15 +46,15 @@ unsafe impl Sync for PortableBuffer {}
 impl Buffer for PortableBuffer {
     fn open(
         &mut self,
-        f: &mut dyn FnMut(&[u8]) -> Result<(), ProtectedBufferError>,
-    ) -> Result<(), ProtectedBufferError> {
+        f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
+    ) -> Result<(), BufferError> {
         f(&self.inner)
     }
 
     fn open_mut(
         &mut self,
-        f: &mut dyn FnMut(&mut [u8]) -> Result<(), ProtectedBufferError>,
-    ) -> Result<(), ProtectedBufferError> {
+        f: &mut dyn FnMut(&mut [u8]) -> Result<(), BufferError>,
+    ) -> Result<(), BufferError> {
         f(&mut self.inner)
     }
 

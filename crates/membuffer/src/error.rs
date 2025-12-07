@@ -30,7 +30,7 @@ pub enum PageError {
 }
 
 #[derive(Debug, Error)]
-pub enum ProtectedBufferError {
+pub enum BufferError {
     #[error("PageError: {0}")]
     Page(#[from] PageError),
 
@@ -41,7 +41,7 @@ pub enum ProtectedBufferError {
     CallbackError(Box<dyn core::fmt::Debug + Send + Sync + 'static>),
 }
 
-impl ProtectedBufferError {
+impl BufferError {
     pub fn callback_error<E: core::fmt::Debug + Send + Sync + 'static>(e: E) -> Self {
         Self::CallbackError(Box::new(e))
     }

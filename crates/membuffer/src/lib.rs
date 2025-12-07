@@ -23,6 +23,6 @@ mod error;
 mod portable;
 mod traits;
 
-pub use error::ProtectedBufferError;
+pub use error::BufferError;
 pub use portable::PortableBuffer;
 pub use traits::Buffer;
