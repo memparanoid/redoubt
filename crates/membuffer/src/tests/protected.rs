@@ -9,9 +9,30 @@ use serial_test::serial;
 use memzer::{FastZeroizable, ZeroizationProbe};
 
 use crate::error::{LibcPageError, ProtectedBufferError};
-use crate::protected::{AbortCode, ProtectedBuffer, ProtectionStrategy, TryCreateStage};
+#[cfg(target_os = "linux")]
+use crate::protected::{AbortCode, TryCreateStage};
+use crate::protected::{ProtectedBuffer, ProtectionStrategy};
 use crate::traits::Buffer;
 use crate::utils::fill_with_pattern;
+
+/// Runs an ignored test as a subprocess and returns its exit code.
+/// This avoids fork() issues with inherited locks.
+#[cfg(target_os = "linux")]
+fn run_test_as_subprocess(test_name: &str) -> Option<i32> {
+    let exe = std::env::current_exe().expect("Failed to get current exe");
+    let status = std::process::Command::new(exe)
+        .args([
+            "--exact",
+            test_name,
+            "--ignored",
+            "--test-threads=1",
+            "--nocapture",
+        ])
+        .status()
+        .expect("Failed to run subprocess");
+
+    status.code()
+}
 
 #[cfg(target_os = "linux")]
 fn block_mem_syscalls() {
@@ -29,52 +50,6 @@ fn block_mem_syscalls() {
     }
 
     filter.load().expect("Failed to load seccomp filter");
-}
-
-/// Runs a closure in a forked child process and returns the exit code.
-///
-/// # Why fork is needed
-///
-/// Some tests need process isolation because:
-/// - seccomp filters are process-wide and cannot be removed once applied
-/// - We need to test error paths that would terminate the process (abort/exit)
-/// - Tests that manipulate rlimits or memory protections shouldn't affect other tests
-///
-/// # Why explicit _exit is needed
-///
-/// Functions like `try_create` return `Result` instead of aborting on error.
-/// The test closure must explicitly call `libc::_exit(code)` to signal the result
-/// back to the parent process. Without an explicit exit, the closure would return
-/// normally and the child would exit with code 0, making the test meaningless.
-///
-/// # Returns
-///
-/// - `Some(code)` if child exited normally with that code
-/// - `None` if child was killed by a signal (e.g., SIGABRT, SIGSEGV)
-#[cfg(target_os = "linux")]
-fn run_in_fork<F>(f: F) -> Option<isize>
-where
-    F: FnOnce(),
-{
-    let pid = unsafe { libc::fork() };
-
-    match pid {
-        -1 => panic!("fork failed"),
-        0 => {
-            f();
-            std::process::exit(0);
-        }
-        child_pid => {
-            let mut status: libc::c_int = 0;
-            unsafe { libc::waitpid(child_pid, &mut status, 0) };
-
-            if libc::WIFEXITED(status) {
-                Some(libc::WEXITSTATUS(status) as isize)
-            } else {
-                None // killed by signal
-            }
-        }
-    }
 }
 
 /// Reads the amount of locked memory (in kB) for the current process.
@@ -241,108 +216,128 @@ fn test_protected_buffer_try_create_reports_page_creation_failed_error() {
     let result = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10);
     assert!(matches!(
         result,
-        Err(ProtectedBufferError::LibcPage(LibcPageError::PageCreationFailed))
+        Err(ProtectedBufferError::LibcPage(
+            LibcPageError::PageCreationFailed
+        ))
     ));
 
     unsafe { libc::setrlimit(libc::RLIMIT_AS, &original) };
+}
+
+/// Subprocess for test_protected_buffer_try_create_reports_lock_failed_error
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore]
+fn subprocess_test_protected_buffer_try_create_reports_lock_failed_error() {
+    let result = ProtectedBuffer::try_create_with(
+        ProtectionStrategy::MemProtected,
+        10,
+        &mut |stage, _pb| {
+            if matches!(stage, TryCreateStage::Lock) {
+                block_mem_syscalls();
+            }
+        },
+    );
+
+    match result {
+        Err(ProtectedBufferError::LibcPage(ref libc_err)) => {
+            ProtectedBuffer::abort_from_error(libc_err)
+        }
+        Err(_) => {}
+        Ok(_) => {}
+    }
 }
 
 #[cfg(target_os = "linux")]
 #[serial(rlimit)]
 #[test]
 fn test_protected_buffer_try_create_reports_lock_failed_error() {
-    // try_create returns Result, it does NOT abort on error.
-    // We must explicitly check the error type and exit with a code.
-    let exit_code = run_in_fork(|| {
-        let result = ProtectedBuffer::try_create_with(
-            ProtectionStrategy::MemProtected,
-            10,
-            &mut |stage, _pb| {
-                if matches!(stage, TryCreateStage::Lock) {
-                    block_mem_syscalls();
-                }
-            },
-        );
-
-        match result {
-            Err(ProtectedBufferError::LibcPage(ref libc_err)) => {
-                ProtectedBuffer::abort_from_error(libc_err)
-            }
-            Err(_) => {} // Other error type
-            Ok(_) => {}  // Should not succeed (will exit with code 0)
-        }
-    });
+    let exit_code = run_test_as_subprocess(
+        "tests::protected::subprocess_test_protected_buffer_try_create_reports_lock_failed_error",
+    );
 
     assert_eq!(
         exit_code,
-        Some(AbortCode::LockFailed as isize),
+        Some(AbortCode::LockFailed as i32),
         "Expected LockFailed error"
     );
+}
+
+/// Subprocess for test_protected_buffer_try_create_reports_protection_failed_error
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore]
+fn subprocess_test_protected_buffer_try_create_reports_protection_failed_error() {
+    let result = ProtectedBuffer::try_create_with(
+        ProtectionStrategy::MemProtected,
+        10,
+        &mut |stage, _pb| {
+            if matches!(stage, TryCreateStage::Protect) {
+                block_mem_syscalls();
+            }
+        },
+    );
+
+    match result {
+        Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::ProtectionFailed)) => {
+            ProtectedBuffer::abort_from_error(libc_err)
+        }
+        Err(_) => {}
+        Ok(_) => {}
+    }
 }
 
 #[cfg(target_os = "linux")]
 #[serial(rlimit)]
 #[test]
 fn test_protected_buffer_try_create_reports_protection_failed_error() {
-    // try_create returns Result, it does NOT abort on error.
-    // We must explicitly check the error type and exit with a code.
-    let exit_code = run_in_fork(|| {
-        let result = ProtectedBuffer::try_create_with(
-            ProtectionStrategy::MemProtected,
-            10,
-            &mut |stage, _pb| {
-                if matches!(stage, TryCreateStage::Protect) {
-                    block_mem_syscalls();
-                }
-            },
-        );
-
-        match result {
-            Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::ProtectionFailed)) => {
-                ProtectedBuffer::abort_from_error(libc_err)
-            }
-            Err(_) => {} // Other error type
-            Ok(_) => {}  // Should not succeed (will exit with code 0)
-        }
-    });
+    let exit_code = run_test_as_subprocess(
+        "tests::protected::subprocess_test_protected_buffer_try_create_reports_protection_failed_error",
+    );
 
     assert_eq!(
         exit_code,
-        Some(AbortCode::ProtectionFailed as isize),
+        Some(AbortCode::ProtectionFailed as i32),
         "Expected ProtectionFailed error"
     );
+}
+
+/// Subprocess for test_protected_buffer_propagates_fill_with_pattern_0_error
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore]
+fn subprocess_test_protected_buffer_propagates_fill_with_pattern_0_error() {
+    let result = ProtectedBuffer::try_create_with(
+        ProtectionStrategy::MemProtected,
+        10,
+        &mut |stage, _pb| {
+            if matches!(stage, TryCreateStage::FillWithPattern0) {
+                block_mem_syscalls();
+            }
+        },
+    );
+
+    match result {
+        Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::UnprotectionFailed)) => {
+            // The first syscall of `FillWithPattern0` stage is unprotect
+            ProtectedBuffer::abort_from_error(libc_err)
+        }
+        Err(_) => {}
+        Ok(_) => {}
+    }
 }
 
 #[cfg(target_os = "linux")]
 #[serial(rlimit)]
 #[test]
 fn test_protected_buffer_propagates_fill_with_pattern_0_error() {
-    // try_create returns Result, it does NOT abort on error.
-    // We must explicitly check the error type and exit with a code.
-    let exit_code = run_in_fork(|| {
-        let result = ProtectedBuffer::try_create_with(
-            ProtectionStrategy::MemProtected,
-            10,
-            &mut |stage, _pb| {
-                if matches!(stage, TryCreateStage::FillWithPattern0) {
-                    block_mem_syscalls();
-                }
-            },
-        );
-
-        match result {
-            Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::UnprotectionFailed)) => {
-                // The first syscall of `FillWithPattern0` stage is unprotect
-                ProtectedBuffer::abort_from_error(libc_err)
-            }
-            Err(_) => {} // Other error type
-            Ok(_) => {}  // Should not succeed (will exit with code 0)
-        }
-    });
+    let exit_code = run_test_as_subprocess(
+        "tests::protected::subprocess_test_protected_buffer_propagates_fill_with_pattern_0_error",
+    );
 
     assert_eq!(
         exit_code,
-        Some(AbortCode::UnprotectionFailed as isize),
+        Some(AbortCode::UnprotectionFailed as i32),
         "Expected UnprotectionFailed error"
     );
 }
@@ -469,22 +464,30 @@ fn test_protected_buffer_open_fails_if_not_available() {
     ));
 }
 
+/// Subprocess for test_protected_buffer_open_aborts_on_unprotect_error
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore]
+fn subprocess_test_protected_buffer_open_aborts_on_unprotect_error() {
+    let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
+        .expect("expected ProtectedBuffer creation to succeed");
+
+    block_mem_syscalls();
+
+    let _ = buffer.open(|_| Ok(()));
+}
+
 #[cfg(target_os = "linux")]
 #[serial(rlimit)]
 #[test]
 fn test_protected_buffer_open_aborts_on_unprotect_error() {
-    let exit_code = run_in_fork(|| {
-        let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
-            .expect("expected ProtectedBuffer creation to succeed");
-
-        block_mem_syscalls();
-
-        let _ = buffer.open(|_| Ok(()));
-    });
+    let exit_code = run_test_as_subprocess(
+        "tests::protected::subprocess_test_protected_buffer_open_aborts_on_unprotect_error",
+    );
 
     assert_eq!(
         exit_code,
-        Some(AbortCode::UnprotectionFailed as isize),
+        Some(AbortCode::UnprotectionFailed as i32),
         "Expected UnprotectionFailed error"
     );
 }
@@ -520,33 +523,41 @@ fn test_protected_buffer_open_propagates_callback_error() {
     }
 }
 
+/// Subprocess for test_protected_buffer_open_aborts_on_protect_error_and_zeroizes_slice
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore]
+fn subprocess_test_protected_buffer_open_aborts_on_protect_error_and_zeroizes_slice() {
+    let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
+        .expect("expected ProtectedBuffer creation to succeed");
+
+    let result = buffer.open(|_| {
+        block_mem_syscalls();
+        Ok(())
+    });
+
+    match result {
+        Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::ProtectionFailed)) => {
+            // Assert zeroization!
+            assert!(buffer.is_zeroized());
+            ProtectedBuffer::abort_from_error(libc_err)
+        }
+        Err(_) => {}
+        Ok(_) => {}
+    }
+}
+
 #[cfg(target_os = "linux")]
 #[serial(rlimit)]
 #[test]
 fn test_protected_buffer_open_aborts_on_protect_error_and_zeroizes_slice() {
-    let exit_code = run_in_fork(|| {
-        let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
-            .expect("expected ProtectedBuffer creation to succeed");
-
-        let result = buffer.open(|_| {
-            block_mem_syscalls();
-            Ok(())
-        });
-
-        match result {
-            Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::ProtectionFailed)) => {
-                // Assert zeroization!
-                assert!(buffer.is_zeroized());
-                ProtectedBuffer::abort_from_error(libc_err)
-            }
-            Err(_) => {} // Other error type
-            Ok(_) => {}  // Should not succeed (will exit with code 0)
-        }
-    });
+    let exit_code = run_test_as_subprocess(
+        "tests::protected::subprocess_test_protected_buffer_open_aborts_on_protect_error_and_zeroizes_slice",
+    );
 
     assert_eq!(
         exit_code,
-        Some(AbortCode::ProtectionFailed as isize),
+        Some(AbortCode::ProtectionFailed as i32),
         "Expected ProtectionFailed error"
     );
 }
@@ -569,22 +580,30 @@ fn test_protected_buffer_open_mut_fails_if_not_available() {
     ));
 }
 
+/// Subprocess for test_protected_buffer_open_mut_aborts_on_unprotect_error
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore]
+fn subprocess_test_protected_buffer_open_mut_aborts_on_unprotect_error() {
+    let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
+        .expect("expected ProtectedBuffer creation to succeed");
+
+    block_mem_syscalls();
+
+    let _ = buffer.open_mut(|_| Ok(()));
+}
+
 #[cfg(target_os = "linux")]
 #[serial(rlimit)]
 #[test]
 fn test_protected_buffer_open_mut_aborts_on_unprotect_error() {
-    let exit_code = run_in_fork(|| {
-        let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
-            .expect("expected ProtectedBuffer creation to succeed");
-
-        block_mem_syscalls();
-
-        let _ = buffer.open_mut(|_| Ok(()));
-    });
+    let exit_code = run_test_as_subprocess(
+        "tests::protected::subprocess_test_protected_buffer_open_mut_aborts_on_unprotect_error",
+    );
 
     assert_eq!(
         exit_code,
-        Some(AbortCode::UnprotectionFailed as isize),
+        Some(AbortCode::UnprotectionFailed as i32),
         "Expected UnprotectionFailed error"
     );
 }
@@ -620,37 +639,44 @@ fn test_protected_buffer_open_mut_propagates_callback_error() {
     }
 }
 
+/// Subprocess for test_protected_buffer_open_mut_aborts_on_protect_error_and_zeroizes_slice
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore]
+fn subprocess_test_protected_buffer_open_mut_aborts_on_protect_error_and_zeroizes_slice() {
+    let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
+        .expect("expected ProtectedBuffer creation to succeed");
+
+    let result = buffer.open_mut(|_| {
+        block_mem_syscalls();
+        Ok(())
+    });
+
+    match result {
+        Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::ProtectionFailed)) => {
+            // Assert zeroization!
+            assert!(buffer.is_zeroized());
+            ProtectedBuffer::abort_from_error(libc_err)
+        }
+        Err(_) => {}
+        Ok(_) => {}
+    }
+}
+
 #[cfg(target_os = "linux")]
 #[serial(rlimit)]
 #[test]
 fn test_protected_buffer_open_mut_aborts_on_protect_error_and_zeroizes_slice() {
-    let exit_code = run_in_fork(|| {
-        let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
-            .expect("expected ProtectedBuffer creation to succeed");
-
-        let result = buffer.open_mut(|_| {
-            block_mem_syscalls();
-            Ok(())
-        });
-
-        match result {
-            Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::ProtectionFailed)) => {
-                // Assert zeroization!
-                assert!(buffer.is_zeroized());
-                ProtectedBuffer::abort_from_error(libc_err)
-            }
-            Err(_) => {} // Other error type
-            Ok(_) => {}  // Should not succeed (will exit with code 0)
-        }
-    });
+    let exit_code = run_test_as_subprocess(
+        "tests::protected::subprocess_test_protected_buffer_open_mut_aborts_on_protect_error_and_zeroizes_slice",
+    );
 
     assert_eq!(
         exit_code,
-        Some(AbortCode::ProtectionFailed as isize),
+        Some(AbortCode::ProtectionFailed as i32),
         "Expected ProtectionFailed error"
     );
 }
-
 
 // open / open_mut happy paths
 #[serial(rlimit)]
