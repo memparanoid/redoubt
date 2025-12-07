@@ -3,9 +3,10 @@
 // See LICENSE in the repository root for full license text.
 
 //! Error types for membuffer.
+use thiserror::Error;
 
-#[derive(Debug, thiserror::Error)]
-pub enum ProtectedBufferError {
+#[derive(Debug, Error)]
+pub enum LibcPageError {
     #[error("failed to create page")]
     PageCreationFailed,
 
@@ -17,6 +18,12 @@ pub enum ProtectedBufferError {
 
     #[error("failed to unprotect page")]
     UnprotectionFailed,
+}
+
+#[derive(Debug, Error)]
+pub enum ProtectedBufferError {
+    #[error("LibcPageError: {0}")]
+    LibcPage(#[from] LibcPageError),
 
     #[error("page is no longer available")]
     PageNoLongerAvailable,

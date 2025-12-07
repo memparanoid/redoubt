@@ -8,7 +8,7 @@ use serial_test::serial;
 
 use memzer::{FastZeroizable, ZeroizationProbe};
 
-use crate::error::ProtectedBufferError;
+use crate::error::{LibcPageError, ProtectedBufferError};
 use crate::protected::{AbortCode, ProtectedBuffer, ProtectionStrategy, TryCreateStage};
 use crate::traits::Buffer;
 use crate::utils::fill_with_pattern;
@@ -62,7 +62,7 @@ where
         -1 => panic!("fork failed"),
         0 => {
             f();
-            unsafe { libc::_exit(0) };
+            std::process::exit(0);
         }
         child_pid => {
             let mut status: libc::c_int = 0;
@@ -241,7 +241,7 @@ fn test_protected_buffer_try_create_reports_page_creation_failed_error() {
     let result = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10);
     assert!(matches!(
         result,
-        Err(ProtectedBufferError::PageCreationFailed)
+        Err(ProtectedBufferError::LibcPage(LibcPageError::PageCreationFailed))
     ));
 
     unsafe { libc::setrlimit(libc::RLIMIT_AS, &original) };
@@ -265,8 +265,11 @@ fn test_protected_buffer_try_create_reports_lock_failed_error() {
         );
 
         match result {
-            Err(e) => ProtectedBuffer::abort_from_error(&e),
-            Ok(_) => {} // Should not succeed (will exit with code 0)
+            Err(ProtectedBufferError::LibcPage(ref libc_err)) => {
+                ProtectedBuffer::abort_from_error(libc_err)
+            }
+            Err(_) => {} // Other error type
+            Ok(_) => {}  // Should not succeed (will exit with code 0)
         }
     });
 
@@ -295,11 +298,11 @@ fn test_protected_buffer_try_create_reports_protection_failed_error() {
         );
 
         match result {
-            Err(e) => {
-                assert!(matches!(e, ProtectedBufferError::ProtectionFailed));
-                ProtectedBuffer::abort_from_error(&e)
+            Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::ProtectionFailed)) => {
+                ProtectedBuffer::abort_from_error(libc_err)
             }
-            Ok(_) => {} // Should not succeed (will exit with code 0)
+            Err(_) => {} // Other error type
+            Ok(_) => {}  // Should not succeed (will exit with code 0)
         }
     });
 
@@ -313,7 +316,7 @@ fn test_protected_buffer_try_create_reports_protection_failed_error() {
 #[cfg(target_os = "linux")]
 #[serial(rlimit)]
 #[test]
-fn test_protected_buffer_propages_fill_with_pattern_0_error() {
+fn test_protected_buffer_propagates_fill_with_pattern_0_error() {
     // try_create returns Result, it does NOT abort on error.
     // We must explicitly check the error type and exit with a code.
     let exit_code = run_in_fork(|| {
@@ -328,12 +331,12 @@ fn test_protected_buffer_propages_fill_with_pattern_0_error() {
         );
 
         match result {
-            Err(e) => {
-                // The first syscall of `FillWithPattern0` stage is unportect
-                assert!(matches!(e, ProtectedBufferError::UnprotectionFailed));
-                ProtectedBuffer::abort_from_error(&e)
+            Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::UnprotectionFailed)) => {
+                // The first syscall of `FillWithPattern0` stage is unprotect
+                ProtectedBuffer::abort_from_error(libc_err)
             }
-            Ok(_) => {} // Should not succeed (will exit with code 0)
+            Err(_) => {} // Other error type
+            Ok(_) => {}  // Should not succeed (will exit with code 0)
         }
     });
 
@@ -531,13 +534,13 @@ fn test_protected_buffer_open_aborts_on_protect_error_and_zeroizes_slice() {
         });
 
         match result {
-            Err(e) => {
-                assert!(matches!(e, ProtectedBufferError::ProtectionFailed));
+            Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::ProtectionFailed)) => {
                 // Assert zeroization!
                 assert!(buffer.is_zeroized());
-                ProtectedBuffer::abort_from_error(&e)
+                ProtectedBuffer::abort_from_error(libc_err)
             }
-            Ok(_) => {} // Should not succeed (will exit with code 0)
+            Err(_) => {} // Other error type
+            Ok(_) => {}  // Should not succeed (will exit with code 0)
         }
     });
 
@@ -631,13 +634,13 @@ fn test_protected_buffer_open_mut_aborts_on_protect_error_and_zeroizes_slice() {
         });
 
         match result {
-            Err(e) => {
-                assert!(matches!(e, ProtectedBufferError::ProtectionFailed));
+            Err(ProtectedBufferError::LibcPage(ref libc_err @ LibcPageError::ProtectionFailed)) => {
                 // Assert zeroization!
                 assert!(buffer.is_zeroized());
-                ProtectedBuffer::abort_from_error(&e)
+                ProtectedBuffer::abort_from_error(libc_err)
             }
-            Ok(_) => {} // Should not succeed (will exit with code 0)
+            Err(_) => {} // Other error type
+            Ok(_) => {}  // Should not succeed (will exit with code 0)
         }
     });
 
