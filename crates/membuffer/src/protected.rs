@@ -137,10 +137,12 @@ impl ProtectedBuffer {
 
         #[cfg(test)]
         hook(TryCreateStage::FillWithPattern0, &mut protected_buffer);
-        protected_buffer.open_mut(|bytes| {
-            fill_with_pattern(bytes, 0u8);
-            Ok(())
-        })?;
+        protected_buffer
+            .open_mut(|bytes| {
+                fill_with_pattern(bytes, 0u8);
+                Ok(())
+            })
+            .expect("Infallible: callback cannot fail, abort() called on PageProtectionError");
 
         Ok(protected_buffer)
     }
@@ -243,10 +245,8 @@ impl ProtectedBuffer {
     pub(crate) fn with_self_ptr(&self, f: &mut dyn Fn(*mut u8)) {
         f(self.ptr);
     }
-}
 
-impl TryBuffer for ProtectedBuffer {
-    fn try_open(
+    fn try_open_unguarded(
         &mut self,
         f: &mut dyn Fn(&[u8]) -> Result<(), ProtectedBufferError>,
     ) -> Result<(), ProtectedBufferError> {
@@ -262,7 +262,7 @@ impl TryBuffer for ProtectedBuffer {
         Ok(())
     }
 
-    fn try_open_mut(
+    fn try_open_mut_unguarded(
         &mut self,
         f: &mut dyn Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
     ) -> Result<(), ProtectedBufferError> {
@@ -279,16 +279,16 @@ impl TryBuffer for ProtectedBuffer {
     }
 }
 
-impl Buffer for ProtectedBuffer {
-    fn open<F>(&mut self, mut f: F) -> Result<(), ProtectedBufferError>
-    where
-        F: Fn(&[u8]) -> Result<(), ProtectedBufferError>,
-    {
+impl TryBuffer for ProtectedBuffer {
+    fn try_open(
+        &mut self,
+        f: &mut dyn Fn(&[u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError> {
         if !self.available.load(Ordering::Acquire) {
             return Err(ProtectedBufferError::PageNoLongerAvailable);
         }
 
-        let result = self.try_open(&mut f);
+        let result = self.try_open_unguarded(f);
 
         match result {
             Ok(_) => Ok(()),
@@ -309,15 +309,15 @@ impl Buffer for ProtectedBuffer {
         }
     }
 
-    fn open_mut<F>(&mut self, mut f: F) -> Result<(), ProtectedBufferError>
-    where
-        F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
-    {
+    fn try_open_mut(
+        &mut self,
+        f: &mut dyn Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError> {
         if !self.available.load(Ordering::Acquire) {
             return Err(ProtectedBufferError::PageNoLongerAvailable);
         }
 
-        let result = self.try_open_mut(&mut f);
+        let result = self.try_open_mut_unguarded(f);
 
         match result {
             Ok(_) => Ok(()),
@@ -336,6 +336,22 @@ impl Buffer for ProtectedBuffer {
                 _ => Err(err),
             },
         }
+    }
+}
+
+impl Buffer for ProtectedBuffer {
+    fn open<F>(&mut self, mut f: F) -> Result<(), ProtectedBufferError>
+    where
+        F: Fn(&[u8]) -> Result<(), ProtectedBufferError>,
+    {
+        self.try_open(&mut f)
+    }
+
+    fn open_mut<F>(&mut self, mut f: F) -> Result<(), ProtectedBufferError>
+    where
+        F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
+    {
+        self.try_open_mut(&mut f)
     }
 
     fn len(&self) -> usize {
