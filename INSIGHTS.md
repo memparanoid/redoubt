@@ -8,7 +8,7 @@
 
 <h1 align="center">Project Insights</h1>
 
-<p align="center"><em>Generated on 2025-12-07 12:47</em></p>
+<p align="center"><em>Generated on 2025-12-07 12:54</em></p>
 
 ---
 
@@ -16,10 +16,10 @@
 
 | Metric | Coverage | Covered | Total |
 |--------|----------|---------|-------|
-| **Function** | **100.00%** | 34 | 34 |
-| **Line** | **96.58%** | 423 | 438 |
-| **Region** | **97.15%** | 750 | 772 |
-| **Branch** | **88.89%** | 16 | 18 |
+| **Function** | **99.26%** | 404 | 407 |
+| **Line** | **99.37%** | 3,620 | 3,643 |
+| **Region** | **99.20%** | 5,325 | 5,368 |
+| **Branch** | **97.81%** | 223 | 228 |
 
 ## 🔒 Security Audit
 
