@@ -782,6 +782,8 @@ dependencies = [
 name = "memvault_core"
 version = "0.1.0"
 dependencies = [
+ "libc",
+ "libseccomp",
  "membuffer",
  "memguard",
  "memrand",

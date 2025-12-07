@@ -18,3 +18,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 memzer.workspace = true
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+libc.workspace = true
+libseccomp.workspace = true

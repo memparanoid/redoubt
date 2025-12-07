@@ -6,7 +6,7 @@ use membuffer::BufferError;
 
 use crate::master_key::consts::MASTER_KEY_LEN;
 use crate::master_key::storage::std::open;
-use crate::tests::run::run_test_as_subprocess;
+use crate::tests::utils::run_test_as_subprocess;
 
 #[test]
 fn test_open_returns_correct_length() {
