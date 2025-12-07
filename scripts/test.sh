@@ -2,10 +2,16 @@
 # Run tests in Docker with required capabilities
 #
 # Usage:
-#   ./scripts/test.sh                              # All tests
-#   ./scripts/test.sh -p memcode-core              # Specific crate
-#   ./scripts/test.sh -p memcode-core test_name    # Specific test
-#   ./scripts/test.sh --lib                        # Only lib tests
+#   ./scripts/test.sh                                          # All tests
+#   ./scripts/test.sh -p <crate>                               # Specific crate
+#   ./scripts/test.sh -p <crate> <test_name>                   # Specific test
+#   ./scripts/test.sh -p <crate> --features <f1,f2>            # With features (comma-separated)
+#   ./scripts/test.sh -p <crate> --features <f1,f2> <test>     # Features + specific test
+#   ./scripts/test.sh --lib                                    # Only lib tests
+#
+# Examples:
+#   ./scripts/test.sh -p membuffer
+#   ./scripts/test.sh -p memvault_core --features no_std
 #   ./scripts/test.sh -p memcrypt --features test_utils test_encrypt
 
 set -euo pipefail
