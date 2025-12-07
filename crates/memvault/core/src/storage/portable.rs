@@ -9,9 +9,15 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
+use core::cell::UnsafeCell;
 use core::sync::atomic::{AtomicU8, Ordering};
 
-use membuffer::Buffer;
+use membuffer::{Buffer, BufferError, PortableBuffer};
+
+#[cfg(all(unix, not(target_os = "wasi")))]
+use membuffer::{ProtectedBuffer, ProtectionStrategy};
+
+const BUFFER_SIZE: usize = 4096;
 
 /// Initialization state: not yet attempted
 const STATE_UNINIT: u8 = 0;
@@ -20,8 +26,33 @@ const STATE_IN_PROGRESS: u8 = 1;
 /// Initialization state: completed
 const STATE_DONE: u8 = 2;
 
+struct BufferCell(UnsafeCell<Option<Box<dyn Buffer>>>);
+
+unsafe impl Sync for BufferCell {}
+
 static INIT_STATE: AtomicU8 = AtomicU8::new(STATE_UNINIT);
-static mut BUFFER: Option<Box<dyn Buffer>> = None;
+static BUFFER: BufferCell = BufferCell(UnsafeCell::new(None));
+
+#[cfg(any(target_os = "wasi", not(unix)))]
+fn create_buffer() -> Box<dyn Buffer> {
+    Box::new(PortableBuffer::create(BUFFER_SIZE))
+}
+
+#[cfg(all(unix, not(target_os = "wasi")))]
+fn create_buffer() -> Box<dyn Buffer> {
+    let is_guarded = memguard::is_guarded();
+
+    let strategy = if is_guarded {
+        ProtectionStrategy::MemNonProtected
+    } else {
+        ProtectionStrategy::MemProtected
+    };
+
+    match ProtectedBuffer::try_create(strategy, BUFFER_SIZE) {
+        Ok(buffer) => Box::new(buffer),
+        Err(_) => Box::new(PortableBuffer::create(BUFFER_SIZE)),
+    }
+}
 
 #[cold]
 #[inline(never)]
@@ -34,9 +65,8 @@ fn init_slow() {
     ) {
         Ok(_) => {
             // We won, initialize the buffer
-            // TODO: Create actual buffer
             unsafe {
-                BUFFER = None; // placeholder
+                *BUFFER.0.get() = Some(create_buffer());
             }
             INIT_STATE.store(STATE_DONE, Ordering::Release);
         }
@@ -49,26 +79,30 @@ fn init_slow() {
     }
 }
 
-pub fn open<F, R>(f: F) -> R
-where
-    F: FnOnce(&[u8]) -> R,
-{
+pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError> {
     if INIT_STATE.load(Ordering::Acquire) != STATE_DONE {
         init_slow();
     }
 
-    // TODO: Actually open buffer and call f
-    todo!()
+    unsafe {
+        (*BUFFER.0.get())
+            .as_mut()
+            .expect("buffer not initialized")
+            .open(f)
+    }
 }
 
-pub fn open_mut<F, R>(f: F) -> R
-where
-    F: FnOnce(&mut [u8]) -> R,
-{
+pub fn open_mut(
+    f: &mut dyn FnMut(&mut [u8]) -> Result<(), BufferError>,
+) -> Result<(), BufferError> {
     if INIT_STATE.load(Ordering::Acquire) != STATE_DONE {
         init_slow();
     }
 
-    // TODO: Actually open buffer mutably and call f
-    todo!()
+    unsafe {
+        (*BUFFER.0.get())
+            .as_mut()
+            .expect("buffer not initialized")
+            .open_mut(f)
+    }
 }

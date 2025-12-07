@@ -4,16 +4,16 @@
 
 //! Standard library storage implementation
 
-pub fn open<F, R>(_f: F) -> R
-where
-    F: FnOnce(&[u8]) -> R,
-{
+use membuffer::BufferError;
+
+pub fn open(
+    _f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
+) -> Result<(), BufferError> {
     todo!()
 }
 
-pub fn open_mut<F, R>(_f: F) -> R
-where
-    F: FnOnce(&mut [u8]) -> R,
-{
+pub fn open_mut(
+    _f: &mut dyn FnMut(&mut [u8]) -> Result<(), BufferError>,
+) -> Result<(), BufferError> {
     todo!()
 }

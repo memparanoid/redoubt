@@ -4,16 +4,17 @@
 
 //! Storage backend implementations
 
+use membuffer::BufferError;
+
 #[cfg(not(feature = "no_std"))]
 mod std;
 
 #[cfg(feature = "no_std")]
 mod portable;
 
-pub fn open<F, R>(f: F) -> R
-where
-    F: FnOnce(&[u8]) -> R,
-{
+pub fn open(
+    f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
+) -> Result<(), BufferError> {
     #[cfg(not(feature = "no_std"))]
     {
         std::open(f)
@@ -24,10 +25,9 @@ where
     }
 }
 
-pub fn open_mut<F, R>(f: F) -> R
-where
-    F: FnOnce(&mut [u8]) -> R,
-{
+pub fn open_mut(
+    f: &mut dyn FnMut(&mut [u8]) -> Result<(), BufferError>,
+) -> Result<(), BufferError> {
     #[cfg(not(feature = "no_std"))]
     {
         std::open_mut(f)
