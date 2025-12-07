@@ -63,6 +63,11 @@ fn init_slow() {
             // We won, perform prctl
             let succeeded = prctl_set_not_dumpable();
             PRCTL_SUCCEEDED.store(succeeded as u8, Ordering::Relaxed);
+            // Delay STATE_DONE to allow other threads to enter init_slow()
+            // and hit the spin loop for coverage. Without this, initialization
+            // completes too fast and threads skip init_slow() entirely.
+            #[cfg(test)]
+            std::thread::sleep(std::time::Duration::from_millis(100));
             INIT_STATE.store(STATE_DONE, Ordering::Release);
         }
         Err(_) => {
