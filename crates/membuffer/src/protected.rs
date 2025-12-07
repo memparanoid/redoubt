@@ -12,9 +12,10 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use memzer::{DropSentinel, FastZeroizable, MemZer};
 
+use memutil::fill_bytes_with_pattern;
+
 use crate::error::{PageError, PageProtectionError, ProtectedBufferError};
 use crate::traits::Buffer;
-use crate::utils::fill_with_pattern;
 
 pub(crate) trait TryBuffer {
     fn try_open(
@@ -139,7 +140,7 @@ impl ProtectedBuffer {
         hook(TryCreateStage::FillWithPattern0, &mut protected_buffer);
         protected_buffer
             .open_mut(|bytes| {
-                fill_with_pattern(bytes, 0u8);
+                fill_bytes_with_pattern(bytes, 0u8);
                 Ok(())
             })
             .expect("Infallible: callback cannot fail, abort() called on PageProtectionError");

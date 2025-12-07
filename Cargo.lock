@@ -670,6 +670,7 @@ dependencies = [
  "libc",
  "libseccomp",
  "memrand",
+ "memutil",
  "memzer",
  "serial_test",
  "thiserror",

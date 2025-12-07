@@ -22,7 +22,6 @@ pub use protected::{ProtectedBuffer, ProtectionStrategy};
 mod error;
 mod portable;
 mod traits;
-mod utils;
 
 pub use error::ProtectedBufferError;
 pub use portable::PortableBuffer;

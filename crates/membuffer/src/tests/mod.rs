@@ -4,4 +4,3 @@
 
 mod portable;
 mod protected;
-mod utils;

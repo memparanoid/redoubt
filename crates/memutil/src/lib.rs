@@ -10,6 +10,31 @@
 #[cfg(test)]
 mod tests;
 
+/// Fills a byte slice with a repeating pattern byte.
+///
+/// This is useful for initializing memory buffers with a known value,
+/// such as zeroing out sensitive data or filling with a sentinel pattern.
+///
+/// # Example
+///
+/// ```
+/// use memutil::fill_bytes_with_pattern;
+///
+/// let mut buffer = [0u8; 8];
+/// fill_bytes_with_pattern(&mut buffer, 0xAB);
+/// assert!(buffer.iter().all(|&b| b == 0xAB));
+///
+/// // Zero out the buffer
+/// fill_bytes_with_pattern(&mut buffer, 0);
+/// assert!(buffer.iter().all(|&b| b == 0));
+/// ```
+#[inline]
+pub fn fill_bytes_with_pattern(slice: &mut [u8], pattern: u8) {
+    for byte in slice.iter_mut() {
+        *byte = pattern;
+    }
+}
+
 /// Constant-time equality comparison for byte slices.
 ///
 /// Returns `true` if slices are equal, `false` otherwise.
