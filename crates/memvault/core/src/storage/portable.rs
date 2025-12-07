@@ -13,6 +13,7 @@ use core::cell::UnsafeCell;
 use core::sync::atomic::{AtomicU8, Ordering};
 
 use membuffer::{Buffer, BufferError, PortableBuffer};
+use memrand::{EntropySource, SystemEntropySource};
 
 #[cfg(all(unix, not(target_os = "wasi")))]
 use membuffer::{ProtectedBuffer, ProtectionStrategy};
@@ -64,9 +65,19 @@ fn init_slow() {
         Ordering::Relaxed,
     ) {
         Ok(_) => {
-            // We won, initialize the buffer
+            let mut buffer = create_buffer();
+
+            buffer
+                .open_mut(&mut |bytes| {
+                    SystemEntropySource {}
+                        .fill_bytes(bytes)
+                        .map_err(|e| BufferError::callback_error(e))?;
+                    Ok(())
+                })
+                .expect("CRITICAL: Entropy not available");
+
             unsafe {
-                *BUFFER.0.get() = Some(create_buffer());
+                *BUFFER.0.get() = Some(buffer);
             }
             INIT_STATE.store(STATE_DONE, Ordering::Release);
         }
@@ -86,23 +97,8 @@ pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), B
 
     unsafe {
         (*BUFFER.0.get())
-            .as_ref()
-            .expect("buffer not initialized")
-            .open(f)
-    }
-}
-
-pub fn open_mut(
-    f: &mut dyn FnMut(&mut [u8]) -> Result<(), BufferError>,
-) -> Result<(), BufferError> {
-    if INIT_STATE.load(Ordering::Acquire) != STATE_DONE {
-        init_slow();
-    }
-
-    unsafe {
-        (*BUFFER.0.get())
             .as_mut()
             .expect("buffer not initialized")
-            .open_mut(f)
+            .open(f)
     }
 }

@@ -11,9 +11,3 @@ pub fn open(
 ) -> Result<(), BufferError> {
     todo!()
 }
-
-pub fn open_mut(
-    _f: &mut dyn FnMut(&mut [u8]) -> Result<(), BufferError>,
-) -> Result<(), BufferError> {
-    todo!()
-}

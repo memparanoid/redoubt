@@ -24,16 +24,3 @@ pub fn open(
         portable::open(f)
     }
 }
-
-pub fn open_mut(
-    f: &mut dyn FnMut(&mut [u8]) -> Result<(), BufferError>,
-) -> Result<(), BufferError> {
-    #[cfg(not(feature = "no_std"))]
-    {
-        std::open_mut(f)
-    }
-    #[cfg(feature = "no_std")]
-    {
-        portable::open_mut(f)
-    }
-}
