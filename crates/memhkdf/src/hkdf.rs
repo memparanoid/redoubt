@@ -105,7 +105,7 @@ impl HkdfState {
             // Hash salt into key_block
             let mut sha = Sha512State::new();
             sha.update(salt);
-            sha.finalize((&mut self.key_block[..HASH_LEN]).try_into().unwrap());
+            sha.finalize((&mut self.key_block[..HASH_LEN]).try_into().expect("Failed to convert slice"));
             HASH_LEN
         } else {
             // Copy salt into key_block
