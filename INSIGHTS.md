@@ -8,7 +8,7 @@
 
 <h1 align="center">Project Insights</h1>
 
-<p align="center"><em>Generated on 2025-12-07 12:54</em></p>
+<p align="center"><em>Generated on 2025-12-07 13:08</em></p>
 
 ---
 
@@ -17,9 +17,9 @@
 | Metric | Coverage | Covered | Total |
 |--------|----------|---------|-------|
 | **Function** | **99.26%** | 404 | 407 |
-| **Line** | **99.37%** | 3,620 | 3,643 |
-| **Region** | **99.20%** | 5,325 | 5,368 |
-| **Branch** | **97.81%** | 223 | 228 |
+| **Line** | **99.62%** | 3,629 | 3,643 |
+| **Region** | **99.57%** | 5,345 | 5,368 |
+| **Branch** | **98.68%** | 225 | 228 |
 
 ## 🔒 Security Audit
 
@@ -29,19 +29,19 @@
 
 | Metric | Production | Tests | Total |
 |--------|------------|-------|-------|
-| **Code Lines** | 6,005 | 18,659 | 24,664 |
-| **Total Lines** | 7,754 | 21,693 | 29,447 |
-| **Files** | 93 | 110 | 203 |
-| **Comments** | 468 | - | 1,234 |
+| **Code Lines** | 6,005 | 19,757 | 25,762 |
+| **Total Lines** | 7,754 | 22,845 | 30,599 |
+| **Files** | 93 | 112 | 205 |
+| **Comments** | 468 | - | 1,249 |
 
-> **Test/Code Ratio:** `3.11x` — 18,659 test lines / 6,005 production lines
+> **Test/Code Ratio:** `3.29x` — 19,757 test lines / 6,005 production lines
 
 ## 🧪 Tests
 
 | Metric | Count |
 |--------|-------|
 | **Total Tests** | 149 |
-| **Total Assertions** | 1,150 |
+| **Total Assertions** | 1,153 |
 | **Assertions/Test** | 7.7 |
 | **Lines/Test** | 40.3 |
 
@@ -50,8 +50,8 @@
 
 | Macro | Count |
 |-------|-------|
-| `assert!` | 742 |
-| `assert_eq!` | 399 |
+| `assert!` | 743 |
+| `assert_eq!` | 401 |
 | `debug_assert!` | 7 |
 | `debug_assert_eq!` | 2 |
 
@@ -69,7 +69,7 @@
 | `memcodec/derive` | 94 | 10 |
 | `memcrypt` | 268 | 12 |
 | `memguard` | 147 | 1 |
-| `memhkdf` | 590 | 23 |
+| `memhkdf` | 590 | 28 |
 | `memrand` | 149 | 11 |
 | `memsecret` | 93 | 19 |
 | `memutil` | 146 | 13 |
@@ -79,7 +79,7 @@
 | `memzer` | 754 | 0 |
 | `memzer/core` | 513 | 38 |
 | `memzer/derive` | 237 | 33 |
-| **Total** | **8,098** | **443** |
+| **Total** | **8,098** | **448** |
 
 ---
 
