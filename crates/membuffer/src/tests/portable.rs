@@ -126,11 +126,8 @@ fn test_portable_buffer_open_propagates_callback_error() {
 
     let portable_buffer = PortableBuffer::create(10);
 
-    let result = portable_buffer.open(&mut |_bytes| {
-        Err(BufferError::callback_error(TestCallbackError {
-            _code: 42,
-        }))
-    });
+    let result = portable_buffer
+        .open(&mut |_bytes| Err(BufferError::callback_error(TestCallbackError { _code: 42 })));
 
     match result {
         Err(BufferError::CallbackError(inner)) => {
@@ -156,11 +153,8 @@ fn test_portable_buffer_open_mut_propagates_callback_error() {
 
     let mut portable_buffer = PortableBuffer::create(10);
 
-    let result = portable_buffer.open_mut(&mut |_bytes| {
-        Err(BufferError::callback_error(TestCallbackError {
-            _code: 42,
-        }))
-    });
+    let result = portable_buffer
+        .open_mut(&mut |_bytes| Err(BufferError::callback_error(TestCallbackError { _code: 42 })));
 
     match result {
         Err(BufferError::CallbackError(inner)) => {

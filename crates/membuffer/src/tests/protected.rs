@@ -14,7 +14,7 @@ use crate::error::PageProtectionError;
 #[cfg(target_os = "linux")]
 use crate::protected::{AbortCode, TryCreateStage};
 
-use crate::error::{PageError, BufferError};
+use crate::error::{BufferError, PageError};
 use crate::protected::{ProtectedBuffer, ProtectionStrategy};
 use crate::traits::Buffer;
 
@@ -463,10 +463,7 @@ fn test_protected_buffer_open_fails_if_not_available() {
     let result = protected_buffer.open(&mut |_| Ok(()));
 
     assert!(result.is_err());
-    assert!(matches!(
-        result,
-        Err(BufferError::PageNoLongerAvailable)
-    ));
+    assert!(matches!(result, Err(BufferError::PageNoLongerAvailable)));
 }
 
 /// Subprocess for test_protected_buffer_open_aborts_on_unprotect_error
@@ -508,11 +505,8 @@ fn test_protected_buffer_open_propagates_callback_error() {
     let protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
         .expect("expected ProtectedBuffer creation to succeed");
 
-    let result = protected_buffer.open(&mut |_bytes| {
-        Err(BufferError::callback_error(TestCallbackError {
-            _code: 42,
-        }))
-    });
+    let result = protected_buffer
+        .open(&mut |_bytes| Err(BufferError::callback_error(TestCallbackError { _code: 42 })));
 
     match result {
         Err(BufferError::CallbackError(inner)) => {
@@ -579,10 +573,7 @@ fn test_protected_buffer_open_mut_fails_if_not_available() {
     let result = protected_buffer.open_mut(&mut |_| Ok(()));
 
     assert!(result.is_err());
-    assert!(matches!(
-        result,
-        Err(BufferError::PageNoLongerAvailable)
-    ));
+    assert!(matches!(result, Err(BufferError::PageNoLongerAvailable)));
 }
 
 /// Subprocess for test_protected_buffer_open_mut_aborts_on_unprotect_error
@@ -624,11 +615,8 @@ fn test_protected_buffer_open_mut_propagates_callback_error() {
     let mut protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
         .expect("expected ProtectedBuffer creation to succeed");
 
-    let result = protected_buffer.open_mut(&mut |_bytes| {
-        Err(BufferError::callback_error(TestCallbackError {
-            _code: 42,
-        }))
-    });
+    let result = protected_buffer
+        .open_mut(&mut |_bytes| Err(BufferError::callback_error(TestCallbackError { _code: 42 })));
 
     match result {
         Err(BufferError::CallbackError(inner)) => {
