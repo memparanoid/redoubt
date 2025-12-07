@@ -740,6 +740,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "memhkdf"
+version = "0.0.1"
+
+[[package]]
 name = "memrand"
 version = "0.0.1"
 dependencies = [

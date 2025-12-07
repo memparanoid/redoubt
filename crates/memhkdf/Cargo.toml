@@ -1,0 +1,19 @@
+[package]
+name = "memhkdf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "HKDF-SHA512 implementation with secure memory handling"
+categories = ["cryptography", "no-std"]
+keywords = ["hkdf", "sha512", "kdf", "security"]
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+default = []
+
+[dependencies]
+
+[dev-dependencies]

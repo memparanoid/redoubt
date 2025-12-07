@@ -23,6 +23,7 @@ COPY crates/memzer/Cargo.toml ./crates/memzer/
 COPY crates/memzer/core/Cargo.toml ./crates/memzer/core/
 COPY crates/memzer/derive/Cargo.toml ./crates/memzer/derive/
 COPY crates/memrand/Cargo.toml ./crates/memrand/
+COPY crates/memhkdf/Cargo.toml ./crates/memhkdf/
 COPY crates/memutil/Cargo.toml ./crates/memutil/
 COPY crates/memaead/Cargo.toml ./crates/memaead/
 COPY crates/memcodec/Cargo.toml ./crates/memcodec/
@@ -41,6 +42,7 @@ RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs 
     mkdir -p crates/memzer/core/src && echo "// stub" > crates/memzer/core/src/lib.rs && \
     mkdir -p crates/memzer/derive/src && echo "// stub" > crates/memzer/derive/src/lib.rs && \
     mkdir -p crates/memrand/src && echo "// stub" > crates/memrand/src/lib.rs && \
+    mkdir -p crates/memhkdf/src && echo "// stub" > crates/memhkdf/src/lib.rs && \
     mkdir -p crates/memutil/src && echo "// stub" > crates/memutil/src/lib.rs && \
     mkdir -p crates/memaead/src && echo "// stub" > crates/memaead/src/lib.rs && \
     mkdir -p crates/memcodec/src && echo "// stub" > crates/memcodec/src/lib.rs && \

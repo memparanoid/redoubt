@@ -97,6 +97,7 @@ mk memzer_core
 mk memzer_derive
 mk memsecret
 mk memrand
+mk memhkdf
 mk memutil
 mk memvault
 mk memvault_core
