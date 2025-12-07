@@ -9,6 +9,7 @@ description = "Benchmarks for memora crates - not published"
 criterion = "0.5"
 memaead.workspace = true
 membuffer.workspace = true
+memhkdf.workspace = true
 memutil.workspace = true
 memcodec = { workspace = true, features = ["zeroize"] }
 aegis = { version = "0.9.5", features = ["pure-rust"] }
@@ -35,4 +36,8 @@ harness = false
 
 [[bench]]
 name = "protected_buffer"
+harness = false
+
+[[bench]]
+name = "hkdf"
 harness = false

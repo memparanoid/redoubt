@@ -55,7 +55,9 @@ RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs 
     mkdir -p crates/membench/benches && echo "fn main() {}" > crates/membench/benches/aead.rs && \
     echo "fn main() {}" > crates/membench/benches/aead_aegis128l.rs && \
     echo "fn main() {}" > crates/membench/benches/cipherbox.rs && \
-    echo "fn main() {}" > crates/membench/benches/codec.rs
+    echo "fn main() {}" > crates/membench/benches/codec.rs && \
+    echo "fn main() {}" > crates/membench/benches/protected_buffer.rs && \
+    echo "fn main() {}" > crates/membench/benches/hkdf.rs
 
 # Pre-fetch dependencies
 RUN cargo fetch

@@ -660,6 +660,7 @@ dependencies = [
  "memaead",
  "membuffer",
  "memcodec",
+ "memhkdf",
  "memutil",
  "serde",
  "zeroize",
