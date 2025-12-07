@@ -4,9 +4,17 @@
 
 //! Tests for HKDF-SHA512
 
+use memzer::AssertZeroizeOnDrop;
+
 use crate::consts::HASH_LEN;
 use crate::error::HkdfError;
-use crate::hkdf::hkdf;
+use crate::hkdf::{HkdfState, hkdf};
+
+#[test]
+fn test_hkdf_state_zeroization() {
+    let s = HkdfState::new();
+    s.assert_zeroize_on_drop();
+}
 
 #[test]
 fn test_hkdf_basic() {

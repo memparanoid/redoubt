@@ -5,4 +5,3 @@
 mod hkdf;
 mod sha512;
 mod word;
-mod zeroize;

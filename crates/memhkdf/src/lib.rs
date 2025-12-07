@@ -24,7 +24,6 @@ mod error;
 mod hkdf;
 mod sha512;
 mod word;
-mod zeroize;
 
 pub use error::HkdfError;
 pub use hkdf::hkdf;

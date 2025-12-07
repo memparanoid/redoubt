@@ -415,9 +415,3 @@ impl Sha512State {
     }
 }
 
-/// One-shot SHA-512
-pub fn sha512(data: &[u8], out: &mut [u8; HASH_LEN]) {
-    let mut state = Sha512State::new();
-    state.update(data);
-    state.finalize(out);
-}

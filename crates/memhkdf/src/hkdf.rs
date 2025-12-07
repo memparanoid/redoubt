@@ -2,167 +2,214 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! HKDF-SHA512 implementation per RFC 5869
+//!
+//! All intermediate buffers live in HkdfState for guaranteed zeroization.
+
+use memzer::{DropSentinel, FastZeroizable, MemZer};
+
 use super::consts::{BLOCK_LEN, HASH_LEN, MAX_OUTPUT_LEN};
 use super::error::HkdfError;
-use super::sha512::{Sha512State, sha512};
-use super::zeroize::{zeroize_64, zeroize_128};
+use super::sha512::Sha512State;
 
-/// HMAC-SHA512 per RFC 6234 Section 8
+/// HKDF-SHA512 state with all intermediate buffers.
 ///
-/// Computes HMAC-SHA512(key, message) and writes result to `out`.
-/// Zeroizes intermediate state on completion.
-fn hmac_sha512(key: &[u8], message: &[u8], out: &mut [u8; HASH_LEN]) {
-    let mut k_ipad = [0x36u8; BLOCK_LEN];
-    let mut k_opad = [0x5cu8; BLOCK_LEN];
+/// All sensitive data lives in this struct for guaranteed zeroization on drop.
+/// No stack allocations for sensitive data.
+#[derive(MemZer)]
+#[memzer(drop)]
+pub(crate) struct HkdfState {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // HMAC-SHA512 buffers per RFC 6234 Section 8
+    // ═══════════════════════════════════════════════════════════════════════════
+    /// K ⊕ ipad (0x36 repeated)
+    k_ipad: [u8; BLOCK_LEN],
+    /// K ⊕ opad (0x5c repeated)
+    k_opad: [u8; BLOCK_LEN],
+    /// Key block when key > BLOCK_LEN (hashed key, zero-padded)
+    key_block: [u8; BLOCK_LEN],
+    /// Inner hash result: SHA512(K ⊕ ipad || message)
+    inner_hash: [u8; HASH_LEN],
 
-    // If key > BLOCK_LEN, hash it first
-    let key_block: [u8; BLOCK_LEN];
-    let key_bytes: &[u8] = if key.len() > BLOCK_LEN {
-        let mut hashed_key = [0u8; HASH_LEN];
-        sha512(key, &mut hashed_key);
-        key_block = {
-            let mut kb = [0u8; BLOCK_LEN];
-            kb[..HASH_LEN].copy_from_slice(&hashed_key);
-            // Zeroize hashed_key
-            zeroize_64(&mut hashed_key);
-            kb
+    // ═══════════════════════════════════════════════════════════════════════════
+    // HKDF buffers per RFC 5869
+    // ═══════════════════════════════════════════════════════════════════════════
+    /// PRK = HMAC-Hash(salt, IKM) from Extract phase
+    prk: [u8; HASH_LEN],
+    /// T(i-1) for Expand phase
+    t_prev: [u8; HASH_LEN],
+    /// T(i) for Expand phase
+    t_curr: [u8; HASH_LEN],
+    /// Length of valid data in t_prev (0 for T(0))
+    t_prev_len: usize,
+
+    /// Drop sentinel for zeroization verification
+    __drop_sentinel: DropSentinel,
+}
+
+impl HkdfState {
+    /// Create new HKDF state
+    pub fn new() -> Self {
+        Self {
+            k_ipad: [0u8; BLOCK_LEN],
+            k_opad: [0u8; BLOCK_LEN],
+            key_block: [0u8; BLOCK_LEN],
+            inner_hash: [0u8; HASH_LEN],
+            prk: [0u8; HASH_LEN],
+            t_prev: [0u8; HASH_LEN],
+            t_curr: [0u8; HASH_LEN],
+            t_prev_len: 0,
+            __drop_sentinel: DropSentinel::default(),
+        }
+    }
+
+    /// HMAC-SHA512 for expand phase using prk as key, output to t_curr
+    fn hmac_sha512_expand(&mut self, info: &[u8], counter: u8) {
+        // PRK is always HASH_LEN (64 bytes), fits in block
+        // Initialize pads from prk directly
+        self.k_ipad.fill(0x36);
+        self.k_opad.fill(0x5c);
+        for i in 0..HASH_LEN {
+            self.k_ipad[i] ^= self.prk[i];
+            self.k_opad[i] ^= self.prk[i];
+        }
+
+        // Inner hash: SHA512(k_ipad || t_prev || info || counter)
+        {
+            let mut sha = Sha512State::new();
+            sha.update(&self.k_ipad);
+            sha.update(&self.t_prev[..self.t_prev_len]);
+            sha.update(info);
+            sha.update(&[counter]);
+            sha.finalize(&mut self.inner_hash);
+        }
+
+        // Outer hash: SHA512(k_opad || inner_hash)
+        {
+            let mut sha = Sha512State::new();
+            sha.update(&self.k_opad);
+            sha.update(&self.inner_hash);
+            sha.finalize(&mut self.t_curr);
+        }
+
+        // Zeroize HMAC intermediates immediately
+        self.k_ipad.fast_zeroize();
+        self.k_opad.fast_zeroize();
+        self.inner_hash.fast_zeroize();
+    }
+
+    /// HMAC-SHA512 for extract phase, output directly to prk
+    fn hmac_sha512_extract(&mut self, salt: &[u8], ikm: &[u8]) {
+        // Determine effective key (salt) length
+        let key_len = if salt.len() > BLOCK_LEN {
+            // Hash salt into key_block
+            let mut sha = Sha512State::new();
+            sha.update(salt);
+            sha.finalize((&mut self.key_block[..HASH_LEN]).try_into().unwrap());
+            HASH_LEN
+        } else {
+            // Copy salt into key_block
+            self.key_block[..salt.len()].copy_from_slice(salt);
+            salt.len()
         };
-        &key_block[..HASH_LEN]
-    } else {
-        key
-    };
 
-    // XOR key with ipad and opad
-    for (i, &kb) in key_bytes.iter().enumerate() {
-        k_ipad[i] ^= kb;
-        k_opad[i] ^= kb;
+        // Initialize pads
+        self.k_ipad.fill(0x36);
+        self.k_opad.fill(0x5c);
+        for i in 0..key_len {
+            self.k_ipad[i] ^= self.key_block[i];
+            self.k_opad[i] ^= self.key_block[i];
+        }
+
+        // Inner hash: SHA512(k_ipad || ikm)
+        {
+            let mut sha = Sha512State::new();
+            sha.update(&self.k_ipad);
+            sha.update(ikm);
+            sha.finalize(&mut self.inner_hash);
+        }
+
+        // Outer hash: SHA512(k_opad || inner_hash) -> prk
+        {
+            let mut sha = Sha512State::new();
+            sha.update(&self.k_opad);
+            sha.update(&self.inner_hash);
+            sha.finalize(&mut self.prk);
+        }
+
+        // Zeroize HMAC intermediates immediately
+        self.k_ipad.fast_zeroize();
+        self.k_opad.fast_zeroize();
+        self.key_block.fast_zeroize();
+        self.inner_hash.fast_zeroize();
     }
 
-    // Inner hash: SHA512(k_ipad || message)
-    let mut inner_hash = [0u8; HASH_LEN];
-    {
-        let mut state = Sha512State::new();
-        state.update(&k_ipad);
-        state.update(message);
-        state.finalize(&mut inner_hash);
+    /// HKDF-Extract per RFC 5869 Section 2.2
+    ///
+    /// PRK = HMAC-Hash(salt, IKM)
+    fn extract(&mut self, salt: &[u8], ikm: &[u8]) {
+        const DEFAULT_SALT: [u8; HASH_LEN] = [0u8; HASH_LEN];
+        let salt = if salt.is_empty() { &DEFAULT_SALT[..] } else { salt };
+        self.hmac_sha512_extract(salt, ikm);
     }
 
-    // Outer hash: SHA512(k_opad || inner_hash)
-    {
-        let mut state = Sha512State::new();
-        state.update(&k_opad);
-        state.update(&inner_hash);
-        state.finalize(out);
+    /// HKDF-Expand per RFC 5869 Section 2.3
+    fn expand(&mut self, info: &[u8], out: &mut [u8]) -> Result<(), HkdfError> {
+        let out_len = out.len();
+
+        if out_len > MAX_OUTPUT_LEN {
+            return Err(HkdfError::OutputTooLong);
+        }
+
+        if out_len == 0 {
+            return Ok(());
+        }
+
+        let n = (out_len + HASH_LEN - 1) / HASH_LEN;
+        let mut offset = 0;
+
+        // T(0) = empty
+        self.t_prev_len = 0;
+
+        for i in 1..=n {
+            // T(i) = HMAC-SHA512(PRK, T(i-1) || info || i)
+            self.hmac_sha512_expand(info, i as u8);
+
+            // Copy to output
+            let copy_len = core::cmp::min(HASH_LEN, out_len - offset);
+            out[offset..offset + copy_len].copy_from_slice(&self.t_curr[..copy_len]);
+            offset += copy_len;
+
+            // T(i-1) = T(i) for next iteration
+            self.t_prev.copy_from_slice(&self.t_curr);
+            self.t_prev_len = HASH_LEN;
+
+            // Zeroize t_curr
+            self.t_curr.fast_zeroize();
+        }
+
+        // Zeroize t_prev
+        self.t_prev.fast_zeroize();
+
+        Ok(())
     }
 
-    // Zeroize intermediates
-    zeroize_128(&mut k_ipad);
-    zeroize_128(&mut k_opad);
-    zeroize_64(&mut inner_hash);
+    /// Full HKDF: Extract-then-Expand
+    pub fn derive(
+        &mut self,
+        ikm: &[u8],
+        salt: &[u8],
+        info: &[u8],
+        out: &mut [u8],
+    ) -> Result<(), HkdfError> {
+        self.extract(salt, ikm);
+        let result = self.expand(info, out);
+        self.prk.fast_zeroize();
+        result
+    }
 }
 
-/// HKDF-Extract per RFC 5869 Section 2.2
-///
-/// PRK = HMAC-Hash(salt, IKM)
-/// If salt is empty, uses HASH_LEN zeros as salt.
-fn hkdf_extract(salt: &[u8], ikm: &[u8], prk: &mut [u8; HASH_LEN]) {
-    let default_salt = [0u8; HASH_LEN];
-    let salt = if salt.is_empty() { &default_salt } else { salt };
-    hmac_sha512(salt, ikm, prk);
-}
-
-/// HKDF-Expand per RFC 5869 Section 2.3
-///
-/// N = ceil(L/HashLen)
-/// T(0) = empty string
-/// T(i) = HMAC-Hash(PRK, T(i-1) | info | i)
-/// OKM = first L octets of T(1) | T(2) | ... | T(N)
-fn hkdf_expand(prk: &[u8; HASH_LEN], info: &[u8], out: &mut [u8]) -> Result<(), HkdfError> {
-    let out_len = out.len();
-
-    if out_len > MAX_OUTPUT_LEN {
-        return Err(HkdfError::OutputTooLong);
-    }
-
-    if out_len == 0 {
-        return Ok(());
-    }
-
-    let n = (out_len + HASH_LEN - 1) / HASH_LEN; // ceil(L / HashLen)
-
-    let mut t_prev = [0u8; HASH_LEN];
-    let mut t_prev_len: usize = 0;
-    let mut offset = 0;
-
-    for i in 1..=n {
-        // T(i) = HMAC-SHA512(PRK, T(i-1) || info || i)
-        let mut t_curr = [0u8; HASH_LEN];
-
-        // Build message: T(i-1) || info || counter
-        hmac_sha512_streaming(prk, &t_prev[..t_prev_len], info, i as u8, &mut t_curr);
-
-        // Copy to output
-        let copy_len = core::cmp::min(HASH_LEN, out_len - offset);
-        out[offset..offset + copy_len].copy_from_slice(&t_curr[..copy_len]);
-        offset += copy_len;
-
-        // T(i-1) = T(i) for next iteration
-        t_prev = t_curr;
-        t_prev_len = HASH_LEN;
-
-        // Zeroize t_curr (now copied to t_prev)
-        zeroize_64(&mut t_curr);
-    }
-
-    // Zeroize final t_prev
-    zeroize_64(&mut t_prev);
-
-    Ok(())
-}
-
-/// Streaming HMAC for expand: HMAC(key, t_prev || info || counter)
-fn hmac_sha512_streaming(
-    key: &[u8; HASH_LEN],
-    t_prev: &[u8],
-    info: &[u8],
-    counter: u8,
-    out: &mut [u8; HASH_LEN],
-) {
-    let mut k_ipad = [0x36u8; BLOCK_LEN];
-    let mut k_opad = [0x5cu8; BLOCK_LEN];
-
-    // Key is always HASH_LEN (64 bytes), no need to hash
-    for (i, &kb) in key.iter().enumerate() {
-        k_ipad[i] ^= kb;
-        k_opad[i] ^= kb;
-    }
-
-    // Inner hash: SHA512(k_ipad || t_prev || info || counter)
-    let mut inner_hash = [0u8; HASH_LEN];
-    {
-        let mut state = Sha512State::new();
-        state.update(&k_ipad);
-        state.update(t_prev);
-        state.update(info);
-        state.update(&[counter]);
-        state.finalize(&mut inner_hash);
-    }
-
-    // Outer hash: SHA512(k_opad || inner_hash)
-    {
-        let mut state = Sha512State::new();
-        state.update(&k_opad);
-        state.update(&inner_hash);
-        state.finalize(out);
-    }
-
-    // Zeroize
-    zeroize_128(&mut k_ipad);
-    zeroize_128(&mut k_opad);
-    zeroize_64(&mut inner_hash);
-}
-
-/// HKDF-SHA512: Extract-then-Expand
+/// HKDF-SHA512: Extract-then-Expand per RFC 5869
 ///
 /// Derives `out.len()` bytes from input keying material.
 ///
@@ -173,11 +220,9 @@ fn hmac_sha512_streaming(
 /// * `out` - Output buffer for derived key material
 ///
 /// # Errors
-/// Returns `Error::OutputTooLong` if `out.len() > 16320` (255 * 64)
+/// Returns `HkdfError::OutputTooLong` if `out.len() > 16320` (255 * 64)
 pub fn hkdf(ikm: &[u8], salt: &[u8], info: &[u8], out: &mut [u8]) -> Result<(), HkdfError> {
-    let mut prk = [0u8; HASH_LEN];
-    hkdf_extract(salt, ikm, &mut prk);
-    let result = hkdf_expand(&prk, info, out);
-    zeroize_64(&mut prk);
-    result
+    let mut state = HkdfState::new();
+    state.derive(ikm, salt, info, out)
+    // state dropped here, MemZer zeroizes all fields
 }

@@ -4,7 +4,7 @@
 
 use memzer::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
-use crate::sha512::{Sha512State, sha512};
+use crate::sha512::Sha512State;
 
 #[test]
 fn test_sha512_state_zeroization() {
@@ -23,7 +23,9 @@ fn test_sha512_state_zeroization() {
 #[test]
 fn test_sha512_empty() {
     let mut out = [0u8; 64];
-    sha512(b"", &mut out);
+    let mut state = Sha512State::new();
+    state.update(b"");
+    state.finalize(&mut out);
     let expected = [
         0xcf, 0x83, 0xe1, 0x35, 0x7e, 0xef, 0xb8, 0xbd, 0xf1, 0x54, 0x28, 0x50, 0xd6, 0x6d, 0x80,
         0x07, 0xd6, 0x20, 0xe4, 0x05, 0x0b, 0x57, 0x15, 0xdc, 0x83, 0xf4, 0xa9, 0x21, 0xd3, 0x6c,
@@ -39,7 +41,9 @@ fn test_sha512_empty() {
 #[test]
 fn test_sha512_abc() {
     let mut out = [0u8; 64];
-    sha512(b"abc", &mut out);
+    let mut state = Sha512State::new();
+    state.update(b"abc");
+    state.finalize(&mut out);
     let expected = [
         0xdd, 0xaf, 0x35, 0xa1, 0x93, 0x61, 0x7a, 0xba, 0xcc, 0x41, 0x73, 0x49, 0xae, 0x20, 0x41,
         0x31, 0x12, 0xe6, 0xfa, 0x4e, 0x89, 0xa9, 0x7e, 0xa2, 0x0a, 0x9e, 0xee, 0xe6, 0x4b, 0x55,
@@ -55,7 +59,9 @@ fn test_sha512_abc() {
 #[test]
 fn test_sha512_long() {
     let mut out = [0u8; 64];
-    sha512(b"abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu", &mut out);
+    let mut state = Sha512State::new();
+    state.update(b"abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu");
+    state.finalize(&mut out);
     let expected = [
         0x8e, 0x95, 0x9b, 0x75, 0xda, 0xe3, 0x13, 0xda, 0x8c, 0xf4, 0xf7, 0x28, 0x14, 0xfc, 0x14,
         0x3f, 0x8f, 0x77, 0x79, 0xc6, 0xeb, 0x9f, 0x7f, 0xa1, 0x72, 0x99, 0xae, 0xad, 0xb6, 0x88,
