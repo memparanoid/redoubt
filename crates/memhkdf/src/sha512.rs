@@ -4,7 +4,10 @@
 
 //! SHA-512 implementation per RFC 6234 Section 6.4
 
-use crate::{BLOCK_LEN, HASH_LEN, zeroize_128};
+use memzer::{DropSentinel, FastZeroizable, MemZer};
+
+use super::consts::{BLOCK_LEN, HASH_LEN};
+use super::word::Word64;
 
 /// SHA-512 constants K per RFC 6234 Section 5.2
 /// First 64 bits of fractional parts of cube roots of first 80 primes
@@ -104,59 +107,46 @@ const H0: [u64; 8] = [
     0x5be0cd19137e2179,
 ];
 
-/// Rotate right
-#[inline(always)]
-const fn rotr(x: u64, n: u32) -> u64 {
-    (x >> n) | (x << (64 - n))
-}
-
-/// SHA-512 logical functions per RFC 6234 Section 5.4
-#[inline(always)]
-const fn ch(x: u64, y: u64, z: u64) -> u64 {
-    (x & y) ^ (!x & z)
-}
-
-#[inline(always)]
-const fn maj(x: u64, y: u64, z: u64) -> u64 {
-    (x & y) ^ (x & z) ^ (y & z)
-}
-
-#[inline(always)]
-const fn bsig0(x: u64) -> u64 {
-    rotr(x, 28) ^ rotr(x, 34) ^ rotr(x, 39)
-}
-
-#[inline(always)]
-const fn bsig1(x: u64) -> u64 {
-    rotr(x, 14) ^ rotr(x, 18) ^ rotr(x, 41)
-}
-
-#[inline(always)]
-const fn ssig0(x: u64) -> u64 {
-    rotr(x, 1) ^ rotr(x, 8) ^ (x >> 7)
-}
-
-#[inline(always)]
-const fn ssig1(x: u64) -> u64 {
-    rotr(x, 19) ^ rotr(x, 61) ^ (x >> 6)
-}
-
-/// SHA-512 streaming state
+/// SHA-512 streaming state with hardened Word64 working state.
+#[derive(MemZer)]
+#[memzer(drop)]
 pub struct Sha512State {
-    h: [u64; 8],
+    /// Hash state H(i)
+    h: [Word64; 8],
+    /// Message schedule W[0..79]
+    w: [Word64; 80],
+    /// Input buffer
     buffer: [u8; BLOCK_LEN],
+    /// Temporary block for compression
+    tmp_block: [u8; BLOCK_LEN],
+    /// Temporary 8-byte buffer for word parsing
+    tmp_word: [u8; 8],
     buffer_len: usize,
     total_len: u128,
+    __drop_sentinel: DropSentinel,
 }
 
 impl Sha512State {
     /// Create new SHA-512 state
     pub fn new() -> Self {
         Self {
-            h: H0,
+            h: [
+                Word64::new(H0[0]),
+                Word64::new(H0[1]),
+                Word64::new(H0[2]),
+                Word64::new(H0[3]),
+                Word64::new(H0[4]),
+                Word64::new(H0[5]),
+                Word64::new(H0[6]),
+                Word64::new(H0[7]),
+            ],
+            w: core::array::from_fn(|_| Word64::zero()),
             buffer: [0u8; BLOCK_LEN],
+            tmp_block: [0u8; BLOCK_LEN],
+            tmp_word: [0u8; 8],
             buffer_len: 0,
             total_len: 0,
+            __drop_sentinel: DropSentinel::default(),
         }
     }
 
@@ -173,27 +163,28 @@ impl Sha512State {
             self.buffer[self.buffer_len..self.buffer_len + copy_len]
                 .copy_from_slice(&data[..copy_len]);
             self.buffer_len += copy_len;
-
             offset = copy_len;
 
             if self.buffer_len == BLOCK_LEN {
-                self.compress_block(&self.buffer.clone());
+                self.tmp_block.copy_from_slice(&self.buffer);
+                self.compress();
+                self.tmp_block.fast_zeroize();
+                self.buffer.fast_zeroize();
                 self.buffer_len = 0;
             }
         }
 
         // Process full blocks
         while offset + BLOCK_LEN <= data.len() {
-            let block: [u8; BLOCK_LEN] = data[offset..offset + BLOCK_LEN].try_into().unwrap();
-            self.compress_block(&block);
-
+            self.tmp_block.copy_from_slice(&data[offset..offset + BLOCK_LEN]);
+            self.compress();
+            self.tmp_block.fast_zeroize();
             offset += BLOCK_LEN;
         }
 
         // Buffer remaining
         if offset < data.len() {
             let remaining = data.len() - offset;
-
             self.buffer[..remaining].copy_from_slice(&data[offset..]);
             self.buffer_len = remaining;
         }
@@ -210,12 +201,14 @@ impl Sha512State {
 
         // If not enough space for length (16 bytes), pad and compress
         if self.buffer_len > BLOCK_LEN - 16 {
-            // Fill rest with zeros
             for i in self.buffer_len..BLOCK_LEN {
                 self.buffer[i] = 0;
             }
 
-            self.compress_block(&self.buffer.clone());
+            self.tmp_block.copy_from_slice(&self.buffer);
+            self.compress();
+            self.tmp_block.fast_zeroize();
+            self.buffer.fast_zeroize();
             self.buffer_len = 0;
         }
 
@@ -224,96 +217,130 @@ impl Sha512State {
             self.buffer[i] = 0;
         }
 
-        // Append 128-bit length in big-endian
+        // Append 128-bit length in big-endian (lower 128 bits)
         self.buffer[BLOCK_LEN - 16..BLOCK_LEN].copy_from_slice(&bit_len.to_be_bytes());
 
-        self.compress_block(&self.buffer.clone());
+        self.tmp_block.copy_from_slice(&self.buffer);
+        self.compress();
+        self.tmp_block.fast_zeroize();
 
-        // Output hash
-        for (i, &word) in self.h.iter().enumerate() {
-            out[i * 8..(i + 1) * 8].copy_from_slice(&word.to_be_bytes());
+        // Output hash H(n)
+        for (i, word) in self.h.iter().enumerate() {
+            out[i * 8..(i + 1) * 8].copy_from_slice(&word.get().to_be_bytes());
         }
-
-        // Zeroize state
-        self.zeroize();
+        // Drop zeroizes via MemZer derive
     }
 
-    /// Compress one 128-byte block
-    fn compress_block(&mut self, block: &[u8; BLOCK_LEN]) {
-        let mut w = [0u64; 80];
-
-        // Prepare message schedule
+    /// Compress tmp_block per RFC 6234 Section 6.4.2
+    fn compress(&mut self) {
+        // W[0..15] from tmp_block (big-endian)
         for t in 0..16 {
-            w[t] = u64::from_be_bytes(block[t * 8..(t + 1) * 8].try_into().unwrap());
-        }
-        for t in 16..80 {
-            w[t] = ssig1(w[t - 2])
-                .wrapping_add(w[t - 7])
-                .wrapping_add(ssig0(w[t - 15]))
-                .wrapping_add(w[t - 16]);
+            self.tmp_word.copy_from_slice(&self.tmp_block[t * 8..(t + 1) * 8]);
+            self.w[t].set(u64::from_be_bytes(self.tmp_word));
+            self.tmp_word.fast_zeroize();
         }
 
-        // Initialize working variables
-        let mut a = self.h[0];
-        let mut b = self.h[1];
-        let mut c = self.h[2];
-        let mut d = self.h[3];
-        let mut e = self.h[4];
-        let mut f = self.h[5];
-        let mut g = self.h[6];
-        let mut h = self.h[7];
+        // W[16..79]: W[t] = σ1(W[t-2]) + W[t-7] + σ0(W[t-15]) + W[t-16]
+        for t in 16..80 {
+            // σ1(W[t-2])
+            let mut s1 = Word64::zero();
+            Word64::set_ssig1(&mut s1, &self.w[t - 2]);
+            self.w[t].wrapping_add_assign(&s1);
+            s1.fast_zeroize();
+
+            // + W[t-7]
+            self.w[t].wrapping_add_assign_val(self.w[t - 7].get());
+
+            // + σ0(W[t-15])
+            let mut s0 = Word64::zero();
+            Word64::set_ssig0(&mut s0, &self.w[t - 15]);
+            self.w[t].wrapping_add_assign(&s0);
+            s0.fast_zeroize();
+
+            // + W[t-16]
+            self.w[t].wrapping_add_assign_val(self.w[t - 16].get());
+        }
+
+        // Working variables from current hash state
+        let mut a = Word64::new(self.h[0].get());
+        let mut b = Word64::new(self.h[1].get());
+        let mut c = Word64::new(self.h[2].get());
+        let mut d = Word64::new(self.h[3].get());
+        let mut e = Word64::new(self.h[4].get());
+        let mut f = Word64::new(self.h[5].get());
+        let mut g = Word64::new(self.h[6].get());
+        let mut h = Word64::new(self.h[7].get());
 
         // 80 rounds
         for t in 0..80 {
-            let t1 = h
-                .wrapping_add(bsig1(e))
-                .wrapping_add(ch(e, f, g))
-                .wrapping_add(K[t])
-                .wrapping_add(w[t]);
-            let t2 = bsig0(a).wrapping_add(maj(a, b, c));
-
-            h = g;
-            g = f;
-            f = e;
-            e = d.wrapping_add(t1);
-            d = c;
-            c = b;
-            b = a;
-            a = t1.wrapping_add(t2);
-        }
-
-        // Update hash values
-        self.h[0] = self.h[0].wrapping_add(a);
-        self.h[1] = self.h[1].wrapping_add(b);
-        self.h[2] = self.h[2].wrapping_add(c);
-        self.h[3] = self.h[3].wrapping_add(d);
-        self.h[4] = self.h[4].wrapping_add(e);
-        self.h[5] = self.h[5].wrapping_add(f);
-        self.h[6] = self.h[6].wrapping_add(g);
-        self.h[7] = self.h[7].wrapping_add(h);
-
-        // Zeroize w
-        for word in &mut w {
-            unsafe {
-                core::ptr::write_volatile(word, 0);
+            // T1 = h + Σ1(e) + Ch(e,f,g) + K[t] + W[t]
+            let mut t1 = Word64::new(h.get());
+            {
+                let mut s1 = Word64::zero();
+                Word64::set_bsig1(&mut s1, &e);
+                t1.wrapping_add_assign(&s1);
+                s1.fast_zeroize();
             }
-        }
-        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
-    }
-
-    /// Zeroize internal state
-    fn zeroize(&mut self) {
-        for word in &mut self.h {
-            unsafe {
-                core::ptr::write_volatile(word, 0);
+            {
+                let mut ch = Word64::zero();
+                Word64::set_ch(&mut ch, &e, &f, &g);
+                t1.wrapping_add_assign(&ch);
+                ch.fast_zeroize();
             }
+            t1.wrapping_add_assign_val(K[t]);
+            t1.wrapping_add_assign(&self.w[t]);
+
+            // W[t] no longer needed after this round
+            self.w[t].fast_zeroize();
+
+            // T2 = Σ0(a) + Maj(a,b,c)
+            let mut t2 = Word64::zero();
+            {
+                let mut s0 = Word64::zero();
+                Word64::set_bsig0(&mut s0, &a);
+                t2.wrapping_add_assign(&s0);
+                s0.fast_zeroize();
+            }
+            {
+                let mut maj = Word64::zero();
+                Word64::set_maj(&mut maj, &a, &b, &c);
+                t2.wrapping_add_assign(&maj);
+                maj.fast_zeroize();
+            }
+
+            // Rotate: h=g, g=f, f=e, e=d+T1, d=c, c=b, b=a, a=T1+T2
+            h.set(g.get());
+            g.set(f.get());
+            f.set(e.get());
+            e.set(d.get());
+            e.wrapping_add_assign(&t1);
+            d.set(c.get());
+            c.set(b.get());
+            b.set(a.get());
+            a.set(t1.get());
+            a.wrapping_add_assign(&t2);
+
+            t1.fast_zeroize();
+            t2.fast_zeroize();
         }
-        zeroize_128(&mut self.buffer);
-        unsafe {
-            core::ptr::write_volatile(&mut self.buffer_len, 0);
-            core::ptr::write_volatile(&mut self.total_len, 0);
-        }
-        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+
+        // H(i) = H(i-1) + working_var
+        self.h[0].wrapping_add_assign(&a);
+        a.fast_zeroize();
+        self.h[1].wrapping_add_assign(&b);
+        b.fast_zeroize();
+        self.h[2].wrapping_add_assign(&c);
+        c.fast_zeroize();
+        self.h[3].wrapping_add_assign(&d);
+        d.fast_zeroize();
+        self.h[4].wrapping_add_assign(&e);
+        e.fast_zeroize();
+        self.h[5].wrapping_add_assign(&f);
+        f.fast_zeroize();
+        self.h[6].wrapping_add_assign(&g);
+        g.fast_zeroize();
+        self.h[7].wrapping_add_assign(&h);
+        h.fast_zeroize();
     }
 }
 
@@ -322,57 +349,4 @@ pub fn sha512(data: &[u8], out: &mut [u8; HASH_LEN]) {
     let mut state = Sha512State::new();
     state.update(data);
     state.finalize(out);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Test vector from RFC 6234 Section 8.5
-    /// SHA-512("")
-    #[test]
-    fn test_sha512_empty() {
-        let mut out = [0u8; 64];
-        sha512(b"", &mut out);
-        let expected = [
-            0xcf, 0x83, 0xe1, 0x35, 0x7e, 0xef, 0xb8, 0xbd, 0xf1, 0x54, 0x28, 0x50, 0xd6, 0x6d,
-            0x80, 0x07, 0xd6, 0x20, 0xe4, 0x05, 0x0b, 0x57, 0x15, 0xdc, 0x83, 0xf4, 0xa9, 0x21,
-            0xd3, 0x6c, 0xe9, 0xce, 0x47, 0xd0, 0xd1, 0x3c, 0x5d, 0x85, 0xf2, 0xb0, 0xff, 0x83,
-            0x18, 0xd2, 0x87, 0x7e, 0xec, 0x2f, 0x63, 0xb9, 0x31, 0xbd, 0x47, 0x41, 0x7a, 0x81,
-            0xa5, 0x38, 0x32, 0x7a, 0xf9, 0x27, 0xda, 0x3e,
-        ];
-        assert_eq!(out, expected);
-    }
-
-    /// Test vector from RFC 6234 Section 8.5
-    /// SHA-512("abc")
-    #[test]
-    fn test_sha512_abc() {
-        let mut out = [0u8; 64];
-        sha512(b"abc", &mut out);
-        let expected = [
-            0xdd, 0xaf, 0x35, 0xa1, 0x93, 0x61, 0x7a, 0xba, 0xcc, 0x41, 0x73, 0x49, 0xae, 0x20,
-            0x41, 0x31, 0x12, 0xe6, 0xfa, 0x4e, 0x89, 0xa9, 0x7e, 0xa2, 0x0a, 0x9e, 0xee, 0xe6,
-            0x4b, 0x55, 0xd3, 0x9a, 0x21, 0x92, 0x99, 0x2a, 0x27, 0x4f, 0xc1, 0xa8, 0x36, 0xba,
-            0x3c, 0x23, 0xa3, 0xfe, 0xeb, 0xbd, 0x45, 0x4d, 0x44, 0x23, 0x64, 0x3c, 0xe8, 0x0e,
-            0x2a, 0x9a, 0xc9, 0x4f, 0xa5, 0x4c, 0xa4, 0x9f,
-        ];
-        assert_eq!(out, expected);
-    }
-
-    /// Test vector from RFC 6234 Section 8.5
-    /// SHA-512("abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu")
-    #[test]
-    fn test_sha512_long() {
-        let mut out = [0u8; 64];
-        sha512(b"abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu", &mut out);
-        let expected = [
-            0x8e, 0x95, 0x9b, 0x75, 0xda, 0xe3, 0x13, 0xda, 0x8c, 0xf4, 0xf7, 0x28, 0x14, 0xfc,
-            0x14, 0x3f, 0x8f, 0x77, 0x79, 0xc6, 0xeb, 0x9f, 0x7f, 0xa1, 0x72, 0x99, 0xae, 0xad,
-            0xb6, 0x88, 0x90, 0x18, 0x50, 0x1d, 0x28, 0x9e, 0x49, 0x00, 0xf7, 0xe4, 0x33, 0x1b,
-            0x99, 0xde, 0xc4, 0xb5, 0x43, 0x3a, 0xc7, 0xd3, 0x29, 0xee, 0xb6, 0xdd, 0x26, 0x54,
-            0x5e, 0x96, 0xe5, 0x5b, 0x87, 0x4b, 0xe9, 0x09,
-        ];
-        assert_eq!(out, expected);
-    }
 }

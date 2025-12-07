@@ -15,5 +15,7 @@ path = "src/lib.rs"
 default = []
 
 [dependencies]
+memzer.workspace = true
+memutil.workspace = true
 
 [dev-dependencies]

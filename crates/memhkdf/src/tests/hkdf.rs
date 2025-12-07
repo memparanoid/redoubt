@@ -4,7 +4,9 @@
 
 //! Tests for HKDF-SHA512
 
-use crate::{hkdf, Error, HASH_LEN};
+use crate::consts::HASH_LEN;
+use crate::error::HkdfError;
+use crate::hkdf::hkdf;
 
 #[test]
 fn test_hkdf_basic() {
@@ -99,7 +101,8 @@ fn test_hkdf_output_too_long() {
 
     let mut okm = [0u8; 255 * HASH_LEN + 1];
     let result = hkdf(ikm, salt, info, &mut okm);
-    assert_eq!(result, Err(Error::OutputTooLong));
+
+    assert_eq!(result, Err(HkdfError::OutputTooLong));
 }
 
 #[test]
