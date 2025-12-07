@@ -4,11 +4,11 @@
 
 //! Storage backend implementations
 
-#[cfg(not(feature = "no_std"))]
-mod std;
+#[cfg(any(test, not(feature = "no_std")))]
+pub mod std;
 
-#[cfg(feature = "no_std")]
-mod portable;
+#[cfg(any(test, feature = "no_std"))]
+pub mod portable;
 
 #[cfg(not(feature = "no_std"))]
 pub use std::open;

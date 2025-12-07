@@ -8,8 +8,8 @@ use membuffer::BufferError as MemBufferError;
 
 use crate::BufferError;
 
-mod buffer;
-mod storage;
+pub mod buffer;
+pub mod storage;
 
 pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), MemBufferError>) -> Result<(), BufferError> {
     storage::open(f)
