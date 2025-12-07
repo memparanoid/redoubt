@@ -2,7 +2,21 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::sha512::sha512;
+use memzer::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+
+use crate::sha512::{Sha512State, sha512};
+
+#[test]
+fn test_sha512_state_zeroization() {
+    let mut s = Sha512State::new();
+
+    assert!(!s.is_zeroized());
+    s.fast_zeroize();
+    assert!(s.is_zeroized());
+
+    let s = Sha512State::new();
+    s.assert_zeroize_on_drop();
+}
 
 /// Test vector from RFC 6234 Section 8.5
 /// SHA-512("")

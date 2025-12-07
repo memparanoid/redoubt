@@ -113,7 +113,7 @@ const H0: [u64; 8] = [
 /// No stack allocations for sensitive data that persists across rounds.
 #[derive(MemZer)]
 #[memzer(drop)]
-pub struct Sha512State {
+pub(crate) struct Sha512State {
     // ═══════════════════════════════════════════════════════════════════════════
     // Hash state H(i) per RFC 6234 Section 6.4.1
     // ═══════════════════════════════════════════════════════════════════════════
