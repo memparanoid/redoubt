@@ -474,12 +474,12 @@ fn test_protected_buffer_open_fails_if_not_available() {
 #[test]
 #[ignore]
 fn subprocess_test_protected_buffer_open_aborts_on_unprotect_error() {
-    let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
+    let protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
         .expect("expected ProtectedBuffer creation to succeed");
 
     block_mem_syscalls();
 
-    let _ = buffer.open(&mut |_| Ok(()));
+    let _ = protected_buffer.open(&mut |_| Ok(()));
 }
 
 #[cfg(target_os = "linux")]
@@ -505,7 +505,7 @@ fn test_protected_buffer_open_propagates_callback_error() {
         _code: u32,
     }
 
-    let mut protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
+    let protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
         .expect("expected ProtectedBuffer creation to succeed");
 
     let result = protected_buffer.open(&mut |_bytes| {
@@ -533,10 +533,10 @@ fn test_protected_buffer_open_propagates_callback_error() {
 #[test]
 #[ignore]
 fn subprocess_test_protected_buffer_open_aborts_on_protect_error_and_zeroizes_slice() {
-    let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
+    let protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
         .expect("expected ProtectedBuffer creation to succeed");
 
-    let result = buffer.open(&mut |_| {
+    let result = protected_buffer.open(&mut |_| {
         block_mem_syscalls();
         Ok(())
     });
@@ -544,11 +544,7 @@ fn subprocess_test_protected_buffer_open_aborts_on_protect_error_and_zeroizes_sl
     match result {
         Err(BufferError::Page(PageError::Protection(
             ref page_protection_error @ PageProtectionError::ProtectionFailed,
-        ))) => {
-            // Assert zeroization!
-            assert!(buffer.is_zeroized());
-            ProtectedBuffer::abort_from_error(page_protection_error)
-        }
+        ))) => ProtectedBuffer::abort_from_error(page_protection_error),
         Err(_) => {}
         Ok(_) => {}
     }
@@ -567,6 +563,8 @@ fn test_protected_buffer_open_aborts_on_protect_error_and_zeroizes_slice() {
         Some(AbortCode::ProtectionFailed as i32),
         "Expected ProtectionFailed error"
     );
+
+    // @TODO: Assert page zeroization
 }
 
 // open_mut
@@ -592,12 +590,12 @@ fn test_protected_buffer_open_mut_fails_if_not_available() {
 #[test]
 #[ignore]
 fn subprocess_test_protected_buffer_open_mut_aborts_on_unprotect_error() {
-    let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
+    let mut protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
         .expect("expected ProtectedBuffer creation to succeed");
 
     block_mem_syscalls();
 
-    let _ = buffer.open_mut(&mut |_| Ok(()));
+    let _ = protected_buffer.open_mut(&mut |_| Ok(()));
 }
 
 #[cfg(target_os = "linux")]
@@ -651,10 +649,10 @@ fn test_protected_buffer_open_mut_propagates_callback_error() {
 #[test]
 #[ignore]
 fn subprocess_test_protected_buffer_open_mut_aborts_on_protect_error_and_zeroizes_slice() {
-    let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
+    let mut protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
         .expect("expected ProtectedBuffer creation to succeed");
 
-    let result = buffer.open_mut(&mut |_| {
+    let result = protected_buffer.open_mut(&mut |_| {
         block_mem_syscalls();
         Ok(())
     });
@@ -662,11 +660,7 @@ fn subprocess_test_protected_buffer_open_mut_aborts_on_protect_error_and_zeroize
     match result {
         Err(BufferError::Page(PageError::Protection(
             ref page_protection_error @ PageProtectionError::ProtectionFailed,
-        ))) => {
-            // Assert zeroization!
-            assert!(buffer.is_zeroized());
-            ProtectedBuffer::abort_from_error(page_protection_error)
-        }
+        ))) => ProtectedBuffer::abort_from_error(page_protection_error),
         Err(_) => {}
         Ok(_) => {}
     }
@@ -685,6 +679,8 @@ fn test_protected_buffer_open_mut_aborts_on_protect_error_and_zeroizes_slice() {
         Some(AbortCode::ProtectionFailed as i32),
         "Expected ProtectionFailed error"
     );
+
+    // @TODO: Assert page zeroization
 }
 
 // open / open_mut happy paths

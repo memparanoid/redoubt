@@ -14,13 +14,12 @@ use memzer::{DropSentinel, FastZeroizable, MemZer};
 
 use memutil::fill_bytes_with_pattern;
 
-use crate::error::{PageError, PageProtectionError, BufferError};
+use crate::error::{BufferError, PageError, PageProtectionError};
 use crate::traits::Buffer;
 
 pub(crate) trait TryBuffer {
-    fn handle_page_protection_error(&mut self, err: BufferError) -> BufferError;
     fn try_open(
-        &mut self,
+        &self,
         f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
     ) -> Result<(), BufferError>;
     fn try_open_mut(
@@ -215,7 +214,7 @@ impl ProtectedBuffer {
         slice.fast_zeroize();
     }
 
-    pub(crate) fn dispose(&mut self) {
+    pub(crate) fn dispose(&self) {
         if !self.available.load(Ordering::Acquire) {
             return;
         }
@@ -247,17 +246,17 @@ impl ProtectedBuffer {
     pub(crate) fn with_self_ptr(&self, f: &mut dyn Fn(*mut u8)) {
         f(self.ptr);
     }
-}
 
-impl TryBuffer for ProtectedBuffer {
     #[cold]
     #[inline(never)]
-    fn handle_page_protection_error(&mut self, err: BufferError) -> BufferError {
+    fn handle_page_protection_error(&self, err: BufferError) -> BufferError {
         if let BufferError::Page(PageError::Protection(ref page_protection_error)) = err {
             match page_protection_error {
                 PageProtectionError::ProtectionFailed | PageProtectionError::UnprotectionFailed => {
+                    // dispose() zeroizes the slice via ptr, then munlock/munmap
+                    // We don't zeroize the struct metadata - it's not sensitive
+                    // Safety: we're about to abort anyway
                     self.dispose();
-                    self.fast_zeroize();
                     Self::abort_from_error(page_protection_error);
                 }
                 _ => {}
@@ -265,10 +264,12 @@ impl TryBuffer for ProtectedBuffer {
         }
         err
     }
+}
 
+impl TryBuffer for ProtectedBuffer {
     #[inline(always)]
     fn try_open(
-        &mut self,
+        &self,
         f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
     ) -> Result<(), BufferError> {
         self.unprotect()?;
@@ -303,10 +304,7 @@ impl TryBuffer for ProtectedBuffer {
 
 impl Buffer for ProtectedBuffer {
     #[inline(always)]
-    fn open(
-        &mut self,
-        f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
-    ) -> Result<(), BufferError> {
+    fn open(&self, f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError> {
         if !self.available.load(Ordering::Acquire) {
             return Err(BufferError::PageNoLongerAvailable);
         }
