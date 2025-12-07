@@ -6,7 +6,7 @@
 
 use memzer::AssertZeroizeOnDrop;
 
-use crate::consts::HASH_LEN;
+use crate::consts::{BLOCK_LEN, HASH_LEN};
 use crate::error::HkdfError;
 use crate::hkdf::{HkdfState, hkdf};
 
@@ -146,4 +146,28 @@ fn test_hkdf_different_salt_different_output() {
     hkdf(ikm, b"salt2", info, &mut okm2).unwrap();
 
     assert_ne!(okm1, okm2);
+}
+
+/// Test salt longer than BLOCK_LEN (128 bytes) - triggers HMAC key hashing
+#[test]
+fn test_hkdf_long_salt() {
+    let ikm = b"input key material";
+    let info = b"context";
+
+    // Salt > BLOCK_LEN triggers hashing of the salt in HMAC
+    let long_salt = [0x42u8; BLOCK_LEN + 1];
+
+    let mut okm = [0u8; 32];
+    hkdf(ikm, &long_salt, info, &mut okm).unwrap();
+
+    // Verify output is deterministic
+    let mut okm2 = [0u8; 32];
+    hkdf(ikm, &long_salt, info, &mut okm2).unwrap();
+    assert_eq!(okm, okm2);
+
+    // Verify different from short salt
+    let short_salt = [0x42u8; BLOCK_LEN];
+    let mut okm_short = [0u8; 32];
+    hkdf(ikm, &short_salt, info, &mut okm_short).unwrap();
+    assert_ne!(okm, okm_short);
 }
