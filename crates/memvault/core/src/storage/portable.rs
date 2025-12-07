@@ -12,13 +12,9 @@ use alloc::boxed::Box;
 use core::cell::UnsafeCell;
 use core::sync::atomic::{AtomicU8, Ordering};
 
-use membuffer::{Buffer, BufferError, PortableBuffer};
-use memrand::{EntropySource, SystemEntropySource};
+use membuffer::{Buffer, BufferError};
 
-#[cfg(all(unix, not(target_os = "wasi")))]
-use membuffer::{ProtectedBuffer, ProtectionStrategy};
-
-const BUFFER_SIZE: usize = 4096;
+use super::buffer::create_initialized_buffer;
 
 /// Initialization state: not yet attempted
 const STATE_UNINIT: u8 = 0;
@@ -34,27 +30,6 @@ unsafe impl Sync for BufferCell {}
 static INIT_STATE: AtomicU8 = AtomicU8::new(STATE_UNINIT);
 static BUFFER: BufferCell = BufferCell(UnsafeCell::new(None));
 
-#[cfg(any(target_os = "wasi", not(unix)))]
-fn create_buffer() -> Box<dyn Buffer> {
-    Box::new(PortableBuffer::create(BUFFER_SIZE))
-}
-
-#[cfg(all(unix, not(target_os = "wasi")))]
-fn create_buffer() -> Box<dyn Buffer> {
-    let is_guarded = memguard::is_guarded();
-
-    let strategy = if is_guarded {
-        ProtectionStrategy::MemNonProtected
-    } else {
-        ProtectionStrategy::MemProtected
-    };
-
-    match ProtectedBuffer::try_create(strategy, BUFFER_SIZE) {
-        Ok(buffer) => Box::new(buffer),
-        Err(_) => Box::new(PortableBuffer::create(BUFFER_SIZE)),
-    }
-}
-
 #[cold]
 #[inline(never)]
 fn init_slow() {
@@ -65,19 +40,8 @@ fn init_slow() {
         Ordering::Relaxed,
     ) {
         Ok(_) => {
-            let mut buffer = create_buffer();
-
-            buffer
-                .open_mut(&mut |bytes| {
-                    SystemEntropySource {}
-                        .fill_bytes(bytes)
-                        .map_err(|e| BufferError::callback_error(e))?;
-                    Ok(())
-                })
-                .expect("CRITICAL: Entropy not available");
-
             unsafe {
-                *BUFFER.0.get() = Some(buffer);
+                *BUFFER.0.get() = Some(create_initialized_buffer());
             }
             INIT_STATE.store(STATE_DONE, Ordering::Release);
         }

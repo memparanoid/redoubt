@@ -6,6 +6,8 @@
 
 use membuffer::BufferError;
 
+mod buffer;
+
 #[cfg(not(feature = "no_std"))]
 mod std;
 
