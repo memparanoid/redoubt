@@ -107,27 +107,73 @@ const H0: [u64; 8] = [
     0x5be0cd19137e2179,
 ];
 
-/// SHA-512 streaming state with hardened Word64 working state.
+/// SHA-512 streaming state per RFC 6234 Section 6.4.
+///
+/// All sensitive working variables live in the struct for guaranteed zeroization.
+/// No stack allocations for sensitive data that persists across rounds.
 #[derive(MemZer)]
 #[memzer(drop)]
 pub struct Sha512State {
-    /// Hash state H(i)
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Hash state H(i) per RFC 6234 Section 6.4.1
+    // ═══════════════════════════════════════════════════════════════════════════
     h: [Word64; 8],
-    /// Message schedule W[0..79]
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Message schedule W[0..79] per RFC 6234 Section 6.4.2 step 1
+    // ═══════════════════════════════════════════════════════════════════════════
     w: [Word64; 80],
-    /// Input buffer
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Working variables per RFC 6234 Section 6.4.2 step 2
+    // ═══════════════════════════════════════════════════════════════════════════
+    /// Working variable a
+    wv_a: Word64,
+    /// Working variable b
+    wv_b: Word64,
+    /// Working variable c
+    wv_c: Word64,
+    /// Working variable d
+    wv_d: Word64,
+    /// Working variable e
+    wv_e: Word64,
+    /// Working variable f
+    wv_f: Word64,
+    /// Working variable g
+    wv_g: Word64,
+    /// Working variable h
+    wv_h: Word64,
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Temporaries per RFC 6234 Section 6.4.2 step 3
+    // ═══════════════════════════════════════════════════════════════════════════
+    /// T1 = h + Σ1(e) + Ch(e,f,g) + K[t] + W[t]
+    t1: Word64,
+    /// T2 = Σ0(a) + Maj(a,b,c)
+    t2: Word64,
+    /// Scratch for σ/Σ/Ch/Maj results
+    scratch: Word64,
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Input buffering
+    // ═══════════════════════════════════════════════════════════════════════════
+    /// Input buffer for partial blocks
     buffer: [u8; BLOCK_LEN],
-    /// Temporary block for compression
+    /// Temporary block for compression (avoids aliasing buffer)
     tmp_block: [u8; BLOCK_LEN],
-    /// Temporary 8-byte buffer for word parsing
+    /// Temporary 8-byte buffer for big-endian word parsing
     tmp_word: [u8; 8],
+    /// Current position in buffer
     buffer_len: usize,
+    /// Total message length in bytes
     total_len: u128,
+
+    /// Drop sentinel for zeroization verification
     __drop_sentinel: DropSentinel,
 }
 
 impl Sha512State {
-    /// Create new SHA-512 state
+    /// Create new SHA-512 state initialized with H(0)
     pub fn new() -> Self {
         Self {
             h: [
@@ -141,6 +187,17 @@ impl Sha512State {
                 Word64::new(H0[7]),
             ],
             w: core::array::from_fn(|_| Word64::zero()),
+            wv_a: Word64::zero(),
+            wv_b: Word64::zero(),
+            wv_c: Word64::zero(),
+            wv_d: Word64::zero(),
+            wv_e: Word64::zero(),
+            wv_f: Word64::zero(),
+            wv_g: Word64::zero(),
+            wv_h: Word64::zero(),
+            t1: Word64::zero(),
+            t2: Word64::zero(),
+            scratch: Word64::zero(),
             buffer: [0u8; BLOCK_LEN],
             tmp_block: [0u8; BLOCK_LEN],
             tmp_word: [0u8; 8],
@@ -176,7 +233,8 @@ impl Sha512State {
 
         // Process full blocks
         while offset + BLOCK_LEN <= data.len() {
-            self.tmp_block.copy_from_slice(&data[offset..offset + BLOCK_LEN]);
+            self.tmp_block
+                .copy_from_slice(&data[offset..offset + BLOCK_LEN]);
             self.compress();
             self.tmp_block.fast_zeroize();
             offset += BLOCK_LEN;
@@ -192,14 +250,14 @@ impl Sha512State {
 
     /// Finalize and output hash
     pub fn finalize(mut self, out: &mut [u8; HASH_LEN]) {
-        // Padding: append 1 bit, then zeros, then 128-bit length
+        // Padding per RFC 6234 Section 4.2
         let bit_len = self.total_len * 8;
 
-        // Append 0x80
+        // Append 0x80 (1 bit followed by zeros)
         self.buffer[self.buffer_len] = 0x80;
         self.buffer_len += 1;
 
-        // If not enough space for length (16 bytes), pad and compress
+        // If not enough space for 128-bit length, pad and compress
         if self.buffer_len > BLOCK_LEN - 16 {
             for i in self.buffer_len..BLOCK_LEN {
                 self.buffer[i] = 0;
@@ -217,130 +275,143 @@ impl Sha512State {
             self.buffer[i] = 0;
         }
 
-        // Append 128-bit length in big-endian (lower 128 bits)
+        // Append 128-bit length in big-endian
         self.buffer[BLOCK_LEN - 16..BLOCK_LEN].copy_from_slice(&bit_len.to_be_bytes());
 
         self.tmp_block.copy_from_slice(&self.buffer);
         self.compress();
         self.tmp_block.fast_zeroize();
 
-        // Output hash H(n)
+        // Output hash H(N)
         for (i, word) in self.h.iter().enumerate() {
             out[i * 8..(i + 1) * 8].copy_from_slice(&word.get().to_be_bytes());
         }
         // Drop zeroizes via MemZer derive
     }
 
-    /// Compress tmp_block per RFC 6234 Section 6.4.2
+    /// Compress one block per RFC 6234 Section 6.4.2
     fn compress(&mut self) {
-        // W[0..15] from tmp_block (big-endian)
+        // ═══════════════════════════════════════════════════════════════════════
+        // Step 1: Prepare message schedule W[0..79]
+        // ═══════════════════════════════════════════════════════════════════════
+
+        // W[0..15] from block (big-endian)
         for t in 0..16 {
-            self.tmp_word.copy_from_slice(&self.tmp_block[t * 8..(t + 1) * 8]);
+            self.tmp_word
+                .copy_from_slice(&self.tmp_block[t * 8..(t + 1) * 8]);
             self.w[t].set(u64::from_be_bytes(self.tmp_word));
             self.tmp_word.fast_zeroize();
         }
 
         // W[16..79]: W[t] = σ1(W[t-2]) + W[t-7] + σ0(W[t-15]) + W[t-16]
         for t in 16..80 {
-            // σ1(W[t-2])
-            let mut s1 = Word64::zero();
-            Word64::set_ssig1(&mut s1, &self.w[t - 2]);
-            self.w[t].wrapping_add_assign(&s1);
-            s1.fast_zeroize();
+            // W[t] = 0
+            self.w[t].fast_zeroize();
+
+            // + σ1(W[t-2])
+            Word64::set_ssig1(&mut self.scratch, &self.w[t - 2]);
+            self.w[t].wrapping_add_assign(&self.scratch);
+            self.scratch.fast_zeroize();
 
             // + W[t-7]
             self.w[t].wrapping_add_assign_val(self.w[t - 7].get());
 
             // + σ0(W[t-15])
-            let mut s0 = Word64::zero();
-            Word64::set_ssig0(&mut s0, &self.w[t - 15]);
-            self.w[t].wrapping_add_assign(&s0);
-            s0.fast_zeroize();
+            Word64::set_ssig0(&mut self.scratch, &self.w[t - 15]);
+            self.w[t].wrapping_add_assign(&self.scratch);
+            self.scratch.fast_zeroize();
 
             // + W[t-16]
             self.w[t].wrapping_add_assign_val(self.w[t - 16].get());
         }
 
-        // Working variables from current hash state
-        let mut a = Word64::new(self.h[0].get());
-        let mut b = Word64::new(self.h[1].get());
-        let mut c = Word64::new(self.h[2].get());
-        let mut d = Word64::new(self.h[3].get());
-        let mut e = Word64::new(self.h[4].get());
-        let mut f = Word64::new(self.h[5].get());
-        let mut g = Word64::new(self.h[6].get());
-        let mut h = Word64::new(self.h[7].get());
+        // ═══════════════════════════════════════════════════════════════════════
+        // Step 2: Initialize working variables with H(i-1)
+        // ═══════════════════════════════════════════════════════════════════════
+        self.wv_a.set(self.h[0].get());
+        self.wv_b.set(self.h[1].get());
+        self.wv_c.set(self.h[2].get());
+        self.wv_d.set(self.h[3].get());
+        self.wv_e.set(self.h[4].get());
+        self.wv_f.set(self.h[5].get());
+        self.wv_g.set(self.h[6].get());
+        self.wv_h.set(self.h[7].get());
 
-        // 80 rounds
+        // ═══════════════════════════════════════════════════════════════════════
+        // Step 3: 80 rounds
+        // ═══════════════════════════════════════════════════════════════════════
         for t in 0..80 {
             // T1 = h + Σ1(e) + Ch(e,f,g) + K[t] + W[t]
-            let mut t1 = Word64::new(h.get());
-            {
-                let mut s1 = Word64::zero();
-                Word64::set_bsig1(&mut s1, &e);
-                t1.wrapping_add_assign(&s1);
-                s1.fast_zeroize();
-            }
-            {
-                let mut ch = Word64::zero();
-                Word64::set_ch(&mut ch, &e, &f, &g);
-                t1.wrapping_add_assign(&ch);
-                ch.fast_zeroize();
-            }
-            t1.wrapping_add_assign_val(K[t]);
-            t1.wrapping_add_assign(&self.w[t]);
+            self.t1.set(self.wv_h.get());
 
-            // W[t] no longer needed after this round
+            // + Σ1(e)
+            Word64::set_bsig1(&mut self.scratch, &self.wv_e);
+            self.t1.wrapping_add_assign(&self.scratch);
+            self.scratch.fast_zeroize();
+
+            // + Ch(e,f,g)
+            Word64::set_ch(&mut self.scratch, &self.wv_e, &self.wv_f, &self.wv_g);
+            self.t1.wrapping_add_assign(&self.scratch);
+            self.scratch.fast_zeroize();
+
+            // + K[t]
+            self.t1.wrapping_add_assign_val(K[t]);
+
+            // + W[t]
+            self.t1.wrapping_add_assign(&self.w[t]);
+
+            // W[t] no longer needed - zeroize immediately
             self.w[t].fast_zeroize();
 
             // T2 = Σ0(a) + Maj(a,b,c)
-            let mut t2 = Word64::zero();
-            {
-                let mut s0 = Word64::zero();
-                Word64::set_bsig0(&mut s0, &a);
-                t2.wrapping_add_assign(&s0);
-                s0.fast_zeroize();
-            }
-            {
-                let mut maj = Word64::zero();
-                Word64::set_maj(&mut maj, &a, &b, &c);
-                t2.wrapping_add_assign(&maj);
-                maj.fast_zeroize();
-            }
+            self.t2.fast_zeroize();
 
-            // Rotate: h=g, g=f, f=e, e=d+T1, d=c, c=b, b=a, a=T1+T2
-            h.set(g.get());
-            g.set(f.get());
-            f.set(e.get());
-            e.set(d.get());
-            e.wrapping_add_assign(&t1);
-            d.set(c.get());
-            c.set(b.get());
-            b.set(a.get());
-            a.set(t1.get());
-            a.wrapping_add_assign(&t2);
+            // + Σ0(a)
+            Word64::set_bsig0(&mut self.scratch, &self.wv_a);
+            self.t2.wrapping_add_assign(&self.scratch);
+            self.scratch.fast_zeroize();
 
-            t1.fast_zeroize();
-            t2.fast_zeroize();
+            // + Maj(a,b,c)
+            Word64::set_maj(&mut self.scratch, &self.wv_a, &self.wv_b, &self.wv_c);
+            self.t2.wrapping_add_assign(&self.scratch);
+            self.scratch.fast_zeroize();
+
+            // Rotate working variables: h=g, g=f, f=e, e=d+T1, d=c, c=b, b=a, a=T1+T2
+            self.wv_h.set(self.wv_g.get());
+            self.wv_g.set(self.wv_f.get());
+            self.wv_f.set(self.wv_e.get());
+            self.wv_e.set(self.wv_d.get());
+            self.wv_e.wrapping_add_assign(&self.t1);
+            self.wv_d.set(self.wv_c.get());
+            self.wv_c.set(self.wv_b.get());
+            self.wv_b.set(self.wv_a.get());
+            self.wv_a.set(self.t1.get());
+            self.wv_a.wrapping_add_assign(&self.t2);
+
+            // Zeroize T1, T2 after each round
+            self.t1.fast_zeroize();
+            self.t2.fast_zeroize();
         }
 
-        // H(i) = H(i-1) + working_var
-        self.h[0].wrapping_add_assign(&a);
-        a.fast_zeroize();
-        self.h[1].wrapping_add_assign(&b);
-        b.fast_zeroize();
-        self.h[2].wrapping_add_assign(&c);
-        c.fast_zeroize();
-        self.h[3].wrapping_add_assign(&d);
-        d.fast_zeroize();
-        self.h[4].wrapping_add_assign(&e);
-        e.fast_zeroize();
-        self.h[5].wrapping_add_assign(&f);
-        f.fast_zeroize();
-        self.h[6].wrapping_add_assign(&g);
-        g.fast_zeroize();
-        self.h[7].wrapping_add_assign(&h);
-        h.fast_zeroize();
+        // ═══════════════════════════════════════════════════════════════════════
+        // Step 4: Compute H(i) = H(i-1) + working variables
+        // ═══════════════════════════════════════════════════════════════════════
+        self.h[0].wrapping_add_assign(&self.wv_a);
+        self.wv_a.fast_zeroize();
+        self.h[1].wrapping_add_assign(&self.wv_b);
+        self.wv_b.fast_zeroize();
+        self.h[2].wrapping_add_assign(&self.wv_c);
+        self.wv_c.fast_zeroize();
+        self.h[3].wrapping_add_assign(&self.wv_d);
+        self.wv_d.fast_zeroize();
+        self.h[4].wrapping_add_assign(&self.wv_e);
+        self.wv_e.fast_zeroize();
+        self.h[5].wrapping_add_assign(&self.wv_f);
+        self.wv_f.fast_zeroize();
+        self.h[6].wrapping_add_assign(&self.wv_g);
+        self.wv_g.fast_zeroize();
+        self.h[7].wrapping_add_assign(&self.wv_h);
+        self.wv_h.fast_zeroize();
     }
 }
 
