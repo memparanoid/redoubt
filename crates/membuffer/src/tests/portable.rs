@@ -21,7 +21,7 @@ fn test_portable_buffer_happypath() {
     {
         let callback_executed = Cell::new(false);
         portable_buffer
-            .open_mut(|bytes| {
+            .open_mut(&mut |bytes| {
                 callback_executed.set(true);
                 fill_bytes_with_pattern(bytes, 0);
                 Ok(())
@@ -34,7 +34,7 @@ fn test_portable_buffer_happypath() {
     {
         let callback_executed = Cell::new(false);
         portable_buffer
-            .open_mut(|bytes| {
+            .open_mut(&mut |bytes| {
                 callback_executed.set(true);
                 assert!(bytes.is_zeroized());
                 Ok(())
@@ -47,7 +47,7 @@ fn test_portable_buffer_happypath() {
     {
         let callback_executed = Cell::new(false);
         portable_buffer
-            .open_mut(|bytes| {
+            .open_mut(&mut |bytes| {
                 callback_executed.set(true);
                 fill_bytes_with_pattern(bytes, 1);
                 Ok(())
@@ -60,7 +60,7 @@ fn test_portable_buffer_happypath() {
     {
         let callback_executed = Cell::new(false);
         portable_buffer
-            .open_mut(|bytes| {
+            .open_mut(&mut |bytes| {
                 callback_executed.set(true);
                 assert!(!bytes.is_zeroized());
                 Ok(())
@@ -73,7 +73,7 @@ fn test_portable_buffer_happypath() {
     {
         let callback_executed = Cell::new(false);
         portable_buffer
-            .open_mut(|bytes| {
+            .open_mut(&mut |bytes| {
                 callback_executed.set(true);
                 bytes.fast_zeroize();
                 Ok(())
@@ -86,7 +86,7 @@ fn test_portable_buffer_happypath() {
     {
         let callback_executed = Cell::new(false);
         portable_buffer
-            .open_mut(|bytes| {
+            .open_mut(&mut |bytes| {
                 callback_executed.set(true);
                 assert!(bytes.is_zeroized());
                 Ok(())
@@ -103,14 +103,14 @@ fn test_portable_buffer_open_happypath() {
     let mut portable_buffer = PortableBuffer::create(10);
 
     portable_buffer
-        .open_mut(|bytes| {
+        .open_mut(&mut |bytes| {
             fill_bytes_with_pattern(bytes, 0);
             Ok(())
         })
         .expect("Failed to open_mut(..)");
 
     portable_buffer
-        .open(|bytes| {
+        .open(&mut |bytes| {
             assert!(bytes.is_zeroized());
             Ok(())
         })
@@ -126,7 +126,7 @@ fn test_portable_buffer_open_propagates_callback_error() {
 
     let mut portable_buffer = PortableBuffer::create(10);
 
-    let result = portable_buffer.open(|_bytes| {
+    let result = portable_buffer.open(&mut |_bytes| {
         Err(ProtectedBufferError::callback_error(TestCallbackError {
             _code: 42,
         }))
@@ -156,7 +156,7 @@ fn test_portable_buffer_open_mut_propagates_callback_error() {
 
     let mut portable_buffer = PortableBuffer::create(10);
 
-    let result = portable_buffer.open_mut(|_bytes| {
+    let result = portable_buffer.open_mut(&mut |_bytes| {
         Err(ProtectedBufferError::callback_error(TestCallbackError {
             _code: 42,
         }))

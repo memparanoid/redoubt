@@ -111,7 +111,7 @@ fn run_protected_buffer_open_happy_path_test(strategy: ProtectionStrategy) {
     {
         let callback_executed = Cell::new(false);
         protected_buffer
-            .open_mut(|bytes| {
+            .open_mut(&mut |bytes| {
                 callback_executed.set(true);
                 assert!(bytes.is_zeroized());
                 Ok(())
@@ -124,7 +124,7 @@ fn run_protected_buffer_open_happy_path_test(strategy: ProtectionStrategy) {
     {
         let callback_executed = Cell::new(false);
         protected_buffer
-            .open_mut(|bytes| {
+            .open_mut(&mut |bytes| {
                 callback_executed.set(true);
                 fill_bytes_with_pattern(bytes, 1);
                 Ok(())
@@ -137,7 +137,7 @@ fn run_protected_buffer_open_happy_path_test(strategy: ProtectionStrategy) {
     {
         let callback_executed = Cell::new(false);
         protected_buffer
-            .open_mut(|bytes| {
+            .open_mut(&mut |bytes| {
                 callback_executed.set(true);
                 assert!(!bytes.is_zeroized());
                 Ok(())
@@ -150,7 +150,7 @@ fn run_protected_buffer_open_happy_path_test(strategy: ProtectionStrategy) {
     {
         let callback_executed = Cell::new(false);
         protected_buffer
-            .open(|bytes| {
+            .open(&mut |bytes| {
                 callback_executed.set(true);
                 assert!(!bytes.is_zeroized());
                 Ok(())
@@ -163,7 +163,7 @@ fn run_protected_buffer_open_happy_path_test(strategy: ProtectionStrategy) {
     {
         let callback_executed = Cell::new(false);
         protected_buffer
-            .open_mut(|bytes| {
+            .open_mut(&mut |bytes| {
                 callback_executed.set(true);
                 bytes.fast_zeroize();
                 Ok(())
@@ -176,7 +176,7 @@ fn run_protected_buffer_open_happy_path_test(strategy: ProtectionStrategy) {
     {
         let callback_executed = Cell::new(false);
         protected_buffer
-            .open_mut(|bytes| {
+            .open_mut(&mut |bytes| {
                 callback_executed.set(true);
                 assert!(bytes.is_zeroized());
                 Ok(())
@@ -189,7 +189,7 @@ fn run_protected_buffer_open_happy_path_test(strategy: ProtectionStrategy) {
     {
         let callback_executed = Cell::new(false);
         protected_buffer
-            .open(|bytes| {
+            .open(&mut |bytes| {
                 callback_executed.set(true);
                 assert!(bytes.is_zeroized());
                 Ok(())
@@ -366,7 +366,7 @@ fn test_protected_buffer_protect_prevents_read_unprotect_allows_read() {
 
     // Modify content to fill with u8::MAX
     protected_buffer
-        .open_mut(|bytes| {
+        .open_mut(&mut |bytes| {
             fill_bytes_with_pattern(bytes, u8::MAX);
             Ok(())
         })
@@ -460,7 +460,7 @@ fn test_protected_buffer_open_fails_if_not_available() {
         .expect("Failed to create ProtectedBuffer");
     protected_buffer.fast_zeroize();
 
-    let result = protected_buffer.open(|_| Ok(()));
+    let result = protected_buffer.open(&mut |_| Ok(()));
 
     assert!(result.is_err());
     assert!(matches!(
@@ -479,7 +479,7 @@ fn subprocess_test_protected_buffer_open_aborts_on_unprotect_error() {
 
     block_mem_syscalls();
 
-    let _ = buffer.open(|_| Ok(()));
+    let _ = buffer.open(&mut |_| Ok(()));
 }
 
 #[cfg(target_os = "linux")]
@@ -508,7 +508,7 @@ fn test_protected_buffer_open_propagates_callback_error() {
     let mut protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
         .expect("expected ProtectedBuffer creation to succeed");
 
-    let result = protected_buffer.open(|_bytes| {
+    let result = protected_buffer.open(&mut |_bytes| {
         Err(ProtectedBufferError::callback_error(TestCallbackError {
             _code: 42,
         }))
@@ -536,7 +536,7 @@ fn subprocess_test_protected_buffer_open_aborts_on_protect_error_and_zeroizes_sl
     let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
         .expect("expected ProtectedBuffer creation to succeed");
 
-    let result = buffer.open(|_| {
+    let result = buffer.open(&mut |_| {
         block_mem_syscalls();
         Ok(())
     });
@@ -578,7 +578,7 @@ fn test_protected_buffer_open_mut_fails_if_not_available() {
         .expect("Failed to create ProtectedBuffer");
     protected_buffer.fast_zeroize();
 
-    let result = protected_buffer.open_mut(|_| Ok(()));
+    let result = protected_buffer.open_mut(&mut |_| Ok(()));
 
     assert!(result.is_err());
     assert!(matches!(
@@ -597,7 +597,7 @@ fn subprocess_test_protected_buffer_open_mut_aborts_on_unprotect_error() {
 
     block_mem_syscalls();
 
-    let _ = buffer.open_mut(|_| Ok(()));
+    let _ = buffer.open_mut(&mut |_| Ok(()));
 }
 
 #[cfg(target_os = "linux")]
@@ -626,7 +626,7 @@ fn test_protected_buffer_open_mut_propagates_callback_error() {
     let mut protected_buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
         .expect("expected ProtectedBuffer creation to succeed");
 
-    let result = protected_buffer.open_mut(|_bytes| {
+    let result = protected_buffer.open_mut(&mut |_bytes| {
         Err(ProtectedBufferError::callback_error(TestCallbackError {
             _code: 42,
         }))
@@ -654,7 +654,7 @@ fn subprocess_test_protected_buffer_open_mut_aborts_on_protect_error_and_zeroize
     let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 10)
         .expect("expected ProtectedBuffer creation to succeed");
 
-    let result = buffer.open_mut(|_| {
+    let result = buffer.open_mut(&mut |_| {
         block_mem_syscalls();
         Ok(())
     });

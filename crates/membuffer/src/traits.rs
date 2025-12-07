@@ -4,14 +4,16 @@
 
 use crate::error::ProtectedBufferError;
 
-pub trait Buffer {
-    fn open<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
-    where
-        F: Fn(&[u8]) -> Result<(), ProtectedBufferError>;
+pub trait Buffer: Send + Sync {
+    fn open(
+        &mut self,
+        f: &mut dyn FnMut(&[u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError>;
 
-    fn open_mut<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
-    where
-        F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>;
+    fn open_mut(
+        &mut self,
+        f: &mut dyn FnMut(&mut [u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError>;
 
     fn len(&self) -> usize;
 

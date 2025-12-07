@@ -39,18 +39,22 @@ impl PortableBuffer {
     }
 }
 
+// Safety: PortableBuffer owns its Vec and doesn't share references
+unsafe impl Send for PortableBuffer {}
+unsafe impl Sync for PortableBuffer {}
+
 impl Buffer for PortableBuffer {
-    fn open<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
-    where
-        F: Fn(&[u8]) -> Result<(), ProtectedBufferError>,
-    {
+    fn open(
+        &mut self,
+        f: &mut dyn FnMut(&[u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError> {
         f(&self.inner)
     }
 
-    fn open_mut<F>(&mut self, f: F) -> Result<(), ProtectedBufferError>
-    where
-        F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
-    {
+    fn open_mut(
+        &mut self,
+        f: &mut dyn FnMut(&mut [u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError> {
         f(&mut self.inner)
     }
 

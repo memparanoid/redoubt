@@ -6,5 +6,9 @@
 //!
 //! Core functionality for memvault.
 
+#![cfg_attr(all(feature = "no_std", not(test)), no_std)]
+
+pub mod storage;
+
 #[cfg(test)]
 mod tests;

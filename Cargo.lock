@@ -781,6 +781,9 @@ dependencies = [
 [[package]]
 name = "memvault_core"
 version = "0.1.0"
+dependencies = [
+ "membuffer",
+]
 
 [[package]]
 name = "memvault_derive"

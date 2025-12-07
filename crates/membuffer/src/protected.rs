@@ -19,21 +19,13 @@ use crate::traits::Buffer;
 
 pub(crate) trait TryBuffer {
     fn handle_page_protection_error(&mut self, err: ProtectedBufferError) -> ProtectedBufferError;
-    fn try_open_impl(
-        &mut self,
-        f: &mut dyn Fn(&[u8]) -> Result<(), ProtectedBufferError>,
-    ) -> Result<(), ProtectedBufferError>;
-    fn try_open_mut_impl(
-        &mut self,
-        f: &mut dyn Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
-    ) -> Result<(), ProtectedBufferError>;
     fn try_open(
         &mut self,
-        f: &mut dyn Fn(&[u8]) -> Result<(), ProtectedBufferError>,
+        f: &mut dyn FnMut(&[u8]) -> Result<(), ProtectedBufferError>,
     ) -> Result<(), ProtectedBufferError>;
     fn try_open_mut(
         &mut self,
-        f: &mut dyn Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
+        f: &mut dyn FnMut(&mut [u8]) -> Result<(), ProtectedBufferError>,
     ) -> Result<(), ProtectedBufferError>;
 }
 
@@ -148,7 +140,7 @@ impl ProtectedBuffer {
         #[cfg(test)]
         hook(TryCreateStage::FillWithPattern0, &mut protected_buffer);
         protected_buffer
-            .open_mut(|bytes| {
+            .open_mut(&mut |bytes| {
                 fill_bytes_with_pattern(bytes, 0u8);
                 Ok(())
             })
@@ -273,10 +265,11 @@ impl TryBuffer for ProtectedBuffer {
         }
         err
     }
+
     #[inline(always)]
-    fn try_open_impl(
+    fn try_open(
         &mut self,
-        f: &mut dyn Fn(&[u8]) -> Result<(), ProtectedBufferError>,
+        f: &mut dyn FnMut(&[u8]) -> Result<(), ProtectedBufferError>,
     ) -> Result<(), ProtectedBufferError> {
         self.unprotect()?;
 
@@ -291,9 +284,9 @@ impl TryBuffer for ProtectedBuffer {
     }
 
     #[inline(always)]
-    fn try_open_mut_impl(
+    fn try_open_mut(
         &mut self,
-        f: &mut dyn Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
+        f: &mut dyn FnMut(&mut [u8]) -> Result<(), ProtectedBufferError>,
     ) -> Result<(), ProtectedBufferError> {
         self.unprotect()?;
 
@@ -306,59 +299,43 @@ impl TryBuffer for ProtectedBuffer {
 
         Ok(())
     }
-
-    #[inline(always)]
-    fn try_open(
-        &mut self,
-        f: &mut dyn Fn(&[u8]) -> Result<(), ProtectedBufferError>,
-    ) -> Result<(), ProtectedBufferError> {
-        if !self.available.load(Ordering::Acquire) {
-            return Err(ProtectedBufferError::PageNoLongerAvailable);
-        }
-
-        let result = self.try_open_impl(f);
-
-        if result.is_ok() {
-            return result;
-        }
-
-        Err(self.handle_page_protection_error(result.unwrap_err()))
-    }
-
-    #[inline(always)]
-    fn try_open_mut(
-        &mut self,
-        f: &mut dyn Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
-    ) -> Result<(), ProtectedBufferError> {
-        if !self.available.load(Ordering::Acquire) {
-            return Err(ProtectedBufferError::PageNoLongerAvailable);
-        }
-
-        let result = self.try_open_mut_impl(f);
-
-        if result.is_ok() {
-            return result;
-        }
-
-        Err(self.handle_page_protection_error(result.unwrap_err()))
-    }
 }
 
 impl Buffer for ProtectedBuffer {
     #[inline(always)]
-    fn open<F>(&mut self, mut f: F) -> Result<(), ProtectedBufferError>
-    where
-        F: Fn(&[u8]) -> Result<(), ProtectedBufferError>,
-    {
-        self.try_open(&mut f)
+    fn open(
+        &mut self,
+        f: &mut dyn FnMut(&[u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError> {
+        if !self.available.load(Ordering::Acquire) {
+            return Err(ProtectedBufferError::PageNoLongerAvailable);
+        }
+
+        let result = self.try_open(f);
+
+        if result.is_ok() {
+            return result;
+        }
+
+        Err(self.handle_page_protection_error(result.unwrap_err()))
     }
 
     #[inline(always)]
-    fn open_mut<F>(&mut self, mut f: F) -> Result<(), ProtectedBufferError>
-    where
-        F: Fn(&mut [u8]) -> Result<(), ProtectedBufferError>,
-    {
-        self.try_open_mut(&mut f)
+    fn open_mut(
+        &mut self,
+        f: &mut dyn FnMut(&mut [u8]) -> Result<(), ProtectedBufferError>,
+    ) -> Result<(), ProtectedBufferError> {
+        if !self.available.load(Ordering::Acquire) {
+            return Err(ProtectedBufferError::PageNoLongerAvailable);
+        }
+
+        let result = self.try_open_mut(f);
+
+        if result.is_ok() {
+            return result;
+        }
+
+        Err(self.handle_page_protection_error(result.unwrap_err()))
     }
 
     #[inline(always)]

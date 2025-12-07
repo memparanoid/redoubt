@@ -6,5 +6,7 @@
 //!
 //! Proxy crate that re-exports memvault_core and memvault_derive.
 
+#![cfg_attr(all(feature = "no_std", not(test)), no_std)]
+
 pub use memvault_core::*;
 pub use memvault_derive::*;
