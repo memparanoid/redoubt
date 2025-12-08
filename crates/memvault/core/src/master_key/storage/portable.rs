@@ -14,7 +14,7 @@ use core::sync::atomic::{AtomicU8, Ordering};
 
 use membuffer::{Buffer, BufferError as MemBufferError};
 
-use crate::BufferError;
+use crate::error::BufferError;
 
 use super::super::buffer::create_initialized_buffer;
 

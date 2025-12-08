@@ -11,13 +11,15 @@ default = []
 no_std = []
 
 [dependencies]
+memcodec = { workspace = true, features = ["zeroize"]}
+memhkdf.workspace = true
 membuffer.workspace = true
 memguard.workspace = true
 memrand.workspace = true
-thiserror.workspace = true
-
-[dev-dependencies]
+memcrypt.workspace = true
 memzer.workspace = true
+memaead.workspace = true
+thiserror.workspace = true
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 libc.workspace = true

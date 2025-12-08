@@ -50,7 +50,7 @@ pub fn create_initialized_buffer() -> Box<dyn Buffer> {
                 .map_err(|e| BufferError::callback_error(e))?;
             Ok(())
         })
-        .expect("CRITICAL: Entropy not available");
+        .expect("CRITICAL: EntropySource not available");
 
     buffer
 }

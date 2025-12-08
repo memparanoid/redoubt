@@ -8,9 +8,11 @@
 
 #![cfg_attr(all(feature = "no_std", not(test)), no_std)]
 
+mod cipherbox;
 mod error;
 pub mod master_key;
 
+pub use cipherbox::CipherBox;
 pub use error::BufferError;
 
 #[cfg(test)]
