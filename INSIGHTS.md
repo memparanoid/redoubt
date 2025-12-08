@@ -8,7 +8,7 @@
 
 <h1 align="center">Project Insights</h1>
 
-<p align="center"><em>Generated on 2025-12-07 13:08</em></p>
+<p align="center"><em>Generated on 2025-12-07 17:39</em></p>
 
 ---
 
@@ -16,10 +16,10 @@
 
 | Metric | Coverage | Covered | Total |
 |--------|----------|---------|-------|
-| **Function** | **99.26%** | 404 | 407 |
-| **Line** | **99.62%** | 3,629 | 3,643 |
-| **Region** | **99.57%** | 5,345 | 5,368 |
-| **Branch** | **98.68%** | 225 | 228 |
+| **Function** | **99.27%** | 410 | 413 |
+| **Line** | **99.65%** | 3,689 | 3,702 |
+| **Region** | **99.59%** | 5,405 | 5,427 |
+| **Branch** | **98.72%** | 231 | 234 |
 
 ## 🔒 Security Audit
 
@@ -29,29 +29,29 @@
 
 | Metric | Production | Tests | Total |
 |--------|------------|-------|-------|
-| **Code Lines** | 6,005 | 19,757 | 25,762 |
-| **Total Lines** | 7,754 | 22,845 | 30,599 |
-| **Files** | 93 | 112 | 205 |
-| **Comments** | 468 | - | 1,249 |
+| **Code Lines** | 6,116 | 20,020 | 26,136 |
+| **Total Lines** | 7,922 | 23,186 | 31,108 |
+| **Files** | 100 | 118 | 218 |
+| **Comments** | 479 | - | 1,273 |
 
-> **Test/Code Ratio:** `3.29x` — 19,757 test lines / 6,005 production lines
+> **Test/Code Ratio:** `3.27x` — 20,020 test lines / 6,116 production lines
 
 ## 🧪 Tests
 
 | Metric | Count |
 |--------|-------|
 | **Total Tests** | 149 |
-| **Total Assertions** | 1,153 |
-| **Assertions/Test** | 7.7 |
-| **Lines/Test** | 40.3 |
+| **Total Assertions** | 1,171 |
+| **Assertions/Test** | 7.9 |
+| **Lines/Test** | 41.0 |
 
 <details>
 <summary>Assertion Breakdown</summary>
 
 | Macro | Count |
 |-------|-------|
-| `assert!` | 743 |
-| `assert_eq!` | 401 |
+| `assert!` | 749 |
+| `assert_eq!` | 413 |
 | `debug_assert!` | 7 |
 | `debug_assert_eq!` | 2 |
 
@@ -63,23 +63,23 @@
 |-------|-----------------|-------|
 | `memaead` | 1,860 | 103 |
 | `memalloc` | 249 | 31 |
-| `membuffer` | 402 | 15 |
+| `membuffer` | 380 | 15 |
 | `memcodec` | 1,341 | 0 |
 | `memcodec/core` | 1,245 | 134 |
 | `memcodec/derive` | 94 | 10 |
 | `memcrypt` | 268 | 12 |
-| `memguard` | 147 | 1 |
+| `memguard` | 149 | 1 |
 | `memhkdf` | 590 | 28 |
 | `memrand` | 149 | 11 |
 | `memsecret` | 93 | 19 |
 | `memutil` | 146 | 13 |
-| `memvault` | 6 | 0 |
-| `memvault/core` | 2 | 0 |
+| `memvault` | 137 | 0 |
+| `memvault/core` | 132 | 12 |
 | `memvault/derive` | 2 | 0 |
 | `memzer` | 754 | 0 |
 | `memzer/core` | 513 | 38 |
 | `memzer/derive` | 237 | 33 |
-| **Total** | **8,098** | **448** |
+| **Total** | **8,339** | **460** |
 
 ---
 
