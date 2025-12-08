@@ -13,6 +13,7 @@ use crate::{EntropySource, error::EntropyError};
 /// - macOS/iOS: `getentropy()`
 /// - Windows: `BCryptGenRandom`
 /// - WASI: `random_get`
+#[derive(Default)]
 pub struct SystemEntropySource {}
 
 impl SystemEntropySource {
