@@ -25,6 +25,24 @@ fn test_codec_buffer_assert_zeroization_on_drop() {
 }
 
 #[test]
+fn test_codec_buffer_default() {
+    let buf = CodecBuffer::default();
+    assert_eq!(buf.as_slice().len(), 0);
+}
+
+#[test]
+fn test_codec_buffer_new_with_zero_capacity() {
+    let buf = CodecBuffer::new(0);
+    assert_eq!(buf.as_slice().len(), 0);
+}
+
+#[test]
+fn test_codec_buffer_new_with_64_capacity() {
+    let buf = CodecBuffer::new(64);
+    assert_eq!(buf.as_slice().len(), 64);
+}
+
+#[test]
 fn test_codec_buffer_realloc_with_capacity() {
     let mut buf = CodecBuffer::default();
 
@@ -45,21 +63,31 @@ fn test_codec_buffer_realloc_with_capacity() {
 }
 
 #[test]
-fn test_codec_buffer_default() {
-    let buf = CodecBuffer::default();
-    assert_eq!(buf.as_slice().len(), 0);
-}
+fn test_codec_buffer_clear() {
+    let capacity = 10;
+    let mut buf = CodecBuffer::new(capacity);
 
-#[test]
-fn test_codec_buffer_new_with_zero_capacity() {
-    let buf = CodecBuffer::new(0);
-    assert_eq!(buf.as_slice().len(), 0);
-}
+    // Write data
+    let slice = buf.as_mut_slice();
+    for i in 0..capacity {
+        slice[i] = 0xFF;
+    }
 
-#[test]
-fn test_codec_buffer_new_with_64_capacity() {
-    let buf = CodecBuffer::new(64);
-    assert_eq!(buf.as_slice().len(), 64);
+    // Verify data is written
+    assert!(buf.as_slice().iter().all(|&b| b == 0xFF));
+
+    // Clear zeroizes content but keeps buffer usable (pointers valid)
+    buf.clear();
+
+    // Content should be zeroized
+    #[cfg(feature = "zeroize")]
+    {
+        assert!(buf.as_slice().iter().all(|&b| b == 0x00));
+    }
+
+    // Buffer is still usable - can write again
+    buf.as_mut_slice()[0] = 0x42;
+    assert_eq!(buf.as_slice()[0], 0x42);
 }
 
 #[test]
@@ -117,32 +145,4 @@ fn test_codec_buffer_len() {
 
     let buf_large = CodecBuffer::new(1024);
     assert_eq!(buf_large.len(), 1024);
-}
-
-#[test]
-fn test_codec_buffer_clear() {
-    let capacity = 10;
-    let mut buf = CodecBuffer::new(capacity);
-
-    // Write data
-    let slice = buf.as_mut_slice();
-    for i in 0..capacity {
-        slice[i] = 0xFF;
-    }
-
-    // Verify data is written
-    assert!(buf.as_slice().iter().all(|&b| b == 0xFF));
-
-    // Clear zeroizes content but keeps buffer usable (pointers valid)
-    buf.clear();
-
-    // Content should be zeroized
-    #[cfg(feature = "zeroize")]
-    {
-        assert!(buf.as_slice().iter().all(|&b| b == 0x00));
-    }
-
-    // Buffer is still usable - can write again
-    buf.as_mut_slice()[0] = 0x42;
-    assert_eq!(buf.as_slice()[0], 0x42);
 }
