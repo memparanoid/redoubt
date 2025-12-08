@@ -105,7 +105,11 @@ impl HkdfState {
             // Hash salt into key_block
             let mut sha = Sha512State::new();
             sha.update(salt);
-            sha.finalize((&mut self.key_block[..HASH_LEN]).try_into().expect("Failed to convert slice"));
+            sha.finalize(
+                (&mut self.key_block[..HASH_LEN])
+                    .try_into()
+                    .expect("Failed to convert slice"),
+            );
             HASH_LEN
         } else {
             // Copy salt into key_block
@@ -149,7 +153,11 @@ impl HkdfState {
     /// PRK = HMAC-Hash(salt, IKM)
     fn extract(&mut self, salt: &[u8], ikm: &[u8]) {
         const DEFAULT_SALT: [u8; HASH_LEN] = [0u8; HASH_LEN];
-        let salt = if salt.is_empty() { &DEFAULT_SALT[..] } else { salt };
+        let salt = if salt.is_empty() {
+            &DEFAULT_SALT[..]
+        } else {
+            salt
+        };
         self.hmac_sha512_extract(salt, ikm);
     }
 

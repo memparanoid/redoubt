@@ -414,4 +414,3 @@ impl Sha512State {
         self.wv_h.fast_zeroize();
     }
 }
-
