@@ -13,11 +13,10 @@ fn bench_open_mut_fill_32(c: &mut Criterion) {
     let mut group = c.benchmark_group("protected_buffer/32B");
 
     group.bench_function("open_mut_fill/protected", |b| {
-        let mut buffer =
-            ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 32).unwrap();
+        let mut buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 32).unwrap();
         b.iter(|| {
             buffer
-                .open_mut(|bytes| {
+                .open_mut(&mut |bytes| {
                     fill_bytes_with_pattern(bytes, black_box(0xAB));
                     Ok(())
                 })
@@ -30,7 +29,7 @@ fn bench_open_mut_fill_32(c: &mut Criterion) {
             ProtectedBuffer::try_create(ProtectionStrategy::MemNonProtected, 32).unwrap();
         b.iter(|| {
             buffer
-                .open_mut(|bytes| {
+                .open_mut(&mut |bytes| {
                     fill_bytes_with_pattern(bytes, black_box(0xAB));
                     Ok(())
                 })
@@ -42,28 +41,26 @@ fn bench_open_mut_fill_32(c: &mut Criterion) {
 }
 
 fn bench_open_mut_fill_4096(c: &mut Criterion) {
-    let mut group = c.benchmark_group("protected_buffer/4KB");
+    let mut group = c.benchmark_group("protected_buffer_READ_ONLY/32B");
 
-    group.bench_function("open_mut_fill/protected", |b| {
-        let mut buffer =
-            ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 4096).unwrap();
+    group.bench_function("open/protected", |b| {
+        let buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemProtected, 32).unwrap();
         b.iter(|| {
             buffer
-                .open_mut(|bytes| {
-                    fill_bytes_with_pattern(bytes, black_box(0xAB));
+                .open(&mut |bytes| {
+                    black_box(bytes);
                     Ok(())
                 })
-                .unwrap();
+                .unwrap()
         });
     });
 
-    group.bench_function("open_mut_fill/non_protected", |b| {
-        let mut buffer =
-            ProtectedBuffer::try_create(ProtectionStrategy::MemNonProtected, 4096).unwrap();
+    group.bench_function("open/non_protected", |b| {
+        let buffer = ProtectedBuffer::try_create(ProtectionStrategy::MemNonProtected, 32).unwrap();
         b.iter(|| {
             buffer
-                .open_mut(|bytes| {
-                    fill_bytes_with_pattern(bytes, black_box(0xAB));
+                .open(&mut |bytes| {
+                    black_box(bytes);
                     Ok(())
                 })
                 .unwrap();

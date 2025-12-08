@@ -12,9 +12,15 @@ membuffer.workspace = true
 memhkdf.workspace = true
 memutil.workspace = true
 memcodec = { workspace = true, features = ["zeroize"] }
+memcrypt.workspace = true
+memvault_core.workspace = true
+memzer.workspace = true
 aegis = { version = "0.9.5", features = ["pure-rust"] }
+blake3 = "1.8"
 bincode = "1.3"
 chacha20poly1305 = { version = "0.11.0-rc.0", features = ["zeroize"] }
+hkdf = "0.12"
+sha2 = "0.10"
 serde = { version = "1.0", features = ["derive"] }
 zeroize = { version = "1.8.1", features = ["zeroize_derive"] }
 
@@ -40,4 +46,8 @@ harness = false
 
 [[bench]]
 name = "hkdf"
+harness = false
+
+[[bench]]
+name = "cipherbox_integrated"
 harness = false
