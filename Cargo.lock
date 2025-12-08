@@ -746,6 +746,7 @@ version = "0.0.1"
 dependencies = [
  "memutil",
  "memzer",
+ "thiserror",
 ]
 
 [[package]]
@@ -784,8 +785,12 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "libseccomp",
+ "memaead",
  "membuffer",
+ "memcodec",
+ "memcrypt",
  "memguard",
+ "memhkdf",
  "memrand",
  "memzer",
  "thiserror",
