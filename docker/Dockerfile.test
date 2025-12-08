@@ -56,6 +56,7 @@ RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs 
     echo "fn main() {}" > crates/membench/benches/codec.rs && \
     echo "fn main() {}" > crates/membench/benches/protected_buffer.rs && \
     echo "fn main() {}" > crates/membench/benches/hkdf.rs && \
+    echo "fn main() {}" > crates/membench/benches/cipherbox_integrated.rs && \
     mkdir -p crates/memcodec/src && echo "// stub" > crates/memcodec/src/lib.rs && \
     mkdir -p crates/memcodec/core/src && echo "// stub" > crates/memcodec/core/src/lib.rs && \
     mkdir -p crates/memcodec/derive/src && echo "// stub" > crates/memcodec/derive/src/lib.rs && \

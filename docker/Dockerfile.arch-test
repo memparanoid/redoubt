@@ -57,7 +57,8 @@ RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs 
     echo "fn main() {}" > crates/membench/benches/cipherbox.rs && \
     echo "fn main() {}" > crates/membench/benches/codec.rs && \
     echo "fn main() {}" > crates/membench/benches/protected_buffer.rs && \
-    echo "fn main() {}" > crates/membench/benches/hkdf.rs
+    echo "fn main() {}" > crates/membench/benches/hkdf.rs && \
+    echo "fn main() {}" > crates/membench/benches/cipherbox_integrated.rs
 
 # Pre-fetch dependencies
 RUN cargo fetch

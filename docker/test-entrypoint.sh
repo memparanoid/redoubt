@@ -14,9 +14,13 @@ set -e
 # Separate cargo args from test filter
 cargo_args=()
 test_filter=""
+release_mode=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --release)
+      release_mode="--release"
+      ;;
     # Known cargo test flags
     -p|--package|--lib|--bin|--example|--test|--bench|--all-targets|--workspace|--exclude|--features|--all-features|--no-default-features)
       cargo_args+=("$1")
@@ -41,7 +45,7 @@ done
 
 # Build cargo test command
 if [[ -n "$test_filter" ]]; then
-  cargo test --color always "${cargo_args[@]}" "$test_filter" -- --nocapture
+  cargo test --color always $release_mode "${cargo_args[@]}" "$test_filter" -- --nocapture
 else
-  cargo test --color always "${cargo_args[@]}" -- --nocapture
+  cargo test --color always $release_mode "${cargo_args[@]}" -- --nocapture
 fi
