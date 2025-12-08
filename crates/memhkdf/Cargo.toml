@@ -17,5 +17,6 @@ default = []
 [dependencies]
 memzer.workspace = true
 memutil.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
