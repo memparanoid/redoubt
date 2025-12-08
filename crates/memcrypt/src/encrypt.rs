@@ -4,7 +4,7 @@
 
 use memaead::Aead;
 use memcodec::{BytesRequired, Encode};
-use memzer::{FastZeroizable, ZeroizationProbe, ZeroizingGuard};
+use memzer::{FastZeroizable, ZeroizationProbe};
 
 use crate::consts::AAD;
 use crate::error::CryptoError;
@@ -78,7 +78,7 @@ pub fn encrypt_encodable<T>(
     aead_key: &mut [u8],
     nonce: &mut [u8],
     value: &mut T,
-) -> Result<ZeroizingGuard<Vec<u8>>, CryptoError>
+) -> Result<Vec<u8>, CryptoError>
 where
     T: BytesRequired + Encode + FastZeroizable + ZeroizationProbe,
 {
@@ -91,7 +91,7 @@ pub fn encrypt_encodable_with<'a, T, F>(
     aead: &mut Aead,
     x: &mut EncryptionMemZer<'a, T>,
     #[allow(unused)] mut f: F,
-) -> Result<ZeroizingGuard<Vec<u8>>, CryptoError>
+) -> Result<Vec<u8>, CryptoError>
 where
     T: BytesRequired + Encode + FastZeroizable + ZeroizationProbe,
     F: Fn(EncryptStage, &mut EncryptionMemZer<'a, T>),
@@ -104,7 +104,7 @@ fn encrypt_encodable_with_impl<'a, T>(
     aead: &mut Aead,
     x: &mut EncryptionMemZer<'a, T>,
     #[allow(unused)] f: &mut dyn Fn(EncryptStage, &mut EncryptionMemZer<'a, T>),
-) -> Result<ZeroizingGuard<Vec<u8>>, CryptoError>
+) -> Result<Vec<u8>, CryptoError>
 where
     T: BytesRequired + Encode + FastZeroizable + ZeroizationProbe,
 {
@@ -176,7 +176,7 @@ where
         x.buf.fast_zeroize();
         x.codec_buf_len.fast_zeroize();
 
-        ZeroizingGuard::new(ciphertext_with_tag)
+        ciphertext_with_tag
     };
 
     Ok(ciphertext_with_tag)
