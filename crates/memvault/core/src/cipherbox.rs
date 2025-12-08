@@ -65,7 +65,7 @@ where
         }
     }
 
-    fn derive_key(&self) -> Result<ZeroizingGuard<Vec<u8>>, CipherBoxError> {
+    pub fn derive_key(&self) -> Result<ZeroizingGuard<Vec<u8>>, CipherBoxError> {
         let mut out = Vec::<u8>::new();
         out.resize_with(self.aead.key_size(), || 0u8);
 
@@ -78,7 +78,7 @@ where
         Ok(ZeroizingGuard::new(out))
     }
 
-    fn maybe_initialize(&mut self) -> Result<(), CipherBoxError> {
+    pub fn maybe_initialize(&mut self) -> Result<(), CipherBoxError> {
         if self.initialized {
             return Ok(());
         }
@@ -93,12 +93,15 @@ where
         Ok(())
     }
 
-    fn encrypt(&mut self, value: &mut T) -> Result<(), CipherBoxError> {
+    pub fn encrypt(&mut self, value: &mut T) -> Result<(), CipherBoxError> {
         let mut derived_key = self.derive_key()?;
 
         self.nonce = self.aead.generate_nonce()?;
+
+        let mut nonce_clone = self.nonce.clone();
+
         self.ciphertext_with_tag =
-            encrypt_encodable(&mut self.aead, &mut derived_key, &mut self.nonce, value)?;
+            encrypt_encodable(&mut self.aead, &mut derived_key, &mut nonce_clone, value)?;
 
         // wipe asap
         derived_key.fast_zeroize();
@@ -106,13 +109,16 @@ where
         Ok(())
     }
 
-    fn decrypt(&mut self) -> Result<ZeroizingGuard<T>, CipherBoxError> {
+    pub fn decrypt(&mut self) -> Result<ZeroizingGuard<T>, CipherBoxError> {
         let mut derived_key = self.derive_key()?;
+        let mut nonce_clone = self.nonce.clone();
+        let mut ciphertext_clone = self.ciphertext_with_tag.clone();
+
         let value = decrypt_decodable::<T>(
             &mut self.aead,
             &mut derived_key,
-            &mut self.nonce,
-            &mut self.ciphertext_with_tag,
+            &mut nonce_clone,
+            &mut ciphertext_clone,
         )?;
 
         Ok(value)

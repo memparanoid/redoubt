@@ -45,6 +45,8 @@ fn init_slow() {
             unsafe {
                 *BUFFER.0.get() = Some(create_initialized_buffer());
             }
+            // Ensure the write to BUFFER is visible before STATE_DONE
+            core::sync::atomic::fence(Ordering::Release);
             // Delay STATE_DONE to allow other threads to enter init_slow()
             // and hit the spin loop for coverage. Without this, initialization
             // completes too fast and threads skip init_slow() entirely.
