@@ -55,6 +55,8 @@ pub enum ProtectionStrategy {
 #[cfg_attr(test, derive(Debug))]
 pub struct ProtectedBuffer {
     available: AtomicBool,
+    #[memzer(skip)]
+    locked: AtomicBool,
     ptr: *mut u8,
     len: usize,
     capacity: usize,
@@ -117,6 +119,7 @@ impl ProtectedBuffer {
             capacity,
             protection_strategy,
             available: AtomicBool::new(true),
+            locked: AtomicBool::new(false),
             __drop_sentinel: DropSentinel::default(),
         };
 
@@ -207,6 +210,16 @@ impl ProtectedBuffer {
         unsafe {
             libc::munlock(self.ptr as *const _, self.capacity);
         };
+    }
+
+    fn acquire(&self) {
+        while self.locked.swap(true, Ordering::Acquire) {
+            core::hint::spin_loop();
+        }
+    }
+
+    fn release(&self) {
+        self.locked.store(false, Ordering::Release);
     }
 
     pub(crate) fn zeroize_slice(&self) {
@@ -310,13 +323,16 @@ impl Buffer for ProtectedBuffer {
             return Err(BufferError::PageNoLongerAvailable);
         }
 
+        self.acquire();
         let result = self.try_open(f);
 
-        if result.is_ok() {
-            return result;
+        if result.is_err() {
+            self.release();
+            return Err(self.handle_page_protection_error(result.unwrap_err()));
         }
 
-        Err(self.handle_page_protection_error(result.unwrap_err()))
+        self.release();
+        result
     }
 
     #[inline(always)]
@@ -328,13 +344,16 @@ impl Buffer for ProtectedBuffer {
             return Err(BufferError::PageNoLongerAvailable);
         }
 
+        self.acquire();
         let result = self.try_open_mut(f);
 
-        if result.is_ok() {
-            return result;
+        if result.is_err() {
+            self.release();
+            return Err(self.handle_page_protection_error(result.unwrap_err()));
         }
 
-        Err(self.handle_page_protection_error(result.unwrap_err()))
+        self.release();
+        result
     }
 
     #[inline(always)]
