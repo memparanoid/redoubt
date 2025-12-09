@@ -21,4 +21,7 @@ pub mod support;
 
 pub use codec_buffer::CodecBuffer;
 pub use error::{DecodeError, EncodeError, OverflowError};
-pub use traits::{BytesRequired, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize};
+pub use traits::{
+    BytesRequired, Decode, DecodeBuffer, DecodeStruct, DecodeZeroize, Encode, EncodeStruct,
+    EncodeZeroize,
+};

@@ -30,3 +30,4 @@ features  = ["unsafe"]
 
 [dev-dependencies]
 memalloc = { workspace = true, features = ["test_utils"] }
+insta.workspace = true

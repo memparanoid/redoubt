@@ -4,7 +4,6 @@
 
 use memzer::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
-use crate::DecodeZeroize;
 use crate::codec_buffer::CodecBuffer;
 use crate::collections::helpers::{
     bytes_required_sum, decode_fields, encode_fields, to_bytes_required_dyn_ref,
@@ -12,7 +11,8 @@ use crate::collections::helpers::{
 };
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
-    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, EncodeZeroize, PreAlloc,
+    BytesRequired, Decode, DecodeSlice, DecodeStruct, DecodeZeroize, Encode, EncodeSlice,
+    EncodeStruct, EncodeZeroize, PreAlloc,
 };
 
 // En memcodec test_breaker.rs
@@ -117,7 +117,8 @@ impl Encode for TestBreaker {
             to_encode_zeroize_dyn_mut(&mut self.magic),
         ];
 
-        encode_fields(fields.into_iter(), buf)
+        encode_fields(fields.into_iter(), buf)?;
+        Ok(())
     }
 }
 
@@ -138,6 +139,24 @@ impl Decode for TestBreaker {
             return Err(DecodeError::IntentionalDecodeError);
         }
 
+        Ok(())
+    }
+}
+
+impl EncodeStruct for TestBreaker {
+    fn encode_fields_into(&mut self, buf: &mut CodecBuffer) -> Result<Vec<usize>, EncodeError> {
+        let fields: [&mut dyn EncodeZeroize; 2] = [
+            to_encode_zeroize_dyn_mut(&mut self.data),
+            to_encode_zeroize_dyn_mut(&mut self.magic),
+        ];
+
+        encode_fields(fields.into_iter(), buf)
+    }
+}
+
+impl DecodeStruct for TestBreaker {
+    fn decode_fields_into(&mut self, buffs: &mut [&mut [u8]]) -> Result<(), DecodeError> {
+        self.data.decode_from(&mut buffs[0])?;
         Ok(())
     }
 }

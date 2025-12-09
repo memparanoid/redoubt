@@ -120,12 +120,13 @@ pub fn bytes_required_sum<'a>(
 /// On error with zeroize feature, zeroizes all fields and the buffer.
 #[inline(always)]
 pub fn encode_fields<'a>(
-    iter: impl Iterator<Item = &'a mut dyn EncodeZeroize>,
+    fields: impl Iterator<Item = &'a mut dyn EncodeZeroize>,
     buf: &mut CodecBuffer,
-) -> Result<(), EncodeError> {
-    let mut result = Ok(());
+) -> Result<Vec<usize>, EncodeError> {
+    let mut sizes = Vec::new();
+    let mut result: Result<Vec<usize>, EncodeError> = Ok(vec![]);
 
-    for field in iter {
+    for field in fields {
         #[cfg(feature = "zeroize")]
         if result.is_err() {
             field.fast_zeroize();
@@ -144,23 +145,28 @@ pub fn encode_fields<'a>(
             #[cfg(not(feature = "zeroize"))]
             break;
         }
+
+        sizes.push(buf.bytes_written())
     }
 
-    result
+    match result {
+        Ok(_) => Ok(sizes),
+        Err(e) => Err(e),
+    }
 }
 
 /// Decode fields from an iterator of `&mut dyn DecodeZeroize`.
 /// On error with zeroize feature, zeroizes all fields and the buffer.
 #[inline(always)]
 pub fn decode_fields<'a>(
-    iter: impl Iterator<Item = &'a mut dyn DecodeZeroize>,
+    fields: impl Iterator<Item = &'a mut dyn DecodeZeroize>,
     buf: &mut &mut [u8],
 ) -> Result<(), DecodeError> {
     #[cfg(feature = "zeroize")]
     let mut decoded: SmallVec<[&'a mut dyn DecodeZeroize; 32]> = SmallVec::new();
     let mut result = Ok(());
 
-    for field in iter {
+    for field in fields {
         #[cfg(feature = "zeroize")]
         if result.is_err() {
             field.fast_zeroize();
