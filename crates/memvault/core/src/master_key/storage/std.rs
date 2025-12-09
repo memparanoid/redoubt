@@ -6,16 +6,13 @@
 
 use std::sync::OnceLock;
 
-use membuffer::{Buffer, BufferError as MemBufferError};
-
-use crate::error::BufferError;
+use membuffer::{Buffer, BufferError};
 
 use super::super::buffer::create_initialized_buffer;
 
 static BUFFER: OnceLock<Box<dyn Buffer>> = OnceLock::new();
 
-pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), MemBufferError>) -> Result<(), BufferError> {
+pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError> {
     BUFFER.get_or_init(create_initialized_buffer).open(f)?;
-
     Ok(())
 }

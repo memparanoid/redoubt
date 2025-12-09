@@ -842,6 +842,7 @@ dependencies = [
  "libc",
  "libseccomp",
  "memaead",
+ "memalloc",
  "membuffer",
  "memcodec",
  "memcrypt",

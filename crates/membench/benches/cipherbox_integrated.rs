@@ -60,24 +60,67 @@ impl WalletSecretsSerde {
     }
 }
 
+#[derive(Clone, Serialize, Deserialize, Codec, MemZer)]
+#[memzer(drop)]
+struct Data2MB {
+    bytes: Vec<u8>,
+    #[serde(skip)]
+    #[codec(default)]
+    __drop_sentinel: DropSentinel,
+}
+
+impl Default for Data2MB {
+    fn default() -> Self {
+        Self {
+            bytes: Vec::new(),
+            __drop_sentinel: DropSentinel::default(),
+        }
+    }
+}
+
+impl Data2MB {
+    fn new() -> Self {
+        Self {
+            bytes: vec![0xAB; 2 * 1024 * 1024],
+            __drop_sentinel: DropSentinel::default(),
+        }
+    }
+
+    fn empty() -> Self {
+        Self::default()
+    }
+
+    fn total_bytes() -> usize {
+        2 * 1024 * 1024
+    }
+}
+
 fn bench_cipherbox_integrated(c: &mut Criterion) {
     let mut group = c.benchmark_group("cipherbox_integrated");
     group.measurement_time(std::time::Duration::from_secs(5));
     group.sample_size(1000);
     // WalletSecrets: 32 + 32 + 64 + 32 = 160 bytes
-    group.throughput(Throughput::Bytes(160));
+    group.throughput(Throughput::Bytes(2 * 1024 * 1024));
 
     // === memvault CipherBox (full stack: HKDF + AEGIS-128L + memcodec + mprotect) ===
     {
-        let mut cipherbox = CipherBox::<WalletSecrets>::new();
+        // let mut cipherbox = CipherBox::<WalletSecrets>::new();
+        let mut cipherbox = CipherBox::<Data2MB>::new();
 
         // Initialize
+        // cipherbox
+        //     .open_mut(|ws| {
+        //         ws.master_seed = [0x42; 32];
+        //         ws.encryption_key = [0xAB; 32];
+        //         ws.signing_key = [0xCD; 64];
+        //         ws.pin_hash = [0xEF; 32];
+        //     })
+        //     .unwrap();
+        //
+        //
         cipherbox
-            .open_mut(|ws| {
-                ws.master_seed = [0x42; 32];
-                ws.encryption_key = [0xAB; 32];
-                ws.signing_key = [0xCD; 64];
-                ws.pin_hash = [0xEF; 32];
+            .open_mut(|d| {
+                d.bytes = vec![0xAB; 2 * 1024 * 1024];
             })
             .unwrap();
 
@@ -85,7 +128,8 @@ fn bench_cipherbox_integrated(c: &mut Criterion) {
             b.iter(|| {
                 cipherbox
                     .open_mut(|ws| {
-                        ws.master_seed[0] = ws.master_seed[0].wrapping_add(1);
+                        black_box(ws);
+                        // ws.master_seed[0] = ws.master_seed[0].wrapping_add(1);
                     })
                     .unwrap();
                 black_box(())
@@ -113,26 +157,19 @@ fn bench_cipherbox_integrated(c: &mut Criterion) {
         let cipher = XChaCha20Poly1305::new_from_slice(&key).unwrap();
         let nonce = XNonce::try_from([0u8; 24]).unwrap();
 
-        let mut data = WalletSecretsSerde::sample();
-        let encoded = bincode::serialize(&data).unwrap();
-        let mut ciphertext = cipher.encrypt(&nonce, encoded.as_slice()).unwrap();
+        let mut data = vec![0xABu8; 2 * 1024 * 1024];
+        let mut ciphertext = cipher.encrypt(&nonce, data.as_slice()).unwrap();
 
         group.bench_function("xchacha20_hkdf_bincode", |b| {
             b.iter(|| {
                 // Decrypt
-                let plaintext = cipher.decrypt(&nonce, ciphertext.as_slice()).unwrap();
-
-                // Decode
-                data = bincode::deserialize(&plaintext).unwrap();
+                data = cipher.decrypt(&nonce, ciphertext.as_slice()).unwrap();
 
                 // Modify
-                data.master_seed[0] = data.master_seed[0].wrapping_add(1);
-
-                // Encode
-                let encoded = bincode::serialize(&data).unwrap();
+                data[0] = data[0].wrapping_add(1);
 
                 // Encrypt
-                ciphertext = cipher.encrypt(&nonce, encoded.as_slice()).unwrap();
+                ciphertext = cipher.encrypt(&nonce, data.as_slice()).unwrap();
 
                 black_box(())
             });
@@ -155,14 +192,25 @@ fn bench_cipherbox_integrated(c: &mut Criterion) {
 
         let nonce = [0u8; 16];
 
-        let mut data = WalletSecretsSerde::sample();
+        // Data2MBSerde for bincode (no DropSentinel)
+        #[derive(Clone, Serialize, Deserialize)]
+        struct Data2MBSerde {
+            bytes: Vec<u8>,
+        }
+
+        let mut data = Data2MBSerde { bytes: vec![0xABu8; 2 * 1024 * 1024] };
         let encoded = bincode::serialize(&data).unwrap();
-        let mut ciphertext = encoded.clone();
+        let mut ciphertext = encoded;
         let state = Aegis128L::<16>::new(&nonce, &key);
         let mut tag = state.encrypt_in_place(&mut ciphertext, &[]);
 
         group.bench_function("aegis128l_hkdf_bincode", |b| {
             b.iter(|| {
+                // Derive key
+                let hk = Hkdf::<Sha256>::new(Some(&salt), &ikm);
+                let mut key = [0u8; 16];
+                hk.expand(info, &mut key).unwrap();
+
                 // Decrypt
                 let state = Aegis128L::<16>::new(&nonce, &key);
                 state.decrypt_in_place(&mut ciphertext, &tag, &[]).unwrap();
@@ -171,10 +219,17 @@ fn bench_cipherbox_integrated(c: &mut Criterion) {
                 data = bincode::deserialize(&ciphertext).unwrap();
 
                 // Modify
-                data.master_seed[0] = data.master_seed[0].wrapping_add(1);
+                data.bytes[0] = data.bytes[0].wrapping_add(1);
 
-                // Encode + Encrypt
+                // Encode
                 ciphertext = bincode::serialize(&data).unwrap();
+
+                // Derive key again for encrypt
+                let hk = Hkdf::<Sha256>::new(Some(&salt), &ikm);
+                let mut key = [0u8; 16];
+                hk.expand(info, &mut key).unwrap();
+
+                // Encrypt
                 let state = Aegis128L::<16>::new(&nonce, &key);
                 tag = state.encrypt_in_place(&mut ciphertext, &[]);
 
@@ -199,11 +254,7 @@ fn bench_cipherbox_integrated(c: &mut Criterion) {
 
         let nonce = [0u8; 16];
 
-        let mut data = WalletSecrets::default();
-        data.master_seed = [0x42; 32];
-        data.encryption_key = [0xAB; 32];
-        data.signing_key = [0xCD; 64];
-        data.pin_hash = [0xEF; 32];
+        let mut data = Data2MB::new();
 
         let size = BytesRequired::mem_bytes_required(&data).unwrap();
         let mut encode_buf = CodecBuffer::new(size);
@@ -215,22 +266,32 @@ fn bench_cipherbox_integrated(c: &mut Criterion) {
 
         group.bench_function("aegis128l_hkdf_memcodec", |b| {
             b.iter(|| {
+                // Derive key
+                let hk = Hkdf::<Sha256>::new(Some(&salt), &ikm);
+                let mut key = [0u8; 16];
+                hk.expand(info, &mut key).unwrap();
+
                 // Decrypt
                 let state = Aegis128L::<16>::new(&nonce, &key);
                 state.decrypt_in_place(&mut ciphertext, &tag, &[]).unwrap();
 
                 // Decode
-                let mut decoded = WalletSecrets::default();
+                let mut decoded = Data2MB::default();
                 decoded.decode_from(&mut ciphertext.as_mut_slice()).unwrap();
 
                 // Modify
-                decoded.master_seed[0] = decoded.master_seed[0].wrapping_add(1);
+                decoded.bytes[0] = decoded.bytes[0].wrapping_add(1);
 
                 // Encode
                 let mut encode_buf = CodecBuffer::new(size);
                 decoded.encode_into(&mut encode_buf).unwrap();
                 ciphertext.clear();
                 ciphertext.extend_from_slice(encode_buf.as_slice());
+
+                // Derive key again for encrypt
+                let hk = Hkdf::<Sha256>::new(Some(&salt), &ikm);
+                let mut key = [0u8; 16];
+                hk.expand(info, &mut key).unwrap();
 
                 // Encrypt
                 let state = Aegis128L::<16>::new(&nonce, &key);
@@ -244,5 +305,59 @@ fn bench_cipherbox_integrated(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_cipherbox_integrated);
+fn bench_zeroize_2mb(c: &mut Criterion) {
+    use memzer::FastZeroizable;
+
+    let mut group = c.benchmark_group("zeroize");
+    group.throughput(Throughput::Bytes(2 * 1024 * 1024));
+
+    group.bench_function("2mb_struct", |b| {
+        let mut data = Data2MB::new();
+        b.iter(|| {
+            data.fast_zeroize();
+            black_box(&data);
+        });
+    });
+
+    group.bench_function("2mb_vec_raw", |b| {
+        let mut data = vec![0xABu8; 2 * 1024 * 1024];
+        b.iter(|| {
+            data.fast_zeroize();
+            black_box(&data);
+        });
+    });
+
+    group.finish();
+}
+
+fn bench_primitives(c: &mut Criterion) {
+    use memaead::Aead;
+    use memvault_core::leak_master_key;
+
+    let mut group = c.benchmark_group("primitives");
+
+    group.bench_function("aead_generate_nonce", |b| {
+        let mut aead = Aead::new();
+        b.iter(|| {
+            let nonce = aead.generate_nonce().unwrap();
+            black_box(nonce)
+        });
+    });
+
+    group.bench_function("leak_master_key", |b| {
+        b.iter(|| {
+            let key = leak_master_key(16).unwrap();
+            black_box(key)
+        });
+    });
+
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_cipherbox_integrated,
+    bench_zeroize_2mb,
+    bench_primitives
+);
 criterion_main!(benches);

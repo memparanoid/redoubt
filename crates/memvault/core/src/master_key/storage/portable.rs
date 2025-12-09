@@ -12,9 +12,7 @@ use alloc::boxed::Box;
 use core::cell::UnsafeCell;
 use core::sync::atomic::{AtomicU8, Ordering};
 
-use membuffer::{Buffer, BufferError as MemBufferError};
-
-use crate::error::BufferError;
+use membuffer::{Buffer, BufferError};
 
 use super::super::buffer::create_initialized_buffer;
 
@@ -45,13 +43,16 @@ fn init_slow() {
             unsafe {
                 *BUFFER.0.get() = Some(create_initialized_buffer());
             }
+
             // Ensure the write to BUFFER is visible before STATE_DONE
             core::sync::atomic::fence(Ordering::Release);
+
             // Delay STATE_DONE to allow other threads to enter init_slow()
             // and hit the spin loop for coverage. Without this, initialization
             // completes too fast and threads skip init_slow() entirely.
             #[cfg(test)]
             std::thread::sleep(std::time::Duration::from_millis(100));
+
             INIT_STATE.store(STATE_DONE, Ordering::Release);
         }
         Err(_) => {
@@ -63,7 +64,7 @@ fn init_slow() {
     }
 }
 
-pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), MemBufferError>) -> Result<(), BufferError> {
+pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError> {
     if INIT_STATE.load(Ordering::Acquire) != STATE_DONE {
         init_slow();
     }

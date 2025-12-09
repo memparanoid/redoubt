@@ -76,7 +76,7 @@ fn bench_cipherbox(c: &mut Criterion) {
         let nonce = &NONCE_16[..aead.nonce_size()];
         let tag_size = aead.tag_size();
 
-        let mut ct = encode_buf.as_slice().to_vec();
+        let mut ct = encode_buf.to_vec();
         let mut tag = vec![0u8; tag_size];
         aead.encrypt(key, nonce, AAD, &mut ct, &mut tag)
             .expect("Failed to encrypt(..)");
@@ -93,10 +93,10 @@ fn bench_cipherbox(c: &mut Criterion) {
                 data = decoded;
 
                 // Serialize (overwrite ct with encoded data)
+                let size = BytesRequired::mem_bytes_required(&data).unwrap();
                 let mut encode_buf = CodecBuffer::new(size);
                 data.encode_into(&mut encode_buf).unwrap();
-                ct.clear();
-                ct.extend_from_slice(encode_buf.as_slice());
+                ct = encode_buf.to_vec();
 
                 // Encrypt
                 aead.encrypt(key, nonce, AAD, &mut ct, &mut tag)
@@ -114,8 +114,7 @@ fn bench_cipherbox(c: &mut Criterion) {
         let mut nonce = NONCE_16[..aead.nonce_size()].to_vec();
 
         let mut data = Data2MB::new();
-        let mut ciphertext =
-            encrypt_encodable(&mut aead, &mut key, &mut nonce, &mut data).unwrap();
+        let mut ciphertext = encrypt_encodable(&mut aead, &mut key, &mut nonce, &mut data).unwrap();
 
         group.bench_function("memcrypt_encodable", |b| {
             b.iter(|| {

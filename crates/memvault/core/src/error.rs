@@ -6,20 +6,11 @@
 
 use thiserror::Error;
 
-use membuffer::BufferError as MemBufferError;
+use memaead::AeadError;
+use membuffer::BufferError;
 use memcodec::{DecodeError, EncodeError, OverflowError};
-use memcrypt::CryptoError;
 use memhkdf::HkdfError;
 use memrand::EntropyError;
-
-#[derive(Debug, Error)]
-pub enum BufferError {
-    #[error(transparent)]
-    Buffer(#[from] MemBufferError),
-
-    #[error("buffer mutex poisoned")]
-    Poisoned,
-}
 
 #[derive(Debug, Error)]
 pub enum CipherBoxError {
@@ -43,4 +34,25 @@ pub enum CipherBoxError {
 
     #[error(transparent)]
     Crypto(#[from] CryptoError),
+}
+
+#[derive(Debug, Error)]
+pub enum CryptoError {
+    #[error("EncodeError: {0}")]
+    Encode(#[from] EncodeError),
+
+    #[error("DecodeError: {0}")]
+    Decode(#[from] DecodeError),
+
+    #[error("OverflowError: {0}")]
+    Overflow(#[from] OverflowError),
+
+    #[error("AeadError: {0}")]
+    Aead(#[from] AeadError),
+
+    #[error("PlaintextTooLong")]
+    PlaintextTooLong,
+
+    #[error("CiphertextWithTagTooShort")]
+    CiphertextWithTagTooShort,
 }

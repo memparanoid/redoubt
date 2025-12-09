@@ -13,6 +13,7 @@ no_std = []
 [dependencies]
 memcodec = { workspace = true, features = ["zeroize"]}
 memhkdf.workspace = true
+memalloc.workspace = true
 membuffer.workspace = true
 memguard.workspace = true
 memrand.workspace = true
@@ -21,6 +22,8 @@ memzer.workspace = true
 memaead.workspace = true
 thiserror.workspace = true
 
-[target.'cfg(target_os = "linux")'.dev-dependencies]
+[target.'cfg(unix)'.dev-dependencies]
 libc.workspace = true
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
 libseccomp.workspace = true

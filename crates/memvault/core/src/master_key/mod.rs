@@ -4,14 +4,20 @@
 
 //! Master key storage
 
-use membuffer::BufferError as MemBufferError;
-
-use crate::BufferError;
+use membuffer::BufferError;
+use memzer::ZeroizingGuard;
 
 pub mod buffer;
 pub mod consts;
 pub mod storage;
 
-pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), MemBufferError>) -> Result<(), BufferError> {
-    storage::open(f)
+pub fn leak_master_key(truncate_at: usize) -> Result<ZeroizingGuard<Vec<u8>>, BufferError> {
+    let mut master_key = vec![];
+    storage::open(&mut |mk| {
+        master_key.resize_with(truncate_at, || 0u8);
+        master_key.copy_from_slice(&mk[..truncate_at]);
+        Ok(())
+    })?;
+
+    Ok(ZeroizingGuard::new(master_key))
 }

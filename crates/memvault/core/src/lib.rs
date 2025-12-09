@@ -9,11 +9,14 @@
 #![cfg_attr(all(feature = "no_std", not(test)), no_std)]
 
 mod cipherbox;
+mod consts;
+mod decrypt_decodable;
+mod encrypt_encodable;
 mod error;
-pub mod master_key;
+mod master_key;
 
 pub use cipherbox::CipherBox;
-pub use error::BufferError;
+pub use master_key::leak_master_key;
 
 #[cfg(test)]
 mod tests;
