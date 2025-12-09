@@ -175,31 +175,4 @@ impl CodecBuffer {
     pub fn to_vec(&self) -> Vec<u8> {
         self.as_slice().to_vec()
     }
-
-    #[inline(always)]
-    pub fn bytes_written(&self) -> usize {
-        self.debug_assert_invariant();
-
-        let bytes_written = unsafe { self.cursor.offset_from(self.ptr) } as usize;
-        bytes_written
-    }
-
-    #[inline(always)]
-    pub fn split_by_sizes(&self, sizes: &[usize]) -> Vec<Vec<u8>> {
-        let mut result: Vec<Vec<u8>> = Vec::with_capacity(sizes.len());
-        let mut prev = 0;
-        let data = self.as_slice();
-
-        for &accumulated in sizes {
-            let size = accumulated - prev;
-            let mut field = Vec::with_capacity(size);
-
-            field.extend_from_slice(&data[prev..accumulated]);
-            result.push(field);
-
-            prev = accumulated;
-        }
-
-        result
-    }
 }

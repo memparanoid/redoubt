@@ -67,11 +67,3 @@ impl<T: Encode + FastZeroizable> EncodeZeroize for T {}
 /// Used by decode_fields to zeroize all fields on error.
 pub trait DecodeZeroize: Decode + FastZeroizable {}
 impl<T: Decode + FastZeroizable> DecodeZeroize for T {}
-
-pub trait EncodeStruct {
-    fn encode_fields_into(&mut self, buf: &mut CodecBuffer) -> Result<Vec<usize>, EncodeError>;
-}
-
-pub trait DecodeStruct {
-    fn decode_fields_into(&mut self, buffs: &mut [&mut [u8]]) -> Result<(), DecodeError>;
-}

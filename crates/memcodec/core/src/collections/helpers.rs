@@ -122,9 +122,8 @@ pub fn bytes_required_sum<'a>(
 pub fn encode_fields<'a>(
     fields: impl Iterator<Item = &'a mut dyn EncodeZeroize>,
     buf: &mut CodecBuffer,
-) -> Result<Vec<usize>, EncodeError> {
-    let mut sizes = Vec::new();
-    let mut result: Result<Vec<usize>, EncodeError> = Ok(vec![]);
+) -> Result<(), EncodeError> {
+    let mut result = Ok(());
 
     for field in fields {
         #[cfg(feature = "zeroize")]
@@ -145,14 +144,9 @@ pub fn encode_fields<'a>(
             #[cfg(not(feature = "zeroize"))]
             break;
         }
-
-        sizes.push(buf.bytes_written())
     }
 
-    match result {
-        Ok(_) => Ok(sizes),
-        Err(e) => Err(e),
-    }
+    result
 }
 
 /// Decode fields from an iterator of `&mut dyn DecodeZeroize`.

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::{Decode, codec_buffer::CodecBuffer};
+use crate::codec_buffer::CodecBuffer;
 
 #[cfg(feature = "zeroize")]
 use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
@@ -145,42 +145,4 @@ fn test_codec_buffer_len() {
 
     let buf_large = CodecBuffer::new(1024);
     assert_eq!(buf_large.len(), 1024);
-}
-
-#[test]
-fn test_bytes_written() {
-    let total_elements = 100;
-    let capacity = total_elements * size_of::<usize>();
-    let mut buf = CodecBuffer::new(capacity);
-
-    assert_eq!(buf.bytes_written(), 0);
-
-    for mut i in 0..total_elements {
-        assert_eq!(buf.bytes_written(), i * size_of::<usize>());
-        buf.write(&mut i).expect("Failed to write(..)");
-    }
-
-    assert_eq!(buf.bytes_written(), capacity);
-}
-
-#[test]
-fn test_split_by_sizes() {
-    let mut sizes = vec![];
-
-    let primitive_size = size_of::<usize>();
-    let fields_qt = 10;
-    let capacity = (fields_qt * primitive_size) * ((fields_qt * primitive_size) + 1) / 2;
-    let mut buf = CodecBuffer::new(capacity);
-
-    let mut size = 0;
-    for i in 0..fields_qt {
-        for mut j in 0..i {
-            size += primitive_size;
-            buf.write(&mut j).expect("Failed to write(..)");
-        }
-        sizes.push(size);
-    }
-
-    let result = buf.split_by_sizes(&sizes);
-    insta::assert_debug_snapshot!(result);
 }
