@@ -753,6 +753,7 @@ dependencies = [
 name = "memcodec_core"
 version = "0.0.1"
 dependencies = [
+ "insta",
  "memalloc",
  "memutil",
  "memzer",
