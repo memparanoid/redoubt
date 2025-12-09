@@ -10,8 +10,12 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughpu
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
+use memaead::Aead as MemAead;
 use memcodec::{BytesRequired, Codec, CodecBuffer, Decode, Encode};
-use memvault_core::CipherBox;
+use memvault_core::{
+    CipherBox, CipherBoxError, DecryptStruct, Decryptable, EncryptStruct, Encryptable,
+    decrypt_from, encrypt_into,
+};
 use memzer::{DropSentinel, FastZeroizable, MemZer};
 
 // Shared struct for all benchmarks
@@ -95,6 +99,39 @@ impl Data2MB {
     }
 }
 
+impl EncryptStruct<1> for Data2MB {
+    fn to_encryptable_dyn_fields(&mut self) -> [&mut dyn Encryptable; 1] {
+        [&mut self.bytes]
+    }
+
+    fn encrypt_into(
+        &mut self,
+        aead: &mut MemAead,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 1],
+        tags: &mut [Vec<u8>; 1],
+    ) -> Result<[Vec<u8>; 1], CipherBoxError> {
+        encrypt_into(aead, aead_key, nonces, tags, self.to_encryptable_dyn_fields())
+    }
+}
+
+impl DecryptStruct<1> for Data2MB {
+    fn to_decryptable_dyn_fields(&mut self) -> [&mut dyn Decryptable; 1] {
+        [&mut self.bytes]
+    }
+
+    fn decrypt_from(
+        &mut self,
+        aead: &mut MemAead,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 1],
+        tags: &mut [Vec<u8>; 1],
+        ciphertexts: &mut [Vec<u8>; 1],
+    ) -> Result<(), CipherBoxError> {
+        decrypt_from(aead, aead_key, nonces, tags, ciphertexts, self.to_decryptable_dyn_fields())
+    }
+}
+
 fn bench_cipherbox_integrated(c: &mut Criterion) {
     let mut group = c.benchmark_group("cipherbox_integrated");
     group.measurement_time(std::time::Duration::from_secs(5));
@@ -104,8 +141,7 @@ fn bench_cipherbox_integrated(c: &mut Criterion) {
 
     // === memvault CipherBox (full stack: HKDF + AEGIS-128L + memcodec + mprotect) ===
     {
-        // let mut cipherbox = CipherBox::<WalletSecrets>::new();
-        let mut cipherbox = CipherBox::<Data2MB>::new();
+        let mut cipherbox = CipherBox::<Data2MB, 1>::new();
 
         // Initialize
         // cipherbox
@@ -332,6 +368,21 @@ fn bench_zeroize_2mb(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_clone_2mb(c: &mut Criterion) {
+    let mut group = c.benchmark_group("clone");
+    group.throughput(Throughput::Bytes(2 * 1024 * 1024));
+
+    group.bench_function("2mb_vec", |b| {
+        let data = vec![0xABu8; 2 * 1024 * 1024];
+        b.iter(|| {
+            let cloned = data.clone();
+            black_box(cloned)
+        });
+    });
+
+    group.finish();
+}
+
 fn bench_primitives(c: &mut Criterion) {
     use memaead::Aead;
     use memvault_core::leak_master_key;
@@ -360,6 +411,7 @@ criterion_group!(
     benches,
     bench_cipherbox_integrated,
     bench_zeroize_2mb,
+    bench_clone_2mb,
     bench_primitives
 );
 criterion_main!(benches);

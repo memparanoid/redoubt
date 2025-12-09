@@ -13,10 +13,15 @@ mod consts;
 mod decrypt_decodable;
 mod encrypt_encodable;
 mod error;
+mod helpers;
 mod master_key;
+mod traits;
 
 pub use cipherbox::CipherBox;
+pub use error::CipherBoxError;
+pub use helpers::{decrypt_from, encrypt_into};
 pub use master_key::leak_master_key;
+pub use traits::{DecryptStruct, Decryptable, EncryptStruct, Encryptable};
 
 #[cfg(test)]
 mod tests;

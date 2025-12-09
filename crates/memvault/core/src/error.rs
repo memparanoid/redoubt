@@ -34,6 +34,9 @@ pub enum CipherBoxError {
 
     #[error(transparent)]
     Crypto(#[from] CryptoError),
+
+    #[error(transparent)]
+    Aead(#[from] AeadError),
 }
 
 #[derive(Debug, Error)]
