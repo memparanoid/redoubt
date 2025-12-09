@@ -198,7 +198,9 @@ fn bench_cipherbox_integrated(c: &mut Criterion) {
             bytes: Vec<u8>,
         }
 
-        let mut data = Data2MBSerde { bytes: vec![0xABu8; 2 * 1024 * 1024] };
+        let mut data = Data2MBSerde {
+            bytes: vec![0xABu8; 2 * 1024 * 1024],
+        };
         let encoded = bincode::serialize(&data).unwrap();
         let mut ciphertext = encoded;
         let state = Aegis128L::<16>::new(&nonce, &key);
