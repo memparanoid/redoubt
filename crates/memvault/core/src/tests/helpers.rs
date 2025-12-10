@@ -40,6 +40,69 @@ fn create_tags(aead: &dyn AeadApi) -> [Vec<u8>; ELEMENTS] {
 }
 
 // =============================================================================
+// bytes_required overflow tests
+// =============================================================================
+
+#[test]
+fn test_encrypt_into_propagates_bytes_required_overflow() {
+    // Two elements with usize::MAX / 2 will overflow when summed.
+    let mut test_breakers: [TestBreaker; ELEMENTS] = core::array::from_fn(|i| {
+        if i == 0 {
+            TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10)
+        } else {
+            TestBreaker::new(TestBreakerBehaviour::None, i << 2)
+        }
+    });
+
+    let mut aead = AeadMock::new(AeadMockBehaviour::None);
+    let aead_key = [0u8; 32];
+    let mut nonces = create_nonces(&aead);
+    let mut tags = create_tags(&aead);
+
+    let fields = test_breakers
+        .each_mut()
+        .map(|tb| to_encryptable_mut_dyn(tb));
+
+    let result = encrypt_into(&mut aead, &aead_key, &mut nonces, &mut tags, fields);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Overflow(_))));
+}
+
+#[test]
+fn test_encrypt_into_buffers_propagates_bytes_required_overflow() {
+    let mut test_breakers: [TestBreaker; ELEMENTS] = core::array::from_fn(|i| {
+        if i == 0 {
+            TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10)
+        } else {
+            TestBreaker::new(TestBreakerBehaviour::None, i << 2)
+        }
+    });
+
+    let mut aead = AeadMock::new(AeadMockBehaviour::None);
+    let aead_key = [0u8; 32];
+    let mut nonces = create_nonces(&aead);
+    let mut tags = create_tags(&aead);
+    let mut buffers: [CodecBuffer; ELEMENTS] = core::array::from_fn(|_| CodecBuffer::new(10));
+
+    let fields = test_breakers
+        .each_mut()
+        .map(|tb| to_encryptable_mut_dyn(tb));
+
+    let result = encrypt_into_buffers(
+        &mut aead,
+        &aead_key,
+        &mut nonces,
+        &mut tags,
+        fields,
+        &mut buffers,
+    );
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+}
+
+// =============================================================================
 // encrypt_into zeroization tests
 // =============================================================================
 
