@@ -26,7 +26,7 @@ pub fn create_buffer(is_guarded: bool) -> Box<dyn Buffer> {
     let strategy = if is_guarded {
         ProtectionStrategy::MemNonProtected
     } else {
-        ProtectionStrategy::MemNonProtected
+        ProtectionStrategy::MemProtected
     };
 
     match ProtectedBuffer::try_create(strategy, MASTER_KEY_LEN) {
