@@ -13,6 +13,5 @@ use super::super::buffer::create_initialized_buffer;
 static BUFFER: OnceLock<Box<dyn Buffer>> = OnceLock::new();
 
 pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError> {
-    BUFFER.get_or_init(create_initialized_buffer).open(f)?;
-    Ok(())
+    BUFFER.get_or_init(create_initialized_buffer).open(f)
 }
