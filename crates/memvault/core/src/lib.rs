@@ -10,8 +10,6 @@
 
 mod cipherbox;
 mod consts;
-mod decrypt_decodable;
-mod encrypt_encodable;
 mod error;
 mod helpers;
 mod master_key;
