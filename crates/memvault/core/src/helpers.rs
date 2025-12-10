@@ -4,7 +4,7 @@
 
 use memaead::AeadApi;
 use memcodec::CodecBuffer;
-use memzer::FastZeroizable;
+use memzer::{FastZeroizable, ZeroizationProbe};
 
 use crate::error::CipherBoxError;
 use crate::traits::{Decryptable, Encryptable};
@@ -49,7 +49,7 @@ pub fn encrypt_into<const N: usize>(
 }
 
 #[inline(always)]
-pub fn encrypt_into_buffers<const N: usize>(
+fn try_encrypt_into_buffers<const N: usize>(
     aead: &mut dyn AeadApi,
     aead_key: &[u8],
     nonces: &mut [Vec<u8>; N],
@@ -60,6 +60,11 @@ pub fn encrypt_into_buffers<const N: usize>(
     for (idx, field) in fields.iter_mut().enumerate() {
         let buf = &mut buffers[idx];
         field.encode_into(buf)?;
+        debug_assert!(
+            !buf.is_zeroized(),
+            "buffer[{}] should contain data after successful encode",
+            idx
+        );
     }
 
     let mut ciphertexts: [Vec<u8>; N] = core::array::from_fn(|i| buffers[i].to_vec());
@@ -70,6 +75,25 @@ pub fn encrypt_into_buffers<const N: usize>(
     }
 
     Ok(ciphertexts)
+}
+
+#[inline(always)]
+pub(crate) fn encrypt_into_buffers<const N: usize>(
+    aead: &mut dyn AeadApi,
+    aead_key: &[u8],
+    nonces: &mut [Vec<u8>; N],
+    tags: &mut [Vec<u8>; N],
+    fields: [&mut dyn Encryptable; N],
+    buffers: &mut [CodecBuffer; N],
+) -> Result<[Vec<u8>; N], CipherBoxError> {
+    let result = try_encrypt_into_buffers(aead, aead_key, nonces, tags, fields, buffers);
+
+    if result.is_err() {
+        buffers.fast_zeroize();
+        return Err(CipherBoxError::Poisoned);
+    }
+
+    result
 }
 
 #[inline(always)]
