@@ -3,5 +3,6 @@
 // See LICENSE in the repository root for full license text.
 
 mod cipherbox;
+mod helpers;
 mod master_key;
 mod utils;

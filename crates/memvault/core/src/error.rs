@@ -37,6 +37,18 @@ pub enum CipherBoxError {
 
     #[error(transparent)]
     Aead(#[from] AeadError),
+
+    /// The CipherBox is in an irrecoverable state.
+    ///
+    /// This error occurs when a cryptographic operation fails partway through,
+    /// leaving some fields decrypted (plaintext exposed in memory). For security,
+    /// all exposed plaintext is immediately zeroized before returning this error.
+    ///
+    /// **The data is permanently lost.** The CipherBox cannot be recovered or
+    /// used again after this error. This is intentional: security guarantees
+    /// take precedence over data preservation.
+    #[error("poisoned: box is in an irrecoverable state, exposed plaintext was zeroized")]
+    Poisoned,
 }
 
 #[derive(Debug, Error)]

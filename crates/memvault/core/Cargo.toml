@@ -23,6 +23,11 @@ memzer.workspace = true
 memaead.workspace = true
 thiserror.workspace = true
 
+[dev-dependencies]
+memaead = { workspace = true, features = ["test_utils"] }
+memcodec = { workspace = true, features = ["test_utils"] }
+mem_test_utils.workspace = true
+
 [target.'cfg(unix)'.dev-dependencies]
 libc.workspace = true
 

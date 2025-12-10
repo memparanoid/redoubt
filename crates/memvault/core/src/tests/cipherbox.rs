@@ -85,7 +85,7 @@ impl DecryptStruct<4> for WalletSecrets {
             nonces,
             tags,
             ciphertexts,
-            self.to_decryptable_dyn_fields(),
+            &mut self.to_decryptable_dyn_fields(),
         )
     }
 }

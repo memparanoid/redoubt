@@ -848,6 +848,7 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "libseccomp",
+ "mem_test_utils",
  "memaead",
  "memalloc",
  "membuffer",
