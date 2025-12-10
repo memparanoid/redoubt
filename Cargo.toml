@@ -20,6 +20,7 @@ members = [
   "crates/memcodec/core",
   "crates/memcodec/derive",
   "crates/membuffer",
+  "crates/mem_test_utils",
 ]
 resolver = "2"
 
@@ -46,9 +47,10 @@ resolver = "2"
   memvault       = { path = "crates/memvault" }
   memvault_core  = { path = "crates/memvault/core" }
   memvault_derive = { path = "crates/memvault/derive" }
-  memzer         = { path = "crates/memzer" }
-  memzer_core    = { path = "crates/memzer/core" }
-  memzer_derive  = { path = "crates/memzer/derive" }
+  memzer          = { path = "crates/memzer" }
+  memzer_core     = { path = "crates/memzer/core" }
+  memzer_derive   = { path = "crates/memzer/derive" }
+  mem_test_utils  = { path = "crates/mem_test_utils" }
 
   # External dependencies
   cpufeatures      = "0.2.17"

@@ -33,6 +33,7 @@ COPY crates/memsecret/Cargo.toml ./crates/memsecret/
 COPY crates/memvault/Cargo.toml ./crates/memvault/
 COPY crates/memcrypt/Cargo.toml ./crates/memcrypt/
 COPY crates/membench/Cargo.toml ./crates/membench/
+COPY crates/mem_test_utils/Cargo.toml ./crates/mem_test_utils/
 
 # Create stub lib.rs files
 RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs && \
@@ -59,7 +60,8 @@ RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs 
     echo "fn main() {}" > crates/membench/benches/protected_buffer.rs && \
     echo "fn main() {}" > crates/membench/benches/hkdf.rs && \
     echo "fn main() {}" > crates/membench/benches/cipherbox_integrated.rs && \
-    echo "fn main() {}" > crates/membench/benches/cipherbox_final.rs
+    echo "fn main() {}" > crates/membench/benches/cipherbox_final.rs && \
+    mkdir -p crates/mem_test_utils/src && echo "// stub" > crates/mem_test_utils/src/lib.rs
 
 # Pre-fetch dependencies
 RUN cargo fetch

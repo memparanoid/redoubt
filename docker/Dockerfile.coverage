@@ -62,6 +62,7 @@ COPY crates/memcodec/Cargo.toml ./crates/memcodec/
 COPY crates/memcodec/core/Cargo.toml ./crates/memcodec/core/
 COPY crates/memcodec/derive/Cargo.toml ./crates/memcodec/derive/
 COPY crates/membuffer/Cargo.toml ./crates/membuffer/
+COPY crates/mem_test_utils/Cargo.toml ./crates/mem_test_utils/
 
 # Create stub lib.rs files to satisfy cargo build
 RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs && \
@@ -90,7 +91,8 @@ RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs 
     mkdir -p crates/memcodec/src && echo "// stub" > crates/memcodec/src/lib.rs && \
     mkdir -p crates/memcodec/core/src && echo "// stub" > crates/memcodec/core/src/lib.rs && \
     mkdir -p crates/memcodec/derive/src && echo "// stub" > crates/memcodec/derive/src/lib.rs && \
-    mkdir -p crates/membuffer/src && echo "// stub" > crates/membuffer/src/lib.rs
+    mkdir -p crates/membuffer/src && echo "// stub" > crates/membuffer/src/lib.rs && \
+    mkdir -p crates/mem_test_utils/src && echo "// stub" > crates/mem_test_utils/src/lib.rs
 
 # Build workspace and dependencies with cache mount
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
