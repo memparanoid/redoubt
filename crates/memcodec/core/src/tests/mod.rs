@@ -5,8 +5,6 @@
 #[cfg(all(test, feature = "benchmark"))]
 mod bench;
 
-mod utils;
-
 mod codec_buffer;
 mod collections;
 mod error;

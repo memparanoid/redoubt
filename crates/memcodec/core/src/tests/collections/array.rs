@@ -3,12 +3,12 @@
 // See LICENSE in the repository root for full license text.
 
 use crate::codec_buffer::CodecBuffer;
+use mem_test_utils::{apply_permutation, index_permutations};
 #[cfg(feature = "zeroize")]
 use memzer::ZeroizationProbe;
 
 use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
 use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
-use crate::tests::utils::{apply_permutation, index_permutations};
 use crate::traits::{BytesRequired, Decode, Encode, PreAlloc};
 
 // Bytes Required

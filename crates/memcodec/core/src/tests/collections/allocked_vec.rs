@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use mem_test_utils::{apply_permutation, index_permutations};
 use memalloc::AllockedVec;
 use memzer::ZeroizationProbe;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
 use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
-use crate::tests::utils::{apply_permutation, index_permutations};
 use crate::traits::{BytesRequired, Decode, Encode, PreAlloc};
 
 fn make_allocked_vec(items: &[TestBreaker]) -> AllockedVec<TestBreaker> {
