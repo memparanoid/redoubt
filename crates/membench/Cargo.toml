@@ -14,6 +14,7 @@ memutil.workspace = true
 memcodec = { workspace = true, features = ["zeroize"] }
 memcrypt.workspace = true
 memvault_core.workspace = true
+memvault_derive.workspace = true
 memzer.workspace = true
 aegis = { version = "0.9.5", features = ["pure-rust"] }
 blake3 = "1.8"
@@ -50,4 +51,8 @@ harness = false
 
 [[bench]]
 name = "cipherbox_integrated"
+harness = false
+
+[[bench]]
+name = "cipherbox_final"
 harness = false

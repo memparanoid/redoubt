@@ -14,6 +14,7 @@ no_std = []
 memcodec = { workspace = true, features = ["zeroize"]}
 memhkdf.workspace = true
 memalloc.workspace = true
+memsecret.workspace = true
 membuffer.workspace = true
 memguard.workspace = true
 memrand.workspace = true

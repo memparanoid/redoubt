@@ -8,5 +8,13 @@ proc-macro = true
 path = "src/lib.rs"
 
 [dependencies]
+proc-macro2.workspace = true
+proc-macro-crate.workspace = true
+quote.workspace = true
+syn = { workspace = true, features = ["full", "parsing"] }
 
 [dev-dependencies]
+memaead.workspace = true
+memcodec.workspace = true
+memvault_core.workspace = true
+memzer.workspace = true

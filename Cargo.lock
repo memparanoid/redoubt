@@ -716,6 +716,7 @@ dependencies = [
  "memhkdf",
  "memutil",
  "memvault_core",
+ "memvault_derive",
  "memzer",
  "serde",
  "sha2",
@@ -850,6 +851,7 @@ dependencies = [
  "memguard",
  "memhkdf",
  "memrand",
+ "memsecret",
  "memzer",
  "thiserror",
 ]
@@ -857,6 +859,16 @@ dependencies = [
 [[package]]
 name = "memvault_derive"
 version = "0.1.0"
+dependencies = [
+ "memaead",
+ "memcodec",
+ "memvault_core",
+ "memzer",
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "memzer"

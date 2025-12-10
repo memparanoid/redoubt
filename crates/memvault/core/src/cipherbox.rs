@@ -108,15 +108,19 @@ where
     {
         let mut field = ZeroizingGuard::new(F::default());
 
+        // Clone ciphertext so we don't drain the original
+        let mut ciphertext_copy = self.ciphertexts[M].clone();
+
         self.aead.decrypt(
             aead_key,
             &self.nonces[M],
             &AAD,
-            &mut self.ciphertexts[M],
+            &mut ciphertext_copy,
             &self.tags[M],
         )?;
 
-        field.decode_from(&mut self.ciphertexts[M].as_mut_slice())?;
+        field.decode_from(&mut ciphertext_copy.as_mut_slice())?;
+        // ciphertext_copy is dropped and zeroized here
 
         Ok(field)
     }
@@ -217,16 +221,16 @@ where
     #[inline(always)]
     pub fn open_field<Field, const M: usize, F>(&mut self, f: F) -> Result<(), CipherBoxError>
     where
-        Field: Default + FastZeroizable + Encryptable + Decryptable + ZeroizationProbe,
+        Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
         F: FnOnce(&Field),
     {
         self.maybe_initialize()?;
 
         let master_key = leak_master_key(self.aead.key_size())?;
 
-        let mut field = self.decrypt_field::<Field, M>(&master_key)?;
+        let field = self.decrypt_field::<Field, M>(&master_key)?;
         f(&field);
-        self.encrypt_field::<Field, M>(&master_key, &mut field)?;
+        // No re-encrypt needed - ciphertext was cloned in decrypt_field
 
         Ok(())
     }
@@ -247,101 +251,18 @@ where
 
         Ok(())
     }
+
+    #[inline(always)]
+    pub fn leak_field<Field, const M: usize>(
+        &mut self,
+    ) -> Result<ZeroizingGuard<Field>, CipherBoxError>
+    where
+        Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
+    {
+        self.maybe_initialize()?;
+
+        let master_key = leak_master_key(self.aead.key_size())?;
+
+        self.decrypt_field::<Field, M>(&master_key)
+    }
 }
-
-// #[cfg(test)]
-// mod perf_debug {
-//     use core::marker::PhantomData;
-
-//     use memaead::Aead;
-//     use memalloc::AllockedVec;
-//     use membuffer::BufferError;
-//     use memcodec::{BytesRequired, Codec, CodecBuffer, Decode, Encode};
-//     use memzer::{
-//         DropSentinel, FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata, ZeroizingGuard,
-//     };
-
-//     use crate::decrypt_decodable::decrypt_decodable;
-//     use crate::encrypt_encodable::encrypt_encodable;
-//     use crate::error::CipherBoxError;
-//     use crate::master_key::leak_master_key;
-
-//     use super::CipherBox;
-
-//     use std::time::Instant;
-
-//     #[derive(MemZer, Codec)]
-//     #[memzer(drop)]
-//     pub struct WalletSecrets {
-//         master_seed: [u8; 32],
-//         encryption_key: [u8; 32],
-//         signing_key: [u8; 64],
-//         pin_hash: [u8; 32],
-//         #[codec(default)]
-//         __drop_sentinel: DropSentinel,
-//     }
-
-//     impl Default for WalletSecrets {
-//         fn default() -> Self {
-//             Self {
-//                 master_seed: [0u8; 32],
-//                 encryption_key: [0u8; 32],
-//                 signing_key: [0u8; 64],
-//                 pin_hash: [0u8; 32],
-//                 __drop_sentinel: DropSentinel::default(),
-//             }
-//         }
-//     }
-
-//     #[test]
-//     fn isolate_overhead() {
-//         let mut cb = CipherBox::<WalletSecrets>::new();
-//         let iterations = 10_000;
-
-//         // 1. Solo leak_master_key
-//         let start = Instant::now();
-//         for _ in 0..iterations {
-//             let key = leak_master_key(16).unwrap();
-//             std::hint::black_box(&key);
-//         }
-//         println!(
-//             "leak_master_key: {} ns",
-//             start.elapsed().as_nanos() / iterations
-//         );
-
-//         let start = Instant::now();
-//         let key = leak_master_key(16).unwrap();
-//         for _ in 0..iterations {
-//             let mut v = cb.decrypt(&key).unwrap();
-//             cb.encrypt(&key, &mut v).unwrap();
-//         }
-//         println!(
-//             "aead raw roundtrip: {} ns",
-//             start.elapsed().as_nanos() / iterations
-//         );
-
-//         // 2. Solo decrypt (con key ya leakeada)
-//         // let key = leak_master_key(16).unwrap();
-//         // let start = Instant::now();
-//         // for _ in 0..iterations {
-//         //     let val = cb.decrypt(&key).unwrap();
-//         //     std::hint::black_box(&val);
-//         // }
-//         // println!("decrypt: {} ns", start.elapsed().as_nanos() / iterations);
-
-//         // // 3. Solo encrypt
-//         // let start = Instant::now();
-//         // for _ in 0..iterations {
-//         //     let mut val = ZeroizingGuard::new(WalletSecrets::default());
-//         //     cb.encrypt(&key, &mut val).unwrap();
-//         // }
-//         // println!("encrypt: {} ns", start.elapsed().as_nanos() / iterations);
-
-//         // 4. El open_mut completo
-//         let start = Instant::now();
-//         for _ in 0..iterations {
-//             cb.open_mut(|_| {}).unwrap();
-//         }
-//         println!("open_mut: {} ns", start.elapsed().as_nanos() / iterations);
-//     }
-// }
