@@ -19,7 +19,7 @@ use memrand::{EntropyError, SystemEntropySource};
 
 use crate::error::AeadError;
 use crate::feature_detector::FeatureDetector;
-use crate::traits::AeadBackend;
+use crate::traits::{AeadApi, AeadBackend};
 
 #[cfg(all(
     any(target_arch = "x86_64", target_arch = "aarch64"),
@@ -300,5 +300,51 @@ impl Aead {
 impl core::fmt::Debug for Aead {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Aead {{ backend: {} }}", self.backend_name())
+    }
+}
+
+impl AeadApi for Aead {
+    #[inline(always)]
+    fn api_encrypt(
+        &mut self,
+        key: &[u8],
+        nonce: &[u8],
+        aad: &[u8],
+        data: &mut [u8],
+        tag: &mut [u8],
+    ) -> Result<(), crate::AeadError> {
+        self.encrypt(key, nonce, aad, data, tag)
+    }
+
+    #[inline(always)]
+    fn api_decrypt(
+        &mut self,
+        key: &[u8],
+        nonce: &[u8],
+        aad: &[u8],
+        data: &mut [u8],
+        tag: &[u8],
+    ) -> Result<(), crate::AeadError> {
+        self.decrypt(key, nonce, aad, data, tag)
+    }
+
+    #[inline(always)]
+    fn api_generate_nonce(&mut self) -> Result<Vec<u8>, memrand::EntropyError> {
+        self.generate_nonce()
+    }
+
+    #[inline(always)]
+    fn api_key_size(&self) -> usize {
+        self.key_size()
+    }
+
+    #[inline(always)]
+    fn api_nonce_size(&self) -> usize {
+        self.nonce_size()
+    }
+
+    #[inline(always)]
+    fn api_tag_size(&self) -> usize {
+        self.tag_size()
     }
 }

@@ -15,7 +15,7 @@ mod traits;
 
 pub use aead::Aead;
 pub use error::AeadError;
-pub(crate) use traits::AeadBackend;
+pub use traits::AeadApi;
 
 #[cfg(all(
     any(target_arch = "x86_64", target_arch = "aarch64"),

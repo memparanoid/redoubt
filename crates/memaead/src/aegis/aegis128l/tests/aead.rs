@@ -6,7 +6,7 @@
 
 use memutil::hex_to_bytes;
 
-use crate::AeadBackend;
+use crate::traits::AeadBackend;
 use crate::aegis::aegis128l::aead::Aegis128L;
 use crate::aegis::aegis128l::consts::{Aegis128LKey, Aegis128LNonce, Aegis128LTag};
 

@@ -12,7 +12,8 @@ use memrand::{
 use memutil::{constant_time_eq, u64_to_le};
 use memzer::{DropSentinel, FastZeroizable, MemZer};
 
-use crate::{AeadBackend, AeadError};
+use crate::error::AeadError;
+use crate::traits::AeadBackend;
 
 use super::chacha20::XChaCha20;
 use super::consts::{KEY_SIZE, TAG_SIZE, XNONCE_SIZE};

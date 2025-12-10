@@ -7,10 +7,10 @@
 use core::cell::Cell;
 use memrand::{EntropyError, SystemEntropySource};
 
-use crate::xchacha20poly1305::{KEY_SIZE, TAG_SIZE, XNONCE_SIZE};
+use crate::error::AeadError;
+use crate::traits::{AeadApi, AeadBackend};
 use crate::xchacha20poly1305::XChacha20Poly1305;
-use crate::AeadBackend;
-use crate::AeadError;
+use crate::xchacha20poly1305::{KEY_SIZE, TAG_SIZE, XNONCE_SIZE};
 
 /// Mock failure behaviour.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -119,6 +119,61 @@ impl AeadMock {
     }
 }
 
+impl AeadApi for AeadMock {
+    #[inline(always)]
+    fn api_encrypt(
+        &mut self,
+        key: &[u8],
+        nonce: &[u8],
+        aad: &[u8],
+        data: &mut [u8],
+        tag: &mut [u8],
+    ) -> Result<(), AeadError> {
+        let key: &[u8; Self::KEY_SIZE] = key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
+        let nonce: &[u8; Self::NONCE_SIZE] =
+            nonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
+        let tag: &mut [u8; Self::TAG_SIZE] =
+            tag.try_into().map_err(|_| AeadError::InvalidTagSize)?;
+        self.encrypt(key, nonce, aad, data, tag)
+    }
+
+    #[inline(always)]
+    fn api_decrypt(
+        &mut self,
+        key: &[u8],
+        nonce: &[u8],
+        aad: &[u8],
+        data: &mut [u8],
+        tag: &[u8],
+    ) -> Result<(), AeadError> {
+        let key: &[u8; Self::KEY_SIZE] = key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
+        let nonce: &[u8; Self::NONCE_SIZE] =
+            nonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
+        let tag: &[u8; Self::TAG_SIZE] = tag.try_into().map_err(|_| AeadError::InvalidTagSize)?;
+        self.decrypt(key, nonce, aad, data, tag)
+    }
+
+    #[inline(always)]
+    fn api_generate_nonce(&mut self) -> Result<Vec<u8>, EntropyError> {
+        self.generate_nonce().map(|n| n.to_vec())
+    }
+
+    #[inline(always)]
+    fn api_key_size(&self) -> usize {
+        self.key_size()
+    }
+
+    #[inline(always)]
+    fn api_nonce_size(&self) -> usize {
+        self.nonce_size()
+    }
+
+    #[inline(always)]
+    fn api_tag_size(&self) -> usize {
+        self.tag_size()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -132,7 +187,8 @@ mod tests {
         let mut data = original;
         let mut tag = [0u8; AeadMock::TAG_SIZE];
 
-        mock.encrypt(&key, &nonce, &[], &mut data, &mut tag).unwrap();
+        mock.encrypt(&key, &nonce, &[], &mut data, &mut tag)
+            .unwrap();
         assert_ne!(data, original);
 
         mock.decrypt(&key, &nonce, &[], &mut data, &tag).unwrap();
@@ -157,7 +213,10 @@ mod tests {
 
         assert!(mock.encrypt(&key, &nonce, &[], &mut data, &mut tag).is_ok());
         assert!(mock.encrypt(&key, &nonce, &[], &mut data, &mut tag).is_ok());
-        assert!(mock.encrypt(&key, &nonce, &[], &mut data, &mut tag).is_err());
+        assert!(
+            mock.encrypt(&key, &nonce, &[], &mut data, &mut tag)
+                .is_err()
+        );
         assert!(mock.encrypt(&key, &nonce, &[], &mut data, &mut tag).is_ok());
     }
 
@@ -170,7 +229,8 @@ mod tests {
         let mut data = original;
         let mut tag = [0u8; AeadMock::TAG_SIZE];
 
-        mock.encrypt(&key, &nonce, &[], &mut data, &mut tag).unwrap();
+        mock.encrypt(&key, &nonce, &[], &mut data, &mut tag)
+            .unwrap();
         let ciphertext = data;
 
         // First decrypt succeeds

@@ -8,7 +8,8 @@ use memrand::{
     EntropyError, EntropySource, NonceGenerator, NonceSessionGenerator, SystemEntropySource,
 };
 
-use crate::{AeadBackend, AeadError};
+use crate::error::AeadError;
+use crate::traits::AeadBackend;
 
 use super::consts::{Aegis128LKey, Aegis128LNonce, Aegis128LTag, NONCE_SIZE};
 use super::state;

@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! AEAD trait definition.
+//! AEAD trait definitions.
 
 use memrand::EntropyError;
 
 use crate::AeadError;
 
 /// Authenticated Encryption with Associated Data (AEAD) backend trait.
+///
+/// Used internally by concrete AEAD implementations (XChaCha20-Poly1305, AEGIS-128L).
 pub trait AeadBackend {
     type Key;
     type Nonce;
@@ -36,4 +38,40 @@ pub trait AeadBackend {
 
     /// Generate a unique nonce for encryption.
     fn generate_nonce(&mut self) -> Result<Self::Nonce, EntropyError>;
+}
+
+/// Object-safe AEAD API for generic code and testing.
+///
+/// This trait exists STRICTLY for testing purposes - specifically to enable
+/// mock injection for verifying zeroization guarantees on error paths.
+///
+/// While this adds complexity to the codebase, we are willing to pay this
+/// trade-off because SECURITY AND ZEROIZATION ARE NON-NEGOTIABLE.
+///
+/// Users should continue using [`Aead`](crate::Aead) directly with its inherent methods.
+/// This trait is only needed internally for generic test code.
+pub trait AeadApi {
+    fn api_encrypt(
+        &mut self,
+        key: &[u8],
+        nonce: &[u8],
+        aad: &[u8],
+        data: &mut [u8],
+        tag: &mut [u8],
+    ) -> Result<(), AeadError>;
+
+    fn api_decrypt(
+        &mut self,
+        key: &[u8],
+        nonce: &[u8],
+        aad: &[u8],
+        data: &mut [u8],
+        tag: &[u8],
+    ) -> Result<(), AeadError>;
+
+    fn api_generate_nonce(&mut self) -> Result<Vec<u8>, EntropyError>;
+
+    fn api_key_size(&self) -> usize;
+    fn api_nonce_size(&self) -> usize;
+    fn api_tag_size(&self) -> usize;
 }
