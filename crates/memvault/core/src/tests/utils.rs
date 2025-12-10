@@ -52,6 +52,20 @@ pub fn run_test_as_subprocess(test_name: &str) -> Option<i32> {
         .output()
         .expect("Failed to run subprocess");
 
+    // Print subprocess output for debugging
+    if !output.stdout.is_empty() {
+        println!(
+            "SUBPROCESS STDOUT:\n{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+    }
+    if !output.stderr.is_empty() {
+        eprintln!(
+            "SUBPROCESS STDERR:\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
     if output.stdout.starts_with(b"\nrunning 0 tests") {
         return Some(-1);
     }
