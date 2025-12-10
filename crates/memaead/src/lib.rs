@@ -5,6 +5,7 @@
 #[cfg(test)]
 mod tests;
 
+pub mod support;
 pub mod xchacha20poly1305;
 
 mod aead;

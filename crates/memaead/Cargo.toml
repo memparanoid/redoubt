@@ -9,6 +9,9 @@ name                = "memaead"
 repository.workspace = true
 version.workspace   = true
 
+[features]
+test_utils = []
+
 [dependencies]
 cpufeatures.workspace = true
 memrand.workspace     = true
