@@ -1,0 +1,131 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+---
+source: crates/memvault/derive/src/tests/expand.rs
+expression: pretty(token_stream)
+---
+#[derive(MemZer, Codec)]
+struct Data {
+    pub alpha: Vec<u8>,
+    pub beta: u64,
+}
+use memvault_core::CipherBoxDyns as _;
+impl memvault_core::CipherBoxDyns<2> for Data {
+    fn to_encryptable_dyn_fields(&mut self) -> [&mut dyn memvault_core::Encryptable; 2] {
+        [&mut self.alpha, &mut self.beta]
+    }
+    fn to_decryptable_dyn_fields(&mut self) -> [&mut dyn memvault_core::Decryptable; 2] {
+        [&mut self.alpha, &mut self.beta]
+    }
+}
+impl<A: memaead::AeadApi> memvault_core::EncryptStruct<A, 2> for Data {
+    fn encrypt_into(
+        &mut self,
+        aead: &mut A,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 2],
+        tags: &mut [Vec<u8>; 2],
+    ) -> Result<[Vec<u8>; 2], memvault_core::CipherBoxError> {
+        memvault_core::encrypt_into(
+            aead,
+            aead_key,
+            nonces,
+            tags,
+            self.to_encryptable_dyn_fields(),
+        )
+    }
+}
+impl<A: memaead::AeadApi> memvault_core::DecryptStruct<A, 2> for Data {
+    fn decrypt_from(
+        &mut self,
+        aead: &mut A,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 2],
+        tags: &mut [Vec<u8>; 2],
+        ciphertexts: &mut [Vec<u8>; 2],
+    ) -> Result<(), memvault_core::CipherBoxError> {
+        memvault_core::decrypt_from(
+            aead,
+            aead_key,
+            nonces,
+            tags,
+            ciphertexts,
+            &mut self.to_decryptable_dyn_fields(),
+        )
+    }
+}
+pub struct DataBox {
+    inner: memvault_core::CipherBox<Data, memaead::Aead, 2>,
+}
+impl DataBox {
+    #[inline(always)]
+    pub fn new() -> Self {
+        Self {
+            inner: memvault_core::CipherBox::new(memaead::Aead::new()),
+        }
+    }
+    #[inline(always)]
+    pub fn open<F>(&mut self, f: F) -> Result<(), memvault_core::CipherBoxError>
+    where
+        F: Fn(&Data),
+    {
+        self.inner.open(f)
+    }
+    #[inline(always)]
+    pub fn open_mut<F>(&mut self, f: F) -> Result<(), memvault_core::CipherBoxError>
+    where
+        F: Fn(&mut Data),
+    {
+        self.inner.open_mut(f)
+    }
+    #[inline(always)]
+    pub fn leak_alpha(
+        &mut self,
+    ) -> Result<memzer::ZeroizingGuard<Vec<u8>>, memvault_core::CipherBoxError> {
+        self.inner.leak_field::<Vec<u8>, 0>()
+    }
+    #[inline(always)]
+    pub fn leak_beta(
+        &mut self,
+    ) -> Result<memzer::ZeroizingGuard<u64>, memvault_core::CipherBoxError> {
+        self.inner.leak_field::<u64, 1>()
+    }
+    #[inline(always)]
+    pub fn open_alpha<F>(&mut self, f: F) -> Result<(), memvault_core::CipherBoxError>
+    where
+        F: Fn(&Vec<u8>),
+    {
+        self.inner.open_field::<Vec<u8>, 0, F>(f)
+    }
+    #[inline(always)]
+    pub fn open_beta<F>(&mut self, f: F) -> Result<(), memvault_core::CipherBoxError>
+    where
+        F: Fn(&u64),
+    {
+        self.inner.open_field::<u64, 1, F>(f)
+    }
+    #[inline(always)]
+    pub fn open_alpha_mut<F>(
+        &mut self,
+        f: F,
+    ) -> Result<(), memvault_core::CipherBoxError>
+    where
+        F: Fn(&mut Vec<u8>),
+    {
+        self.inner.open_field_mut::<Vec<u8>, 0, F>(f)
+    }
+    #[inline(always)]
+    pub fn open_beta_mut<F>(&mut self, f: F) -> Result<(), memvault_core::CipherBoxError>
+    where
+        F: Fn(&mut u64),
+    {
+        self.inner.open_field_mut::<u64, 1, F>(f)
+    }
+}
+impl Default for DataBox {
+    fn default() -> Self {
+        Self::new()
+    }
+}

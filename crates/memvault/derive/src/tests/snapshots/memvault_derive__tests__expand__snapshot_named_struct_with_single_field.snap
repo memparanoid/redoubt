@@ -1,0 +1,109 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+---
+source: crates/memvault/derive/src/tests/expand.rs
+expression: pretty(token_stream)
+---
+struct Gamma {
+    pub value: [u8; 32],
+}
+use memvault_core::CipherBoxDyns as _;
+impl memvault_core::CipherBoxDyns<1> for Gamma {
+    fn to_encryptable_dyn_fields(&mut self) -> [&mut dyn memvault_core::Encryptable; 1] {
+        [&mut self.value]
+    }
+    fn to_decryptable_dyn_fields(&mut self) -> [&mut dyn memvault_core::Decryptable; 1] {
+        [&mut self.value]
+    }
+}
+impl<A: memaead::AeadApi> memvault_core::EncryptStruct<A, 1> for Gamma {
+    fn encrypt_into(
+        &mut self,
+        aead: &mut A,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 1],
+        tags: &mut [Vec<u8>; 1],
+    ) -> Result<[Vec<u8>; 1], memvault_core::CipherBoxError> {
+        memvault_core::encrypt_into(
+            aead,
+            aead_key,
+            nonces,
+            tags,
+            self.to_encryptable_dyn_fields(),
+        )
+    }
+}
+impl<A: memaead::AeadApi> memvault_core::DecryptStruct<A, 1> for Gamma {
+    fn decrypt_from(
+        &mut self,
+        aead: &mut A,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 1],
+        tags: &mut [Vec<u8>; 1],
+        ciphertexts: &mut [Vec<u8>; 1],
+    ) -> Result<(), memvault_core::CipherBoxError> {
+        memvault_core::decrypt_from(
+            aead,
+            aead_key,
+            nonces,
+            tags,
+            ciphertexts,
+            &mut self.to_decryptable_dyn_fields(),
+        )
+    }
+}
+pub struct GammaBox {
+    inner: memvault_core::CipherBox<Gamma, memaead::Aead, 1>,
+}
+impl GammaBox {
+    #[inline(always)]
+    pub fn new() -> Self {
+        Self {
+            inner: memvault_core::CipherBox::new(memaead::Aead::new()),
+        }
+    }
+    #[inline(always)]
+    pub fn open<F>(&mut self, f: F) -> Result<(), memvault_core::CipherBoxError>
+    where
+        F: Fn(&Gamma),
+    {
+        self.inner.open(f)
+    }
+    #[inline(always)]
+    pub fn open_mut<F>(&mut self, f: F) -> Result<(), memvault_core::CipherBoxError>
+    where
+        F: Fn(&mut Gamma),
+    {
+        self.inner.open_mut(f)
+    }
+    #[inline(always)]
+    pub fn leak_value(
+        &mut self,
+    ) -> Result<memzer::ZeroizingGuard<[u8; 32]>, memvault_core::CipherBoxError> {
+        self.inner.leak_field::<[u8; 32], 0>()
+    }
+    #[inline(always)]
+    pub fn open_value<F>(&mut self, f: F) -> Result<(), memvault_core::CipherBoxError>
+    where
+        F: Fn(&[u8; 32]),
+    {
+        self.inner.open_field::<[u8; 32], 0, F>(f)
+    }
+    #[inline(always)]
+    pub fn open_value_mut<F>(
+        &mut self,
+        f: F,
+    ) -> Result<(), memvault_core::CipherBoxError>
+    where
+        F: Fn(&mut [u8; 32]),
+    {
+        self.inner.open_field_mut::<[u8; 32], 0, F>(f)
+    }
+}
+impl Default for GammaBox {
+    fn default() -> Self {
+        Self::new()
+    }
+}

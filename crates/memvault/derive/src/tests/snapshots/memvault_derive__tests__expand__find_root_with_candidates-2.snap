@@ -1,0 +1,7 @@
+---
+source: crates/memvault/derive/src/tests/expand.rs
+expression: pretty(ts_2)
+---
+compile_error!(
+    "cipherbox: could not find memvault or memvault_core. Add memvault to Cargo.toml."
+);
