@@ -2,247 +2,427 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(test)]
+//! Tests for Aead with AEGIS-128L backend.
+
 #[cfg(all(
     any(target_arch = "x86_64", target_arch = "aarch64"),
     not(target_os = "wasi")
 ))]
-mod tests {
-    use crate::aead::Aead;
-    use crate::feature_detector::{FeatureDetector, FeatureDetectorBehaviour};
+use crate::aead::Aead;
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+use crate::feature_detector::{FeatureDetector, FeatureDetectorBehaviour};
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+use crate::traits::AeadApi;
 
-    #[test]
-    fn test_backend_detection() {
-        let mut feature_detector = FeatureDetector::new();
-        feature_detector.change_behaviour(FeatureDetectorBehaviour::ForceAesTrue);
-        let aead = Aead::new_with_feature_detector(feature_detector);
+// =============================================================================
+// Backend detection
+// =============================================================================
 
-        assert_eq!(aead.backend_name(), "AEGIS-128L");
-    }
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_backend_detects_aegis128l_when_aes_available() {
+    let mut feature_detector = FeatureDetector::new();
+    feature_detector.change_behaviour(FeatureDetectorBehaviour::ForceAesTrue);
+    let aead = Aead::new_with_feature_detector(feature_detector);
 
-    #[test]
-    fn test_roundtrip() {
-        let mut aead = Aead::with_aegis128l();
+    assert_eq!(aead.backend_name(), "AEGIS-128L");
+}
 
-        let key = [0u8; 16];
-        let nonce = aead.generate_nonce().expect("Failed to generate nonce");
-        let aad = b"additional authenticated data";
+// =============================================================================
+// encrypt() + decrypt() roundtrip
+// =============================================================================
 
-        let mut plaintext = b"Hello, World! This is a test message.".to_vec();
-        let mut tag = vec![0u8; aead.tag_size()];
-        let original = plaintext.clone();
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_encrypt_decrypt_roundtrip() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 16];
+    let nonce = aead.generate_nonce().expect("Failed to generate_nonce()");
+    let aad = b"additional authenticated data";
+    let mut plaintext = b"Hello, World! This is a test message.".to_vec();
+    let mut tag = vec![0u8; aead.tag_size()];
+    let original = plaintext.clone();
 
-        // Encrypt
-        aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag)
-            .expect("Encryption failed");
+    aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag)
+        .expect("Failed to encrypt(..)");
 
-        // Verify ciphertext is different from plaintext
-        assert_ne!(
-            plaintext, original,
-            "Ciphertext should differ from plaintext"
-        );
+    assert_ne!(plaintext, original);
 
-        // Decrypt
-        aead.decrypt(&key, &nonce, aad, &mut plaintext, &tag)
-            .expect("Decryption failed");
+    aead.decrypt(&key, &nonce, aad, &mut plaintext, &tag)
+        .expect("Failed to decrypt(..)");
 
-        // Verify roundtrip
-        assert_eq!(plaintext, original, "Decrypted text should match original");
-    }
+    assert_eq!(plaintext, original);
+}
 
-    #[test]
-    fn test_wrong_tag_fails() {
-        let mut aead = Aead::with_aegis128l();
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_decrypt_fails_with_wrong_tag() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 16];
+    let nonce = aead.generate_nonce().expect("Failed to generate_nonce()");
+    let aad = b"additional authenticated data";
+    let mut plaintext = b"Hello, World!".to_vec();
+    let mut tag = vec![0u8; aead.tag_size()];
 
-        let key = [0u8; 16];
-        let nonce = aead.generate_nonce().expect("Failed to generate nonce");
-        let aad = b"additional authenticated data";
+    aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag)
+        .expect("Failed to encrypt(..)");
 
-        let mut plaintext = b"Hello, World!".to_vec();
-        let mut tag = vec![0u8; aead.tag_size()];
+    tag[0] ^= 1;
 
-        // Encrypt
-        aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag)
-            .expect("Encryption failed");
+    let result = aead.decrypt(&key, &nonce, aad, &mut plaintext, &tag);
+    assert!(result.is_err());
+}
 
-        // Tamper with tag
-        tag[0] ^= 1;
+// =============================================================================
+// Size methods
+// =============================================================================
 
-        // Decrypt should fail
-        let result = aead.decrypt(&key, &nonce, aad, &mut plaintext, &tag);
-        assert!(result.is_err(), "Decryption with wrong tag should fail");
-    }
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_key_size_returns_correct_value() {
+    let aead = Aead::with_aegis128l();
+    assert_eq!(aead.key_size(), 16);
+}
 
-    #[test]
-    fn test_size_methods() {
-        let aead = Aead::with_aegis128l();
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_nonce_size_returns_correct_value() {
+    let aead = Aead::with_aegis128l();
+    assert_eq!(aead.nonce_size(), 16);
+}
 
-        assert_eq!(aead.key_size(), 16);
-        assert_eq!(aead.nonce_size(), 16);
-        assert_eq!(aead.tag_size(), 16);
-    }
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_tag_size_returns_correct_value() {
+    let aead = Aead::with_aegis128l();
+    assert_eq!(aead.tag_size(), 16);
+}
 
-    #[test]
-    fn test_debug_impl() {
-        let aead = Aead::with_aegis128l();
-        let debug_str = format!("{:?}", aead);
-        assert_eq!(debug_str, "Aead { backend: AEGIS-128L }");
-    }
+// =============================================================================
+// Debug impl
+// =============================================================================
 
-    // Size validation tests
-    #[test]
-    fn test_encrypt_key_too_small() {
-        let mut aead = Aead::with_aegis128l();
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_debug_displays_backend_name() {
+    let aead = Aead::with_aegis128l();
+    let debug_str = format!("{:?}", aead);
+    assert_eq!(debug_str, "Aead { backend: AEGIS-128L }");
+}
 
-        let key = [0u8; 15]; // Should be 16
-        let nonce = [0u8; 16];
-        let mut plaintext = b"test".to_vec();
-        let mut tag = [0u8; 16];
+// =============================================================================
+// encrypt() - size validation errors
+// =============================================================================
 
-        let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
-        assert!(result.is_err(), "Should fail with key too small");
-    }
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_encrypt_fails_with_key_too_small() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 15];
+    let nonce = [0u8; 16];
+    let mut plaintext = b"test".to_vec();
+    let mut tag = [0u8; 16];
 
-    #[test]
-    fn test_encrypt_key_too_large() {
-        let mut aead = Aead::with_aegis128l();
+    let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
+    assert!(result.is_err());
+}
 
-        let key = [0u8; 17]; // Should be 16
-        let nonce = [0u8; 16];
-        let mut plaintext = b"test".to_vec();
-        let mut tag = [0u8; 16];
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_encrypt_fails_with_key_too_large() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 17];
+    let nonce = [0u8; 16];
+    let mut plaintext = b"test".to_vec();
+    let mut tag = [0u8; 16];
 
-        let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
-        assert!(result.is_err(), "Should fail with key too large");
-    }
+    let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
+    assert!(result.is_err());
+}
 
-    #[test]
-    fn test_encrypt_nonce_too_small() {
-        let mut aead = Aead::with_aegis128l();
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_encrypt_fails_with_nonce_too_small() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 16];
+    let nonce = [0u8; 15];
+    let mut plaintext = b"test".to_vec();
+    let mut tag = [0u8; 16];
 
-        let key = [0u8; 16];
-        let nonce = [0u8; 15]; // Should be 16
-        let mut plaintext = b"test".to_vec();
-        let mut tag = [0u8; 16];
+    let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
+    assert!(result.is_err());
+}
 
-        let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
-        assert!(result.is_err(), "Should fail with nonce too small");
-    }
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_encrypt_fails_with_nonce_too_large() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 16];
+    let nonce = [0u8; 17];
+    let mut plaintext = b"test".to_vec();
+    let mut tag = [0u8; 16];
 
-    #[test]
-    fn test_encrypt_nonce_too_large() {
-        let mut aead = Aead::with_aegis128l();
+    let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
+    assert!(result.is_err());
+}
 
-        let key = [0u8; 16];
-        let nonce = [0u8; 17]; // Should be 16
-        let mut plaintext = b"test".to_vec();
-        let mut tag = [0u8; 16];
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_encrypt_fails_with_tag_too_small() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 16];
+    let nonce = [0u8; 16];
+    let mut plaintext = b"test".to_vec();
+    let mut tag = [0u8; 15];
 
-        let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
-        assert!(result.is_err(), "Should fail with nonce too large");
-    }
+    let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
+    assert!(result.is_err());
+}
 
-    #[test]
-    fn test_encrypt_tag_too_small() {
-        let mut aead = Aead::with_aegis128l();
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_encrypt_fails_with_tag_too_large() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 16];
+    let nonce = [0u8; 16];
+    let mut plaintext = b"test".to_vec();
+    let mut tag = [0u8; 17];
 
-        let key = [0u8; 16];
-        let nonce = [0u8; 16];
-        let mut plaintext = b"test".to_vec();
-        let mut tag = [0u8; 15]; // Should be 16
+    let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
+    assert!(result.is_err());
+}
 
-        let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
-        assert!(result.is_err(), "Should fail with tag too small");
-    }
+// =============================================================================
+// decrypt() - size validation errors
+// =============================================================================
 
-    #[test]
-    fn test_encrypt_tag_too_large() {
-        let mut aead = Aead::with_aegis128l();
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_decrypt_fails_with_key_too_small() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 15];
+    let nonce = [0u8; 16];
+    let mut ciphertext = b"test".to_vec();
+    let tag = [0u8; 16];
 
-        let key = [0u8; 16];
-        let nonce = [0u8; 16];
-        let mut plaintext = b"test".to_vec();
-        let mut tag = [0u8; 17]; // Should be 16
+    let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
+    assert!(result.is_err());
+}
 
-        let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
-        assert!(result.is_err(), "Should fail with tag too large");
-    }
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_decrypt_fails_with_key_too_large() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 17];
+    let nonce = [0u8; 16];
+    let mut ciphertext = b"test".to_vec();
+    let tag = [0u8; 16];
 
-    #[test]
-    fn test_decrypt_key_too_small() {
-        let mut aead = Aead::with_aegis128l();
+    let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
+    assert!(result.is_err());
+}
 
-        let key = [0u8; 15]; // Should be 16
-        let nonce = [0u8; 16];
-        let mut ciphertext = b"test".to_vec();
-        let tag = [0u8; 16];
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_decrypt_fails_with_nonce_too_small() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 16];
+    let nonce = [0u8; 15];
+    let mut ciphertext = b"test".to_vec();
+    let tag = [0u8; 16];
 
-        let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
-        assert!(result.is_err(), "Should fail with key too small");
-    }
+    let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
+    assert!(result.is_err());
+}
 
-    #[test]
-    fn test_decrypt_key_too_large() {
-        let mut aead = Aead::with_aegis128l();
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_decrypt_fails_with_nonce_too_large() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 16];
+    let nonce = [0u8; 17];
+    let mut ciphertext = b"test".to_vec();
+    let tag = [0u8; 16];
 
-        let key = [0u8; 17]; // Should be 16
-        let nonce = [0u8; 16];
-        let mut ciphertext = b"test".to_vec();
-        let tag = [0u8; 16];
+    let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
+    assert!(result.is_err());
+}
 
-        let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
-        assert!(result.is_err(), "Should fail with key too large");
-    }
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_decrypt_fails_with_tag_too_small() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 16];
+    let nonce = [0u8; 16];
+    let mut ciphertext = b"test".to_vec();
+    let tag = [0u8; 15];
 
-    #[test]
-    fn test_decrypt_nonce_too_small() {
-        let mut aead = Aead::with_aegis128l();
+    let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
+    assert!(result.is_err());
+}
 
-        let key = [0u8; 16];
-        let nonce = [0u8; 15]; // Should be 16
-        let mut ciphertext = b"test".to_vec();
-        let tag = [0u8; 16];
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_decrypt_fails_with_tag_too_large() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 16];
+    let nonce = [0u8; 16];
+    let mut ciphertext = b"test".to_vec();
+    let tag = [0u8; 17];
 
-        let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
-        assert!(result.is_err(), "Should fail with nonce too small");
-    }
+    let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
+    assert!(result.is_err());
+}
 
-    #[test]
-    fn test_decrypt_nonce_too_large() {
-        let mut aead = Aead::with_aegis128l();
+// =============================================================================
+// AeadApi trait methods
+// =============================================================================
 
-        let key = [0u8; 16];
-        let nonce = [0u8; 17]; // Should be 16
-        let mut ciphertext = b"test".to_vec();
-        let tag = [0u8; 16];
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_api_encrypt_succeeds() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 16];
+    let nonce = [0u8; 16];
+    let original = b"Hello, World! This is a test message.".to_vec();
+    let mut plaintext = original.clone();
+    let mut tag = vec![0u8; aead.api_tag_size()];
 
-        let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
-        assert!(result.is_err(), "Should fail with nonce too large");
-    }
+    aead.api_encrypt(&key, &nonce, b"", &mut plaintext, &mut tag)
+        .expect("Failed to api_encrypt(..)");
 
-    #[test]
-    fn test_decrypt_tag_too_small() {
-        let mut aead = Aead::with_aegis128l();
+    assert_ne!(plaintext, original);
+}
 
-        let key = [0u8; 16];
-        let nonce = [0u8; 16];
-        let mut ciphertext = b"test".to_vec();
-        let tag = [0u8; 15]; // Should be 16
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_api_decrypt_succeeds() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0u8; 16];
+    let nonce = [0u8; 16];
+    let original = b"Hello, World! This is a test message.".to_vec();
+    let mut data = original.clone();
+    let mut tag = vec![0u8; aead.api_tag_size()];
 
-        let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
-        assert!(result.is_err(), "Should fail with tag too small");
-    }
+    aead.api_encrypt(&key, &nonce, b"", &mut data, &mut tag)
+        .expect("Failed to api_encrypt(..)");
 
-    #[test]
-    fn test_decrypt_tag_too_large() {
-        let mut aead = Aead::with_aegis128l();
+    aead.api_decrypt(&key, &nonce, b"", &mut data, &tag)
+        .expect("Failed to api_decrypt(..)");
 
-        let key = [0u8; 16];
-        let nonce = [0u8; 16];
-        let mut ciphertext = b"test".to_vec();
-        let tag = [0u8; 17]; // Should be 16
+    assert_eq!(data, original);
+}
 
-        let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
-        assert!(result.is_err(), "Should fail with tag too large");
-    }
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_api_generate_nonce_succeeds() {
+    let mut aead = Aead::with_aegis128l();
+
+    let nonce = aead
+        .api_generate_nonce()
+        .expect("Failed to api_generate_nonce()");
+
+    assert_eq!(nonce.len(), 16);
+}
+
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_api_key_size_returns_correct_size() {
+    let aead = Aead::with_aegis128l();
+    assert_eq!(aead.api_key_size(), 16);
+}
+
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_api_nonce_size_returns_correct_size() {
+    let aead = Aead::with_aegis128l();
+    assert_eq!(aead.api_nonce_size(), 16);
+}
+
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
+#[test]
+fn test_api_tag_size_returns_correct_size() {
+    let aead = Aead::with_aegis128l();
+    assert_eq!(aead.api_tag_size(), 16);
 }

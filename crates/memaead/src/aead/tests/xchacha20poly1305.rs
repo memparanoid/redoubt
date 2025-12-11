@@ -2,234 +2,301 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(test)]
-mod tests {
-    use crate::aead::Aead;
+//! Tests for Aead with XChaCha20-Poly1305 backend.
 
-    #[test]
-    fn test_roundtrip() {
-        let mut aead = Aead::with_xchacha20poly1305();
+use crate::aead::Aead;
+use crate::traits::AeadApi;
 
-        let key = [0u8; 32];
-        let nonce = aead.generate_nonce().expect("Failed to generate nonce");
-        let aad = b"additional authenticated data";
+// =============================================================================
+// encrypt() + decrypt() roundtrip
+// =============================================================================
 
-        let mut plaintext = b"Hello, World! This is a test message.".to_vec();
-        let mut tag = vec![0u8; aead.tag_size()];
-        let original = plaintext.clone();
+#[test]
+fn test_encrypt_decrypt_roundtrip() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 32];
+    let nonce = aead.generate_nonce().expect("Failed to generate_nonce()");
+    let aad = b"additional authenticated data";
+    let mut plaintext = b"Hello, World! This is a test message.".to_vec();
+    let mut tag = vec![0u8; aead.tag_size()];
+    let original = plaintext.clone();
 
-        // Encrypt
-        aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag)
-            .expect("Encryption failed");
+    aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag)
+        .expect("Failed to encrypt(..)");
 
-        // Verify ciphertext is different from plaintext
-        assert_ne!(
-            plaintext, original,
-            "Ciphertext should differ from plaintext"
-        );
+    assert_ne!(plaintext, original);
 
-        // Decrypt
-        aead.decrypt(&key, &nonce, aad, &mut plaintext, &tag)
-            .expect("Decryption failed");
+    aead.decrypt(&key, &nonce, aad, &mut plaintext, &tag)
+        .expect("Failed to decrypt(..)");
 
-        // Verify roundtrip
-        assert_eq!(plaintext, original, "Decrypted text should match original");
-    }
+    assert_eq!(plaintext, original);
+}
 
-    #[test]
-    fn test_wrong_tag_fails() {
-        let mut aead = Aead::with_xchacha20poly1305();
+#[test]
+fn test_decrypt_fails_with_wrong_tag() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 32];
+    let nonce = aead.generate_nonce().expect("Failed to generate_nonce()");
+    let aad = b"additional authenticated data";
+    let mut plaintext = b"Hello, World!".to_vec();
+    let mut tag = vec![0u8; aead.tag_size()];
 
-        let key = [0u8; 32];
-        let nonce = aead.generate_nonce().expect("Failed to generate nonce");
-        let aad = b"additional authenticated data";
+    aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag)
+        .expect("Failed to encrypt(..)");
 
-        let mut plaintext = b"Hello, World!".to_vec();
-        let mut tag = vec![0u8; aead.tag_size()];
+    tag[0] ^= 1;
 
-        // Encrypt
-        aead.encrypt(&key, &nonce, aad, &mut plaintext, &mut tag)
-            .expect("Encryption failed");
+    let result = aead.decrypt(&key, &nonce, aad, &mut plaintext, &tag);
+    assert!(result.is_err());
+}
 
-        // Tamper with tag
-        tag[0] ^= 1;
+// =============================================================================
+// Size methods
+// =============================================================================
 
-        // Decrypt should fail
-        let result = aead.decrypt(&key, &nonce, aad, &mut plaintext, &tag);
-        assert!(result.is_err(), "Decryption with wrong tag should fail");
-    }
+#[test]
+fn test_key_size_returns_correct_value() {
+    let aead = Aead::with_xchacha20poly1305();
+    assert_eq!(aead.key_size(), 32);
+}
 
-    #[test]
-    fn test_size_methods() {
-        let aead = Aead::with_xchacha20poly1305();
+#[test]
+fn test_nonce_size_returns_correct_value() {
+    let aead = Aead::with_xchacha20poly1305();
+    assert_eq!(aead.nonce_size(), 24);
+}
 
-        assert_eq!(aead.key_size(), 32);
-        assert_eq!(aead.nonce_size(), 24);
-        assert_eq!(aead.tag_size(), 16);
-    }
+#[test]
+fn test_tag_size_returns_correct_value() {
+    let aead = Aead::with_xchacha20poly1305();
+    assert_eq!(aead.tag_size(), 16);
+}
 
-    #[test]
-    fn test_debug_impl() {
-        let aead = Aead::with_xchacha20poly1305();
-        let debug_str = format!("{:?}", aead);
+// =============================================================================
+// Debug impl
+// =============================================================================
 
-        assert_eq!(debug_str, "Aead { backend: XChaCha20-Poly1305 }");
-    }
+#[test]
+fn test_debug_displays_backend_name() {
+    let aead = Aead::with_xchacha20poly1305();
+    let debug_str = format!("{:?}", aead);
+    assert_eq!(debug_str, "Aead { backend: XChaCha20-Poly1305 }");
+}
 
-    // Size validation tests
-    #[test]
-    fn test_encrypt_key_too_small() {
-        let mut aead = Aead::with_xchacha20poly1305();
+// =============================================================================
+// encrypt() - size validation errors
+// =============================================================================
 
-        let key = [0u8; 31]; // Should be 32
-        let nonce = [0u8; 24];
-        let mut plaintext = b"test".to_vec();
-        let mut tag = [0u8; 16];
+#[test]
+fn test_encrypt_fails_with_key_too_small() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 31];
+    let nonce = [0u8; 24];
+    let mut plaintext = b"test".to_vec();
+    let mut tag = [0u8; 16];
 
-        let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
-        assert!(result.is_err(), "Should fail with key too small");
-    }
+    let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
+    assert!(result.is_err());
+}
 
-    #[test]
-    fn test_encrypt_key_too_large() {
-        let mut aead = Aead::with_xchacha20poly1305();
+#[test]
+fn test_encrypt_fails_with_key_too_large() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 33];
+    let nonce = [0u8; 24];
+    let mut plaintext = b"test".to_vec();
+    let mut tag = [0u8; 16];
 
-        let key = [0u8; 33]; // Should be 32
-        let nonce = [0u8; 24];
-        let mut plaintext = b"test".to_vec();
-        let mut tag = [0u8; 16];
+    let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
+    assert!(result.is_err());
+}
 
-        let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
-        assert!(result.is_err(), "Should fail with key too large");
-    }
+#[test]
+fn test_encrypt_fails_with_nonce_too_small() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 32];
+    let nonce = [0u8; 23];
+    let mut plaintext = b"test".to_vec();
+    let mut tag = [0u8; 16];
 
-    #[test]
-    fn test_encrypt_nonce_too_small() {
-        let mut aead = Aead::with_xchacha20poly1305();
+    let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
+    assert!(result.is_err());
+}
 
-        let key = [0u8; 32];
-        let nonce = [0u8; 23]; // Should be 24
-        let mut plaintext = b"test".to_vec();
-        let mut tag = [0u8; 16];
+#[test]
+fn test_encrypt_fails_with_nonce_too_large() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 32];
+    let nonce = [0u8; 25];
+    let mut plaintext = b"test".to_vec();
+    let mut tag = [0u8; 16];
 
-        let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
-        assert!(result.is_err(), "Should fail with nonce too small");
-    }
+    let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
+    assert!(result.is_err());
+}
 
-    #[test]
-    fn test_encrypt_nonce_too_large() {
-        let mut aead = Aead::with_xchacha20poly1305();
+#[test]
+fn test_encrypt_fails_with_tag_too_small() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 32];
+    let nonce = [0u8; 24];
+    let mut plaintext = b"test".to_vec();
+    let mut tag = [0u8; 15];
 
-        let key = [0u8; 32];
-        let nonce = [0u8; 25]; // Should be 24
-        let mut plaintext = b"test".to_vec();
-        let mut tag = [0u8; 16];
+    let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
+    assert!(result.is_err());
+}
 
-        let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
-        assert!(result.is_err(), "Should fail with nonce too large");
-    }
+#[test]
+fn test_encrypt_fails_with_tag_too_large() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 32];
+    let nonce = [0u8; 24];
+    let mut plaintext = b"test".to_vec();
+    let mut tag = [0u8; 17];
 
-    #[test]
-    fn test_encrypt_tag_too_small() {
-        let mut aead = Aead::with_xchacha20poly1305();
+    let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
+    assert!(result.is_err());
+}
 
-        let key = [0u8; 32];
-        let nonce = [0u8; 24];
-        let mut plaintext = b"test".to_vec();
-        let mut tag = [0u8; 15]; // Should be 16
+// =============================================================================
+// decrypt() - size validation errors
+// =============================================================================
 
-        let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
-        assert!(result.is_err(), "Should fail with tag too small");
-    }
+#[test]
+fn test_decrypt_fails_with_key_too_small() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 31];
+    let nonce = [0u8; 24];
+    let mut ciphertext = b"test".to_vec();
+    let tag = [0u8; 16];
 
-    #[test]
-    fn test_encrypt_tag_too_large() {
-        let mut aead = Aead::with_xchacha20poly1305();
+    let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
+    assert!(result.is_err());
+}
 
-        let key = [0u8; 32];
-        let nonce = [0u8; 24];
-        let mut plaintext = b"test".to_vec();
-        let mut tag = [0u8; 17]; // Should be 16
+#[test]
+fn test_decrypt_fails_with_key_too_large() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 33];
+    let nonce = [0u8; 24];
+    let mut ciphertext = b"test".to_vec();
+    let tag = [0u8; 16];
 
-        let result = aead.encrypt(&key, &nonce, b"", &mut plaintext, &mut tag);
-        assert!(result.is_err(), "Should fail with tag too large");
-    }
+    let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
+    assert!(result.is_err());
+}
 
-    #[test]
-    fn test_decrypt_key_too_small() {
-        let mut aead = Aead::with_xchacha20poly1305();
+#[test]
+fn test_decrypt_fails_with_nonce_too_small() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 32];
+    let nonce = [0u8; 23];
+    let mut ciphertext = b"test".to_vec();
+    let tag = [0u8; 16];
 
-        let key = [0u8; 31]; // Should be 32
-        let nonce = [0u8; 24];
-        let mut ciphertext = b"test".to_vec();
-        let tag = [0u8; 16];
+    let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
+    assert!(result.is_err());
+}
 
-        let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
-        assert!(result.is_err(), "Should fail with key too small");
-    }
+#[test]
+fn test_decrypt_fails_with_nonce_too_large() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 32];
+    let nonce = [0u8; 25];
+    let mut ciphertext = b"test".to_vec();
+    let tag = [0u8; 16];
 
-    #[test]
-    fn test_decrypt_key_too_large() {
-        let mut aead = Aead::with_xchacha20poly1305();
+    let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
+    assert!(result.is_err());
+}
 
-        let key = [0u8; 33]; // Should be 32
-        let nonce = [0u8; 24];
-        let mut ciphertext = b"test".to_vec();
-        let tag = [0u8; 16];
+#[test]
+fn test_decrypt_fails_with_tag_too_small() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 32];
+    let nonce = [0u8; 24];
+    let mut ciphertext = b"test".to_vec();
+    let tag = [0u8; 15];
 
-        let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
-        assert!(result.is_err(), "Should fail with key too large");
-    }
+    let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
+    assert!(result.is_err());
+}
 
-    #[test]
-    fn test_decrypt_nonce_too_small() {
-        let mut aead = Aead::with_xchacha20poly1305();
+#[test]
+fn test_decrypt_fails_with_tag_too_large() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 32];
+    let nonce = [0u8; 24];
+    let mut ciphertext = b"test".to_vec();
+    let tag = [0u8; 17];
 
-        let key = [0u8; 32];
-        let nonce = [0u8; 23]; // Should be 24
-        let mut ciphertext = b"test".to_vec();
-        let tag = [0u8; 16];
+    let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
+    assert!(result.is_err());
+}
 
-        let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
-        assert!(result.is_err(), "Should fail with nonce too small");
-    }
+// =============================================================================
+// AeadApi trait methods
+// =============================================================================
 
-    #[test]
-    fn test_decrypt_nonce_too_large() {
-        let mut aead = Aead::with_xchacha20poly1305();
+#[test]
+fn test_api_encrypt_succeeds() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 32];
+    let nonce = [0u8; 24];
+    let original = b"Hello, World! This is a test message.".to_vec();
+    let mut plaintext = original.clone();
+    let mut tag = vec![0u8; aead.api_tag_size()];
 
-        let key = [0u8; 32];
-        let nonce = [0u8; 25]; // Should be 24
-        let mut ciphertext = b"test".to_vec();
-        let tag = [0u8; 16];
+    aead.api_encrypt(&key, &nonce, b"", &mut plaintext, &mut tag)
+        .expect("Failed to api_encrypt(..)");
 
-        let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
-        assert!(result.is_err(), "Should fail with nonce too large");
-    }
+    assert_ne!(plaintext, original);
+}
 
-    #[test]
-    fn test_decrypt_tag_too_small() {
-        let mut aead = Aead::with_xchacha20poly1305();
+#[test]
+fn test_api_decrypt_succeeds() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0u8; 32];
+    let nonce = [0u8; 24];
+    let original = b"Hello, World! This is a test message.".to_vec();
+    let mut data = original.clone();
+    let mut tag = vec![0u8; aead.api_tag_size()];
 
-        let key = [0u8; 32];
-        let nonce = [0u8; 24];
-        let mut ciphertext = b"test".to_vec();
-        let tag = [0u8; 15]; // Should be 16
+    aead.api_encrypt(&key, &nonce, b"", &mut data, &mut tag)
+        .expect("Failed to api_encrypt(..)");
 
-        let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
-        assert!(result.is_err(), "Should fail with tag too small");
-    }
+    aead.api_decrypt(&key, &nonce, b"", &mut data, &tag)
+        .expect("Failed to api_decrypt(..)");
 
-    #[test]
-    fn test_decrypt_tag_too_large() {
-        let mut aead = Aead::with_xchacha20poly1305();
+    assert_eq!(data, original);
+}
 
-        let key = [0u8; 32];
-        let nonce = [0u8; 24];
-        let mut ciphertext = b"test".to_vec();
-        let tag = [0u8; 17]; // Should be 16
+#[test]
+fn test_api_generate_nonce_succeeds() {
+    let mut aead = Aead::with_xchacha20poly1305();
 
-        let result = aead.decrypt(&key, &nonce, b"", &mut ciphertext, &tag);
-        assert!(result.is_err(), "Should fail with tag too large");
-    }
+    let nonce = aead
+        .api_generate_nonce()
+        .expect("Failed to api_generate_nonce()");
+
+    assert_eq!(nonce.len(), 24);
+}
+
+#[test]
+fn test_api_key_size_returns_correct_size() {
+    let aead = Aead::with_xchacha20poly1305();
+    assert_eq!(aead.api_key_size(), 32);
+}
+
+#[test]
+fn test_api_nonce_size_returns_correct_size() {
+    let aead = Aead::with_xchacha20poly1305();
+    assert_eq!(aead.api_nonce_size(), 24);
+}
+
+#[test]
+fn test_api_tag_size_returns_correct_size() {
+    let aead = Aead::with_xchacha20poly1305();
+    assert_eq!(aead.api_tag_size(), 16);
 }
