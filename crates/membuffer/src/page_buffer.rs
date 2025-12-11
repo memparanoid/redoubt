@@ -135,6 +135,9 @@ impl PageBuffer {
         while self.locked.swap(true, Ordering::Acquire) {
             core::hint::spin_loop();
         }
+
+        #[cfg(test)]
+        std::thread::sleep(std::time::Duration::from_millis(10));
     }
 
     fn release(&self) {
@@ -145,3 +148,6 @@ impl PageBuffer {
         self.page.dispose();
     }
 }
+
+// SAFETY: PageBuffer has internal synchronization via AtomicBool spinlock.
+unsafe impl Sync for PageBuffer {}

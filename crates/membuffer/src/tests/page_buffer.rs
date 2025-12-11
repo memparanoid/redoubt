@@ -302,3 +302,32 @@ fn test_dispose() {
 
     buffer.dispose();
 }
+
+// =============================================================================
+// acquire() / release() - spinlock contention
+// =============================================================================
+
+#[test]
+fn test_acquire_spinlock_contention() {
+    use std::sync::Arc;
+    use std::thread;
+
+    let buffer = Arc::new(
+        PageBuffer::new(ProtectionStrategy::MemNonProtected, 32).expect("Failed to new(..)"),
+    );
+
+    let buffer_clone = Arc::clone(&buffer);
+
+    // Thread 1: acquires lock and holds it for 10ms (due to #[cfg(test)] sleep)
+    let handle = thread::spawn(move || {
+        buffer_clone.open(&mut |_| {});
+    });
+
+    // Small delay to ensure thread 1 acquires first
+    thread::sleep(std::time::Duration::from_millis(1));
+
+    // Main thread: tries to acquire while thread 1 holds the lock -> hits spin_loop
+    buffer.open(&mut |_| {});
+
+    handle.join().unwrap();
+}
