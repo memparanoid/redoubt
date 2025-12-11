@@ -14,15 +14,18 @@
 mod tests;
 
 #[cfg(unix)]
-mod protected;
+mod page_buffer;
 
 #[cfg(unix)]
-pub use protected::{ProtectedBuffer, ProtectionStrategy};
+mod page;
 
 mod error;
-mod portable;
+mod portable_buffer;
 mod traits;
 
+#[cfg(unix)]
+pub use page_buffer::{PageBuffer, ProtectionStrategy};
+
 pub use error::BufferError;
-pub use portable::PortableBuffer;
+pub use portable_buffer::PortableBuffer;
 pub use traits::Buffer;

@@ -8,7 +8,7 @@ use memutil::fill_bytes_with_pattern;
 use memzer::{FastZeroizable, ZeroizationProbe};
 
 use crate::error::BufferError;
-use crate::portable::PortableBuffer;
+use crate::portable_buffer::PortableBuffer;
 use crate::traits::Buffer;
 
 // create

@@ -731,6 +731,7 @@ dependencies = [
 name = "membuffer"
 version = "0.0.1"
 dependencies = [
+ "insta",
  "libc",
  "libseccomp",
  "memrand",

@@ -24,6 +24,7 @@ libc.workspace = true
 [dev-dependencies]
 memrand.workspace = true
 serial_test.workspace = true
+insta.workspace = true
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 libseccomp.workspace = true

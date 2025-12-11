@@ -5,6 +5,23 @@
 //! Error types for membuffer.
 use thiserror::Error;
 
+/// Errors from page syscalls.
+#[derive(Debug, Error, Clone, Copy, Eq, PartialEq)]
+#[repr(u8)]
+pub enum PageError {
+    #[error("mmap failed")]
+    CreationFailed = 0,
+
+    #[error("mlock failed")]
+    LockFailed = 1,
+
+    #[error("mprotect(PROT_NONE) failed")]
+    ProtectionFailed = 2,
+
+    #[error("mprotect(PROT_WRITE) failed")]
+    UnprotectionFailed = 3,
+}
+
 /// Errors from memory protection syscalls (mlock, mprotect).
 /// Used with abort_from_error for exhaustive matching.
 #[derive(Debug, Error)]
@@ -19,15 +36,15 @@ pub enum PageProtectionError {
     UnprotectionFailed,
 }
 
-/// All page-related errors.
-#[derive(Debug, Error)]
-pub enum PageError {
-    #[error("failed to create page")]
-    CreationFailed,
+// /// All page-related errors.
+// #[derive(Debug, Error)]
+// pub enum PageError {
+//     #[error("failed to create page")]
+//     CreationFailed,
 
-    #[error("{0}")]
-    Protection(#[from] PageProtectionError),
-}
+//     #[error("{0}")]
+//     Protection(#[from] PageProtectionError),
+// }
 
 #[derive(Debug, Error)]
 pub enum BufferError {
