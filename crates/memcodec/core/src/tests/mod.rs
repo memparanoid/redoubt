@@ -10,3 +10,4 @@ mod collections;
 mod error;
 mod primitives;
 mod support;
+mod zeroizing;

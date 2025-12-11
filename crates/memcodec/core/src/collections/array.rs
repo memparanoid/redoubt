@@ -9,7 +9,7 @@ use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
     BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, TryDecode, TryEncode,
 };
-use crate::wrappers::Primitive;
+use crate::zeroizing::Zeroizing;
 
 use super::helpers::{header_size, process_header, write_header};
 
@@ -65,8 +65,8 @@ where
     T: EncodeSlice + BytesRequired + FastZeroizable + ZeroizeMetadata,
 {
     fn try_encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
-        let mut size = Primitive::new(N);
-        let mut bytes_required = Primitive::new(self.mem_bytes_required()?);
+        let mut size = Zeroizing::new(N);
+        let mut bytes_required = Zeroizing::from(&mut self.mem_bytes_required()?);
 
         write_header(buf, &mut size, &mut bytes_required)?;
 
@@ -112,7 +112,7 @@ where
 {
     #[inline(always)]
     fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-        let mut size = Primitive::new(0usize);
+        let mut size = Zeroizing::from(&mut 0usize);
 
         process_header(buf, &mut size)?;
 
