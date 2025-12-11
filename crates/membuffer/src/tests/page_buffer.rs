@@ -9,6 +9,7 @@ use serial_test::serial;
 use memzer::ZeroizationProbe;
 
 use crate::page_buffer::{PageBuffer, ProtectionStrategy};
+use crate::traits::Buffer;
 
 // =============================================================================
 // new()
@@ -109,13 +110,19 @@ fn test_open_reads_data() {
     let mut buffer =
         PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
 
-    buffer.open_mut(&mut |bytes| {
-        bytes[0] = 0xAB;
-    });
+    buffer
+        .open_mut(&mut |bytes| {
+            bytes[0] = 0xAB;
+            Ok(())
+        })
+        .unwrap();
 
-    buffer.open(&mut |bytes| {
-        assert_eq!(bytes[0], 0xAB);
-    });
+    buffer
+        .open(&mut |bytes| {
+            assert_eq!(bytes[0], 0xAB);
+            Ok(())
+        })
+        .unwrap();
 }
 
 #[test]
@@ -124,13 +131,32 @@ fn test_open_mem_non_protected() {
     let mut buffer =
         PageBuffer::new(ProtectionStrategy::MemNonProtected, 32).expect("Failed to new(..)");
 
-    buffer.open_mut(&mut |bytes| {
-        bytes[0] = 0xCD;
-    });
+    buffer
+        .open_mut(&mut |bytes| {
+            bytes[0] = 0xCD;
+            Ok(())
+        })
+        .unwrap();
 
-    buffer.open(&mut |bytes| {
-        assert_eq!(bytes[0], 0xCD);
-    });
+    buffer
+        .open(&mut |bytes| {
+            assert_eq!(bytes[0], 0xCD);
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+#[serial(page_buffer)]
+fn test_open_propagates_callback_error() {
+    use crate::error::BufferError;
+
+    let buffer =
+        PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+
+    let result = buffer.open(&mut |_| Err(BufferError::callback_error("test error")));
+
+    assert!(matches!(result, Err(BufferError::CallbackError(_))));
 }
 
 #[cfg(target_os = "linux")]
@@ -145,7 +171,7 @@ mod seccomp_open {
             PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
 
         block_mprotect();
-        buffer.open(&mut |_bytes| {});
+        let _ = buffer.open(&mut |_bytes| Ok(()));
     }
 
     #[test]
@@ -163,8 +189,9 @@ mod seccomp_open {
         let buffer =
             PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
 
-        buffer.open(&mut |_bytes| {
+        let _ = buffer.open(&mut |_bytes| {
             block_mprotect();
+            Ok(())
         });
     }
 
@@ -188,13 +215,19 @@ fn test_open_mut_writes_data() {
     let mut buffer =
         PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
 
-    buffer.open_mut(&mut |bytes| {
-        bytes.fill(0xFF);
-    });
+    buffer
+        .open_mut(&mut |bytes| {
+            bytes.fill(0xFF);
+            Ok(())
+        })
+        .unwrap();
 
-    buffer.open(&mut |bytes| {
-        assert!(bytes.iter().all(|&b| b == 0xFF));
-    });
+    buffer
+        .open(&mut |bytes| {
+            assert!(bytes.iter().all(|&b| b == 0xFF));
+            Ok(())
+        })
+        .unwrap();
 }
 
 #[test]
@@ -203,17 +236,39 @@ fn test_open_mut_zeroize() {
     let mut buffer =
         PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
 
-    buffer.open_mut(&mut |bytes| {
-        bytes.fill(0xFF);
-    });
+    buffer
+        .open_mut(&mut |bytes| {
+            bytes.fill(0xFF);
+            Ok(())
+        })
+        .unwrap();
 
-    buffer.open_mut(&mut |bytes| {
-        bytes.fill(0);
-    });
+    buffer
+        .open_mut(&mut |bytes| {
+            bytes.fill(0);
+            Ok(())
+        })
+        .unwrap();
 
-    buffer.open(&mut |bytes| {
-        assert!(bytes.is_zeroized());
-    });
+    buffer
+        .open(&mut |bytes| {
+            assert!(bytes.is_zeroized());
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+#[serial(page_buffer)]
+fn test_open_mut_propagates_callback_error() {
+    use crate::error::BufferError;
+
+    let mut buffer =
+        PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+
+    let result = buffer.open_mut(&mut |_| Err(BufferError::callback_error("test error")));
+
+    assert!(matches!(result, Err(BufferError::CallbackError(_))));
 }
 
 #[cfg(target_os = "linux")]
@@ -228,7 +283,7 @@ mod seccomp_open_mut {
             PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
 
         block_mprotect();
-        buffer.open_mut(&mut |_bytes| {});
+        let _ = buffer.open_mut(&mut |_bytes| Ok(()));
     }
 
     #[test]
@@ -246,8 +301,9 @@ mod seccomp_open_mut {
         let mut buffer =
             PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
 
-        buffer.open_mut(&mut |_bytes| {
+        let _ = buffer.open_mut(&mut |_bytes| {
             block_mprotect();
+            Ok(())
         });
     }
 
@@ -296,9 +352,12 @@ fn test_dispose() {
     let mut buffer =
         PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
 
-    buffer.open_mut(&mut |bytes| {
-        bytes.fill(0xFF);
-    });
+    buffer
+        .open_mut(&mut |bytes| {
+            bytes.fill(0xFF);
+            Ok(())
+        })
+        .unwrap();
 
     buffer.dispose();
 }
@@ -320,14 +379,14 @@ fn test_acquire_spinlock_contention() {
 
     // Thread 1: acquires lock and holds it for 10ms (due to #[cfg(test)] sleep)
     let handle = thread::spawn(move || {
-        buffer_clone.open(&mut |_| {});
+        let _ = buffer_clone.open(&mut |_| Ok(()));
     });
 
     // Small delay to ensure thread 1 acquires first
     thread::sleep(std::time::Duration::from_millis(1));
 
     // Main thread: tries to acquire while thread 1 holds the lock -> hits spin_loop
-    buffer.open(&mut |_| {});
+    let _ = buffer.open(&mut |_| Ok(()));
 
     handle.join().unwrap();
 }

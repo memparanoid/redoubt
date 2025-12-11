@@ -9,8 +9,9 @@
 
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use crate::error::PageError;
+use crate::error::{BufferError, PageError};
 use crate::page::Page;
+use crate::traits::Buffer;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ProtectionStrategy {
@@ -73,58 +74,32 @@ impl PageBuffer {
         Ok(())
     }
 
-    #[inline(always)]
-    pub fn try_open(&self, f: &mut dyn FnMut(&[u8])) -> Result<(), PageError> {
+    fn try_open(
+        &self,
+        f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
+    ) -> Result<(), BufferError> {
         self.maybe_unprotect()?;
 
         let slice = unsafe { self.page.as_slice() };
-        f(&slice[..self.len]);
+        f(&slice[..self.len])?;
 
         self.maybe_protect()?;
 
         Ok(())
     }
 
-    #[inline(always)]
-    pub fn try_open_mut(&mut self, f: &mut dyn FnMut(&mut [u8])) -> Result<(), PageError> {
+    fn try_open_mut(
+        &mut self,
+        f: &mut dyn FnMut(&mut [u8]) -> Result<(), BufferError>,
+    ) -> Result<(), BufferError> {
         self.maybe_unprotect()?;
 
         let slice = unsafe { self.page.as_mut_slice() };
-        f(&mut slice[..self.len]);
+        f(&mut slice[..self.len])?;
 
         self.maybe_protect()?;
 
         Ok(())
-    }
-
-    #[inline(always)]
-    pub fn open(&self, f: &mut dyn FnMut(&[u8])) {
-        self.acquire();
-
-        if let Err(e) = self.try_open(f) {
-            self.release();
-            self.page.dispose();
-            Self::abort(e);
-        }
-
-        self.release();
-    }
-
-    #[inline(always)]
-    pub fn open_mut(&mut self, f: &mut dyn FnMut(&mut [u8])) {
-        self.acquire();
-
-        if let Err(e) = self.try_open_mut(f) {
-            self.release();
-            self.page.dispose();
-            Self::abort(e);
-        }
-
-        self.release();
-    }
-
-    pub fn len(&self) -> usize {
-        self.len
     }
 
     pub fn is_empty(&self) -> bool {
@@ -151,3 +126,44 @@ impl PageBuffer {
 
 // SAFETY: PageBuffer has internal synchronization via AtomicBool spinlock.
 unsafe impl Sync for PageBuffer {}
+
+impl Buffer for PageBuffer {
+    #[inline(always)]
+    fn open(&self, f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError> {
+        self.acquire();
+
+        let result = self.try_open(f);
+
+        if let Err(BufferError::Page(e)) = &result {
+            self.release();
+            self.page.dispose();
+            Self::abort(*e);
+        }
+
+        self.release();
+        result
+    }
+
+    #[inline(always)]
+    fn open_mut(
+        &mut self,
+        f: &mut dyn FnMut(&mut [u8]) -> Result<(), BufferError>,
+    ) -> Result<(), BufferError> {
+        self.acquire();
+
+        let result = self.try_open_mut(f);
+
+        if let Err(BufferError::Page(e)) = &result {
+            self.release();
+            self.page.dispose();
+            Self::abort(*e);
+        }
+
+        self.release();
+        result
+    }
+
+    fn len(&self) -> usize {
+        self.len
+    }
+}
