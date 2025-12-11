@@ -4,7 +4,7 @@
 
 use core::marker::PhantomData;
 
-use memaead::Aead;
+use memaead::AeadApi;
 use memcodec::{BytesRequired, CodecBuffer, Decode, Encode};
 use memzer::{
     DropSentinel, FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata, ZeroizingGuard,
@@ -18,16 +18,17 @@ use super::traits::{DecryptStruct, Decryptable, EncryptStruct, Encryptable};
 
 #[derive(MemZer)]
 #[memzer(drop)]
-pub struct CipherBox<T, const N: usize>
+pub struct CipherBox<T, A, const N: usize>
 where
     T: Default
         + FastZeroizable
         + ZeroizeMetadata
-        + EncryptStruct<N>
-        + DecryptStruct<N>
+        + EncryptStruct<A, N>
+        + DecryptStruct<A, N>
         + Encode
         + Decode
         + BytesRequired,
+    A: AeadApi,
 {
     initialized: bool,
     ciphertexts: [Vec<u8>; N],
@@ -35,27 +36,28 @@ where
     tags: [Vec<u8>; N],
     __drop_sentinel: DropSentinel,
     #[memzer(skip)]
-    aead: Aead,
+    aead: A,
     #[memzer(skip)]
     _marker: PhantomData<T>,
 }
 
-impl<T, const N: usize> CipherBox<T, N>
+impl<T, A, const N: usize> CipherBox<T, A, N>
 where
     T: Default
         + FastZeroizable
         + ZeroizeMetadata
         + ZeroizationProbe
-        + EncryptStruct<N>
-        + DecryptStruct<N>
+        + EncryptStruct<A, N>
+        + DecryptStruct<A, N>
         + Encode
         + Decode
         + BytesRequired,
+    A: AeadApi + Default,
 {
     pub fn new() -> Self {
-        let aead = Aead::new();
-        let nonce_size = aead.nonce_size();
-        let tag_size = aead.tag_size();
+        let aead = A::default();
+        let nonce_size = aead.api_nonce_size();
+        let tag_size = aead.api_tag_size();
 
         let nonces: [Vec<u8>; N] = core::array::from_fn(|_| {
             let mut nonce = Vec::with_capacity(nonce_size);
@@ -82,14 +84,37 @@ where
         }
     }
 
+    #[inline(always)]
+    pub fn encrypt_struct(&mut self, aead_key: &[u8], value: &mut T) -> Result<(), CipherBoxError> {
+        self.ciphertexts =
+            value.encrypt_into(&mut self.aead, aead_key, &mut self.nonces, &mut self.tags)?;
+
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub fn decrypt_struct(&mut self, aead_key: &[u8]) -> Result<ZeroizingGuard<T>, CipherBoxError> {
+        let mut value = ZeroizingGuard::new(T::default());
+
+        value.decrypt_from(
+            &mut self.aead,
+            aead_key,
+            &mut self.nonces,
+            &mut self.tags,
+            &mut self.ciphertexts,
+        )?;
+
+        Ok(value)
+    }
+
     #[cold]
     #[inline(never)]
-    fn maybe_initialize(&mut self) -> Result<(), CipherBoxError> {
+    pub(crate) fn maybe_initialize(&mut self) -> Result<(), CipherBoxError> {
         if self.initialized {
             return Ok(());
         }
 
-        let master_key = leak_master_key(self.aead.key_size())?;
+        let master_key = leak_master_key(self.aead.api_key_size())?;
         let mut value = ZeroizingGuard::new(T::default());
 
         self.encrypt_struct(&master_key, &mut value)?;
@@ -111,7 +136,7 @@ where
         // Clone ciphertext so we don't drain the original
         let mut ciphertext_copy = self.ciphertexts[M].clone();
 
-        self.aead.decrypt(
+        self.aead.api_decrypt(
             aead_key,
             &self.nonces[M],
             &AAD,
@@ -140,11 +165,11 @@ where
         field.encode_into(&mut buf)?;
 
         self.ciphertexts[M] = buf.to_vec();
-        self.nonces[M] = self.aead.generate_nonce()?;
+        self.nonces[M] = self.aead.api_generate_nonce()?;
 
-        self.aead.encrypt(
+        self.aead.api_encrypt(
             aead_key,
-            &mut self.nonces[M],
+            &self.nonces[M],
             &AAD,
             &mut self.ciphertexts[M],
             &mut self.tags[M],
@@ -154,33 +179,10 @@ where
     }
 
     #[inline(always)]
-    pub fn encrypt_struct(&mut self, aead_key: &[u8], value: &mut T) -> Result<(), CipherBoxError> {
-        self.ciphertexts =
-            value.encrypt_into(&mut self.aead, aead_key, &mut self.nonces, &mut self.tags)?;
-
-        Ok(())
-    }
-
-    #[inline(always)]
-    pub fn decrypt_struct(&mut self, aead_key: &[u8]) -> Result<ZeroizingGuard<T>, CipherBoxError> {
-        let mut value = ZeroizingGuard::new(T::default());
-
-        value.decrypt_from(
-            &mut self.aead,
-            aead_key,
-            &mut self.nonces,
-            &mut self.tags,
-            &mut self.ciphertexts,
-        )?;
-
-        Ok(value)
-    }
-
-    #[inline(always)]
     fn open_mut_dyn(&mut self, f: &mut dyn Fn(&mut T)) -> Result<(), CipherBoxError> {
         self.maybe_initialize()?;
 
-        let master_key = leak_master_key(self.aead.key_size())?;
+        let master_key = leak_master_key(self.aead.api_key_size())?;
 
         let mut value = self.decrypt_struct(&master_key)?;
         f(&mut value);
@@ -193,7 +195,7 @@ where
     fn open_dyn(&mut self, f: &mut dyn Fn(&T)) -> Result<(), CipherBoxError> {
         self.maybe_initialize()?;
 
-        let master_key = leak_master_key(self.aead.key_size())?;
+        let master_key = leak_master_key(self.aead.api_key_size())?;
 
         let mut value = self.decrypt_struct(&master_key)?;
         f(&value);
@@ -226,7 +228,7 @@ where
     {
         self.maybe_initialize()?;
 
-        let master_key = leak_master_key(self.aead.key_size())?;
+        let master_key = leak_master_key(self.aead.api_key_size())?;
 
         let field = self.decrypt_field::<Field, M>(&master_key)?;
         f(&field);
@@ -243,7 +245,7 @@ where
     {
         self.maybe_initialize()?;
 
-        let master_key = leak_master_key(self.aead.key_size())?;
+        let master_key = leak_master_key(self.aead.api_key_size())?;
 
         let mut field = self.decrypt_field::<Field, M>(&master_key)?;
         f(&mut field);
@@ -261,7 +263,7 @@ where
     {
         self.maybe_initialize()?;
 
-        let master_key = leak_master_key(self.aead.key_size())?;
+        let master_key = leak_master_key(self.aead.api_key_size())?;
 
         self.decrypt_field::<Field, M>(&master_key)
     }

@@ -15,9 +15,9 @@ use crate::helpers::{
     to_encryptable_mut_dyn,
 };
 
-static ELEMENTS: usize = 6;
+use super::consts::NUM_FIELDS;
 
-fn create_nonces(aead: &dyn AeadApi) -> [Vec<u8>; ELEMENTS] {
+fn create_nonces(aead: &dyn AeadApi) -> [Vec<u8>; NUM_FIELDS] {
     let mut nonces = core::array::from_fn(|_| Vec::new());
 
     for nonce in nonces.iter_mut() {
@@ -28,7 +28,7 @@ fn create_nonces(aead: &dyn AeadApi) -> [Vec<u8>; ELEMENTS] {
     nonces
 }
 
-fn create_tags(aead: &dyn AeadApi) -> [Vec<u8>; ELEMENTS] {
+fn create_tags(aead: &dyn AeadApi) -> [Vec<u8>; NUM_FIELDS] {
     let mut tags = core::array::from_fn(|_| Vec::new());
 
     for tag in tags.iter_mut() {
@@ -46,7 +46,7 @@ fn create_tags(aead: &dyn AeadApi) -> [Vec<u8>; ELEMENTS] {
 #[test]
 fn test_encrypt_into_propagates_bytes_required_overflow() {
     // Two elements with usize::MAX / 2 will overflow when summed.
-    let mut test_breakers: [TestBreaker; ELEMENTS] = core::array::from_fn(|i| {
+    let mut test_breakers: [TestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
         if i == 0 {
             TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10)
         } else {
@@ -71,7 +71,7 @@ fn test_encrypt_into_propagates_bytes_required_overflow() {
 
 #[test]
 fn test_encrypt_into_buffers_propagates_bytes_required_overflow() {
-    let mut test_breakers: [TestBreaker; ELEMENTS] = core::array::from_fn(|i| {
+    let mut test_breakers: [TestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
         if i == 0 {
             TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10)
         } else {
@@ -83,7 +83,7 @@ fn test_encrypt_into_buffers_propagates_bytes_required_overflow() {
     let aead_key = [0u8; 32];
     let mut nonces = create_nonces(&aead);
     let mut tags = create_tags(&aead);
-    let mut buffers: [CodecBuffer; ELEMENTS] = core::array::from_fn(|_| CodecBuffer::new(10));
+    let mut buffers: [CodecBuffer; NUM_FIELDS] = core::array::from_fn(|_| CodecBuffer::new(10));
 
     let fields = test_breakers
         .each_mut()
@@ -111,7 +111,7 @@ fn test_encrypt_into_buffers_propagates_bytes_required_overflow() {
 #[test]
 fn test_encrypt_into_buffers_zeroizes_on_encode_failure() {
     // TestBreakers: one with ForceEncodeError at index 0, rest None.
-    let test_breakers: [TestBreaker; ELEMENTS] = core::array::from_fn(|i| {
+    let test_breakers: [TestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
         if i == 0 {
             TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, i << 2)
         } else {
@@ -122,8 +122,8 @@ fn test_encrypt_into_buffers_zeroizes_on_encode_failure() {
     let aead = AeadMock::new(AeadMockBehaviour::None);
     let aead_key = [0u8; 32];
 
-    // Test ALL permutations (ELEMENTS! = 720).
-    index_permutations(ELEMENTS, |perm| {
+    // Test ALL permutations (NUM_FIELDS! = 720).
+    index_permutations(NUM_FIELDS, |perm| {
         let mut test_breakers_cpy = test_breakers;
         apply_permutation(&mut test_breakers_cpy, perm);
 
@@ -131,7 +131,7 @@ fn test_encrypt_into_buffers_zeroizes_on_encode_failure() {
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
         let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
-        let mut buffers: [CodecBuffer; ELEMENTS] = sizes.map(|s| CodecBuffer::new(s));
+        let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(|s| CodecBuffer::new(s));
 
         // Re-create fields after get_sizes consumed them.
         let fields = test_breakers_cpy
@@ -171,17 +171,17 @@ fn test_encrypt_into_buffers_zeroizes_on_encode_failure() {
 /// Flow: all encodes succeed → buffers have plaintext → nonce gen fails → must zeroize.
 #[test]
 fn test_encrypt_into_buffers_zeroizes_on_generate_nonce_failure() {
-    let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); ELEMENTS];
+    let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); NUM_FIELDS];
     let aead = AeadMock::new(AeadMockBehaviour::None);
     let aead_key = [0u8; 32];
 
     // Test failure at each position.
-    for i in 0..ELEMENTS {
+    for i in 0..NUM_FIELDS {
         let fields = test_breakers
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
         let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
-        let mut buffers: [CodecBuffer; ELEMENTS] = sizes.map(|s| CodecBuffer::new(s));
+        let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(|s| CodecBuffer::new(s));
         let fields = test_breakers
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
@@ -219,17 +219,17 @@ fn test_encrypt_into_buffers_zeroizes_on_generate_nonce_failure() {
 /// Flow: all encodes succeed → buffers have plaintext → encrypt fails → must zeroize.
 #[test]
 fn test_encrypt_into_buffers_zeroizes_on_encrypt_failure() {
-    let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); ELEMENTS];
+    let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); NUM_FIELDS];
     let aead = AeadMock::new(AeadMockBehaviour::None);
     let aead_key = [0u8; 32];
 
     // Test failure at each position.
-    for i in 0..ELEMENTS {
+    for i in 0..NUM_FIELDS {
         let fields = test_breakers
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
         let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
-        let mut buffers: [CodecBuffer; ELEMENTS] = sizes.map(|s| CodecBuffer::new(s));
+        let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(|s| CodecBuffer::new(s));
         let fields = test_breakers
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
@@ -271,7 +271,7 @@ fn test_encrypt_into_buffers_zeroizes_on_encrypt_failure() {
 /// Flow: api_decrypt fails → ciphertexts[0..i] may have plaintext → must zeroize all.
 #[test]
 fn test_decrypt_from_zeroizes_on_decrypt_failure() {
-    let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); ELEMENTS];
+    let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); NUM_FIELDS];
     let mut aead = AeadMock::new(AeadMockBehaviour::None);
 
     let aead_key = [0u8; 32];
@@ -305,7 +305,7 @@ fn test_decrypt_from_zeroizes_on_decrypt_failure() {
     }
 
     // Test failure at each position i.
-    for i in 0..ELEMENTS {
+    for i in 0..NUM_FIELDS {
         let mut aead_mock = AeadMock::new(AeadMockBehaviour::FailDecryptAt(i));
         let mut ciphertexts_clone = ciphertexts.clone();
         let mut fields = test_breakers
@@ -344,7 +344,7 @@ fn test_decrypt_from_zeroizes_on_decrypt_failure() {
 /// Flow: api_decrypt succeeds → ciphertexts become plaintext → decode_from fails → must zeroize all.
 #[test]
 fn test_decrypt_from_zeroizes_on_decode_failure() {
-    let mut test_breakers: [TestBreaker; ELEMENTS] = core::array::from_fn(|i| {
+    let mut test_breakers: [TestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
         if i == 0 {
             TestBreaker::new(TestBreakerBehaviour::ForceDecodeError, i << 2)
         } else {
@@ -367,7 +367,7 @@ fn test_decrypt_from_zeroizes_on_decode_failure() {
 
     // Sanity check: decrypt works with no errors.
     {
-        let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); ELEMENTS];
+        let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); NUM_FIELDS];
         let mut aead_mock = AeadMock::new(AeadMockBehaviour::None);
         let mut ciphertexts_clone = ciphertexts.clone();
         let mut fields = test_breakers
@@ -384,9 +384,9 @@ fn test_decrypt_from_zeroizes_on_decode_failure() {
         assert!(result.is_ok(), "sanity check: decrypt should succeed");
     }
 
-    // Test ALL permutations of behaviours (ELEMENTS! = 720 for ELEMENTS=6).
+    // Test ALL permutations of behaviours (NUM_FIELDS! = 720 for NUM_FIELDS=6).
     // Each permutation places ForceDecodeError at a different position and order.
-    index_permutations(ELEMENTS, |perm| {
+    index_permutations(NUM_FIELDS, |perm| {
         // Apply permutation to behaviours.
         let mut test_breakers_cpy = test_breakers;
         apply_permutation(&mut test_breakers_cpy, perm);
