@@ -146,3 +146,22 @@ fn test_codec_buffer_len() {
     let buf_large = CodecBuffer::new(1024);
     assert_eq!(buf_large.len(), 1024);
 }
+
+#[test]
+fn test_codec_buffer_to_vec() {
+    let capacity = 6;
+    let mut buf = CodecBuffer::new(capacity);
+
+    // Write via as_mut_slice
+    let slice = buf.as_mut_slice();
+    slice[0] = 0xAA;
+    slice[1] = 0xBB;
+    slice[2] = 0xCC;
+    slice[3] = 0xDD;
+    slice[4] = 0xEE;
+
+    let vec = buf.to_vec();
+
+    assert_eq!(vec, vec![0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0x00]);
+    assert!(buf.is_zeroized());
+}

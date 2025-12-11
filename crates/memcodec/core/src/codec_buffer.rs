@@ -172,7 +172,9 @@ impl CodecBuffer {
     }
 
     #[inline(always)]
-    pub fn to_vec(&self) -> Vec<u8> {
-        self.as_slice().to_vec()
+    pub fn to_vec(&mut self) -> Vec<u8> {
+        let vec = self.as_slice().to_vec();
+        self.fast_zeroize();
+        vec
     }
 }
