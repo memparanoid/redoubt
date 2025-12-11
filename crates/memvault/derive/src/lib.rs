@@ -151,7 +151,7 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
             #[inline(always)]
             pub fn #open_name<F>(&mut self, f: F) -> Result<(), #root::CipherBoxError>
             where
-                F: FnOnce(&#field_type),
+                F: Fn(&#field_type),
             {
                 self.inner.open_field::<#field_type, #idx_lit, F>(f)
             }
@@ -161,7 +161,7 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
             #[inline(always)]
             pub fn #open_mut_name<F>(&mut self, f: F) -> Result<(), #root::CipherBoxError>
             where
-                F: FnOnce(&mut #field_type),
+                F: Fn(&mut #field_type),
             {
                 self.inner.open_field_mut::<#field_type, #idx_lit, F>(f)
             }
@@ -172,17 +172,29 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
         // Re-emit the original struct
         #input
 
-        // Implement EncryptStruct
-        impl #impl_generics #root::EncryptStruct<#num_fields_lit> for #struct_name #ty_generics #where_clause {
+        // Import trait so methods are in scope
+        use #root::CipherBoxDyns as _;
+
+        // Implement CipherBoxDyns
+        impl #impl_generics #root::CipherBoxDyns<#num_fields_lit> for #struct_name #ty_generics #where_clause {
             fn to_encryptable_dyn_fields(&mut self) -> [&mut dyn #root::Encryptable; #num_fields_lit] {
                 [
                     #( #mut_refs ),*
                 ]
             }
 
+            fn to_decryptable_dyn_fields(&mut self) -> [&mut dyn #root::Decryptable; #num_fields_lit] {
+                [
+                    #( #mut_refs ),*
+                ]
+            }
+        }
+
+        // Implement EncryptStruct
+        impl<A: memaead::AeadApi> #root::EncryptStruct<A, #num_fields_lit> for #struct_name #ty_generics #where_clause {
             fn encrypt_into(
                 &mut self,
-                aead: &mut memaead::Aead,
+                aead: &mut A,
                 aead_key: &[u8],
                 nonces: &mut [Vec<u8>; #num_fields_lit],
                 tags: &mut [Vec<u8>; #num_fields_lit],
@@ -198,16 +210,10 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
         }
 
         // Implement DecryptStruct
-        impl #impl_generics #root::DecryptStruct<#num_fields_lit> for #struct_name #ty_generics #where_clause {
-            fn to_decryptable_dyn_fields(&mut self) -> [&mut dyn #root::Decryptable; #num_fields_lit] {
-                [
-                    #( #mut_refs ),*
-                ]
-            }
-
+        impl<A: memaead::AeadApi> #root::DecryptStruct<A, #num_fields_lit> for #struct_name #ty_generics #where_clause {
             fn decrypt_from(
                 &mut self,
-                aead: &mut memaead::Aead,
+                aead: &mut A,
                 aead_key: &[u8],
                 nonces: &mut [Vec<u8>; #num_fields_lit],
                 tags: &mut [Vec<u8>; #num_fields_lit],
@@ -219,21 +225,21 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
                     nonces,
                     tags,
                     ciphertexts,
-                    self.to_decryptable_dyn_fields(),
+                    &mut self.to_decryptable_dyn_fields(),
                 )
             }
         }
 
         // Generate wrapper struct
         pub struct #wrapper_name {
-            inner: #root::CipherBox<#struct_name, #num_fields_lit>,
+            inner: #root::CipherBox<#struct_name, memaead::Aead, #num_fields_lit>,
         }
 
         impl #wrapper_name {
             #[inline(always)]
             pub fn new() -> Self {
                 Self {
-                    inner: #root::CipherBox::new(),
+                    inner: #root::CipherBox::new(memaead::Aead::new()),
                 }
             }
 

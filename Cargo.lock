@@ -859,6 +859,7 @@ dependencies = [
  "memhkdf",
  "memrand",
  "memsecret",
+ "memutil",
  "memzer",
  "thiserror",
 ]

@@ -19,7 +19,7 @@ pub use cipherbox::CipherBox;
 pub use error::CipherBoxError;
 pub use helpers::{decrypt_from, encrypt_into};
 pub use master_key::leak_master_key;
-pub use traits::{DecryptStruct, Decryptable, EncryptStruct, Encryptable};
+pub use traits::{CipherBoxDyns, DecryptStruct, Decryptable, EncryptStruct, Encryptable};
 
 #[cfg(test)]
 mod tests;

@@ -59,6 +59,7 @@ fn try_encrypt_into_buffers<const N: usize>(
 ) -> Result<[Vec<u8>; N], CipherBoxError> {
     for (idx, field) in fields.iter_mut().enumerate() {
         let buf = &mut buffers[idx];
+
         field.encode_into(buf)?;
         debug_assert!(
             !buf.is_zeroized(),

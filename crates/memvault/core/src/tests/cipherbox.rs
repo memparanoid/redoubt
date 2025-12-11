@@ -4,20 +4,23 @@
 
 use memaead::AeadApi;
 use memaead::support::test_utils::{AeadMock, AeadMockBehaviour};
+use memcodec::Codec;
 use memcodec::support::test_utils::{TestBreaker, TestBreakerBehaviour};
-use memcodec::{BytesRequired, Decode, Encode};
-use memzer::{DropSentinel, FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata};
+use memrand::EntropyError;
+use memutil::is_vec_fully_zeroized;
+use memzer::{DropSentinel, FastZeroizable, MemZer, ZeroizationProbe};
 
 use crate::cipherbox::CipherBox;
 use crate::error::CipherBoxError;
 use crate::helpers::{decrypt_from, encrypt_into};
+use crate::master_key::consts::MASTER_KEY_LEN;
 use crate::traits::{CipherBoxDyns, DecryptStruct, Decryptable, EncryptStruct, Encryptable};
 
 use super::consts::NUM_FIELDS;
 #[cfg(target_os = "linux")]
 use super::utils::{block_mem_syscalls, block_prctl_syscalls, run_test_as_subprocess};
 
-#[derive(MemZer)]
+#[derive(Codec, MemZer)]
 #[memzer(drop)]
 pub struct TestBreakerBox {
     pub f0: TestBreaker,
@@ -27,6 +30,7 @@ pub struct TestBreakerBox {
     pub f4: TestBreaker,
     pub f5: TestBreaker,
     #[memzer(skip)]
+    #[codec(default)]
     __drop_sentinel: DropSentinel,
 }
 
@@ -106,399 +110,781 @@ impl<A: AeadApi> DecryptStruct<A, NUM_FIELDS> for TestBreakerBox {
     }
 }
 
-// ======================================
-// ===== Nested seccomp test (Linux) ====
-// ======================================
-//
-// main → level1 (block prctl) → level2 (block mem syscalls)
-//
-// This tests that mem syscall errors propagate correctly when
-// ProtectedBuffer falls back to MemProtected (due to prctl being blocked).
-// This makes the method `maybe_initialize` fail.
+// =============================================================================
+// encrypt_struct()
+// =============================================================================
 
-#[cfg(target_os = "linux")]
 #[test]
-fn test_nested_seccomp_propagates_mem_error() {
-    // let exit_code = run_test_as_subprocess("tests::cipherbox::subprocess_level1_block_prctl");
-    // assert_eq!(exit_code, Some(0), "nested seccomp test failed");
+fn test_encrypt_struct_propagates_encrypt_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let mut value = TestBreakerBox::default();
+
+    let result = cb.encrypt_struct(&aead_key, &mut value);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+    assert!(cb.assert_healthy().is_err());
 }
 
-#[cfg(target_os = "linux")]
-#[test]
-#[ignore]
-fn subprocess_level1_block_prctl() {
-    // Block prctl so ProtectedBuffer can't install seccomp, falls back to MemProtected
-    block_prctl_syscalls();
+// =============================================================================
+// decrypt_struct()
+// =============================================================================
 
-    // Now spawn level 2 which will block mem syscalls
-    let exit_code = run_test_as_subprocess("tests::cipherbox::subprocess_level2_block_mem");
-    assert_eq!(exit_code, Some(0), "level 2 subprocess failed");
+#[test]
+fn test_decrypt_struct_propagates_encrypt_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailDecryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+
+    let result = cb.decrypt_struct(&aead_key);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+    assert!(cb.assert_healthy().is_err());
 }
 
-#[cfg(target_os = "linux")]
-#[test]
-#[ignore]
-fn subprocess_level2_block_mem() {
-    use crate::master_key::leak_master_key;
-    println!("Q ONDA CON ESTO");
-    // Block mem syscalls (mprotect, mlock, etc.)
-    let result = leak_master_key(16);
-    block_mem_syscalls();
+// =============================================================================
+// maybe_initialize()
+// =============================================================================
 
-    // Now try to open the buffer - should fail because mem syscalls are blocked
-    let result = leak_master_key(16);
-    assert!(result.is_err(), "expected error when mem syscalls blocked");
+#[test]
+fn test_maybe_initialize_propagates_leak_master_key_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    cb.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
+
+    let result = cb.maybe_initialize();
+
+    assert!(cb.assert_healthy().is_err());
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
 }
 
-// #[derive(MemZer, Codec)]
-// #[memzer(drop)]
-// pub struct WalletSecrets {
-//     master_seed: [u8; 32],
-//     encryption_key: [u8; 32],
-//     signing_key: [u8; 32],
-//     pin_hash: [u8; 32],
-//     #[codec(default)]
-//     __drop_sentinel: DropSentinel,
-// }
+#[test]
+fn test_maybe_initialize_propagates_encrypt_struct_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
 
-// impl Default for WalletSecrets {
-//     fn default() -> Self {
-//         Self {
-//             master_seed: [0u8; 32],
-//             encryption_key: [0u8; 32],
-//             signing_key: [0u8; 32],
-//             pin_hash: [0u8; 32],
-//             __drop_sentinel: DropSentinel::default(),
-//         }
-//     }
-// }
+    let result = cb.maybe_initialize();
 
-// impl EncryptStruct<4> for WalletSecrets {
-//     fn to_encryptable_dyn_fields(&mut self) -> [&mut dyn Encryptable; 4] {
-//         [
-//             &mut self.master_seed,
-//             &mut self.encryption_key,
-//             &mut self.signing_key,
-//             &mut self.pin_hash,
-//         ]
-//     }
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+    assert!(cb.assert_healthy().is_err());
+}
 
-//     fn encrypt_into(
-//         &mut self,
-//         aead: &mut Aead,
-//         aead_key: &[u8],
-//         nonces: &mut [Vec<u8>; 4],
-//         tags: &mut [Vec<u8>; 4],
-//     ) -> Result<[Vec<u8>; 4], CipherBoxError> {
-//         encrypt_into(
-//             aead,
-//             aead_key,
-//             nonces,
-//             tags,
-//             self.to_encryptable_dyn_fields(),
-//         )
-//     }
-// }
+// =============================================================================
+// decrypt_field()
+// =============================================================================
 
-// impl DecryptStruct<4> for WalletSecrets {
-//     fn to_decryptable_dyn_fields(&mut self) -> [&mut dyn Decryptable; 4] {
-//         [
-//             &mut self.master_seed,
-//             &mut self.encryption_key,
-//             &mut self.signing_key,
-//             &mut self.pin_hash,
-//         ]
-//     }
+#[test]
+fn test_decrypt_field_propagates_decrypt_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailDecryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let mut value = TestBreakerBox::default();
 
-//     fn decrypt_from(
-//         &mut self,
-//         aead: &mut Aead,
-//         aead_key: &[u8],
-//         nonces: &mut [Vec<u8>; 4],
-//         tags: &mut [Vec<u8>; 4],
-//         ciphertexts: &mut [Vec<u8>; 4],
-//     ) -> Result<(), CipherBoxError> {
-//         decrypt_from(
-//             aead,
-//             aead_key,
-//             nonces,
-//             tags,
-//             ciphertexts,
-//             &mut self.to_decryptable_dyn_fields(),
-//         )
-//     }
-// }
+    cb.encrypt_struct(&aead_key, &mut value)
+        .expect("Failed to encrypt_struct(..)");
+    let mut field = TestBreaker::default();
+    let result = cb.decrypt_field::<TestBreaker, 1>(&aead_key, &mut field);
 
-// #[test]
-// fn test_wallet_secrets() {
-//     let mut wallet_secrets_box = CipherBox::<WalletSecrets, 4>::new();
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+    assert!(cb.assert_healthy().is_err());
 
-//     wallet_secrets_box
-//         .open(|ws| {
-//             assert!(ws.master_seed.is_zeroized());
-//             assert!(ws.encryption_key.is_zeroized());
-//             assert!(ws.signing_key.is_zeroized());
-//             assert!(ws.pin_hash.is_zeroized());
-//         })
-//         .expect("Failed to open(..)");
+    // SAFETY NOTE: There is no need to assert zeroization, if decryption fails CipherBox will remain Poisoned,
+    // and no plaintexts on memory.
+}
 
-//     wallet_secrets_box
-//         .open_mut(|ws| {
-//             ws.master_seed = [0x42; 32];
-//             ws.encryption_key = [0xAB; 32];
-//             ws.signing_key = [0xCD; 32];
-//             ws.pin_hash = [0xEF; 32];
-//         })
-//         .expect("Failed to open_mut(..)");
+#[test]
+fn test_decrypt_field_propagates_decode_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let mut value = TestBreakerBox::default();
 
-//     wallet_secrets_box
-//         .open(|ws| {
-//             assert_eq!(ws.master_seed, [0x42; 32]);
-//             assert_eq!(ws.encryption_key, [0xAB; 32]);
-//             assert_eq!(ws.signing_key, [0xCD; 32]);
-//             assert_eq!(ws.pin_hash, [0xEF; 32]);
-//         })
-//         .expect("Failed to open(..)");
-// }
+    cb.encrypt_struct(&aead_key, &mut value)
+        .expect("Failed to encrypt_struct(..)");
+    let mut field = TestBreaker::new(TestBreakerBehaviour::ForceDecodeError, 0);
+    let result = cb.decrypt_field::<TestBreaker, 1>(&aead_key, &mut field);
 
-// #[test]
-// fn test_wallet_secrets_open_field_mut() {
-//     let mut wallet_secrets_box = CipherBox::<WalletSecrets, 4>::new();
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+    assert!(cb.assert_healthy().is_err());
 
-//     // master_seed is field 0
-//     wallet_secrets_box
-//         .open_field_mut::<[u8; 32], 0, _>(|seed| {
-//             *seed = [0x42; 32];
-//         })
-//         .expect("Failed to open_field_mut master_seed");
+    // Assert zeroization!
+    let tmp = cb.__unsafe_get_tmp_ciphertext();
+    assert!(is_vec_fully_zeroized(tmp));
+}
 
-//     // Verify master_seed
-//     wallet_secrets_box
-//         .open_field::<[u8; 32], 0, _>(|seed| {
-//             assert_eq!(*seed, [0x42; 32]);
-//         })
-//         .expect("Failed to open_field master_seed");
+#[test]
+fn test_decrypt_field_ok() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let mut value = TestBreakerBox::default();
 
-//     // encryption_key is field 1
-//     wallet_secrets_box
-//         .open_field_mut::<[u8; 32], 1, _>(|key| {
-//             *key = [0xAB; 32];
-//         })
-//         .expect("Failed to open_field_mut encryption_key");
+    cb.encrypt_struct(&aead_key, &mut value)
+        .expect("Failed to encrypt_struct(..)");
 
-//     // Verify encryption_key
-//     wallet_secrets_box
-//         .open_field::<[u8; 32], 1, _>(|key| {
-//             assert_eq!(*key, [0xAB; 32]);
-//         })
-//         .expect("Failed to open_field encryption_key");
+    let mut field = TestBreaker::new(TestBreakerBehaviour::None, 0);
+    let result = cb.decrypt_field::<TestBreaker, 1>(&aead_key, &mut field);
 
-//     // signing_key is field 2
-//     wallet_secrets_box
-//         .open_field_mut::<[u8; 32], 2, _>(|key| {
-//             *key = [0xCD; 32];
-//         })
-//         .expect("Failed to open_field_mut signing_key");
+    assert!(result.is_ok());
 
-//     // Verify signing_key
-//     wallet_secrets_box
-//         .open_field::<[u8; 32], 2, _>(|key| {
-//             assert_eq!(*key, [0xCD; 32]);
-//         })
-//         .expect("Failed to open_field signing_key");
+    // Assert zeroization!
+    let tmp = cb.__unsafe_get_tmp_ciphertext();
+    assert!(is_vec_fully_zeroized(tmp));
+}
 
-//     // pin_hash is field 3
-//     wallet_secrets_box
-//         .open_field_mut::<[u8; 32], 3, _>(|hash| {
-//             *hash = [0xEF; 32];
-//         })
-//         .expect("Failed to open_field_mut pin_hash");
+// =============================================================================
+// encrypt_field()
+// =============================================================================
 
-//     // Verify pin_hash
-//     wallet_secrets_box
-//         .open_field::<[u8; 32], 3, _>(|hash| {
-//             assert_eq!(*hash, [0xEF; 32]);
-//         })
-//         .expect("Failed to open_field pin_hash");
-// }
+#[test]
+fn test_encrypt_field_propagates_bytes_required_overflow() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let mut value = TestBreakerBox::default();
 
-// // // #[test]
-// // // fn bench_wallet_secrets_cipherbox() {
-// // //     use std::time::Instant;
+    cb.encrypt_struct(&aead_key, &mut value)
+        .expect("Failed to encrypt_struct(..)");
 
-// // //     let mut wallet_secrets_box = CipherBox::<WalletSecrets>::new();
+    let mut field = TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 0);
+    let result = cb.encrypt_field::<TestBreaker, 1>(&aead_key, &mut field);
 
-// // //     // Warmup
-// // //     for _ in 0..1000 {
-// // //         wallet_secrets_box.open(|_| {}).unwrap();
-// // //         wallet_secrets_box
-// // //             .open_mut(|ws| {
-// // //                 ws.master_seed[0] = 0;
-// // //             })
-// // //             .unwrap();
-// // //     }
+    // SAFETY NOTE:
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Overflow(_))));
+}
 
-// // //     // Bench open (read-only)
-// // //     let iterations = 10_000;
-// // //     let start = Instant::now();
-// // //     for _ in 0..iterations {
-// // //         wallet_secrets_box.open(|_| {}).expect("open failed");
-// // //     }
-// // //     let elapsed = start.elapsed();
-// // //     let per_op_ns = elapsed.as_nanos() / iterations as u128;
-// // //     println!(
-// // //         "open(): {} ns/op ({} ops/sec)",
-// // //         per_op_ns,
-// // //         1_000_000_000 / per_op_ns
-// // //     );
+#[test]
+fn test_encrypt_field_propagates_encode_into_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let mut value = TestBreakerBox::default();
 
-// // //     // Bench open_mut (read + write)
-// // //     let start = Instant::now();
-// // //     for _ in 0..iterations {
-// // //         wallet_secrets_box
-// // //             .open_mut(|ws| {
-// // //                 ws.master_seed[0] = ws.master_seed[0].wrapping_add(1);
-// // //             })
-// // //             .expect("open_mut failed");
-// // //     }
-// // //     let elapsed = start.elapsed();
-// // //     let per_op_ns = elapsed.as_nanos() / iterations as u128;
-// // //     println!(
-// // //         "open_mut(): {} ns/op ({} ops/sec)",
-// // //         per_op_ns,
-// // //         1_000_000_000 / per_op_ns
-// // //     );
-// // // }
+    cb.encrypt_struct(&aead_key, &mut value)
+        .expect("Failed to encrypt_struct(..)");
 
-// // // #[test]
-// // // fn bench_cipherbox_pieces() {
-// // //     use std::time::Instant;
+    let mut field = TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 0);
+    let result = cb.encrypt_field::<TestBreaker, 1>(&aead_key, &mut field);
 
-// // //     let mut box_ = CipherBox::<WalletSecrets>::new();
-// // //     box_.maybe_initialize().unwrap();
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+    assert!(cb.assert_healthy().is_err());
 
-// // //     let mut wallet_secrets_box = CipherBox::<WalletSecrets>::new();
+    // Assert zeroization!
+    assert!(cb.__unsafe_get_tmp_codec_buff().is_zeroized());
+}
 
-// // //     // Warmup
-// // //     for _ in 0..1000 {
-// // //         wallet_secrets_box.open(|_| {}).unwrap();
-// // //         wallet_secrets_box
-// // //             .open_mut(|ws| {
-// // //                 ws.master_seed[0] = 0;
-// // //             })
-// // //             .unwrap();
-// // //     }
+#[test]
+fn test_encrypt_field_propagates_entropy_unavailable_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailGenerateNonceAt(NUM_FIELDS));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let mut value = TestBreakerBox::default();
 
-// // //     let iterations = 10_000;
+    cb.encrypt_struct(&aead_key, &mut value)
+        .expect("Failed to encrypt_struct(..)");
 
-// // //     // 1. derive_key solo
-// // //     let start = Instant::now();
-// // //     for _ in 0..iterations {
-// // //         let mut key = box_.derive_key().unwrap();
-// // //         key.fast_zeroize();
-// // //     }
-// // //     let elapsed = start.elapsed();
-// // //     println!(
-// // //         "derive_key(): {} ns/op",
-// // //         elapsed.as_nanos() / iterations as u128
-// // //     );
+    let mut field = TestBreaker::new(TestBreakerBehaviour::None, 0);
+    let result = cb.encrypt_field::<TestBreaker, 1>(&aead_key, &mut field);
 
-// // //     // 2. decrypt solo (incluye derive_key)
-// // //     let start = Instant::now();
-// // //     for _ in 0..iterations {
-// // //         let mut val = box_.decrypt().unwrap();
-// // //         val.fast_zeroize();
-// // //     }
-// // //     let elapsed = start.elapsed();
-// // //     println!(
-// // //         "decrypt(): {} ns/op",
-// // //         elapsed.as_nanos() / iterations as u128
-// // //     );
+    // SAFETY NOTE: Box shouldn't be POISONED if entropy is not available (it still can be read).
+    assert!(cb.assert_healthy().is_ok());
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(CipherBoxError::Entropy(EntropyError::EntropyNotAvailable))
+    ));
 
-// // //     // 3. encrypt solo (incluye derive_key)
-// // //     let start = Instant::now();
-// // //     for _ in 0..iterations {
-// // //         let mut val = WalletSecrets::default();
-// // //         box_.encrypt(&mut val).unwrap();
-// // //     }
-// // //     let elapsed = start.elapsed();
-// // //     println!(
-// // //         "encrypt(): {} ns/op",
-// // //         elapsed.as_nanos() / iterations as u128
-// // //     );
-// // // }
+    // Assert zeroization!
+    assert!(cb.__unsafe_get_field_ciphertext::<1>().is_zeroized());
+}
 
-// // #[cfg(unix)]
-// // #[test]
-// // fn text_max() {
-// //     fn max_lockable_memory() -> usize {
-// //         use libc::{RLIMIT_MEMLOCK, getrlimit, rlimit};
+#[test]
+fn test_encrypt_field_propagates_api_encrypt_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(NUM_FIELDS));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let mut value = TestBreakerBox::default();
 
-// //         let mut rlim = rlimit {
-// //             rlim_cur: 0,
-// //             rlim_max: 0,
-// //         };
+    cb.encrypt_struct(&aead_key, &mut value)
+        .expect("Failed to encrypt_struct(..)");
 
-// //         unsafe {
-// //             if getrlimit(RLIMIT_MEMLOCK, &mut rlim) == 0 {
-// //                 rlim.rlim_cur as usize
-// //             } else {
-// //                 0
-// //             }
-// //         }
-// //     }
+    let mut field = TestBreaker::new(TestBreakerBehaviour::None, 0);
+    let result = cb.encrypt_field::<TestBreaker, 1>(&aead_key, &mut field);
 
-// //     println!("MAX LOCKABLE MEMORY {:?}", max_lockable_memory());
-// // }
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+    assert!(cb.assert_healthy().is_err());
 
-// // #[test]
-// // fn bench_2abc1_open() {
-// //     use memhkdf::hkdf;
-// //     use std::time::Instant;
+    // Assert zeroization!
+    assert!(cb.__unsafe_get_field_ciphertext::<1>().is_zeroized());
+}
 
-// //     let mut box_ = CipherBox::<WalletSecrets>::new();
-// //     box_.maybe_initialize().unwrap();
+#[test]
+fn test_encrypt_field_ok() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let mut value = TestBreakerBox::default();
 
-// //     let iterations = 10_000;
+    cb.encrypt_struct(&aead_key, &mut value)
+        .expect("Failed to encrypt_struct(..)");
 
-// //     // 1. master_key::open() solo
-// //     for _ in 0..1000 {
-// //         open(&mut |_ikm| Ok(())).unwrap();
-// //     }
-// //     let start = Instant::now();
-// //     for _ in 0..iterations {
-// //         open(&mut |_ikm| Ok(())).unwrap();
-// //     }
-// //     let elapsed = start.elapsed();
-// //     println!(
-// //         "master_key::open(): {} ns/op",
-// //         elapsed.as_nanos() / iterations as u128
-// //     );
+    let mut field = TestBreaker::new(TestBreakerBehaviour::None, 100);
+    let result = cb.encrypt_field::<TestBreaker, 1>(&aead_key, &mut field);
 
-// //     // 2. HKDF solo
-// //     for _ in 0..1000 {
-// //         let mut out = vec![0u8; 32];
-// //         hkdf(&[0u8; 64], &[0u8; 16], b"redoubt-cipherbox:0.0.1", &mut out).unwrap();
-// //     }
-// //     let start = Instant::now();
-// //     for _ in 0..iterations {
-// //         let mut out = vec![0u8; 32];
-// //         hkdf(&[0u8; 64], &[0u8; 16], b"redoubt-cipherbox:0.0.1", &mut out).unwrap();
-// //     }
-// //     let elapsed = start.elapsed();
-// //     println!("hkdf(): {} ns/op", elapsed.as_nanos() / iterations as u128);
+    assert!(result.is_ok());
 
-// //     // 3. derive_key completo (open + hkdf)
-// //     for _ in 0..1000 {
-// //         let _ = box_.derive_key().unwrap();
-// //     }
-// //     let start = Instant::now();
-// //     for _ in 0..iterations {
-// //         let _ = box_.derive_key().unwrap();
-// //     }
-// //     let elapsed = start.elapsed();
-// //     println!(
-// //         "derive_key(): {} ns/op",
-// //         elapsed.as_nanos() / iterations as u128
-// //     );
-// // }
+    // Assert zeroization!
+    assert!(cb.__unsafe_get_tmp_codec_buff().is_zeroized());
+    assert!(!cb.__unsafe_get_field_ciphertext::<1>().is_zeroized());
+}
+// =============================================================================
+// open()
+// =============================================================================
+
+#[test]
+fn test_open_propagates_poison_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let mut value = TestBreakerBox::default();
+
+    assert!(cb.encrypt_struct(&aead_key, &mut value).is_err());
+    assert!(cb.assert_healthy().is_err());
+
+    let result_1 = cb.open(|_| {});
+    let result_2 = cb.open(|_| {});
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_open_propagates_initialization_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    let result_1 = cb.open(|_| {});
+    let result_2 = cb.open(|_| {});
+
+    assert!(cb.assert_healthy().is_err());
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_open_propagates_leak_master_key_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    cb.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
+
+    let result_1 = cb.open(|_| {});
+    let result_2 = cb.open(|_| {});
+
+    assert!(cb.assert_healthy().is_err());
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_open_propagates_decrypt_struct_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailDecryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    let result = cb.open(|_| {});
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+    assert!(cb.assert_healthy().is_err());
+}
+
+#[test]
+fn test_open_propagates_encrypt_struct_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(NUM_FIELDS));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    let result = cb.open(|_| {});
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+    assert!(cb.assert_healthy().is_err());
+}
+
+// =============================================================================
+// open_mut()
+// =============================================================================
+
+#[test]
+fn test_open_mut_propagates_poison_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let mut value = TestBreakerBox::default();
+
+    assert!(cb.encrypt_struct(&aead_key, &mut value).is_err());
+    assert!(cb.assert_healthy().is_err());
+
+    let result_1 = cb.open_mut(|_| {});
+    let result_2 = cb.open_mut(|_| {});
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_open_mut_propagates_initialization_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    let result_1 = cb.open_mut(|_| {});
+    let result_2 = cb.open_mut(|_| {});
+
+    assert!(cb.assert_healthy().is_err());
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_open_mut_propagates_leak_master_key_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    cb.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
+
+    let result_1 = cb.open_mut(|_| {});
+    let result_2 = cb.open_mut(|_| {});
+
+    assert!(cb.assert_healthy().is_err());
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_open_mut_propagates_decrypt_struct_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailDecryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    let result = cb.open_mut(|_| {});
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+    assert!(cb.assert_healthy().is_err());
+}
+
+#[test]
+fn test_open_mut_propagates_encrypt_struct_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(NUM_FIELDS));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    let result = cb.open_mut(|_| {});
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+    assert!(cb.assert_healthy().is_err());
+}
+
+// =============================================================================
+// open_field()
+// =============================================================================
+
+#[test]
+fn test_open_field_propagates_poison_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let mut value = TestBreakerBox::default();
+
+    assert!(cb.encrypt_struct(&aead_key, &mut value).is_err());
+    assert!(cb.assert_healthy().is_err());
+
+    let result_1 = cb.open_field::<TestBreaker, 1, _>(|_| {});
+    let result_2 = cb.open_field::<TestBreaker, 1, _>(|_| {});
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_open_field_propagates_initialization_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    let result_1 = cb.open_field::<TestBreaker, 1, _>(|_| {});
+    let result_2 = cb.open_field::<TestBreaker, 1, _>(|_| {});
+
+    assert!(cb.assert_healthy().is_err());
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_open_field_propagates_leak_master_key_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    cb.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
+
+    let result_1 = cb.open_field::<TestBreaker, 1, _>(|_| {});
+    let result_2 = cb.open_field::<TestBreaker, 1, _>(|_| {});
+
+    assert!(cb.assert_healthy().is_err());
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_open_field_propagates_decrypt_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailDecryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    let result_1 = cb.open_field::<TestBreaker, 1, _>(|_| {});
+    let result_2 = cb.open_field::<TestBreaker, 1, _>(|_| {});
+
+    assert!(cb.assert_healthy().is_err());
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+// =============================================================================
+// open_field_mut()
+// =============================================================================
+
+#[test]
+fn test_open_field_mut_propagates_poison_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let mut value = TestBreakerBox::default();
+
+    assert!(cb.encrypt_struct(&aead_key, &mut value).is_err());
+    assert!(cb.assert_healthy().is_err());
+
+    let result_1 = cb.open_field_mut::<TestBreaker, 1, _>(|_| {});
+    let result_2 = cb.open_field_mut::<TestBreaker, 1, _>(|_| {});
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_open_field_mut_propagates_initialization_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    let result_1 = cb.open_field_mut::<TestBreaker, 1, _>(|_| {});
+    let result_2 = cb.open_field_mut::<TestBreaker, 1, _>(|_| {});
+
+    assert!(cb.assert_healthy().is_err());
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_open_field_mut_propagates_leak_master_key_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    cb.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
+
+    let result_1 = cb.open_field_mut::<TestBreaker, 1, _>(|_| {});
+    let result_2 = cb.open_field_mut::<TestBreaker, 1, _>(|_| {});
+
+    assert!(cb.assert_healthy().is_err());
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_open_field_mut_propagates_decrypt_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailDecryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    let result_1 = cb.open_field_mut::<TestBreaker, 1, _>(|_| {});
+    let result_2 = cb.open_field_mut::<TestBreaker, 1, _>(|_| {});
+
+    assert!(cb.assert_healthy().is_err());
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_open_field_mut_propagates_encrypt_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(NUM_FIELDS));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    let result = cb.open_field_mut::<TestBreaker, 1, _>(|_| {});
+
+    assert!(cb.assert_healthy().is_err());
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+}
+
+// =============================================================================
+// leak_field()
+// =============================================================================
+
+#[test]
+fn test_leak_field_propagates_poison_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let mut value = TestBreakerBox::default();
+
+    assert!(cb.encrypt_struct(&aead_key, &mut value).is_err());
+    assert!(cb.assert_healthy().is_err());
+
+    let result_1 = cb.leak_field::<TestBreaker, 1>();
+    let result_2 = cb.leak_field::<TestBreaker, 1>();
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_leak_field_propagates_initialization_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    let result_1 = cb.leak_field::<TestBreaker, 1>();
+    let result_2 = cb.leak_field::<TestBreaker, 1>();
+
+    assert!(cb.assert_healthy().is_err());
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_leak_field_propagates_leak_master_key_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    cb.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
+
+    let result_1 = cb.leak_field::<TestBreaker, 1>();
+    let result_2 = cb.leak_field::<TestBreaker, 1>();
+
+    assert!(cb.assert_healthy().is_err());
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+#[test]
+fn test_leak_field_propagates_decrypt_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailDecryptAt(0));
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    let result_1 = cb.leak_field::<TestBreaker, 1>();
+    let result_2 = cb.leak_field::<TestBreaker, 1>();
+
+    assert!(cb.assert_healthy().is_err());
+
+    assert!(result_1.is_err());
+    assert!(result_2.is_err());
+    assert!(matches!(result_1, Err(CipherBoxError::Poisoned)));
+    assert!(matches!(result_2, Err(CipherBoxError::Poisoned)));
+}
+
+// =============================================================================
+// HAPPY PATH TEST
+// =============================================================================
+#[test]
+fn test_cipherbox_happy_path_test() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<TestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    cb.open(|tb_box| {
+        assert_eq!(tb_box.f0.usize.data, 1);
+        assert_eq!(tb_box.f1.usize.data, 2);
+        assert_eq!(tb_box.f2.usize.data, 4);
+        assert_eq!(tb_box.f3.usize.data, 8);
+        assert_eq!(tb_box.f4.usize.data, 16);
+        assert_eq!(tb_box.f5.usize.data, 32);
+    })
+    .expect("Failed to open(..)");
+
+    cb.open_mut(|tb_box| {
+        tb_box.f0.usize.data <<= 2;
+        tb_box.f1.usize.data <<= 2;
+        tb_box.f2.usize.data <<= 2;
+        tb_box.f3.usize.data <<= 2;
+        tb_box.f4.usize.data <<= 2;
+        tb_box.f5.usize.data <<= 2;
+    })
+    .expect("Failed to open_mut(..)");
+
+    cb.open(|tb_box| {
+        assert_eq!(tb_box.f0.usize.data, 4);
+        assert_eq!(tb_box.f1.usize.data, 8);
+        assert_eq!(tb_box.f2.usize.data, 16);
+        assert_eq!(tb_box.f3.usize.data, 32);
+        assert_eq!(tb_box.f4.usize.data, 64);
+        assert_eq!(tb_box.f5.usize.data, 128);
+    })
+    .expect("Failed to open(..)");
+
+    cb.open_field::<TestBreaker, 0, _>(|tb| {
+        assert_eq!(tb.usize.data, 4);
+    })
+    .expect("Failed to open_field(..)");
+    cb.open_field::<TestBreaker, 1, _>(|tb| {
+        assert_eq!(tb.usize.data, 8);
+    })
+    .expect("Failed to open_field(..)");
+    cb.open_field::<TestBreaker, 2, _>(|tb| {
+        assert_eq!(tb.usize.data, 16);
+    })
+    .expect("Failed to open_field(..)");
+    cb.open_field::<TestBreaker, 3, _>(|tb| {
+        assert_eq!(tb.usize.data, 32);
+    })
+    .expect("Failed to open_field(..)");
+    cb.open_field::<TestBreaker, 4, _>(|tb| {
+        assert_eq!(tb.usize.data, 64);
+    })
+    .expect("Failed to open_field(..)");
+    cb.open_field::<TestBreaker, 5, _>(|tb| {
+        assert_eq!(tb.usize.data, 128);
+    })
+    .expect("Failed to open_field(..)");
+
+    cb.open_field_mut::<TestBreaker, 0, _>(|tb| {
+        println!(
+            "Changing field 0: {:?}, {:?}",
+            tb.usize.data,
+            tb.usize.data << 2
+        );
+        tb.usize.data <<= 2;
+        println!("Field 0 has changed: {:?}", tb.usize.data);
+    })
+    .expect("Failed to open_field_mut(..)");
+    cb.open_field_mut::<TestBreaker, 1, _>(|tb| {
+        tb.usize.data <<= 2;
+    })
+    .expect("Failed to open_field_mut(..)");
+    cb.open_field_mut::<TestBreaker, 2, _>(|tb| {
+        tb.usize.data <<= 2;
+    })
+    .expect("Failed to open_field_mut(..)");
+    cb.open_field_mut::<TestBreaker, 3, _>(|tb| {
+        tb.usize.data <<= 2;
+    })
+    .expect("Failed to open_field_mut(..)");
+    cb.open_field_mut::<TestBreaker, 4, _>(|tb| {
+        tb.usize.data <<= 2;
+    })
+    .expect("Failed to open_field_mut(..)");
+    cb.open_field_mut::<TestBreaker, 5, _>(|tb| {
+        tb.usize.data <<= 2;
+    })
+    .expect("Failed to open_field_mut(..)");
+
+    let data_0 = cb
+        .leak_field::<TestBreaker, 0>()
+        .expect("Failed to leak_field()");
+    let data_1 = cb
+        .leak_field::<TestBreaker, 1>()
+        .expect("Failed to leak_field()");
+    let data_2 = cb
+        .leak_field::<TestBreaker, 2>()
+        .expect("Failed to leak_field()");
+    let data_3 = cb
+        .leak_field::<TestBreaker, 3>()
+        .expect("Failed to leak_field()");
+    let data_4 = cb
+        .leak_field::<TestBreaker, 4>()
+        .expect("Failed to leak_field()");
+    let data_5 = cb
+        .leak_field::<TestBreaker, 5>()
+        .expect("Failed to leak_field()");
+
+    assert_eq!(data_0.usize.data, 16);
+    assert_eq!(data_1.usize.data, 32);
+    assert_eq!(data_2.usize.data, 64);
+    assert_eq!(data_3.usize.data, 128);
+    assert_eq!(data_4.usize.data, 256);
+    assert_eq!(data_5.usize.data, 512);
+}

@@ -31,9 +31,13 @@ where
     A: AeadApi,
 {
     initialized: bool,
+    healthy: bool,
+    key_size: usize,
     ciphertexts: [Vec<u8>; N],
     nonces: [Vec<u8>; N],
     tags: [Vec<u8>; N],
+    tmp_field_cyphertext: Vec<u8>,
+    tmp_field_codec_buff: CodecBuffer,
     __drop_sentinel: DropSentinel,
     #[memzer(skip)]
     aead: A,
@@ -52,10 +56,30 @@ where
         + Encode
         + Decode
         + BytesRequired,
-    A: AeadApi + Default,
+    A: AeadApi,
 {
-    pub fn new() -> Self {
-        let aead = A::default();
+    #[cfg(test)]
+    pub(crate) fn __unsafe_change_api_key_size(&mut self, key_size: usize) {
+        self.key_size = key_size;
+    }
+
+    #[cfg(test)]
+    pub(crate) fn __unsafe_get_tmp_ciphertext(&mut self) -> &Vec<u8> {
+        &self.tmp_field_cyphertext
+    }
+
+    #[cfg(test)]
+    pub(crate) fn __unsafe_get_tmp_codec_buff(&mut self) -> &CodecBuffer {
+        &self.tmp_field_codec_buff
+    }
+
+    #[cfg(test)]
+    pub(crate) fn __unsafe_get_field_ciphertext<const M: usize>(&mut self) -> &Vec<u8> {
+        &self.ciphertexts[M]
+    }
+
+    pub fn new(aead: A) -> Self {
+        let key_size = aead.api_key_size();
         let nonce_size = aead.api_nonce_size();
         let tag_size = aead.api_tag_size();
 
@@ -75,36 +99,63 @@ where
 
         Self {
             aead,
+            key_size,
             tags,
             nonces,
             ciphertexts,
+            healthy: true,
             initialized: false,
+            tmp_field_cyphertext: Vec::default(),
+            tmp_field_codec_buff: CodecBuffer::default(),
             __drop_sentinel: DropSentinel::default(),
             _marker: PhantomData,
         }
     }
 
-    #[inline(always)]
-    pub fn encrypt_struct(&mut self, aead_key: &[u8], value: &mut T) -> Result<(), CipherBoxError> {
-        self.ciphertexts =
-            value.encrypt_into(&mut self.aead, aead_key, &mut self.nonces, &mut self.tags)?;
+    #[cold]
+    #[inline(never)]
+    pub(crate) fn assert_healthy(&self) -> Result<(), CipherBoxError> {
+        if !self.healthy {
+            return Err(CipherBoxError::Poisoned);
+        }
 
         Ok(())
     }
 
     #[inline(always)]
+    pub fn encrypt_struct(&mut self, aead_key: &[u8], value: &mut T) -> Result<(), CipherBoxError> {
+        let result = value.encrypt_into(&mut self.aead, aead_key, &mut self.nonces, &mut self.tags);
+
+        match result {
+            Ok(ciphertexts) => {
+                self.ciphertexts = ciphertexts;
+                Ok(())
+            }
+            Err(_) => {
+                self.healthy = false;
+                return Err(CipherBoxError::Poisoned);
+            }
+        }
+    }
+
+    #[inline(always)]
     pub fn decrypt_struct(&mut self, aead_key: &[u8]) -> Result<ZeroizingGuard<T>, CipherBoxError> {
         let mut value = ZeroizingGuard::new(T::default());
-
-        value.decrypt_from(
+        let result = value.decrypt_from(
             &mut self.aead,
             aead_key,
             &mut self.nonces,
             &mut self.tags,
             &mut self.ciphertexts,
-        )?;
+        );
 
-        Ok(value)
+        match result {
+            Ok(_) => Ok(value),
+            Err(_) => {
+                self.healthy = false;
+                return Err(CipherBoxError::Poisoned);
+            }
+        }
     }
 
     #[cold]
@@ -114,7 +165,10 @@ where
             return Ok(());
         }
 
-        let master_key = leak_master_key(self.aead.api_key_size())?;
+        let master_key = leak_master_key(self.key_size).map_err(|_| {
+            self.healthy = false;
+            return CipherBoxError::Poisoned;
+        })?;
         let mut value = ZeroizingGuard::new(T::default());
 
         self.encrypt_struct(&master_key, &mut value)?;
@@ -124,34 +178,51 @@ where
     }
 
     #[inline(always)]
-    fn decrypt_field<F, const M: usize>(
+    fn try_decrypt_field<F, const M: usize>(
         &mut self,
         aead_key: &[u8],
-    ) -> Result<ZeroizingGuard<F>, CipherBoxError>
+        field: &mut F,
+    ) -> Result<(), CipherBoxError>
     where
         F: Default + Decryptable + ZeroizationProbe,
     {
-        let mut field = ZeroizingGuard::new(F::default());
-
         // Clone ciphertext so we don't drain the original
-        let mut ciphertext_copy = self.ciphertexts[M].clone();
-
+        self.tmp_field_cyphertext = self.ciphertexts[M].clone();
         self.aead.api_decrypt(
             aead_key,
             &self.nonces[M],
             &AAD,
-            &mut ciphertext_copy,
+            &mut self.tmp_field_cyphertext,
             &self.tags[M],
         )?;
 
-        field.decode_from(&mut ciphertext_copy.as_mut_slice())?;
-        // ciphertext_copy is dropped and zeroized here
+        // tmp_field_cyphertext is guaranteed to be zeroized by `decode_from`
+        field.decode_from(&mut self.tmp_field_cyphertext.as_mut_slice())?;
 
-        Ok(field)
+        Ok(())
     }
 
     #[inline(always)]
-    fn encrypt_field<F, const M: usize>(
+    pub(crate) fn decrypt_field<F, const M: usize>(
+        &mut self,
+        aead_key: &[u8],
+        field: &mut F,
+    ) -> Result<(), CipherBoxError>
+    where
+        F: Default + Decryptable + ZeroizationProbe,
+    {
+        let result = self.try_decrypt_field::<F, M>(aead_key, field);
+
+        if result.is_err() {
+            self.healthy = false;
+            return Err(CipherBoxError::Poisoned);
+        }
+
+        Ok(())
+    }
+
+    #[inline(always)]
+    fn try_encrypt_field<F, const M: usize>(
         &mut self,
         aead_key: &[u8],
         field: &mut F,
@@ -159,47 +230,140 @@ where
     where
         F: Encryptable,
     {
-        let size = field.mem_bytes_required()?;
-        let mut buf = CodecBuffer::new(size);
+        let bytes_required = field.mem_bytes_required()?;
 
-        field.encode_into(&mut buf)?;
+        self.tmp_field_codec_buff
+            .realloc_with_capacity(bytes_required);
 
-        self.ciphertexts[M] = buf.to_vec();
-        self.nonces[M] = self.aead.api_generate_nonce()?;
+        field
+            .encode_into(&mut self.tmp_field_codec_buff)
+            .map_err(|err| {
+                self.tmp_field_codec_buff.fast_zeroize();
+                return err;
+            })?;
 
-        self.aead.api_encrypt(
-            aead_key,
-            &self.nonces[M],
-            &AAD,
-            &mut self.ciphertexts[M],
-            &mut self.tags[M],
-        )?;
+        self.ciphertexts[M] = self.tmp_field_codec_buff.to_vec();
+        self.nonces[M] = self.aead.api_generate_nonce().map_err(|err| {
+            self.ciphertexts[M].fast_zeroize();
+            return err;
+        })?;
+        self.aead
+            .api_encrypt(
+                aead_key,
+                &self.nonces[M],
+                &AAD,
+                &mut self.ciphertexts[M],
+                &mut self.tags[M],
+            )
+            .map_err(|err| {
+                self.ciphertexts[M].fast_zeroize();
+                return err;
+            })?;
+
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub(crate) fn encrypt_field<F, const M: usize>(
+        &mut self,
+        aead_key: &[u8],
+        field: &mut F,
+    ) -> Result<(), CipherBoxError>
+    where
+        F: Encryptable,
+    {
+        let result = self.try_encrypt_field::<F, M>(aead_key, field);
+
+        match result {
+            Ok(()) => Ok(()),
+            Err(CipherBoxError::Overflow(err)) => Err(CipherBoxError::Overflow(err)),
+            Err(CipherBoxError::Entropy(err)) => Err(CipherBoxError::Entropy(err)),
+            _ => {
+                self.healthy = false;
+                return Err(CipherBoxError::Poisoned);
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn open_dyn(&mut self, f: &mut dyn Fn(&T)) -> Result<(), CipherBoxError> {
+        self.assert_healthy()?;
+        self.maybe_initialize()?;
+
+        let master_key = leak_master_key(self.key_size).map_err(|_| {
+            self.healthy = false;
+            return CipherBoxError::Poisoned;
+        })?;
+        let mut value = self.decrypt_struct(&master_key)?;
+
+        f(&value);
+
+        self.encrypt_struct(&master_key, &mut value)?;
 
         Ok(())
     }
 
     #[inline(always)]
     fn open_mut_dyn(&mut self, f: &mut dyn Fn(&mut T)) -> Result<(), CipherBoxError> {
+        self.assert_healthy()?;
         self.maybe_initialize()?;
 
-        let master_key = leak_master_key(self.aead.api_key_size())?;
-
+        let master_key = leak_master_key(self.key_size).map_err(|_| {
+            self.healthy = false;
+            return CipherBoxError::Poisoned;
+        })?;
         let mut value = self.decrypt_struct(&master_key)?;
+
         f(&mut value);
+
         self.encrypt_struct(&master_key, &mut value)?;
 
         Ok(())
     }
 
     #[inline(always)]
-    fn open_dyn(&mut self, f: &mut dyn Fn(&T)) -> Result<(), CipherBoxError> {
+    pub fn open_field_dyn<Field, const M: usize>(
+        &mut self,
+        f: &mut dyn Fn(&Field),
+    ) -> Result<(), CipherBoxError>
+    where
+        Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
+    {
+        self.assert_healthy()?;
         self.maybe_initialize()?;
 
-        let master_key = leak_master_key(self.aead.api_key_size())?;
+        let master_key = leak_master_key(self.key_size).map_err(|_| {
+            self.healthy = false;
+            return CipherBoxError::Poisoned;
+        })?;
+        let mut field = ZeroizingGuard::new(Field::default());
 
-        let mut value = self.decrypt_struct(&master_key)?;
-        f(&value);
-        self.encrypt_struct(&master_key, &mut value)?;
+        self.decrypt_field::<Field, M>(&master_key, &mut field)?;
+        f(&field);
+
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub fn open_field_mut_dyn<Field, const M: usize>(
+        &mut self,
+        f: &mut dyn Fn(&mut Field),
+    ) -> Result<(), CipherBoxError>
+    where
+        Field: Default + FastZeroizable + Encryptable + Decryptable + ZeroizationProbe,
+    {
+        self.assert_healthy()?;
+        self.maybe_initialize()?;
+
+        let master_key = leak_master_key(self.key_size).map_err(|_| {
+            self.healthy = false;
+            return CipherBoxError::Poisoned;
+        })?;
+        let mut field = ZeroizingGuard::new(Field::default());
+
+        self.decrypt_field::<Field, M>(&master_key, &mut field)?;
+        f(&mut field);
+        self.encrypt_field::<Field, M>(&master_key, &mut field)?;
 
         Ok(())
     }
@@ -221,37 +385,24 @@ where
     }
 
     #[inline(always)]
-    pub fn open_field<Field, const M: usize, F>(&mut self, f: F) -> Result<(), CipherBoxError>
+    pub fn open_field<Field, const M: usize, F>(&mut self, mut f: F) -> Result<(), CipherBoxError>
     where
         Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
-        F: FnOnce(&Field),
+        F: Fn(&Field),
     {
-        self.maybe_initialize()?;
-
-        let master_key = leak_master_key(self.aead.api_key_size())?;
-
-        let field = self.decrypt_field::<Field, M>(&master_key)?;
-        f(&field);
-        // No re-encrypt needed - ciphertext was cloned in decrypt_field
-
-        Ok(())
+        self.open_field_dyn::<Field, M>(&mut f)
     }
 
     #[inline(always)]
-    pub fn open_field_mut<Field, const M: usize, F>(&mut self, f: F) -> Result<(), CipherBoxError>
+    pub fn open_field_mut<Field, const M: usize, F>(
+        &mut self,
+        mut f: F,
+    ) -> Result<(), CipherBoxError>
     where
         Field: Default + FastZeroizable + Encryptable + Decryptable + ZeroizationProbe,
-        F: FnOnce(&mut Field),
+        F: Fn(&mut Field),
     {
-        self.maybe_initialize()?;
-
-        let master_key = leak_master_key(self.aead.api_key_size())?;
-
-        let mut field = self.decrypt_field::<Field, M>(&master_key)?;
-        f(&mut field);
-        self.encrypt_field::<Field, M>(&master_key, &mut field)?;
-
-        Ok(())
+        self.open_field_mut_dyn::<Field, M>(&mut f)
     }
 
     #[inline(always)]
@@ -261,10 +412,17 @@ where
     where
         Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
     {
+        self.assert_healthy()?;
         self.maybe_initialize()?;
 
-        let master_key = leak_master_key(self.aead.api_key_size())?;
+        let master_key = leak_master_key(self.key_size).map_err(|_| {
+            self.healthy = false;
+            return CipherBoxError::Poisoned;
+        })?;
+        let mut field = ZeroizingGuard::new(Field::default());
 
-        self.decrypt_field::<Field, M>(&master_key)
+        self.decrypt_field::<Field, M>(&master_key, &mut field)?;
+
+        Ok(field)
     }
 }
