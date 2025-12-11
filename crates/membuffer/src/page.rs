@@ -98,16 +98,6 @@ impl Page {
         Ok(())
     }
 
-    /// Returns the raw pointer to the page.
-    pub fn as_ptr(&self) -> *mut u8 {
-        self.ptr
-    }
-
-    /// Returns page capacity in bytes.
-    pub fn capacity(&self) -> usize {
-        self.capacity
-    }
-
     /// Returns a slice view of the page. Caller must ensure page is unprotected.
     ///
     /// # Safety

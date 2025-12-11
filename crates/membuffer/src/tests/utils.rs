@@ -37,11 +37,6 @@ fn block_syscall(name: &str) {
 }
 
 #[cfg(target_os = "linux")]
-pub fn block_mmap() {
-    block_syscall("mmap");
-}
-
-#[cfg(target_os = "linux")]
 pub fn block_mlock() {
     block_syscall("mlock");
 }

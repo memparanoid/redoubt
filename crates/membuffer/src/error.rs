@@ -22,30 +22,6 @@ pub enum PageError {
     UnprotectionFailed = 3,
 }
 
-/// Errors from memory protection syscalls (mlock, mprotect).
-/// Used with abort_from_error for exhaustive matching.
-#[derive(Debug, Error)]
-pub enum PageProtectionError {
-    #[error("failed to lock page")]
-    LockFailed,
-
-    #[error("failed to protect page")]
-    ProtectionFailed,
-
-    #[error("failed to unprotect page")]
-    UnprotectionFailed,
-}
-
-// /// All page-related errors.
-// #[derive(Debug, Error)]
-// pub enum PageError {
-//     #[error("failed to create page")]
-//     CreationFailed,
-
-//     #[error("{0}")]
-//     Protection(#[from] PageProtectionError),
-// }
-
 #[derive(Debug, Error)]
 pub enum BufferError {
     #[error("PageError: {0}")]

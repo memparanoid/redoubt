@@ -17,14 +17,6 @@ use crate::page::Page;
 
 #[test]
 #[serial(page)]
-fn test_new_returns_valid_page() {
-    let page = Page::new().expect("Failed to new()");
-    assert!(!page.as_ptr().is_null());
-    assert!(page.capacity() > 0);
-}
-
-#[test]
-#[serial(page)]
 fn test_new_page_is_zeroized() {
     let page = Page::new().expect("Failed to new()");
     let slice = unsafe { page.as_slice() };
@@ -33,10 +25,11 @@ fn test_new_page_is_zeroized() {
 
 #[test]
 #[serial(page)]
-fn test_capacity_matches_page_size() {
+fn test_slice_len_matches_page_size() {
     let page = Page::new().expect("Failed to new()");
     let system_page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
-    assert_eq!(page.capacity(), system_page_size);
+    let slice = unsafe { page.as_slice() };
+    assert_eq!(slice.len(), system_page_size);
 }
 
 #[test]
@@ -283,14 +276,6 @@ mod seccomp_unprotect {
 // =============================================================================
 // as_slice() / as_mut_slice()
 // =============================================================================
-
-#[test]
-#[serial(page)]
-fn test_as_slice_returns_full_capacity() {
-    let page = Page::new().expect("Failed to new()");
-    let slice = unsafe { page.as_slice() };
-    assert_eq!(slice.len(), page.capacity());
-}
 
 #[test]
 #[serial(page)]
