@@ -181,7 +181,7 @@ fn test_to_decode_dyn_mut() {
     let result = dyn_mut.decode_from(&mut buf.as_mut_slice());
 
     assert!(result.is_ok());
-    assert_eq!(decoded.data, 100);
+    assert_eq!(decoded.usize.data, 100);
 }
 
 // bytes_required_sum
@@ -375,8 +375,8 @@ fn test_fields_roundtrip_ok() {
     let result = decode_fields(decode_refs.into_iter(), &mut buf_slice);
 
     assert!(result.is_ok());
-    assert_eq!(decoded1.data, 100);
-    assert_eq!(decoded2.data, 200);
+    assert_eq!(decoded1.usize.data, 100);
+    assert_eq!(decoded2.usize.data, 200);
 
     // Assert buf zeroization after decode!
     #[cfg(feature = "zeroize")]

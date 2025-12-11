@@ -40,13 +40,83 @@ impl Default for TestBreakerBehaviour {
     }
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct Usize {
+    /// Controls error injection behavior.
+    pub behaviour: TestBreakerBehaviour,
+    /// Test data.
+    pub data: usize,
+}
+
+impl Usize {
+    pub fn new(behaviour: TestBreakerBehaviour, data: usize) -> Self {
+        Self { behaviour, data }
+    }
+
+    pub fn set_behaviour(&mut self, behaviour: TestBreakerBehaviour) {
+        self.behaviour = behaviour;
+    }
+}
+
+impl BytesRequired for Usize {
+    fn mem_bytes_required(&self) -> Result<usize, OverflowError> {
+        let fields: [&dyn BytesRequired; 1] = [to_bytes_required_dyn_ref(&self.data)];
+
+        bytes_required_sum(fields.into_iter())
+    }
+}
+
+impl Encode for Usize {
+    fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
+        if self.behaviour == TestBreakerBehaviour::ForceEncodeError {
+            return Err(EncodeError::IntentionalEncodeError);
+        }
+
+        let fields: [&mut dyn EncodeZeroize; 1] = [to_encode_zeroize_dyn_mut(&mut self.data)];
+
+        encode_fields(fields.into_iter(), buf)?;
+
+        Ok(())
+    }
+}
+
+impl Decode for Usize {
+    fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
+        if self.behaviour == TestBreakerBehaviour::ForceDecodeError {
+            return Err(DecodeError::IntentionalDecodeError);
+        }
+
+        let fields: [&mut dyn DecodeZeroize; 1] = [to_decode_zeroize_dyn_mut(&mut self.data)];
+
+        decode_fields(fields.into_iter(), buf)?;
+
+        Ok(())
+    }
+}
+
+impl ZeroizeMetadata for Usize {
+    const CAN_BE_BULK_ZEROIZED: bool = true;
+}
+
+impl FastZeroizable for Usize {
+    fn fast_zeroize(&mut self) {
+        self.data.fast_zeroize();
+    }
+}
+
+impl ZeroizationProbe for Usize {
+    fn is_zeroized(&self) -> bool {
+        self.data.is_zeroized()
+    }
+}
+
 /// Test fixture for error injection and edge case testing in memcodec.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct TestBreaker {
     /// Controls error injection behavior.
     pub behaviour: TestBreakerBehaviour,
     /// Test data.
-    pub data: usize,
+    pub usize: Usize,
     /// Magic data, if tampered, decode will fail
     magic: usize,
 }
@@ -55,7 +125,7 @@ impl Default for TestBreaker {
     fn default() -> Self {
         Self {
             behaviour: TestBreakerBehaviour::None,
-            data: 104729,
+            usize: Usize::new(TestBreakerBehaviour::None, 104729),
             magic: MAGIC,
         }
     }
@@ -66,7 +136,7 @@ impl TestBreaker {
     pub fn new(behaviour: TestBreakerBehaviour, data: usize) -> Self {
         Self {
             behaviour,
-            data,
+            usize: Usize::new(behaviour, data),
             magic: MAGIC,
         }
     }
@@ -75,13 +145,15 @@ impl TestBreaker {
     pub fn with_behaviour(behaviour: TestBreakerBehaviour) -> Self {
         Self {
             behaviour,
-            ..Default::default()
+            usize: Usize::new(behaviour, 104729),
+            magic: MAGIC,
         }
     }
 
     /// Changes the error injection behavior.
     pub fn set_behaviour(&mut self, behaviour: TestBreakerBehaviour) {
         self.behaviour = behaviour;
+        self.usize.set_behaviour(behaviour);
     }
 }
 
@@ -95,7 +167,7 @@ impl BytesRequired for TestBreaker {
             }),
             _ => {
                 let fields: [&dyn BytesRequired; 2] = [
-                    to_bytes_required_dyn_ref(&self.data),
+                    to_bytes_required_dyn_ref(&self.usize),
                     to_bytes_required_dyn_ref(&self.magic),
                 ];
 
@@ -107,28 +179,21 @@ impl BytesRequired for TestBreaker {
 
 impl Encode for TestBreaker {
     fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
-        if self.behaviour == TestBreakerBehaviour::ForceEncodeError {
-            return Err(EncodeError::IntentionalEncodeError);
-        }
-
         let fields: [&mut dyn EncodeZeroize; 2] = [
-            to_encode_zeroize_dyn_mut(&mut self.data),
+            to_encode_zeroize_dyn_mut(&mut self.usize),
             to_encode_zeroize_dyn_mut(&mut self.magic),
         ];
 
         encode_fields(fields.into_iter(), buf)?;
+
         Ok(())
     }
 }
 
 impl Decode for TestBreaker {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-        if self.behaviour == TestBreakerBehaviour::ForceDecodeError {
-            return Err(DecodeError::IntentionalDecodeError);
-        }
-
         let fields: [&mut dyn DecodeZeroize; 2] = [
-            to_decode_zeroize_dyn_mut(&mut self.data),
+            to_decode_zeroize_dyn_mut(&mut self.usize),
             to_decode_zeroize_dyn_mut(&mut self.magic),
         ];
 
@@ -175,12 +240,13 @@ impl ZeroizeMetadata for TestBreaker {
 
 impl FastZeroizable for TestBreaker {
     fn fast_zeroize(&mut self) {
-        self.data.fast_zeroize();
+        self.usize.fast_zeroize();
+        self.magic.fast_zeroize();
     }
 }
 
 impl ZeroizationProbe for TestBreaker {
     fn is_zeroized(&self) -> bool {
-        self.data == 0
+        (self.usize.is_zeroized()) & (self.magic.is_zeroized())
     }
 }

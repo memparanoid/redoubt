@@ -134,7 +134,6 @@ pub fn encode_fields<'a>(
 
         if let Err(e) = field.encode_into(buf) {
             result = Err(e);
-
             #[cfg(feature = "zeroize")]
             {
                 field.fast_zeroize();

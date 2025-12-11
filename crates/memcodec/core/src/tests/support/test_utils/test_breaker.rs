@@ -23,14 +23,14 @@ fn test_behaviour_default() {
 fn test_default() {
     let tb = TestBreaker::default();
     assert_eq!(tb.behaviour, TestBreakerBehaviour::None);
-    assert_eq!(tb.data, 104729);
+    assert_eq!(tb.usize.data, 104729);
 }
 
 #[test]
 fn test_new() {
     let tb = TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 512);
     assert_eq!(tb.behaviour, TestBreakerBehaviour::ForceEncodeError);
-    assert_eq!(tb.data, 512);
+    assert_eq!(tb.usize.data, 512);
 }
 
 #[test]
@@ -47,7 +47,7 @@ fn test_zeroization() {
 fn test_with_behaviour() {
     let tb = TestBreaker::with_behaviour(TestBreakerBehaviour::ForceEncodeError);
     assert_eq!(tb.behaviour, TestBreakerBehaviour::ForceEncodeError);
-    assert_eq!(tb.data, 104729);
+    assert_eq!(tb.usize.data, 104729);
 }
 
 #[test]
@@ -64,7 +64,8 @@ fn test_is_zeroized() {
     let mut tb = TestBreaker::new(TestBreakerBehaviour::None, 100);
     assert!(!tb.is_zeroized());
 
-    tb.data = 0;
+    tb.fast_zeroize();
+
     assert!(tb.is_zeroized());
 }
 
@@ -105,24 +106,39 @@ fn test_force_encode_error() {
 
     let result = tb.encode_into(&mut buf);
     assert!(matches!(result, Err(EncodeError::IntentionalEncodeError)));
+
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(buf.is_zeroized());
+    }
 }
 
 // Decode
 
 #[test]
 fn test_force_decode_error() {
-    // First encode a valid TestBreaker
     let mut tb = TestBreaker::new(TestBreakerBehaviour::None, 100);
     let bytes_required = tb
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
+
     let mut buf = CodecBuffer::new(bytes_required);
     tb.encode_into(&mut buf).expect("Failed to encode_into(..)");
 
-    // Now try to decode with ForceDecodeError
+    let mut decode_buf = buf.to_vec();
     let mut tb_decode = TestBreaker::with_behaviour(TestBreakerBehaviour::ForceDecodeError);
-    let result = tb_decode.decode_from(&mut buf.as_mut_slice());
+    let result = tb_decode.decode_from(&mut decode_buf.as_mut_slice());
+
+    assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
+
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
+    }
 }
 
 // Roundtrip (Encode + Decode)
@@ -130,7 +146,7 @@ fn test_force_decode_error() {
 #[test]
 fn test_roundtrip() {
     let mut original = TestBreaker::new(TestBreakerBehaviour::None, 256);
-    let original_data = original.data;
+    let original_usize = original.usize;
 
     let bytes_required = original
         .mem_bytes_required()
@@ -145,7 +161,7 @@ fn test_roundtrip() {
         .decode_from(&mut buf.as_mut_slice())
         .expect("Failed to decode_from(..)");
 
-    assert_eq!(decoded.data, original_data);
+    assert_eq!(decoded.usize, original_usize);
 }
 
 // EncodeSlice
@@ -188,12 +204,12 @@ fn test_zero_init_is_false() {
 #[test]
 fn test_prealloc() {
     let mut tb = TestBreaker::default();
-    assert_eq!(tb.data, 104729);
+    assert_eq!(tb.usize.data, 104729);
 
     // PreAlloc is no-op for TestBreaker (ZERO_INIT = false)
     tb.prealloc(999);
 
     // Data should remain unchanged
-    assert_eq!(tb.data, 104729);
+    assert_eq!(tb.usize.data, 104729);
     assert_eq!(tb.behaviour, TestBreakerBehaviour::None);
 }

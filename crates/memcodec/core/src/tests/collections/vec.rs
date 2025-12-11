@@ -384,7 +384,7 @@ fn test_vec_prealloc_zero_init_false() {
     vec_prealloc(&mut vec, 5, false);
 
     assert_eq!(vec.len(), 5);
-    assert!(vec.iter().all(|tb| tb.data == 104729)); // Default value
+    assert!(vec.iter().all(|tb| tb.usize.data == 104729)); // Default value
 }
 
 #[test]
