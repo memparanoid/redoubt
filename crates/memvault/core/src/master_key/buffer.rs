@@ -12,7 +12,7 @@ use membuffer::{Buffer, BufferError, PortableBuffer};
 use memrand::{EntropySource, SystemEntropySource};
 
 #[cfg(all(unix, not(target_os = "wasi")))]
-use membuffer::{ProtectedBuffer, ProtectionStrategy};
+use membuffer::{PageBuffer, ProtectionStrategy};
 
 use super::consts::MASTER_KEY_LEN;
 
@@ -29,7 +29,7 @@ pub fn create_buffer(is_guarded: bool) -> Box<dyn Buffer> {
         ProtectionStrategy::MemProtected
     };
 
-    match ProtectedBuffer::try_create(strategy, MASTER_KEY_LEN) {
+    match PageBuffer::new(strategy, MASTER_KEY_LEN) {
         Ok(buffer) => Box::new(buffer),
         Err(_) => Box::new(PortableBuffer::create(MASTER_KEY_LEN)),
     }
