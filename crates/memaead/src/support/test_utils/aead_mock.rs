@@ -13,10 +13,9 @@ use crate::xchacha20poly1305::XChacha20Poly1305;
 use crate::xchacha20poly1305::{KEY_SIZE, TAG_SIZE, XNONCE_SIZE};
 
 /// Mock failure behaviour.
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AeadMockBehaviour {
     /// No failure.
-    #[default]
     None,
     /// Fail encrypt at call index (0-indexed).
     FailEncryptAt(usize),
@@ -27,7 +26,6 @@ pub enum AeadMockBehaviour {
 }
 
 /// Mock AEAD backed by real XChaCha20-Poly1305.
-#[derive(Default)]
 pub struct AeadMock {
     backend: XChacha20Poly1305<SystemEntropySource>,
     behaviour: AeadMockBehaviour,
