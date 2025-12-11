@@ -7,6 +7,7 @@ mod bench;
 
 mod codec_buffer;
 mod collections;
+mod decode_buffer;
 mod error;
 mod primitives;
 mod support;
