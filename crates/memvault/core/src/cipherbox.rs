@@ -242,7 +242,7 @@ where
                 return err;
             })?;
 
-        self.ciphertexts[M] = self.tmp_field_codec_buff.to_vec();
+        self.ciphertexts[M] = self.tmp_field_codec_buff.export_as_vec();
         self.nonces[M] = self.aead.api_generate_nonce().map_err(|err| {
             self.ciphertexts[M].fast_zeroize();
             return err;

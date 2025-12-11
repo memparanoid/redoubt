@@ -68,7 +68,7 @@ fn try_encrypt_into_buffers<const N: usize>(
         );
     }
 
-    let mut ciphertexts: [Vec<u8>; N] = core::array::from_fn(|i| buffers[i].to_vec());
+    let mut ciphertexts: [Vec<u8>; N] = core::array::from_fn(|i| buffers[i].export_as_vec());
 
     for (idx, plaintext) in ciphertexts.iter_mut().enumerate() {
         nonces[idx] = aead.api_generate_nonce()?;

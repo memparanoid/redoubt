@@ -160,7 +160,7 @@ fn test_codec_buffer_to_vec() {
     slice[3] = 0xDD;
     slice[4] = 0xEE;
 
-    let vec = buf.to_vec();
+    let vec = buf.export_as_vec();
 
     assert_eq!(vec, vec![0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0x00]);
     assert!(buf.is_zeroized());

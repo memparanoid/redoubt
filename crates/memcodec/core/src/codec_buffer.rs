@@ -171,8 +171,30 @@ impl CodecBuffer {
         Ok(())
     }
 
+    /// Exports the buffer contents as a `Vec<u8>` and zeroizes the internal buffer.
+    ///
+    /// This method creates a new `Vec` containing a copy of the buffer's data,
+    /// then immediately zeroizes the internal buffer. The zeroization ensures
+    /// that sensitive data is cleared from the `CodecBuffer` after export,
+    /// preventing potential memory leaks of plaintext data.
+    ///
+    /// # Security
+    ///
+    /// The zeroization happens **after** copying the data to the returned `Vec`,
+    /// ensuring the internal buffer is always cleaned up when data is exported.
+    /// This is crucial when the `CodecBuffer` contains sensitive plaintext that
+    /// should not remain in memory after encoding is complete.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let mut buf = CodecBuffer::new(10);
+    /// buf.write_usize(&42).unwrap();
+    /// let exported = buf.export_as_vec();
+    /// // buf is now zeroized, exported contains the data
+    /// ```
     #[inline(always)]
-    pub fn to_vec(&mut self) -> Vec<u8> {
+    pub fn export_as_vec(&mut self) -> Vec<u8> {
         let vec = self.as_slice().to_vec();
         self.fast_zeroize();
         vec

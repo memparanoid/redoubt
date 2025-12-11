@@ -126,7 +126,7 @@ fn test_force_decode_error() {
     let mut buf = CodecBuffer::new(bytes_required);
     tb.encode_into(&mut buf).expect("Failed to encode_into(..)");
 
-    let mut decode_buf = buf.to_vec();
+    let mut decode_buf = buf.export_as_vec();
     let mut tb_decode = TestBreaker::with_behaviour(TestBreakerBehaviour::ForceDecodeError);
     let result = tb_decode.decode_from(&mut decode_buf.as_mut_slice());
 
