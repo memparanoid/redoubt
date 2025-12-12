@@ -10,16 +10,16 @@ use thiserror::Error;
 #[repr(u8)]
 pub enum PageError {
     #[error("mmap failed")]
-    CreationFailed = 0,
+    Create = 0,
 
     #[error("mlock failed")]
-    LockFailed = 1,
+    Lock = 1,
 
     #[error("mprotect(PROT_NONE) failed")]
-    ProtectionFailed = 2,
+    Protect = 2,
 
     #[error("mprotect(PROT_WRITE) failed")]
-    UnprotectionFailed = 3,
+    Unprotect = 3,
 }
 
 #[derive(Debug, Error)]

@@ -5,7 +5,7 @@
 use core::mem::size_of;
 
 use crate::error::EntropyError;
-use crate::session::{COUNTER, NonceSessionGenerator};
+use crate::session::{Counter, NonceSessionGenerator};
 use crate::support::test_utils::{MockEntropySource, MockEntropySourceBehaviour};
 use crate::traits::NonceGenerator;
 
@@ -20,7 +20,7 @@ fn test_nonce_session_generator_counter_increments() {
             .generate_nonce()
             .expect("Failed to generate_nonce() (#0)");
         // Counter part (first bytes) should increment
-        let counter = COUNTER::from_le_bytes(nonce[0..size_of::<COUNTER>()].try_into().unwrap());
+        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into().unwrap());
 
         assert_eq!(counter, 0);
     }
@@ -31,7 +31,7 @@ fn test_nonce_session_generator_counter_increments() {
             .generate_nonce()
             .expect("Failed to generate_nonce() (#1)");
         // Counter part (first bytes) should increment
-        let counter = COUNTER::from_le_bytes(nonce[0..size_of::<COUNTER>()].try_into().unwrap());
+        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into().unwrap());
 
         assert_eq!(counter, 1);
     }
@@ -42,7 +42,7 @@ fn test_nonce_session_generator_counter_increments() {
             .generate_nonce()
             .expect("Failed to generate_nonce() (#2)");
         // Counter part (first bytes) should increment
-        let counter = COUNTER::from_le_bytes(nonce[0..size_of::<COUNTER>()].try_into().unwrap());
+        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into().unwrap());
 
         assert_eq!(counter, 2);
     }
@@ -53,29 +53,29 @@ fn test_nonce_session_generator_counter_wraps() {
     let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
     let mut session = NonceSessionGenerator::<_, 16>::new(entropy);
 
-    // Set counter to COUNTER::MAX - 1
-    session.set_counter_for_test(COUNTER::MAX - 1);
+    // Set counter to Counter::MAX - 1
+    session.set_counter_for_test(Counter::MAX - 1);
 
-    // Counter at: COUNTER::MAX - 1
+    // Counter at: Counter::MAX - 1
     {
         let nonce = session
             .generate_nonce()
             .expect("Failed to generate_nonce() (#0)");
         // Counter part (first bytes) should increment
-        let counter = COUNTER::from_le_bytes(nonce[0..size_of::<COUNTER>()].try_into().unwrap());
+        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into().unwrap());
 
-        assert_eq!(counter, COUNTER::MAX - 1);
+        assert_eq!(counter, Counter::MAX - 1);
     }
 
-    // Counter at: COUNTER::MAX
+    // Counter at: Counter::MAX
     {
         let nonce = session
             .generate_nonce()
             .expect("Failed to generate_nonce() (#1)");
         // Counter part (first bytes) should increment
-        let counter = COUNTER::from_le_bytes(nonce[0..size_of::<COUNTER>()].try_into().unwrap());
+        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into().unwrap());
 
-        assert_eq!(counter, COUNTER::MAX);
+        assert_eq!(counter, Counter::MAX);
     }
 
     // Counter at: 0 (wrapped)
@@ -84,7 +84,7 @@ fn test_nonce_session_generator_counter_wraps() {
             .generate_nonce()
             .expect("Failed to generate_nonce() (#2)");
         // Counter part (first bytes) should increment
-        let counter = COUNTER::from_le_bytes(nonce[0..size_of::<COUNTER>()].try_into().unwrap());
+        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into().unwrap());
 
         assert_eq!(counter, 0);
     }

@@ -5,6 +5,7 @@
 use crate::traits::PreAlloc;
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn test_zero_init_is_true() {
     assert!(u8::ZERO_INIT);
     assert!(u16::ZERO_INIT);

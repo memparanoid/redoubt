@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 //! Tests for AeadMock.
+use memzer::ZeroizationProbe;
 
 use crate::error::AeadError;
 use crate::support::test_utils::{AeadMock, AeadMockBehaviour};
@@ -83,22 +84,40 @@ fn test_decrypt_fails_at_index() {
     let mut mock = AeadMock::new(AeadMockBehaviour::FailDecryptAt(1));
     let key = [0u8; AeadMock::KEY_SIZE];
     let nonce = [0u8; AeadMock::NONCE_SIZE];
-    let original = [1u8, 2, 3, 4];
-    let mut data = original;
+    let data = [1u8, 2, 3, 4];
     let mut tag = [0u8; AeadMock::TAG_SIZE];
 
-    mock.encrypt(&key, &nonce, &[], &mut data, &mut tag)
+    let mut original_ciphertext = data;
+    mock.encrypt(&key, &nonce, &[], &mut original_ciphertext, &mut tag)
         .expect("Failed to encrypt(..)");
-    let ciphertext = data;
 
-    data = ciphertext;
-    assert!(mock.decrypt(&key, &nonce, &[], &mut data, &tag).is_ok());
+    let mut ciphertext = [0u8; 4];
+    assert!(ciphertext.is_zeroized());
 
-    data = ciphertext;
-    assert!(mock.decrypt(&key, &nonce, &[], &mut data, &tag).is_err());
+    // Call 0
+    ciphertext = original_ciphertext;
+    assert!(!ciphertext.is_zeroized());
+    assert!(
+        mock.decrypt(&key, &nonce, &[], &mut ciphertext, &tag)
+            .is_ok()
+    );
 
-    data = ciphertext;
-    assert!(mock.decrypt(&key, &nonce, &[], &mut data, &tag).is_ok());
+    // Call 1
+    // Should fail because of FailDecryptAt 1.
+    ciphertext = original_ciphertext;
+    assert!(!ciphertext.is_zeroized());
+    assert!(
+        mock.decrypt(&key, &nonce, &[], &mut ciphertext, &tag)
+            .is_err()
+    );
+
+    // Call 2
+    ciphertext = original_ciphertext;
+    assert!(!ciphertext.is_zeroized());
+    assert!(
+        mock.decrypt(&key, &nonce, &[], &mut ciphertext, &tag)
+            .is_ok()
+    );
 }
 
 // =============================================================================

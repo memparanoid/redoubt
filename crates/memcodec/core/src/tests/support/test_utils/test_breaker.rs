@@ -197,6 +197,7 @@ fn test_decode_slice_error() {
 // PreAlloc
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn test_zero_init_is_false() {
     assert!(!TestBreaker::ZERO_INIT);
 }

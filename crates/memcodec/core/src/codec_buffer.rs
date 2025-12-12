@@ -134,6 +134,11 @@ impl CodecBuffer {
     }
 
     #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    #[inline(always)]
     pub fn write<T>(&mut self, src: &mut T) -> Result<(), CodecBufferError> {
         let len = core::mem::size_of::<T>();
 

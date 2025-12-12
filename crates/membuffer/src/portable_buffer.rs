@@ -25,12 +25,7 @@ pub struct PortableBuffer {
 
 impl PortableBuffer {
     pub fn create(len: usize) -> Self {
-        let mut inner = Vec::with_capacity(len);
-        // Safety: we just allocated this capacity, setting len to capacity
-        // leaves uninitialized memory but open_mut will handle it
-        unsafe {
-            inner.set_len(len);
-        }
+        let inner = alloc::vec![0u8; len];
 
         Self {
             inner,

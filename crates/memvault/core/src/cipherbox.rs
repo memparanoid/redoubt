@@ -84,14 +84,12 @@ where
         let tag_size = aead.api_tag_size();
 
         let nonces: [Vec<u8>; N] = core::array::from_fn(|_| {
-            let mut nonce = Vec::with_capacity(nonce_size);
-            nonce.resize(nonce_size, 0u8);
+            let nonce = vec![0; nonce_size];
             nonce
         });
 
         let tags: [Vec<u8>; N] = core::array::from_fn(|_| {
-            let mut tag = Vec::with_capacity(tag_size);
-            tag.resize(tag_size, 0u8);
+            let tag = vec![0; tag_size];
             tag
         });
 
@@ -133,7 +131,7 @@ where
             }
             Err(_) => {
                 self.healthy = false;
-                return Err(CipherBoxError::Poisoned);
+                Err(CipherBoxError::Poisoned)
             }
         }
     }
@@ -153,7 +151,7 @@ where
             Ok(_) => Ok(value),
             Err(_) => {
                 self.healthy = false;
-                return Err(CipherBoxError::Poisoned);
+                Err(CipherBoxError::Poisoned)
             }
         }
     }
@@ -167,7 +165,7 @@ where
 
         let master_key = leak_master_key(self.key_size).map_err(|_| {
             self.healthy = false;
-            return CipherBoxError::Poisoned;
+            CipherBoxError::Poisoned
         })?;
         let mut value = ZeroizingGuard::new(T::default());
 
@@ -191,7 +189,7 @@ where
         self.aead.api_decrypt(
             aead_key,
             &self.nonces[M],
-            &AAD,
+            AAD,
             &mut self.tmp_field_cyphertext,
             &self.tags[M],
         )?;
@@ -237,27 +235,24 @@ where
 
         field
             .encode_into(&mut self.tmp_field_codec_buff)
-            .map_err(|err| {
+            .inspect_err(|_| {
                 self.tmp_field_codec_buff.fast_zeroize();
-                return err;
             })?;
 
         self.ciphertexts[M] = self.tmp_field_codec_buff.export_as_vec();
-        self.nonces[M] = self.aead.api_generate_nonce().map_err(|err| {
+        self.nonces[M] = self.aead.api_generate_nonce().inspect_err(|_| {
             self.ciphertexts[M].fast_zeroize();
-            return err;
         })?;
         self.aead
             .api_encrypt(
                 aead_key,
                 &self.nonces[M],
-                &AAD,
+                AAD,
                 &mut self.ciphertexts[M],
                 &mut self.tags[M],
             )
-            .map_err(|err| {
+            .inspect_err(|_| {
                 self.ciphertexts[M].fast_zeroize();
-                return err;
             })?;
 
         Ok(())
@@ -280,7 +275,7 @@ where
             Err(CipherBoxError::Entropy(err)) => Err(CipherBoxError::Entropy(err)),
             _ => {
                 self.healthy = false;
-                return Err(CipherBoxError::Poisoned);
+                Err(CipherBoxError::Poisoned)
             }
         }
     }
@@ -292,7 +287,7 @@ where
 
         let master_key = leak_master_key(self.key_size).map_err(|_| {
             self.healthy = false;
-            return CipherBoxError::Poisoned;
+            CipherBoxError::Poisoned
         })?;
         let mut value = self.decrypt_struct(&master_key)?;
 
@@ -310,7 +305,7 @@ where
 
         let master_key = leak_master_key(self.key_size).map_err(|_| {
             self.healthy = false;
-            return CipherBoxError::Poisoned;
+            CipherBoxError::Poisoned
         })?;
         let mut value = self.decrypt_struct(&master_key)?;
 
@@ -334,7 +329,7 @@ where
 
         let master_key = leak_master_key(self.key_size).map_err(|_| {
             self.healthy = false;
-            return CipherBoxError::Poisoned;
+            CipherBoxError::Poisoned
         })?;
         let mut field = ZeroizingGuard::new(Field::default());
 
@@ -357,7 +352,7 @@ where
 
         let master_key = leak_master_key(self.key_size).map_err(|_| {
             self.healthy = false;
-            return CipherBoxError::Poisoned;
+            CipherBoxError::Poisoned
         })?;
         let mut field = ZeroizingGuard::new(Field::default());
 
@@ -417,7 +412,7 @@ where
 
         let master_key = leak_master_key(self.key_size).map_err(|_| {
             self.healthy = false;
-            return CipherBoxError::Poisoned;
+            CipherBoxError::Poisoned
         })?;
         let mut field = ZeroizingGuard::new(Field::default());
 

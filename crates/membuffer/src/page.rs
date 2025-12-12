@@ -45,7 +45,7 @@ impl Page {
         };
 
         if ptr == libc::MAP_FAILED {
-            return Err(PageError::CreationFailed);
+            return Err(PageError::Create);
         }
 
         let mut page = Self {
@@ -64,7 +64,7 @@ impl Page {
         let failed = unsafe { libc::mlock(self.ptr as *const _, self.capacity) } != 0;
 
         if failed {
-            return Err(PageError::LockFailed);
+            return Err(PageError::Lock);
         }
 
         Ok(())
@@ -76,7 +76,7 @@ impl Page {
             unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_NONE) } != 0;
 
         if failed {
-            return Err(PageError::ProtectionFailed);
+            return Err(PageError::Protect);
         }
 
         self.is_protected.store(true, Ordering::Release);
@@ -90,7 +90,7 @@ impl Page {
             unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_WRITE) } != 0;
 
         if failed {
-            return Err(PageError::UnprotectionFailed);
+            return Err(PageError::Unprotect);
         }
 
         self.is_protected.store(false, Ordering::Release);

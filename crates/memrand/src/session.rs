@@ -6,11 +6,11 @@ use core::mem::size_of;
 
 use crate::traits::{EntropySource, NonceGenerator};
 
-pub(crate) type COUNTER = u32;
+pub(crate) type Counter = u32;
 /// Session-based nonce generator with configurable nonce size.
 ///
 /// Generates unique nonces using a hybrid approach:
-/// - **Counter prefix**: Incrementing session counter (type `COUNTER`) with automatic wrapping
+/// - **Counter prefix**: Incrementing session counter (type `Counter`) with automatic wrapping
 /// - **Random suffix**: Remaining bytes filled with cryptographically secure random data
 ///
 /// # Collision resistance
@@ -20,8 +20,10 @@ pub(crate) type COUNTER = u32;
 /// 2. The random suffix must coincidentally repeat
 ///
 /// Even after counter wrapping, the random suffix provides collision resistance.
+///
 /// For a 16-byte nonce with 4-byte counter (12 random bytes):
 /// - Collision probability after wrapping: ~1/2^96 per nonce pair
+///
 /// For a 24-byte nonce with 4-byte counter (20 random bytes):
 /// - Collision probability after wrapping: ~1/2^160 per nonce pair
 ///
@@ -37,7 +39,7 @@ pub(crate) type COUNTER = u32;
 /// ```
 pub struct NonceSessionGenerator<E: EntropySource, const NONCE_SIZE: usize> {
     entropy: E,
-    counter: COUNTER,
+    counter: Counter,
 }
 
 impl<E: EntropySource, const NONCE_SIZE: usize> NonceSessionGenerator<E, NONCE_SIZE> {
@@ -54,7 +56,7 @@ impl<E: EntropySource, const NONCE_SIZE: usize> NonceSessionGenerator<E, NONCE_S
     }
 
     #[cfg(test)]
-    pub(crate) fn set_counter_for_test(&mut self, counter: COUNTER) {
+    pub(crate) fn set_counter_for_test(&mut self, counter: Counter) {
         self.counter = counter;
     }
 }
@@ -65,11 +67,11 @@ impl<E: EntropySource, const NONCE_SIZE: usize> NonceGenerator<NONCE_SIZE>
     fn generate_nonce(&mut self) -> Result<[u8; NONCE_SIZE], crate::EntropyError> {
         let mut nonce = [0u8; NONCE_SIZE];
         // First part: counter
-        nonce[..size_of::<COUNTER>()].copy_from_slice(&self.counter.to_le_bytes());
+        nonce[..size_of::<Counter>()].copy_from_slice(&self.counter.to_le_bytes());
 
         // Second part: fill remaining bytes with random
         self.entropy
-            .fill_bytes(&mut nonce[size_of::<COUNTER>()..])?;
+            .fill_bytes(&mut nonce[size_of::<Counter>()..])?;
 
         self.counter = self.counter.wrapping_add(1);
 

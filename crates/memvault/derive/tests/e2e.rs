@@ -11,7 +11,8 @@ mod tests {
     #[cipherbox(WalletSecretsCipherBox)]
     #[derive(MemZer, Codec)]
     #[memzer(drop)]
-    struct WalletSecrets {
+    #[derive(Default)]
+struct WalletSecrets {
         master_seed: [u8; 32],
         encryption_key: [u8; 32],
         signing_key: [u8; 32],
@@ -20,17 +21,7 @@ mod tests {
         __drop_sentinel: DropSentinel,
     }
 
-    impl Default for WalletSecrets {
-        fn default() -> Self {
-            Self {
-                master_seed: [0u8; 32],
-                encryption_key: [0u8; 32],
-                signing_key: [0u8; 32],
-                pin_hash: [0u8; 32],
-                __drop_sentinel: DropSentinel::default(),
-            }
-        }
-    }
+    
 
     #[test]
     fn test_cipherbox_wrapper_new() {

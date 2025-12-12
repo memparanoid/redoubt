@@ -3,22 +3,6 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(target_os = "linux")]
-pub fn block_prctl_syscalls() {
-    use libseccomp::{ScmpAction, ScmpFilterContext, ScmpSyscall};
-
-    let mut filter = ScmpFilterContext::new(ScmpAction::Allow).expect("Failed to create filter");
-
-    filter
-        .add_rule(
-            ScmpAction::Errno(libc::EPERM),
-            ScmpSyscall::from_name("prctl").unwrap(),
-        )
-        .expect("Failed to add rule");
-
-    filter.load().expect("Failed to load seccomp filter");
-}
-
-#[cfg(target_os = "linux")]
 pub fn block_mem_syscalls() {
     use libseccomp::{ScmpAction, ScmpFilterContext, ScmpSyscall};
 

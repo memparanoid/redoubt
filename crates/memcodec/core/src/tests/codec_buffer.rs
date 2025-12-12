@@ -69,9 +69,7 @@ fn test_codec_buffer_clear() {
 
     // Write data
     let slice = buf.as_mut_slice();
-    for i in 0..capacity {
-        slice[i] = 0xFF;
-    }
+    slice.fill(0xFF);
 
     // Verify data is written
     assert!(buf.as_slice().iter().all(|&b| b == 0xFF));
@@ -145,6 +143,15 @@ fn test_codec_buffer_len() {
 
     let buf_large = CodecBuffer::new(1024);
     assert_eq!(buf_large.len(), 1024);
+}
+
+#[test]
+fn test_codec_buffer_is_empty() {
+    let buf_empty = CodecBuffer::new(0);
+    assert!(buf_empty.is_empty());
+
+    let buf_non_empty = CodecBuffer::new(10);
+    assert!(!buf_non_empty.is_empty());
 }
 
 #[test]

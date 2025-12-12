@@ -49,9 +49,9 @@ command = "cargo"
 #        cargo make lint -- -p membuffer     (runs on specific package)
 script  = '''
 if [ -z "$1" ]; then
-  cargo clippy --workspace --all-targets -- -W warnings
+  cargo clippy --workspace --all-targets -- -D warnings
 else
-  cargo clippy "$@" --all-targets -- -W warnings
+  cargo clippy "$@" --all-targets -- -D warnings
 fi
 '''
 

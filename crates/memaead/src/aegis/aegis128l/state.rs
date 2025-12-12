@@ -468,6 +468,7 @@ pub unsafe fn decrypt(
 /// Updates state in-place using mutable references.
 /// All intermediate values are explicitly zeroized.
 #[inline(always)]
+#[allow(clippy::too_many_arguments)]
 fn update(
     s0: &mut Intrinsics,
     s1: &mut Intrinsics,

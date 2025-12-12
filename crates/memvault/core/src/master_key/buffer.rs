@@ -47,7 +47,7 @@ pub fn create_initialized_buffer() -> Box<dyn Buffer> {
         .open_mut(&mut |bytes| {
             SystemEntropySource {}
                 .fill_bytes(bytes)
-                .map_err(|e| BufferError::callback_error(e))?;
+                .map_err(BufferError::callback_error)?;
             Ok(())
         })
         .expect("CRITICAL: EntropySource not available");

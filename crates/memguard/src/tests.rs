@@ -46,7 +46,7 @@ mod linux {
 
         // Block prctl syscall
         let mut filter =
-            ScmpFilterContext::new_filter(ScmpAction::Allow).expect("Failed to create filter");
+            ScmpFilterContext::new(ScmpAction::Allow).expect("Failed to create filter");
         filter
             .add_rule(
                 ScmpAction::Errno(libc::EPERM),

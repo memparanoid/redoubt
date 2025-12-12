@@ -187,7 +187,7 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encode_failure() {
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
         let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
-        let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(|s| CodecBuffer::new(s));
+        let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(CodecBuffer::new);
         let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
 
         // Re-create fields after get_sizes consumed them.
@@ -244,7 +244,7 @@ fn test_encrypt_into_buffers_performs_zeroization_on_generate_nonce_failure() {
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
         let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
-        let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(|s| CodecBuffer::new(s));
+        let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(CodecBuffer::new);
         let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
         let fields = test_breakers
             .each_mut()
@@ -299,7 +299,7 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encrypt_failure() {
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
         let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
-        let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(|s| CodecBuffer::new(s));
+        let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(CodecBuffer::new);
         let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
         let fields = test_breakers
             .each_mut()
@@ -350,7 +350,7 @@ fn test_encrypt_into_buffers_ok() {
         .each_mut()
         .map(|tb| to_encryptable_mut_dyn(tb));
     let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
-    let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(|s| CodecBuffer::new(s));
+    let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(CodecBuffer::new);
     let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
     let mut nonces = create_nonces(&aead);
     let mut tags = create_tags(&aead);

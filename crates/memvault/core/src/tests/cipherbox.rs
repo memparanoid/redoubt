@@ -17,8 +17,6 @@ use crate::master_key::consts::MASTER_KEY_LEN;
 use crate::traits::{CipherBoxDyns, DecryptStruct, Decryptable, EncryptStruct, Encryptable};
 
 use super::consts::NUM_FIELDS;
-#[cfg(target_os = "linux")]
-use super::utils::{block_mem_syscalls, block_prctl_syscalls, run_test_as_subprocess};
 
 #[derive(Codec, MemZer)]
 #[memzer(drop)]

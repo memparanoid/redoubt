@@ -50,7 +50,7 @@ fn test_new_fails_when_address_space_exhausted() {
     unsafe { libc::setrlimit(libc::RLIMIT_AS, &tiny) };
 
     let result = Page::new();
-    assert!(matches!(result, Err(PageError::CreationFailed)));
+    assert!(matches!(result, Err(PageError::Create)));
 
     unsafe { libc::setrlimit(libc::RLIMIT_AS, &original) };
 }
@@ -105,7 +105,7 @@ mod seccomp_lock {
         block_mlock();
 
         let result = page.lock();
-        assert!(matches!(result, Err(PageError::LockFailed)));
+        assert!(matches!(result, Err(PageError::Lock)));
     }
 
     #[test]
@@ -188,7 +188,7 @@ mod seccomp_protect {
         block_mprotect();
 
         let result = page.protect();
-        assert!(matches!(result, Err(PageError::ProtectionFailed)));
+        assert!(matches!(result, Err(PageError::Protect)));
     }
 
     #[test]
@@ -218,7 +218,7 @@ mod seccomp_protect {
         block_mprotect();
 
         let result = page.protect();
-        assert!(matches!(result, Err(PageError::ProtectionFailed)));
+        assert!(matches!(result, Err(PageError::Protect)));
 
         // Page should be zeroized by dispose()
         // Note: dispose() also unmaps, so we can't check directly
@@ -272,13 +272,13 @@ mod seccomp_unprotect {
     #[test]
     #[ignore]
     fn subprocess_test_unprotect_fails_when_mprotect_blocked() {
-        let mut page = Page::new().expect("Failed to new()");
+        let page = Page::new().expect("Failed to new()");
 
         page.protect().expect("Failed to protect()");
         block_mprotect();
 
         let result = page.unprotect();
-        assert!(matches!(result, Err(PageError::UnprotectionFailed)));
+        assert!(matches!(result, Err(PageError::Unprotect)));
     }
 
     #[test]

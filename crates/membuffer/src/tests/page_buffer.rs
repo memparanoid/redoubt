@@ -46,7 +46,7 @@ fn test_new_returns_creation_failed() {
     unsafe { libc::setrlimit(libc::RLIMIT_AS, &tiny) };
 
     let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
-    assert!(matches!(result, Err(PageError::CreationFailed)));
+    assert!(matches!(result, Err(PageError::Create)));
 
     unsafe { libc::setrlimit(libc::RLIMIT_AS, &original) };
 }
@@ -62,7 +62,7 @@ mod seccomp_new {
     fn subprocess_test_new_returns_lock_failed() {
         block_mlock();
         let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
-        assert!(matches!(result, Err(PageError::LockFailed)));
+        assert!(matches!(result, Err(PageError::Lock)));
     }
 
     #[test]
@@ -83,7 +83,7 @@ mod seccomp_new {
     fn subprocess_test_new_returns_protection_failed() {
         block_mprotect();
         let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
-        assert!(matches!(result, Err(PageError::ProtectionFailed)));
+        assert!(matches!(result, Err(PageError::Protect)));
     }
 
     #[test]
@@ -338,7 +338,7 @@ fn test_is_empty_false() {
 #[test]
 #[serial(page_buffer)]
 fn test_is_empty_true() {
-    let mut buffer =
+    let buffer =
         PageBuffer::new(ProtectionStrategy::MemProtected, 0).expect("Failed to new(..)");
     assert!(buffer.is_empty());
 }

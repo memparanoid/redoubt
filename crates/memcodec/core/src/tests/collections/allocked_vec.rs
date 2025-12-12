@@ -433,6 +433,7 @@ fn perm_test_allocked_vec_encode_decode_roundtrip() {
 // PreAlloc
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn test_allocked_vec_zero_init_is_false() {
     assert!(!<AllockedVec<TestBreaker> as PreAlloc>::ZERO_INIT);
 }

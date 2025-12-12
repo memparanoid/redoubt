@@ -388,6 +388,7 @@ fn test_vec_prealloc_zero_init_false() {
 }
 
 #[test]
+#[allow(clippy::assertions_on_constants)]
 fn test_vec_zero_init_is_false() {
     use crate::traits::PreAlloc;
     assert!(!<Vec<TestBreaker> as PreAlloc>::ZERO_INIT);

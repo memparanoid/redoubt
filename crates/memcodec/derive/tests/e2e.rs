@@ -99,7 +99,7 @@ mod tests {
 
         // Decode
         let mut decode_buf = buf.as_mut_slice();
-        let mut recovered = EmptyStruct::default();
+        let mut recovered = EmptyStruct;
         recovered
             .decode_from(&mut decode_buf)
             .expect("Failed to decode_from(..)");

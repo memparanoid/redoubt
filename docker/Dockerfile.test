@@ -8,10 +8,13 @@ RUN apk add --no-cache \
   libseccomp-dev \
   libseccomp-static
 
+# Install cargo-make for linting
+RUN cargo install cargo-make
+
 WORKDIR /workspace
 
-# Copy workspace Cargo.toml and Cargo.lock
-COPY Cargo.toml Cargo.lock ./
+# Copy workspace Cargo.toml, Cargo.lock, and Makefile.toml
+COPY Cargo.toml Cargo.lock Makefile.toml ./
 
 # Copy all crate Cargo.toml files
 COPY crates/memguard/Cargo.toml ./crates/memguard/

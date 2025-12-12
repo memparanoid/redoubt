@@ -43,7 +43,7 @@ pub fn encrypt_into<const N: usize>(
     tags: &mut [Vec<u8>; N],
 ) -> Result<[Vec<u8>; N], CipherBoxError> {
     let sizes = get_sizes(&fields)?;
-    let mut buffers: [CodecBuffer; N] = sizes.map(|s| CodecBuffer::new(s));
+    let mut buffers: [CodecBuffer; N] = sizes.map(CodecBuffer::new);
     let mut ciphertexts: [Vec<u8>; N] = core::array::from_fn(|_| vec![]);
 
     encrypt_into_buffers(
@@ -86,7 +86,7 @@ fn try_encrypt_into_buffers<const N: usize>(
         aead.api_encrypt(
             aead_key,
             &nonces[idx],
-            &AAD,
+            AAD,
             &mut ciphertexts[idx],
             &mut tags[idx],
         )?;
@@ -131,7 +131,7 @@ fn try_decrypt_from<const N: usize>(
         let tag = &tags[idx];
         let ciphertext = &mut ciphertexts[idx];
 
-        aead.api_decrypt(aead_key, nonce, &AAD, ciphertext, tag)?;
+        aead.api_decrypt(aead_key, nonce, AAD, ciphertext, tag)?;
         field.decode_from(&mut ciphertext.as_mut_slice())?;
     }
 
