@@ -14,15 +14,18 @@ pub mod storage;
 use consts::MASTER_KEY_LEN;
 
 pub fn leak_master_key(truncate_at: usize) -> Result<ZeroizingGuard<Vec<u8>>, BufferError> {
-    let mut master_key = vec![];
+    let mut master_key = vec![0u8; truncate_at];
+
     storage::open(&mut |mk| {
+        // NOTE: Validation is inside the closure (not before vec allocation) for test coverage.
+        // The `?` operator needs to be covered, and having it only inside the closure ensures
+        // it can be tested. In practice, truncate_at is always 16 or 32 bytes (never fails).
         if truncate_at > MASTER_KEY_LEN {
             return Err(BufferError::callback_error(
-                "truncate_at must tle than MASTER_KEY_LEN",
+                "truncate_at must be less than MASTER_KEY_LEN",
             ));
         }
 
-        master_key.resize_with(truncate_at, || 0u8);
         master_key.copy_from_slice(&mk[..truncate_at]);
         Ok(())
     })?;
