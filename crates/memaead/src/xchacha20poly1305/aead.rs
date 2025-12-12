@@ -10,7 +10,7 @@ use memrand::{
     EntropyError, EntropySource, NonceGenerator, NonceSessionGenerator, SystemEntropySource,
 };
 use memutil::{constant_time_eq, u64_to_le};
-use memzer::{DropSentinel, FastZeroizable, MemZer};
+use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer};
 
 use crate::error::AeadError;
 use crate::traits::AeadBackend;
@@ -31,7 +31,7 @@ pub struct XChacha20Poly1305<E: EntropySource> {
     len_block: [u8; TAG_SIZE],
     #[memzer(skip)]
     nonce_gen: NonceSessionGenerator<E, XNONCE_SIZE>,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl<E: EntropySource> XChacha20Poly1305<E> {
@@ -44,7 +44,7 @@ impl<E: EntropySource> XChacha20Poly1305<E> {
             expected_tag: [0; TAG_SIZE],
             len_block: [0; TAG_SIZE],
             nonce_gen: NonceSessionGenerator::new(entropy),
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 

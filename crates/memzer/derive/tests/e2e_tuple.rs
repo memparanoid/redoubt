@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use memzer_core::{AssertZeroizeOnDrop, DropSentinel, FastZeroizable, ZeroizationProbe};
+use memzer_core::{AssertZeroizeOnDrop, ZeroizeOnDropSentinel, FastZeroizable, ZeroizationProbe};
 use memzer_derive::MemZer;
 
 fn main() {
     #[derive(MemZer)]
-    struct TupleStruct(Vec<u8>, [u8; 32], DropSentinel);
+    struct TupleStruct(Vec<u8>, [u8; 32], ZeroizeOnDropSentinel);
 
     impl Drop for TupleStruct {
         fn drop(&mut self) {
@@ -17,7 +17,7 @@ fn main() {
 
     impl Default for TupleStruct {
         fn default() -> Self {
-            Self(vec![1, 2, 3, 4], [u8::MAX; 32], DropSentinel::default())
+            Self(vec![1, 2, 3, 4], [u8::MAX; 32], ZeroizeOnDropSentinel::default())
         }
     }
 

@@ -7,7 +7,7 @@
 //! All sensitive state is zeroized on drop using memzer.
 
 use memutil::{u32_from_le, u32_to_le};
-use memzer::{DropSentinel, FastZeroizable, MemZer};
+use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer};
 
 use super::consts::{
     CHACHA20_BLOCK_SIZE, CHACHA20_NONCE_SIZE, HCHACHA20_NONCE_SIZE, KEY_SIZE, XNONCE_SIZE,
@@ -27,7 +27,7 @@ pub(crate) struct ChaCha20 {
     qr_b: u32,
     qr_c: u32,
     qr_d: u32,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl Default for ChaCha20 {
@@ -41,7 +41,7 @@ impl Default for ChaCha20 {
             qr_b: 0,
             qr_c: 0,
             qr_d: 0,
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 }
@@ -213,7 +213,7 @@ pub(crate) struct HChaCha20 {
     qr_b: u32,
     qr_c: u32,
     qr_d: u32,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 
@@ -337,7 +337,7 @@ pub(crate) struct XChaCha20 {
     nonce: [u8; CHACHA20_NONCE_SIZE],
     hchacha: HChaCha20,
     chacha: ChaCha20,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl Default for XChaCha20 {
@@ -347,7 +347,7 @@ impl Default for XChaCha20 {
             nonce: [0; CHACHA20_NONCE_SIZE],
             hchacha: HChaCha20::default(),
             chacha: ChaCha20::default(),
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 }

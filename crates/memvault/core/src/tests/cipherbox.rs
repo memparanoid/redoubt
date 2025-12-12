@@ -8,7 +8,7 @@ use memcodec::Codec;
 use memcodec::support::test_utils::{TestBreaker, TestBreakerBehaviour};
 use memrand::EntropyError;
 use memutil::is_vec_fully_zeroized;
-use memzer::{DropSentinel, FastZeroizable, MemZer, ZeroizationProbe};
+use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer, ZeroizationProbe};
 
 use crate::cipherbox::CipherBox;
 use crate::error::CipherBoxError;
@@ -29,7 +29,7 @@ pub struct TestBreakerBox {
     pub f5: TestBreaker,
     #[memzer(skip)]
     #[codec(default)]
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl Default for TestBreakerBox {
@@ -41,7 +41,7 @@ impl Default for TestBreakerBox {
             f3: TestBreaker::new(TestBreakerBehaviour::None, 1 << 3),
             f4: TestBreaker::new(TestBreakerBehaviour::None, 1 << 4),
             f5: TestBreaker::new(TestBreakerBehaviour::None, 1 << 5),
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 }

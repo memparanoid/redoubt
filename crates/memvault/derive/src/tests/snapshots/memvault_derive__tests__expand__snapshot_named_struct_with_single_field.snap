@@ -9,7 +9,7 @@ expression: pretty(token_stream)
 struct Gamma {
     pub value: [u8; 32],
     #[codec(default)]
-    __drop_sentinel: memzer::DropSentinel,
+    __sentinel: memzer::ZeroizeOnDropSentinel,
 }
 use memvault_core::CipherBoxDyns as _;
 impl memvault_core::CipherBoxDyns<1> for Gamma {

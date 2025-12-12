@@ -8,13 +8,13 @@ use crate::is_drop_sentinel_type;
 
 #[test]
 fn test_is_drop_sentinel_type_with_drop_sentinel() {
-    let ty: Type = parse_quote! { DropSentinel };
+    let ty: Type = parse_quote! { ZeroizeOnDropSentinel };
     assert!(is_drop_sentinel_type(&ty));
 }
 
 #[test]
 fn test_is_drop_sentinel_type_with_qualified_path() {
-    let ty: Type = parse_quote! { crate::DropSentinel };
+    let ty: Type = parse_quote! { crate::ZeroizeOnDropSentinel };
     assert!(is_drop_sentinel_type(&ty));
 }
 

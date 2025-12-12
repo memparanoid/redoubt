@@ -9,7 +9,7 @@ use core::ops::{Deref, DerefMut};
 use core::sync::atomic::{Ordering, compiler_fence};
 
 use super::assert::assert_zeroize_on_drop;
-use super::drop_sentinel::DropSentinel;
+use super::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 /// RAII guard for mutable references that automatically zeroizes on drop.
@@ -24,7 +24,7 @@ use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 /// - Wraps `&'a mut T` (borrows the value mutably)
 /// - Implements `Deref` and `DerefMut` for convenient access
 /// - Zeroizes `*inner` on drop via `#[zeroize(drop)]`
-/// - Contains [`DropSentinel`] to verify zeroization happened
+/// - Contains [`ZeroizeOnDropSentinel`] to verify zeroization happened
 ///
 /// # Usage
 ///
@@ -65,14 +65,14 @@ use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 ///
 /// # Panics
 ///
-/// The guard panics on drop if the wrapped value's [`DropSentinel`] was not
+/// The guard panics on drop if the wrapped value's [`ZeroizeOnDropSentinel`] was not
 /// marked as zeroized. This ensures zeroization invariants are enforced.
 pub struct ZeroizingMutGuard<'a, T>
 where
     T: FastZeroizable + ZeroizationProbe + ?Sized,
 {
     inner: &'a mut T,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl<'a, T> fmt::Debug for ZeroizingMutGuard<'a, T>
@@ -106,7 +106,7 @@ where
     pub fn from(inner: &'a mut T) -> Self {
         Self {
             inner,
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 }
@@ -139,7 +139,7 @@ where
         self.inner.fast_zeroize();
         compiler_fence(Ordering::SeqCst);
 
-        self.__drop_sentinel.fast_zeroize();
+        self.__sentinel.fast_zeroize();
         compiler_fence(Ordering::SeqCst);
     }
 }
@@ -148,8 +148,8 @@ impl<'a, T> AssertZeroizeOnDrop for ZeroizingMutGuard<'a, T>
 where
     T: FastZeroizable + ZeroizationProbe + ?Sized,
 {
-    fn clone_drop_sentinel(&self) -> crate::drop_sentinel::DropSentinel {
-        self.__drop_sentinel.clone()
+    fn clone_sentinel(&self) -> ZeroizeOnDropSentinel {
+        self.__sentinel.clone()
     }
 
     fn assert_zeroize_on_drop(self) {

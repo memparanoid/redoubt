@@ -9,7 +9,7 @@ expression: pretty(token_stream)
 #[derive(MemZer)]
 struct Empty {
     #[codec(default)]
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 use memvault_core::CipherBoxDyns as _;
 impl memvault_core::CipherBoxDyns<0> for Empty {

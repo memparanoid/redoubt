@@ -6,7 +6,7 @@
 use memalloc::AllockedVec;
 #[cfg(feature = "zeroize")]
 use memzer::{
-    AssertZeroizeOnDrop, DropSentinel, FastZeroizable, ZeroizationProbe, ZeroizeMetadata,
+    AssertZeroizeOnDrop, ZeroizeOnDropSentinel, FastZeroizable, ZeroizationProbe, ZeroizeMetadata,
     assert::assert_zeroize_on_drop,
 };
 
@@ -18,7 +18,7 @@ pub struct CodecBuffer {
     pub cursor: *mut u8,
     allocked_vec: AllockedVec<u8>,
     #[cfg(feature = "zeroize")]
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 #[cfg(feature = "zeroize")]
@@ -30,8 +30,8 @@ impl Drop for CodecBuffer {
 
 #[cfg(feature = "zeroize")]
 impl AssertZeroizeOnDrop for CodecBuffer {
-    fn clone_drop_sentinel(&self) -> DropSentinel {
-        self.__drop_sentinel.clone()
+    fn clone_sentinel(&self) -> ZeroizeOnDropSentinel {
+        self.__sentinel.clone()
     }
 
     fn assert_zeroize_on_drop(self) {
@@ -59,7 +59,7 @@ impl FastZeroizable for CodecBuffer {
             core::ptr::write_volatile(&mut self.cursor, core::ptr::null_mut());
         }
         self.allocked_vec.fast_zeroize();
-        self.__drop_sentinel.fast_zeroize();
+        self.__sentinel.fast_zeroize();
     }
 }
 
@@ -95,7 +95,7 @@ impl CodecBuffer {
             cursor,
             allocked_vec,
             #[cfg(feature = "zeroize")]
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 

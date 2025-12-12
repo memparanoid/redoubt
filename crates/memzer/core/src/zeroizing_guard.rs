@@ -11,7 +11,7 @@ use core::sync::atomic::{Ordering, compiler_fence};
 use crate::collections::{collection_zeroed, to_zeroization_probe_dyn_ref};
 
 use super::assert::assert_zeroize_on_drop;
-use super::drop_sentinel::DropSentinel;
+use super::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 /// RAII guard for owned values that automatically zeroizes on drop.
@@ -25,7 +25,7 @@ use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 /// - Wraps `T` (owns the value)
 /// - Implements `Deref` and `DerefMut` for convenient access
 /// - Zeroizes `inner` on drop
-/// - Contains [`DropSentinel`] to verify zeroization happened
+/// - Contains [`ZeroizeOnDropSentinel`] to verify zeroization happened
 ///
 /// # Usage
 ///
@@ -44,14 +44,14 @@ use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 ///
 /// # Panics
 ///
-/// The guard panics on drop if the wrapped value's [`DropSentinel`] was not
+/// The guard panics on drop if the wrapped value's [`ZeroizeOnDropSentinel`] was not
 /// marked as zeroized. This ensures zeroization invariants are enforced.
 pub struct ZeroizingGuard<T>
 where
     T: FastZeroizable + ZeroizationProbe,
 {
     inner: T,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl<T> fmt::Debug for ZeroizingGuard<T>
@@ -82,7 +82,7 @@ where
     pub fn new(inner: T) -> Self {
         Self {
             inner,
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 
@@ -106,7 +106,7 @@ where
     /// ```
     pub fn into_inner(mut self) -> T {
         // Mark sentinel as zeroized to prevent panic on drop
-        self.__drop_sentinel.fast_zeroize();
+        self.__sentinel.fast_zeroize();
         // Move out the inner value
         // SAFETY: We marked the sentinel as zeroized, so Drop won't panic.
         // The caller is now responsible for zeroizing the value.
@@ -142,7 +142,7 @@ where
         self.inner.fast_zeroize();
         compiler_fence(Ordering::SeqCst);
 
-        self.__drop_sentinel.fast_zeroize();
+        self.__sentinel.fast_zeroize();
         compiler_fence(Ordering::SeqCst);
     }
 }
@@ -151,8 +151,8 @@ impl<T> AssertZeroizeOnDrop for ZeroizingGuard<T>
 where
     T: FastZeroizable + ZeroizationProbe,
 {
-    fn clone_drop_sentinel(&self) -> crate::drop_sentinel::DropSentinel {
-        self.__drop_sentinel.clone()
+    fn clone_sentinel(&self) -> ZeroizeOnDropSentinel {
+        self.__sentinel.clone()
     }
 
     fn assert_zeroize_on_drop(self) {

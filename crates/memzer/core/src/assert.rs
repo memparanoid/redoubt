@@ -9,7 +9,7 @@ use super::traits::AssertZeroizeOnDrop;
 
 /// Asserts that a value zeroizes itself when dropped.
 ///
-/// This function verifies that the [`DropSentinel`](crate::DropSentinel) of the given value
+/// This function verifies that the [`ZeroizeOnDropSentinel`](crate::ZeroizeOnDropSentinel) of the given value
 /// is marked as zeroized after the value is dropped.
 ///
 /// # Panics
@@ -18,14 +18,14 @@ use super::traits::AssertZeroizeOnDrop;
 ///
 /// # How It Works
 ///
-/// 1. Clones the value's [`DropSentinel`](crate::DropSentinel)
+/// 1. Clones the value's [`ZeroizeOnDropSentinel`](crate::ZeroizeOnDropSentinel)
 /// 2. Resets the sentinel to "not zeroized" state
 /// 3. Drops the value
 /// 4. Asserts the sentinel was marked as zeroized
 ///
 /// Typically used in tests for types that implement [`AssertZeroizeOnDrop`].
 pub fn assert_zeroize_on_drop<T: AssertZeroizeOnDrop>(value: T) {
-    let mut drop_sentinel = value.clone_drop_sentinel();
+    let mut drop_sentinel = value.clone_sentinel();
 
     drop_sentinel.reset();
 

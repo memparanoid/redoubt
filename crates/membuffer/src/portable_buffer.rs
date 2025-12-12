@@ -11,7 +11,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use memzer::{DropSentinel, FastZeroizable, MemZer};
+use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer};
 
 use crate::error::BufferError;
 use crate::traits::Buffer;
@@ -20,7 +20,7 @@ use crate::traits::Buffer;
 #[memzer(drop)]
 pub struct PortableBuffer {
     inner: Vec<u8>,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl PortableBuffer {
@@ -29,7 +29,7 @@ impl PortableBuffer {
 
         Self {
             inner,
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 }

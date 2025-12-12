@@ -8,7 +8,7 @@
 //! All sensitive state is zeroized on drop using memzer.
 
 use memutil::{u32_from_le, u32_to_le};
-use memzer::{DropSentinel, FastZeroizable, MemZer};
+use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer};
 
 use super::consts::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 
@@ -23,7 +23,7 @@ pub(crate) struct Poly1305Block {
     le_bytes_tmp: [u8; 4],
     shifting_tmp_a: u32,
     shifting_tmp_b: u32,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl core::fmt::Debug for Poly1305Block {
@@ -45,7 +45,7 @@ pub(crate) struct Poly1305Final {
     shifting_tmp_b: u64,
     le_bytes_tmp: [u8; 4],
     s_u32: u32,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl core::fmt::Debug for Poly1305Final {
@@ -65,7 +65,7 @@ pub(crate) struct Poly1305 {
     buffer_len: usize,
     block: Poly1305Block,
     finalize: Poly1305Final,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl Poly1305 {

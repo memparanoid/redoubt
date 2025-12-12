@@ -27,7 +27,7 @@ impl memzer_core::ZeroizationProbe for Nu {
     }
 }
 impl memzer_core::AssertZeroizeOnDrop for Nu {
-    fn clone_drop_sentinel(&self) -> memzer_core::DropSentinel {
+    fn clone_sentinel(&self) -> memzer_core::ZeroizeOnDropSentinel {
         self.2.clone()
     }
     fn assert_zeroize_on_drop(self) {

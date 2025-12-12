@@ -31,7 +31,7 @@ impl memzer_core::ZeroizationProbe for Zeta {
     }
 }
 impl memzer_core::AssertZeroizeOnDrop for Zeta {
-    fn clone_drop_sentinel(&self) -> memzer_core::DropSentinel {
+    fn clone_sentinel(&self) -> memzer_core::ZeroizeOnDropSentinel {
         self.3.clone()
     }
     fn assert_zeroize_on_drop(self) {

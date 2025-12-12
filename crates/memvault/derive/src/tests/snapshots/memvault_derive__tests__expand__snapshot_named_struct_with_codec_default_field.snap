@@ -13,7 +13,7 @@ struct Delta {
     #[codec(default)]
     pub gamma: [u8; 16],
     #[codec(default)]
-    __drop_sentinel: memzer::DropSentinel,
+    __sentinel: memzer::ZeroizeOnDropSentinel,
 }
 use memvault_core::CipherBoxDyns as _;
 impl memvault_core::CipherBoxDyns<2> for Delta {

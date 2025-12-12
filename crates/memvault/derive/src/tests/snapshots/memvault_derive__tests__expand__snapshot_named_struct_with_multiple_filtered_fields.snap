@@ -12,7 +12,7 @@ struct Zeta {
     #[codec(default)]
     pub field2: [u8; 32],
     pub field3: u64,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
     #[codec(default)]
     pub field4: u32,
 }

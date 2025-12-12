@@ -11,18 +11,18 @@
 //! ## Quick Start
 //!
 //! ```rust
-//! use memzer::{DropSentinel, FastZeroizable, ZeroizationProbe, AssertZeroizeOnDrop, MemZer};
+//! use memzer::{ZeroizeOnDropSentinel, FastZeroizable, ZeroizationProbe, AssertZeroizeOnDrop, MemZer};
 //!
 //! #[derive(MemZer)]
 //! #[memzer(drop)]
 //! struct ApiKey {
 //!     key: Vec<u8>,
-//!     __drop_sentinel: DropSentinel,
+//!     __sentinel: ZeroizeOnDropSentinel,
 //! }
 //!
 //! let api_key = ApiKey {
 //!     key: b"sk_live_...".to_vec(),
-//!     __drop_sentinel: DropSentinel::default(),
+//!     __sentinel: ZeroizeOnDropSentinel::default(),
 //! };
 //!
 //! // Verify zeroization happens on drop
@@ -31,7 +31,7 @@
 //!
 //! ## What's Included
 //!
-//! - **Core types**: [`DropSentinel`], [`ZeroizingMutGuard`]
+//! - **Core types**: [`ZeroizeOnDropSentinel`], [`ZeroizingMutGuard`]
 //! - **Traits**: [`FastZeroize`], [`FastZeroizable`], [`ZeroizeMetadata`], [`ZeroizationProbe`], [`AssertZeroizeOnDrop`], [`MutGuarded`]
 //! - **Derive macro**: `#[derive(MemZer)]` for automatic trait implementations
 //! - **Primitives**: Wrapper types for scalars (`U8`, `U16`, `U32`, `U64`, `U128`, `USIZE`)
@@ -45,7 +45,7 @@
 //!
 //! [`memzer-core`]: https://docs.rs/memzer-core
 //! [`memzer-derive`]: https://docs.rs/memzer-derive
-//! [`DropSentinel`]: memzer_core::DropSentinel
+//! [`ZeroizeOnDropSentinel`]: memzer_core::ZeroizeOnDropSentinel
 //! [`ZeroizingMutGuard`]: memzer_core::ZeroizingMutGuard
 //! [`FastZeroize`]: memzer_core::FastZeroize
 //! [`FastZeroizable`]: memzer_core::FastZeroizable

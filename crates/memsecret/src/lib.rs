@@ -18,7 +18,7 @@ pub use traits::MemMove;
 use core::fmt;
 
 use memcodec::{BytesRequired, Codec, Decode, Encode};
-use memzer::{DropSentinel, FastZeroizable, MemZer, ZeroizationProbe};
+use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer, ZeroizationProbe};
 
 /// Wrapper that prevents accidental exposure of sensitive data.
 ///
@@ -32,7 +32,7 @@ use memzer::{DropSentinel, FastZeroizable, MemZer, ZeroizationProbe};
 /// - **No `Clone`**: Prevents unintended copies of sensitive data
 /// - **Redacted `Debug`**: Prints `[REDACTED Secret]` instead of inner value
 /// - **Automatic zeroization**: Inner value zeroized on drop via `#[zeroize(drop)]`
-/// - **Drop verification**: Contains [`DropSentinel`] to verify zeroization happened
+/// - **Drop verification**: Contains [`ZeroizeOnDropSentinel`] to verify zeroization happened
 ///
 /// # Usage
 ///
@@ -93,7 +93,7 @@ where
 {
     inner: T,
     #[codec(default)]
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl<T> fmt::Debug for Secret<T>
@@ -139,7 +139,7 @@ where
 
         Self {
             inner,
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 

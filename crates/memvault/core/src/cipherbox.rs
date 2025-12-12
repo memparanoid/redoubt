@@ -7,7 +7,7 @@ use core::marker::PhantomData;
 use memaead::AeadApi;
 use memcodec::{BytesRequired, CodecBuffer, Decode, Encode};
 use memzer::{
-    DropSentinel, FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata, ZeroizingGuard,
+    ZeroizeOnDropSentinel, FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata, ZeroizingGuard,
 };
 
 use super::error::CipherBoxError;
@@ -38,7 +38,7 @@ where
     tags: [Vec<u8>; N],
     tmp_field_cyphertext: Vec<u8>,
     tmp_field_codec_buff: CodecBuffer,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
     #[memzer(skip)]
     aead: A,
     #[memzer(skip)]
@@ -105,7 +105,7 @@ where
             initialized: false,
             tmp_field_cyphertext: Vec::default(),
             tmp_field_codec_buff: CodecBuffer::default(),
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
             _marker: PhantomData,
         }
     }

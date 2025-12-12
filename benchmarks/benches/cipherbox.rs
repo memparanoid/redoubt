@@ -12,7 +12,7 @@ use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_mai
 
 use memcodec::Codec;
 use memvault::cipherbox;
-use memzer::{DropSentinel, FastZeroizable, MemZer};
+use memzer::{FastZeroizable, MemZer, ZeroizeOnDropSentinel};
 
 /// Multi-field struct with 7 Vec<u8> fields (one per size)
 #[cipherbox(DataCipherBox)]
@@ -27,7 +27,7 @@ struct Data {
     field_16mb: Vec<u8>,
     field_32mb: Vec<u8>,
     #[codec(default)]
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 fn bench_leak_field(c: &mut Criterion) {
@@ -45,8 +45,7 @@ fn bench_leak_field(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("512KB", |b| {
             b.iter(|| {
-                let leaked = cb.leak_field_512kb()
-                    .expect("failed to leak field_512kb");
+                let leaked = cb.leak_field_512kb().expect("failed to leak field_512kb");
                 black_box(&*leaked);
             });
         });
@@ -63,8 +62,7 @@ fn bench_leak_field(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("1MB", |b| {
             b.iter(|| {
-                let leaked = cb.leak_field_1mb()
-                    .expect("failed to leak field_1mb");
+                let leaked = cb.leak_field_1mb().expect("failed to leak field_1mb");
                 black_box(&*leaked);
             });
         });
@@ -81,8 +79,7 @@ fn bench_leak_field(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("2MB", |b| {
             b.iter(|| {
-                let leaked = cb.leak_field_2mb()
-                    .expect("failed to leak field_2mb");
+                let leaked = cb.leak_field_2mb().expect("failed to leak field_2mb");
                 black_box(&*leaked);
             });
         });
@@ -99,8 +96,7 @@ fn bench_leak_field(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("4MB", |b| {
             b.iter(|| {
-                let leaked = cb.leak_field_4mb()
-                    .expect("failed to leak field_4mb");
+                let leaked = cb.leak_field_4mb().expect("failed to leak field_4mb");
                 black_box(&*leaked);
             });
         });
@@ -117,8 +113,7 @@ fn bench_leak_field(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("8MB", |b| {
             b.iter(|| {
-                let leaked = cb.leak_field_8mb()
-                    .expect("failed to leak field_8mb");
+                let leaked = cb.leak_field_8mb().expect("failed to leak field_8mb");
                 black_box(&*leaked);
             });
         });
@@ -135,8 +130,7 @@ fn bench_leak_field(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("16MB", |b| {
             b.iter(|| {
-                let leaked = cb.leak_field_16mb()
-                    .expect("failed to leak field_16mb");
+                let leaked = cb.leak_field_16mb().expect("failed to leak field_16mb");
                 black_box(&*leaked);
             });
         });
@@ -153,8 +147,7 @@ fn bench_leak_field(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("32MB", |b| {
             b.iter(|| {
-                let leaked = cb.leak_field_32mb()
-                    .expect("failed to leak field_32mb");
+                let leaked = cb.leak_field_32mb().expect("failed to leak field_32mb");
                 black_box(&*leaked);
             });
         });

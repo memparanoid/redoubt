@@ -4,7 +4,7 @@
 
 use thiserror::Error;
 
-use memzer::{DropSentinel, FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata};
+use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata};
 
 /// Error type for `AllockedVec` operations.
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -138,7 +138,7 @@ where
     has_been_sealed: bool,
     #[cfg(any(test, feature = "test_utils"))]
     behaviour: AllockedVecBehaviour,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 #[cfg(any(test, feature = "test_utils"))]
@@ -146,7 +146,7 @@ impl<T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe + PartialEq> Partial
     for AllockedVec<T>
 {
     fn eq(&self, other: &Self) -> bool {
-        // Skip __drop_sentinel (metadata that changes during zeroization)
+        // Skip __sentinel (metadata that changes during zeroization)
         // Use `&` instead of `&&` to avoid branches and easier testing.
         (self.inner == other.inner)
             & (self.has_been_sealed == other.has_been_sealed)
@@ -214,7 +214,7 @@ where
             has_been_sealed: false,
             #[cfg(any(test, feature = "test_utils"))]
             behaviour: AllockedVecBehaviour::default(),
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 

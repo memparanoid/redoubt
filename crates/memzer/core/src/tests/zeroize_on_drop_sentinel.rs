@@ -3,18 +3,18 @@
 // See LICENSE in the repository root for full license text.
 
 use crate::assert::assert_zeroize_on_drop;
-use crate::drop_sentinel::DropSentinel;
 use crate::traits::{AssertZeroizeOnDrop, FastZeroizable};
+use crate::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 
 #[test]
 fn drop_sentinel_functional_test() {
     struct Test {
-        pub __drop_sentinel: DropSentinel,
+        pub __sentinel: ZeroizeOnDropSentinel,
     }
 
     impl FastZeroizable for Test {
         fn fast_zeroize(&mut self) {
-            self.__drop_sentinel.fast_zeroize();
+            self.__sentinel.fast_zeroize();
         }
     }
 
@@ -25,8 +25,8 @@ fn drop_sentinel_functional_test() {
     }
 
     impl AssertZeroizeOnDrop for Test {
-        fn clone_drop_sentinel(&self) -> DropSentinel {
-            self.__drop_sentinel.clone()
+        fn clone_sentinel(&self) -> ZeroizeOnDropSentinel {
+            self.__sentinel.clone()
         }
 
         fn assert_zeroize_on_drop(self) {
@@ -35,19 +35,19 @@ fn drop_sentinel_functional_test() {
     }
 
     let t = Test {
-        __drop_sentinel: DropSentinel::default(),
+        __sentinel: ZeroizeOnDropSentinel::default(),
     };
 
-    let drop_sentinel_clone = t.clone_drop_sentinel();
+    let drop_sentinel_clone = t.clone_sentinel();
 
     assert_zeroize_on_drop(t);
 
     assert!(drop_sentinel_clone.is_zeroized());
 }
 
-/// CRITICAL TEST: Verifies that zeroizing a DropSentinel also marks all clones as zeroized.
+/// CRITICAL TEST: Verifies that zeroizing a ZeroizeOnDropSentinel also marks all clones as zeroized.
 ///
-/// DropSentinel uses Arc<AtomicBool> internally so all clones share the same zeroization
+/// ZeroizeOnDropSentinel uses Arc<AtomicBool> internally so all clones share the same zeroization
 /// state. When one instance is zeroized, ALL clones must reflect that state.
 ///
 /// This is essential because we typically clone the sentinel before dropping the parent
@@ -55,7 +55,7 @@ fn drop_sentinel_functional_test() {
 /// share state, this verification pattern would be impossible.
 #[test]
 fn test_drop_sentinel_zeroizes_clone() {
-    let mut drop_sentinel = DropSentinel::default();
+    let mut drop_sentinel = ZeroizeOnDropSentinel::default();
     let drop_sentinel_clone = drop_sentinel.clone();
 
     assert!(!drop_sentinel.is_zeroized());
@@ -65,19 +65,19 @@ fn test_drop_sentinel_zeroizes_clone() {
     assert!(drop_sentinel_clone.is_zeroized());
 }
 
-/// CRITICAL TEST: Verifies that DropSentinel does NOT auto-zeroize when dropped.
+/// CRITICAL TEST: Verifies that ZeroizeOnDropSentinel does NOT auto-zeroize when dropped.
 ///
-/// This is the MOST IMPORTANT test for security correctness. DropSentinel must NOT
+/// This is the MOST IMPORTANT test for security correctness. ZeroizeOnDropSentinel must NOT
 /// have a Drop impl that zeroizes itself, because that would create false positives.
 ///
-/// If DropSentinel auto-zeroized on drop, every struct would appear "zeroized" even
+/// If ZeroizeOnDropSentinel auto-zeroized on drop, every struct would appear "zeroized" even
 /// without #[zeroize(drop)], making the sentinel useless for security verification.
 ///
 /// The sentinel should ONLY zeroize when the parent struct explicitly calls zeroize().
 /// This test verifies that dropping a sentinel leaves it in the non-zeroized state.
 #[test]
 fn test_drop_sentinel_is_not_zeroized_on_drop() {
-    let drop_sentinel = DropSentinel::default();
+    let drop_sentinel = ZeroizeOnDropSentinel::default();
     let drop_sentinel_clone = drop_sentinel.clone();
 
     assert!(!drop_sentinel_clone.is_zeroized());
@@ -87,8 +87,8 @@ fn test_drop_sentinel_is_not_zeroized_on_drop() {
 
 #[test]
 fn test_drop_sentinel_partial_eq() {
-    let mut sentinel1 = DropSentinel::default();
-    let mut sentinel2 = DropSentinel::default();
+    let mut sentinel1 = ZeroizeOnDropSentinel::default();
+    let mut sentinel2 = ZeroizeOnDropSentinel::default();
 
     // Both pristine (not zeroized) - should be equal
     assert_eq!(sentinel1, sentinel2);
@@ -112,7 +112,7 @@ fn test_drop_sentinel_partial_eq() {
 
 #[test]
 fn test_drop_sentinel_fast_zeroize() {
-    let mut sentinel = DropSentinel::default();
+    let mut sentinel = ZeroizeOnDropSentinel::default();
     let sentinel_clone = sentinel.clone();
 
     assert!(!sentinel.is_zeroized());
@@ -127,7 +127,7 @@ fn test_drop_sentinel_fast_zeroize() {
 
 #[test]
 fn test_drop_sentinel_reset() {
-    let mut sentinel = DropSentinel::default();
+    let mut sentinel = ZeroizeOnDropSentinel::default();
     let sentinel_clone = sentinel.clone();
 
     // Zeroize

@@ -20,12 +20,12 @@ use syn::{Attribute, Data, DeriveInput, Fields, Ident, Index, LitStr, Meta, Type
 /// Derives `FastZeroizable`, `ZeroizeMetadata`, `ZeroizationProbe`, and `AssertZeroizeOnDrop` for a struct.
 ///
 /// This macro automatically generates trait implementations for structs that contain
-/// a `DropSentinel` field.
+/// a `ZeroizeOnDropSentinel` field.
 ///
 /// # Requirements
 ///
-/// - Named structs must have a field named `__drop_sentinel: DropSentinel`
-/// - Tuple structs must have a field of type `DropSentinel`
+/// - Named structs must have a field named `__sentinel: ZeroizeOnDropSentinel`
+/// - Tuple structs must have a field of type `ZeroizeOnDropSentinel`
 /// - All other fields must implement `FastZeroizable`
 ///
 /// # Attributes
@@ -35,7 +35,7 @@ use syn::{Attribute, Data, DeriveInput, Fields, Ident, Index, LitStr, Meta, Type
 /// # Generated Implementations
 ///
 /// Always generated:
-/// - `FastZeroizable`: Zeroizes all fields including `__drop_sentinel`
+/// - `FastZeroizable`: Zeroizes all fields including `__sentinel`
 /// - `ZeroizeMetadata`: Sets `CAN_BE_BULK_ZEROIZED = false`
 /// - `ZeroizationProbe`: Checks if all non-sentinel fields are zeroized
 /// - `AssertZeroizeOnDrop`: Provides test helpers for verifying zeroization
@@ -49,12 +49,12 @@ use syn::{Attribute, Data, DeriveInput, Fields, Ident, Index, LitStr, Meta, Type
 ///
 /// ```rust
 /// use memzer_derive::MemZer;
-/// use memzer_core::{DropSentinel, FastZeroizable};
+/// use memzer_core::{ZeroizeOnDropSentinel, FastZeroizable};
 ///
 /// #[derive(MemZer)]
 /// struct ApiKey {
 ///     key: Vec<u8>,
-///     __drop_sentinel: DropSentinel,
+///     __sentinel: ZeroizeOnDropSentinel,
 /// }
 ///
 /// impl Drop for ApiKey {
@@ -68,13 +68,13 @@ use syn::{Attribute, Data, DeriveInput, Fields, Ident, Index, LitStr, Meta, Type
 ///
 /// ```rust
 /// use memzer_derive::MemZer;
-/// use memzer_core::{DropSentinel, FastZeroizable};
+/// use memzer_core::{ZeroizeOnDropSentinel, FastZeroizable};
 ///
 /// #[derive(MemZer)]
 /// #[memzer(drop)]
 /// struct ApiKey {
 ///     key: Vec<u8>,
-///     __drop_sentinel: DropSentinel,
+///     __sentinel: ZeroizeOnDropSentinel,
 /// }
 /// // Drop is automatically generated
 /// ```
@@ -104,7 +104,7 @@ pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStr
     quote! { compile_error!(#lit); }
 }
 
-/// Detects if a type is `DropSentinel` by checking the type path.
+/// Detects if a type is `ZeroizeOnDropSentinel` by checking the type path.
 ///
 /// Used for tuple struct support where we identify the sentinel field by type.
 pub(crate) fn is_drop_sentinel_type(ty: &Type) -> bool {
@@ -112,7 +112,7 @@ pub(crate) fn is_drop_sentinel_type(ty: &Type) -> bool {
         ty,
         Type::Path(type_path)
         if type_path.path.segments.last()
-            .map(|seg| seg.ident == "DropSentinel")
+            .map(|seg| seg.ident == "ZeroizeOnDropSentinel")
             .unwrap_or(false)
     )
 }
@@ -186,14 +186,14 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         }
     };
 
-    // 3) Identify the __drop_sentinel field
-    let sentinel_ident = format_ident!("__drop_sentinel");
+    // 3) Identify the __sentinel field
+    let sentinel_ident = format_ident!("__sentinel");
     let mut drop_sentinel_index: Option<usize> = None;
     let mut drop_sentinel_access: Option<TokenStream2> = None;
 
     for (i, f) in &all_fields {
         let is_sentinel = if let Some(ident) = &f.ident {
-            // Named field: check if name is __drop_sentinel
+            // Named field: check if name is __sentinel
             if *ident == sentinel_ident {
                 drop_sentinel_index = Some(*i);
                 drop_sentinel_access = Some(quote! { self.#sentinel_ident });
@@ -202,7 +202,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
                 false
             }
         } else {
-            // Unnamed field: check if type is DropSentinel
+            // Unnamed field: check if type is ZeroizeOnDropSentinel
             if is_drop_sentinel_type(&f.ty) {
                 let idx = Index::from(*i);
                 drop_sentinel_index = Some(*i);
@@ -221,7 +221,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     if drop_sentinel_index.is_none() {
         return Err(syn::Error::new_spanned(
             struct_name,
-            "MemZer: missing field `__drop_sentinel` (named structs) or field of type `DropSentinel` (tuple structs)",
+            "MemZer: missing field `__sentinel` (named structs) or field of type `ZeroizeOnDropSentinel` (tuple structs)",
         )
         .to_compile_error());
     }
@@ -362,7 +362,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         }
 
         impl #impl_generics #root::AssertZeroizeOnDrop for #struct_name #ty_generics #where_clause {
-            fn clone_drop_sentinel(&self) -> #root::DropSentinel {
+            fn clone_sentinel(&self) -> #root::ZeroizeOnDropSentinel {
                 #sentinel_access.clone()
             }
 

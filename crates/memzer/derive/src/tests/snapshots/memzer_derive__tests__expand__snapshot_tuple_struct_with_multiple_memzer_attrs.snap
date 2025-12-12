@@ -31,7 +31,7 @@ impl<'a> memzer_core::ZeroizationProbe for Psi<'a> {
     }
 }
 impl<'a> memzer_core::AssertZeroizeOnDrop for Psi<'a> {
-    fn clone_drop_sentinel(&self) -> memzer_core::DropSentinel {
+    fn clone_sentinel(&self) -> memzer_core::ZeroizeOnDropSentinel {
         self.4.clone()
     }
     fn assert_zeroize_on_drop(self) {

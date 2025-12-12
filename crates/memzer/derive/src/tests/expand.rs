@@ -49,7 +49,7 @@ fn snapshot_named_struct_ok() {
         #[derive(MemZer)]
         struct Delta {
             pub alpha: u8,
-            __drop_sentinel: DropSentinel,
+            __sentinel: ZeroizeOnDropSentinel,
         }
     };
 
@@ -62,7 +62,7 @@ fn snapshot_empty_struct_ok() {
     let derive_input = parse_quote! {
         #[derive(MemZer)]
         struct Epsilon {
-            __drop_sentinel: DropSentinel,
+            __sentinel: ZeroizeOnDropSentinel,
         }
     };
 
@@ -78,7 +78,7 @@ fn snapshot_named_struct_with_lifetime_generics_ok() {
             pub alpha: u8,
             pub beta: u16,
             pub gamma: &'alpha mut Tau,
-            __drop_sentinel: DropSentinel,
+            __sentinel: ZeroizeOnDropSentinel,
         }
     };
 
@@ -98,7 +98,7 @@ fn snapshot_named_struct_with_memzer_skip_on_one_field() {
             pub alpha: Vec<u8>,
             #[memzer(skip)]
             pub beta: [u8; 32],
-            __drop_sentinel: DropSentinel,
+            __sentinel: ZeroizeOnDropSentinel,
         }
     };
 
@@ -115,7 +115,7 @@ fn snapshot_named_struct_with_memzer_skip_on_immut_ref() {
             pub alpha: Vec<u8>,
             #[memzer(skip)]
             pub beta: &'a str,
-            __drop_sentinel: DropSentinel,
+            __sentinel: ZeroizeOnDropSentinel,
         }
     };
 
@@ -135,7 +135,7 @@ fn snapshot_named_struct_with_memzer_drop() {
         struct Rho {
             pub alpha: Vec<u8>,
             pub beta: [u8; 32],
-            __drop_sentinel: DropSentinel,
+            __sentinel: ZeroizeOnDropSentinel,
         }
     };
 
@@ -151,7 +151,7 @@ fn snapshot_named_struct_with_generics_and_memzer_drop() {
         struct Tau<'a, T> where T: Clone {
             pub alpha: u8,
             pub beta: &'a mut T,
-            __drop_sentinel: DropSentinel,
+            __sentinel: ZeroizeOnDropSentinel,
         }
     };
 
@@ -190,7 +190,7 @@ fn snapshot_named_struct_with_multiple_memzer_attrs() {
             #[arbitrary(config)]
             #[doc = "Field documentation"]
             pub epsilon: u32,
-            __drop_sentinel: DropSentinel,
+            __sentinel: ZeroizeOnDropSentinel,
         }
     };
 
@@ -206,7 +206,7 @@ fn snapshot_named_struct_with_multiple_memzer_attrs() {
 fn snapshot_tuple_struct_ok() {
     let derive_input = parse_quote! {
         #[derive(MemZer)]
-        struct Zeta(u8, u16, u32, DropSentinel);
+        struct Zeta(u8, u16, u32, ZeroizeOnDropSentinel);
     };
 
     let token_stream = expand(derive_input).expect("expand failed");
@@ -221,7 +221,7 @@ fn snapshot_tuple_struct_with_non_drop_sentinel_types() {
         struct Kappa(
             Vec<u16>,
             Vec<u8>,
-            DropSentinel,
+            ZeroizeOnDropSentinel,
         );
     };
 
@@ -233,7 +233,7 @@ fn snapshot_tuple_struct_with_non_drop_sentinel_types() {
 fn snapshot_tuple_struct_with_mut_ref() {
     let derive_input = parse_quote! {
         #[derive(MemZer)]
-        struct Upsilon<'a>(u8, &'a mut Vec<u8>, DropSentinel);
+        struct Upsilon<'a>(u8, &'a mut Vec<u8>, ZeroizeOnDropSentinel);
     };
 
     let token_stream = expand(derive_input).expect("expand failed");
@@ -252,7 +252,7 @@ fn snapshot_tuple_struct_with_memzer_skip() {
             Vec<u8>,
             #[memzer(skip)]
             [u8; 32],
-            DropSentinel,
+            ZeroizeOnDropSentinel,
         );
     };
 
@@ -269,7 +269,7 @@ fn snapshot_tuple_struct_with_memzer_drop() {
     let derive_input = parse_quote! {
         #[derive(MemZer)]
         #[memzer(drop)]
-        struct Sigma(Vec<u8>, [u8; 32], DropSentinel);
+        struct Sigma(Vec<u8>, [u8; 32], ZeroizeOnDropSentinel);
     };
 
     let token_stream = expand(derive_input).expect("expand failed");
@@ -304,7 +304,7 @@ fn snapshot_tuple_struct_with_multiple_memzer_attrs() {
             #[allow(dead_code)]
             #[doc = "Tuple field doc"]
             u64,
-            DropSentinel,
+            ZeroizeOnDropSentinel,
         );
     };
 
@@ -373,7 +373,7 @@ fn snapshot_immut_ref_without_skip_fails() {
         struct Pi<'a> {
             pub alpha: Vec<u8>,
             pub beta: &'a str,
-            __drop_sentinel: DropSentinel,
+            __sentinel: ZeroizeOnDropSentinel,
         }
     };
 
@@ -391,7 +391,7 @@ fn snapshot_tuple_immut_ref_without_skip_fails() {
     // Test that immutable reference in tuple struct without #[memzer(skip)] produces a helpful error
     let derive_input = parse_quote! {
         #[derive(MemZer)]
-        struct Phi<'a>(Vec<u8>, &'a str, DropSentinel);
+        struct Phi<'a>(Vec<u8>, &'a str, ZeroizeOnDropSentinel);
     };
 
     let result = expand(derive_input);

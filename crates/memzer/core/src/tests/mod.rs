@@ -5,9 +5,9 @@
 mod assert;
 mod atomics;
 mod collections;
-mod drop_sentinel;
 mod functional;
 mod pointers;
 mod primitives;
+mod zeroize_on_drop_sentinel;
 mod zeroizing_guard;
 mod zeroizing_mut_guard;

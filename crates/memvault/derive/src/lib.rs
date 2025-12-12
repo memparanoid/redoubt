@@ -18,7 +18,7 @@ use syn::{
 /// Derives a CipherBox wrapper struct with per-field access methods.
 ///
 /// **IMPORTANT**: This attribute macro MUST appear BEFORE `#[derive(MemZer)]` to work correctly.
-/// It automatically injects the `__drop_sentinel` field that MemZer requires.
+/// It automatically injects the `__sentinel` field that MemZer requires.
 ///
 /// # Usage
 ///
@@ -29,14 +29,14 @@ use syn::{
 /// struct WalletSecrets {
 ///     master_seed: [u8; 32],
 ///     encryption_key: [u8; 32],
-///     // __drop_sentinel is auto-injected, no need to add it manually!
+///     // __sentinel is auto-injected, no need to add it manually!
 /// }
 /// ```
 ///
 /// # Attribute Macro Ordering
 ///
 /// Attribute macros execute in order from top to bottom, BEFORE derive macros.
-/// Since `#[derive(MemZer)]` requires a `__drop_sentinel` field, and `#[cipherbox]`
+/// Since `#[derive(MemZer)]` requires a `__sentinel` field, and `#[cipherbox]`
 /// injects it automatically, `#[cipherbox]` must appear above `#[derive(MemZer)]`.
 ///
 /// ✅ Correct order:
@@ -48,7 +48,7 @@ use syn::{
 ///
 /// 🚫 Incorrect order (will fail to compile):
 /// ```ignore
-/// #[derive(MemZer, Codec)]  // ← Runs first, fails because __drop_sentinel is missing
+/// #[derive(MemZer, Codec)]  // ← Runs first, fails because __sentinel is missing
 /// #[cipherbox(MyBox)]       // ← Runs second, but too late
 /// struct MySecrets { ... }
 /// ```
@@ -85,13 +85,13 @@ pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStr
     quote! { compile_error!(#lit); }
 }
 
-/// Detects if a type is `DropSentinel` by checking the type path.
+/// Detects if a type is `ZeroizeOnDropSentinel` by checking the type path.
 fn is_drop_sentinel_type(ty: &Type) -> bool {
     matches!(
         ty,
         Type::Path(type_path)
         if type_path.path.segments.last()
-            .map(|seg| seg.ident == "DropSentinel")
+            .map(|seg| seg.ident == "ZeroizeOnDropSentinel")
             .unwrap_or(false)
     )
 }
@@ -105,7 +105,7 @@ fn has_codec_default(attrs: &[Attribute]) -> bool {
     })
 }
 
-/// Injects `__drop_sentinel: DropSentinel` field with `#[codec(default)]` attribute.
+/// Injects `__sentinel: ZeroizeOnDropSentinel` field with `#[codec(default)]` attribute.
 fn inject_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
     let root = find_root_with_candidates(&["memzer_core", "memzer"]);
     let data = match &mut input.data {
@@ -124,23 +124,23 @@ fn inject_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
         }
     };
 
-    // Check if __drop_sentinel already exists
+    // Check if __sentinel already exists
     let has_drop_sentinel = fields.named.iter().any(|f| {
         f.ident
             .as_ref()
-            .map(|i| i == "__drop_sentinel")
+            .map(|i| i == "__sentinel")
             .unwrap_or(false)
     });
 
     if has_drop_sentinel {
-        // Already has __drop_sentinel, don't inject
+        // Already has __sentinel, don't inject
         return input;
     }
 
-    // Create the __drop_sentinel field
+    // Create the __sentinel field
     let sentinel_field: Field = syn::parse_quote! {
         #[codec(default)]
-        __drop_sentinel: #root::DropSentinel
+        __sentinel: #root::ZeroizeOnDropSentinel
     };
 
     // Add to fields
@@ -150,7 +150,7 @@ fn inject_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
 }
 
 fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
-    // Inject __drop_sentinel field if it doesn't exist
+    // Inject __sentinel field if it doesn't exist
     let input = inject_drop_sentinel(input);
 
     let struct_name = &input.ident;
@@ -180,7 +180,7 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
         }
     };
 
-    // Filter out fields with #[codec(default)] or DropSentinel type
+    // Filter out fields with #[codec(default)] or ZeroizeOnDropSentinel type
     let encryptable_fields: Vec<(usize, &syn::Field)> = fields
         .iter()
         .filter(|(_, f)| !has_codec_default(&f.attrs) && !is_drop_sentinel_type(&f.ty))

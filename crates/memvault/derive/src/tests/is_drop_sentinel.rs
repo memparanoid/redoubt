@@ -12,19 +12,19 @@ use crate::is_drop_sentinel_type;
 
 #[test]
 fn test_drop_sentinel_simple_path() {
-    let ty: Type = parse_quote!(DropSentinel);
+    let ty: Type = parse_quote!(ZeroizeOnDropSentinel);
     assert!(is_drop_sentinel_type(&ty));
 }
 
 #[test]
 fn test_drop_sentinel_qualified_path() {
-    let ty: Type = parse_quote!(memzer::DropSentinel);
+    let ty: Type = parse_quote!(memzer::ZeroizeOnDropSentinel);
     assert!(is_drop_sentinel_type(&ty));
 }
 
 #[test]
 fn test_drop_sentinel_fully_qualified_path() {
-    let ty: Type = parse_quote!(::memzer::DropSentinel);
+    let ty: Type = parse_quote!(::memzer::ZeroizeOnDropSentinel);
     assert!(is_drop_sentinel_type(&ty));
 }
 
@@ -36,7 +36,7 @@ fn test_non_drop_sentinel_type_returns_false() {
 
 #[test]
 fn test_similar_name_returns_false() {
-    let ty: Type = parse_quote!(DropSentinelLike);
+    let ty: Type = parse_quote!(ZeroizeOnDropSentinelLike);
     assert!(!is_drop_sentinel_type(&ty));
 }
 

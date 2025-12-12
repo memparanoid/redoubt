@@ -21,9 +21,7 @@ where
             memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.alpha),
             memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.beta),
             memzer_core::collections::to_fast_zeroizable_dyn_mut(self.gamma),
-            memzer_core::collections::to_fast_zeroizable_dyn_mut(
-                &mut self.__drop_sentinel,
-            ),
+            memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.__sentinel),
         ];
         memzer_core::collections::zeroize_collection(&mut fields.into_iter())
     }
@@ -45,8 +43,8 @@ impl<'alpha, Tau> memzer_core::AssertZeroizeOnDrop for Sigma<'alpha, Tau>
 where
     Tau: Clone,
 {
-    fn clone_drop_sentinel(&self) -> memzer_core::DropSentinel {
-        self.__drop_sentinel.clone()
+    fn clone_sentinel(&self) -> memzer_core::ZeroizeOnDropSentinel {
+        self.__sentinel.clone()
     }
     fn assert_zeroize_on_drop(self) {
         memzer_core::assert::assert_zeroize_on_drop(self);

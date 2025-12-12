@@ -112,7 +112,7 @@ fn snapshot_named_struct_with_drop_sentinel() {
             pub master_seed: [u8; 32],
             pub encryption_key: [u8; 32],
             #[codec(default)]
-            __drop_sentinel: DropSentinel,
+            __sentinel: ZeroizeOnDropSentinel,
         }
     };
 
@@ -129,7 +129,7 @@ fn snapshot_named_struct_with_multiple_filtered_fields() {
             #[codec(default)]
             pub field2: [u8; 32],
             pub field3: u64,
-            __drop_sentinel: DropSentinel,
+            __sentinel: ZeroizeOnDropSentinel,
             #[codec(default)]
             pub field4: u32,
         }
@@ -149,7 +149,7 @@ fn snapshot_empty_struct_with_only_sentinel() {
         #[derive(MemZer)]
         struct Empty {
             #[codec(default)]
-            __drop_sentinel: DropSentinel,
+            __sentinel: ZeroizeOnDropSentinel,
         }
     };
 

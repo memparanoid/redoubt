@@ -8,7 +8,7 @@
 //!
 //! `memzer-core` provides composable building blocks for secure memory handling:
 //!
-//! - **[`DropSentinel`]**: Runtime verification that zeroization happened before drop
+//! - **[`ZeroizeOnDropSentinel`]**: Runtime verification that zeroization happened before drop
 //! - **[`ZeroizingMutGuard`]**: RAII guard for mutable references (auto-zeroizes on drop)
 //! - **Traits**: [`FastZeroizable`], [`ZeroizationProbe`], [`AssertZeroizeOnDrop`], [`MutGuarded`]
 //! - **Derive macro**: `#[derive(MemZer)]` for automatic trait implementations
@@ -27,7 +27,7 @@
 //! ## Design Principles
 //!
 //! 1. **Systematic zeroization**: Guards auto-zeroize on drop (impossible to forget)
-//! 2. **Runtime verification**: [`DropSentinel`] ensures zeroization happened
+//! 2. **Runtime verification**: [`ZeroizeOnDropSentinel`] ensures zeroization happened
 //! 3. **API safety**: High-level wrappers (like `memsecret::Secret<T>`) prevent direct access
 //! 4. **Composability**: Traits work with collections, nested types, custom structs
 //!
@@ -52,12 +52,12 @@
 //! ### Manual Implementation
 //!
 //! ```rust
-//! use memzer_core::{DropSentinel, FastZeroizable, ZeroizationProbe, AssertZeroizeOnDrop, collections};
+//! use memzer_core::{ZeroizeOnDropSentinel, FastZeroizable, ZeroizationProbe, AssertZeroizeOnDrop, collections};
 //!
 //! struct Credentials {
 //!     username: Vec<u8>,
 //!     password: Vec<u8>,
-//!     __drop_sentinel: DropSentinel,
+//!     __sentinel: ZeroizeOnDropSentinel,
 //! }
 //!
 //! impl Drop for Credentials {
@@ -70,7 +70,7 @@
 //!     fn fast_zeroize(&mut self) {
 //!         self.username.fast_zeroize();
 //!         self.password.fast_zeroize();
-//!         self.__drop_sentinel.fast_zeroize();
+//!         self.__sentinel.fast_zeroize();
 //!     }
 //! }
 //!
@@ -85,8 +85,8 @@
 //! }
 //!
 //! impl AssertZeroizeOnDrop for Credentials {
-//!     fn clone_drop_sentinel(&self) -> DropSentinel {
-//!         self.__drop_sentinel.clone()
+//!     fn clone_sentinel(&self) -> ZeroizeOnDropSentinel {
+//!         self.__sentinel.clone()
 //!     }
 //!     fn assert_zeroize_on_drop(self) {
 //!         memzer_core::assert::assert_zeroize_on_drop(self);
@@ -96,7 +96,7 @@
 //! let creds = Credentials {
 //!     username: b"admin".to_vec(),
 //!     password: b"secret".to_vec(),
-//!     __drop_sentinel: DropSentinel::default(),
+//!     __sentinel: ZeroizeOnDropSentinel::default(),
 //! };
 //!
 //! // Verify zeroization happens on drop
@@ -147,8 +147,8 @@ mod tests;
 
 /// Drop verification mechanism for ensuring zeroization happened before drop.
 ///
-/// Contains [`DropSentinel`], the core type used to verify that `.zeroize()` was called.
-mod drop_sentinel;
+/// Contains [`ZeroizeOnDropSentinel`], the core type used to verify that `.zeroize()` was called.
+mod zeroize_on_drop_sentinel;
 mod traits;
 mod zeroizing_guard;
 mod zeroizing_mut_guard;
@@ -170,12 +170,12 @@ pub mod assert;
 /// Provides [`FastZeroizable`] and [`ZeroizationProbe`] implementations for standard collection types.
 pub mod collections;
 
-/// Wrapper types for primitive scalars with [`DropSentinel`] support.
+/// Wrapper types for primitive scalars with [`ZeroizeOnDropSentinel`] support.
 ///
 /// Exports: `U8`, `U16`, `U32`, `U64`, `U128`, `USIZE` - each wraps the corresponding primitive type.
 pub mod primitives;
 
-pub use drop_sentinel::DropSentinel;
+pub use zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 pub use traits::{
     AssertZeroizeOnDrop, FastZeroizable, FastZeroize, MutGuarded, ZeroizationProbe, ZeroizeMetadata,
 };

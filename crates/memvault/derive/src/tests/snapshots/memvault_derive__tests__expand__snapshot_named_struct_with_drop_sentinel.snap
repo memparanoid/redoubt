@@ -12,7 +12,7 @@ struct Epsilon {
     pub master_seed: [u8; 32],
     pub encryption_key: [u8; 32],
     #[codec(default)]
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 use memvault_core::CipherBoxDyns as _;
 impl memvault_core::CipherBoxDyns<2> for Epsilon {

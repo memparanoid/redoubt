@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use memutil::is_vec_fully_zeroized;
-use memzer::{DropSentinel, MemZer};
+use memzer::{ZeroizeOnDropSentinel, MemZer};
 
 use crate::collections::move_vec;
 use crate::traits::MemMove;
@@ -103,14 +103,14 @@ fn test_move_vec_zeroizes_before_reserve() {
     #[derive(MemZer)]
     struct MutByte<'a> {
         inner: &'a mut u8,
-        __drop_sentinel: DropSentinel,
+        __sentinel: ZeroizeOnDropSentinel,
     }
 
     impl<'a> MutByte<'a> {
         fn new(inner: &'a mut u8) -> Self {
             Self {
                 inner,
-                __drop_sentinel: DropSentinel::default(),
+                __sentinel: ZeroizeOnDropSentinel::default(),
             }
         }
     }

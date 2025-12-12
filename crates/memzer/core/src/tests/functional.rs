@@ -6,20 +6,20 @@ use crate::assert::assert_zeroize_on_drop;
 use crate::collections::{
     collection_zeroed, to_fast_zeroizable_dyn_mut, to_zeroization_probe_dyn_ref, zeroize_collection,
 };
-use crate::drop_sentinel::DropSentinel;
 use crate::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+use crate::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 use crate::zeroizing_mut_guard::ZeroizingMutGuard;
 
 struct Foo {
     pub data: Vec<u8>,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl Default for Foo {
     fn default() -> Self {
         Self {
             data: vec![1, 2, 3, 4],
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 }
@@ -27,7 +27,7 @@ impl Default for Foo {
 impl FastZeroizable for Foo {
     fn fast_zeroize(&mut self) {
         self.data.fast_zeroize();
-        self.__drop_sentinel.fast_zeroize();
+        self.__sentinel.fast_zeroize();
     }
 }
 
@@ -48,8 +48,8 @@ impl ZeroizationProbe for Foo {
 }
 
 impl AssertZeroizeOnDrop for Foo {
-    fn clone_drop_sentinel(&self) -> crate::drop_sentinel::DropSentinel {
-        self.__drop_sentinel.clone()
+    fn clone_sentinel(&self) -> ZeroizeOnDropSentinel {
+        self.__sentinel.clone()
     }
 
     fn assert_zeroize_on_drop(self) {
@@ -62,7 +62,7 @@ struct FunctionalStruct<'a> {
     pub bytes_16: [u8; 16],
     pub bytes_32: [u8; 32],
     pub foo: ZeroizingMutGuard<'a, Foo>,
-    __drop_sentinel: DropSentinel,
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl<'a> FunctionalStruct<'a> {
@@ -75,7 +75,7 @@ impl<'a> FunctionalStruct<'a> {
             bytes_16: [u8::MAX; 16],
             bytes_32: [u8::MAX; 32],
             foo: ZeroizingMutGuard::from(foo),
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 }
@@ -87,7 +87,7 @@ impl<'a> FastZeroizable for FunctionalStruct<'a> {
             to_fast_zeroizable_dyn_mut(&mut self.bytes_32),
             to_fast_zeroizable_dyn_mut(&mut self.bytes),
             to_fast_zeroizable_dyn_mut(&mut self.foo),
-            to_fast_zeroizable_dyn_mut(&mut self.__drop_sentinel),
+            to_fast_zeroizable_dyn_mut(&mut self.__sentinel),
         ];
 
         zeroize_collection(&mut fields.into_iter());
@@ -110,8 +110,8 @@ impl<'a> ZeroizationProbe for FunctionalStruct<'a> {
 }
 
 impl<'a> AssertZeroizeOnDrop for FunctionalStruct<'a> {
-    fn clone_drop_sentinel(&self) -> crate::drop_sentinel::DropSentinel {
-        self.__drop_sentinel.clone()
+    fn clone_sentinel(&self) -> ZeroizeOnDropSentinel {
+        self.__sentinel.clone()
     }
 
     fn assert_zeroize_on_drop(self) {

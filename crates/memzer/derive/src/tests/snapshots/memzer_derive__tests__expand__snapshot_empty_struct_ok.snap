@@ -12,9 +12,7 @@ impl memzer_core::ZeroizeMetadata for Epsilon {
 impl memzer_core::FastZeroizable for Epsilon {
     fn fast_zeroize(&mut self) {
         let fields: [&mut dyn memzer_core::FastZeroizable; 1] = [
-            memzer_core::collections::to_fast_zeroizable_dyn_mut(
-                &mut self.__drop_sentinel,
-            ),
+            memzer_core::collections::to_fast_zeroizable_dyn_mut(&mut self.__sentinel),
         ];
         memzer_core::collections::zeroize_collection(&mut fields.into_iter())
     }
@@ -26,8 +24,8 @@ impl memzer_core::ZeroizationProbe for Epsilon {
     }
 }
 impl memzer_core::AssertZeroizeOnDrop for Epsilon {
-    fn clone_drop_sentinel(&self) -> memzer_core::DropSentinel {
-        self.__drop_sentinel.clone()
+    fn clone_sentinel(&self) -> memzer_core::ZeroizeOnDropSentinel {
+        self.__sentinel.clone()
     }
     fn assert_zeroize_on_drop(self) {
         memzer_core::assert::assert_zeroize_on_drop(self);

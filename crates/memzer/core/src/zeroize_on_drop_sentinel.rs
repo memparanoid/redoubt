@@ -13,7 +13,7 @@ use crate::{FastZeroizable, ZeroizeMetadata};
 
 /// Runtime verification that zeroization happened before drop.
 ///
-/// `DropSentinel` is a guard type used to verify that `.zeroize()` was called
+/// `ZeroizeOnDropSentinel` is a guard type used to verify that `.zeroize()` was called
 /// before a value is dropped. This provides **runtime enforcement** of zeroization
 /// invariants, complementing compile-time checks.
 ///
@@ -34,22 +34,22 @@ use crate::{FastZeroizable, ZeroizeMetadata};
 /// Typically used as a field in structs to verify zeroization:
 ///
 /// ```rust,ignore
-/// use memzer_core::{DropSentinel, FastZeroizable};
+/// use memzer_core::{ZeroizeOnDropSentinel, FastZeroizable};
 ///
 /// struct Secret {
 ///     data: Vec<u8>,
-///     __drop_sentinel: DropSentinel,
+///     __sentinel: ZeroizeOnDropSentinel,
 /// }
 ///
 /// impl Drop for Secret {
 ///     fn drop(&mut self) {
 ///         self.data.fast_zeroize();
-///         self.__drop_sentinel.fast_zeroize();
+///         self.__sentinel.fast_zeroize();
 ///     }
 /// }
 /// ```
 ///
-/// The `__drop_sentinel` field tracks whether `.zeroize()` was called before drop.
+/// The `__sentinel` field tracks whether `.zeroize()` was called before drop.
 /// You'll need to implement `FastZeroizable`, `ZeroizationProbe`, and `AssertZeroizeOnDrop`
 /// manually, or use the `memzer` umbrella crate which provides `#[derive(MemZer)]`.
 ///
@@ -58,10 +58,10 @@ use crate::{FastZeroizable, ZeroizeMetadata};
 /// Clone the sentinel to verify zeroization behavior:
 ///
 /// ```rust
-/// use memzer_core::DropSentinel;
+/// use memzer_core::ZeroizeOnDropSentinel;
 /// use memzer_core::FastZeroizable;
 ///
-/// let mut sentinel = DropSentinel::default();
+/// let mut sentinel = ZeroizeOnDropSentinel::default();
 /// let sentinel_clone = sentinel.clone();
 ///
 /// assert!(!sentinel_clone.is_zeroized());
@@ -69,17 +69,17 @@ use crate::{FastZeroizable, ZeroizeMetadata};
 /// assert!(sentinel_clone.is_zeroized());
 /// ```
 #[derive(Clone, Debug)]
-pub struct DropSentinel(Arc<AtomicBool>);
+pub struct ZeroizeOnDropSentinel(Arc<AtomicBool>);
 
-impl PartialEq for DropSentinel {
+impl PartialEq for ZeroizeOnDropSentinel {
     fn eq(&self, other: &Self) -> bool {
         self.0.load(Ordering::Relaxed) == other.0.load(Ordering::Relaxed)
     }
 }
 
-impl Eq for DropSentinel {}
+impl Eq for ZeroizeOnDropSentinel {}
 
-impl DropSentinel {
+impl ZeroizeOnDropSentinel {
     /// Resets the sentinel to "not zeroized" (pristine) state.
     ///
     /// This is useful in tests when reusing a sentinel for multiple assertions.
@@ -87,9 +87,9 @@ impl DropSentinel {
     /// # Example
     ///
     /// ```rust
-    /// use memzer_core::{DropSentinel, FastZeroizable, ZeroizationProbe};
+    /// use memzer_core::{ZeroizeOnDropSentinel, FastZeroizable, ZeroizationProbe};
     ///
-    /// let mut sentinel = DropSentinel::default();
+    /// let mut sentinel = ZeroizeOnDropSentinel::default();
     /// sentinel.fast_zeroize();
     /// assert!(sentinel.is_zeroized());
     ///
@@ -107,9 +107,9 @@ impl DropSentinel {
     /// # Example
     ///
     /// ```rust
-    /// use memzer_core::{DropSentinel, FastZeroizable, ZeroizationProbe};
+    /// use memzer_core::{ZeroizeOnDropSentinel, FastZeroizable, ZeroizationProbe};
     ///
-    /// let mut sentinel = DropSentinel::default();
+    /// let mut sentinel = ZeroizeOnDropSentinel::default();
     /// assert!(!sentinel.is_zeroized());
     ///
     /// sentinel.fast_zeroize();
@@ -120,17 +120,17 @@ impl DropSentinel {
     }
 }
 
-impl Default for DropSentinel {
+impl Default for ZeroizeOnDropSentinel {
     fn default() -> Self {
         Self(Arc::new(AtomicBool::new(true)))
     }
 }
 
-impl ZeroizeMetadata for DropSentinel {
+impl ZeroizeMetadata for ZeroizeOnDropSentinel {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
-impl FastZeroizable for DropSentinel {
+impl FastZeroizable for ZeroizeOnDropSentinel {
     fn fast_zeroize(&mut self) {
         // SAFETY: Using volatile write to prevent compiler from optimizing away the store
         unsafe {

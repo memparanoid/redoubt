@@ -12,7 +12,7 @@ struct OnlyDefaults {
     #[codec(default)]
     pub field2: u32,
     #[codec(default)]
-    __drop_sentinel: memzer::DropSentinel,
+    __sentinel: memzer::ZeroizeOnDropSentinel,
 }
 use memvault_core::CipherBoxDyns as _;
 impl memvault_core::CipherBoxDyns<0> for OnlyDefaults {

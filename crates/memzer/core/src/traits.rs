@@ -5,7 +5,7 @@
 // See the LICENSE file for details.
 //! Core traits for systematic zeroization.
 
-use super::drop_sentinel::DropSentinel;
+use super::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 
 /// Trait for verifying that a value has been zeroized.
 ///
@@ -35,16 +35,16 @@ pub trait ZeroizationProbe {
 
 /// Trait for types that verify zeroization happened before drop.
 ///
-/// Types implementing this trait contain a [`DropSentinel`] and provide
+/// Types implementing this trait contain a [`ZeroizeOnDropSentinel`] and provide
 /// methods to verify that `.zeroize()` was called before the value is dropped.
 ///
 /// This trait is typically derived using `#[derive(MemZer)]` from the `memzer` crate.
 pub trait AssertZeroizeOnDrop {
-    /// Clones the internal [`DropSentinel`] for verification.
+    /// Clones the internal [`ZeroizeOnDropSentinel`] for verification.
     ///
     /// This is used by [`assert_zeroize_on_drop`](AssertZeroizeOnDrop::assert_zeroize_on_drop)
     /// to verify zeroization after the value is dropped.
-    fn clone_drop_sentinel(&self) -> DropSentinel;
+    fn clone_sentinel(&self) -> ZeroizeOnDropSentinel;
 
     /// Asserts that zeroization happens when this value is dropped.
     ///

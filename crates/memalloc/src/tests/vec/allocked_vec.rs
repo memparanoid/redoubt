@@ -265,12 +265,9 @@ fn test_allocked_vec_realloc_with_noop_when_sufficient() {
     assert!(!vec.is_zeroized());
 
     // Realloc with smaller capacity - should also be no-op
-    vec.realloc_with(3, |_| {
-        hook_has_been_called = true;
-    });
-
-    assert!(!hook_has_been_called);
-    assert_eq!(vec.capacity(), 5);
+    vec.realloc_with_capacity(3);
+    // Vec has shrinked
+    assert_eq!(vec.capacity(), 3);
     assert_eq!(vec.as_slice(), [1, 2]);
 
     // Vec is still not zeroized since `has_been_sealed` is true and no realloc happened.
@@ -337,8 +334,8 @@ fn test_allocked_vec_realloc_with_capacity_noop_when_sufficient() {
 
     // Realloc with smaller capacity - should also be no-op
     vec.realloc_with_capacity(3);
-
-    assert_eq!(vec.capacity(), 5);
+    // Vec has shrinked
+    assert_eq!(vec.capacity(), 3);
     assert_eq!(vec.as_slice(), [1, 2]);
 
     // Vec is still not zeroized since `has_been_sealed` is true and no realloc happened.

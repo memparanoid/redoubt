@@ -342,8 +342,7 @@ fn test_is_empty_false() {
 #[test]
 #[serial(page_buffer)]
 fn test_is_empty_true() {
-    let buffer =
-        PageBuffer::new(ProtectionStrategy::MemProtected, 0).expect("Failed to new(..)");
+    let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 0).expect("Failed to new(..)");
     assert!(buffer.is_empty());
 }
 
@@ -374,8 +373,7 @@ fn test_dispose() {
 #[test]
 #[serial(page_buffer)]
 fn test_page_buffer_debug_does_not_expose_contents() {
-    let buffer =
-        PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+    let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
     let debug_output = format!("{:?}", buffer);
 
     // Should contain struct name, length, and strategy
