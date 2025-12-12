@@ -10,7 +10,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use core::cell::UnsafeCell;
-use core::sync::atomic::{AtomicU8, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
 use membuffer::{Buffer, BufferError};
 
@@ -29,6 +29,7 @@ unsafe impl Sync for BufferCell {}
 
 static INIT_STATE: AtomicU8 = AtomicU8::new(STATE_UNINIT);
 static BUFFER: BufferCell = BufferCell(UnsafeCell::new(None));
+static LOCKED: AtomicBool = AtomicBool::new(false);
 
 #[cold]
 #[inline(never)]
@@ -64,17 +65,37 @@ fn init_slow() {
     }
 }
 
+fn acquire() {
+    while LOCKED.swap(true, Ordering::Acquire) {
+        core::hint::spin_loop();
+    }
+
+    // Delay lock release during tests to force thread contention and ensure
+    // the spin loop above gets coverage. Without this, lock acquisition is
+    // so fast that threads never actually spin.
+    #[cfg(test)]
+    std::thread::sleep(std::time::Duration::from_micros(10));
+}
+
+fn release() {
+    LOCKED.store(false, Ordering::Release);
+}
+
 pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError> {
     if INIT_STATE.load(Ordering::Acquire) != STATE_DONE {
         init_slow();
     }
 
-    unsafe {
+    acquire();
+
+    let result = unsafe {
         (*BUFFER.0.get())
             .as_mut()
             .expect("Infallible: BUFFER is already initialized")
-            .open(f)?;
-    }
+            .open(f)
+    };
 
-    Ok(())
+    release();
+
+    result
 }
