@@ -10,7 +10,6 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughpu
 use serde::{Deserialize, Serialize};
 
 use memcodec::{BytesRequired, Codec, CodecBuffer, Decode, Encode};
-use memcrypt::{decrypt_decodable, encrypt_encodable};
 use memzer::{DropSentinel, FastZeroizable, MemZer};
 
 use memaead::Aead;
@@ -103,39 +102,6 @@ fn bench_cipherbox(c: &mut Criterion) {
                     .expect("Failed to encrypt(..)");
 
                 black_box(ct.len())
-            });
-        });
-    }
-
-    // === memcrypt encrypt_encodable / decrypt_decodable ===
-    {
-        let mut aead = Aead::new();
-        let mut key = KEY_16[..aead.key_size()].to_vec();
-        let mut nonce = NONCE_16[..aead.nonce_size()].to_vec();
-
-        let mut data = Data2MB::new();
-        let mut ciphertext = encrypt_encodable(&mut aead, &mut key, &mut nonce, &mut data).unwrap();
-
-        group.bench_function("memcrypt_encodable", |b| {
-            b.iter(|| {
-                // Decrypt + Decode
-                let mut key = KEY_16[..aead.key_size()].to_vec();
-                let mut nonce = NONCE_16[..aead.nonce_size()].to_vec();
-                let guard =
-                    decrypt_decodable::<Data2MB>(&mut aead, &mut key, &mut nonce, &mut ciphertext)
-                        .unwrap();
-
-                // Clone out of guard and modify
-                let mut decoded = (*guard).clone();
-                decoded.bytes[0] = decoded.bytes[0].wrapping_add(1);
-
-                // Encode + Encrypt
-                let mut key = KEY_16[..aead.key_size()].to_vec();
-                let mut nonce = NONCE_16[..aead.nonce_size()].to_vec();
-                ciphertext =
-                    encrypt_encodable(&mut aead, &mut key, &mut nonce, &mut decoded).unwrap();
-
-                black_box(ciphertext.len())
             });
         });
     }

@@ -9,7 +9,6 @@ use thiserror::Error;
 use memaead::AeadError;
 use membuffer::BufferError;
 use memcodec::{DecodeError, EncodeError, OverflowError};
-use memhkdf::HkdfError;
 use memrand::EntropyError;
 
 #[derive(Debug, Error)]
@@ -28,9 +27,6 @@ pub enum CipherBoxError {
 
     #[error(transparent)]
     Buffer(#[from] BufferError),
-
-    #[error(transparent)]
-    Hkdf(#[from] HkdfError),
 
     #[error(transparent)]
     Crypto(#[from] CryptoError),

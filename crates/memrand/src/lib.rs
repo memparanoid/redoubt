@@ -39,7 +39,7 @@
 //! ## Integration with Memora
 //!
 //! `memrand` is used throughout the Memora stack:
-//! - **memcrypt**: Key and nonce generation for AEAD encryption
+//! - **memaead**: Key and nonce generation for AEAD encryption
 //! - **memvault**: Entropy for master key derivation
 //!
 //! ## Platform Support

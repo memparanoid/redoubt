@@ -26,7 +26,6 @@ RUN mkdir -p crates/memzer/core/src
 RUN mkdir -p crates/memzer/derive/src
 RUN mkdir -p crates/memsecret/src
 RUN mkdir -p crates/memrand/src
-RUN mkdir -p crates/memhkdf/src
 RUN mkdir -p crates/memutil/src
 RUN mkdir -p crates/memvault/src
 RUN mkdir -p crates/memvault/core/src
@@ -50,7 +49,6 @@ COPY crates/memzer/core/Cargo.toml ./crates/memzer/core/
 COPY crates/memzer/derive/Cargo.toml ./crates/memzer/derive/
 COPY crates/memsecret/Cargo.toml ./crates/memsecret/
 COPY crates/memrand/Cargo.toml ./crates/memrand/
-COPY crates/memhkdf/Cargo.toml ./crates/memhkdf/
 COPY crates/memutil/Cargo.toml ./crates/memutil/
 COPY crates/memvault/Cargo.toml ./crates/memvault/
 COPY crates/memvault/core/Cargo.toml ./crates/memvault/core/
@@ -72,7 +70,6 @@ RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs 
     mkdir -p crates/memzer/derive/src && echo "// stub" > crates/memzer/derive/src/lib.rs && \
     mkdir -p crates/memsecret/src && echo "// stub" > crates/memsecret/src/lib.rs && \
     mkdir -p crates/memrand/src && echo "// stub" > crates/memrand/src/lib.rs && \
-    mkdir -p crates/memhkdf/src && echo "// stub" > crates/memhkdf/src/lib.rs && \
     mkdir -p crates/memutil/src && echo "// stub" > crates/memutil/src/lib.rs && \
     mkdir -p crates/memvault/src && echo "// stub" > crates/memvault/src/lib.rs && \
     mkdir -p crates/memvault/core/src && echo "// stub" > crates/memvault/core/src/lib.rs && \
@@ -85,7 +82,6 @@ RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs 
     echo "fn main() {}" > crates/membench/benches/cipherbox.rs && \
     echo "fn main() {}" > crates/membench/benches/codec.rs && \
     echo "fn main() {}" > crates/membench/benches/protected_buffer.rs && \
-    echo "fn main() {}" > crates/membench/benches/hkdf.rs && \
     echo "fn main() {}" > crates/membench/benches/cipherbox_integrated.rs && \
     echo "fn main() {}" > crates/membench/benches/cipherbox_final.rs && \
     mkdir -p crates/memcodec/src && echo "// stub" > crates/memcodec/src/lib.rs && \

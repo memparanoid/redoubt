@@ -116,7 +116,7 @@
 //!
 //! ```text
 //! memvault (encrypted storage)
-//!     ├─> memcrypt (AEAD encryption) ──> guards from memzer
+//!     ├─> memaead (AEAD encryption) ──> guards from memzer
 //!     └─> memcode (serialization) ────> guards from memzer
 //!         └─> memzer (this crate)
 //! ```
@@ -124,7 +124,7 @@
 //! Guards compose with other Memora crates:
 //! - **memsecret**: High-level `Secret<T>` wrapper built on memzer traits
 //! - **memcode**: Serialization library with memzer trait support
-//! - **memcrypt**: Encryption stages use [`ZeroizingMutGuard`] for keys/nonces
+//! - **memaead**: Encryption stages use [`ZeroizingMutGuard`] for keys/nonces
 //! - **memvault**: High-level API uses guards for encrypted in-memory storage
 //!
 //! ## Safety

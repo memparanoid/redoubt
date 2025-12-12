@@ -716,8 +716,6 @@ dependencies = [
  "memaead",
  "membuffer",
  "memcodec",
- "memcrypt",
- "memhkdf",
  "memutil",
  "memvault_core",
  "memvault_derive",
@@ -782,35 +780,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "memcrypt"
-version = "0.0.1"
-dependencies = [
- "memaead",
- "memcodec",
- "memrand",
- "memutil",
- "memzer",
- "rand",
- "rand_core",
- "thiserror",
-]
-
-[[package]]
 name = "memguard"
 version = "0.0.1"
 dependencies = [
  "libc",
  "libseccomp",
  "serial_test",
-]
-
-[[package]]
-name = "memhkdf"
-version = "0.0.1"
-dependencies = [
- "memutil",
- "memzer",
- "thiserror",
 ]
 
 [[package]]
@@ -854,9 +829,7 @@ dependencies = [
  "memalloc",
  "membuffer",
  "memcodec",
- "memcrypt",
  "memguard",
- "memhkdf",
  "memrand",
  "memsecret",
  "memutil",

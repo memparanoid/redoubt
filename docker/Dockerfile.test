@@ -21,12 +21,10 @@ COPY crates/memzer/core/Cargo.toml ./crates/memzer/core/
 COPY crates/memzer/derive/Cargo.toml ./crates/memzer/derive/
 COPY crates/memsecret/Cargo.toml ./crates/memsecret/
 COPY crates/memrand/Cargo.toml ./crates/memrand/
-COPY crates/memhkdf/Cargo.toml ./crates/memhkdf/
 COPY crates/memutil/Cargo.toml ./crates/memutil/
 COPY crates/memvault/Cargo.toml ./crates/memvault/
 COPY crates/memvault/core/Cargo.toml ./crates/memvault/core/
 COPY crates/memvault/derive/Cargo.toml ./crates/memvault/derive/
-COPY crates/memcrypt/Cargo.toml ./crates/memcrypt/
 COPY crates/memaead/Cargo.toml ./crates/memaead/
 COPY crates/membench/Cargo.toml ./crates/membench/
 COPY crates/memcodec/Cargo.toml ./crates/memcodec/
@@ -43,12 +41,10 @@ RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs 
     mkdir -p crates/memzer/derive/src && echo "// stub" > crates/memzer/derive/src/lib.rs && \
     mkdir -p crates/memsecret/src && echo "// stub" > crates/memsecret/src/lib.rs && \
     mkdir -p crates/memrand/src && echo "// stub" > crates/memrand/src/lib.rs && \
-    mkdir -p crates/memhkdf/src && echo "// stub" > crates/memhkdf/src/lib.rs && \
     mkdir -p crates/memutil/src && echo "// stub" > crates/memutil/src/lib.rs && \
     mkdir -p crates/memvault/src && echo "// stub" > crates/memvault/src/lib.rs && \
     mkdir -p crates/memvault/core/src && echo "// stub" > crates/memvault/core/src/lib.rs && \
     mkdir -p crates/memvault/derive/src && echo "// stub" > crates/memvault/derive/src/lib.rs && \
-    mkdir -p crates/memcrypt/src && echo "// stub" > crates/memcrypt/src/lib.rs && \
     mkdir -p crates/memaead/src && echo "// stub" > crates/memaead/src/lib.rs && \
     mkdir -p crates/membench/src && echo "// stub" > crates/membench/src/lib.rs && \
     mkdir -p crates/membench/benches && echo "fn main() {}" > crates/membench/benches/aead.rs && \
@@ -56,7 +52,6 @@ RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs 
     echo "fn main() {}" > crates/membench/benches/cipherbox.rs && \
     echo "fn main() {}" > crates/membench/benches/codec.rs && \
     echo "fn main() {}" > crates/membench/benches/protected_buffer.rs && \
-    echo "fn main() {}" > crates/membench/benches/hkdf.rs && \
     echo "fn main() {}" > crates/membench/benches/cipherbox_integrated.rs && \
     echo "fn main() {}" > crates/membench/benches/cipherbox_final.rs && \
     mkdir -p crates/memcodec/src && echo "// stub" > crates/memcodec/src/lib.rs && \

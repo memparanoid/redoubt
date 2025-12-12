@@ -2,7 +2,6 @@
 exclude = ["scripts"]
 members = [
   "crates/memguard",
-  "crates/memhkdf",
   "crates/memzer",
   "crates/memzer/core",
   "crates/memzer/derive",
@@ -13,7 +12,6 @@ members = [
   "crates/memvault",
   "crates/memvault/core",
   "crates/memvault/derive",
-  "crates/memcrypt",
   "crates/memalloc",
   "crates/membench",
   "crates/memcodec",
@@ -38,9 +36,7 @@ resolver = "2"
   memcodec        = { path = "crates/memcodec" }
   memcodec_core   = { path = "crates/memcodec/core" }
   memcodec_derive = { path = "crates/memcodec/derive" }
-  memcrypt       = { path = "crates/memcrypt" }
   memguard       = { path = "crates/memguard" }
-  memhkdf        = { path = "crates/memhkdf" }
   memrand        = { path = "crates/memrand" }
   memsecret      = { path = "crates/memsecret" }
   memutil        = { path = "crates/memutil" }

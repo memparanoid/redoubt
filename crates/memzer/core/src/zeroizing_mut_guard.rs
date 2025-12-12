@@ -45,15 +45,15 @@ use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 ///
 /// # Composition with Crypto Operations
 ///
-/// `ZeroizingMutGuard` is heavily used in `memcrypt` for wrapping keys and nonces:
+/// `ZeroizingMutGuard` is heavily used in `memaead` for wrapping keys and nonces:
 ///
 /// ```rust,ignore
 /// use memzer_core::ZeroizingMutGuard;
-/// use memcrypt::{AeadKey, XNonce};
+/// use memaead::Aegis128L;
 ///
 /// struct EncryptionContext<'a> {
-///     key: ZeroizingMutGuard<'a, AeadKey>,
-///     nonce: ZeroizingMutGuard<'a, XNonce>,
+///     key: ZeroizingMutGuard<'a, [u8; 16]>,
+///     nonce: ZeroizingMutGuard<'a, [u8; 16]>,
 /// }
 ///
 /// impl Drop for EncryptionContext<'_> {
