@@ -4,7 +4,7 @@
 
 use crate::error::BufferError;
 
-pub trait Buffer: Send + Sync {
+pub trait Buffer: Send + Sync + core::fmt::Debug {
     fn open(
         &mut self,
         f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
