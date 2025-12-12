@@ -39,8 +39,8 @@ args    = ["fmt", "--", "--check"]
 command = "cargo"
 
 [tasks.lint]
-# Strict linting: treat warnings as errors
-args    = ["clippy", "--all-targets", "--all-features", "--", "-W", "unused-imports"]
+# Strict linting: show all warnings including rustc warnings
+args    = ["clippy", "--workspace", "--all-targets", "--all-features", "--", "-W", "warnings"]
 command = "cargo"
 
 [tasks.check]
