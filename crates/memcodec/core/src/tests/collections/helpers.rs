@@ -176,12 +176,29 @@ fn test_to_decode_dyn_mut() {
     tb.encode_into(&mut buf).expect("Failed to encode");
 
     // Decode
-    let mut decoded = TestBreaker::default();
-    let dyn_mut: &mut dyn Decode = to_decode_dyn_mut(&mut decoded);
-    let result = dyn_mut.decode_from(&mut buf.as_mut_slice());
+    {
+        let mut decode_buf = buf.export_as_vec();
+        let mut decoded = TestBreaker::default();
+        let dyn_mut: &mut dyn Decode = to_decode_dyn_mut(&mut decoded);
+        let result = dyn_mut.decode_from(&mut decode_buf.as_mut_slice());
 
-    assert!(result.is_ok());
-    assert_eq!(decoded.usize.data, 100);
+        assert!(result.is_ok());
+        assert_eq!(decoded.usize.data, 100);
+
+        #[cfg(feature = "zeroize")]
+        // Assert zeroization!
+        {
+            assert!(buf.is_zeroized());
+            assert!(decode_buf.is_zeroized());
+        }
+    }
+
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(buf.is_zeroized());
+        assert!(tb.is_zeroized());
+    }
 }
 
 // bytes_required_sum
@@ -258,9 +275,7 @@ fn perm_test_encode_fields_propagates_error_at_any_position() {
         let mut buf = CodecBuffer::new(bytes_required);
 
         let result = encode_fields(
-            fields_clone
-                .iter_mut()
-                .map(to_encode_zeroize_dyn_mut),
+            fields_clone.iter_mut().map(to_encode_zeroize_dyn_mut),
             &mut buf,
         );
 
@@ -301,9 +316,7 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
 
         let mut buf = CodecBuffer::new(bytes_required);
         encode_fields(
-            fields_clone
-                .iter_mut()
-                .map(to_encode_zeroize_dyn_mut),
+            fields_clone.iter_mut().map(to_encode_zeroize_dyn_mut),
             &mut buf,
         )
         .expect("Failed to encode");
@@ -313,12 +326,12 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
             let mut recovered_fields_clone = recovered_fields;
             apply_permutation(&mut recovered_fields_clone, idx_perm);
 
-            let mut decode_buf = buf.as_mut_slice();
+            let mut decode_buf = buf.export_as_vec();
             let result = decode_fields(
                 recovered_fields_clone
                     .iter_mut()
                     .map(to_decode_zeroize_dyn_mut),
-                &mut decode_buf,
+                &mut decode_buf.as_mut_slice(),
             );
 
             assert!(result.is_err());
@@ -326,6 +339,7 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
             #[cfg(feature = "zeroize")]
             // Assert zeroization!
             {
+                assert!(buf.is_zeroized());
                 assert!(decode_buf.is_zeroized());
                 assert!(recovered_fields_clone.iter().all(|tb| tb.is_zeroized()));
             }
@@ -334,8 +348,8 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
         #[cfg(feature = "zeroize")]
         // Assert zeroization!
         {
-            assert!(buf.as_slice().iter().all(|&b| b == 0));
-            assert!(fields_clone.iter().all(|tb| tb.is_zeroized()));
+            assert!(buf.is_zeroized());
+            assert!(fields_clone.is_zeroized());
         }
     });
 }
@@ -371,8 +385,8 @@ fn test_fields_roundtrip_ok() {
         to_decode_zeroize_dyn_mut(&mut decoded2),
     ];
 
-    let mut buf_slice = buf.as_mut_slice();
-    let result = decode_fields(decode_refs.into_iter(), &mut buf_slice);
+    let mut decode_buf = buf.export_as_vec();
+    let result = decode_fields(decode_refs.into_iter(), &mut decode_buf.as_mut_slice());
 
     assert!(result.is_ok());
     assert_eq!(decoded1.usize.data, 100);
@@ -381,6 +395,7 @@ fn test_fields_roundtrip_ok() {
     // Assert buf zeroization after decode!
     #[cfg(feature = "zeroize")]
     {
-        assert!(buf_slice.iter().all(|&b| b == 0));
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
     }
 }

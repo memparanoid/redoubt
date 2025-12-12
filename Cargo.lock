@@ -595,6 +595,7 @@ version = "0.0.1"
 dependencies = [
  "insta",
  "memcodec_core",
+ "memzer",
  "prettyplease",
  "proc-macro-crate",
  "proc-macro2",

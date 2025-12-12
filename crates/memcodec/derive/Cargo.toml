@@ -13,6 +13,10 @@ version.workspace    = true
 proc-macro = true
 path = "src/lib.rs"
 
+[features]
+default = ["zeroize"]
+zeroize = ["memcodec_core/zeroize"]
+
 [dependencies]
 proc-macro-crate.workspace = true
 proc-macro2.workspace      = true
@@ -20,6 +24,7 @@ quote.workspace            = true
 syn.workspace              = true
 
 [dev-dependencies]
+memzer.workspace = true
 insta.workspace         = true
 memcodec_core.workspace = true
 prettyplease.workspace  = true

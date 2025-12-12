@@ -224,18 +224,35 @@ where
         "original must be zeroized after encode_into"
     );
 
+    let mut decode_buf = buf.export_as_vec();
     let mut recovered = initial_recovered;
     recovered
-        .decode_from(&mut buf.as_mut_slice())
+        .decode_from(&mut decode_buf.as_mut_slice())
         .expect("Failed to decode_from(..)");
 
     assert!(compare(&recovered, &original_value));
+
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
+        // SAFETY NOTE: We cannot assert zeroization on `original` since `original` lacks the ZeroizationProbe bound.
+    }
 }
 
 /// For each pair (T_0, T_1) from the set, runs the 4 combinations with custom comparator
 pub(crate) fn test_all_pairs_with<T, F>(set: &[T], compare: F)
 where
-    T: Encode + Decode + EncodeSlice + DecodeSlice + BytesRequired + Clone + Default + PartialEq + core::fmt::Debug,
+    T: Encode
+        + Decode
+        + EncodeSlice
+        + DecodeSlice
+        + BytesRequired
+        + Clone
+        + Default
+        + PartialEq
+        + core::fmt::Debug,
     F: Fn(&T, &T) -> bool,
 {
     for i in 0..set.len() {
@@ -266,7 +283,15 @@ where
 /// For each pair using PartialEq (convenience wrapper)
 pub(crate) fn test_all_pairs<T>(set: &[T])
 where
-    T: Encode + Decode + EncodeSlice + DecodeSlice + BytesRequired + Clone + Default + PartialEq + core::fmt::Debug,
+    T: Encode
+        + Decode
+        + EncodeSlice
+        + DecodeSlice
+        + BytesRequired
+        + Clone
+        + Default
+        + PartialEq
+        + core::fmt::Debug,
 {
     test_all_pairs_with(set, |a, b| a == b);
 }

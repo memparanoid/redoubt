@@ -111,12 +111,21 @@ fn test_encode_propagates_capacity_exceeded_error() {
 #[test]
 fn test_allocked_vec_decode_from_propagates_process_header_err() {
     let mut vec: AllockedVec<TestBreaker> = AllockedVec::new();
-    let mut buf = [0u8; 1]; // Too small for header
+    let mut buf = CodecBuffer::new(1); // Too small for header
 
-    let result = vec.decode_from(&mut buf.as_mut_slice());
+    let mut decode_buf = buf.export_as_vec();
+    let result = vec.decode_from(&mut decode_buf.as_mut_slice());
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
+        assert!(vec.is_zeroized());
+    }
 }
 
 #[test]
@@ -138,8 +147,8 @@ fn test_allocked_vec_decode_propagates_decode_err() {
         TestBreaker::new(TestBreakerBehaviour::ForceDecodeError, 100),
     ]);
 
-    let mut decode_buf = buf.as_mut_slice();
-    let result = recovered.decode_from(&mut decode_buf);
+    let mut decode_buf = buf.export_as_vec();
+    let result = recovered.decode_from(&mut decode_buf.as_mut_slice());
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
@@ -147,9 +156,10 @@ fn test_allocked_vec_decode_propagates_decode_err() {
     #[cfg(feature = "zeroize")]
     // Assert zeroization!
     {
-        assert!(vec.as_slice().iter().all(|tb| tb.is_zeroized()));
+        assert!(buf.is_zeroized());
         assert!(decode_buf.is_zeroized());
-        assert!(recovered.as_slice().iter().all(|tb| tb.is_zeroized()));
+        assert!(vec.is_zeroized());
+        assert!(recovered.is_zeroized());
     }
 }
 
@@ -172,12 +182,12 @@ fn test_allocked_vec_encode_decode_roundtrip() {
 
     // Decode
     {
-        let mut decode_buf = buf.as_mut_slice();
+        let mut decode_buf = buf.export_as_vec();
         let mut recovered = make_allocked_vec(&[
             TestBreaker::new(TestBreakerBehaviour::None, 0),
             TestBreaker::new(TestBreakerBehaviour::None, 0),
         ]);
-        let result = recovered.decode_from(&mut decode_buf);
+        let result = recovered.decode_from(&mut decode_buf.as_mut_slice());
 
         assert!(result.is_ok());
         assert_eq!(
@@ -191,6 +201,7 @@ fn test_allocked_vec_encode_decode_roundtrip() {
         #[cfg(feature = "zeroize")]
         // Assert zeroization!
         {
+            assert!(buf.is_zeroized());
             assert!(decode_buf.is_zeroized());
         }
     }
@@ -198,8 +209,8 @@ fn test_allocked_vec_encode_decode_roundtrip() {
     #[cfg(feature = "zeroize")]
     // Assert zeroization!
     {
-        assert!(buf.as_slice().iter().all(|&b| b == 0));
-        assert!(vec.as_slice().iter().all(|tb| tb.is_zeroized()));
+        assert!(buf.is_zeroized());
+        assert!(vec.is_zeroized());
     }
 }
 
@@ -322,8 +333,8 @@ fn perm_test_allocked_vec_decode_from_propagates_error_at_any_position() {
             let mut recovered_vec_clone = recovered_vec.clone();
             apply_permutation(recovered_vec_clone.as_mut_slice(), idx_perm);
 
-            let mut decode_buf = buf.as_mut_slice();
-            let result = recovered_vec_clone.decode_from(&mut decode_buf);
+            let mut decode_buf = buf.export_as_vec();
+            let result = recovered_vec_clone.decode_from(&mut decode_buf.as_mut_slice());
 
             assert!(result.is_err());
             assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
@@ -331,28 +342,17 @@ fn perm_test_allocked_vec_decode_from_propagates_error_at_any_position() {
             #[cfg(feature = "zeroize")]
             // Assert zeroization!
             {
+                assert!(buf.is_zeroized());
                 assert!(decode_buf.is_zeroized());
-                // @TODO: use recovered_vec_clone.is_zeroized() when new crate is finished.
-                assert!(
-                    recovered_vec_clone
-                        .as_slice()
-                        .iter()
-                        .all(|v| v.as_slice().iter().all(|tb| tb.is_zeroized()))
-                );
+                assert!(recovered_vec_clone.is_zeroized());
             }
         }
 
         #[cfg(feature = "zeroize")]
         // Assert zeroization!
         {
-            assert!(buf.as_slice().iter().all(|&b| b == 0));
-            // @TODO: use vec_clone.is_zeroized() when new crate is finished.
-            assert!(
-                vec_clone
-                    .as_slice()
-                    .iter()
-                    .all(|v| v.as_slice().iter().all(|tb| tb.is_zeroized()))
-            );
+            assert!(buf.is_zeroized());
+            assert!(vec_clone.is_zeroized());
         }
     });
 }
@@ -406,11 +406,9 @@ fn perm_test_allocked_vec_encode_decode_roundtrip() {
             .encode_into(&mut buf)
             .expect("Failed to encode_into(..)");
 
-        let mut decode_vec = buf.as_slice().to_vec();
-        let mut decode_buf = decode_vec.as_mut_slice();
-
+        let mut decode_buf = buf.export_as_vec();
         let mut recovered: AllockedVec<AllockedVec<TestBreaker>> = AllockedVec::new();
-        let result = recovered.decode_from(&mut decode_buf);
+        let result = recovered.decode_from(&mut decode_buf.as_mut_slice());
 
         assert!(result.is_ok());
         assert_eq!(recovered, expected);
@@ -418,14 +416,9 @@ fn perm_test_allocked_vec_encode_decode_roundtrip() {
         #[cfg(feature = "zeroize")]
         // Assert zeroization!
         {
+            assert!(buf.is_zeroized());
             assert!(decode_buf.is_zeroized());
-            // @TODO: use vec_clone.is_zeroized() when new crate is finished.
-            assert!(
-                vec_clone
-                    .as_slice()
-                    .iter()
-                    .all(|v| v.as_slice().iter().all(|tb| tb.is_zeroized()))
-            );
+            assert!(vec_clone.is_zeroized());
         }
     });
 }
@@ -452,14 +445,11 @@ fn test_allocked_vec_prealloc_zeroizes_existing_elements() {
     #[cfg(feature = "zeroize")]
     // Assert zeroization!
     {
-        // @TODO: use vec.is_zeroized() when new crate is finished.
-        assert!(vec.iter().all(|tb| tb.is_zeroized()));
+        assert!(vec.is_zeroized());
     }
 
     #[cfg(not(feature = "zeroize"))]
     {
-        // @TODO: codec_zeroize() no longer exists
-        // Without zeroize: codec_zeroize() is no-op, elements unchanged
         assert_eq!(vec[0].data, 100);
         assert_eq!(vec[1].data, 200);
     }

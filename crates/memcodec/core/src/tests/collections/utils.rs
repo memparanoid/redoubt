@@ -56,9 +56,9 @@ pub(crate) fn test_collection_varying_capacities<T, C, F, G, H>(
                 .write_slice(buf.as_slice().to_vec().as_mut_slice())
                 .expect("Failed to write_slice(..)");
 
-            let mut decode_buf = buf_clone.as_mut_slice();
+            let mut decode_buf = buf_clone.export_as_vec();
             recovered
-                .decode_from(&mut decode_buf)
+                .decode_from(&mut decode_buf.as_mut_slice())
                 .expect("Failed to decode_from(..)");
 
             assert!(
@@ -69,14 +69,9 @@ pub(crate) fn test_collection_varying_capacities<T, C, F, G, H>(
             #[cfg(feature = "zeroize")]
             // Assert zeroization!
             {
-                assert!(
-                    decode_buf.is_zeroized(),
-                    "buf must be zeroized after decode"
-                );
-                assert!(
-                    original_clone.is_zeroized(),
-                    "original must be zeroized after encode"
-                );
+                assert!(buf_clone.is_zeroized());
+                assert!(decode_buf.is_zeroized());
+                assert!(original_clone.is_zeroized());
             }
         }
     }

@@ -11,6 +11,16 @@ pub trait BytesRequired {
     fn mem_bytes_required(&self) -> Result<usize, OverflowError>;
 }
 
+/// Internal encoding trait that performs encoding without zeroization.
+///
+/// This trait separates the core encoding logic from security concerns:
+/// - **TryEncode**: Does the actual encoding work WITHOUT zeroization
+/// - **Encode**: Public API that calls `try_encode_into` and adds zeroization cleanup on error
+///
+/// This separation allows:
+/// - Internal code to skip zeroization when unnecessary
+/// - Clean separation of concerns (logic vs security)
+/// - The public API to guarantee zeroization invariants on all error paths
 pub(crate) trait TryEncode: Encode + Sized {
     fn try_encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError>;
 }
@@ -26,7 +36,16 @@ pub(crate) trait EncodeSlice: Encode + Sized {
     fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError>;
 }
 
-// @TODO: Doc why this trait is useful
+/// Internal decoding trait that performs decoding without zeroization.
+///
+/// This trait separates the core decoding logic from security concerns:
+/// - **TryDecode**: Does the actual decoding work WITHOUT zeroization
+/// - **Decode**: Public API that calls `try_decode_from` and adds zeroization cleanup on error
+///
+/// This separation allows:
+/// - Internal code to skip zeroization when unnecessary
+/// - Clean separation of concerns (logic vs security)
+/// - The public API to guarantee zeroization invariants on all error paths
 pub(crate) trait TryDecode {
     fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError>;
 }

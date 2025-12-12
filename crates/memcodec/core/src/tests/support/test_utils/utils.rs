@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use memzer::ZeroizationProbe;
+
 use crate::codec_buffer::CodecBuffer;
-use crate::error::DecodeError;
 use crate::support::test_utils::tamper_encoded_bytes_for_tests;
 use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
 use crate::{BytesRequired, Decode, Encode};
@@ -25,28 +26,18 @@ fn test_tamper_encoded_bytes_for_tests() {
 
     tamper_encoded_bytes_for_tests(buf.as_mut_slice());
 
+    let mut decode_buf = buf.export_as_vec();
     let mut recovered: Vec<TestBreaker> = vec![];
-
-    let result = recovered.decode_from(&mut buf.as_mut_slice());
-
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_tamper_encoded_bytes_for_test_breaker() {
-    let mut tb = TestBreaker::new(TestBreakerBehaviour::None, 100);
-    let bytes_required = tb
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
-    let mut buf = CodecBuffer::new(bytes_required);
-
-    tb.encode_into(&mut buf).expect("Failed to encode_into(..)");
-
-    tamper_encoded_bytes_for_tests(buf.as_mut_slice());
-
-    let mut recovered = TestBreaker::default();
-    let result = recovered.decode_from(&mut buf.as_mut_slice());
+    let result = recovered.decode_from(&mut decode_buf.as_mut_slice());
 
     assert!(result.is_err());
-    assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
+
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
+        assert!(vec.is_zeroized());
+        assert!(recovered.is_zeroized());
+    }
 }

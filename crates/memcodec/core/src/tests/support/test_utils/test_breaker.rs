@@ -156,12 +156,21 @@ fn test_roundtrip() {
         .encode_into(&mut buf)
         .expect("Failed to encode_into(..)");
 
+    let mut decode_buf = buf.export_as_vec();
     let mut decoded = TestBreaker::default();
     decoded
-        .decode_from(&mut buf.as_mut_slice())
+        .decode_from(&mut decode_buf.as_mut_slice())
         .expect("Failed to decode_from(..)");
 
     assert_eq!(decoded.usize, original_usize);
+
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
+        assert!(original.is_zeroized());
+    }
 }
 
 // EncodeSlice

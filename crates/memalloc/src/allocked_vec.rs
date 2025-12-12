@@ -166,16 +166,21 @@ where
         T: Default,
         F: FnMut(&mut Self),
     {
-        if capacity <= self.capacity() {
+        // No-op if capacity is the same
+        if capacity == self.capacity() {
             return;
+        }
+
+        // When shrinking, truncate to fit in new capacity
+        if capacity < self.capacity() {
+            self.truncate(capacity);
         }
 
         let new_allocked_vec = {
             let mut allocked_vec = AllockedVec::<T>::with_capacity(capacity);
             allocked_vec
                  .drain_from(self.as_mut_slice())
-                 .expect("infallible: new vec len=0 prevents Overflow error (0 + len <= usize::MAX), and: capacity >
-     self.capacity() >= self.len() implies that CapacityExceeded error is not possible.");
+                 .expect("realloc_with: drain_from cannot fail - new vec has sufficient capacity");
             allocked_vec
         };
 

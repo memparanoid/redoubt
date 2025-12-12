@@ -71,12 +71,12 @@ fn test_array_encode_into_propagates_bytes_required_error() {
     // Assert zeroization!
     {
         assert!(buf.is_zeroized());
-        assert!(arr.iter().all(|tb| tb.is_zeroized()));
+        assert!(arr.is_zeroized());
     }
 }
 
 #[test]
-fn test_array_encode_propagates_capacity_exceeded_error() {
+fn test_array_encode_into_propagates_capacity_exceeded_error() {
     let mut arr = [TestBreaker::new(TestBreakerBehaviour::None, 100)];
     let mut buf = CodecBuffer::new(1); // Too small
 
@@ -94,7 +94,7 @@ fn test_array_encode_propagates_capacity_exceeded_error() {
     // Assert zeroization!
     {
         assert!(buf.is_zeroized());
-        assert!(arr.iter().all(|tb| tb.is_zeroized()));
+        assert!(arr.is_zeroized());
     }
 }
 
@@ -103,12 +103,21 @@ fn test_array_encode_propagates_capacity_exceeded_error() {
 #[test]
 fn test_array_decode_from_propagates_process_header_err() {
     let mut arr: [TestBreaker; 2] = [TestBreaker::default(), TestBreaker::default()];
-    let mut buf = [0u8; 1]; // Too small for header
+    let mut buf = CodecBuffer::new(1); // Too small for header
 
-    let result = arr.decode_from(&mut buf.as_mut_slice());
+    let mut decode_buf = buf.export_as_vec();
+    let result = arr.decode_from(&mut decode_buf.as_mut_slice());
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
+        assert!(arr.is_zeroized());
+    }
 }
 
 #[test]
@@ -126,11 +135,21 @@ fn test_array_decode_from_propagates_size_mismatch_err() {
         .expect("Failed to encode_into(..)");
 
     // Try to decode into array of size 1
+    let mut decode_buf = buf.export_as_vec();
     let mut arr_wrong_size: [TestBreaker; 1] = [TestBreaker::default()];
-    let result = arr_wrong_size.decode_from(&mut buf.as_mut_slice());
+    let result = arr_wrong_size.decode_from(&mut decode_buf.as_mut_slice());
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+
+    #[cfg(feature = "zeroize")]
+    // Assert zeroization!
+    {
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
+        assert!(arr.is_zeroized());
+        assert!(arr_wrong_size.is_zeroized());
+    }
 }
 
 #[test]
@@ -152,8 +171,8 @@ fn test_array_decode_propagates_decode_err() {
         TestBreaker::new(TestBreakerBehaviour::ForceDecodeError, 100),
     ];
 
-    let mut decode_buf = buf.as_mut_slice();
-    let result = recovered.decode_from(&mut decode_buf);
+    let mut decode_buf = buf.export_as_vec();
+    let result = recovered.decode_from(&mut decode_buf.as_mut_slice());
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
@@ -161,6 +180,7 @@ fn test_array_decode_propagates_decode_err() {
     #[cfg(feature = "zeroize")]
     // Assert zeroization!
     {
+        assert!(buf.is_zeroized());
         assert!(decode_buf.is_zeroized());
         assert!(arr.iter().all(|tb| tb.is_zeroized()));
         assert!(recovered.iter().all(|tb| tb.is_zeroized()));
@@ -186,12 +206,12 @@ fn test_array_encode_decode_roundtrip() {
 
     // Decode
     {
-        let mut decode_buf = buf.as_mut_slice();
+        let mut decode_buf = buf.export_as_vec();
         let mut recovered = [
             TestBreaker::new(TestBreakerBehaviour::None, 0),
             TestBreaker::new(TestBreakerBehaviour::None, 0),
         ];
-        let result = recovered.decode_from(&mut decode_buf);
+        let result = recovered.decode_from(&mut decode_buf.as_mut_slice());
 
         assert!(result.is_ok());
         assert_eq!(
@@ -205,6 +225,7 @@ fn test_array_encode_decode_roundtrip() {
         #[cfg(feature = "zeroize")]
         // Assert zeroization!
         {
+            assert!(buf.is_zeroized());
             assert!(decode_buf.is_zeroized());
         }
     }
@@ -212,7 +233,7 @@ fn test_array_encode_decode_roundtrip() {
     #[cfg(feature = "zeroize")]
     // Assert zeroization!
     {
-        assert!(buf.as_slice().iter().all(|&b| b == 0));
+        assert!(buf.is_zeroized());
         assert!(arr.is_zeroized());
     }
 }
@@ -285,8 +306,8 @@ fn perm_test_array_decode_from_propagates_error_at_any_position() {
             let mut recovered_arr_clone = recovered_arr;
             apply_permutation(&mut recovered_arr_clone, idx_perm);
 
-            let mut decode_buf = buf.as_mut_slice();
-            let result = recovered_arr_clone.decode_from(&mut decode_buf);
+            let mut decode_buf = buf.export_as_vec();
+            let result = recovered_arr_clone.decode_from(&mut decode_buf.as_mut_slice());
 
             assert!(result.is_err());
             assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
@@ -294,6 +315,7 @@ fn perm_test_array_decode_from_propagates_error_at_any_position() {
             #[cfg(feature = "zeroize")]
             // Assert zeroization!
             {
+                assert!(buf.is_zeroized());
                 assert!(decode_buf.is_zeroized());
                 assert!(recovered_arr_clone.is_zeroized());
             }
@@ -302,7 +324,7 @@ fn perm_test_array_decode_from_propagates_error_at_any_position() {
         #[cfg(feature = "zeroize")]
         // Assert zeroization!
         {
-            assert!(buf.as_slice().iter().all(|&b| b == 0));
+            assert!(buf.is_zeroized());
             assert!(arr_clone.is_zeroized());
         }
     });
@@ -338,8 +360,8 @@ fn perm_test_array_encode_decode_roundtrip() {
         // Decode
         {
             let mut recovered: [[TestBreaker; 1]; 6] = [[TestBreaker::default()]; 6];
-            let mut decode_buf = buf.as_mut_slice();
-            let result = recovered.decode_from(&mut decode_buf);
+            let mut decode_buf = buf.export_as_vec();
+            let result = recovered.decode_from(&mut decode_buf.as_mut_slice());
 
             assert!(result.is_ok());
             assert_eq!(recovered, expected);
@@ -347,6 +369,7 @@ fn perm_test_array_encode_decode_roundtrip() {
             #[cfg(feature = "zeroize")]
             // Assert zeroization!
             {
+                assert!(buf.is_zeroized());
                 assert!(decode_buf.is_zeroized());
             }
         }
@@ -354,12 +377,8 @@ fn perm_test_array_encode_decode_roundtrip() {
         #[cfg(feature = "zeroize")]
         // Assert zeroization!
         {
-            assert!(buf.as_slice().iter().all(|&b| b == 0));
-            assert!(
-                arr_clone
-                    .iter()
-                    .all(|inner| inner.iter().all(|tb| tb.is_zeroized()))
-            );
+            assert!(buf.is_zeroized());
+            assert!(arr_clone.is_zeroized());
         }
     });
 }

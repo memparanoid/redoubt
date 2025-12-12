@@ -6,6 +6,7 @@
 mod tests {
     use memcodec_core::{BytesRequired, CodecBuffer, Decode, Encode};
     use memcodec_derive::Codec;
+    use memzer::ZeroizationProbe;
 
     #[test]
     fn test_derive_named_struct_roundtrip() {
@@ -34,16 +35,20 @@ mod tests {
             .expect("Failed to encode_into(..)");
 
         // Decode
-        let mut decode_buf = buf.as_mut_slice();
+        let mut decode_buf = buf.export_as_vec();
         let mut recovered = TestData::default();
         recovered
-            .decode_from(&mut decode_buf)
+            .decode_from(&mut decode_buf.as_mut_slice())
             .expect("Failed to decode_from(..)");
 
         assert_eq!(recovered, original);
 
-        // Assert zeroization
-        // @TODO: Add memcodec zeroize feature.
+        #[cfg(feature = "zeroize")]
+        // Assert zeroization!
+        {
+            assert!(buf.is_zeroized());
+            assert!(decode_buf.is_zeroized());
+        }
     }
 
     #[test]
@@ -65,16 +70,20 @@ mod tests {
             .expect("Failed to encode_into(..)");
 
         // Decode
-        let mut decode_buf = buf.as_mut_slice();
+        let mut decode_buf = buf.export_as_vec();
         let mut recovered = TupleData::default();
         recovered
-            .decode_from(&mut decode_buf)
+            .decode_from(&mut decode_buf.as_mut_slice())
             .expect("Failed to decode_from(..)");
 
         assert_eq!(recovered, original);
 
-        // Assert zeroization
-        // @TODO: Add memcodec zeroize feature.
+        #[cfg(feature = "zeroize")]
+        // Assert zeroization!
+        {
+            assert!(buf.is_zeroized());
+            assert!(decode_buf.is_zeroized());
+        }
     }
 
     #[test]
@@ -98,15 +107,19 @@ mod tests {
             .expect("Failed to encode_into(..)");
 
         // Decode
-        let mut decode_buf = buf.as_mut_slice();
+        let mut decode_buf = buf.export_as_vec();
         let mut recovered = EmptyStruct;
         recovered
-            .decode_from(&mut decode_buf)
+            .decode_from(&mut decode_buf.as_mut_slice())
             .expect("Failed to decode_from(..)");
 
         assert_eq!(recovered, original);
 
-        // Assert zeroization
-        // @TODO: Add memcodec zeroize feature.
+        #[cfg(feature = "zeroize")]
+        // Assert zeroization!
+        {
+            assert!(buf.is_zeroized());
+            assert!(decode_buf.is_zeroized());
+        }
     }
 }
