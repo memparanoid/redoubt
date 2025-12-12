@@ -4,14 +4,16 @@
 
 //! Standard library storage implementation
 
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 use membuffer::{Buffer, BufferError};
 
 use super::super::buffer::create_initialized_buffer;
 
-static BUFFER: OnceLock<Box<dyn Buffer>> = OnceLock::new();
+static BUFFER: OnceLock<Mutex<Box<dyn Buffer>>> = OnceLock::new();
 
 pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError> {
-    BUFFER.get_or_init(create_initialized_buffer).open(f)
+    let mutex = BUFFER.get_or_init(|| Mutex::new(create_initialized_buffer()));
+    let mut guard = mutex.lock().map_err(|_| BufferError::MutexPoisoned)?;
+    guard.open(f)
 }

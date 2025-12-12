@@ -45,7 +45,7 @@ unsafe impl Sync for PortableBuffer {}
 
 impl Buffer for PortableBuffer {
     fn open(
-        &self,
+        &mut self,
         f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
     ) -> Result<(), BufferError> {
         f(&self.inner)

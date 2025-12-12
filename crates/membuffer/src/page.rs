@@ -48,7 +48,7 @@ impl Page {
             return Err(PageError::CreationFailed);
         }
 
-        let page = Self {
+        let mut page = Self {
             capacity,
             ptr: ptr as *mut u8,
             is_protected: AtomicBool::new(false),
@@ -110,7 +110,7 @@ impl Page {
     ///
     /// # Safety
     /// Page must be unprotected (PROT_WRITE), otherwise SIGSEGV.
-    pub unsafe fn as_mut_slice(&self) -> &mut [u8] {
+    pub unsafe fn as_mut_slice(&mut self) -> &mut [u8] {
         unsafe { core::slice::from_raw_parts_mut(self.ptr, self.capacity) }
     }
 
@@ -118,7 +118,7 @@ impl Page {
     ///
     /// # Safety
     /// Page must be unprotected (PROT_WRITE), otherwise SIGSEGV.
-    pub unsafe fn zeroize(&self) {
+    pub unsafe fn zeroize(&mut self) {
         unsafe { self.as_mut_slice().fast_zeroize() };
     }
 
@@ -127,7 +127,7 @@ impl Page {
         unsafe { libc::munlock(self.ptr as *const _, self.capacity) };
     }
 
-    pub fn dispose(&self) {
+    pub fn dispose(&mut self) {
         // Best effort: try to unprotect and zeroize before unmapping
         // If unprotect fails, page stays protected (safe)
         if self.is_protected.load(Ordering::Acquire) {

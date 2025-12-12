@@ -50,6 +50,13 @@ fn test_concurrent_access() {
     assert_eq!(exit_code, Some(0), "subprocess test failed");
 }
 
+#[test]
+fn test_mutex_poisoned() {
+    let exit_code =
+        run_test_as_subprocess("tests::master_key::storage::std::subprocess_test_mutex_poisoned");
+    assert_eq!(exit_code, Some(0), "subprocess test failed");
+}
+
 // ==============================
 // ===== Subprocess tests =======
 // ==============================
@@ -87,4 +94,29 @@ fn subprocess_concurrent_access() {
 
     let guard = keys.lock().expect("Failed to lock mutex");
     assert!(guard.iter().all(|x| *x == guard[0]));
+}
+
+#[test]
+#[ignore]
+fn subprocess_test_mutex_poisoned() {
+    use std::panic;
+
+    // First call: poison the Mutex by panicking inside the closure
+    let result = panic::catch_unwind(|| {
+        open(&mut |_| {
+            panic!("Intentional panic to poison mutex");
+        })
+    });
+
+    assert!(result.is_err(), "Expected panic");
+
+    // Second call: should return MutexPoisoned error
+    let result = open(&mut |_| Ok(()));
+
+    match result {
+        Err(BufferError::MutexPoisoned) => {
+            // Success: we got the expected error
+        }
+        other => panic!("Expected MutexPoisoned error, got: {:?}", other),
+    }
 }

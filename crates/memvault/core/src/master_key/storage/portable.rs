@@ -71,8 +71,8 @@ pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), B
 
     unsafe {
         (*BUFFER.0.get())
-            .as_ref()
-            .expect("buffer not initialized")
+            .as_mut()
+            .expect("Infallible: BUFFER is already initialized")
             .open(f)?;
     }
 

@@ -124,7 +124,7 @@ fn test_portable_buffer_open_propagates_callback_error() {
         _code: u32,
     }
 
-    let portable_buffer = PortableBuffer::create(10);
+    let mut portable_buffer = PortableBuffer::create(10);
 
     let result = portable_buffer
         .open(&mut |_bytes| Err(BufferError::callback_error(TestCallbackError { _code: 42 })));

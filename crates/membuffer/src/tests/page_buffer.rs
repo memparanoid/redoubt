@@ -151,7 +151,7 @@ fn test_open_mem_non_protected() {
 fn test_open_propagates_callback_error() {
     use crate::error::BufferError;
 
-    let buffer =
+    let mut buffer =
         PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
 
     let result = buffer.open(&mut |_| Err(BufferError::callback_error("test error")));
@@ -167,7 +167,7 @@ mod seccomp_open {
     #[test]
     #[ignore]
     fn subprocess_test_open_aborts_on_unprotect_failure() {
-        let buffer =
+        let mut buffer =
             PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
 
         block_mprotect();
@@ -186,7 +186,7 @@ mod seccomp_open {
     #[test]
     #[ignore]
     fn subprocess_test_open_aborts_on_protect_failure() {
-        let buffer =
+        let mut buffer =
             PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
 
         let _ = buffer.open(&mut |_bytes| {
@@ -338,7 +338,8 @@ fn test_is_empty_false() {
 #[test]
 #[serial(page_buffer)]
 fn test_is_empty_true() {
-    let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 0).expect("Failed to new(..)");
+    let mut buffer =
+        PageBuffer::new(ProtectionStrategy::MemProtected, 0).expect("Failed to new(..)");
     assert!(buffer.is_empty());
 }
 
@@ -365,28 +366,3 @@ fn test_dispose() {
 // =============================================================================
 // acquire() / release() - spinlock contention
 // =============================================================================
-
-#[test]
-fn test_acquire_spinlock_contention() {
-    use std::sync::Arc;
-    use std::thread;
-
-    let buffer = Arc::new(
-        PageBuffer::new(ProtectionStrategy::MemNonProtected, 32).expect("Failed to new(..)"),
-    );
-
-    let buffer_clone = Arc::clone(&buffer);
-
-    // Thread 1: acquires lock and holds it for 10ms (due to #[cfg(test)] sleep)
-    let handle = thread::spawn(move || {
-        let _ = buffer_clone.open(&mut |_| Ok(()));
-    });
-
-    // Small delay to ensure thread 1 acquires first
-    thread::sleep(std::time::Duration::from_millis(1));
-
-    // Main thread: tries to acquire while thread 1 holds the lock -> hits spin_loop
-    let _ = buffer.open(&mut |_| Ok(()));
-
-    handle.join().unwrap();
-}

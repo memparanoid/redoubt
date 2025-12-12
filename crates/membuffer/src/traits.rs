@@ -6,7 +6,7 @@ use crate::error::BufferError;
 
 pub trait Buffer: Send + Sync {
     fn open(
-        &self,
+        &mut self,
         f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
     ) -> Result<(), BufferError>;
 

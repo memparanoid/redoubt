@@ -11,7 +11,7 @@ use crate::tests::utils::{block_entropy_syscalls, block_mem_syscalls, run_test_a
 
 #[test]
 fn test_create_buffer_returns_correct_length() {
-    let buffer = create_buffer(false);
+    let mut buffer = create_buffer(false);
     buffer
         .open(&mut |bytes| {
             assert!(
@@ -25,7 +25,7 @@ fn test_create_buffer_returns_correct_length() {
 
 #[test]
 fn test_create_buffer_guarded_returns_correct_length() {
-    let buffer = create_buffer(true);
+    let mut buffer = create_buffer(true);
     buffer
         .open(&mut |bytes| {
             assert!(
@@ -39,7 +39,7 @@ fn test_create_buffer_guarded_returns_correct_length() {
 
 #[test]
 fn test_create_initialized_buffer_returns_correct_length() {
-    let buffer = create_initialized_buffer();
+    let mut buffer = create_initialized_buffer();
     buffer
         .open(&mut |bytes| {
             assert_eq!(bytes.len(), MASTER_KEY_LEN);
@@ -68,7 +68,7 @@ fn subprocess_create_buffer_falls_back_to_portable() {
     block_mem_syscalls();
 
     // @TODO: Add debug or `name` method to the buffer to assert it's actually a PortableBuffer
-    let buffer = create_buffer(false);
+    let mut buffer = create_buffer(false);
     buffer
         .open(&mut |bytes| {
             assert_eq!(bytes.len(), MASTER_KEY_LEN);

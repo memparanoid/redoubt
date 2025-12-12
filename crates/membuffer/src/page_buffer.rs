@@ -7,7 +7,6 @@
 //! Provides open/open_mut access pattern with automatic protect/unprotect.
 //! On protection errors, the page is disposed and the process aborts.
 
-use core::sync::atomic::{AtomicBool, Ordering};
 
 use crate::error::{BufferError, PageError};
 use crate::page::Page;
@@ -25,7 +24,6 @@ pub struct PageBuffer {
     page: Page,
     len: usize,
     strategy: ProtectionStrategy,
-    locked: AtomicBool,
 }
 
 impl PageBuffer {
@@ -54,11 +52,10 @@ impl PageBuffer {
             page,
             len,
             strategy,
-            locked: AtomicBool::new(false),
         })
     }
 
-    fn maybe_unprotect(&self) -> Result<(), PageError> {
+    fn maybe_unprotect(&mut self) -> Result<(), PageError> {
         if self.strategy == ProtectionStrategy::MemProtected {
             self.page.unprotect()?;
         }
@@ -66,7 +63,7 @@ impl PageBuffer {
         Ok(())
     }
 
-    fn maybe_protect(&self) -> Result<(), PageError> {
+    fn maybe_protect(&mut self) -> Result<(), PageError> {
         if self.strategy == ProtectionStrategy::MemProtected {
             self.page.protect()?;
         }
@@ -75,7 +72,7 @@ impl PageBuffer {
     }
 
     fn try_open(
-        &self,
+        &mut self,
         f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
     ) -> Result<(), BufferError> {
         self.maybe_unprotect()?;
@@ -106,41 +103,24 @@ impl PageBuffer {
         self.len == 0
     }
 
-    fn acquire(&self) {
-        while self.locked.swap(true, Ordering::Acquire) {
-            core::hint::spin_loop();
-        }
-
-        #[cfg(test)]
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
-
-    fn release(&self) {
-        self.locked.store(false, Ordering::Release);
-    }
-
     pub fn dispose(&mut self) {
         self.page.dispose();
     }
 }
 
-// SAFETY: PageBuffer has internal synchronization via AtomicBool spinlock.
+// Safety: PageBuffer can be shared between threads (though mutation requires &mut)
 unsafe impl Sync for PageBuffer {}
 
 impl Buffer for PageBuffer {
     #[inline(always)]
-    fn open(&self, f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError> {
-        self.acquire();
-
+    fn open(&mut self, f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError> {
         let result = self.try_open(f);
 
         if let Err(BufferError::Page(e)) = &result {
-            self.release();
             self.page.dispose();
             Self::abort(*e);
         }
 
-        self.release();
         result
     }
 
@@ -149,17 +129,13 @@ impl Buffer for PageBuffer {
         &mut self,
         f: &mut dyn FnMut(&mut [u8]) -> Result<(), BufferError>,
     ) -> Result<(), BufferError> {
-        self.acquire();
-
         let result = self.try_open_mut(f);
 
         if let Err(BufferError::Page(e)) = &result {
-            self.release();
             self.page.dispose();
             Self::abort(*e);
         }
 
-        self.release();
         result
     }
 

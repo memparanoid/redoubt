@@ -32,6 +32,9 @@ pub enum BufferError {
 
     #[error("callback error: {0:?}")]
     CallbackError(Box<dyn core::fmt::Debug + Send + Sync + 'static>),
+
+    #[error("mutex poisoned")]
+    MutexPoisoned,
 }
 
 impl BufferError {
