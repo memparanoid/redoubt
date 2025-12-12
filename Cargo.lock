@@ -868,10 +868,12 @@ dependencies = [
 name = "memvault_derive"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "memaead",
  "memcodec",
  "memvault_core",
  "memzer",
+ "prettyplease",
  "proc-macro-crate",
  "proc-macro2",
  "quote",
