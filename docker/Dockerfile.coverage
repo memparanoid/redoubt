@@ -30,7 +30,6 @@ RUN mkdir -p crates/memutil/src
 RUN mkdir -p crates/memvault/src
 RUN mkdir -p crates/memvault/core/src
 RUN mkdir -p crates/memvault/derive/src
-RUN mkdir -p crates/memcrypt/src
 RUN mkdir -p crates/memaead/src
 RUN mkdir -p crates/membench/src
 RUN mkdir -p crates/memcodec/src
@@ -53,7 +52,6 @@ COPY crates/memutil/Cargo.toml ./crates/memutil/
 COPY crates/memvault/Cargo.toml ./crates/memvault/
 COPY crates/memvault/core/Cargo.toml ./crates/memvault/core/
 COPY crates/memvault/derive/Cargo.toml ./crates/memvault/derive/
-COPY crates/memcrypt/Cargo.toml ./crates/memcrypt/
 COPY crates/memaead/Cargo.toml ./crates/memaead/
 COPY crates/membench/Cargo.toml ./crates/membench/
 COPY crates/memcodec/Cargo.toml ./crates/memcodec/
@@ -74,7 +72,6 @@ RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs 
     mkdir -p crates/memvault/src && echo "// stub" > crates/memvault/src/lib.rs && \
     mkdir -p crates/memvault/core/src && echo "// stub" > crates/memvault/core/src/lib.rs && \
     mkdir -p crates/memvault/derive/src && echo "// stub" > crates/memvault/derive/src/lib.rs && \
-    mkdir -p crates/memcrypt/src && echo "// stub" > crates/memcrypt/src/lib.rs && \
     mkdir -p crates/memaead/src && echo "// stub" > crates/memaead/src/lib.rs && \
     mkdir -p crates/membench/src && echo "// stub" > crates/membench/src/lib.rs && \
     mkdir -p crates/membench/benches && echo "fn main() {}" > crates/membench/benches/aead.rs && \
