@@ -6,22 +6,17 @@
 mod tests {
     use memcodec::Codec;
     use memvault_derive::cipherbox;
-    use memzer::{DropSentinel, FastZeroizable, MemZer, ZeroizationProbe};
+    use memzer::{FastZeroizable, MemZer, ZeroizationProbe};
 
     #[cipherbox(WalletSecretsCipherBox)]
-    #[derive(MemZer, Codec)]
+    #[derive(Default, MemZer, Codec)]
     #[memzer(drop)]
-    #[derive(Default)]
-struct WalletSecrets {
+    struct WalletSecrets {
         master_seed: [u8; 32],
         encryption_key: [u8; 32],
         signing_key: [u8; 32],
         pin_hash: [u8; 32],
-        #[codec(default)]
-        __drop_sentinel: DropSentinel,
     }
-
-    
 
     #[test]
     fn test_cipherbox_wrapper_new() {

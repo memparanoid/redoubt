@@ -11,23 +11,49 @@ use proc_macro::TokenStream;
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
-use syn::{Attribute, Data, DeriveInput, Fields, Ident, LitStr, Meta, Type, parse_macro_input};
+use syn::{
+    Attribute, Data, DeriveInput, Field, Fields, Ident, LitStr, Meta, Type, parse_macro_input,
+};
 
 /// Derives a CipherBox wrapper struct with per-field access methods.
+///
+/// **IMPORTANT**: This attribute macro MUST appear BEFORE `#[derive(MemZer)]` to work correctly.
+/// It automatically injects the `__drop_sentinel` field that MemZer requires.
 ///
 /// # Usage
 ///
 /// ```ignore
-/// #[cipherbox(WalletSecretsCipherBox)]
-/// #[derive(MemZer, Codec)]
+/// #[cipherbox(WalletSecretsCipherBox)]  // ← Must come FIRST
+/// #[derive(MemZer, Codec)]              // ← Then derives
 /// #[memzer(drop)]
 /// struct WalletSecrets {
 ///     master_seed: [u8; 32],
 ///     encryption_key: [u8; 32],
-///     #[codec(default)]
-///     __drop_sentinel: DropSentinel,
+///     // __drop_sentinel is auto-injected, no need to add it manually!
 /// }
 /// ```
+///
+/// # Attribute Macro Ordering
+///
+/// Attribute macros execute in order from top to bottom, BEFORE derive macros.
+/// Since `#[derive(MemZer)]` requires a `__drop_sentinel` field, and `#[cipherbox]`
+/// injects it automatically, `#[cipherbox]` must appear above `#[derive(MemZer)]`.
+///
+/// ✅ Correct order:
+/// ```ignore
+/// #[cipherbox(MyBox)]
+/// #[derive(MemZer, Codec)]
+/// struct MySecrets { ... }
+/// ```
+///
+/// 🚫 Incorrect order (will fail to compile):
+/// ```ignore
+/// #[derive(MemZer, Codec)]  // ← Runs first, fails because __drop_sentinel is missing
+/// #[cipherbox(MyBox)]       // ← Runs second, but too late
+/// struct MySecrets { ... }
+/// ```
+///
+/// # Generated Code
 ///
 /// This generates:
 /// - `WalletSecretsCipherBox` wrapper struct
@@ -79,7 +105,54 @@ fn has_codec_default(attrs: &[Attribute]) -> bool {
     })
 }
 
+/// Injects `__drop_sentinel: DropSentinel` field with `#[codec(default)]` attribute.
+fn inject_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
+    let root = find_root_with_candidates(&["memzer_core", "memzer"]);
+    let data = match &mut input.data {
+        Data::Struct(data) => data,
+        _ => {
+            // Not a struct - just return as-is and let later validation handle it
+            return input;
+        }
+    };
+
+    let fields = match &mut data.fields {
+        Fields::Named(fields) => fields,
+        // Unnamed and Unit structs - just return as-is, no injection needed
+        Fields::Unnamed(_) | Fields::Unit => {
+            return input;
+        }
+    };
+
+    // Check if __drop_sentinel already exists
+    let has_drop_sentinel = fields.named.iter().any(|f| {
+        f.ident
+            .as_ref()
+            .map(|i| i == "__drop_sentinel")
+            .unwrap_or(false)
+    });
+
+    if has_drop_sentinel {
+        // Already has __drop_sentinel, don't inject
+        return input;
+    }
+
+    // Create the __drop_sentinel field
+    let sentinel_field: Field = syn::parse_quote! {
+        #[codec(default)]
+        __drop_sentinel: #root::DropSentinel
+    };
+
+    // Add to fields
+    fields.named.push(sentinel_field);
+
+    input
+}
+
 fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
+    // Inject __drop_sentinel field if it doesn't exist
+    let input = inject_drop_sentinel(input);
+
     let struct_name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 

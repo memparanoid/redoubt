@@ -12,6 +12,8 @@ where
 {
     pub value: T,
     pub count: u64,
+    #[codec(default)]
+    __drop_sentinel: memzer::DropSentinel,
 }
 use memvault_core::CipherBoxDyns as _;
 impl<T> memvault_core::CipherBoxDyns<2> for Container<T>

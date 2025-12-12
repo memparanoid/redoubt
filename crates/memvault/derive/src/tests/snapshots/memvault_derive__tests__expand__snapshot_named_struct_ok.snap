@@ -10,6 +10,8 @@ expression: pretty(token_stream)
 struct Data {
     pub alpha: Vec<u8>,
     pub beta: u64,
+    #[codec(default)]
+    __drop_sentinel: memzer::DropSentinel,
 }
 use memvault_core::CipherBoxDyns as _;
 impl memvault_core::CipherBoxDyns<2> for Data {
