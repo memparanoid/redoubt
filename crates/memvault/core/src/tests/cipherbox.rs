@@ -81,11 +81,11 @@ impl<A: AeadApi> EncryptStruct<A, NUM_FIELDS> for TestBreakerBox {
         tags: &mut [Vec<u8>; NUM_FIELDS],
     ) -> Result<[Vec<u8>; NUM_FIELDS], CipherBoxError> {
         encrypt_into(
+            self.to_encryptable_dyn_fields(),
             aead,
             aead_key,
             nonces,
             tags,
-            self.to_encryptable_dyn_fields(),
         )
     }
 }
@@ -100,12 +100,12 @@ impl<A: AeadApi> DecryptStruct<A, NUM_FIELDS> for TestBreakerBox {
         ciphertexts: &mut [Vec<u8>; NUM_FIELDS],
     ) -> Result<(), CipherBoxError> {
         decrypt_from(
+            &mut self.to_decryptable_dyn_fields(),
             aead,
             aead_key,
             nonces,
             tags,
             ciphertexts,
-            &mut self.to_decryptable_dyn_fields(),
         )
     }
 }

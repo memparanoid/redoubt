@@ -63,11 +63,61 @@ fn test_encrypt_into_propagates_bytes_required_overflow() {
         .each_mut()
         .map(|tb| to_encryptable_mut_dyn(tb));
 
-    let result = encrypt_into(&mut aead, &aead_key, &mut nonces, &mut tags, fields);
+    let result = encrypt_into(fields, &mut aead, &aead_key, &mut nonces, &mut tags);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(CipherBoxError::Overflow(_))));
 }
+
+// =============================================================================
+// encrypt_into tests
+// =============================================================================
+
+#[test]
+fn test_encrypt_into_ok() {
+    let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); NUM_FIELDS];
+    let mut aead = AeadMock::new(AeadMockBehaviour::None);
+    let aead_key = [0u8; 32];
+    let mut nonces = create_nonces(&aead);
+    let mut tags = create_tags(&aead);
+
+    let fields = test_breakers
+        .each_mut()
+        .map(|tb| to_encryptable_mut_dyn(tb));
+
+    let result = encrypt_into(fields, &mut aead, &aead_key, &mut nonces, &mut tags);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_encrypt_into_propagates_errors() {
+    let mut test_breakers: [TestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
+        if i == 0 {
+            TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 10)
+        } else {
+            TestBreaker::new(TestBreakerBehaviour::None, i << 2)
+        }
+    });
+
+    let mut aead = AeadMock::new(AeadMockBehaviour::None);
+    let aead_key = [0u8; 32];
+    let mut nonces = create_nonces(&aead);
+    let mut tags = create_tags(&aead);
+
+    let fields = test_breakers
+        .each_mut()
+        .map(|tb| to_encryptable_mut_dyn(tb));
+
+    let result = encrypt_into(fields, &mut aead, &aead_key, &mut nonces, &mut tags);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+}
+
+// =============================================================================
+// encrypt_into_buffers tests
+// =============================================================================
 
 #[test]
 fn test_encrypt_into_buffers_propagates_bytes_required_overflow() {
@@ -84,22 +134,28 @@ fn test_encrypt_into_buffers_propagates_bytes_required_overflow() {
     let mut nonces = create_nonces(&aead);
     let mut tags = create_tags(&aead);
     let mut buffers: [CodecBuffer; NUM_FIELDS] = core::array::from_fn(|_| CodecBuffer::new(10));
+    let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
 
     let fields = test_breakers
         .each_mut()
         .map(|tb| to_encryptable_mut_dyn(tb));
 
     let result = encrypt_into_buffers(
+        fields,
         &mut aead,
         &aead_key,
         &mut nonces,
         &mut tags,
-        fields,
         &mut buffers,
+        &mut ciphertexts,
     );
 
     assert!(result.is_err());
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+
+    // Assert zeroization!
+    assert!(buffers.is_zeroized());
+    assert!(ciphertexts.is_zeroized());
 }
 
 // =============================================================================
@@ -109,7 +165,7 @@ fn test_encrypt_into_buffers_propagates_bytes_required_overflow() {
 /// Test zeroization when encode fails - exhaustive permutation test.
 /// Flow: encode_into fails → buffers[0..i] have plaintext → must zeroize all.
 #[test]
-fn test_encrypt_into_buffers_zeroizes_on_encode_failure() {
+fn test_encrypt_into_buffers_performs_zeroization_on_encode_failure() {
     // TestBreakers: one with ForceEncodeError at index 0, rest None.
     let test_breakers: [TestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
         if i == 0 {
@@ -132,6 +188,7 @@ fn test_encrypt_into_buffers_zeroizes_on_encode_failure() {
             .map(|tb| to_encryptable_mut_dyn(tb));
         let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
         let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(|s| CodecBuffer::new(s));
+        let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
 
         // Re-create fields after get_sizes consumed them.
         let fields = test_breakers_cpy
@@ -143,12 +200,13 @@ fn test_encrypt_into_buffers_zeroizes_on_encode_failure() {
         let mut tags = create_tags(&aead);
 
         let result = encrypt_into_buffers(
+            fields,
             &mut aead_mock,
             &aead_key,
             &mut nonces,
             &mut tags,
-            fields,
             &mut buffers,
+            &mut ciphertexts,
         );
 
         assert!(result.is_err(), "encode should fail (perm: {:?})", perm);
@@ -158,10 +216,15 @@ fn test_encrypt_into_buffers_zeroizes_on_encode_failure() {
             perm
         );
 
-        // Postcondition: buffers must be zeroized.
+        // Assert zeroization!
         assert!(
             buffers.is_zeroized(),
             "postcondition failed: buffers must be zeroized (perm: {:?})",
+            perm
+        );
+        assert!(
+            ciphertexts.is_zeroized(),
+            "postcondition failed: ciphertexts must be zeroized (perm: {:?})",
             perm
         );
     });
@@ -170,7 +233,7 @@ fn test_encrypt_into_buffers_zeroizes_on_encode_failure() {
 /// Test zeroization when generate_nonce fails at each position.
 /// Flow: all encodes succeed → buffers have plaintext → nonce gen fails → must zeroize.
 #[test]
-fn test_encrypt_into_buffers_zeroizes_on_generate_nonce_failure() {
+fn test_encrypt_into_buffers_performs_zeroization_on_generate_nonce_failure() {
     let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); NUM_FIELDS];
     let aead = AeadMock::new(AeadMockBehaviour::None);
     let aead_key = [0u8; 32];
@@ -182,6 +245,7 @@ fn test_encrypt_into_buffers_zeroizes_on_generate_nonce_failure() {
             .map(|tb| to_encryptable_mut_dyn(tb));
         let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
         let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(|s| CodecBuffer::new(s));
+        let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
         let fields = test_breakers
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
@@ -191,12 +255,13 @@ fn test_encrypt_into_buffers_zeroizes_on_generate_nonce_failure() {
         let mut tags = create_tags(&aead);
 
         let result = encrypt_into_buffers(
+            fields,
             &mut aead_mock,
             &aead_key,
             &mut nonces,
             &mut tags,
-            fields,
             &mut buffers,
+            &mut ciphertexts,
         );
 
         assert!(result.is_err(), "nonce gen should fail at position {}", i);
@@ -206,10 +271,15 @@ fn test_encrypt_into_buffers_zeroizes_on_generate_nonce_failure() {
             i
         );
 
-        // Postcondition: buffers must be zeroized.
+        // Assert zeroization!
         assert!(
             buffers.is_zeroized(),
             "postcondition failed: buffers must be zeroized at position {}",
+            i
+        );
+        assert!(
+            ciphertexts.is_zeroized(),
+            "postcondition failed: ciphertexts must be zeroized at position {}",
             i
         );
     }
@@ -218,7 +288,7 @@ fn test_encrypt_into_buffers_zeroizes_on_generate_nonce_failure() {
 /// Test zeroization when encrypt fails at each position.
 /// Flow: all encodes succeed → buffers have plaintext → encrypt fails → must zeroize.
 #[test]
-fn test_encrypt_into_buffers_zeroizes_on_encrypt_failure() {
+fn test_encrypt_into_buffers_performs_zeroization_on_encrypt_failure() {
     let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); NUM_FIELDS];
     let aead = AeadMock::new(AeadMockBehaviour::None);
     let aead_key = [0u8; 32];
@@ -230,6 +300,7 @@ fn test_encrypt_into_buffers_zeroizes_on_encrypt_failure() {
             .map(|tb| to_encryptable_mut_dyn(tb));
         let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
         let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(|s| CodecBuffer::new(s));
+        let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
         let fields = test_breakers
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
@@ -239,12 +310,13 @@ fn test_encrypt_into_buffers_zeroizes_on_encrypt_failure() {
         let mut tags = create_tags(&aead);
 
         let result = encrypt_into_buffers(
+            fields,
             &mut aead_mock,
             &aead_key,
             &mut nonces,
             &mut tags,
-            fields,
             &mut buffers,
+            &mut ciphertexts,
         );
 
         assert!(result.is_err(), "encrypt should fail at position {}", i);
@@ -254,13 +326,53 @@ fn test_encrypt_into_buffers_zeroizes_on_encrypt_failure() {
             i
         );
 
-        // Postcondition: buffers must be zeroized.
+        // Assert zeroization!
         assert!(
             buffers.is_zeroized(),
             "postcondition failed: buffers must be zeroized at position {}",
             i
         );
+        assert!(
+            ciphertexts.is_zeroized(),
+            "postcondition failed: ciphertexts must be zeroized at position {}",
+            i
+        );
     }
+}
+
+#[test]
+fn test_encrypt_into_buffers_ok() {
+    let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); NUM_FIELDS];
+    let mut aead = AeadMock::new(AeadMockBehaviour::None);
+    let aead_key = [0u8; 32];
+
+    let fields = test_breakers
+        .each_mut()
+        .map(|tb| to_encryptable_mut_dyn(tb));
+    let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
+    let mut buffers: [CodecBuffer; NUM_FIELDS] = sizes.map(|s| CodecBuffer::new(s));
+    let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
+    let mut nonces = create_nonces(&aead);
+    let mut tags = create_tags(&aead);
+
+    let fields = test_breakers
+        .each_mut()
+        .map(|tb| to_encryptable_mut_dyn(tb));
+
+    let result = encrypt_into_buffers(
+        fields,
+        &mut aead,
+        &aead_key,
+        &mut nonces,
+        &mut tags,
+        &mut buffers,
+        &mut ciphertexts,
+    );
+
+    assert!(result.is_ok());
+
+    // Assert zeroization!
+    assert!(buffers.is_zeroized());
 }
 
 // =============================================================================
@@ -282,7 +394,7 @@ fn test_decrypt_from_zeroizes_on_decrypt_failure() {
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
 
-        encrypt_into(&mut aead, &aead_key, &mut nonces, &mut tags, fields)
+        encrypt_into(fields, &mut aead, &aead_key, &mut nonces, &mut tags)
             .expect("Failed to encrypt_into()")
     };
 
@@ -294,12 +406,12 @@ fn test_decrypt_from_zeroizes_on_decrypt_failure() {
             .each_mut()
             .map(|tb| to_decryptable_mut_dyn(tb));
         let result = decrypt_from(
+            &mut fields,
             &mut aead_mock,
             &aead_key,
             &mut nonces,
             &mut tags,
             &mut ciphertexts_clone,
-            &mut fields,
         );
         assert!(result.is_ok(), "sanity check: decrypt should succeed");
     }
@@ -322,12 +434,12 @@ fn test_decrypt_from_zeroizes_on_decrypt_failure() {
         );
 
         let result = decrypt_from(
+            &mut fields,
             &mut aead_mock,
             &aead_key,
             &mut nonces,
             &mut tags,
             &mut ciphertexts_clone,
-            &mut fields,
         );
         assert!(result.is_err());
         assert!(matches!(result, Err(CipherBoxError::Poisoned)));
@@ -361,7 +473,7 @@ fn test_decrypt_from_zeroizes_on_decode_failure() {
         let fields = test_breakers
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
-        encrypt_into(&mut aead, &aead_key, &mut nonces, &mut tags, fields)
+        encrypt_into(fields, &mut aead, &aead_key, &mut nonces, &mut tags)
             .expect("Failed to encrypt_into()")
     };
 
@@ -374,12 +486,12 @@ fn test_decrypt_from_zeroizes_on_decode_failure() {
             .each_mut()
             .map(|tb| to_decryptable_mut_dyn(tb));
         let result = decrypt_from(
+            &mut fields,
             &mut aead_mock,
             &aead_key,
             &mut nonces,
             &mut tags,
             &mut ciphertexts_clone,
-            &mut fields,
         );
         assert!(result.is_ok(), "sanity check: decrypt should succeed");
     }
@@ -405,12 +517,12 @@ fn test_decrypt_from_zeroizes_on_decode_failure() {
         );
 
         let result = decrypt_from(
+            &mut fields,
             &mut aead_mock,
             &aead_key,
             &mut nonces,
             &mut tags,
             &mut ciphertexts_clone,
-            &mut fields,
         );
 
         assert!(result.is_err(), "decode should fail (perm: {:?})", perm);
