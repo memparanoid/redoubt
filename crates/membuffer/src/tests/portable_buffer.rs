@@ -190,3 +190,20 @@ fn test_portable_buffer_is_empty_true() {
     let portable_buffer = PortableBuffer::create(0);
     assert!(portable_buffer.is_empty());
 }
+
+// Debug
+
+#[test]
+fn test_portable_buffer_debug_does_not_expose_contents() {
+    let buffer = PortableBuffer::create(32);
+    let debug_output = format!("{:?}", buffer);
+
+    // Should contain struct name and length
+    assert!(debug_output.contains("PortableBuffer"));
+    assert!(debug_output.contains("len"));
+    assert!(debug_output.contains("32"));
+
+    // Should NOT contain raw buffer data
+    assert!(!debug_output.contains("inner"));
+    assert!(!debug_output.contains("Vec"));
+}

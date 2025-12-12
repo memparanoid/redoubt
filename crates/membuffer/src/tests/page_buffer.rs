@@ -364,5 +364,24 @@ fn test_dispose() {
 }
 
 // =============================================================================
+// Debug
+// =============================================================================
+
+#[test]
+#[serial(page_buffer)]
+fn test_page_buffer_debug_does_not_expose_contents() {
+    let buffer =
+        PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+    let debug_output = format!("{:?}", buffer);
+
+    // Should contain struct name, length, and strategy
+    assert!(debug_output.contains("PageBuffer"));
+    assert!(debug_output.contains("len"));
+    assert!(debug_output.contains("32"));
+    assert!(debug_output.contains("strategy"));
+    assert!(debug_output.contains("MemProtected"));
+}
+
+// =============================================================================
 // acquire() / release() - spinlock contention
 // =============================================================================

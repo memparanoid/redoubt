@@ -38,6 +38,14 @@ impl PortableBuffer {
 unsafe impl Send for PortableBuffer {}
 unsafe impl Sync for PortableBuffer {}
 
+impl core::fmt::Debug for PortableBuffer {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("PortableBuffer")
+            .field("len", &self.len())
+            .finish_non_exhaustive()
+    }
+}
+
 impl Buffer for PortableBuffer {
     fn open(
         &mut self,

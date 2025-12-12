@@ -111,6 +111,15 @@ impl PageBuffer {
 // Safety: PageBuffer can be shared between threads (though mutation requires &mut)
 unsafe impl Sync for PageBuffer {}
 
+impl core::fmt::Debug for PageBuffer {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("PageBuffer")
+            .field("len", &self.len)
+            .field("strategy", &self.strategy)
+            .finish_non_exhaustive()
+    }
+}
+
 impl Buffer for PageBuffer {
     #[inline(always)]
     fn open(&mut self, f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError> {
