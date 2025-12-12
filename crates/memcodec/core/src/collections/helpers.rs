@@ -178,7 +178,7 @@ pub fn decode_fields<'a>(
                     decoded_field.fast_zeroize();
                 }
 
-                memutil::fast_zeroize_slice(*buf);
+                memutil::fast_zeroize_slice(buf);
             }
 
             #[cfg(not(feature = "zeroize"))]

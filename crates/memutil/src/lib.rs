@@ -267,7 +267,7 @@ pub fn fast_zeroize_slice<T>(slice: &mut [T]) {
         return;
     }
 
-    let byte_len = slice.len() * core::mem::size_of::<T>();
+    let byte_len = std::mem::size_of_val(slice);
     unsafe {
         core::ptr::write_bytes(slice.as_mut_ptr() as *mut u8, 0, byte_len);
         // Volatile read prevents the optimizer from removing the write_bytes

@@ -14,7 +14,7 @@ use crate::traits::{BytesRequired, Decode, Encode, PreAlloc};
 fn make_allocked_vec(items: &[TestBreaker]) -> AllockedVec<TestBreaker> {
     let mut vec = AllockedVec::with_capacity(items.len());
     for item in items {
-        vec.push(item.clone()).expect("push");
+        vec.push(*item).expect("push");
     }
     vec
 }

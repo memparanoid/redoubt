@@ -260,7 +260,7 @@ fn perm_test_encode_fields_propagates_error_at_any_position() {
         let result = encode_fields(
             fields_clone
                 .iter_mut()
-                .map(|tb| to_encode_zeroize_dyn_mut(tb)),
+                .map(to_encode_zeroize_dyn_mut),
             &mut buf,
         );
 
@@ -303,7 +303,7 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
         encode_fields(
             fields_clone
                 .iter_mut()
-                .map(|tb| to_encode_zeroize_dyn_mut(tb)),
+                .map(to_encode_zeroize_dyn_mut),
             &mut buf,
         )
         .expect("Failed to encode");
@@ -317,7 +317,7 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
             let result = decode_fields(
                 recovered_fields_clone
                     .iter_mut()
-                    .map(|tb| to_decode_zeroize_dyn_mut(tb)),
+                    .map(to_decode_zeroize_dyn_mut),
                 &mut decode_buf,
             );
 

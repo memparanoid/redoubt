@@ -34,7 +34,7 @@ fn cleanup_decode_error<T: FastZeroizable + ZeroizeMetadata, const N: usize>(
     buf: &mut &mut [u8],
 ) {
     arr.fast_zeroize();
-    memutil::fast_zeroize_slice(*buf);
+    memutil::fast_zeroize_slice(buf);
 }
 
 impl<T, const N: usize> BytesRequired for [T; N]

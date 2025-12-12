@@ -58,6 +58,12 @@ pub struct Aead {
     backend: AeadBackendImpl,
 }
 
+impl Default for Aead {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Aead {
     #[inline(always)]
     pub(crate) fn new_with_feature_detector(feature_detector: FeatureDetector) -> Self {

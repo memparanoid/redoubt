@@ -33,7 +33,7 @@ fn cleanup_decode_error(s: &mut String, buf: &mut &mut [u8]) {
         memutil::fast_zeroize_slice(s.as_bytes_mut());
     }
     s.clear();
-    memutil::fast_zeroize_slice(*buf);
+    memutil::fast_zeroize_slice(buf);
 }
 
 #[inline(always)]

@@ -204,6 +204,7 @@ impl core::fmt::Debug for ChaCha20 {
 /// HChaCha20 state for subkey derivation.
 #[derive(MemZer)]
 #[memzer(drop)]
+#[derive(Default)]
 pub(crate) struct HChaCha20 {
     state: [u32; 16],
     le_bytes_tmp: [u8; 4],
@@ -215,19 +216,6 @@ pub(crate) struct HChaCha20 {
     __drop_sentinel: DropSentinel,
 }
 
-impl Default for HChaCha20 {
-    fn default() -> Self {
-        Self {
-            state: [0; 16],
-            le_bytes_tmp: [0; 4],
-            qr_a: 0,
-            qr_b: 0,
-            qr_c: 0,
-            qr_d: 0,
-            __drop_sentinel: DropSentinel::default(),
-        }
-    }
-}
 
 impl HChaCha20 {
     #[inline(always)]

@@ -162,7 +162,7 @@ pub(crate) fn test_encode_slice_insufficient_buffer<T: EncodeSlice>(slice: &mut 
     if slice.is_empty() {
         return;
     }
-    let bytes_required = slice.len() * core::mem::size_of::<T>();
+    let bytes_required = std::mem::size_of_val(slice);
     let insufficient_bytes = bytes_required - 1;
     let mut buf = CodecBuffer::new(insufficient_bytes);
 
@@ -182,7 +182,7 @@ pub(crate) fn test_decode_slice_insufficient_buffer<T: DecodeSlice>(slice: &mut 
     if slice.is_empty() {
         return;
     }
-    let bytes_required = slice.len() * core::mem::size_of::<T>();
+    let bytes_required = std::mem::size_of_val(slice);
     let insufficient_bytes = bytes_required - 1;
     let mut vec = vec![0u8; insufficient_bytes];
     let mut buf = vec.as_mut_slice();

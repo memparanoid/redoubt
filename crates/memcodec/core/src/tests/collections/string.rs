@@ -295,7 +295,7 @@ fn test_string_roundtrip_ok() {
 fn test_string_varying_capacities(set: &[u8]) {
     test_collection_varying_capacities(
         set,
-        |cap| String::with_capacity(cap),
+        String::with_capacity,
         |s, slice| {
             s.clear();
             // Convert bytes to valid ASCII chars (mod 128)

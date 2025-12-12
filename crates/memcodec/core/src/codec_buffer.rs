@@ -42,8 +42,8 @@ impl AssertZeroizeOnDrop for CodecBuffer {
 #[cfg(feature = "zeroize")]
 impl ZeroizationProbe for CodecBuffer {
     fn is_zeroized(&self) -> bool {
-        (self.ptr == core::ptr::null_mut())
-            & (self.cursor == core::ptr::null_mut())
+        self.ptr.is_null()
+            & self.cursor.is_null()
             & self.allocked_vec.is_zeroized()
     }
 }
@@ -89,7 +89,7 @@ impl CodecBuffer {
 
         let ptr = allocked_vec.as_mut_ptr();
         let end = unsafe { ptr.add(capacity) };
-        let cursor = ptr.clone();
+        let cursor = ptr;
 
         Self {
             ptr,
@@ -108,12 +108,12 @@ impl CodecBuffer {
 
         self.ptr = self.allocked_vec.as_mut_ptr();
         self.end = unsafe { self.ptr.add(capacity) };
-        self.cursor = self.ptr.clone();
+        self.cursor = self.ptr;
     }
 
     #[inline(always)]
     pub fn clear(&mut self) {
-        self.cursor = self.ptr.clone();
+        self.cursor = self.ptr;
         #[cfg(feature = "zeroize")]
         self.allocked_vec.fast_zeroize();
     }
@@ -154,7 +154,7 @@ impl CodecBuffer {
 
     #[inline(always)]
     pub fn write_slice<T>(&mut self, src: &mut [T]) -> Result<(), CodecBufferError> {
-        let byte_len = src.len() * core::mem::size_of::<T>();
+        let byte_len = std::mem::size_of_val(src);
 
         unsafe {
             if self.cursor.add(byte_len) > self.end {
