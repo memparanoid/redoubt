@@ -89,10 +89,10 @@ fn test_float_zeroization() {
     let mut value_f64: f64 = 0.0;
     assert!(value_f64.is_zeroized(), "0.0 f64 should be zeroized");
 
-    value_f64 = 3.14159;
+    value_f64 = core::f64::consts::PI;
     assert!(
         !value_f64.is_zeroized(),
-        "3.14159 f64 should not be zeroized"
+        "PI f64 should not be zeroized"
     );
 
     value_f64.fast_zeroize();

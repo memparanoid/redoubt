@@ -39,16 +39,16 @@ fn test_zeroize_primitive_integers() {
 fn test_zeroize_primitive_bool() {
     let mut flag = true;
     zeroize_primitive(&mut flag);
-    assert_eq!(flag, false);
+    assert!(!flag);
 }
 
 #[test]
 fn test_zeroize_primitive_floats() {
-    let mut f32_val = 3.14159f32;
+    let mut f32_val = core::f32::consts::PI;
     zeroize_primitive(&mut f32_val);
     assert_eq!(f32_val, 0.0);
 
-    let mut f64_val = 2.718281828f64;
+    let mut f64_val = core::f64::consts::E;
     zeroize_primitive(&mut f64_val);
     assert_eq!(f64_val, 0.0);
 }
