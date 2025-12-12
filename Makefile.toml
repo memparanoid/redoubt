@@ -45,8 +45,15 @@ command = "cargo"
 [tasks.lint]
 # Strict linting: show all warnings including rustc warnings
 # Note: We don't use --all-features because it activates no_std which breaks tests
-args    = ["clippy", "--workspace", "--all-targets", "--", "-W", "warnings"]
-command = "cargo"
+# Usage: cargo make lint                    (runs on workspace)
+#        cargo make lint -- -p membuffer     (runs on specific package)
+script  = '''
+if [ -z "$1" ]; then
+  cargo clippy --workspace --all-targets -- -W warnings
+else
+  cargo clippy "$@" --all-targets -- -W warnings
+fi
+'''
 
 [tasks.check]
 dependencies = ["fmt-check", "lint", "test"]

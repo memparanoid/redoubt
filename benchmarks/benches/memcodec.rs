@@ -5,8 +5,6 @@
 use criterion::{
     black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput,
 };
-use serde::{Deserialize, Serialize};
-use zeroize::Zeroize;
 
 use memcodec::{BytesRequired, Codec, CodecBuffer, Decode, Encode};
 
@@ -29,7 +27,7 @@ fn configure_group(group: &mut criterion::BenchmarkGroup<criterion::measurement:
 
 // === Single struct for all benchmarks ===
 
-#[derive(Clone, Default, Serialize, Deserialize, Zeroize, Codec)]
+#[derive(Clone, Default, Codec)]
 struct MixedData {
     bytes_1k: Vec<u8>,
     bytes_2k: Vec<u8>,
@@ -82,7 +80,7 @@ impl MixedData {
 // === ENCODE ===
 
 fn bench_encode(c: &mut Criterion) {
-    let mut group = c.benchmark_group("encode");
+    let mut group = c.benchmark_group("memcodec_encode");
     configure_group(&mut group);
 
     let data = MixedData::new();
@@ -90,26 +88,15 @@ fn bench_encode(c: &mut Criterion) {
 
     group.throughput(Throughput::Bytes(total_bytes as u64));
 
-    // bincode
-    group.bench_with_input(BenchmarkId::new("bincode", total_bytes), &data, |b, d| {
-        b.iter_batched(
-            || d.clone(),
-            |data| {
-                let result = bincode::serialize(&data).unwrap();
-                black_box(result)
-            },
-            BatchSize::LargeInput,
-        );
-    });
-
-    // memcodec
-    group.bench_with_input(BenchmarkId::new("memcodec", total_bytes), &data, |b, d| {
+    group.bench_with_input(BenchmarkId::new("encode", total_bytes), &data, |b, d| {
         b.iter_batched(
             || d.clone(),
             |mut data| {
-                let size = BytesRequired::mem_bytes_required(&data).unwrap();
+                let size = BytesRequired::mem_bytes_required(&data)
+                    .expect("failed to calculate bytes required");
                 let mut buf = CodecBuffer::new(size);
-                data.encode_into(&mut buf).unwrap();
+                data.encode_into(&mut buf)
+                    .expect("failed to encode data");
                 black_box(buf)
             },
             BatchSize::LargeInput,
@@ -122,19 +109,19 @@ fn bench_encode(c: &mut Criterion) {
 // === DECODE ===
 
 fn bench_decode(c: &mut Criterion) {
-    let mut group = c.benchmark_group("decode");
+    let mut group = c.benchmark_group("memcodec_decode");
     configure_group(&mut group);
 
     let data = MixedData::new();
     let total_bytes = MixedData::total_bytes();
 
-    // Prepare encoded buffers
-    let bincode_encoded = bincode::serialize(&data).unwrap();
-
-    let mut mc2_data = data.clone();
-    let size2 = BytesRequired::mem_bytes_required(&mc2_data).unwrap();
-    let mut memcodec_buf = CodecBuffer::new(size2);
-    mc2_data.encode_into(&mut memcodec_buf).unwrap();
+    // Prepare encoded buffer
+    let mut mc_data = data.clone();
+    let size = BytesRequired::mem_bytes_required(&mc_data)
+        .expect("failed to calculate bytes required");
+    let mut memcodec_buf = CodecBuffer::new(size);
+    mc_data.encode_into(&mut memcodec_buf)
+        .expect("failed to encode data");
     let memcodec_encoded: Vec<u8> = memcodec_buf.as_slice().to_vec();
 
     // Verify memcodec decode works correctly before benchmarking
@@ -143,7 +130,7 @@ fn bench_decode(c: &mut Criterion) {
         let mut verify_decoded = MixedData::empty();
         verify_decoded
             .decode_from(&mut verify_bytes.as_mut_slice())
-            .unwrap();
+            .expect("failed to decode verification data");
         assert_eq!(verify_decoded.bytes_1k.len(), 1024, "bytes_1k len mismatch");
         assert_eq!(
             verify_decoded.bytes_1m.len(),
@@ -162,25 +149,16 @@ fn bench_decode(c: &mut Criterion) {
 
     group.throughput(Throughput::Bytes(total_bytes as u64));
 
-    // bincode
     group.bench_with_input(
-        BenchmarkId::new("bincode", total_bytes),
-        &bincode_encoded,
-        |b, enc| {
-            b.iter(|| black_box(bincode::deserialize::<MixedData>(enc).unwrap()));
-        },
-    );
-
-    // memcodec
-    group.bench_with_input(
-        BenchmarkId::new("memcodec", total_bytes),
+        BenchmarkId::new("decode", total_bytes),
         &memcodec_encoded,
         |b, enc| {
             b.iter_batched(
                 || enc.clone(),
                 |mut bytes| {
                     let mut decoded = MixedData::empty();
-                    decoded.decode_from(&mut bytes.as_mut_slice()).unwrap();
+                    decoded.decode_from(&mut bytes.as_mut_slice())
+                        .expect("failed to decode data");
                     // Force work by checking data
                     assert_eq!(decoded.bytes_1m.len(), 1024 * 1024);
                     black_box(decoded)
@@ -196,7 +174,7 @@ fn bench_decode(c: &mut Criterion) {
 // === ROUNDTRIP ===
 
 fn bench_roundtrip(c: &mut Criterion) {
-    let mut group = c.benchmark_group("roundtrip");
+    let mut group = c.benchmark_group("memcodec_roundtrip");
     configure_group(&mut group);
 
     let data = MixedData::new();
@@ -204,32 +182,21 @@ fn bench_roundtrip(c: &mut Criterion) {
 
     group.throughput(Throughput::Bytes(total_bytes as u64));
 
-    // bincode
-    group.bench_with_input(BenchmarkId::new("bincode", total_bytes), &data, |b, d| {
-        b.iter_batched(
-            || d.clone(),
-            |data| {
-                let encoded = bincode::serialize(&data).unwrap();
-                let decoded: MixedData = bincode::deserialize(&encoded).unwrap();
-                black_box(decoded)
-            },
-            BatchSize::LargeInput,
-        );
-    });
-
-    // memcodec
-    group.bench_with_input(BenchmarkId::new("memcodec", total_bytes), &data, |b, d| {
+    group.bench_with_input(BenchmarkId::new("roundtrip", total_bytes), &data, |b, d| {
         b.iter_batched(
             || d.clone(),
             |mut data| {
-                let size = BytesRequired::mem_bytes_required(&data).unwrap();
+                let size = BytesRequired::mem_bytes_required(&data)
+                    .expect("failed to calculate bytes required");
                 let mut buf = CodecBuffer::new(size);
 
-                data.encode_into(&mut buf).unwrap();
+                data.encode_into(&mut buf)
+                    .expect("failed to encode data");
 
                 let mut decoded = MixedData::empty();
                 let mut bytes = buf.as_mut_slice();
-                decoded.decode_from(&mut bytes).unwrap();
+                decoded.decode_from(&mut bytes)
+                    .expect("failed to decode data");
                 black_box(decoded)
             },
             BatchSize::LargeInput,

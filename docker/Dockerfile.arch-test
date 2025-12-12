@@ -30,7 +30,7 @@ COPY crates/memcodec/core/Cargo.toml ./crates/memcodec/core/
 COPY crates/memcodec/derive/Cargo.toml ./crates/memcodec/derive/
 COPY crates/memsecret/Cargo.toml ./crates/memsecret/
 COPY crates/memvault/Cargo.toml ./crates/memvault/
-COPY crates/membench/Cargo.toml ./crates/membench/
+COPY benchmarks/Cargo.toml ./benchmarks/
 COPY crates/mem_test_utils/Cargo.toml ./crates/mem_test_utils/
 
 # Create stub lib.rs files
@@ -48,14 +48,11 @@ RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs 
     mkdir -p crates/memcodec/derive/src && echo "// stub" > crates/memcodec/derive/src/lib.rs && \
     mkdir -p crates/memsecret/src && echo "// stub" > crates/memsecret/src/lib.rs && \
     mkdir -p crates/memvault/src && echo "// stub" > crates/memvault/src/lib.rs && \
-    mkdir -p crates/membench/src && echo "// stub" > crates/membench/src/lib.rs && \
-    mkdir -p crates/membench/benches && echo "fn main() {}" > crates/membench/benches/aead.rs && \
-    echo "fn main() {}" > crates/membench/benches/aead_aegis128l.rs && \
-    echo "fn main() {}" > crates/membench/benches/cipherbox.rs && \
-    echo "fn main() {}" > crates/membench/benches/codec.rs && \
-    echo "fn main() {}" > crates/membench/benches/protected_buffer.rs && \
-    echo "fn main() {}" > crates/membench/benches/cipherbox_integrated.rs && \
-    echo "fn main() {}" > crates/membench/benches/cipherbox_final.rs && \
+    mkdir -p benchmarks/benches && echo "fn main() {}" > benchmarks/benches/aegis128l.rs && \
+    echo "fn main() {}" > benchmarks/benches/xchacha20poly1305.rs && \
+    echo "fn main() {}" > benchmarks/benches/memcodec.rs && \
+    echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
+    echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
     mkdir -p crates/mem_test_utils/src && echo "// stub" > crates/mem_test_utils/src/lib.rs
 
 # Pre-fetch dependencies

@@ -2,4 +2,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-// Benchmark-only crate, no library code
+// Benchmark crate for memora performance measurements

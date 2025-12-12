@@ -13,12 +13,12 @@ members = [
   "crates/memvault/core",
   "crates/memvault/derive",
   "crates/memalloc",
-  "crates/membench",
   "crates/memcodec",
   "crates/memcodec/core",
   "crates/memcodec/derive",
   "crates/membuffer",
   "crates/mem_test_utils",
+  "benchmarks",
 ]
 resolver = "2"
 

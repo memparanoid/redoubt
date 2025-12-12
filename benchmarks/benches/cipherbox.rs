@@ -8,15 +8,15 @@
 //!
 //! Struct has 7 fields: 512KB, 1MB, 2MB, 4MB, 8MB, 16MB, 32MB (total 63.5MB)
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
 
 use memcodec::Codec;
-use memvault_derive::cipherbox;
+use memvault::cipherbox;
 use memzer::{DropSentinel, FastZeroizable, MemZer};
 
-// Multi-field struct with 7 Vec<u8> fields (one per size)
+/// Multi-field struct with 7 Vec<u8> fields (one per size)
 #[cipherbox(DataCipherBox)]
-#[derive(MemZer, Codec, Clone)]
+#[derive(Default, MemZer, Codec, Clone)]
 #[memzer(drop)]
 struct Data {
     field_512kb: Vec<u8>,
@@ -30,21 +30,6 @@ struct Data {
     __drop_sentinel: DropSentinel,
 }
 
-impl Default for Data {
-    fn default() -> Self {
-        Self {
-            field_512kb: Vec::new(),
-            field_1mb: Vec::new(),
-            field_2mb: Vec::new(),
-            field_4mb: Vec::new(),
-            field_8mb: Vec::new(),
-            field_16mb: Vec::new(),
-            field_32mb: Vec::new(),
-            __drop_sentinel: DropSentinel::default(),
-        }
-    }
-}
-
 fn bench_leak_field(c: &mut Criterion) {
     let mut group = c.benchmark_group("cipherbox_leak_field");
     group.sample_size(100);
@@ -52,12 +37,16 @@ fn bench_leak_field(c: &mut Criterion) {
     // 512KB
     {
         let size = 512 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_512kb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_512kb = vec![0xAA; size])
+            .expect("failed to open_mut field_512kb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("512KB", |b| {
             b.iter(|| {
-                let leaked = cb.leak_field_512kb().unwrap();
+                let leaked = cb.leak_field_512kb()
+                    .expect("failed to leak field_512kb");
                 black_box(&*leaked);
             });
         });
@@ -65,13 +54,17 @@ fn bench_leak_field(c: &mut Criterion) {
 
     // 1MB
     {
-        let size = 1 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
+        let size = 1024 * 1024;
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_1mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_1mb = vec![0xAA; size])
+            .expect("failed to open_mut field_1mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("1MB", |b| {
             b.iter(|| {
-                let leaked = cb.leak_field_1mb().unwrap();
+                let leaked = cb.leak_field_1mb()
+                    .expect("failed to leak field_1mb");
                 black_box(&*leaked);
             });
         });
@@ -80,12 +73,16 @@ fn bench_leak_field(c: &mut Criterion) {
     // 2MB
     {
         let size = 2 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_2mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_2mb = vec![0xAA; size])
+            .expect("failed to open_mut field_2mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("2MB", |b| {
             b.iter(|| {
-                let leaked = cb.leak_field_2mb().unwrap();
+                let leaked = cb.leak_field_2mb()
+                    .expect("failed to leak field_2mb");
                 black_box(&*leaked);
             });
         });
@@ -94,12 +91,16 @@ fn bench_leak_field(c: &mut Criterion) {
     // 4MB
     {
         let size = 4 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_4mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_4mb = vec![0xAA; size])
+            .expect("failed to open_mut field_4mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("4MB", |b| {
             b.iter(|| {
-                let leaked = cb.leak_field_4mb().unwrap();
+                let leaked = cb.leak_field_4mb()
+                    .expect("failed to leak field_4mb");
                 black_box(&*leaked);
             });
         });
@@ -108,12 +109,16 @@ fn bench_leak_field(c: &mut Criterion) {
     // 8MB
     {
         let size = 8 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_8mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_8mb = vec![0xAA; size])
+            .expect("failed to open_mut field_8mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("8MB", |b| {
             b.iter(|| {
-                let leaked = cb.leak_field_8mb().unwrap();
+                let leaked = cb.leak_field_8mb()
+                    .expect("failed to leak field_8mb");
                 black_box(&*leaked);
             });
         });
@@ -122,12 +127,16 @@ fn bench_leak_field(c: &mut Criterion) {
     // 16MB
     {
         let size = 16 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_16mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_16mb = vec![0xAA; size])
+            .expect("failed to open_mut field_16mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("16MB", |b| {
             b.iter(|| {
-                let leaked = cb.leak_field_16mb().unwrap();
+                let leaked = cb.leak_field_16mb()
+                    .expect("failed to leak field_16mb");
                 black_box(&*leaked);
             });
         });
@@ -136,12 +145,16 @@ fn bench_leak_field(c: &mut Criterion) {
     // 32MB
     {
         let size = 32 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_32mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_32mb = vec![0xAA; size])
+            .expect("failed to open_mut field_32mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("32MB", |b| {
             b.iter(|| {
-                let leaked = cb.leak_field_32mb().unwrap();
+                let leaked = cb.leak_field_32mb()
+                    .expect("failed to leak field_32mb");
                 black_box(&*leaked);
             });
         });
@@ -157,25 +170,37 @@ fn bench_open_field(c: &mut Criterion) {
     // 512KB
     {
         let size = 512 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_512kb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_512kb = vec![0xAA; size])
+            .expect("failed to open_mut field_512kb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("512KB", |b| {
             b.iter(|| {
-                cb.open_field_512kb(|f| { black_box(f); }).unwrap();
+                cb.open_field_512kb(|f| {
+                    black_box(f);
+                })
+                .expect("failed to open_field_512kb");
             });
         });
     }
 
     // 1MB
     {
-        let size = 1 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
+        let size = 1024 * 1024;
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_1mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_1mb = vec![0xAA; size])
+            .expect("failed to open_mut field_1mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("1MB", |b| {
             b.iter(|| {
-                cb.open_field_1mb(|f| { black_box(f); }).unwrap();
+                cb.open_field_1mb(|f| {
+                    black_box(f);
+                })
+                .expect("failed to open_field_1mb");
             });
         });
     }
@@ -183,12 +208,18 @@ fn bench_open_field(c: &mut Criterion) {
     // 2MB
     {
         let size = 2 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_2mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_2mb = vec![0xAA; size])
+            .expect("failed to open_mut field_2mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("2MB", |b| {
             b.iter(|| {
-                cb.open_field_2mb(|f| { black_box(f); }).unwrap();
+                cb.open_field_2mb(|f| {
+                    black_box(f);
+                })
+                .expect("failed to open_field_2mb");
             });
         });
     }
@@ -196,12 +227,18 @@ fn bench_open_field(c: &mut Criterion) {
     // 4MB
     {
         let size = 4 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_4mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_4mb = vec![0xAA; size])
+            .expect("failed to open_mut field_4mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("4MB", |b| {
             b.iter(|| {
-                cb.open_field_4mb(|f| { black_box(f); }).unwrap();
+                cb.open_field_4mb(|f| {
+                    black_box(f);
+                })
+                .expect("failed to open_field_4mb");
             });
         });
     }
@@ -209,12 +246,18 @@ fn bench_open_field(c: &mut Criterion) {
     // 8MB
     {
         let size = 8 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_8mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_8mb = vec![0xAA; size])
+            .expect("failed to open_mut field_8mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("8MB", |b| {
             b.iter(|| {
-                cb.open_field_8mb(|f| { black_box(f); }).unwrap();
+                cb.open_field_8mb(|f| {
+                    black_box(f);
+                })
+                .expect("failed to open_field_8mb");
             });
         });
     }
@@ -222,12 +265,18 @@ fn bench_open_field(c: &mut Criterion) {
     // 16MB
     {
         let size = 16 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_16mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_16mb = vec![0xAA; size])
+            .expect("failed to open_mut field_16mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("16MB", |b| {
             b.iter(|| {
-                cb.open_field_16mb(|f| { black_box(f); }).unwrap();
+                cb.open_field_16mb(|f| {
+                    black_box(f);
+                })
+                .expect("failed to open_field_16mb");
             });
         });
     }
@@ -235,12 +284,18 @@ fn bench_open_field(c: &mut Criterion) {
     // 32MB
     {
         let size = 32 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_32mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_32mb = vec![0xAA; size])
+            .expect("failed to open_mut field_32mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("32MB", |b| {
             b.iter(|| {
-                cb.open_field_32mb(|f| { black_box(f); }).unwrap();
+                cb.open_field_32mb(|f| {
+                    black_box(f);
+                })
+                .expect("failed to open_field_32mb");
             });
         });
     }
@@ -255,33 +310,39 @@ fn bench_open_field_mut(c: &mut Criterion) {
     // 512KB
     {
         let size = 512 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_512kb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_512kb = vec![0xAA; size])
+            .expect("failed to open_mut field_512kb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("512KB", |b| {
             b.iter(|| {
                 cb.open_field_512kb_mut(|f| {
                     f[0] = f[0].wrapping_add(1);
                     black_box(f);
                 })
-                .unwrap();
+                .expect("failed to open_field_512kb_mut");
             });
         });
     }
 
     // 1MB
     {
-        let size = 1 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
+        let size = 1024 * 1024;
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_1mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_1mb = vec![0xAA; size])
+            .expect("failed to open_mut field_1mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("1MB", |b| {
             b.iter(|| {
                 cb.open_field_1mb_mut(|f| {
                     f[0] = f[0].wrapping_add(1);
                     black_box(f);
                 })
-                .unwrap();
+                .expect("failed to open_field_1mb_mut");
             });
         });
     }
@@ -289,16 +350,19 @@ fn bench_open_field_mut(c: &mut Criterion) {
     // 2MB
     {
         let size = 2 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_2mb = vec![0xAA; size]).unwrap();
+        cb.open_mut(|d| d.field_2mb = vec![0xAA; size])
+            .expect("failed to open_mut field_2mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
+
         group.bench_function("2MB", |b| {
             b.iter(|| {
                 cb.open_field_2mb_mut(|f| {
                     f[0] = f[0].wrapping_add(1);
                     black_box(f);
                 })
-                .unwrap();
+                .expect("failed to open_field_2mb_mut");
             });
         });
     }
@@ -306,16 +370,19 @@ fn bench_open_field_mut(c: &mut Criterion) {
     // 4MB
     {
         let size = 4 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_4mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_4mb = vec![0xAA; size])
+            .expect("failed to open_mut field_4mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("4MB", |b| {
             b.iter(|| {
                 cb.open_field_4mb_mut(|f| {
                     f[0] = f[0].wrapping_add(1);
                     black_box(f);
                 })
-                .unwrap();
+                .expect("failed to open_field_4mb_mut");
             });
         });
     }
@@ -323,16 +390,19 @@ fn bench_open_field_mut(c: &mut Criterion) {
     // 8MB
     {
         let size = 8 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_8mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_8mb = vec![0xAA; size])
+            .expect("failed to open_mut field_8mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("8MB", |b| {
             b.iter(|| {
                 cb.open_field_8mb_mut(|f| {
                     f[0] = f[0].wrapping_add(1);
                     black_box(f);
                 })
-                .unwrap();
+                .expect("failed to open_field_8mb_mut");
             });
         });
     }
@@ -340,16 +410,19 @@ fn bench_open_field_mut(c: &mut Criterion) {
     // 16MB
     {
         let size = 16 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_16mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_16mb = vec![0xAA; size])
+            .expect("failed to open_mut field_16mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("16MB", |b| {
             b.iter(|| {
                 cb.open_field_16mb_mut(|f| {
                     f[0] = f[0].wrapping_add(1);
                     black_box(f);
                 })
-                .unwrap();
+                .expect("failed to open_field_16mb_mut");
             });
         });
     }
@@ -357,16 +430,19 @@ fn bench_open_field_mut(c: &mut Criterion) {
     // 32MB
     {
         let size = 32 * 1024 * 1024;
-        group.throughput(Throughput::Bytes(size as u64));
         let mut cb = DataCipherBox::new();
-        cb.open_mut(|d| d.field_32mb = vec![0xAA; size]).unwrap();
+
+        cb.open_mut(|d| d.field_32mb = vec![0xAA; size])
+            .expect("failed to open_mut field_32mb");
+
+        group.throughput(Throughput::Bytes(size as u64));
         group.bench_function("32MB", |b| {
             b.iter(|| {
                 cb.open_field_32mb_mut(|f| {
                     f[0] = f[0].wrapping_add(1);
                     black_box(f);
                 })
-                .unwrap();
+                .expect("failed to open_field_32mb_mut");
             });
         });
     }
@@ -379,8 +455,13 @@ fn bench_open_full(c: &mut Criterion) {
     group.sample_size(100);
 
     // Total: 512KB + 1MB + 2MB + 4MB + 8MB + 16MB + 32MB = 63.5MB
-    let total_size = 512 * 1024 + 1024 * 1024 + 2 * 1024 * 1024 + 4 * 1024 * 1024
-        + 8 * 1024 * 1024 + 16 * 1024 * 1024 + 32 * 1024 * 1024;
+    let total_size = 512 * 1024
+        + 1024 * 1024
+        + 2 * 1024 * 1024
+        + 4 * 1024 * 1024
+        + 8 * 1024 * 1024
+        + 16 * 1024 * 1024
+        + 32 * 1024 * 1024;
     group.throughput(Throughput::Bytes(total_size as u64));
 
     let mut cb = DataCipherBox::new();
@@ -393,7 +474,7 @@ fn bench_open_full(c: &mut Criterion) {
         d.field_16mb = vec![0xFF; 16 * 1024 * 1024];
         d.field_32mb = vec![0x11; 32 * 1024 * 1024];
     })
-    .unwrap();
+    .expect("failed to initialize all fields");
 
     group.bench_function("all_fields_63.5MB", |b| {
         b.iter(|| {
@@ -406,7 +487,7 @@ fn bench_open_full(c: &mut Criterion) {
                 black_box(&d.field_16mb);
                 black_box(&d.field_32mb);
             })
-            .unwrap();
+            .expect("failed to open all fields");
         });
     });
 
@@ -418,8 +499,13 @@ fn bench_open_mut_full(c: &mut Criterion) {
     group.sample_size(100);
 
     // Total: 512KB + 1MB + 2MB + 4MB + 8MB + 16MB + 32MB = 63.5MB
-    let total_size = 512 * 1024 + 1024 * 1024 + 2 * 1024 * 1024 + 4 * 1024 * 1024
-        + 8 * 1024 * 1024 + 16 * 1024 * 1024 + 32 * 1024 * 1024;
+    let total_size = 512 * 1024
+        + 1024 * 1024
+        + 2 * 1024 * 1024
+        + 4 * 1024 * 1024
+        + 8 * 1024 * 1024
+        + 16 * 1024 * 1024
+        + 32 * 1024 * 1024;
     group.throughput(Throughput::Bytes(total_size as u64));
 
     let mut cb = DataCipherBox::new();
@@ -432,7 +518,7 @@ fn bench_open_mut_full(c: &mut Criterion) {
         d.field_16mb = vec![0xFF; 16 * 1024 * 1024];
         d.field_32mb = vec![0x11; 32 * 1024 * 1024];
     })
-    .unwrap();
+    .expect("failed to initialize all fields");
 
     group.bench_function("all_fields_63.5MB", |b| {
         b.iter(|| {
@@ -446,7 +532,7 @@ fn bench_open_mut_full(c: &mut Criterion) {
                 d.field_32mb[0] = d.field_32mb[0].wrapping_add(1);
                 black_box(&d);
             })
-            .unwrap();
+            .expect("failed to open_mut all fields");
         });
     });
 
