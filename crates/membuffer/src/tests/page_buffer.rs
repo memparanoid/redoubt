@@ -18,14 +18,18 @@ use crate::traits::Buffer;
 #[test]
 #[serial(page_buffer)]
 fn test_new_mem_protected() {
-    let _buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+    let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+    let debug_output = format!("{:?}", buffer);
+    assert!(debug_output.contains("MemProtected"));
 }
 
 #[test]
 #[serial(page_buffer)]
 fn test_new_mem_non_protected() {
-    let _buffer =
+    let buffer =
         PageBuffer::new(ProtectionStrategy::MemNonProtected, 32).expect("Failed to new(..)");
+    let debug_output = format!("{:?}", buffer);
+    assert!(debug_output.contains("MemNonProtected"));
 }
 
 #[test]
