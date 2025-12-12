@@ -27,11 +27,11 @@ impl<A: memaead::AeadApi> memvault_core::EncryptStruct<A, 1> for Gamma {
         tags: &mut [Vec<u8>; 1],
     ) -> Result<[Vec<u8>; 1], memvault_core::CipherBoxError> {
         memvault_core::encrypt_into(
+            self.to_encryptable_dyn_fields(),
             aead,
             aead_key,
             nonces,
             tags,
-            self.to_encryptable_dyn_fields(),
         )
     }
 }
@@ -45,12 +45,12 @@ impl<A: memaead::AeadApi> memvault_core::DecryptStruct<A, 1> for Gamma {
         ciphertexts: &mut [Vec<u8>; 1],
     ) -> Result<(), memvault_core::CipherBoxError> {
         memvault_core::decrypt_from(
+            &mut self.to_decryptable_dyn_fields(),
             aead,
             aead_key,
             nonces,
             tags,
             ciphertexts,
-            &mut self.to_decryptable_dyn_fields(),
         )
     }
 }

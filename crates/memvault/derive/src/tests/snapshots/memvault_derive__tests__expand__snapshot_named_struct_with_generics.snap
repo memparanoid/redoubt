@@ -37,11 +37,11 @@ where
         tags: &mut [Vec<u8>; 2],
     ) -> Result<[Vec<u8>; 2], memvault_core::CipherBoxError> {
         memvault_core::encrypt_into(
+            self.to_encryptable_dyn_fields(),
             aead,
             aead_key,
             nonces,
             tags,
-            self.to_encryptable_dyn_fields(),
         )
     }
 }
@@ -58,12 +58,12 @@ where
         ciphertexts: &mut [Vec<u8>; 2],
     ) -> Result<(), memvault_core::CipherBoxError> {
         memvault_core::decrypt_from(
+            &mut self.to_decryptable_dyn_fields(),
             aead,
             aead_key,
             nonces,
             tags,
             ciphertexts,
-            &mut self.to_decryptable_dyn_fields(),
         )
     }
 }

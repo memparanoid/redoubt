@@ -200,11 +200,11 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
                 tags: &mut [Vec<u8>; #num_fields_lit],
             ) -> Result<[Vec<u8>; #num_fields_lit], #root::CipherBoxError> {
                 #root::encrypt_into(
+                    self.to_encryptable_dyn_fields(),
                     aead,
                     aead_key,
                     nonces,
                     tags,
-                    self.to_encryptable_dyn_fields(),
                 )
             }
         }
@@ -220,12 +220,12 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
                 ciphertexts: &mut [Vec<u8>; #num_fields_lit],
             ) -> Result<(), #root::CipherBoxError> {
                 #root::decrypt_from(
+                    &mut self.to_decryptable_dyn_fields(),
                     aead,
                     aead_key,
                     nonces,
                     tags,
                     ciphertexts,
-                    &mut self.to_decryptable_dyn_fields(),
                 )
             }
         }
