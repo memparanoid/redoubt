@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use crate::error::{DecodeBufferError, DecodeError};
+use crate::traits::Decode;
+
 use super::utils::test_all_pairs_with;
 
 #[test]
@@ -42,4 +45,36 @@ fn test_f64_all_pairs() {
     ];
 
     test_all_pairs_with(&set, |a, b| a.to_bits() == b.to_bits());
+}
+
+// decode_from empty buffers
+
+#[test]
+fn test_f32_decode_from_empty_buffer() {
+    let mut value = 0.0f32;
+    let mut empty_buf = &mut [][..];
+    let result = value.decode_from(&mut empty_buf);
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(DecodeError::DecodeBufferError(
+            DecodeBufferError::OutOfBounds
+        ))
+    ));
+}
+
+#[test]
+fn test_f64_decode_from_empty_buffer() {
+    let mut value = 0.0f64;
+    let mut empty_buf = &mut [][..];
+    let result = value.decode_from(&mut empty_buf);
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(DecodeError::DecodeBufferError(
+            DecodeBufferError::OutOfBounds
+        ))
+    ));
 }

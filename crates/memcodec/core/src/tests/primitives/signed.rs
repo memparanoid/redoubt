@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use crate::error::{DecodeBufferError, DecodeError};
+use crate::traits::Decode;
+
 use super::utils::{equidistant_signed, test_all_pairs, EQUIDISTANT_SAMPLE_SIZE};
 
 #[test]
@@ -49,4 +52,30 @@ fn test_isize_all_pairs() {
         .collect();
 
     test_all_pairs(&set);
+}
+
+// decode_from empty buffers
+
+#[test]
+fn test_signed_decode_from_empty_buffer() {
+    macro_rules! test_type {
+        ($ty:ty) => {{
+            let mut value: $ty = 0;
+            let mut empty_buf = &mut [][..];
+            let result = value.decode_from(&mut empty_buf);
+
+            assert!(result.is_err());
+            assert!(matches!(
+                result,
+                Err(DecodeError::DecodeBufferError(DecodeBufferError::OutOfBounds))
+            ));
+        }};
+    }
+
+    test_type!(i8);
+    test_type!(i16);
+    test_type!(i32);
+    test_type!(i64);
+    test_type!(i128);
+    test_type!(isize);
 }
