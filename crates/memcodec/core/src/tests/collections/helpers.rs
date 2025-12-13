@@ -79,11 +79,11 @@ fn test_process_header_buffer_too_small_for_data() {
     let mut buf = CodecBuffer::new(header_size() + size_of::<u8>()); // only capacity for size.
 
     let mut size: usize = 20;
-    let mut huge_bytes_required: usize = 1024;
+    let mut excessive_bytes_required: usize = 1024;
     let mut data: u8 = 1;
 
     buf.write(&mut size).expect("Failed to write size");
-    buf.write(&mut huge_bytes_required)
+    buf.write(&mut excessive_bytes_required)
         .expect("Failed to write bytes_required");
     // Write some data
     buf.write(&mut data).expect("Failed to write data");
