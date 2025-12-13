@@ -12,7 +12,7 @@ use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_mai
 
 use memcodec::Codec;
 use memvault::cipherbox;
-use memzer::{FastZeroizable, MemZer, ZeroizeOnDropSentinel};
+use memzer::{MemZer, ZeroizeOnDropSentinel};
 
 /// Multi-field struct with 7 Vec<u8> fields (one per size)
 #[cipherbox(DataCipherBox)]

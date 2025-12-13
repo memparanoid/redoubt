@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 
 use memcodec::Codec;
 use memvault::cipherbox;
-use memzer::{FastZeroizable, MemZer};
+use memzer::MemZer;
 
 #[cipherbox(SecretBox)]
 #[derive(Default, MemZer, Codec)]

@@ -8,7 +8,7 @@ use memcodec::Codec;
 use memcodec::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use memrand::EntropyError;
 use memutil::is_vec_fully_zeroized;
-use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer, ZeroizationProbe};
+use memzer::{MemZer, ZeroizationProbe, ZeroizeOnDropSentinel};
 
 use crate::cipherbox::CipherBox;
 use crate::error::CipherBoxError;

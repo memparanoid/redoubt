@@ -6,7 +6,7 @@
 mod tests {
     use memcodec::Codec;
     use memvault_derive::cipherbox;
-    use memzer::{FastZeroizable, MemZer, ZeroizationProbe};
+    use memzer::{MemZer, ZeroizationProbe};
 
     #[cipherbox(WalletSecretsCipherBox)]
     #[derive(Default, MemZer, Codec)]
