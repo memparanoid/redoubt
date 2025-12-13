@@ -7,7 +7,7 @@ use memzer::{FastZeroizable, ZeroizeMetadata};
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
-    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, TryDecode, TryEncode,
+    BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc, TryDecode, TryEncode,
 };
 use crate::zeroizing::Zeroizing;
 
@@ -158,7 +158,6 @@ where
 
 // PreAlloc for arrays - allows arrays to be used as Vec elements
 // Note: [T; N]: Default only works for N <= 32 in stable Rust
-use crate::traits::PreAlloc;
 
 impl<T: Default, const N: usize> PreAlloc for [T; N]
 where
