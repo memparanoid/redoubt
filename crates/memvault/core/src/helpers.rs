@@ -46,7 +46,7 @@ pub fn encrypt_into<const N: usize>(
     tags: &mut [Vec<u8>; N],
 ) -> Result<[Vec<u8>; N], CipherBoxError> {
     let sizes = get_sizes(&fields)?;
-    let mut buffers: [CodecBuffer; N] = sizes.map(CodecBuffer::new);
+    let mut buffers: [CodecBuffer; N] = sizes.map(CodecBuffer::with_capacity);
     let mut ciphertexts: [Vec<u8>; N] = core::array::from_fn(|_| vec![]);
 
     encrypt_into_buffers(

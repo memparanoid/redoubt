@@ -102,7 +102,7 @@ fn test_bytes_required_overflow() {
 #[test]
 fn test_force_encode_error() {
     let mut tb = CodecTestBreaker::with_behaviour(CodecTestBreakerBehaviour::ForceEncodeError);
-    let mut buf = CodecBuffer::new(1024);
+    let mut buf = CodecBuffer::with_capacity(1024);
 
     let result = tb.encode_into(&mut buf);
 
@@ -125,7 +125,7 @@ fn test_force_decode_error() {
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
 
-    let mut buf = CodecBuffer::new(bytes_required);
+    let mut buf = CodecBuffer::with_capacity(bytes_required);
     tb.encode_into(&mut buf).expect("Failed to encode_into(..)");
 
     let mut decode_buf = buf.export_as_vec();
@@ -153,7 +153,7 @@ fn test_roundtrip() {
     let bytes_required = original
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = CodecBuffer::new(bytes_required);
+    let mut buf = CodecBuffer::with_capacity(bytes_required);
     original
         .encode_into(&mut buf)
         .expect("Failed to encode_into(..)");
@@ -183,7 +183,7 @@ fn test_encode_slice_error() {
         CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 10),
         CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceEncodeError, 10),
     ];
-    let mut buf = CodecBuffer::new(1024);
+    let mut buf = CodecBuffer::with_capacity(1024);
 
     let result = vec.encode_into(&mut buf);
 

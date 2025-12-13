@@ -31,14 +31,14 @@ fn test_codec_buffer_default() {
 }
 
 #[test]
-fn test_codec_buffer_new_with_zero_capacity() {
-    let buf = CodecBuffer::new(0);
+fn test_codec_buffer_with_capacity_zero() {
+    let buf = CodecBuffer::with_capacity(0);
     assert_eq!(buf.as_slice().len(), 0);
 }
 
 #[test]
-fn test_codec_buffer_new_with_64_capacity() {
-    let buf = CodecBuffer::new(64);
+fn test_codec_buffer_with_capacity_64() {
+    let buf = CodecBuffer::with_capacity(64);
     assert_eq!(buf.as_slice().len(), 64);
 }
 
@@ -65,7 +65,7 @@ fn test_codec_buffer_realloc_with_capacity() {
 #[test]
 fn test_codec_buffer_clear() {
     let capacity = 10;
-    let mut buf = CodecBuffer::new(capacity);
+    let mut buf = CodecBuffer::with_capacity(capacity);
 
     // Write data
     let slice = buf.as_mut_slice();
@@ -91,7 +91,7 @@ fn test_codec_buffer_clear() {
 // #[test]
 // fn test_codec_buffer_as_slice() {
 //     let capacity = 10;
-//     let mut buf = CodecBuffer::new(capacity);
+//     let mut buf = CodecBuffer::with_capacity(capacity);
 
 //     // Write some data
 //     let slice = buf.as_mut_slice();
@@ -110,7 +110,7 @@ fn test_codec_buffer_clear() {
 #[test]
 fn test_codec_buffer_as_mut_slice() {
     let capacity = 5;
-    let mut buf = CodecBuffer::new(capacity);
+    let mut buf = CodecBuffer::with_capacity(capacity);
 
     // Write via as_mut_slice
     let slice = buf.as_mut_slice();
@@ -132,32 +132,32 @@ fn test_codec_buffer_as_mut_slice() {
 #[test]
 fn test_codec_buffer_len() {
     let capacity = 10;
-    let buf = CodecBuffer::new(capacity);
+    let buf = CodecBuffer::with_capacity(capacity);
 
     // len() should return the capacity
     assert_eq!(buf.len(), capacity);
 
     // Verify with different capacities
-    let buf_zero = CodecBuffer::new(0);
+    let buf_zero = CodecBuffer::with_capacity(0);
     assert_eq!(buf_zero.len(), 0);
 
-    let buf_large = CodecBuffer::new(1024);
+    let buf_large = CodecBuffer::with_capacity(1024);
     assert_eq!(buf_large.len(), 1024);
 }
 
 #[test]
 fn test_codec_buffer_is_empty() {
-    let buf_empty = CodecBuffer::new(0);
+    let buf_empty = CodecBuffer::with_capacity(0);
     assert!(buf_empty.is_empty());
 
-    let buf_non_empty = CodecBuffer::new(10);
+    let buf_non_empty = CodecBuffer::with_capacity(10);
     assert!(!buf_non_empty.is_empty());
 }
 
 #[test]
 fn test_codec_buffer_to_vec() {
     let capacity = 6;
-    let mut buf = CodecBuffer::new(capacity);
+    let mut buf = CodecBuffer::with_capacity(capacity);
 
     // Write via as_mut_slice
     let slice = buf.as_mut_slice();
@@ -177,7 +177,7 @@ fn test_codec_buffer_to_vec() {
 /// This test catches potential UB from dangling pointers after reallocation
 #[test]
 fn test_codec_buffer_realloc_pointer_invariants() {
-    let mut buf = CodecBuffer::new(5);
+    let mut buf = CodecBuffer::with_capacity(5);
 
     // Write initial data to verify pointers are valid
     buf.as_mut_slice().copy_from_slice(&[0xAA, 0xBB, 0xCC, 0xDD, 0xEE]);

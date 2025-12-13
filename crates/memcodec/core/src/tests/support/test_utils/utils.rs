@@ -19,7 +19,7 @@ fn test_tamper_encoded_bytes_for_tests() {
     let bytes_required = vec
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = CodecBuffer::new(bytes_required);
+    let mut buf = CodecBuffer::with_capacity(bytes_required);
 
     vec.encode_into(&mut buf)
         .expect("Failed to encode_into(..)");

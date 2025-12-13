@@ -68,7 +68,7 @@ impl FastZeroizable for CodecBuffer {
 
 impl Default for CodecBuffer {
     fn default() -> Self {
-        Self::new(0)
+        Self::with_capacity(0)
     }
 }
 
@@ -85,7 +85,7 @@ impl CodecBuffer {
     }
 
     #[inline(always)]
-    pub fn new(capacity: usize) -> Self {
+    pub fn with_capacity(capacity: usize) -> Self {
         let mut allocked_vec = AllockedVec::<u8>::with_capacity(capacity);
 
         let ptr = allocked_vec.as_mut_ptr();
@@ -195,7 +195,7 @@ impl CodecBuffer {
     /// # Example
     ///
     /// ```ignore
-    /// let mut buf = CodecBuffer::new(10);
+    /// let mut buf = CodecBuffer::with_capacity(10);
     /// buf.write_usize(&42).unwrap();
     /// let exported = buf.export_as_vec();
     /// // buf is now zeroized, exported contains the data

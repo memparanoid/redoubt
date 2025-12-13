@@ -29,7 +29,7 @@ fn test_header_size() {
 fn test_write_header_ok() {
     let mut size = 42usize;
     let mut bytes_required = 128usize;
-    let mut buf = CodecBuffer::new(header_size());
+    let mut buf = CodecBuffer::with_capacity(header_size());
 
     let result = write_header(&mut buf, &mut size, &mut bytes_required);
 
@@ -40,7 +40,7 @@ fn test_write_header_ok() {
 fn test_write_header_capacity_exceeded_for_size() {
     let mut size = 42usize;
     let mut bytes_required = 128usize;
-    let mut buf = CodecBuffer::new(1); // Too small for size
+    let mut buf = CodecBuffer::with_capacity(1); // Too small for size
 
     let result = write_header(&mut buf, &mut size, &mut bytes_required);
 
@@ -52,7 +52,7 @@ fn test_write_header_capacity_exceeded_for_size() {
 fn test_write_header_capacity_exceeded_for_bytes_required() {
     let mut size = 42usize;
     let mut bytes_required = 128usize;
-    let mut buf = CodecBuffer::new(size_of::<usize>()); // Enough for size, too small for bytes_required
+    let mut buf = CodecBuffer::with_capacity(size_of::<usize>()); // Enough for size, too small for bytes_required
 
     let result = write_header(&mut buf, &mut size, &mut bytes_required);
 
@@ -76,7 +76,7 @@ fn test_process_header_buffer_too_small_for_header() {
 #[test]
 fn test_process_header_buffer_too_small_for_data() {
     // Second precondition violated: buf.len() < *expected_len
-    let mut buf = CodecBuffer::new(header_size() + size_of::<u8>()); // only capacity for size.
+    let mut buf = CodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
 
     let mut size: usize = 20;
     let mut excessive_bytes_required: usize = 1024;
@@ -98,7 +98,7 @@ fn test_process_header_buffer_too_small_for_data() {
 #[test]
 fn test_process_header_buffer_header_size_gt_bytes_required() {
     // Third precondition violated: *bytes_required > *header_size
-    let mut buf = CodecBuffer::new(header_size() + size_of::<u8>()); // only capacity for size.
+    let mut buf = CodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
 
     let mut size: usize = 1;
     let mut insufficient_bytes_required: usize = header_size() - 1;
@@ -119,7 +119,7 @@ fn test_process_header_buffer_header_size_gt_bytes_required() {
 
 #[test]
 fn test_process_header_ok() {
-    let mut buf = CodecBuffer::new(header_size() + size_of::<u8>()); // only capacity for size.
+    let mut buf = CodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
 
     let mut size: usize = 1;
     let mut data: u8 = 1;
@@ -157,7 +157,7 @@ fn test_to_bytes_required_dyn_ref() {
 #[test]
 fn test_to_encode_dyn_mut() {
     let mut tb = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
-    let mut buf = CodecBuffer::new(1024);
+    let mut buf = CodecBuffer::with_capacity(1024);
 
     let dyn_mut: &mut dyn Encode = to_encode_dyn_mut(&mut tb);
     let result = dyn_mut.encode_into(&mut buf);
@@ -172,7 +172,7 @@ fn test_to_decode_dyn_mut() {
     // First encode
     let mut tb = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
     let bytes_required = tb.mem_bytes_required().expect("Failed");
-    let mut buf = CodecBuffer::new(bytes_required);
+    let mut buf = CodecBuffer::with_capacity(bytes_required);
     tb.encode_into(&mut buf).expect("Failed to encode");
 
     // Decode
@@ -272,7 +272,7 @@ fn perm_test_encode_fields_propagates_error_at_any_position() {
         let mut fields_clone = fields;
         apply_permutation(&mut fields_clone, idx_perm);
 
-        let mut buf = CodecBuffer::new(bytes_required);
+        let mut buf = CodecBuffer::with_capacity(bytes_required);
 
         let result = encode_fields(
             fields_clone.iter_mut().map(to_encode_zeroize_dyn_mut),
@@ -314,7 +314,7 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
         let mut fields_clone = fields;
         apply_permutation(&mut fields_clone, idx_perm);
 
-        let mut buf = CodecBuffer::new(bytes_required);
+        let mut buf = CodecBuffer::with_capacity(bytes_required);
         encode_fields(
             fields_clone.iter_mut().map(to_encode_zeroize_dyn_mut),
             &mut buf,
@@ -361,7 +361,7 @@ fn test_fields_roundtrip_ok() {
     // Encode
     let mut tb1 = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
     let mut tb2 = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 200);
-    let mut buf = CodecBuffer::new(1024);
+    let mut buf = CodecBuffer::with_capacity(1024);
 
     let encode_refs: [&mut dyn EncodeZeroize; 2] = [
         to_encode_zeroize_dyn_mut(&mut tb1),

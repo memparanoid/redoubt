@@ -80,7 +80,7 @@ use memzer::{FastZeroizable, MemZer, ZeroizationProbe, ZeroizeOnDropSentinel};
 ///
 /// // Encode via memcodec
 /// let bytes_required = secret.mem_bytes_required().expect("Failed to get mem_bytes_required()");
-/// let mut buf = CodecBuffer::new(bytes_required);
+/// let mut buf = CodecBuffer::with_capacity(bytes_required);
 ///
 /// secret.encode_into(&mut buf).unwrap();
 ///

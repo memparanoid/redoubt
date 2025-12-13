@@ -38,7 +38,7 @@ pub(crate) fn test_collection_varying_capacities<T, C, F, G, H>(
         let bytes_required = original_clone
             .mem_bytes_required()
             .expect("Failed to get mem_bytes_required()");
-        let mut buf = CodecBuffer::new(bytes_required);
+        let mut buf = CodecBuffer::with_capacity(bytes_required);
 
         original_clone
             .encode_into(&mut buf)
@@ -51,7 +51,7 @@ pub(crate) fn test_collection_varying_capacities<T, C, F, G, H>(
             let garbage_len = j.min(set.len());
             fill_from_slice(&mut recovered, &set[0..garbage_len]);
 
-            let mut buf_clone = CodecBuffer::new(buf.as_slice().len());
+            let mut buf_clone = CodecBuffer::with_capacity(buf.as_slice().len());
             buf_clone
                 .write_slice(buf.as_slice().to_vec().as_mut_slice())
                 .expect("Failed to write_slice(..)");

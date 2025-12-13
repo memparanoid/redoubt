@@ -95,7 +95,7 @@ where
         .mem_bytes_required()
         .expect("Failed to get bytes_required");
     let insufficient_bytes = bytes_required - 1;
-    let mut buf = CodecBuffer::new(insufficient_bytes);
+    let mut buf = CodecBuffer::with_capacity(insufficient_bytes);
 
     let result = value.encode_into(&mut buf);
 
@@ -164,7 +164,7 @@ pub(crate) fn test_encode_slice_insufficient_buffer<T: EncodeSlice>(slice: &mut 
     }
     let bytes_required = std::mem::size_of_val(slice);
     let insufficient_bytes = bytes_required - 1;
-    let mut buf = CodecBuffer::new(insufficient_bytes);
+    let mut buf = CodecBuffer::with_capacity(insufficient_bytes);
 
     let result = T::encode_slice_into(slice, &mut buf);
 
@@ -206,7 +206,7 @@ where
 {
     let mut original = original_value.clone();
 
-    let mut buf = CodecBuffer::new(
+    let mut buf = CodecBuffer::with_capacity(
         original
             .mem_bytes_required()
             .expect("Failed to get mem_bytes_required()"),

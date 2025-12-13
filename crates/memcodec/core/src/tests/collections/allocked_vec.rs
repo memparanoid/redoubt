@@ -68,7 +68,7 @@ fn test_encode_into_propagates_bytes_required_error() {
         10,
     )]);
     let enough_bytes_required = 1024;
-    let mut buf = CodecBuffer::new(enough_bytes_required);
+    let mut buf = CodecBuffer::with_capacity(enough_bytes_required);
 
     let result = vec.encode_into(&mut buf);
 
@@ -86,7 +86,7 @@ fn test_encode_into_propagates_bytes_required_error() {
 #[test]
 fn test_encode_propagates_capacity_exceeded_error() {
     let mut vec = make_allocked_vec(&[CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100)]);
-    let mut buf = CodecBuffer::new(1); // Too small
+    let mut buf = CodecBuffer::with_capacity(1); // Too small
 
     let result = vec.encode_into(&mut buf);
 
@@ -111,7 +111,7 @@ fn test_encode_propagates_capacity_exceeded_error() {
 #[test]
 fn test_allocked_vec_decode_from_propagates_process_header_err() {
     let mut vec: AllockedVec<CodecTestBreaker> = AllockedVec::new();
-    let mut buf = CodecBuffer::new(1); // Too small for header
+    let mut buf = CodecBuffer::with_capacity(1); // Too small for header
 
     let mut decode_buf = buf.export_as_vec();
     let result = vec.decode_from(&mut decode_buf.as_mut_slice());
@@ -137,7 +137,7 @@ fn test_allocked_vec_decode_propagates_decode_err() {
     let bytes_required = vec
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = CodecBuffer::new(bytes_required);
+    let mut buf = CodecBuffer::with_capacity(bytes_required);
 
     vec.encode_into(&mut buf)
         .expect("Failed to encode_into(..)");
@@ -175,7 +175,7 @@ fn test_allocked_vec_encode_decode_roundtrip() {
     let bytes_required = vec
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = CodecBuffer::new(bytes_required);
+    let mut buf = CodecBuffer::with_capacity(bytes_required);
 
     vec.encode_into(&mut buf)
         .expect("Failed to encode_into(..)");
@@ -258,7 +258,7 @@ fn perm_test_allocked_vec_encode_into_propagates_error_at_any_position() {
         let mut vec_clone = vec.clone();
         apply_permutation(vec_clone.as_mut_slice(), idx_perm);
 
-        let mut buf = CodecBuffer::new(bytes_required);
+        let mut buf = CodecBuffer::with_capacity(bytes_required);
         let result = vec_clone.encode_into(&mut buf);
 
         assert!(result.is_err());
@@ -323,7 +323,7 @@ fn perm_test_allocked_vec_decode_from_propagates_error_at_any_position() {
         let mut vec_clone = vec.clone();
         apply_permutation(vec_clone.as_mut_slice(), idx_perm);
 
-        let mut buf = CodecBuffer::new(bytes_required);
+        let mut buf = CodecBuffer::with_capacity(bytes_required);
         vec_clone
             .encode_into(&mut buf)
             .expect("Failed to encode_into(..)");
@@ -401,7 +401,7 @@ fn perm_test_allocked_vec_encode_decode_roundtrip() {
 
         let expected = vec_clone.clone();
 
-        let mut buf = CodecBuffer::new(bytes_required);
+        let mut buf = CodecBuffer::with_capacity(bytes_required);
         vec_clone
             .encode_into(&mut buf)
             .expect("Failed to encode_into(..)");

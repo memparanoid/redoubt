@@ -60,7 +60,7 @@ fn test_array_encode_into_propagates_bytes_required_error() {
         10,
     )];
     let enough_bytes_required = 1024;
-    let mut buf = CodecBuffer::new(enough_bytes_required);
+    let mut buf = CodecBuffer::with_capacity(enough_bytes_required);
 
     let result = arr.encode_into(&mut buf);
 
@@ -78,7 +78,7 @@ fn test_array_encode_into_propagates_bytes_required_error() {
 #[test]
 fn test_array_encode_into_propagates_capacity_exceeded_error() {
     let mut arr = [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100)];
-    let mut buf = CodecBuffer::new(1); // Too small
+    let mut buf = CodecBuffer::with_capacity(1); // Too small
 
     let result = arr.encode_into(&mut buf);
 
@@ -103,7 +103,7 @@ fn test_array_encode_into_propagates_capacity_exceeded_error() {
 #[test]
 fn test_array_decode_from_propagates_process_header_err() {
     let mut arr: [CodecTestBreaker; 2] = [CodecTestBreaker::default(), CodecTestBreaker::default()];
-    let mut buf = CodecBuffer::new(1); // Too small for header
+    let mut buf = CodecBuffer::with_capacity(1); // Too small for header
 
     let mut decode_buf = buf.export_as_vec();
     let result = arr.decode_from(&mut decode_buf.as_mut_slice());
@@ -130,7 +130,7 @@ fn test_array_decode_from_propagates_size_mismatch_err() {
     let bytes_required = arr
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = CodecBuffer::new(bytes_required);
+    let mut buf = CodecBuffer::with_capacity(bytes_required);
     arr.encode_into(&mut buf)
         .expect("Failed to encode_into(..)");
 
@@ -161,7 +161,7 @@ fn test_array_decode_propagates_decode_err() {
     let bytes_required = arr
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = CodecBuffer::new(bytes_required);
+    let mut buf = CodecBuffer::with_capacity(bytes_required);
 
     arr.encode_into(&mut buf)
         .expect("Failed to encode_into(..)");
@@ -199,7 +199,7 @@ fn test_array_encode_decode_roundtrip() {
     let bytes_required = arr
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
-    let mut buf = CodecBuffer::new(bytes_required);
+    let mut buf = CodecBuffer::with_capacity(bytes_required);
 
     arr.encode_into(&mut buf)
         .expect("Failed to encode_into(..)");
@@ -258,7 +258,7 @@ fn perm_test_array_encode_into_propagates_error_at_any_position() {
         let mut arr_clone = arr;
         apply_permutation(&mut arr_clone, idx_perm);
 
-        let mut buf = CodecBuffer::new(bytes_required);
+        let mut buf = CodecBuffer::with_capacity(bytes_required);
         let result = arr_clone.encode_into(&mut buf);
 
         assert!(result.is_err());
@@ -296,7 +296,7 @@ fn perm_test_array_decode_from_propagates_error_at_any_position() {
         let mut arr_clone = arr;
         apply_permutation(&mut arr_clone, idx_perm);
 
-        let mut buf = CodecBuffer::new(bytes_required);
+        let mut buf = CodecBuffer::with_capacity(bytes_required);
         arr_clone
             .encode_into(&mut buf)
             .expect("Failed to encode_into(..)");
@@ -352,7 +352,7 @@ fn perm_test_array_encode_decode_roundtrip() {
 
         let expected = arr_clone;
 
-        let mut buf = CodecBuffer::new(bytes_required);
+        let mut buf = CodecBuffer::with_capacity(bytes_required);
         arr_clone
             .encode_into(&mut buf)
             .expect("Failed to encode_into(..)");
