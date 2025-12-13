@@ -151,7 +151,7 @@ where
             "value must be zeroized after decode error"
         );
         assert!(
-            buf.iter().all(|&b| b == 0),
+            buf.is_zeroized(),
             "buffer must be zeroized after decode error"
         );
     }

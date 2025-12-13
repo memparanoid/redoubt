@@ -182,8 +182,8 @@ fn test_array_decode_propagates_decode_err() {
     {
         assert!(buf.is_zeroized());
         assert!(decode_buf.is_zeroized());
-        assert!(arr.iter().all(|tb| tb.is_zeroized()));
-        assert!(recovered.iter().all(|tb| tb.is_zeroized()));
+        assert!(arr.is_zeroized());
+        assert!(recovered.is_zeroized());
     }
 }
 

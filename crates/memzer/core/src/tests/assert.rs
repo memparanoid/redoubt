@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use crate::assert::assert_zeroize_on_drop;
-use crate::traits::{AssertZeroizeOnDrop, FastZeroizable};
+use crate::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 use crate::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 use crate::zeroizing_mut_guard::ZeroizingMutGuard;
 
@@ -62,7 +62,7 @@ fn test_assert_zeroized_on_drop_ok() {
     }
 
     // Assert zeroization!
-    assert!(data.iter().all(|b| *b == 0));
+    assert!(data.is_zeroized());
 }
 
 /// CRITICAL TEST: Verifies that structs WITHOUT #[zeroize(drop)] are detected and panic.

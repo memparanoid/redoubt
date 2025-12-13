@@ -379,7 +379,7 @@ fn test_vec_prealloc_zero_init_true() {
 
     assert_eq!(vec.len(), 10);
     // Fast path memsets to 0
-    assert!(vec.iter().all(|tb| tb.is_zeroized()));
+    assert!(vec.is_zeroized());
 }
 
 #[test]

@@ -285,7 +285,7 @@ fn perm_test_encode_fields_propagates_error_at_any_position() {
         // Assert zeroization!
         {
             assert!(buf.is_zeroized());
-            assert!(fields_clone.iter().all(|tb| tb.is_zeroized()));
+            assert!(fields_clone.is_zeroized());
         }
     });
 }
@@ -341,7 +341,7 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
             {
                 assert!(buf.is_zeroized());
                 assert!(decode_buf.is_zeroized());
-                assert!(recovered_fields_clone.iter().all(|tb| tb.is_zeroized()));
+                assert!(recovered_fields_clone.is_zeroized());
             }
         }
 

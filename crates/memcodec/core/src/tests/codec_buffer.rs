@@ -55,7 +55,7 @@ fn test_codec_buffer_realloc_with_capacity() {
     assert_eq!(buf.as_slice().len(), 10);
     assert_eq!(buf.as_mut_slice().len(), 10);
     // But slice should be zeroes (T::Default())
-    assert!(buf.as_slice().iter().all(|b| *b == 0));
+    assert!(buf.as_slice().is_zeroized());
 
     // Buffer should NOT be zeroized: it still have reference to AllockedVec pointers.
     #[cfg(feature = "zeroize")]
@@ -80,7 +80,7 @@ fn test_codec_buffer_clear() {
     // Content should be zeroized
     #[cfg(feature = "zeroize")]
     {
-        assert!(buf.as_slice().iter().all(|&b| b == 0x00));
+        assert!(buf.as_slice().is_zeroized());
     }
 
     // Buffer is still usable - can write again

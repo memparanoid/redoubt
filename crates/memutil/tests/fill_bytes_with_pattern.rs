@@ -5,12 +5,13 @@
 #[cfg(test)]
 mod fill_bytes_with_pattern_tests {
     use memutil::fill_bytes_with_pattern;
+    use memzer::ZeroizationProbe;
 
     #[test]
     fn test_fill_bytes_with_pattern_zeros() {
         let mut buf = [0xFFu8; 16];
         fill_bytes_with_pattern(&mut buf, 0x00);
-        assert!(buf.iter().all(|&b| b == 0x00));
+        assert!(buf.is_zeroized());
     }
 
     #[test]

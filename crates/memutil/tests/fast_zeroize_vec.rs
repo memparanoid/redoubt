@@ -5,12 +5,13 @@
 #[cfg(test)]
 mod fast_zeroize_vec_tests {
     use memutil::{fast_zeroize_vec, is_vec_fully_zeroized};
+    use memzer::ZeroizationProbe;
 
     #[test]
     fn test_fast_zeroize_vec_zeros_all_bytes() {
         let mut data = vec![0xABu8; 1024];
         fast_zeroize_vec(&mut data);
-        assert!(data.iter().all(|&b| b == 0));
+        assert!(data.is_zeroized());
     }
 
     #[test]

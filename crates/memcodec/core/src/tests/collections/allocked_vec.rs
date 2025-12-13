@@ -79,7 +79,7 @@ fn test_encode_into_propagates_bytes_required_error() {
     // Assert zeroization!
     {
         assert!(buf.is_zeroized());
-        assert!(vec.as_slice().iter().all(|tb| tb.is_zeroized()));
+        assert!(vec.as_slice().is_zeroized());
     }
 }
 
@@ -102,7 +102,7 @@ fn test_encode_propagates_capacity_exceeded_error() {
     // Assert zeroization!
     {
         assert!(buf.is_zeroized());
-        assert!(vec.as_slice().iter().all(|tb| tb.is_zeroized()));
+        assert!(vec.as_slice().is_zeroized());
     }
 }
 

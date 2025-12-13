@@ -113,7 +113,9 @@ impl ZeroizationProbe for Intrinsics {
     fn is_zeroized(&self) -> bool {
         let mut bytes = [0u8; 16];
         unsafe { vst1q_u8(bytes.as_mut_ptr(), self.0) };
-        bytes.iter().all(|&b| b == 0)
+        let is_zeroized = bytes.is_zeroized();
+        bytes.fast_zeroize();
+        is_zeroized
     }
 }
 

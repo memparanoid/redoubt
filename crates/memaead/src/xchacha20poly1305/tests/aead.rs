@@ -124,7 +124,7 @@ fn test_modified_tag_rejected() {
     assert!(matches!(result, Err(AeadError::AuthenticationFailed)));
 
     // Ciphertext must be zeroized on auth failure
-    assert!(data.iter().all(|&b| b == 0));
+    assert!(data.is_zeroized());
 }
 
 #[test]
@@ -148,7 +148,7 @@ fn test_modified_ciphertext_rejected() {
     assert!(matches!(result, Err(AeadError::AuthenticationFailed)));
 
     // Ciphertext must be zeroized on auth failure
-    assert!(data.iter().all(|&b| b == 0));
+    assert!(data.is_zeroized());
 }
 
 #[test]
@@ -168,7 +168,7 @@ fn test_modified_aad_rejected() {
     assert!(matches!(result, Err(AeadError::AuthenticationFailed)));
 
     // Ciphertext must be zeroized on auth failure
-    assert!(data.iter().all(|&b| b == 0));
+    assert!(data.is_zeroized());
 }
 
 #[test]
