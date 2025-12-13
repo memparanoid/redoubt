@@ -35,6 +35,7 @@ COPY crates/memcodec/core/Cargo.toml ./crates/memcodec/core/
 COPY crates/memcodec/derive/Cargo.toml ./crates/memcodec/derive/
 COPY crates/membuffer/Cargo.toml ./crates/membuffer/
 COPY crates/mem_test_utils/Cargo.toml ./crates/mem_test_utils/
+COPY examples/wasm-demo/rust/Cargo.toml ./examples/wasm-demo/rust/
 
 # Create stub lib.rs files to satisfy cargo build
 RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs && \
@@ -58,7 +59,8 @@ RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs 
     mkdir -p crates/memcodec/core/src && echo "// stub" > crates/memcodec/core/src/lib.rs && \
     mkdir -p crates/memcodec/derive/src && echo "// stub" > crates/memcodec/derive/src/lib.rs && \
     mkdir -p crates/membuffer/src && echo "// stub" > crates/membuffer/src/lib.rs && \
-    mkdir -p crates/mem_test_utils/src && echo "// stub" > crates/mem_test_utils/src/lib.rs
+    mkdir -p crates/mem_test_utils/src && echo "// stub" > crates/mem_test_utils/src/lib.rs && \
+    mkdir -p examples/wasm-demo/rust/src && echo "// stub" > examples/wasm-demo/rust/src/lib.rs
 
 # Build workspace and dependencies with cache mount
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
@@ -67,9 +69,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 # Copy actual source code
 COPY crates ./crates
+COPY examples ./examples
 
 # Update timestamps to force workspace re-compilation but keep dep artifacts
-RUN find crates -type f -name "*.rs" -exec touch {} \;
+RUN find crates examples -type f -name "*.rs" -exec touch {} \;
 
 # Entrypoint script
 COPY docker/test-entrypoint.sh /usr/local/bin/test-entrypoint.sh
