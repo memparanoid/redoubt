@@ -330,7 +330,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         quote! {
             impl #impl_generics Drop for #struct_name #ty_generics #where_clause {
                 fn drop(&mut self) {
-                    self.fast_zeroize();
+                    #root::FastZeroizable::fast_zeroize(self);
                 }
             }
         }

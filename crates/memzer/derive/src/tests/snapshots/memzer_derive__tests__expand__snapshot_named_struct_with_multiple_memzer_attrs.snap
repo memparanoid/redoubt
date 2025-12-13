@@ -42,6 +42,6 @@ impl<'a> memzer_core::AssertZeroizeOnDrop for Chi<'a> {
 }
 impl<'a> Drop for Chi<'a> {
     fn drop(&mut self) {
-        self.fast_zeroize();
+        memzer_core::FastZeroizable::fast_zeroize(self);
     }
 }

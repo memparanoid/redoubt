@@ -53,6 +53,6 @@ where
     T: Clone,
 {
     fn drop(&mut self) {
-        self.fast_zeroize();
+        memzer_core::FastZeroizable::fast_zeroize(self);
     }
 }

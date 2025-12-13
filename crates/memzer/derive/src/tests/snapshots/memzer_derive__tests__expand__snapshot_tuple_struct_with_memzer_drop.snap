@@ -38,6 +38,6 @@ impl memzer_core::AssertZeroizeOnDrop for Sigma {
 }
 impl Drop for Sigma {
     fn drop(&mut self) {
-        self.fast_zeroize();
+        memzer_core::FastZeroizable::fast_zeroize(self);
     }
 }
