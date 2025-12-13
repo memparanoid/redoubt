@@ -105,6 +105,8 @@ fn test_force_encode_error() {
     let mut buf = CodecBuffer::new(1024);
 
     let result = tb.encode_into(&mut buf);
+
+    assert!(result.is_err());
     assert!(matches!(result, Err(EncodeError::IntentionalEncodeError)));
 
     #[cfg(feature = "zeroize")]

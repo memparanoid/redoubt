@@ -50,6 +50,8 @@ fn test_new_fails_when_address_space_exhausted() {
     unsafe { libc::setrlimit(libc::RLIMIT_AS, &tiny) };
 
     let result = Page::new();
+
+    assert!(result.is_err());
     assert!(matches!(result, Err(PageError::Create)));
 
     unsafe { libc::setrlimit(libc::RLIMIT_AS, &original) };
@@ -105,6 +107,8 @@ mod seccomp_lock {
         block_mlock();
 
         let result = page.lock();
+
+        assert!(result.is_err());
         assert!(matches!(result, Err(PageError::Lock)));
     }
 
@@ -188,6 +192,8 @@ mod seccomp_protect {
         block_mprotect();
 
         let result = page.protect();
+
+        assert!(result.is_err());
         assert!(matches!(result, Err(PageError::Protect)));
     }
 
@@ -218,6 +224,8 @@ mod seccomp_protect {
         block_mprotect();
 
         let result = page.protect();
+
+        assert!(result.is_err());
         assert!(matches!(result, Err(PageError::Protect)));
 
         // Page should be zeroized by dispose()
@@ -278,6 +286,8 @@ mod seccomp_unprotect {
         block_mprotect();
 
         let result = page.unprotect();
+
+        assert!(result.is_err());
         assert!(matches!(result, Err(PageError::Unprotect)));
     }
 

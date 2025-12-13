@@ -50,6 +50,8 @@ fn test_new_returns_creation_failed() {
     unsafe { libc::setrlimit(libc::RLIMIT_AS, &tiny) };
 
     let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
+
+    assert!(result.is_err());
     assert!(matches!(result, Err(PageError::Create)));
 
     unsafe { libc::setrlimit(libc::RLIMIT_AS, &original) };
@@ -66,6 +68,8 @@ mod seccomp_new {
     fn subprocess_test_new_returns_lock_failed() {
         block_mlock();
         let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
+
+        assert!(result.is_err());
         assert!(matches!(result, Err(PageError::Lock)));
     }
 
@@ -87,6 +91,8 @@ mod seccomp_new {
     fn subprocess_test_new_returns_protection_failed() {
         block_mprotect();
         let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
+
+        assert!(result.is_err());
         assert!(matches!(result, Err(PageError::Protect)));
     }
 
@@ -160,6 +166,7 @@ fn test_open_propagates_callback_error() {
 
     let result = buffer.open(&mut |_| Err(BufferError::callback_error("test error")));
 
+    assert!(result.is_err());
     assert!(matches!(result, Err(BufferError::CallbackError(_))));
 }
 
@@ -272,6 +279,7 @@ fn test_open_mut_propagates_callback_error() {
 
     let result = buffer.open_mut(&mut |_| Err(BufferError::callback_error("test error")));
 
+    assert!(result.is_err());
     assert!(matches!(result, Err(BufferError::CallbackError(_))));
 }
 
