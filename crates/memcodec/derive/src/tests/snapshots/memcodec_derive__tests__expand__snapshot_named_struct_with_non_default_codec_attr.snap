@@ -4,16 +4,15 @@
 
 ---
 source: crates/memcodec/derive/src/tests/expand.rs
-assertion_line: 140
 expression: pretty(token_stream)
 ---
 impl memcodec_core::BytesRequired for Sigma {
     fn mem_bytes_required(&self) -> Result<usize, memcodec_core::OverflowError> {
-        let collection: [&dyn memcodec_core::BytesRequired; 2] = [
+        let fields: [&dyn memcodec_core::BytesRequired; 2] = [
             memcodec_core::collections::helpers::to_bytes_required_dyn_ref(&self.alpha),
             memcodec_core::collections::helpers::to_bytes_required_dyn_ref(&self.beta),
         ];
-        memcodec_core::collections::helpers::bytes_required_sum(collection.into_iter())
+        memcodec_core::collections::helpers::bytes_required_sum(fields.into_iter())
     }
 }
 impl memcodec_core::Encode for Sigma {
@@ -21,7 +20,7 @@ impl memcodec_core::Encode for Sigma {
         &mut self,
         buf: &mut memcodec_core::CodecBuffer,
     ) -> Result<(), memcodec_core::EncodeError> {
-        let collection: [&mut dyn memcodec_core::EncodeZeroize; 2] = [
+        let fields: [&mut dyn memcodec_core::EncodeZeroize; 2] = [
             memcodec_core::collections::helpers::to_encode_zeroize_dyn_mut(
                 &mut self.alpha,
             ),
@@ -29,7 +28,7 @@ impl memcodec_core::Encode for Sigma {
                 &mut self.beta,
             ),
         ];
-        memcodec_core::collections::helpers::encode_fields(collection.into_iter(), buf)
+        memcodec_core::collections::helpers::encode_fields(fields.into_iter(), buf)
     }
 }
 impl memcodec_core::Decode for Sigma {
@@ -37,7 +36,7 @@ impl memcodec_core::Decode for Sigma {
         &mut self,
         buf: &mut &mut [u8],
     ) -> Result<(), memcodec_core::DecodeError> {
-        let collection: [&mut dyn memcodec_core::DecodeZeroize; 2] = [
+        let fields: [&mut dyn memcodec_core::DecodeZeroize; 2] = [
             memcodec_core::collections::helpers::to_decode_zeroize_dyn_mut(
                 &mut self.alpha,
             ),
@@ -45,6 +44,6 @@ impl memcodec_core::Decode for Sigma {
                 &mut self.beta,
             ),
         ];
-        memcodec_core::collections::helpers::decode_fields(collection.into_iter(), buf)
+        memcodec_core::collections::helpers::decode_fields(fields.into_iter(), buf)
     }
 }

@@ -4,13 +4,12 @@
 
 ---
 source: crates/memcodec/derive/src/tests/expand.rs
-assertion_line: 68
 expression: pretty(token_stream)
 ---
 impl memcodec_core::BytesRequired for Empty {
     fn mem_bytes_required(&self) -> Result<usize, memcodec_core::OverflowError> {
-        let collection: [&dyn memcodec_core::BytesRequired; 0] = [];
-        memcodec_core::collections::helpers::bytes_required_sum(collection.into_iter())
+        let fields: [&dyn memcodec_core::BytesRequired; 0] = [];
+        memcodec_core::collections::helpers::bytes_required_sum(fields.into_iter())
     }
 }
 impl memcodec_core::Encode for Empty {
@@ -18,8 +17,8 @@ impl memcodec_core::Encode for Empty {
         &mut self,
         buf: &mut memcodec_core::CodecBuffer,
     ) -> Result<(), memcodec_core::EncodeError> {
-        let collection: [&mut dyn memcodec_core::EncodeZeroize; 0] = [];
-        memcodec_core::collections::helpers::encode_fields(collection.into_iter(), buf)
+        let fields: [&mut dyn memcodec_core::EncodeZeroize; 0] = [];
+        memcodec_core::collections::helpers::encode_fields(fields.into_iter(), buf)
     }
 }
 impl memcodec_core::Decode for Empty {
@@ -27,7 +26,7 @@ impl memcodec_core::Decode for Empty {
         &mut self,
         buf: &mut &mut [u8],
     ) -> Result<(), memcodec_core::DecodeError> {
-        let collection: [&mut dyn memcodec_core::DecodeZeroize; 0] = [];
-        memcodec_core::collections::helpers::decode_fields(collection.into_iter(), buf)
+        let fields: [&mut dyn memcodec_core::DecodeZeroize; 0] = [];
+        memcodec_core::collections::helpers::decode_fields(fields.into_iter(), buf)
     }
 }

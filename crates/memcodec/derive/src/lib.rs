@@ -93,28 +93,28 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     let output = quote! {
         impl #impl_generics #root::BytesRequired for #struct_name #ty_generics #where_clause {
             fn mem_bytes_required(&self) -> Result<usize, #root::OverflowError> {
-                let collection: [&dyn #root::BytesRequired; #len_lit] = [
+                let fields: [&dyn #root::BytesRequired; #len_lit] = [
                     #( #root::collections::helpers::to_bytes_required_dyn_ref(#immut_refs) ),*
                 ];
-                #root::collections::helpers::bytes_required_sum(collection.into_iter())
+                #root::collections::helpers::bytes_required_sum(fields.into_iter())
             }
         }
 
         impl #impl_generics #root::Encode for #struct_name #ty_generics #where_clause {
             fn encode_into(&mut self, buf: &mut #root::CodecBuffer) -> Result<(), #root::EncodeError> {
-                let collection: [&mut dyn #root::EncodeZeroize; #len_lit] = [
+                let fields: [&mut dyn #root::EncodeZeroize; #len_lit] = [
                     #( #root::collections::helpers::to_encode_zeroize_dyn_mut(#mut_refs) ),*
                 ];
-                #root::collections::helpers::encode_fields(collection.into_iter(), buf)
+                #root::collections::helpers::encode_fields(fields.into_iter(), buf)
             }
         }
 
         impl #impl_generics #root::Decode for #struct_name #ty_generics #where_clause {
             fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), #root::DecodeError> {
-                let collection: [&mut dyn #root::DecodeZeroize; #len_lit] = [
+                let fields: [&mut dyn #root::DecodeZeroize; #len_lit] = [
                     #( #root::collections::helpers::to_decode_zeroize_dyn_mut(#mut_refs) ),*
                 ];
-                #root::collections::helpers::decode_fields(collection.into_iter(), buf)
+                #root::collections::helpers::decode_fields(fields.into_iter(), buf)
             }
         }
     };
