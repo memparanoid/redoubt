@@ -3,29 +3,9 @@
 // See LICENSE in the repository root for full license text.
 
 use alloc::vec::Vec;
-use thiserror::Error;
 
+use crate::error::AllockedVecError;
 use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata};
-
-/// Error type for `AllockedVec` operations.
-#[derive(Debug, Error, Eq, PartialEq)]
-pub enum AllockedVecError {
-    /// Attempted to reserve capacity on an already-sealed vector.
-    #[error("Vector is already sealed and cannot be resized")]
-    AlreadySealed,
-
-    /// Integer overflow when computing new length.
-    ///
-    /// This error is practically impossible to encounter in normal usage,
-    /// as it would require a vector with length approaching `isize::MAX`.
-    /// It exists as a defensive check for integer overflow safety.
-    #[error("Integer overflow: total length would exceed usize::MAX")]
-    Overflow,
-
-    /// Attempted to push beyond the vector's capacity.
-    #[error("Capacity exceeded: cannot push beyond sealed capacity")]
-    CapacityExceeded,
-}
 
 /// Test behaviour for injecting failures in `AllockedVec` operations.
 ///

@@ -70,11 +70,13 @@
 extern crate alloc;
 
 mod allocked_vec;
+mod error;
 
 #[cfg(test)]
 mod tests;
 
-pub use allocked_vec::{AllockedVec, AllockedVecError};
+pub use allocked_vec::AllockedVec;
+pub use error::AllockedVecError;
 
 #[cfg(any(test, feature = "test_utils"))]
 pub use allocked_vec::AllockedVecBehaviour;
