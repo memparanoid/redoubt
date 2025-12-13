@@ -52,9 +52,8 @@
 //! [`ZeroizeMetadata`]: memzer_core::ZeroizeMetadata
 //! [`ZeroizationProbe`]: memzer_core::ZeroizationProbe
 //! [`AssertZeroizeOnDrop`]: memzer_core::AssertZeroizeOnDrop
-//! [`MutGuarded`]: memzer_core::MutGuarded// Copyright (C) 2024 Mem Paranoid
-// Use of this software is governed by the MIT License.
-// See the LICENSE file for details.
+//! [`MutGuarded`]: memzer_core::MutGuarded
+
 #![cfg_attr(not(test), no_std)]
 
 #[cfg(test)]

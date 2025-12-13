@@ -6,6 +6,7 @@
 //!
 //! Provides the `#[derive(MemZer)]` macro for automatic trait implementations.
 
+
 #![warn(missing_docs)]
 
 #[cfg(test)]
