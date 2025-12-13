@@ -1,0 +1,82 @@
+[tasks.build-wasm]
+description = "Build WASM module in release mode"
+cwd = "rust"
+command = "cargo"
+args = ["build", "--target", "wasm32-unknown-unknown", "--release"]
+
+[tasks.bindgen]
+description = "Run wasm-bindgen on release build"
+dependencies = ["build-wasm"]
+command = "wasm-bindgen"
+args = [
+  "--target", "web",
+  "--out-dir", "pkg",
+  "../../target/wasm32-unknown-unknown/release/wasm_demo.wasm"
+]
+
+[tasks.build]
+description = "Build WASM module and generate JS bindings (release)"
+dependencies = ["bindgen"]
+script_runner = "@shell"
+script = "echo ✅ WASM build complete! Output in pkg/"
+
+[tasks.build-dev-wasm]
+description = "Build WASM module in dev mode"
+cwd = "rust"
+command = "cargo"
+args = ["build", "--target", "wasm32-unknown-unknown"]
+
+[tasks.bindgen-dev]
+description = "Run wasm-bindgen on dev build"
+dependencies = ["build-dev-wasm"]
+command = "wasm-bindgen"
+args = [
+  "--target", "web",
+  "--out-dir", "pkg",
+  "../../target/wasm32-unknown-unknown/debug/wasm_demo.wasm"
+]
+
+[tasks.patch-bun]
+description = "Patch wasm-bindgen JS to fix Bun instantiateStreaming bug"
+dependencies = ["bindgen-dev"]
+script_runner = "@rust"
+script = '''
+use std::fs;
+
+fn main() {
+    let path = "pkg/wasm_demo.js";
+    let content = fs::read_to_string(path).expect("Failed to read wasm_demo.js");
+
+    let original = r#"typeof WebAssembly.instantiateStreaming === 'function'"#;
+    let patched = r#"typeof Bun === 'undefined' && typeof WebAssembly.instantiateStreaming === 'function'"#;
+
+    if content.contains(original) {
+        let new_content = content.replace(original, patched);
+        fs::write(path, new_content).expect("Failed to write wasm_demo.js");
+        println!("✅ Patched pkg/wasm_demo.js for Bun compatibility");
+    } else if content.contains(patched) {
+        println!("✅ pkg/wasm_demo.js already patched");
+    } else {
+        eprintln!("⚠️  Pattern not found in pkg/wasm_demo.js");
+        std::process::exit(1);
+    }
+}
+'''
+
+[tasks.dev]
+description = "Build WASM in dev mode with bindings"
+dependencies = ["patch-bun"]
+script_runner = "@shell"
+script = "echo ✅ WASM dev build complete! Output in pkg/"
+
+[tasks.run]
+description = "Build and run WASM demo with Bun"
+dependencies = ["dev"]
+script_runner = "@shell"
+script = "bun run bun/main.js"
+
+[tasks.clean]
+description = "Clean build artifacts"
+cwd = "rust"
+command = "cargo"
+args = ["clean"]

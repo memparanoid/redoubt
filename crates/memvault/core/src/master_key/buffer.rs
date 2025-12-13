@@ -3,9 +3,6 @@
 // See LICENSE in the repository root for full license text.
 
 //! Buffer creation logic
-
-extern crate alloc;
-
 use alloc::boxed::Box;
 
 use membuffer::{Buffer, BufferError, PortableBuffer};

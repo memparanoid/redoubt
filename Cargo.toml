@@ -19,6 +19,7 @@ members = [
   "crates/membuffer",
   "crates/mem_test_utils",
   "benchmarks",
+  "examples/wasm-demo/rust",
 ]
 resolver = "2"
 
@@ -51,7 +52,7 @@ resolver = "2"
   # External dependencies
   cpufeatures      = "0.2.17"
   smallvec         = "1.15.1"
-  getrandom        = "0.3"
+  getrandom        = "0.3.4"
   libc             = "0.2.177"
   pastey           = "0.2.0"
   proc-macro-crate = "3.4.0"

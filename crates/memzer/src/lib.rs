@@ -55,6 +55,8 @@
 //! [`MutGuarded`]: memzer_core::MutGuarded// Copyright (C) 2024 Mem Paranoid
 // Use of this software is governed by the MIT License.
 // See the LICENSE file for details.
+#![cfg_attr(not(test), no_std)]
+
 #[cfg(test)]
 mod tests;
 

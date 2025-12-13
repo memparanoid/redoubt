@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 //! Collection utilities for zero-copy moves.
+use alloc::vec::Vec;
 
 use core::mem;
 

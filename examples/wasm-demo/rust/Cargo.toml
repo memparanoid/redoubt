@@ -1,0 +1,18 @@
+[package]
+name = "wasm-demo"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "=0.2.106"
+memvault = { workspace = true, features = ["no_std"] }
+memcodec.workspace = true
+memzer.workspace = true
+memaead.workspace = true
+
+[profile.release]
+opt-level = "z"
+lto = true

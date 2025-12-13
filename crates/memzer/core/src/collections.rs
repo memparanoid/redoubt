@@ -3,6 +3,8 @@
 // See LICENSE in the repository root for full license text.
 
 //! Trait implementations and helpers for collections (slices, arrays, `Vec<T>`).
+use alloc::string::String;
+use alloc::vec::Vec;
 
 use core::sync::atomic::{Ordering, compiler_fence};
 

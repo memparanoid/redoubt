@@ -3,10 +3,13 @@
 // See LICENSE in the repository root for full license text.
 
 //! Secure buffer with locked capacity and automatic zeroization.
+use alloc::vec::Vec;
+
 use memalloc::AllockedVec;
+
 #[cfg(feature = "zeroize")]
 use memzer::{
-    AssertZeroizeOnDrop, ZeroizeOnDropSentinel, FastZeroizable, ZeroizationProbe, ZeroizeMetadata,
+    AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,
     assert::assert_zeroize_on_drop,
 };
 
@@ -158,7 +161,7 @@ impl CodecBuffer {
 
     #[inline(always)]
     pub fn write_slice<T>(&mut self, src: &mut [T]) -> Result<(), CodecBufferError> {
-        let byte_len = std::mem::size_of_val(src);
+        let byte_len = core::mem::size_of_val(src);
 
         unsafe {
             if self.cursor.add(byte_len) > self.end {

@@ -138,18 +138,20 @@
 //!
 //! [`zeroize`]: https://docs.rs/zeroize
 //!
-
+#![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
 #![warn(unsafe_op_in_unsafe_fn)]
+
+extern crate alloc;
 
 #[cfg(test)]
 mod tests;
 
+mod traits;
 /// Drop verification mechanism for ensuring zeroization happened before drop.
 ///
 /// Contains [`ZeroizeOnDropSentinel`], the core type used to verify that `.zeroize()` was called.
 mod zeroize_on_drop_sentinel;
-mod traits;
 mod zeroizing_guard;
 mod zeroizing_mut_guard;
 
@@ -175,9 +177,9 @@ pub mod collections;
 /// Exports: `U8`, `U16`, `U32`, `U64`, `U128`, `USIZE` - each wraps the corresponding primitive type.
 pub mod primitives;
 
-pub use zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 pub use traits::{
     AssertZeroizeOnDrop, FastZeroizable, FastZeroize, MutGuarded, ZeroizationProbe, ZeroizeMetadata,
 };
+pub use zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 pub use zeroizing_guard::ZeroizingGuard;
 pub use zeroizing_mut_guard::ZeroizingMutGuard;

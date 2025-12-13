@@ -3,6 +3,8 @@
 // See LICENSE in the repository root for full license text.
 
 //! Master key storage
+use alloc::vec;
+use alloc::vec::Vec;
 
 use membuffer::BufferError;
 use memzer::ZeroizingGuard;

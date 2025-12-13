@@ -13,8 +13,10 @@ version.workspace   = true
 test_utils = []
 
 [dependencies]
-cpufeatures.workspace = true
 memrand.workspace     = true
 memutil.workspace     = true
 memzer.workspace      = true
 thiserror.workspace   = true
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+cpufeatures.workspace = true

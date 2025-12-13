@@ -3,6 +3,9 @@
 // See LICENSE in the repository root for full license text.
 
 //! High-performance secure codec with memory zeroization.
+#![cfg_attr(not(test), no_std)]
+
+extern crate alloc;
 
 #[cfg(test)]
 mod tests;

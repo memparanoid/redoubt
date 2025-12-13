@@ -53,7 +53,7 @@ impl DecodeBuffer for &mut [u8] {
 
     #[inline(always)]
     fn read_slice<T>(&mut self, dst: &mut [T]) -> Result<(), DecodeBufferError> {
-        let byte_len = std::mem::size_of_val(dst);
+        let byte_len = core::mem::size_of_val(dst);
 
         if self.len() < byte_len {
             return Err(DecodeBufferError::OutOfBounds);

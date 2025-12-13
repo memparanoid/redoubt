@@ -24,6 +24,7 @@ impl FeatureDetector {
     }
 
     #[inline(always)]
+    #[cfg(any(test, not(target_family = "wasm")))]
     pub fn has_aes(&self) -> bool {
         cpufeatures::new!(aes_detection, "aes");
 

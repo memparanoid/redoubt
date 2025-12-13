@@ -12,8 +12,13 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
-getrandom.workspace = true
 thiserror.workspace = true
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+getrandom.workspace = true
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+getrandom = { workspace = true, features = ["wasm_js"] }
 
 [dev-dependencies]
 proptest.workspace = true

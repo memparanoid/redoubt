@@ -50,8 +50,11 @@
 //! - Windows: `BCryptGenRandom`
 //! - WASI: `random_get`
 
+#![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
 #![warn(unsafe_op_in_unsafe_fn)]
+
+extern crate alloc;
 
 #[cfg(test)]
 mod tests;

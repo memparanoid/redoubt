@@ -73,6 +73,7 @@ impl Aead {
     pub(crate) fn new_with_feature_detector(feature_detector: FeatureDetector) -> Self {
         #[cfg(target_os = "wasi")]
         {
+            let _ = feature_detector;
             Self {
                 backend: AeadBackendImpl::XChacha20Poly1305(Box::default()),
             }
@@ -95,6 +96,7 @@ impl Aead {
         #[cfg(not(target_os = "wasi"))]
         #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
         {
+            let _ = feature_detector;
             Self {
                 backend: AeadBackendImpl::XChacha20Poly1305(Box::default()),
             }

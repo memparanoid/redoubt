@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use alloc::string::String;
+
 use core::error;
 use core::fmt;
 

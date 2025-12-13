@@ -3,9 +3,11 @@
 // See LICENSE in the repository root for full license text.
 
 //! Wrapper type that prevents accidental exposure of sensitive data.
-
+#![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
 #![warn(unsafe_op_in_unsafe_fn)]
+
+extern crate alloc;
 
 #[cfg(test)]
 mod tests;
@@ -18,7 +20,7 @@ pub use traits::MemMove;
 use core::fmt;
 
 use memcodec::{BytesRequired, Codec, Decode, Encode};
-use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer, ZeroizationProbe};
+use memzer::{FastZeroizable, MemZer, ZeroizationProbe, ZeroizeOnDropSentinel};
 
 /// Wrapper that prevents accidental exposure of sensitive data.
 ///

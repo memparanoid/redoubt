@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#![warn(missing_docs)]
-#![warn(unsafe_op_in_unsafe_fn)]
-
 //! Allocation-locked Vec that guarantees no reallocation after sealing.
 //!
 //! `AllockedVec<T>` is a wrapper around `Vec<T>` that prevents reallocation after the initial
@@ -65,6 +62,12 @@
 //!     }
 //! }
 //! ```
+
+#![cfg_attr(not(test), no_std)]
+#![warn(missing_docs)]
+#![warn(unsafe_op_in_unsafe_fn)]
+
+extern crate alloc;
 
 mod allocked_vec;
 

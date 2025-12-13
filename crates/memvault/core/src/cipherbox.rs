@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use alloc::vec;
+use alloc::vec::Vec;
+
 use core::marker::PhantomData;
 
 use memaead::AeadApi;
 use memcodec::{BytesRequired, CodecBuffer, Decode, Encode};
 use memzer::{
-    ZeroizeOnDropSentinel, FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata, ZeroizingGuard,
+    FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,
+    ZeroizingGuard,
 };
 
 use super::error::CipherBoxError;
