@@ -3,6 +3,8 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(feature = "zeroize")]
+use core::sync::atomic::{compiler_fence, Ordering};
+#[cfg(feature = "zeroize")]
 use memzer::FastZeroizable;
 #[cfg(feature = "zeroize")]
 use smallvec::SmallVec;
@@ -129,6 +131,7 @@ pub fn encode_fields<'a>(
         #[cfg(feature = "zeroize")]
         if result.is_err() {
             field.fast_zeroize();
+            compiler_fence(Ordering::SeqCst);
             continue;
         }
 
@@ -137,6 +140,7 @@ pub fn encode_fields<'a>(
             #[cfg(feature = "zeroize")]
             {
                 field.fast_zeroize();
+                compiler_fence(Ordering::SeqCst);
                 buf.fast_zeroize();
             }
 
@@ -163,6 +167,7 @@ pub fn decode_fields<'a>(
         #[cfg(feature = "zeroize")]
         if result.is_err() {
             field.fast_zeroize();
+            compiler_fence(Ordering::SeqCst);
             continue;
         }
 
@@ -172,10 +177,12 @@ pub fn decode_fields<'a>(
             #[cfg(feature = "zeroize")]
             {
                 field.fast_zeroize();
+                compiler_fence(Ordering::SeqCst);
 
                 // Zeroize all previously decoded fields
                 for decoded_field in decoded.iter_mut() {
                     decoded_field.fast_zeroize();
+                    compiler_fence(Ordering::SeqCst);
                 }
 
                 memutil::fast_zeroize_slice(buf);
