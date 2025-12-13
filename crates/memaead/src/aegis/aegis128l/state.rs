@@ -78,8 +78,8 @@ pub unsafe fn encrypt(
     // === Absorb AAD ===
     let mut aad_iter = aad.chunks_exact(BLOCK_SIZE);
     for block in aad_iter.by_ref() {
-        let mut m0 = Intrinsics::load(block[..16].try_into().unwrap());
-        let mut m1 = Intrinsics::load(block[16..].try_into().unwrap());
+        let mut m0 = Intrinsics::load(block[..16].try_into().expect("Infallible: BLOCK_SIZE is 32, so [..16] is exactly 16 bytes"));
+        let mut m1 = Intrinsics::load(block[16..].try_into().expect("Infallible: BLOCK_SIZE is 32, so [16..] is exactly 16 bytes"));
         update(
             &mut s0, &mut s1, &mut s2, &mut s3, &mut s4, &mut s5, &mut s6, &mut s7, &m0, &m1,
         );
@@ -92,8 +92,8 @@ pub unsafe fn encrypt(
     if !aad_remainder.is_empty() {
         let mut padded = [0u8; BLOCK_SIZE];
         padded[..aad_remainder.len()].copy_from_slice(aad_remainder);
-        let mut m0 = Intrinsics::load(padded[..16].try_into().unwrap());
-        let mut m1 = Intrinsics::load(padded[16..].try_into().unwrap());
+        let mut m0 = Intrinsics::load(padded[..16].try_into().expect("Infallible: padded is [u8; BLOCK_SIZE], so [..16] is exactly 16 bytes"));
+        let mut m1 = Intrinsics::load(padded[16..].try_into().expect("Infallible: padded is [u8; BLOCK_SIZE], so [16..] is exactly 16 bytes"));
         update(
             &mut s0, &mut s1, &mut s2, &mut s3, &mut s4, &mut s5, &mut s6, &mut s7, &m0, &m1,
         );
@@ -119,14 +119,14 @@ pub unsafe fn encrypt(
         t1.fast_zeroize();
 
         // Load plaintext
-        let mut m0 = Intrinsics::load(block[..16].try_into().unwrap());
-        let mut m1 = Intrinsics::load(block[16..].try_into().unwrap());
+        let mut m0 = Intrinsics::load(block[..16].try_into().expect("Infallible: BLOCK_SIZE is 32, so [..16] is exactly 16 bytes"));
+        let mut m1 = Intrinsics::load(block[16..].try_into().expect("Infallible: BLOCK_SIZE is 32, so [16..] is exactly 16 bytes"));
 
         // Encrypt: ciphertext = plaintext ^ keystream
         let mut c0 = m0.xor(&z0);
         let mut c1 = m1.xor(&z1);
-        c0.store((&mut block[..16]).try_into().unwrap());
-        c1.store((&mut block[16..]).try_into().unwrap());
+        c0.store((&mut block[..16]).try_into().expect("Infallible: mutable slice is exactly 16 bytes"));
+        c1.store((&mut block[16..]).try_into().expect("Infallible: mutable slice is exactly 16 bytes"));
         c0.fast_zeroize();
         c1.fast_zeroize();
         z0.fast_zeroize();
@@ -159,8 +159,8 @@ pub unsafe fn encrypt(
         t1.fast_zeroize();
 
         // Load padded plaintext
-        let mut m0 = Intrinsics::load(padded[..16].try_into().unwrap());
-        let mut m1 = Intrinsics::load(padded[16..].try_into().unwrap());
+        let mut m0 = Intrinsics::load(padded[..16].try_into().expect("Infallible: padded is [u8; BLOCK_SIZE], so [..16] is exactly 16 bytes"));
+        let mut m1 = Intrinsics::load(padded[16..].try_into().expect("Infallible: padded is [u8; BLOCK_SIZE], so [16..] is exactly 16 bytes"));
 
         // Encrypt
         let mut c0 = m0.xor(&z0);
@@ -170,8 +170,8 @@ pub unsafe fn encrypt(
 
         // Store only the valid ciphertext bytes
         let mut ct_buf = [0u8; BLOCK_SIZE];
-        c0.store((&mut ct_buf[..16]).try_into().unwrap());
-        c1.store((&mut ct_buf[16..]).try_into().unwrap());
+        c0.store((&mut ct_buf[..16]).try_into().expect("Infallible: ct_buf is [u8; BLOCK_SIZE], so [..16] is exactly 16 bytes"));
+        c1.store((&mut ct_buf[16..]).try_into().expect("Infallible: ct_buf is [u8; BLOCK_SIZE], so [16..] is exactly 16 bytes"));
         data_remainder.copy_from_slice(&ct_buf[..len]);
         c0.fast_zeroize();
         c1.fast_zeroize();
@@ -191,8 +191,8 @@ pub unsafe fn encrypt(
     let mut len_block = [0u8; 16];
     let mut ad_bits = (aad.len() as u64) * 8;
     let mut msg_bits = (msg_len as u64) * 8;
-    u64_to_le(&mut ad_bits, (&mut len_block[..8]).try_into().unwrap());
-    u64_to_le(&mut msg_bits, (&mut len_block[8..]).try_into().unwrap());
+    u64_to_le(&mut ad_bits, (&mut len_block[..8]).try_into().expect("Infallible: len_block is [u8; 16], so [..8] is exactly 8 bytes"));
+    u64_to_le(&mut msg_bits, (&mut len_block[8..]).try_into().expect("Infallible: len_block is [u8; 16], so [8..] is exactly 8 bytes"));
 
     let mut len_intrinsic = Intrinsics::load(&len_block);
     let mut t = s2.xor(&len_intrinsic);
@@ -287,8 +287,8 @@ pub unsafe fn decrypt(
     // === Absorb AAD ===
     let mut aad_iter = aad.chunks_exact(BLOCK_SIZE);
     for block in aad_iter.by_ref() {
-        let mut m0 = Intrinsics::load(block[..16].try_into().unwrap());
-        let mut m1 = Intrinsics::load(block[16..].try_into().unwrap());
+        let mut m0 = Intrinsics::load(block[..16].try_into().expect("Infallible: BLOCK_SIZE is 32, so [..16] is exactly 16 bytes"));
+        let mut m1 = Intrinsics::load(block[16..].try_into().expect("Infallible: BLOCK_SIZE is 32, so [16..] is exactly 16 bytes"));
         update(
             &mut s0, &mut s1, &mut s2, &mut s3, &mut s4, &mut s5, &mut s6, &mut s7, &m0, &m1,
         );
@@ -300,8 +300,8 @@ pub unsafe fn decrypt(
     if !aad_remainder.is_empty() {
         let mut padded = [0u8; BLOCK_SIZE];
         padded[..aad_remainder.len()].copy_from_slice(aad_remainder);
-        let mut m0 = Intrinsics::load(padded[..16].try_into().unwrap());
-        let mut m1 = Intrinsics::load(padded[16..].try_into().unwrap());
+        let mut m0 = Intrinsics::load(padded[..16].try_into().expect("Infallible: padded is [u8; BLOCK_SIZE], so [..16] is exactly 16 bytes"));
+        let mut m1 = Intrinsics::load(padded[16..].try_into().expect("Infallible: padded is [u8; BLOCK_SIZE], so [16..] is exactly 16 bytes"));
         update(
             &mut s0, &mut s1, &mut s2, &mut s3, &mut s4, &mut s5, &mut s6, &mut s7, &m0, &m1,
         );
@@ -326,14 +326,14 @@ pub unsafe fn decrypt(
         t1.fast_zeroize();
 
         // Load ciphertext
-        let mut ct0 = Intrinsics::load(block[..16].try_into().unwrap());
-        let mut ct1 = Intrinsics::load(block[16..].try_into().unwrap());
+        let mut ct0 = Intrinsics::load(block[..16].try_into().expect("Infallible: BLOCK_SIZE is 32, so [..16] is exactly 16 bytes"));
+        let mut ct1 = Intrinsics::load(block[16..].try_into().expect("Infallible: BLOCK_SIZE is 32, so [16..] is exactly 16 bytes"));
 
         // Decrypt: plaintext = ciphertext ^ keystream
         let mut m0 = ct0.xor(&z0);
         let mut m1 = ct1.xor(&z1);
-        m0.store((&mut block[..16]).try_into().unwrap());
-        m1.store((&mut block[16..]).try_into().unwrap());
+        m0.store((&mut block[..16]).try_into().expect("Infallible: mutable slice is exactly 16 bytes"));
+        m1.store((&mut block[16..]).try_into().expect("Infallible: mutable slice is exactly 16 bytes"));
         ct0.fast_zeroize();
         ct1.fast_zeroize();
         z0.fast_zeroize();
@@ -366,8 +366,8 @@ pub unsafe fn decrypt(
         t1.fast_zeroize();
 
         // Load padded ciphertext
-        let mut ct0 = Intrinsics::load(padded[..16].try_into().unwrap());
-        let mut ct1 = Intrinsics::load(padded[16..].try_into().unwrap());
+        let mut ct0 = Intrinsics::load(padded[..16].try_into().expect("Infallible: padded is [u8; BLOCK_SIZE], so [..16] is exactly 16 bytes"));
+        let mut ct1 = Intrinsics::load(padded[16..].try_into().expect("Infallible: padded is [u8; BLOCK_SIZE], so [16..] is exactly 16 bytes"));
 
         // Decrypt
         let mut pt0 = ct0.xor(&z0);
@@ -379,16 +379,16 @@ pub unsafe fn decrypt(
 
         // Store plaintext to temp buffer
         let mut pt_buf = [0u8; BLOCK_SIZE];
-        pt0.store((&mut pt_buf[..16]).try_into().unwrap());
-        pt1.store((&mut pt_buf[16..]).try_into().unwrap());
+        pt0.store((&mut pt_buf[..16]).try_into().expect("Infallible: pt_buf is [u8; BLOCK_SIZE], so [..16] is exactly 16 bytes"));
+        pt1.store((&mut pt_buf[16..]).try_into().expect("Infallible: pt_buf is [u8; BLOCK_SIZE], so [16..] is exactly 16 bytes"));
 
         // Copy only valid plaintext bytes
         data_remainder.copy_from_slice(&pt_buf[..len]);
 
         // Update state with zero-padded plaintext
         pt_buf[len..].fill(0);
-        let mut m0 = Intrinsics::load(pt_buf[..16].try_into().unwrap());
-        let mut m1 = Intrinsics::load(pt_buf[16..].try_into().unwrap());
+        let mut m0 = Intrinsics::load(pt_buf[..16].try_into().expect("Infallible: pt_buf is [u8; BLOCK_SIZE], so [..16] is exactly 16 bytes"));
+        let mut m1 = Intrinsics::load(pt_buf[16..].try_into().expect("Infallible: pt_buf is [u8; BLOCK_SIZE], so [16..] is exactly 16 bytes"));
         pt0.fast_zeroize();
         pt1.fast_zeroize();
 
@@ -406,8 +406,8 @@ pub unsafe fn decrypt(
     let mut len_block = [0u8; 16];
     let mut ad_bits = (aad.len() as u64) * 8;
     let mut msg_bits = (ct_len as u64) * 8;
-    u64_to_le(&mut ad_bits, (&mut len_block[..8]).try_into().unwrap());
-    u64_to_le(&mut msg_bits, (&mut len_block[8..]).try_into().unwrap());
+    u64_to_le(&mut ad_bits, (&mut len_block[..8]).try_into().expect("Infallible: len_block is [u8; 16], so [..8] is exactly 8 bytes"));
+    u64_to_le(&mut msg_bits, (&mut len_block[8..]).try_into().expect("Infallible: len_block is [u8; 16], so [8..] is exactly 8 bytes"));
 
     let mut len_intrinsic = Intrinsics::load(&len_block);
     let mut t = s2.xor(&len_intrinsic);
