@@ -63,7 +63,7 @@ impl Default for AllockedVecBehaviour {
 }
 
 #[cfg(any(test, feature = "test_utils"))]
-impl memzer::ZeroizationProbe for AllockedVecBehaviour {
+impl ZeroizationProbe for AllockedVecBehaviour {
     fn is_zeroized(&self) -> bool {
         matches!(self, Self::None)
     }
