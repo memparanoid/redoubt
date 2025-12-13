@@ -11,7 +11,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer};
+use memzer::{ZeroizeOnDropSentinel, MemZer};
 
 use crate::error::BufferError;
 use crate::traits::Buffer;
