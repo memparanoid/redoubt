@@ -31,7 +31,7 @@ pub fn get_sizes<const N: usize>(
     let mut sizes = [0usize; N];
 
     for (i, f) in fields.iter().enumerate() {
-        sizes[i] = f.mem_bytes_required()?;
+        sizes[i] = f.encode_bytes_required()?;
     }
 
     Ok(sizes)

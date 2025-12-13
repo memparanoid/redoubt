@@ -76,7 +76,7 @@ impl MixedData {
 }
 
 impl BytesRequired for MixedData {
-    fn mem_bytes_required(&self) -> Result<usize, OverflowError> {
+    fn encode_bytes_required(&self) -> Result<usize, OverflowError> {
         let fields: [&dyn BytesRequired; 11] = [
             to_bytes_required_dyn_ref(&self.bytes_1k),
             to_bytes_required_dyn_ref(&self.bytes_2k),
@@ -141,7 +141,7 @@ fn benchmark_codec_roundtrip() {
 
     // Setup: encode initial data
     let mut data = MixedData::new();
-    let buf_size = data.mem_bytes_required().expect("Failed to mem_bytes_required()");
+    let buf_size = data.encode_bytes_required().expect("Failed to encode_bytes_required()");
     let mut global_buf = CodecBuffer::with_capacity(buf_size);
     data.encode_into(&mut global_buf).expect("Failed to encode_into(..)");
 
@@ -152,7 +152,7 @@ fn benchmark_codec_roundtrip() {
         // Decode: fills data from buf
         data.decode_from(&mut global_buf.as_mut_slice()).expect("Failed to decode_from(..)");
         // Encode: writes data back to buf
-        let cap = data.mem_bytes_required().expect("Failed to mem_bytes_required()");
+        let cap = data.encode_bytes_required().expect("Failed to encode_bytes_required()");
         let mut buf = CodecBuffer::with_capacity(cap);
         data.encode_into(&mut buf).expect("Failed to encode_into(..)");
         global_buf = buf;

@@ -15,7 +15,7 @@ macro_rules! impl_traits_for_primitives {
         $(
             impl $crate::traits::BytesRequired for $ty {
                 #[inline(always)]
-                fn mem_bytes_required(&self) -> Result<usize, $crate::error::OverflowError> {
+                fn encode_bytes_required(&self) -> Result<usize, $crate::error::OverflowError> {
                     Ok(core::mem::size_of::<$ty>())
                 }
             }

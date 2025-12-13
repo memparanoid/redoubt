@@ -92,7 +92,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
 
     let output = quote! {
         impl #impl_generics #root::BytesRequired for #struct_name #ty_generics #where_clause {
-            fn mem_bytes_required(&self) -> Result<usize, #root::OverflowError> {
+            fn encode_bytes_required(&self) -> Result<usize, #root::OverflowError> {
                 let fields: [&dyn #root::BytesRequired; #len_lit] = [
                     #( #root::collections::helpers::to_bytes_required_dyn_ref(#immut_refs) ),*
                 ];

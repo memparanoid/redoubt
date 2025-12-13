@@ -147,8 +147,8 @@ fn test_to_bytes_required_dyn_ref() {
     let dyn_ref: &dyn BytesRequired = to_bytes_required_dyn_ref(&tb);
 
     assert_eq!(
-        dyn_ref.mem_bytes_required().expect("Failed"),
-        tb.mem_bytes_required().expect("Failed")
+        dyn_ref.encode_bytes_required().expect("Failed"),
+        tb.encode_bytes_required().expect("Failed")
     );
 }
 
@@ -171,7 +171,7 @@ fn test_to_encode_dyn_mut() {
 fn test_to_decode_dyn_mut() {
     // First encode
     let mut tb = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
-    let bytes_required = tb.mem_bytes_required().expect("Failed");
+    let bytes_required = tb.encode_bytes_required().expect("Failed");
     let mut buf = CodecBuffer::with_capacity(bytes_required);
     tb.encode_into(&mut buf).expect("Failed to encode");
 
@@ -265,8 +265,8 @@ fn perm_test_encode_fields_propagates_error_at_any_position() {
         CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceEncodeError, 6),
     ];
     let bytes_required = fields
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
+        .encode_bytes_required()
+        .expect("Failed to get encode_bytes_required()");
 
     index_permutations(fields.len(), |idx_perm| {
         let mut fields_clone = fields;
@@ -303,7 +303,7 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
 
     let bytes_required = fields
         .iter()
-        .map(|tb| tb.mem_bytes_required().expect("Failed"))
+        .map(|tb| tb.encode_bytes_required().expect("Failed"))
         .sum();
 
     let mut recovered_fields = fields;

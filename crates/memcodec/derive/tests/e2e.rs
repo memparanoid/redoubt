@@ -25,8 +25,8 @@ mod tests {
         let mut original_clone = original.clone();
 
         let bytes_required = original
-            .mem_bytes_required()
-            .expect("Failed to get mem_bytes_required()");
+            .encode_bytes_required()
+            .expect("Failed to get encode_bytes_required()");
         let mut buf = CodecBuffer::with_capacity(bytes_required);
 
         // Encode
@@ -60,8 +60,8 @@ mod tests {
         let mut original_clone = original.clone();
 
         let bytes_required = original
-            .mem_bytes_required()
-            .expect("Failed to get mem_bytes_required()");
+            .encode_bytes_required()
+            .expect("Failed to get encode_bytes_required()");
         let mut buf = CodecBuffer::with_capacity(bytes_required);
 
         // Encode
@@ -95,8 +95,8 @@ mod tests {
         let mut original_clone = original.clone();
 
         let bytes_required = original
-            .mem_bytes_required()
-            .expect("Failed to get mem_bytes_required()");
+            .encode_bytes_required()
+            .expect("Failed to get encode_bytes_required()");
         assert_eq!(bytes_required, 0);
 
         let mut buf = CodecBuffer::with_capacity(1);

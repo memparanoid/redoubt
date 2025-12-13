@@ -28,7 +28,7 @@ fn test_bytes_required_propagates_overflow_error() {
         CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceBytesRequiredOverflow, 10),
     ]);
 
-    let result = vec.mem_bytes_required();
+    let result = vec.encode_bytes_required();
 
     assert!(result.is_err());
     match result {
@@ -53,7 +53,7 @@ fn test_bytes_required_reports_overflow_error() {
         ),
     ]);
 
-    let result = vec.mem_bytes_required();
+    let result = vec.encode_bytes_required();
 
     assert!(result.is_err());
     assert!(matches!(result, Err(OverflowError { .. })));
@@ -135,8 +135,8 @@ fn test_allocked_vec_decode_propagates_decode_err() {
         CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
     ]);
     let bytes_required = vec
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
+        .encode_bytes_required()
+        .expect("Failed to get encode_bytes_required()");
     let mut buf = CodecBuffer::with_capacity(bytes_required);
 
     vec.encode_into(&mut buf)
@@ -173,8 +173,8 @@ fn test_allocked_vec_encode_decode_roundtrip() {
         CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 37),
     ]);
     let bytes_required = vec
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
+        .encode_bytes_required()
+        .expect("Failed to get encode_bytes_required()");
     let mut buf = CodecBuffer::with_capacity(bytes_required);
 
     vec.encode_into(&mut buf)
@@ -251,8 +251,8 @@ fn perm_test_allocked_vec_encode_into_propagates_error_at_any_position() {
     .expect("Failed to push(..)");
 
     let bytes_required = vec
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
+        .encode_bytes_required()
+        .expect("Failed to get encode_bytes_required()");
 
     index_permutations(vec.len(), |idx_perm| {
         let mut vec_clone = vec.clone();
@@ -308,8 +308,8 @@ fn perm_test_allocked_vec_decode_from_propagates_error_at_any_position() {
     .expect("Failed to push(..)");
 
     let bytes_required = vec
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
+        .encode_bytes_required()
+        .expect("Failed to get encode_bytes_required()");
 
     let recovered_vec = {
         let mut recovered_vec = vec.clone();
@@ -392,8 +392,8 @@ fn perm_test_allocked_vec_encode_decode_roundtrip() {
     .expect("Failed to push(..)");
 
     let bytes_required = vec
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
+        .encode_bytes_required()
+        .expect("Failed to get encode_bytes_required()");
 
     index_permutations(vec.len(), |idx_perm| {
         let mut vec_clone = vec.clone();

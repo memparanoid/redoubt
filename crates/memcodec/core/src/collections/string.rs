@@ -52,14 +52,14 @@ pub(crate) fn string_bytes_required(len: usize) -> Result<usize, OverflowError> 
 }
 
 impl BytesRequired for String {
-    fn mem_bytes_required(&self) -> Result<usize, OverflowError> {
+    fn encode_bytes_required(&self) -> Result<usize, OverflowError> {
         string_bytes_required(self.len())
     }
 }
 
 impl TryEncode for String {
     fn try_encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
-        let mut bytes_required = Zeroizing::from(&mut self.mem_bytes_required()?);
+        let mut bytes_required = Zeroizing::from(&mut self.encode_bytes_required()?);
         let mut size = Zeroizing::from(&mut self.len());
 
         write_header(buf, &mut size, &mut bytes_required)?;

@@ -75,8 +75,8 @@ fn test_is_zeroized() {
 fn test_bytes_required_return_max() {
     let tb = CodecTestBreaker::with_behaviour(CodecTestBreakerBehaviour::BytesRequiredReturnMax);
     assert_eq!(
-        tb.mem_bytes_required()
-            .expect("Failed to get mem_bytes_required()"),
+        tb.encode_bytes_required()
+            .expect("Failed to get encode_bytes_required()"),
         usize::MAX
     );
 }
@@ -85,8 +85,8 @@ fn test_bytes_required_return_max() {
 fn test_bytes_required_return_specific() {
     let tb = CodecTestBreaker::with_behaviour(CodecTestBreakerBehaviour::BytesRequiredReturn(42));
     assert_eq!(
-        tb.mem_bytes_required()
-            .expect("Failed to get mem_bytes_required()"),
+        tb.encode_bytes_required()
+            .expect("Failed to get encode_bytes_required()"),
         42
     );
 }
@@ -94,7 +94,7 @@ fn test_bytes_required_return_specific() {
 #[test]
 fn test_bytes_required_overflow() {
     let tb = CodecTestBreaker::with_behaviour(CodecTestBreakerBehaviour::ForceBytesRequiredOverflow);
-    assert!(tb.mem_bytes_required().is_err());
+    assert!(tb.encode_bytes_required().is_err());
 }
 
 // Encode
@@ -122,8 +122,8 @@ fn test_force_encode_error() {
 fn test_force_decode_error() {
     let mut tb = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
     let bytes_required = tb
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
+        .encode_bytes_required()
+        .expect("Failed to get encode_bytes_required()");
 
     let mut buf = CodecBuffer::with_capacity(bytes_required);
     tb.encode_into(&mut buf).expect("Failed to encode_into(..)");
@@ -151,8 +151,8 @@ fn test_roundtrip() {
     let original_usize = original.usize;
 
     let bytes_required = original
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
+        .encode_bytes_required()
+        .expect("Failed to get encode_bytes_required()");
     let mut buf = CodecBuffer::with_capacity(bytes_required);
     original
         .encode_into(&mut buf)

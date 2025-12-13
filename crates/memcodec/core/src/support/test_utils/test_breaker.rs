@@ -22,11 +22,11 @@ const MAGIC: usize = 0xDEADBEEF;
 pub enum CodecTestBreakerBehaviour {
     /// Normal behavior (no error injection).
     None,
-    /// Force `mem_bytes_required()` to return `usize::MAX`.
+    /// Force `encode_bytes_required()` to return `usize::MAX`.
     BytesRequiredReturnMax,
-    /// Force `mem_bytes_required()` to return a specific value.
+    /// Force `encode_bytes_required()` to return a specific value.
     BytesRequiredReturn(usize),
-    /// Force `mem_bytes_required()` to return an overflow error.
+    /// Force `encode_bytes_required()` to return an overflow error.
     ForceBytesRequiredOverflow,
     /// Force `encode_into()` to return an error.
     ForceEncodeError,
@@ -59,7 +59,7 @@ impl Usize {
 }
 
 impl BytesRequired for Usize {
-    fn mem_bytes_required(&self) -> Result<usize, OverflowError> {
+    fn encode_bytes_required(&self) -> Result<usize, OverflowError> {
         let fields: [&dyn BytesRequired; 1] = [to_bytes_required_dyn_ref(&self.data)];
 
         bytes_required_sum(fields.into_iter())
@@ -158,7 +158,7 @@ impl CodecTestBreaker {
 }
 
 impl BytesRequired for CodecTestBreaker {
-    fn mem_bytes_required(&self) -> Result<usize, OverflowError> {
+    fn encode_bytes_required(&self) -> Result<usize, OverflowError> {
         match &self.behaviour {
             CodecTestBreakerBehaviour::BytesRequiredReturnMax => Ok(usize::MAX),
             CodecTestBreakerBehaviour::BytesRequiredReturn(n) => Ok(*n),

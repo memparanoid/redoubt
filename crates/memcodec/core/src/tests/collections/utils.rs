@@ -36,8 +36,8 @@ pub(crate) fn test_collection_varying_capacities<T, C, F, G, H>(
 
         // Encode
         let bytes_required = original_clone
-            .mem_bytes_required()
-            .expect("Failed to get mem_bytes_required()");
+            .encode_bytes_required()
+            .expect("Failed to get encode_bytes_required()");
         let mut buf = CodecBuffer::with_capacity(bytes_required);
 
         original_clone

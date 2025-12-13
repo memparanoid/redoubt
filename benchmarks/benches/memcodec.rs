@@ -92,7 +92,7 @@ fn bench_encode(c: &mut Criterion) {
         b.iter_batched(
             || d.clone(),
             |mut data| {
-                let size = BytesRequired::mem_bytes_required(&data)
+                let size = BytesRequired::encode_bytes_required(&data)
                     .expect("failed to calculate bytes required");
                 let mut buf = CodecBuffer::with_capacity(size);
                 data.encode_into(&mut buf)
@@ -117,7 +117,7 @@ fn bench_decode(c: &mut Criterion) {
 
     // Prepare encoded buffer
     let mut mc_data = data.clone();
-    let size = BytesRequired::mem_bytes_required(&mc_data)
+    let size = BytesRequired::encode_bytes_required(&mc_data)
         .expect("failed to calculate bytes required");
     let mut memcodec_buf = CodecBuffer::with_capacity(size);
     mc_data.encode_into(&mut memcodec_buf)
@@ -186,7 +186,7 @@ fn bench_roundtrip(c: &mut Criterion) {
         b.iter_batched(
             || d.clone(),
             |mut data| {
-                let size = BytesRequired::mem_bytes_required(&data)
+                let size = BytesRequired::encode_bytes_required(&data)
                     .expect("failed to calculate bytes required");
                 let mut buf = CodecBuffer::with_capacity(size);
 

@@ -91,8 +91,8 @@ fn test_string_encode_into_propagates_encode_slice_error() {
 fn test_string_encode_slice_ok() {
     let mut s_slice = [String::from("hello"), String::from("world")];
     let buf_size = s_slice
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
+        .encode_bytes_required()
+        .expect("Failed to get encode_bytes_required()");
     let mut buf = CodecBuffer::with_capacity(buf_size);
 
     let result = String::encode_slice_into(&mut s_slice, &mut buf);
@@ -152,8 +152,8 @@ fn test_string_encode_into_propagates_try_encode_into_error() {
 fn test_string_encode_ok() {
     let mut s = String::from("hello world");
     let bytes_required = s
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
+        .encode_bytes_required()
+        .expect("Failed to get encode_bytes_required()");
     let mut buf = CodecBuffer::with_capacity(bytes_required);
 
     let result = s.encode_into(&mut buf);
@@ -192,8 +192,8 @@ fn test_string_decode_from_propagates_process_header_error() {
 fn test_string_decode_from_utf8_validation_error() {
     let mut s = String::from("hello");
     let bytes_required = s
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
+        .encode_bytes_required()
+        .expect("Failed to get encode_bytes_required()");
     let mut buf = CodecBuffer::with_capacity(bytes_required);
 
     s.encode_into(&mut buf).expect("encode failed");
@@ -227,8 +227,8 @@ fn test_string_slice_roundtrip_ok() {
     // Encode
     let mut s_slice = [String::from("hello"), String::from("world")];
     let bytes_required = s_slice
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
+        .encode_bytes_required()
+        .expect("Failed to get encode_bytes_required()");
     let mut buf = CodecBuffer::with_capacity(bytes_required);
 
     String::encode_slice_into(&mut s_slice, &mut buf).expect("encode failed");
@@ -293,8 +293,8 @@ fn test_string_roundtrip_ok() {
     // Encode
     let mut s = String::from("hello world");
     let bytes_required = s
-        .mem_bytes_required()
-        .expect("Failed to get mem_bytes_required()");
+        .encode_bytes_required()
+        .expect("Failed to get encode_bytes_required()");
     let mut buf = CodecBuffer::with_capacity(bytes_required);
 
     s.encode_into(&mut buf).expect("encode failed");

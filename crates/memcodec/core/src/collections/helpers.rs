@@ -102,7 +102,7 @@ pub fn bytes_required_sum<'a>(
     let mut total = Zeroizing::from(&mut 0usize);
 
     for elem in iter {
-        let new_total = Zeroizing::from(&mut total.wrapping_add(elem.mem_bytes_required()?));
+        let new_total = Zeroizing::from(&mut total.wrapping_add(elem.encode_bytes_required()?));
 
         if *new_total < *total {
             return Err(OverflowError {

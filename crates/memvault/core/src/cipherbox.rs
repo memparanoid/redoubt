@@ -232,7 +232,7 @@ where
     where
         F: Encryptable,
     {
-        let bytes_required = field.mem_bytes_required()?;
+        let bytes_required = field.encode_bytes_required()?;
 
         self.tmp_field_codec_buff
             .realloc_with_capacity(bytes_required);

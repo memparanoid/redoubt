@@ -79,11 +79,11 @@ where
     result
 }
 
-/// Tests that mem_bytes_required returns Ok(size_of::<T>()) for primitives
+/// Tests that encode_bytes_required returns Ok(size_of::<T>()) for primitives
 pub(crate) fn test_bytes_required<T: BytesRequired>(value: &T) {
-    let result = value.mem_bytes_required();
+    let result = value.encode_bytes_required();
     assert!(result.is_ok());
-    assert_eq!(result.expect("Failed to mem_bytes_required()"), core::mem::size_of::<T>());
+    assert_eq!(result.expect("Failed to encode_bytes_required()"), core::mem::size_of::<T>());
 }
 
 /// Tests that encode_into fails with CapacityExceeded when buffer is too small
@@ -92,7 +92,7 @@ where
     T: Encode + BytesRequired + Default + PartialEq + core::fmt::Debug,
 {
     let bytes_required = value
-        .mem_bytes_required()
+        .encode_bytes_required()
         .expect("Failed to get bytes_required");
     let insufficient_bytes = bytes_required - 1;
     let mut buf = CodecBuffer::with_capacity(insufficient_bytes);
@@ -208,8 +208,8 @@ where
 
     let mut buf = CodecBuffer::with_capacity(
         original
-            .mem_bytes_required()
-            .expect("Failed to get mem_bytes_required()"),
+            .encode_bytes_required()
+            .expect("Failed to get encode_bytes_required()"),
     );
 
     original

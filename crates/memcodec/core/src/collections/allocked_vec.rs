@@ -41,11 +41,11 @@ impl<T> BytesRequired for AllockedVec<T>
 where
     T: FastZeroizable + ZeroizeMetadata + BytesRequired + ZeroizationProbe,
 {
-    fn mem_bytes_required(&self) -> Result<usize, OverflowError> {
+    fn encode_bytes_required(&self) -> Result<usize, OverflowError> {
         let mut bytes_required = header_size();
 
         for elem in self.as_slice().iter() {
-            let new_bytes_required = bytes_required.wrapping_add(elem.mem_bytes_required()?);
+            let new_bytes_required = bytes_required.wrapping_add(elem.encode_bytes_required()?);
 
             if new_bytes_required < bytes_required {
                 return Err(OverflowError {
@@ -66,7 +66,7 @@ where
 {
     fn try_encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         let mut size = Zeroizing::from(&mut self.len());
-        let mut bytes_required = Zeroizing::from(&mut self.mem_bytes_required()?);
+        let mut bytes_required = Zeroizing::from(&mut self.encode_bytes_required()?);
 
         write_header(buf, &mut size, &mut bytes_required)?;
 

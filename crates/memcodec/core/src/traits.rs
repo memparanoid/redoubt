@@ -8,7 +8,7 @@ use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeBufferError, DecodeError, EncodeError, OverflowError};
 
 pub trait BytesRequired {
-    fn mem_bytes_required(&self) -> Result<usize, OverflowError>;
+    fn encode_bytes_required(&self) -> Result<usize, OverflowError>;
 }
 
 /// Internal encoding trait that performs encoding without zeroization.
