@@ -582,7 +582,7 @@ fn test_allocked_vec_as_capacity_slice_returns_full_capacity() {
     assert_eq!(vec.capacity(), 5);
 
     // as_capacity_slice returns full capacity (zeroed by with_capacity)
-    let slice = vec.as_capacity_slice();
+    let slice = unsafe { vec.as_capacity_slice() };
     assert_eq!(slice.len(), 5);
     assert_eq!(&slice[..2], &[1, 2]);
     // Spare capacity is zeroed
@@ -606,7 +606,7 @@ fn test_allocked_vec_capacity_is_zeroed_on_creation() {
     assert!(!vec.is_zeroized());
 
     // All capacity should be zeroed
-    let slice = vec.as_capacity_slice();
+    let slice = unsafe { vec.as_capacity_slice() };
     assert_eq!(slice.len(), 100);
     assert!(slice.iter().all(|&b| b == 0));
 
@@ -625,7 +625,7 @@ fn test_allocked_vec_as_capacity_mut_slice_allows_writing_beyond_len() {
     vec.push(2u8).expect("Failed to push");
 
     // Write beyond len (but within capacity)
-    let slice = vec.as_capacity_mut_slice();
+    let slice = unsafe { vec.as_capacity_mut_slice() };
     slice[2] = 3;
     slice[3] = 4;
     slice[4] = 5;
@@ -634,7 +634,7 @@ fn test_allocked_vec_as_capacity_mut_slice_allows_writing_beyond_len() {
     assert_eq!(vec.len(), 2);
 
     // Verify via as_capacity_slice
-    let slice = vec.as_capacity_slice();
+    let slice = unsafe { vec.as_capacity_slice() };
     assert_eq!(slice, &[1, 2, 3, 4, 5]);
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
@@ -673,8 +673,8 @@ fn test_allocked_vec_set_len_can_grow_within_capacity() {
     vec.push(2u8).expect("Failed to push(2)");
 
     // Write to spare capacity first
-    vec.as_capacity_mut_slice()[2] = 3;
-    vec.as_capacity_mut_slice()[3] = 4;
+    unsafe { vec.as_capacity_mut_slice()[2] = 3 };
+    unsafe { vec.as_capacity_mut_slice()[3] = 4 };
 
     // SAFETY: 4 <= capacity, elements at 0..4 are initialized
     unsafe { vec.set_len(4) };

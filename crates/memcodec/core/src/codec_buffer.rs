@@ -122,17 +122,17 @@ impl CodecBuffer {
 
     #[inline(always)]
     pub fn as_slice(&self) -> &[u8] {
-        self.allocked_vec.as_capacity_slice()
+        unsafe { self.allocked_vec.as_capacity_slice() }
     }
 
     #[inline(always)]
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
-        self.allocked_vec.as_capacity_mut_slice()
+        unsafe { self.allocked_vec.as_capacity_mut_slice() }
     }
 
     #[inline(always)]
     pub fn len(&self) -> usize {
-        self.allocked_vec.as_capacity_slice().len()
+        unsafe { self.allocked_vec.as_capacity_slice().len() }
     }
 
     #[inline(always)]

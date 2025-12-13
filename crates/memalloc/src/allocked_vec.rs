@@ -259,7 +259,7 @@ where
         // reading garbage via as_capacity_slice() / as_capacity_mut_slice()
         #[cfg(any(test, feature = "unsafe"))]
         if capacity > 0 {
-            memutil::fast_zeroize_slice(self.as_capacity_mut_slice());
+            memutil::fast_zeroize_slice(unsafe { self.as_capacity_mut_slice() });
         }
 
         Ok(())
@@ -621,10 +621,11 @@ where
     /// # Safety
     ///
     /// This method is only available with the `unsafe` feature.
-    /// Bytes beyond `len()` may contain old data from previous operations.
+    /// Elements beyond `len()` may not be properly initialized.
+    /// The caller must ensure that accessing elements beyond `len()` is valid for type `T`.
     #[cfg(any(test, feature = "unsafe"))]
     #[inline(always)]
-    pub fn as_capacity_slice(&self) -> &[T] {
+    pub unsafe fn as_capacity_slice(&self) -> &[T] {
         unsafe { core::slice::from_raw_parts(self.inner.as_ptr(), self.inner.capacity()) }
     }
 
@@ -633,11 +634,11 @@ where
     /// # Safety
     ///
     /// This method is only available with the `unsafe` feature.
-    /// The caller must ensure writes don't exceed capacity.
-    /// Bytes beyond `len()` may contain old data from previous operations.
+    /// Elements beyond `len()` may not be properly initialized.
+    /// The caller must ensure that accessing elements beyond `len()` is valid for type `T`.
     #[cfg(any(test, feature = "unsafe"))]
     #[inline(always)]
-    pub fn as_capacity_mut_slice(&mut self) -> &mut [T] {
+    pub unsafe fn as_capacity_mut_slice(&mut self) -> &mut [T] {
         unsafe { core::slice::from_raw_parts_mut(self.inner.as_mut_ptr(), self.inner.capacity()) }
     }
 
