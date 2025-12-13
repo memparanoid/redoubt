@@ -19,7 +19,7 @@ const MAGIC: usize = 0xDEADBEEF;
 
 /// Behavior control for error injection testing in memcodec.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TestBreakerBehaviour {
+pub enum CodecTestBreakerBehaviour {
     /// Normal behavior (no error injection).
     None,
     /// Force `mem_bytes_required()` to return `usize::MAX`.
@@ -34,7 +34,7 @@ pub enum TestBreakerBehaviour {
     ForceDecodeError,
 }
 
-impl Default for TestBreakerBehaviour {
+impl Default for CodecTestBreakerBehaviour {
     fn default() -> Self {
         Self::None
     }
@@ -43,17 +43,17 @@ impl Default for TestBreakerBehaviour {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Usize {
     /// Controls error injection behavior.
-    pub behaviour: TestBreakerBehaviour,
+    pub behaviour: CodecTestBreakerBehaviour,
     /// Test data.
     pub data: usize,
 }
 
 impl Usize {
-    pub fn new(behaviour: TestBreakerBehaviour, data: usize) -> Self {
+    pub fn new(behaviour: CodecTestBreakerBehaviour, data: usize) -> Self {
         Self { behaviour, data }
     }
 
-    pub fn set_behaviour(&mut self, behaviour: TestBreakerBehaviour) {
+    pub fn set_behaviour(&mut self, behaviour: CodecTestBreakerBehaviour) {
         self.behaviour = behaviour;
     }
 }
@@ -68,7 +68,7 @@ impl BytesRequired for Usize {
 
 impl Encode for Usize {
     fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
-        if self.behaviour == TestBreakerBehaviour::ForceEncodeError {
+        if self.behaviour == CodecTestBreakerBehaviour::ForceEncodeError {
             return Err(EncodeError::IntentionalEncodeError);
         }
 
@@ -82,7 +82,7 @@ impl Encode for Usize {
 
 impl Decode for Usize {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-        if self.behaviour == TestBreakerBehaviour::ForceDecodeError {
+        if self.behaviour == CodecTestBreakerBehaviour::ForceDecodeError {
             return Err(DecodeError::IntentionalDecodeError);
         }
 
@@ -112,28 +112,28 @@ impl ZeroizationProbe for Usize {
 
 /// Test fixture for error injection and edge case testing in memcodec.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct TestBreaker {
+pub struct CodecTestBreaker {
     /// Controls error injection behavior.
-    pub behaviour: TestBreakerBehaviour,
+    pub behaviour: CodecTestBreakerBehaviour,
     /// Test data.
     pub usize: Usize,
     /// Magic data, if tampered, decode will fail
     magic: usize,
 }
 
-impl Default for TestBreaker {
+impl Default for CodecTestBreaker {
     fn default() -> Self {
         Self {
-            behaviour: TestBreakerBehaviour::None,
-            usize: Usize::new(TestBreakerBehaviour::None, 104729),
+            behaviour: CodecTestBreakerBehaviour::None,
+            usize: Usize::new(CodecTestBreakerBehaviour::None, 104729),
             magic: MAGIC,
         }
     }
 }
 
-impl TestBreaker {
+impl CodecTestBreaker {
     /// Creates a new test breaker with the specified behavior and data value.
-    pub fn new(behaviour: TestBreakerBehaviour, data: usize) -> Self {
+    pub fn new(behaviour: CodecTestBreakerBehaviour, data: usize) -> Self {
         Self {
             behaviour,
             usize: Usize::new(behaviour, data),
@@ -142,7 +142,7 @@ impl TestBreaker {
     }
 
     /// Creates a new test breaker with default data and specified behavior.
-    pub fn with_behaviour(behaviour: TestBreakerBehaviour) -> Self {
+    pub fn with_behaviour(behaviour: CodecTestBreakerBehaviour) -> Self {
         Self {
             behaviour,
             usize: Usize::new(behaviour, 104729),
@@ -151,19 +151,19 @@ impl TestBreaker {
     }
 
     /// Changes the error injection behavior.
-    pub fn set_behaviour(&mut self, behaviour: TestBreakerBehaviour) {
+    pub fn set_behaviour(&mut self, behaviour: CodecTestBreakerBehaviour) {
         self.behaviour = behaviour;
         self.usize.set_behaviour(behaviour);
     }
 }
 
-impl BytesRequired for TestBreaker {
+impl BytesRequired for CodecTestBreaker {
     fn mem_bytes_required(&self) -> Result<usize, OverflowError> {
         match &self.behaviour {
-            TestBreakerBehaviour::BytesRequiredReturnMax => Ok(usize::MAX),
-            TestBreakerBehaviour::BytesRequiredReturn(n) => Ok(*n),
-            TestBreakerBehaviour::ForceBytesRequiredOverflow => Err(OverflowError {
-                reason: "TestBreaker forced overflow".into(),
+            CodecTestBreakerBehaviour::BytesRequiredReturnMax => Ok(usize::MAX),
+            CodecTestBreakerBehaviour::BytesRequiredReturn(n) => Ok(*n),
+            CodecTestBreakerBehaviour::ForceBytesRequiredOverflow => Err(OverflowError {
+                reason: "CodecTestBreaker forced overflow".into(),
             }),
             _ => {
                 let fields: [&dyn BytesRequired; 2] = [
@@ -177,7 +177,7 @@ impl BytesRequired for TestBreaker {
     }
 }
 
-impl Encode for TestBreaker {
+impl Encode for CodecTestBreaker {
     fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         let fields: [&mut dyn EncodeZeroize; 2] = [
             to_encode_zeroize_dyn_mut(&mut self.usize),
@@ -190,7 +190,7 @@ impl Encode for TestBreaker {
     }
 }
 
-impl Decode for TestBreaker {
+impl Decode for CodecTestBreaker {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         let fields: [&mut dyn DecodeZeroize; 2] = [
             to_decode_zeroize_dyn_mut(&mut self.usize),
@@ -207,7 +207,7 @@ impl Decode for TestBreaker {
     }
 }
 
-impl EncodeSlice for TestBreaker {
+impl EncodeSlice for CodecTestBreaker {
     fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {
             elem.encode_into(buf)?;
@@ -216,7 +216,7 @@ impl EncodeSlice for TestBreaker {
     }
 }
 
-impl DecodeSlice for TestBreaker {
+impl DecodeSlice for CodecTestBreaker {
     fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         for elem in slice.iter_mut() {
             elem.decode_from(buf)?;
@@ -225,27 +225,27 @@ impl DecodeSlice for TestBreaker {
     }
 }
 
-impl PreAlloc for TestBreaker {
+impl PreAlloc for CodecTestBreaker {
     const ZERO_INIT: bool = false;
 
     fn prealloc(&mut self, _size: usize) {
-        // No-op: TestBreaker does not need to prealloc.
+        // No-op: CodecTestBreaker does not need to prealloc.
     }
 }
 
-impl ZeroizeMetadata for TestBreaker {
+impl ZeroizeMetadata for CodecTestBreaker {
     /// Keep CAN_BE_BULK_ZEROIZED = false to test recursive zeroization path.
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
-impl FastZeroizable for TestBreaker {
+impl FastZeroizable for CodecTestBreaker {
     fn fast_zeroize(&mut self) {
         self.usize.fast_zeroize();
         self.magic.fast_zeroize();
     }
 }
 
-impl ZeroizationProbe for TestBreaker {
+impl ZeroizationProbe for CodecTestBreaker {
     fn is_zeroized(&self) -> bool {
         (self.usize.is_zeroized()) & (self.magic.is_zeroized())
     }

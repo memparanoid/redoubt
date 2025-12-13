@@ -7,7 +7,7 @@ use memzer::ZeroizationProbe;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
-use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
+use crate::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use crate::traits::{BytesRequired, Decode, Encode};
 
 use super::utils::test_collection_varying_capacities;
@@ -16,8 +16,8 @@ use super::utils::test_collection_varying_capacities;
 #[test]
 fn test_bytes_required_propagates_overflow_error() {
     let vec = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 10),
-        TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 10),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceBytesRequiredOverflow, 10),
     ];
 
     let result = vec.mem_bytes_required();
@@ -25,7 +25,7 @@ fn test_bytes_required_propagates_overflow_error() {
     assert!(result.is_err());
     match result {
         Err(OverflowError { reason }) => {
-            assert_eq!(reason, "TestBreaker forced overflow");
+            assert_eq!(reason, "CodecTestBreaker forced overflow");
         }
         _ => panic!("Expected OverflowError"),
     }
@@ -35,12 +35,12 @@ fn test_bytes_required_propagates_overflow_error() {
 fn test_bytes_required_reports_overflow_error() {
     // Two elements each returning usize::MAX / 2 will overflow on the second iteration
     let vec = vec![
-        TestBreaker::new(
-            TestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2),
+        CodecTestBreaker::new(
+            CodecTestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2),
             10,
         ),
-        TestBreaker::new(
-            TestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2),
+        CodecTestBreaker::new(
+            CodecTestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2),
             10,
         ),
     ];
@@ -55,8 +55,8 @@ fn test_bytes_required_reports_overflow_error() {
 
 #[test]
 fn test_encode_into_propagates_bytes_required_error() {
-    let mut vec = vec![TestBreaker::new(
-        TestBreakerBehaviour::ForceBytesRequiredOverflow,
+    let mut vec = vec![CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::ForceBytesRequiredOverflow,
         10,
     )];
     let enough_bytes_required = 1024;
@@ -77,7 +77,7 @@ fn test_encode_into_propagates_bytes_required_error() {
 
 #[test]
 fn test_encode_propagates_capacity_exceeded_error() {
-    let mut vec = vec![TestBreaker::new(TestBreakerBehaviour::None, 100)];
+    let mut vec = vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100)];
     let mut buf = CodecBuffer::new(1); // Too small
 
     let result = vec.encode_into(&mut buf);
@@ -102,7 +102,7 @@ fn test_encode_propagates_capacity_exceeded_error() {
 
 #[test]
 fn test_vec_decode_from_propagates_process_header_err() {
-    let mut vec: Vec<TestBreaker> = Vec::new();
+    let mut vec: Vec<CodecTestBreaker> = Vec::new();
     let mut buf = CodecBuffer::new(1); // Too small for header
 
     let mut decode_buf = buf.export_as_vec();
@@ -123,8 +123,8 @@ fn test_vec_decode_from_propagates_process_header_err() {
 #[test]
 fn test_vec_decode_propagates_decode_err() {
     let mut vec = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
     ];
     let bytes_required = vec
         .mem_bytes_required()
@@ -135,8 +135,8 @@ fn test_vec_decode_propagates_decode_err() {
         .expect("Failed to encode_into(..)");
 
     let mut recovered = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::ForceDecodeError, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceDecodeError, 100),
     ];
 
     let mut decode_buf = buf.export_as_vec();
@@ -161,8 +161,8 @@ fn test_vec_decode_propagates_decode_err() {
 fn test_vec_encode_decode_roundtrip() {
     // Encode
     let mut vec = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 7),
-        TestBreaker::new(TestBreakerBehaviour::None, 37),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 7),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 37),
     ];
     let bytes_required = vec
         .mem_bytes_required()
@@ -176,8 +176,8 @@ fn test_vec_encode_decode_roundtrip() {
     {
         let mut decode_buf = buf.export_as_vec();
         let mut recovered = vec![
-            TestBreaker::new(TestBreakerBehaviour::None, 0),
-            TestBreaker::new(TestBreakerBehaviour::None, 0),
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 0),
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 0),
         ];
         let result = recovered.decode_from(&mut decode_buf.as_mut_slice());
 
@@ -185,8 +185,8 @@ fn test_vec_encode_decode_roundtrip() {
         assert_eq!(
             recovered,
             vec![
-                TestBreaker::new(TestBreakerBehaviour::None, 7),
-                TestBreaker::new(TestBreakerBehaviour::None, 37),
+                CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 7),
+                CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 37),
             ]
         );
 
@@ -211,12 +211,12 @@ fn test_vec_encode_decode_roundtrip() {
 #[test]
 fn perm_test_vec_encode_into_propagates_error_at_any_position() {
     let vec = vec![
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 1)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 2)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 3)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 4)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 5)],
-        vec![TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 6)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 1)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 2)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 3)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 4)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 5)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceEncodeError, 6)],
     ];
     let bytes_required = vec
         .mem_bytes_required()
@@ -244,12 +244,12 @@ fn perm_test_vec_encode_into_propagates_error_at_any_position() {
 #[test]
 fn perm_test_vec_decode_from_propagates_error_at_any_position() {
     let vec = vec![
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 1)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 2)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 3)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 4)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 5)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 6)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 1)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 2)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 3)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 4)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 5)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 6)],
     ];
 
     let bytes_required = vec
@@ -257,7 +257,7 @@ fn perm_test_vec_decode_from_propagates_error_at_any_position() {
         .expect("Failed to get mem_bytes_required()");
 
     let mut recovered_vec = vec.clone();
-    recovered_vec[0][0].set_behaviour(TestBreakerBehaviour::ForceDecodeError);
+    recovered_vec[0][0].set_behaviour(CodecTestBreakerBehaviour::ForceDecodeError);
 
     index_permutations(vec.len(), |idx_perm| {
         // Encode
@@ -301,12 +301,12 @@ fn perm_test_vec_decode_from_propagates_error_at_any_position() {
 fn perm_test_encode_decode_roundtrip() {
     // Encode
     let vec = vec![
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 1)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 2)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 3)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 4)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 5)],
-        vec![TestBreaker::new(TestBreakerBehaviour::None, 6)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 1)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 2)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 3)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 4)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 5)],
+        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 6)],
     ];
 
     let bytes_required = vec
@@ -326,7 +326,7 @@ fn perm_test_encode_decode_roundtrip() {
 
         // Decode
         {
-            let mut recovered: Vec<Vec<TestBreaker>> = Vec::new();
+            let mut recovered: Vec<Vec<CodecTestBreaker>> = Vec::new();
             let mut decode_buf = buf.export_as_vec();
             let result = recovered.decode_from(&mut decode_buf.as_mut_slice());
 
@@ -354,7 +354,7 @@ fn perm_test_encode_decode_roundtrip() {
 #[test]
 fn test_vec_with_varying_capacities() {
     let set: Vec<_> = (0..250)
-        .map(|i| TestBreaker::new(TestBreakerBehaviour::None, i))
+        .map(|i| CodecTestBreaker::new(CodecTestBreakerBehaviour::None, i))
         .collect();
 
     test_collection_varying_capacities(
@@ -374,7 +374,7 @@ fn test_vec_with_varying_capacities() {
 fn test_vec_prealloc_zero_init_true() {
     use crate::collections::vec::vec_prealloc;
 
-    let mut vec: Vec<TestBreaker> = Vec::new();
+    let mut vec: Vec<CodecTestBreaker> = Vec::new();
     vec_prealloc(&mut vec, 10, true);
 
     assert_eq!(vec.len(), 10);
@@ -386,7 +386,7 @@ fn test_vec_prealloc_zero_init_true() {
 fn test_vec_prealloc_zero_init_false() {
     use crate::collections::vec::vec_prealloc;
 
-    let mut vec: Vec<TestBreaker> = Vec::new();
+    let mut vec: Vec<CodecTestBreaker> = Vec::new();
     vec_prealloc(&mut vec, 5, false);
 
     assert_eq!(vec.len(), 5);
@@ -397,7 +397,7 @@ fn test_vec_prealloc_zero_init_false() {
 #[allow(clippy::assertions_on_constants)]
 fn test_vec_zero_init_is_false() {
     use crate::traits::PreAlloc;
-    assert!(!<Vec<TestBreaker> as PreAlloc>::ZERO_INIT);
+    assert!(!<Vec<CodecTestBreaker> as PreAlloc>::ZERO_INIT);
 }
 
 #[test]
@@ -405,8 +405,8 @@ fn test_vec_prealloc_zeroizes_existing_elements() {
     use crate::collections::vec::vec_prealloc;
 
     let mut vec = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::None, 200),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 200),
     ];
 
     vec_prealloc(&mut vec, 2, false);
@@ -421,9 +421,9 @@ fn test_vec_prealloc_shrinks() {
     use crate::collections::vec::vec_prealloc;
 
     let mut vec = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 1),
-        TestBreaker::new(TestBreakerBehaviour::None, 2),
-        TestBreaker::new(TestBreakerBehaviour::None, 3),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 1),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 2),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 3),
     ];
     vec_prealloc(&mut vec, 1, false);
 
@@ -434,7 +434,7 @@ fn test_vec_prealloc_shrinks() {
 fn test_vec_prealloc_grows() {
     use crate::collections::vec::vec_prealloc;
 
-    let mut vec = vec![TestBreaker::new(TestBreakerBehaviour::None, 1)];
+    let mut vec = vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 1)];
     vec_prealloc(&mut vec, 3, false);
 
     assert_eq!(vec.len(), 3);

@@ -6,7 +6,7 @@ use mem_test_utils::{apply_permutation, index_permutations};
 use memaead::AeadApi;
 use memaead::support::test_utils::{AeadMock, AeadMockBehaviour};
 use memcodec::CodecBuffer;
-use memcodec::support::test_utils::{TestBreaker, TestBreakerBehaviour};
+use memcodec::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use memzer::ZeroizationProbe;
 
 use crate::error::CipherBoxError;
@@ -46,11 +46,11 @@ fn create_tags(aead: &dyn AeadApi) -> [Vec<u8>; NUM_FIELDS] {
 #[test]
 fn test_encrypt_into_propagates_bytes_required_overflow() {
     // Two elements with usize::MAX / 2 will overflow when summed.
-    let mut test_breakers: [TestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
+    let mut test_breakers: [CodecTestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
         if i == 0 {
-            TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10)
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceBytesRequiredOverflow, 10)
         } else {
-            TestBreaker::new(TestBreakerBehaviour::None, i << 2)
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::None, i << 2)
         }
     });
 
@@ -75,7 +75,7 @@ fn test_encrypt_into_propagates_bytes_required_overflow() {
 
 #[test]
 fn test_encrypt_into_ok() {
-    let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); NUM_FIELDS];
+    let mut test_breakers = [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100); NUM_FIELDS];
     let mut aead = AeadMock::new(AeadMockBehaviour::None);
     let aead_key = [0u8; 32];
     let mut nonces = create_nonces(&aead);
@@ -92,11 +92,11 @@ fn test_encrypt_into_ok() {
 
 #[test]
 fn test_encrypt_into_propagates_errors() {
-    let mut test_breakers: [TestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
+    let mut test_breakers: [CodecTestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
         if i == 0 {
-            TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 10)
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceEncodeError, 10)
         } else {
-            TestBreaker::new(TestBreakerBehaviour::None, i << 2)
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::None, i << 2)
         }
     });
 
@@ -121,11 +121,11 @@ fn test_encrypt_into_propagates_errors() {
 
 #[test]
 fn test_encrypt_into_buffers_propagates_bytes_required_overflow() {
-    let mut test_breakers: [TestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
+    let mut test_breakers: [CodecTestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
         if i == 0 {
-            TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10)
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceBytesRequiredOverflow, 10)
         } else {
-            TestBreaker::new(TestBreakerBehaviour::None, i << 2)
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::None, i << 2)
         }
     });
 
@@ -166,12 +166,12 @@ fn test_encrypt_into_buffers_propagates_bytes_required_overflow() {
 /// Flow: encode_into fails → buffers[0..i] have plaintext → must zeroize all.
 #[test]
 fn test_encrypt_into_buffers_performs_zeroization_on_encode_failure() {
-    // TestBreakers: one with ForceEncodeError at index 0, rest None.
-    let test_breakers: [TestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
+    // CodecTestBreakers: one with ForceEncodeError at index 0, rest None.
+    let test_breakers: [CodecTestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
         if i == 0 {
-            TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, i << 2)
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceEncodeError, i << 2)
         } else {
-            TestBreaker::new(TestBreakerBehaviour::None, i << 2)
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::None, i << 2)
         }
     });
 
@@ -234,7 +234,7 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encode_failure() {
 /// Flow: all encodes succeed → buffers have plaintext → nonce gen fails → must zeroize.
 #[test]
 fn test_encrypt_into_buffers_performs_zeroization_on_generate_nonce_failure() {
-    let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); NUM_FIELDS];
+    let mut test_breakers = [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100); NUM_FIELDS];
     let aead = AeadMock::new(AeadMockBehaviour::None);
     let aead_key = [0u8; 32];
 
@@ -289,7 +289,7 @@ fn test_encrypt_into_buffers_performs_zeroization_on_generate_nonce_failure() {
 /// Flow: all encodes succeed → buffers have plaintext → encrypt fails → must zeroize.
 #[test]
 fn test_encrypt_into_buffers_performs_zeroization_on_encrypt_failure() {
-    let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); NUM_FIELDS];
+    let mut test_breakers = [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100); NUM_FIELDS];
     let aead = AeadMock::new(AeadMockBehaviour::None);
     let aead_key = [0u8; 32];
 
@@ -342,7 +342,7 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encrypt_failure() {
 
 #[test]
 fn test_encrypt_into_buffers_ok() {
-    let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); NUM_FIELDS];
+    let mut test_breakers = [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100); NUM_FIELDS];
     let mut aead = AeadMock::new(AeadMockBehaviour::None);
     let aead_key = [0u8; 32];
 
@@ -383,7 +383,7 @@ fn test_encrypt_into_buffers_ok() {
 /// Flow: api_decrypt fails → ciphertexts[0..i] may have plaintext → must zeroize all.
 #[test]
 fn test_decrypt_from_zeroizes_on_decrypt_failure() {
-    let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); NUM_FIELDS];
+    let mut test_breakers = [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100); NUM_FIELDS];
     let mut aead = AeadMock::new(AeadMockBehaviour::None);
 
     let aead_key = [0u8; 32];
@@ -456,11 +456,11 @@ fn test_decrypt_from_zeroizes_on_decrypt_failure() {
 /// Flow: api_decrypt succeeds → ciphertexts become plaintext → decode_from fails → must zeroize all.
 #[test]
 fn test_decrypt_from_zeroizes_on_decode_failure() {
-    let mut test_breakers: [TestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
+    let mut test_breakers: [CodecTestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
         if i == 0 {
-            TestBreaker::new(TestBreakerBehaviour::ForceDecodeError, i << 2)
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceDecodeError, i << 2)
         } else {
-            TestBreaker::new(TestBreakerBehaviour::None, i << 2)
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::None, i << 2)
         }
     });
     let mut aead = AeadMock::new(AeadMockBehaviour::None);
@@ -479,7 +479,7 @@ fn test_decrypt_from_zeroizes_on_decode_failure() {
 
     // Sanity check: decrypt works with no errors.
     {
-        let mut test_breakers = [TestBreaker::new(TestBreakerBehaviour::None, 100); NUM_FIELDS];
+        let mut test_breakers = [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100); NUM_FIELDS];
         let mut aead_mock = AeadMock::new(AeadMockBehaviour::None);
         let mut ciphertexts_clone = ciphertexts.clone();
         let mut fields = test_breakers

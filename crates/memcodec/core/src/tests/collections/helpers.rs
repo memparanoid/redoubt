@@ -12,7 +12,7 @@ use crate::collections::helpers::{
     to_encode_zeroize_dyn_mut, write_header,
 };
 use crate::error::{CodecBufferError, DecodeError, OverflowError};
-use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
+use crate::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use crate::traits::{BytesRequired, Decode, DecodeZeroize, Encode, EncodeZeroize};
 use mem_test_utils::{apply_permutation, index_permutations};
 
@@ -143,7 +143,7 @@ fn test_process_header_ok() {
 
 #[test]
 fn test_to_bytes_required_dyn_ref() {
-    let tb = TestBreaker::new(TestBreakerBehaviour::None, 100);
+    let tb = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
     let dyn_ref: &dyn BytesRequired = to_bytes_required_dyn_ref(&tb);
 
     assert_eq!(
@@ -156,7 +156,7 @@ fn test_to_bytes_required_dyn_ref() {
 
 #[test]
 fn test_to_encode_dyn_mut() {
-    let mut tb = TestBreaker::new(TestBreakerBehaviour::None, 100);
+    let mut tb = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
     let mut buf = CodecBuffer::new(1024);
 
     let dyn_mut: &mut dyn Encode = to_encode_dyn_mut(&mut tb);
@@ -170,7 +170,7 @@ fn test_to_encode_dyn_mut() {
 #[test]
 fn test_to_decode_dyn_mut() {
     // First encode
-    let mut tb = TestBreaker::new(TestBreakerBehaviour::None, 100);
+    let mut tb = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
     let bytes_required = tb.mem_bytes_required().expect("Failed");
     let mut buf = CodecBuffer::new(bytes_required);
     tb.encode_into(&mut buf).expect("Failed to encode");
@@ -178,7 +178,7 @@ fn test_to_decode_dyn_mut() {
     // Decode
     {
         let mut decode_buf = buf.export_as_vec();
-        let mut decoded = TestBreaker::default();
+        let mut decoded = CodecTestBreaker::default();
         let dyn_mut: &mut dyn Decode = to_decode_dyn_mut(&mut decoded);
         let result = dyn_mut.decode_from(&mut decode_buf.as_mut_slice());
 
@@ -205,8 +205,8 @@ fn test_to_decode_dyn_mut() {
 
 #[test]
 fn test_bytes_required_sum_ok() {
-    let tb1 = TestBreaker::new(TestBreakerBehaviour::None, 100);
-    let tb2 = TestBreaker::new(TestBreakerBehaviour::None, 200);
+    let tb1 = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
+    let tb2 = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 200);
 
     let refs: [&dyn BytesRequired; 2] = [
         to_bytes_required_dyn_ref(&tb1),
@@ -220,8 +220,8 @@ fn test_bytes_required_sum_ok() {
 
 #[test]
 fn test_bytes_required_sum_element_error() {
-    let tb1 = TestBreaker::new(TestBreakerBehaviour::None, 100);
-    let tb2 = TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 200);
+    let tb1 = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
+    let tb2 = CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceBytesRequiredOverflow, 200);
 
     let refs: [&dyn BytesRequired; 2] = [
         to_bytes_required_dyn_ref(&tb1),
@@ -233,14 +233,14 @@ fn test_bytes_required_sum_element_error() {
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(OverflowError { reason }) if reason == "TestBreaker forced overflow"
+        Err(OverflowError { reason }) if reason == "CodecTestBreaker forced overflow"
     ));
 }
 
 #[test]
 fn test_bytes_required_sum_overflow() {
-    let tb1 = TestBreaker::new(TestBreakerBehaviour::BytesRequiredReturn(usize::MAX), 100);
-    let tb2 = TestBreaker::new(TestBreakerBehaviour::BytesRequiredReturn(1), 200);
+    let tb1 = CodecTestBreaker::new(CodecTestBreakerBehaviour::BytesRequiredReturn(usize::MAX), 100);
+    let tb2 = CodecTestBreaker::new(CodecTestBreakerBehaviour::BytesRequiredReturn(1), 200);
 
     let refs: [&dyn BytesRequired; 2] = [
         to_bytes_required_dyn_ref(&tb1),
@@ -257,12 +257,12 @@ fn test_bytes_required_sum_overflow() {
 #[test]
 fn perm_test_encode_fields_propagates_error_at_any_position() {
     let fields = [
-        TestBreaker::new(TestBreakerBehaviour::None, 1),
-        TestBreaker::new(TestBreakerBehaviour::None, 2),
-        TestBreaker::new(TestBreakerBehaviour::None, 3),
-        TestBreaker::new(TestBreakerBehaviour::None, 4),
-        TestBreaker::new(TestBreakerBehaviour::None, 5),
-        TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 6),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 1),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 2),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 3),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 4),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 5),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceEncodeError, 6),
     ];
     let bytes_required = fields
         .mem_bytes_required()
@@ -293,12 +293,12 @@ fn perm_test_encode_fields_propagates_error_at_any_position() {
 #[test]
 fn perm_test_decode_fields_propagates_error_at_any_position() {
     let fields = [
-        TestBreaker::new(TestBreakerBehaviour::None, 1),
-        TestBreaker::new(TestBreakerBehaviour::None, 2),
-        TestBreaker::new(TestBreakerBehaviour::None, 3),
-        TestBreaker::new(TestBreakerBehaviour::None, 4),
-        TestBreaker::new(TestBreakerBehaviour::None, 5),
-        TestBreaker::new(TestBreakerBehaviour::None, 6),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 1),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 2),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 3),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 4),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 5),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 6),
     ];
 
     let bytes_required = fields
@@ -307,7 +307,7 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
         .sum();
 
     let mut recovered_fields = fields;
-    recovered_fields[0].set_behaviour(TestBreakerBehaviour::ForceDecodeError);
+    recovered_fields[0].set_behaviour(CodecTestBreakerBehaviour::ForceDecodeError);
 
     index_permutations(fields.len(), |idx_perm| {
         // Encode
@@ -359,8 +359,8 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
 #[test]
 fn test_fields_roundtrip_ok() {
     // Encode
-    let mut tb1 = TestBreaker::new(TestBreakerBehaviour::None, 100);
-    let mut tb2 = TestBreaker::new(TestBreakerBehaviour::None, 200);
+    let mut tb1 = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
+    let mut tb2 = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 200);
     let mut buf = CodecBuffer::new(1024);
 
     let encode_refs: [&mut dyn EncodeZeroize; 2] = [
@@ -377,8 +377,8 @@ fn test_fields_roundtrip_ok() {
     }
 
     // Decode
-    let mut decoded1 = TestBreaker::default();
-    let mut decoded2 = TestBreaker::default();
+    let mut decoded1 = CodecTestBreaker::default();
+    let mut decoded2 = CodecTestBreaker::default();
 
     let decode_refs: [&mut dyn DecodeZeroize; 2] = [
         to_decode_zeroize_dyn_mut(&mut decoded1),

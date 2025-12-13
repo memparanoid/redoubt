@@ -6,36 +6,36 @@ use crate::codec_buffer::CodecBuffer;
 use memzer::{FastZeroizable, ZeroizationProbe};
 
 use crate::error::{DecodeError, EncodeError};
-use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
+use crate::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, PreAlloc};
 
-// TestBreakerBehaviour
+// CodecTestBreakerBehaviour
 
 #[test]
 fn test_behaviour_default() {
-    let behaviour = TestBreakerBehaviour::default();
-    assert_eq!(behaviour, TestBreakerBehaviour::None);
+    let behaviour = CodecTestBreakerBehaviour::default();
+    assert_eq!(behaviour, CodecTestBreakerBehaviour::None);
 }
 
-// TestBreaker
+// CodecTestBreaker
 
 #[test]
 fn test_default() {
-    let tb = TestBreaker::default();
-    assert_eq!(tb.behaviour, TestBreakerBehaviour::None);
+    let tb = CodecTestBreaker::default();
+    assert_eq!(tb.behaviour, CodecTestBreakerBehaviour::None);
     assert_eq!(tb.usize.data, 104729);
 }
 
 #[test]
 fn test_new() {
-    let tb = TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 512);
-    assert_eq!(tb.behaviour, TestBreakerBehaviour::ForceEncodeError);
+    let tb = CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceEncodeError, 512);
+    assert_eq!(tb.behaviour, CodecTestBreakerBehaviour::ForceEncodeError);
     assert_eq!(tb.usize.data, 512);
 }
 
 #[test]
 fn test_zeroization() {
-    let mut tb = TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 512);
+    let mut tb = CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceEncodeError, 512);
 
     assert!(!tb.is_zeroized());
     tb.fast_zeroize();
@@ -45,23 +45,23 @@ fn test_zeroization() {
 
 #[test]
 fn test_with_behaviour() {
-    let tb = TestBreaker::with_behaviour(TestBreakerBehaviour::ForceEncodeError);
-    assert_eq!(tb.behaviour, TestBreakerBehaviour::ForceEncodeError);
+    let tb = CodecTestBreaker::with_behaviour(CodecTestBreakerBehaviour::ForceEncodeError);
+    assert_eq!(tb.behaviour, CodecTestBreakerBehaviour::ForceEncodeError);
     assert_eq!(tb.usize.data, 104729);
 }
 
 #[test]
 fn test_set_behaviour() {
-    let mut tb = TestBreaker::default();
-    assert_eq!(tb.behaviour, TestBreakerBehaviour::None);
+    let mut tb = CodecTestBreaker::default();
+    assert_eq!(tb.behaviour, CodecTestBreakerBehaviour::None);
 
-    tb.set_behaviour(TestBreakerBehaviour::ForceDecodeError);
-    assert_eq!(tb.behaviour, TestBreakerBehaviour::ForceDecodeError);
+    tb.set_behaviour(CodecTestBreakerBehaviour::ForceDecodeError);
+    assert_eq!(tb.behaviour, CodecTestBreakerBehaviour::ForceDecodeError);
 }
 
 #[test]
 fn test_is_zeroized() {
-    let mut tb = TestBreaker::new(TestBreakerBehaviour::None, 100);
+    let mut tb = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
     assert!(!tb.is_zeroized());
 
     tb.fast_zeroize();
@@ -73,7 +73,7 @@ fn test_is_zeroized() {
 
 #[test]
 fn test_bytes_required_return_max() {
-    let tb = TestBreaker::with_behaviour(TestBreakerBehaviour::BytesRequiredReturnMax);
+    let tb = CodecTestBreaker::with_behaviour(CodecTestBreakerBehaviour::BytesRequiredReturnMax);
     assert_eq!(
         tb.mem_bytes_required()
             .expect("Failed to get mem_bytes_required()"),
@@ -83,7 +83,7 @@ fn test_bytes_required_return_max() {
 
 #[test]
 fn test_bytes_required_return_specific() {
-    let tb = TestBreaker::with_behaviour(TestBreakerBehaviour::BytesRequiredReturn(42));
+    let tb = CodecTestBreaker::with_behaviour(CodecTestBreakerBehaviour::BytesRequiredReturn(42));
     assert_eq!(
         tb.mem_bytes_required()
             .expect("Failed to get mem_bytes_required()"),
@@ -93,7 +93,7 @@ fn test_bytes_required_return_specific() {
 
 #[test]
 fn test_bytes_required_overflow() {
-    let tb = TestBreaker::with_behaviour(TestBreakerBehaviour::ForceBytesRequiredOverflow);
+    let tb = CodecTestBreaker::with_behaviour(CodecTestBreakerBehaviour::ForceBytesRequiredOverflow);
     assert!(tb.mem_bytes_required().is_err());
 }
 
@@ -101,7 +101,7 @@ fn test_bytes_required_overflow() {
 
 #[test]
 fn test_force_encode_error() {
-    let mut tb = TestBreaker::with_behaviour(TestBreakerBehaviour::ForceEncodeError);
+    let mut tb = CodecTestBreaker::with_behaviour(CodecTestBreakerBehaviour::ForceEncodeError);
     let mut buf = CodecBuffer::new(1024);
 
     let result = tb.encode_into(&mut buf);
@@ -118,7 +118,7 @@ fn test_force_encode_error() {
 
 #[test]
 fn test_force_decode_error() {
-    let mut tb = TestBreaker::new(TestBreakerBehaviour::None, 100);
+    let mut tb = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
     let bytes_required = tb
         .mem_bytes_required()
         .expect("Failed to get mem_bytes_required()");
@@ -127,7 +127,7 @@ fn test_force_decode_error() {
     tb.encode_into(&mut buf).expect("Failed to encode_into(..)");
 
     let mut decode_buf = buf.export_as_vec();
-    let mut tb_decode = TestBreaker::with_behaviour(TestBreakerBehaviour::ForceDecodeError);
+    let mut tb_decode = CodecTestBreaker::with_behaviour(CodecTestBreakerBehaviour::ForceDecodeError);
     let result = tb_decode.decode_from(&mut decode_buf.as_mut_slice());
 
     assert!(result.is_err());
@@ -145,7 +145,7 @@ fn test_force_decode_error() {
 
 #[test]
 fn test_roundtrip() {
-    let mut original = TestBreaker::new(TestBreakerBehaviour::None, 256);
+    let mut original = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 256);
     let original_usize = original.usize;
 
     let bytes_required = original
@@ -157,7 +157,7 @@ fn test_roundtrip() {
         .expect("Failed to encode_into(..)");
 
     let mut decode_buf = buf.export_as_vec();
-    let mut decoded = TestBreaker::default();
+    let mut decoded = CodecTestBreaker::default();
     decoded
         .decode_from(&mut decode_buf.as_mut_slice())
         .expect("Failed to decode_from(..)");
@@ -178,8 +178,8 @@ fn test_roundtrip() {
 #[test]
 fn test_encode_slice_error() {
     let mut vec = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 10),
-        TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 10),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 10),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceEncodeError, 10),
     ];
     let mut buf = CodecBuffer::new(1024);
 
@@ -193,12 +193,12 @@ fn test_encode_slice_error() {
 #[test]
 fn test_decode_slice_error() {
     let mut vec = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::ForceDecodeError, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceDecodeError, 100),
     ];
     let mut buf = [0u8];
 
-    let result = TestBreaker::decode_slice_from(vec.as_mut_slice(), &mut buf.as_mut_slice());
+    let result = CodecTestBreaker::decode_slice_from(vec.as_mut_slice(), &mut buf.as_mut_slice());
 
     assert!(result.is_err());
 }
@@ -208,18 +208,18 @@ fn test_decode_slice_error() {
 #[test]
 #[allow(clippy::assertions_on_constants)]
 fn test_zero_init_is_false() {
-    assert!(!TestBreaker::ZERO_INIT);
+    assert!(!CodecTestBreaker::ZERO_INIT);
 }
 
 #[test]
 fn test_prealloc() {
-    let mut tb = TestBreaker::default();
+    let mut tb = CodecTestBreaker::default();
     assert_eq!(tb.usize.data, 104729);
 
-    // PreAlloc is no-op for TestBreaker (ZERO_INIT = false)
+    // PreAlloc is no-op for CodecTestBreaker (ZERO_INIT = false)
     tb.prealloc(999);
 
     // Data should remain unchanged
     assert_eq!(tb.usize.data, 104729);
-    assert_eq!(tb.behaviour, TestBreakerBehaviour::None);
+    assert_eq!(tb.behaviour, CodecTestBreakerBehaviour::None);
 }

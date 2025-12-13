@@ -8,10 +8,10 @@ use memzer::ZeroizationProbe;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
-use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
+use crate::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use crate::traits::{BytesRequired, Decode, Encode, PreAlloc};
 
-fn make_allocked_vec(items: &[TestBreaker]) -> AllockedVec<TestBreaker> {
+fn make_allocked_vec(items: &[CodecTestBreaker]) -> AllockedVec<CodecTestBreaker> {
     let mut vec = AllockedVec::with_capacity(items.len());
     for item in items {
         vec.push(*item).expect("push");
@@ -24,8 +24,8 @@ fn make_allocked_vec(items: &[TestBreaker]) -> AllockedVec<TestBreaker> {
 #[test]
 fn test_bytes_required_propagates_overflow_error() {
     let vec = make_allocked_vec(&[
-        TestBreaker::new(TestBreakerBehaviour::None, 10),
-        TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 10),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceBytesRequiredOverflow, 10),
     ]);
 
     let result = vec.mem_bytes_required();
@@ -33,7 +33,7 @@ fn test_bytes_required_propagates_overflow_error() {
     assert!(result.is_err());
     match result {
         Err(OverflowError { reason }) => {
-            assert_eq!(reason, "TestBreaker forced overflow");
+            assert_eq!(reason, "CodecTestBreaker forced overflow");
         }
         _ => panic!("Expected OverflowError"),
     }
@@ -43,12 +43,12 @@ fn test_bytes_required_propagates_overflow_error() {
 fn test_bytes_required_reports_overflow_error() {
     // Two elements each returning usize::MAX / 2 will overflow on the second iteration
     let vec = make_allocked_vec(&[
-        TestBreaker::new(
-            TestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2),
+        CodecTestBreaker::new(
+            CodecTestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2),
             10,
         ),
-        TestBreaker::new(
-            TestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2),
+        CodecTestBreaker::new(
+            CodecTestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2),
             10,
         ),
     ]);
@@ -63,8 +63,8 @@ fn test_bytes_required_reports_overflow_error() {
 
 #[test]
 fn test_encode_into_propagates_bytes_required_error() {
-    let mut vec = make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::ForceBytesRequiredOverflow,
+    let mut vec = make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::ForceBytesRequiredOverflow,
         10,
     )]);
     let enough_bytes_required = 1024;
@@ -85,7 +85,7 @@ fn test_encode_into_propagates_bytes_required_error() {
 
 #[test]
 fn test_encode_propagates_capacity_exceeded_error() {
-    let mut vec = make_allocked_vec(&[TestBreaker::new(TestBreakerBehaviour::None, 100)]);
+    let mut vec = make_allocked_vec(&[CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100)]);
     let mut buf = CodecBuffer::new(1); // Too small
 
     let result = vec.encode_into(&mut buf);
@@ -110,7 +110,7 @@ fn test_encode_propagates_capacity_exceeded_error() {
 
 #[test]
 fn test_allocked_vec_decode_from_propagates_process_header_err() {
-    let mut vec: AllockedVec<TestBreaker> = AllockedVec::new();
+    let mut vec: AllockedVec<CodecTestBreaker> = AllockedVec::new();
     let mut buf = CodecBuffer::new(1); // Too small for header
 
     let mut decode_buf = buf.export_as_vec();
@@ -131,8 +131,8 @@ fn test_allocked_vec_decode_from_propagates_process_header_err() {
 #[test]
 fn test_allocked_vec_decode_propagates_decode_err() {
     let mut vec = make_allocked_vec(&[
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
     ]);
     let bytes_required = vec
         .mem_bytes_required()
@@ -143,8 +143,8 @@ fn test_allocked_vec_decode_propagates_decode_err() {
         .expect("Failed to encode_into(..)");
 
     let mut recovered = make_allocked_vec(&[
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::ForceDecodeError, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceDecodeError, 100),
     ]);
 
     let mut decode_buf = buf.export_as_vec();
@@ -169,8 +169,8 @@ fn test_allocked_vec_decode_propagates_decode_err() {
 fn test_allocked_vec_encode_decode_roundtrip() {
     // Encode
     let mut vec = make_allocked_vec(&[
-        TestBreaker::new(TestBreakerBehaviour::None, 7),
-        TestBreaker::new(TestBreakerBehaviour::None, 37),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 7),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 37),
     ]);
     let bytes_required = vec
         .mem_bytes_required()
@@ -184,8 +184,8 @@ fn test_allocked_vec_encode_decode_roundtrip() {
     {
         let mut decode_buf = buf.export_as_vec();
         let mut recovered = make_allocked_vec(&[
-            TestBreaker::new(TestBreakerBehaviour::None, 0),
-            TestBreaker::new(TestBreakerBehaviour::None, 0),
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 0),
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 0),
         ]);
         let result = recovered.decode_from(&mut decode_buf.as_mut_slice());
 
@@ -193,8 +193,8 @@ fn test_allocked_vec_encode_decode_roundtrip() {
         assert_eq!(
             recovered.as_slice(),
             &[
-                TestBreaker::new(TestBreakerBehaviour::None, 7),
-                TestBreaker::new(TestBreakerBehaviour::None, 37),
+                CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 7),
+                CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 37),
             ]
         );
 
@@ -219,33 +219,33 @@ fn test_allocked_vec_encode_decode_roundtrip() {
 #[test]
 fn perm_test_allocked_vec_encode_into_propagates_error_at_any_position() {
     let mut vec = AllockedVec::with_capacity(6);
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         1,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         2,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         3,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         4,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         5,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::ForceEncodeError,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::ForceEncodeError,
         6,
     )]))
     .expect("Failed to push(..)");
@@ -276,33 +276,33 @@ fn perm_test_allocked_vec_encode_into_propagates_error_at_any_position() {
 #[test]
 fn perm_test_allocked_vec_decode_from_propagates_error_at_any_position() {
     let mut vec = AllockedVec::with_capacity(6);
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         1,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         2,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         3,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         4,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         5,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         6,
     )]))
     .expect("Failed to push(..)");
@@ -314,7 +314,7 @@ fn perm_test_allocked_vec_decode_from_propagates_error_at_any_position() {
     let recovered_vec = {
         let mut recovered_vec = vec.clone();
         recovered_vec.as_mut_slice()[0].as_mut_slice()[0]
-            .set_behaviour(TestBreakerBehaviour::ForceDecodeError);
+            .set_behaviour(CodecTestBreakerBehaviour::ForceDecodeError);
         recovered_vec
     };
 
@@ -359,34 +359,34 @@ fn perm_test_allocked_vec_decode_from_propagates_error_at_any_position() {
 
 #[test]
 fn perm_test_allocked_vec_encode_decode_roundtrip() {
-    let mut vec: AllockedVec<AllockedVec<TestBreaker>> = AllockedVec::with_capacity(6);
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    let mut vec: AllockedVec<AllockedVec<CodecTestBreaker>> = AllockedVec::with_capacity(6);
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         1,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         2,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         3,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         4,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         5,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[TestBreaker::new(
-        TestBreakerBehaviour::None,
+    vec.push(make_allocked_vec(&[CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::None,
         6,
     )]))
     .expect("Failed to push(..)");
@@ -407,7 +407,7 @@ fn perm_test_allocked_vec_encode_decode_roundtrip() {
             .expect("Failed to encode_into(..)");
 
         let mut decode_buf = buf.export_as_vec();
-        let mut recovered: AllockedVec<AllockedVec<TestBreaker>> = AllockedVec::new();
+        let mut recovered: AllockedVec<AllockedVec<CodecTestBreaker>> = AllockedVec::new();
         let result = recovered.decode_from(&mut decode_buf.as_mut_slice());
 
         assert!(result.is_ok());
@@ -428,14 +428,14 @@ fn perm_test_allocked_vec_encode_decode_roundtrip() {
 #[test]
 #[allow(clippy::assertions_on_constants)]
 fn test_allocked_vec_zero_init_is_false() {
-    assert!(!<AllockedVec<TestBreaker> as PreAlloc>::ZERO_INIT);
+    assert!(!<AllockedVec<CodecTestBreaker> as PreAlloc>::ZERO_INIT);
 }
 
 #[test]
 fn test_allocked_vec_prealloc_zeroizes_existing_elements() {
     let mut vec = make_allocked_vec(&[
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::None, 200),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 200),
     ]);
 
     vec.prealloc(2);
@@ -458,9 +458,9 @@ fn test_allocked_vec_prealloc_zeroizes_existing_elements() {
 #[test]
 fn test_allocked_vec_prealloc_shrinks() {
     let mut vec = make_allocked_vec(&[
-        TestBreaker::new(TestBreakerBehaviour::None, 1),
-        TestBreaker::new(TestBreakerBehaviour::None, 2),
-        TestBreaker::new(TestBreakerBehaviour::None, 3),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 1),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 2),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 3),
     ]);
     vec.prealloc(1);
 
@@ -469,7 +469,7 @@ fn test_allocked_vec_prealloc_shrinks() {
 
 #[test]
 fn test_allocked_vec_prealloc_grows() {
-    let mut vec = make_allocked_vec(&[TestBreaker::new(TestBreakerBehaviour::None, 1)]);
+    let mut vec = make_allocked_vec(&[CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 1)]);
     vec.prealloc(3);
 
     assert_eq!(vec.len(), 3);

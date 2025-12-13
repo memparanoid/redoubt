@@ -6,15 +6,15 @@ use memzer::ZeroizationProbe;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::support::test_utils::tamper_encoded_bytes_for_tests;
-use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
+use crate::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use crate::{BytesRequired, Decode, Encode};
 
 #[test]
 fn test_tamper_encoded_bytes_for_tests() {
     let mut vec = vec![
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::None, 200),
-        TestBreaker::new(TestBreakerBehaviour::None, 300),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 200),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 300),
     ];
     let bytes_required = vec
         .mem_bytes_required()
@@ -27,7 +27,7 @@ fn test_tamper_encoded_bytes_for_tests() {
     tamper_encoded_bytes_for_tests(buf.as_mut_slice());
 
     let mut decode_buf = buf.export_as_vec();
-    let mut recovered: Vec<TestBreaker> = vec![];
+    let mut recovered: Vec<CodecTestBreaker> = vec![];
     let result = recovered.decode_from(&mut decode_buf.as_mut_slice());
 
     assert!(result.is_err());

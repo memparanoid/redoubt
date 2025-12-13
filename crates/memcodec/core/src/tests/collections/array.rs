@@ -8,7 +8,7 @@ use mem_test_utils::{apply_permutation, index_permutations};
 use memzer::ZeroizationProbe;
 
 use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
-use crate::support::test_utils::{TestBreaker, TestBreakerBehaviour};
+use crate::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use crate::traits::{BytesRequired, Decode, Encode, PreAlloc};
 
 // Bytes Required
@@ -16,8 +16,8 @@ use crate::traits::{BytesRequired, Decode, Encode, PreAlloc};
 #[test]
 fn test_array_bytes_required_propagates_overflow_error() {
     let arr = [
-        TestBreaker::new(TestBreakerBehaviour::None, 10),
-        TestBreaker::new(TestBreakerBehaviour::ForceBytesRequiredOverflow, 10),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 10),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceBytesRequiredOverflow, 10),
     ];
 
     let result = arr.mem_bytes_required();
@@ -25,7 +25,7 @@ fn test_array_bytes_required_propagates_overflow_error() {
     assert!(result.is_err());
     match result {
         Err(OverflowError { reason }) => {
-            assert_eq!(reason, "TestBreaker forced overflow");
+            assert_eq!(reason, "CodecTestBreaker forced overflow");
         }
         _ => panic!("Expected OverflowError"),
     }
@@ -35,12 +35,12 @@ fn test_array_bytes_required_propagates_overflow_error() {
 fn test_array_bytes_required_reports_overflow_error() {
     // Two elements each returning usize::MAX / 2 will overflow on the second iteration
     let arr = [
-        TestBreaker::new(
-            TestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2),
+        CodecTestBreaker::new(
+            CodecTestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2),
             10,
         ),
-        TestBreaker::new(
-            TestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2),
+        CodecTestBreaker::new(
+            CodecTestBreakerBehaviour::BytesRequiredReturn(usize::MAX / 2),
             10,
         ),
     ];
@@ -55,8 +55,8 @@ fn test_array_bytes_required_reports_overflow_error() {
 
 #[test]
 fn test_array_encode_into_propagates_bytes_required_error() {
-    let mut arr = [TestBreaker::new(
-        TestBreakerBehaviour::ForceBytesRequiredOverflow,
+    let mut arr = [CodecTestBreaker::new(
+        CodecTestBreakerBehaviour::ForceBytesRequiredOverflow,
         10,
     )];
     let enough_bytes_required = 1024;
@@ -77,7 +77,7 @@ fn test_array_encode_into_propagates_bytes_required_error() {
 
 #[test]
 fn test_array_encode_into_propagates_capacity_exceeded_error() {
-    let mut arr = [TestBreaker::new(TestBreakerBehaviour::None, 100)];
+    let mut arr = [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100)];
     let mut buf = CodecBuffer::new(1); // Too small
 
     let result = arr.encode_into(&mut buf);
@@ -102,7 +102,7 @@ fn test_array_encode_into_propagates_capacity_exceeded_error() {
 
 #[test]
 fn test_array_decode_from_propagates_process_header_err() {
-    let mut arr: [TestBreaker; 2] = [TestBreaker::default(), TestBreaker::default()];
+    let mut arr: [CodecTestBreaker; 2] = [CodecTestBreaker::default(), CodecTestBreaker::default()];
     let mut buf = CodecBuffer::new(1); // Too small for header
 
     let mut decode_buf = buf.export_as_vec();
@@ -124,8 +124,8 @@ fn test_array_decode_from_propagates_process_header_err() {
 fn test_array_decode_from_propagates_size_mismatch_err() {
     // Encode array of size 2
     let mut arr = [
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
     ];
     let bytes_required = arr
         .mem_bytes_required()
@@ -136,7 +136,7 @@ fn test_array_decode_from_propagates_size_mismatch_err() {
 
     // Try to decode into array of size 1
     let mut decode_buf = buf.export_as_vec();
-    let mut arr_wrong_size: [TestBreaker; 1] = [TestBreaker::default()];
+    let mut arr_wrong_size: [CodecTestBreaker; 1] = [CodecTestBreaker::default()];
     let result = arr_wrong_size.decode_from(&mut decode_buf.as_mut_slice());
 
     assert!(result.is_err());
@@ -155,8 +155,8 @@ fn test_array_decode_from_propagates_size_mismatch_err() {
 #[test]
 fn test_array_decode_propagates_decode_err() {
     let mut arr = [
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
     ];
     let bytes_required = arr
         .mem_bytes_required()
@@ -167,8 +167,8 @@ fn test_array_decode_propagates_decode_err() {
         .expect("Failed to encode_into(..)");
 
     let mut recovered = [
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::ForceDecodeError, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceDecodeError, 100),
     ];
 
     let mut decode_buf = buf.export_as_vec();
@@ -193,8 +193,8 @@ fn test_array_decode_propagates_decode_err() {
 fn test_array_encode_decode_roundtrip() {
     // Encode
     let mut arr = [
-        TestBreaker::new(TestBreakerBehaviour::None, 7),
-        TestBreaker::new(TestBreakerBehaviour::None, 37),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 7),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 37),
     ];
     let bytes_required = arr
         .mem_bytes_required()
@@ -208,8 +208,8 @@ fn test_array_encode_decode_roundtrip() {
     {
         let mut decode_buf = buf.export_as_vec();
         let mut recovered = [
-            TestBreaker::new(TestBreakerBehaviour::None, 0),
-            TestBreaker::new(TestBreakerBehaviour::None, 0),
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 0),
+            CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 0),
         ];
         let result = recovered.decode_from(&mut decode_buf.as_mut_slice());
 
@@ -217,8 +217,8 @@ fn test_array_encode_decode_roundtrip() {
         assert_eq!(
             recovered,
             [
-                TestBreaker::new(TestBreakerBehaviour::None, 7),
-                TestBreaker::new(TestBreakerBehaviour::None, 37),
+                CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 7),
+                CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 37),
             ]
         );
 
@@ -243,12 +243,12 @@ fn test_array_encode_decode_roundtrip() {
 #[test]
 fn perm_test_array_encode_into_propagates_error_at_any_position() {
     let arr = [
-        [TestBreaker::new(TestBreakerBehaviour::None, 1)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 2)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 3)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 4)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 5)],
-        [TestBreaker::new(TestBreakerBehaviour::ForceEncodeError, 6)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 1)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 2)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 3)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 4)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 5)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceEncodeError, 6)],
     ];
     let bytes_required = arr
         .mem_bytes_required()
@@ -276,12 +276,12 @@ fn perm_test_array_encode_into_propagates_error_at_any_position() {
 #[test]
 fn perm_test_array_decode_from_propagates_error_at_any_position() {
     let arr = [
-        [TestBreaker::new(TestBreakerBehaviour::None, 1)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 2)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 3)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 4)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 5)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 6)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 1)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 2)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 3)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 4)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 5)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 6)],
     ];
 
     let bytes_required = arr
@@ -289,7 +289,7 @@ fn perm_test_array_decode_from_propagates_error_at_any_position() {
         .expect("Failed to get mem_bytes_required()");
 
     let mut recovered_arr = arr;
-    recovered_arr[0][0].set_behaviour(TestBreakerBehaviour::ForceDecodeError);
+    recovered_arr[0][0].set_behaviour(CodecTestBreakerBehaviour::ForceDecodeError);
 
     index_permutations(arr.len(), |idx_perm| {
         // Encode
@@ -334,12 +334,12 @@ fn perm_test_array_decode_from_propagates_error_at_any_position() {
 fn perm_test_array_encode_decode_roundtrip() {
     // Encode
     let arr = [
-        [TestBreaker::new(TestBreakerBehaviour::None, 1)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 2)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 3)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 4)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 5)],
-        [TestBreaker::new(TestBreakerBehaviour::None, 6)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 1)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 2)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 3)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 4)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 5)],
+        [CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 6)],
     ];
 
     let bytes_required = arr
@@ -359,7 +359,7 @@ fn perm_test_array_encode_decode_roundtrip() {
 
         // Decode
         {
-            let mut recovered: [[TestBreaker; 1]; 6] = [[TestBreaker::default()]; 6];
+            let mut recovered: [[CodecTestBreaker; 1]; 6] = [[CodecTestBreaker::default()]; 6];
             let mut decode_buf = buf.export_as_vec();
             let result = recovered.decode_from(&mut decode_buf.as_mut_slice());
 
@@ -388,9 +388,9 @@ fn perm_test_array_encode_decode_roundtrip() {
 #[test]
 fn test_array_prealloc_is_noop() {
     let mut arr = [
-        TestBreaker::new(TestBreakerBehaviour::None, 100),
-        TestBreaker::new(TestBreakerBehaviour::None, 200),
-        TestBreaker::new(TestBreakerBehaviour::None, 300),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 200),
+        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 300),
     ];
     let arr_clone = arr;
 
