@@ -90,8 +90,8 @@ fn run_test_case(tc: &TestCase) -> Result<(), String> {
     };
 
     // Decrypt
-    let mut cipher = Aegis128L::default();
-    let result = cipher.decrypt(&key, &nonce, &aad, &mut data, &tag);
+    let mut aead = Aegis128L::default();
+    let result = aead.decrypt(&key, &nonce, &aad, &mut data, &tag);
 
     match (&tc.result, &result) {
         (TestResult::Valid, Ok(())) => {
@@ -198,8 +198,8 @@ fn test_wycheproof_valid_with_flipped_tag() {
         // Flip first bit
         tag[0] ^= 0x01;
 
-        let mut cipher = Aegis128L::default();
-        let result = cipher.decrypt(&key, &nonce, &aad, &mut data, &tag);
+        let mut aead = Aegis128L::default();
+        let result = aead.decrypt(&key, &nonce, &aad, &mut data, &tag);
 
         match result {
             Err(AeadError::AuthenticationFailed) => {}
@@ -250,8 +250,8 @@ fn test_wycheproof_roundtrip() {
 
         // Decrypt
         let mut data = original_ct.clone();
-        let mut cipher = Aegis128L::default();
-        if let Err(e) = cipher.decrypt(&key, &nonce, &aad, &mut data, &original_tag) {
+        let mut aead = Aegis128L::default();
+        if let Err(e) = aead.decrypt(&key, &nonce, &aad, &mut data, &original_tag) {
             failures.push(format!("tc_id {}: decrypt failed: {:?}", tc.tc_id, e));
             continue;
         }
@@ -259,7 +259,7 @@ fn test_wycheproof_roundtrip() {
         // Re-encrypt
         let mut re_ct = data;
         let mut re_tag = [0u8; TAG_SIZE];
-        cipher.encrypt(&key, &nonce, &aad, &mut re_ct, &mut re_tag);
+        aead.encrypt(&key, &nonce, &aad, &mut re_ct, &mut re_tag);
 
         if re_ct != original_ct || re_tag != original_tag {
             failures.push(format!("tc_id {}: roundtrip mismatch", tc.tc_id));

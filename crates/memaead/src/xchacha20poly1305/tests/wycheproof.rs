@@ -90,8 +90,8 @@ fn xchacha20poly1305_encrypt(
 ) -> Result<(), AeadError> {
     let key: &[u8; KEY_SIZE] = key.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
     let xnonce: &[u8; XNONCE_SIZE] = xnonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
-    let mut cipher = XChacha20Poly1305::default();
-    cipher.encrypt(key, xnonce, aad, data, tag_out);
+    let mut aead = XChacha20Poly1305::default();
+    aead.encrypt(key, xnonce, aad, data, tag_out);
     Ok(())
 }
 
@@ -104,8 +104,8 @@ fn xchacha20poly1305_decrypt(
 ) -> Result<(), AeadError> {
     let key: &[u8; KEY_SIZE] = key.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
     let xnonce: &[u8; XNONCE_SIZE] = xnonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
-    let mut cipher = XChacha20Poly1305::default();
-    cipher.decrypt(key, xnonce, aad, data, tag)
+    let mut aead = XChacha20Poly1305::default();
+    aead.decrypt(key, xnonce, aad, data, tag)
 }
 
 /// Run a single test case and return Ok if behavior matches expected result

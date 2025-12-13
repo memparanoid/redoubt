@@ -37,8 +37,8 @@ fn test_xchacha20_poly1305_encrypt() {
     let mut data = *b"Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
     let mut tag = [0u8; TAG_SIZE];
 
-    let mut cipher = XChacha20Poly1305::default();
-    cipher.encrypt(&key, &xnonce, &aad, &mut data, &mut tag);
+    let mut aead = XChacha20Poly1305::default();
+    aead.encrypt(&key, &xnonce, &aad, &mut data, &mut tag);
 
     // Expected ciphertext (114 bytes)
     let expected_ct: [u8; 114] = [
@@ -92,8 +92,8 @@ fn test_xchacha20_poly1305_decrypt() {
         0x49,
     ];
 
-    let mut cipher = XChacha20Poly1305::default();
-    cipher
+    let mut aead = XChacha20Poly1305::default();
+    aead
         .decrypt(&key, &xnonce, &aad, &mut data, &tag)
         .expect("decryption failed");
 
@@ -111,14 +111,14 @@ fn test_modified_tag_rejected() {
     let mut data = *b"secret";
     let mut tag = [0u8; TAG_SIZE];
 
-    let mut cipher = XChacha20Poly1305::default();
-    cipher.encrypt(&key, &xnonce, aad, &mut data, &mut tag);
+    let mut aead = XChacha20Poly1305::default();
+    aead.encrypt(&key, &xnonce, aad, &mut data, &mut tag);
 
     // Flip one bit in the tag
     tag[TAG_SIZE - 1] ^= 0x01;
 
     // Should fail authentication
-    let result = cipher.decrypt(&key, &xnonce, aad, &mut data, &tag);
+    let result = aead.decrypt(&key, &xnonce, aad, &mut data, &tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::AuthenticationFailed)));
@@ -135,14 +135,14 @@ fn test_modified_ciphertext_rejected() {
     let mut data = *b"secret";
     let mut tag = [0u8; TAG_SIZE];
 
-    let mut cipher = XChacha20Poly1305::default();
-    cipher.encrypt(&key, &xnonce, aad, &mut data, &mut tag);
+    let mut aead = XChacha20Poly1305::default();
+    aead.encrypt(&key, &xnonce, aad, &mut data, &mut tag);
 
     // Flip one bit in the ciphertext (not tag)
     data[0] ^= 0x01;
 
     // Should fail authentication
-    let result = cipher.decrypt(&key, &xnonce, aad, &mut data, &tag);
+    let result = aead.decrypt(&key, &xnonce, aad, &mut data, &tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::AuthenticationFailed)));
@@ -158,11 +158,11 @@ fn test_modified_aad_rejected() {
     let mut data = *b"secret";
     let mut tag = [0u8; TAG_SIZE];
 
-    let mut cipher = XChacha20Poly1305::default();
-    cipher.encrypt(&key, &xnonce, b"header", &mut data, &mut tag);
+    let mut aead = XChacha20Poly1305::default();
+    aead.encrypt(&key, &xnonce, b"header", &mut data, &mut tag);
 
     // Different AAD should fail
-    let result = cipher.decrypt(&key, &xnonce, b"HEADER", &mut data, &tag);
+    let result = aead.decrypt(&key, &xnonce, b"HEADER", &mut data, &tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::AuthenticationFailed)));
@@ -180,14 +180,14 @@ fn test_roundtrip() {
     let mut data = *original;
     let mut tag = [0u8; TAG_SIZE];
 
-    let mut cipher = XChacha20Poly1305::default();
-    cipher.encrypt(&key, &xnonce, aad, &mut data, &mut tag);
+    let mut aead = XChacha20Poly1305::default();
+    aead.encrypt(&key, &xnonce, aad, &mut data, &mut tag);
 
     // data now contains ciphertext
     assert_ne!(&data, original);
 
     // Decrypt in-place
-    cipher
+    aead
         .decrypt(&key, &xnonce, aad, &mut data, &tag)
         .expect("decryption failed");
 
@@ -201,11 +201,11 @@ fn test_empty_plaintext() {
     let aad = b"just aad, no plaintext";
     let mut tag = [0u8; TAG_SIZE];
 
-    let mut cipher = XChacha20Poly1305::default();
-    cipher.encrypt(&key, &xnonce, aad, &mut [], &mut tag);
+    let mut aead = XChacha20Poly1305::default();
+    aead.encrypt(&key, &xnonce, aad, &mut [], &mut tag);
 
     // Decrypt empty ciphertext
-    cipher
+    aead
         .decrypt(&key, &xnonce, aad, &mut [], &tag)
         .expect("decryption failed");
 }
@@ -218,14 +218,14 @@ fn test_empty_aad() {
     let mut data = *original;
     let mut tag = [0u8; TAG_SIZE];
 
-    let mut cipher = XChacha20Poly1305::default();
-    cipher.encrypt(&key, &xnonce, b"", &mut data, &mut tag);
+    let mut aead = XChacha20Poly1305::default();
+    aead.encrypt(&key, &xnonce, b"", &mut data, &mut tag);
 
     // data now contains ciphertext
     assert_ne!(&data, original);
 
     // Decrypt in-place
-    cipher
+    aead
         .decrypt(&key, &xnonce, b"", &mut data, &tag)
         .expect("decryption failed");
 
