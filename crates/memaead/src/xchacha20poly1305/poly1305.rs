@@ -274,7 +274,7 @@ impl Poly1305 {
     }
 
     #[inline(always)]
-    pub fn finalize(&mut self, output: &mut [u8; TAG_SIZE]) {
+    pub fn finalize(&mut self, tag: &mut [u8; TAG_SIZE]) {
         // Process remaining buffered bytes with padding
         if self.buffer_len > 0 {
             // Zero pad then set 0x01 marker after data
@@ -400,41 +400,41 @@ impl Poly1305 {
         self.finalize.s_u32 = self.finalize.h[0] as u32;
         u32_to_le(
             &mut self.finalize.s_u32,
-            (&mut output[0..4])
+            (&mut tag[0..4])
                 .try_into()
-                .expect("infallible: output[0..4] is exactly 4 bytes"),
+                .expect("infallible: tag[0..4] is exactly 4 bytes"),
         );
         self.finalize.s_u32 = self.finalize.h[1] as u32;
         u32_to_le(
             &mut self.finalize.s_u32,
-            (&mut output[4..8])
+            (&mut tag[4..8])
                 .try_into()
-                .expect("infallible: output[4..8] is exactly 4 bytes"),
+                .expect("infallible: tag[4..8] is exactly 4 bytes"),
         );
         self.finalize.s_u32 = self.finalize.h[2] as u32;
         u32_to_le(
             &mut self.finalize.s_u32,
-            (&mut output[8..12])
+            (&mut tag[8..12])
                 .try_into()
-                .expect("infallible: output[8..12] is exactly 4 bytes"),
+                .expect("infallible: tag[8..12] is exactly 4 bytes"),
         );
         self.finalize.s_u32 = self.finalize.h[3] as u32;
         u32_to_le(
             &mut self.finalize.s_u32,
-            (&mut output[12..16])
+            (&mut tag[12..16])
                 .try_into()
-                .expect("infallible: output[12..16] is exactly 4 bytes"),
+                .expect("infallible: tag[12..16] is exactly 4 bytes"),
         );
 
         self.finalize.fast_zeroize();
     }
 
     #[cfg(test)]
-    pub fn compute(key: &[u8; KEY_SIZE], data: &[u8], output: &mut [u8; TAG_SIZE]) {
+    pub fn compute(key: &[u8; KEY_SIZE], data: &[u8], tag: &mut [u8; TAG_SIZE]) {
         let mut state = Self::default();
         state.init(key);
         state.update(data);
-        state.finalize(output);
+        state.finalize(tag);
         state.fast_zeroize();
     }
 }

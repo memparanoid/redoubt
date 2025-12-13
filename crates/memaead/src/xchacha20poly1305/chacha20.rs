@@ -168,10 +168,10 @@ impl ChaCha20 {
         key: &[u8; KEY_SIZE],
         nonce: &[u8; CHACHA20_NONCE_SIZE],
         counter: u32,
-        output: &mut [u8; CHACHA20_BLOCK_SIZE],
+        keystream_block: &mut [u8; CHACHA20_BLOCK_SIZE],
     ) {
         self.generate_block(key, nonce, counter);
-        output.copy_from_slice(&self.keystream);
+        keystream_block.copy_from_slice(&self.keystream);
         self.keystream.fast_zeroize();
     }
 
@@ -266,7 +266,7 @@ impl HChaCha20 {
         &mut self,
         key: &[u8; KEY_SIZE],
         nonce: &[u8; HCHACHA20_NONCE_SIZE],
-        output: &mut [u8; KEY_SIZE],
+        subkey: &mut [u8; KEY_SIZE],
     ) {
         self.state[0] = 0x61707865;
         self.state[1] = 0x3320646e;
@@ -304,21 +304,21 @@ impl HChaCha20 {
         for i in 0..4 {
             u32_to_le(
                 &mut self.state[i],
-                (&mut output[i * 4..i * 4 + 4])
+                (&mut subkey[i * 4..i * 4 + 4])
                     .try_into()
-                    .expect("infallible: output slice is exactly 4 bytes"),
+                    .expect("infallible: subkey slice is exactly 4 bytes"),
             );
         }
         for i in 0..4 {
             u32_to_le(
                 &mut self.state[12 + i],
-                (&mut output[16 + i * 4..16 + i * 4 + 4])
+                (&mut subkey[16 + i * 4..16 + i * 4 + 4])
                     .try_into()
-                    .expect("infallible: output slice is exactly 4 bytes"),
+                    .expect("infallible: subkey slice is exactly 4 bytes"),
             );
         }
 
-        // state[4..12] not written to output, zeroize remaining
+        // state[4..12] not written to subkey, zeroize remaining
         self.state[4..12].fast_zeroize();
     }
 }
@@ -355,7 +355,7 @@ impl Default for XChaCha20 {
 impl XChaCha20 {
     /// Generate Poly1305 key from XChaCha20 keystream (counter=0)
     #[inline(always)]
-    pub fn generate_poly_key(&mut self, key: &AeadKey, xnonce: &XNonce, output: &mut AeadKey) {
+    pub fn generate_poly_key(&mut self, key: &AeadKey, xnonce: &XNonce, poly_key: &mut AeadKey) {
         self.hchacha.derive(
             key,
             xnonce[0..HCHACHA20_NONCE_SIZE]
@@ -368,7 +368,7 @@ impl XChaCha20 {
             .copy_from_slice(&xnonce[HCHACHA20_NONCE_SIZE..XNONCE_SIZE]);
 
         self.chacha.generate_block(&self.subkey, &self.nonce, 0);
-        output.copy_from_slice(&self.chacha.keystream[0..KEY_SIZE]);
+        poly_key.copy_from_slice(&self.chacha.keystream[0..KEY_SIZE]);
 
         self.subkey.fast_zeroize();
         self.nonce.fast_zeroize();
