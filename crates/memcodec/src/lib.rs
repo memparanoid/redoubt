@@ -3,6 +3,5 @@
 // See LICENSE in the repository root for full license text.
 
 #![cfg_attr(not(test), no_std)]
-
 pub use memcodec_core::*;
 pub use memcodec_derive::*;

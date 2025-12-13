@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-
 use syn::{Type, parse_quote};
 
 use crate::is_drop_sentinel_type;

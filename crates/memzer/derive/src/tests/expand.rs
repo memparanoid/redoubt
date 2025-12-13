@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-
 use syn::parse_quote;
 
 use crate::{expand, find_root_with_candidates};

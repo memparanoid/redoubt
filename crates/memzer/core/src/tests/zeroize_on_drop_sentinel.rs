@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-
 use crate::assert::assert_zeroize_on_drop;
 use crate::traits::{AssertZeroizeOnDrop, FastZeroizable};
 use crate::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
