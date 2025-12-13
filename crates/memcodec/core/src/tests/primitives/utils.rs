@@ -83,7 +83,7 @@ where
 pub(crate) fn test_bytes_required<T: BytesRequired>(value: &T) {
     let result = value.mem_bytes_required();
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), core::mem::size_of::<T>());
+    assert_eq!(result.expect("Failed to mem_bytes_required()"), core::mem::size_of::<T>());
 }
 
 /// Tests that encode_into fails with CapacityExceeded when buffer is too small

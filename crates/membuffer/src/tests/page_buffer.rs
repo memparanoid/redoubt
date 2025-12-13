@@ -125,14 +125,14 @@ fn test_open_reads_data() {
             bytes[0] = 0xAB;
             Ok(())
         })
-        .unwrap();
+        .expect("Failed to open_mut(..)");
 
     buffer
         .open(&mut |bytes| {
             assert_eq!(bytes[0], 0xAB);
             Ok(())
         })
-        .unwrap();
+        .expect("Failed to open(..)");
 }
 
 #[test]
@@ -146,14 +146,14 @@ fn test_open_mem_non_protected() {
             bytes[0] = 0xCD;
             Ok(())
         })
-        .unwrap();
+        .expect("Failed to open_mut(..)");
 
     buffer
         .open(&mut |bytes| {
             assert_eq!(bytes[0], 0xCD);
             Ok(())
         })
-        .unwrap();
+        .expect("Failed to open(..)");
 }
 
 #[test]
@@ -231,14 +231,14 @@ fn test_open_mut_writes_data() {
             bytes.fill(0xFF);
             Ok(())
         })
-        .unwrap();
+        .expect("Failed to open_mut(..)");
 
     buffer
         .open(&mut |bytes| {
             assert!(bytes.iter().all(|&b| b == 0xFF));
             Ok(())
         })
-        .unwrap();
+        .expect("Failed to open(..)");
 }
 
 #[test]
@@ -252,21 +252,21 @@ fn test_open_mut_zeroize() {
             bytes.fill(0xFF);
             Ok(())
         })
-        .unwrap();
+        .expect("Failed to open_mut(..)");
 
     buffer
         .open_mut(&mut |bytes| {
             bytes.fill(0);
             Ok(())
         })
-        .unwrap();
+        .expect("Failed to open_mut(..)");
 
     buffer
         .open(&mut |bytes| {
             assert!(bytes.is_zeroized());
             Ok(())
         })
-        .unwrap();
+        .expect("Failed to open(..)");
 }
 
 #[test]
@@ -369,7 +369,7 @@ fn test_dispose() {
             bytes.fill(0xFF);
             Ok(())
         })
-        .unwrap();
+        .expect("Failed to open_mut(..)");
 
     buffer.dispose();
 }

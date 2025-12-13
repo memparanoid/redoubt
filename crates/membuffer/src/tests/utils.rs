@@ -30,7 +30,7 @@ fn block_syscall(name: &str) {
     filter
         .add_rule(
             ScmpAction::Errno(libc::EPERM),
-            ScmpSyscall::from_name(name).unwrap(),
+            ScmpSyscall::from_name(name).expect("Failed to from_name(..)"),
         )
         .expect("Failed to add rule");
     filter.load().expect("Failed to load seccomp filter");

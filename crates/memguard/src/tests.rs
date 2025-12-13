@@ -50,7 +50,7 @@ mod linux {
         filter
             .add_rule(
                 ScmpAction::Errno(libc::EPERM),
-                ScmpSyscall::from_name("prctl").unwrap(),
+                ScmpSyscall::from_name("prctl").expect("Failed to from_name(..)"),
             )
             .expect("Failed to add rule");
         filter.load().expect("Failed to load filter");
@@ -108,7 +108,7 @@ mod linux {
             })
             .collect();
 
-        let results: Vec<bool> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+        let results: Vec<bool> = handles.into_iter().map(|h| h.join().expect("Failed to join()")).collect();
 
         // All threads should get the same result (true on Linux)
         assert!(results.iter().all(|&r| r == results[0]));

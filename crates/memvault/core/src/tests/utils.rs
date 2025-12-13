@@ -12,7 +12,7 @@ pub fn block_mem_syscalls() {
         filter
             .add_rule(
                 ScmpAction::Errno(libc::EPERM),
-                ScmpSyscall::from_name(syscall).unwrap(),
+                ScmpSyscall::from_name(syscall).expect("Failed to from_name(..)"),
             )
             .expect("Failed to add rule");
     }
@@ -31,7 +31,7 @@ pub fn block_entropy_syscalls() {
         filter
             .add_rule(
                 ScmpAction::Errno(libc::EPERM),
-                ScmpSyscall::from_name(syscall).unwrap(),
+                ScmpSyscall::from_name(syscall).expect("Failed to from_name(..)"),
             )
             .expect("Failed to add rule");
     }

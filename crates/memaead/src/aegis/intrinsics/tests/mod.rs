@@ -10,7 +10,7 @@ use memzer::{FastZeroizable, ZeroizationProbe};
 use crate::aegis::intrinsics::Intrinsics;
 
 fn hex_to_bytes_16(hex: &str) -> [u8; 16] {
-    hex_to_bytes(hex).try_into().unwrap()
+    hex_to_bytes(hex).try_into().expect("Failed to try_into()")
 }
 
 fn has_aes_support() -> bool {

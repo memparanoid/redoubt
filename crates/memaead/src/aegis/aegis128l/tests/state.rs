@@ -17,15 +17,15 @@ fn test_vector_1_16byte_msg_no_ad() {
 
     let key: [u8; 16] = hex_to_bytes("10010000000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to key");
     let nonce: [u8; 16] = hex_to_bytes("10000200000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to nonce");
     let mut msg = hex_to_bytes("00000000000000000000000000000000");
     let expected_ct = hex_to_bytes("c1c0e58bd913006feba00f4b3cc3594e");
     let expected_tag: [u8; 16] = hex_to_bytes("abe0ece80c24868a226a35d16bdae37a")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to tag");
 
     let mut tag = [0u8; 16];
 
@@ -47,13 +47,13 @@ fn test_vector_2_empty_msg_no_ad() {
 
     let key: [u8; 16] = hex_to_bytes("10010000000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to key");
     let nonce: [u8; 16] = hex_to_bytes("10000200000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to nonce");
     let expected_tag: [u8; 16] = hex_to_bytes("c2b879a67def9d74e6c14f708bbcc9b4")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to tag");
 
     let mut data = [];
     let mut tag = [0u8; 16];
@@ -75,10 +75,10 @@ fn test_vector_3_32byte_msg_8byte_ad() {
 
     let key: [u8; 16] = hex_to_bytes("10010000000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to key");
     let nonce: [u8; 16] = hex_to_bytes("10000200000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to nonce");
     let ad = hex_to_bytes("0001020304050607");
     let mut msg =
         hex_to_bytes("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
@@ -86,7 +86,7 @@ fn test_vector_3_32byte_msg_8byte_ad() {
         hex_to_bytes("79d94593d8c2119d7e8fd9b8fc77845c5c077a05b2528b6ac54b563aed8efe84");
     let expected_tag: [u8; 16] = hex_to_bytes("cc6f3372f6aa1bb82388d695c3962d9a")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to tag");
 
     let mut tag = [0u8; 16];
 
@@ -108,14 +108,14 @@ fn test_encrypt_decrypt_roundtrip() {
 
     let key: [u8; 16] = hex_to_bytes("10010000000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to key");
     let nonce: [u8; 16] = hex_to_bytes("10000200000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to nonce");
     let plaintext: [u8; 32] =
         hex_to_bytes("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
             .try_into()
-            .unwrap();
+            .expect("Failed to convert hex to plaintext");
 
     let mut data = plaintext;
     let mut tag = [0u8; 16];

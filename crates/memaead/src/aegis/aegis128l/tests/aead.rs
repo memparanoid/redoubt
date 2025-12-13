@@ -20,17 +20,17 @@ fn test_aead_vector_3() {
 
     let key: Aegis128LKey = hex_to_bytes("10010000000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LKey");
     let nonce: Aegis128LNonce = hex_to_bytes("10000200000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LNonce");
     let ad = hex_to_bytes("0001020304050607");
     let msg = hex_to_bytes("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
     let expected_ct =
         hex_to_bytes("79d94593d8c2119d7e8fd9b8fc77845c5c077a05b2528b6ac54b563aed8efe84");
     let expected_tag: Aegis128LTag = hex_to_bytes("cc6f3372f6aa1bb82388d695c3962d9a")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LTag");
 
     let mut aead = Aegis128L::default();
     let mut data = msg.clone();
@@ -52,16 +52,16 @@ fn test_aead_vector_4_partial() {
 
     let key: Aegis128LKey = hex_to_bytes("10010000000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LKey");
     let nonce: Aegis128LNonce = hex_to_bytes("10000200000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LNonce");
     let ad = hex_to_bytes("0001020304050607");
     let msg = hex_to_bytes("000102030405060708090a0b0c0d");
     let expected_ct = hex_to_bytes("79d94593d8c2119d7e8fd9b8fc77");
     let expected_tag: Aegis128LTag = hex_to_bytes("5c04b3dba849b2701effbe32c7f0fab7")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LTag");
 
     let mut aead = Aegis128L::default();
     let mut data = msg.clone();
@@ -87,10 +87,10 @@ fn test_aead_vector_5_longer() {
 
     let key: Aegis128LKey = hex_to_bytes("10010000000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LKey");
     let nonce: Aegis128LNonce = hex_to_bytes("10000200000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LNonce");
     let ad = hex_to_bytes(
         "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223242526272829",
     );
@@ -102,7 +102,7 @@ fn test_aead_vector_5_longer() {
     );
     let expected_tag: Aegis128LTag = hex_to_bytes("7542a745733014f9474417b337399507")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LTag");
 
     let mut aead = Aegis128L::default();
     let mut data = msg.clone();
@@ -128,10 +128,10 @@ fn test_aead_roundtrip() {
 
     let key: Aegis128LKey = hex_to_bytes("10010000000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LKey");
     let nonce: Aegis128LNonce = hex_to_bytes("10000200000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LNonce");
     let ad = hex_to_bytes("0001020304050607");
     let plaintext =
         hex_to_bytes("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
@@ -163,10 +163,10 @@ fn test_aead_auth_failure() {
 
     let key: Aegis128LKey = hex_to_bytes("10010000000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LKey");
     let nonce: Aegis128LNonce = hex_to_bytes("10000200000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LNonce");
     let ad = hex_to_bytes("0001020304050607");
     let plaintext = hex_to_bytes("000102030405060708090a0b0c0d0e0f");
 
@@ -198,13 +198,13 @@ fn test_aead_empty_msg() {
 
     let key: Aegis128LKey = hex_to_bytes("10010000000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LKey");
     let nonce: Aegis128LNonce = hex_to_bytes("10000200000000000000000000000000")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LNonce");
     let expected_tag: Aegis128LTag = hex_to_bytes("c2b879a67def9d74e6c14f708bbcc9b4")
         .try_into()
-        .unwrap();
+        .expect("Failed to convert hex to Aegis128LTag");
 
     let mut aead = Aegis128L::default();
     let mut data: Vec<u8> = vec![];

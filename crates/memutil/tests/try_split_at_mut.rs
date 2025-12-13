@@ -9,7 +9,7 @@ mod try_split_at_mut_tests {
     #[test]
     fn test_try_split_at_mut_valid() {
         let mut data = [1u8, 2, 3, 4, 5];
-        let (left, right) = try_split_at_mut(&mut data, 2).unwrap();
+        let (left, right) = try_split_at_mut(&mut data, 2).expect("Failed to try_split_at_mut(..)");
         assert_eq!(left, &[1, 2]);
         assert_eq!(right, &[3, 4, 5]);
     }
@@ -24,7 +24,7 @@ mod try_split_at_mut_tests {
     #[test]
     fn test_try_split_at_mut_at_start() {
         let mut data = [1u8, 2, 3, 4, 5];
-        let (left, right) = try_split_at_mut(&mut data, 0).unwrap();
+        let (left, right) = try_split_at_mut(&mut data, 0).expect("Failed to try_split_at_mut(..)");
         assert_eq!(left, &[]);
         assert_eq!(right, &[1, 2, 3, 4, 5]);
     }
@@ -32,7 +32,7 @@ mod try_split_at_mut_tests {
     #[test]
     fn test_try_split_at_mut_at_end() {
         let mut data = [1u8, 2, 3, 4, 5];
-        let (left, right) = try_split_at_mut(&mut data, 5).unwrap();
+        let (left, right) = try_split_at_mut(&mut data, 5).expect("Failed to try_split_at_mut(..)");
         assert_eq!(left, &[1, 2, 3, 4, 5]);
         assert_eq!(right, &[]);
     }
@@ -40,7 +40,7 @@ mod try_split_at_mut_tests {
     #[test]
     fn test_try_split_at_mut_empty_slice() {
         let mut data: [u8; 0] = [];
-        let (left, right) = try_split_at_mut(&mut data, 0).unwrap();
+        let (left, right) = try_split_at_mut(&mut data, 0).expect("Failed to try_split_at_mut(..)");
         assert_eq!(left, &[]);
         assert_eq!(right, &[]);
         assert!(try_split_at_mut(&mut data, 1).is_none());
@@ -49,7 +49,7 @@ mod try_split_at_mut_tests {
     #[test]
     fn test_try_split_at_mut_mutability() {
         let mut data = [1u8, 2, 3, 4, 5];
-        let (left, right) = try_split_at_mut(&mut data, 2).unwrap();
+        let (left, right) = try_split_at_mut(&mut data, 2).expect("Failed to try_split_at_mut(..)");
 
         // Modify both parts
         left[0] = 10;
@@ -61,7 +61,7 @@ mod try_split_at_mut_tests {
     #[test]
     fn test_try_split_at_mut_with_different_types() {
         let mut ints = [1u32, 2, 3, 4];
-        let (left, right) = try_split_at_mut(&mut ints, 2).unwrap();
+        let (left, right) = try_split_at_mut(&mut ints, 2).expect("Failed to try_split_at_mut(..)");
         assert_eq!(left, &[1, 2]);
         assert_eq!(right, &[3, 4]);
     }

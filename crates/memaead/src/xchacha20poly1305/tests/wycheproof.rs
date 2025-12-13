@@ -236,7 +236,7 @@ fn test_wycheproof_valid_with_flipped_tag() {
         let nonce = hex_to_bytes(&tc.iv);
         let aad = hex_to_bytes(&tc.aad);
         let mut data = hex_to_bytes(&tc.ct);
-        let mut tag: [u8; TAG_SIZE] = hex_to_bytes(&tc.tag).try_into().unwrap();
+        let mut tag: [u8; TAG_SIZE] = hex_to_bytes(&tc.tag).try_into().expect("Failed to convert hex to tag");
 
         // Flip first bit of first byte
         tag[0] ^= 0x01;
@@ -288,7 +288,7 @@ fn test_wycheproof_roundtrip() {
         let nonce = hex_to_bytes(&tc.iv);
         let aad = hex_to_bytes(&tc.aad);
         let original_ct = hex_to_bytes(&tc.ct);
-        let original_tag: [u8; TAG_SIZE] = hex_to_bytes(&tc.tag).try_into().unwrap();
+        let original_tag: [u8; TAG_SIZE] = hex_to_bytes(&tc.tag).try_into().expect("Failed to convert hex to tag");
 
         // Decrypt
         let mut data = original_ct.clone();

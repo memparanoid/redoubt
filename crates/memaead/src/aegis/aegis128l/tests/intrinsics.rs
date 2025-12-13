@@ -21,8 +21,8 @@ fn test_aes_round() {
     let rk = hex_to_bytes("101112131415161718191a1b1c1d1e1f");
     let expected = hex_to_bytes("7a7b4e5638782546a8c0477a3b813f43");
 
-    let mut block = Intrinsics::load(input[..].try_into().unwrap());
-    let mut round_key = Intrinsics::load(rk[..].try_into().unwrap());
+    let mut block = Intrinsics::load(input[..].try_into().expect("Failed to convert to block"));
+    let mut round_key = Intrinsics::load(rk[..].try_into().expect("Failed to convert to round key"));
     let mut result = block.aes_enc(&round_key);
 
     let mut out = [0u8; 16];

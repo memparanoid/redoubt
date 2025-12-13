@@ -141,20 +141,20 @@ fn benchmark_codec_roundtrip() {
 
     // Setup: encode initial data
     let mut data = MixedData::new();
-    let buf_size = data.mem_bytes_required().unwrap();
+    let buf_size = data.mem_bytes_required().expect("Failed to mem_bytes_required()");
     let mut global_buf = CodecBuffer::new(buf_size);
-    data.encode_into(&mut global_buf).unwrap();
+    data.encode_into(&mut global_buf).expect("Failed to encode_into(..)");
 
     let start = Instant::now();
 
     for i in 0..iterations {
         let mut data = MixedData::empty();
         // Decode: fills data from buf
-        data.decode_from(&mut global_buf.as_mut_slice()).unwrap();
+        data.decode_from(&mut global_buf.as_mut_slice()).expect("Failed to decode_from(..)");
         // Encode: writes data back to buf
-        let cap = data.mem_bytes_required().unwrap();
+        let cap = data.mem_bytes_required().expect("Failed to mem_bytes_required()");
         let mut buf = CodecBuffer::new(cap);
-        data.encode_into(&mut buf).unwrap();
+        data.encode_into(&mut buf).expect("Failed to encode_into(..)");
         global_buf = buf;
 
         if i == 0 {

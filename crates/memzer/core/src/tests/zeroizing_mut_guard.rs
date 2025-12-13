@@ -52,7 +52,7 @@ fn test_zeroizing_mut_guard_debug() {
     let guard = ZeroizingMutGuard::from(&mut inner);
 
     let mut buf = String::new();
-    write!(&mut buf, "{:?}", guard).unwrap();
+    write!(&mut buf, "{:?}", guard).expect("Failed to write!(..)");
     assert_eq!(
         buf, "[REDACTED ZeroizingMutGuard]",
         "Debug should redact ZeroizingMutGuard"
