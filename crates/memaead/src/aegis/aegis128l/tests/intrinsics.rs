@@ -4,7 +4,7 @@
 
 //! AES intrinsics tests.
 
-use memutil::hex_to_bytes;
+use redoubt_util::hex_to_bytes;
 use memzer::FastZeroizable;
 
 use crate::aegis::intrinsics::Intrinsics;

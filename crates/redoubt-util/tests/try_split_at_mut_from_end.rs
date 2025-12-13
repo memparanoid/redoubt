@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod try_split_at_mut_from_end_tests {
-    use memutil::try_split_at_mut_from_end;
+    use redoubt_util::try_split_at_mut_from_end;
 
     #[test]
     fn test_try_split_at_mut_from_end_valid() {

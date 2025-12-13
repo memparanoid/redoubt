@@ -5,7 +5,7 @@ description          = "Memory utilities for verification and testing"
 edition.workspace    = true
 keywords             = ["memory", "utilities", "verification"]
 license.workspace    = true
-name                 = "memutil"
+name                 = "redoubt-util"
 repository.workspace = true
 version.workspace    = true
 

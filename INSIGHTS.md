@@ -73,7 +73,7 @@
 | `memhkdf` | 600 | 28 |
 | `memrand` | 150 | 11 |
 | `memsecret` | 93 | 19 |
-| `memutil` | 146 | 13 |
+| `redoubt_util` | 146 | 13 |
 | `memvault` | 889 | 0 |
 | `memvault/core` | 682 | 57 |
 | `memvault/derive` | 204 | 27 |

@@ -4,7 +4,7 @@
 
 use core::cell::Cell;
 
-use memutil::fill_bytes_with_pattern;
+use redoubt_util::fill_bytes_with_pattern;
 use memzer::{FastZeroizable, ZeroizationProbe};
 
 use crate::error::BufferError;

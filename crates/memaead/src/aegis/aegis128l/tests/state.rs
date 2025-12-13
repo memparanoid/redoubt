@@ -4,7 +4,7 @@
 
 //! State function tests with RFC vectors.
 
-use memutil::hex_to_bytes;
+use redoubt_util::hex_to_bytes;
 use crate::aegis::aegis128l::state;
 
 /// A.2.2 - Test Vector 1 (16-byte msg, no ad)

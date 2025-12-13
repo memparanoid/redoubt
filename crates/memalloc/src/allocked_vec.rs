@@ -259,7 +259,7 @@ where
         // reading garbage via as_capacity_slice() / as_capacity_mut_slice()
         #[cfg(any(test, feature = "unsafe"))]
         if capacity > 0 {
-            memutil::fast_zeroize_slice(unsafe { self.as_capacity_mut_slice() });
+            redoubt_util::fast_zeroize_slice(unsafe { self.as_capacity_mut_slice() });
         }
 
         Ok(())

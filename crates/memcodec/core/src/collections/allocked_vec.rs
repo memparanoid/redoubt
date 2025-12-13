@@ -34,7 +34,7 @@ where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
 {
     vec.fast_zeroize();
-    memutil::fast_zeroize_slice(buf);
+    redoubt_util::fast_zeroize_slice(buf);
 }
 
 impl<T> BytesRequired for AllockedVec<T>

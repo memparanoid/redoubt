@@ -9,7 +9,7 @@ memcodec = { path = "../crates/memcodec" }
 memvault = { path = "../crates/memvault" }
 membuffer = { path = "../crates/membuffer" }
 memzer = { path = "../crates/memzer" }
-memutil = { path = "../crates/memutil" }
+redoubt-util = { path = "../crates/redoubt-util" }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

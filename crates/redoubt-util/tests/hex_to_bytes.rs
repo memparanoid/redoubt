@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod hex_to_bytes_tests {
-    use memutil::hex_to_bytes;
+    use redoubt_util::hex_to_bytes;
 
     #[test]
     fn test_basic_hex() {

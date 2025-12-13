@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use memutil::hex_to_bytes;
+use redoubt_util::hex_to_bytes;
 
 use crate::AeadError;
 use crate::traits::AeadBackend;

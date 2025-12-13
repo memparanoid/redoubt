@@ -2,7 +2,7 @@
 cargo build --target wasm32-unknown-unknown -p memaead
 cargo build --target wasm32-unknown-unknown -p memalloc
 cargo build --target wasm32-unknown-unknown -p memrand
-cargo build --target wasm32-unknown-unknown -p memutil
+cargo build --target wasm32-unknown-unknown -p redoubt-util
 cargo build --target wasm32-unknown-unknown -p membuffer
 cargo build --target wasm32-unknown-unknown -p memcodec
 cargo build --target wasm32-unknown-unknown -p memcodec_core

@@ -9,7 +9,7 @@
 use memrand::{
     EntropyError, EntropySource, NonceGenerator, NonceSessionGenerator, SystemEntropySource,
 };
-use memutil::{constant_time_eq, u64_to_le};
+use redoubt_util::{constant_time_eq, u64_to_le};
 use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer};
 
 use crate::error::AeadError;

@@ -68,7 +68,7 @@ pub fn collection_zeroed(collection_iter: &mut dyn Iterator<Item = &dyn Zeroizat
 pub(crate) fn slice_fast_zeroize<T: FastZeroizable + ZeroizeMetadata>(slice: &mut [T], fast: bool) {
     if fast {
         // Fast path: bulk zeroize the entire array
-        memutil::fast_zeroize_slice(slice);
+        redoubt_util::fast_zeroize_slice(slice);
         compiler_fence(Ordering::SeqCst);
     } else {
         // Slow path: recursively zeroize each element
@@ -149,7 +149,7 @@ where
 pub(crate) fn vec_fast_zeroize<T: FastZeroizable + ZeroizeMetadata>(vec: &mut Vec<T>, fast: bool) {
     if fast {
         // T is primitive: fast zeroize entire allocation (contents + spare capacity)
-        memutil::fast_zeroize_vec(vec);
+        redoubt_util::fast_zeroize_vec(vec);
         compiler_fence(Ordering::SeqCst);
     } else {
         // T is complex: recursively zeroize each element, then spare capacity
@@ -157,7 +157,7 @@ pub(crate) fn vec_fast_zeroize<T: FastZeroizable + ZeroizeMetadata>(vec: &mut Ve
             elem.fast_zeroize();
             compiler_fence(Ordering::SeqCst);
         }
-        memutil::zeroize_spare_capacity(vec);
+        redoubt_util::zeroize_spare_capacity(vec);
         compiler_fence(Ordering::SeqCst);
     }
 }
@@ -188,7 +188,7 @@ where
     fn is_zeroized(&self) -> bool {
         // Short-circuit: check elements first (cheaper for complex types)
         collection_zeroed(&mut self.iter().map(to_zeroization_probe_dyn_ref))
-            && memutil::is_spare_capacity_zeroized(self)
+            && redoubt_util::is_spare_capacity_zeroized(self)
     }
 }
 
@@ -207,13 +207,13 @@ impl FastZeroizable for String {
         // SAFETY: This is sound because we're treating String as Vec<u8>
         unsafe {
             let vec_bytes = self.as_mut_vec();
-            memutil::fast_zeroize_vec(vec_bytes);
+            redoubt_util::fast_zeroize_vec(vec_bytes);
         }
     }
 }
 
 impl ZeroizationProbe for String {
     fn is_zeroized(&self) -> bool {
-        memutil::is_slice_zeroized(self.as_bytes())
+        redoubt_util::is_slice_zeroized(self.as_bytes())
     }
 }

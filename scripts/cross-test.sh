@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test memutil, memcodec_core, memaead on multiple architectures
+# Test redoubt-util, memcodec_core, memaead on multiple architectures
 # Requires: docker with QEMU binfmt support
 #   docker run --privileged --rm tonistiigi/binfmt --install all
 

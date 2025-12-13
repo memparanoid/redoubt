@@ -19,7 +19,7 @@ benchmark = []
 test_utils = ["zeroize"]
 
 [dependencies]
-memutil.workspace   = true
+redoubt-util.workspace   = true
 memzer.workspace    = true
 smallvec = { workspace = true, optional = true }
 thiserror.workspace = true

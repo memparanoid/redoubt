@@ -13,7 +13,7 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
-memutil.workspace = true
+redoubt-util.workspace = true
 
 [dev-dependencies]
 pastey.workspace = true

@@ -165,7 +165,7 @@ pub trait FastZeroizable {
 ///     const CAN_BE_BULK_ZEROIZED: bool = true;
 ///
 ///     fn fast_zeroize(&mut self) {
-///         memutil::zeroize_primitive(self);
+///         redoubt_util::zeroize_primitive(self);
 ///     }
 /// }
 ///

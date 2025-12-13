@@ -7,7 +7,7 @@ use memaead::support::test_utils::{AeadMock, AeadMockBehaviour};
 use memcodec::Codec;
 use memcodec::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use memrand::EntropyError;
-use memutil::is_vec_fully_zeroized;
+use redoubt_util::is_vec_fully_zeroized;
 use memzer::{MemZer, ZeroizationProbe, ZeroizeOnDropSentinel};
 
 use crate::cipherbox::CipherBox;

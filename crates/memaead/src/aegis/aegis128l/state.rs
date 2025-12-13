@@ -7,7 +7,7 @@
 //! Uses local variables with explicit zeroization of all intermediates.
 //! All Intrinsics are either zeroized explicitly or via move_to.
 
-use memutil::u64_to_le;
+use redoubt_util::u64_to_le;
 use memzer::FastZeroizable;
 
 use crate::aegis::aegis128l::consts::BLOCK_SIZE;
@@ -440,7 +440,7 @@ pub unsafe fn decrypt(
     tag_block.fast_zeroize();
 
     // Constant-time tag comparison
-    let tag_ok = memutil::constant_time_eq(&computed_tag, expected_tag);
+    let tag_ok = redoubt_util::constant_time_eq(&computed_tag, expected_tag);
 
     // === Zeroize all state ===
     s0.fast_zeroize();

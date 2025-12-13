@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod constant_time_eq_tests {
-    use memutil::constant_time_eq;
+    use redoubt_util::constant_time_eq;
 
     #[test]
     fn test_equal_slices() {

@@ -1,4 +1,4 @@
-# Cross-architecture test for memcodec_core, memaead, memutil
+# Cross-architecture test for memcodec_core, memaead, redoubt-util
 # Usage:
 #   docker build --platform linux/amd64 -f docker/Dockerfile.arch-test -t memora-test-x86 .
 #   docker build --platform linux/arm64 -f docker/Dockerfile.arch-test -t memora-test-arm .
@@ -23,7 +23,7 @@ COPY crates/memzer/Cargo.toml ./crates/memzer/
 COPY crates/memzer/core/Cargo.toml ./crates/memzer/core/
 COPY crates/memzer/derive/Cargo.toml ./crates/memzer/derive/
 COPY crates/memrand/Cargo.toml ./crates/memrand/
-COPY crates/memutil/Cargo.toml ./crates/memutil/
+COPY crates/redoubt-util/Cargo.toml ./crates/redoubt-util/
 COPY crates/memaead/Cargo.toml ./crates/memaead/
 COPY crates/memcodec/Cargo.toml ./crates/memcodec/
 COPY crates/memcodec/core/Cargo.toml ./crates/memcodec/core/
@@ -41,7 +41,7 @@ RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs 
     mkdir -p crates/memzer/core/src && echo "// stub" > crates/memzer/core/src/lib.rs && \
     mkdir -p crates/memzer/derive/src && echo "// stub" > crates/memzer/derive/src/lib.rs && \
     mkdir -p crates/memrand/src && echo "// stub" > crates/memrand/src/lib.rs && \
-    mkdir -p crates/memutil/src && echo "// stub" > crates/memutil/src/lib.rs && \
+    mkdir -p crates/redoubt-util/src && echo "// stub" > crates/redoubt-util/src/lib.rs && \
     mkdir -p crates/memaead/src && echo "// stub" > crates/memaead/src/lib.rs && \
     mkdir -p crates/memcodec/src && echo "// stub" > crates/memcodec/src/lib.rs && \
     mkdir -p crates/memcodec/core/src && echo "// stub" > crates/memcodec/core/src/lib.rs && \
@@ -67,7 +67,7 @@ RUN echo "=== Architecture Info ===" && \
     rustc --print cfg | grep -E "(target_arch|target_endian)"
 
 # Run tests for the 3 target crates
-CMD ["sh", "-c", "echo '=== Testing memutil ===' && cargo test -p memutil --release && \
+CMD ["sh", "-c", "echo '=== Testing redoubt-util ===' && cargo test -p redoubt-util --release && \
      echo '=== Testing memcodec_core ===' && cargo test -p memcodec_core --release && \
      echo '=== Testing memaead ===' && cargo test -p memaead --release && \
      echo '=== Testing membuffer ===' && cargo test -p membuffer --release && \

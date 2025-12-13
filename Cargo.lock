@@ -37,9 +37,9 @@ dependencies = [
  "memaead",
  "membuffer",
  "memcodec",
- "memutil",
  "memvault",
  "memzer",
+ "redoubt-util",
 ]
 
 [[package]]
@@ -535,8 +535,8 @@ version = "0.0.1"
 dependencies = [
  "cpufeatures",
  "memrand",
- "memutil",
  "memzer",
+ "redoubt-util",
  "thiserror",
 ]
 
@@ -545,8 +545,8 @@ name = "memalloc"
 version = "0.0.1"
 dependencies = [
  "insta",
- "memutil",
  "memzer",
+ "redoubt-util",
  "thiserror",
 ]
 
@@ -558,8 +558,8 @@ dependencies = [
  "libc",
  "libseccomp",
  "memrand",
- "memutil",
  "memzer",
+ "redoubt-util",
  "serial_test",
  "thiserror",
 ]
@@ -585,8 +585,8 @@ dependencies = [
  "insta",
  "mem_test_utils",
  "memalloc",
- "memutil",
  "memzer",
+ "redoubt-util",
  "smallvec",
  "thiserror",
 ]
@@ -628,13 +628,9 @@ name = "memsecret"
 version = "0.0.1"
 dependencies = [
  "memcodec",
- "memutil",
  "memzer",
+ "redoubt-util",
 ]
-
-[[package]]
-name = "memutil"
-version = "0.0.1"
 
 [[package]]
 name = "memvault"
@@ -658,8 +654,8 @@ dependencies = [
  "memguard",
  "memrand",
  "memsecret",
- "memutil",
  "memzer",
+ "redoubt-util",
  "thiserror",
 ]
 
@@ -692,8 +688,8 @@ dependencies = [
 name = "memzer_core"
 version = "0.0.1"
 dependencies = [
- "memutil",
  "pastey",
+ "redoubt-util",
 ]
 
 [[package]]
@@ -983,6 +979,10 @@ dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
 ]
+
+[[package]]
+name = "redoubt-util"
+version = "0.0.1"
 
 [[package]]
 name = "redox_syscall"

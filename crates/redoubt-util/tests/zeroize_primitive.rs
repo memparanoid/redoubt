@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use memutil::zeroize_primitive;
+use redoubt_util::zeroize_primitive;
 
 #[test]
 fn test_zeroize_primitive_integers() {

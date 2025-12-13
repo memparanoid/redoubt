@@ -52,7 +52,7 @@ macro_rules! impl_fast_zeroize_primitive {
             impl crate::traits::FastZeroizable for $ty {
                 #[inline(always)]
                 fn fast_zeroize(&mut self) {
-                    memutil::zeroize_primitive(self);
+                    redoubt_util::zeroize_primitive(self);
                 }
             }
         )*

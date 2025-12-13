@@ -167,7 +167,7 @@ pub(crate) fn vec_prealloc<T: PreAlloc + FastZeroizable + ZeroizeMetadata>(
     vec.reserve_exact(size);
 
     if zero_init {
-        memutil::fast_zeroize_vec(vec);
+        redoubt_util::fast_zeroize_vec(vec);
 
         unsafe { vec.set_len(size) };
     } else {

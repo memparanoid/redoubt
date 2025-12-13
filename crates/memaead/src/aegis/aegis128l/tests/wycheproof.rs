@@ -4,7 +4,7 @@
 
 //! Wycheproof test vectors for AEGIS-128L
 
-use memutil::hex_to_bytes;
+use redoubt_util::hex_to_bytes;
 
 use super::super::consts::*;
 use crate::AeadError;

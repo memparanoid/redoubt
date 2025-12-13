@@ -185,7 +185,7 @@ pub fn decode_fields<'a>(
                     compiler_fence(Ordering::SeqCst);
                 }
 
-                memutil::fast_zeroize_slice(buf);
+                redoubt_util::fast_zeroize_slice(buf);
             }
 
             #[cfg(not(feature = "zeroize"))]

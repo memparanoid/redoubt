@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use memutil::{is_slice_zeroized, is_spare_capacity_zeroized, zeroize_spare_capacity};
+use redoubt_util::{is_slice_zeroized, is_spare_capacity_zeroized, zeroize_spare_capacity};
 
 /// Helper to read spare capacity bytes (unsafe but sound for testing).
 fn read_spare_capacity(vec: &Vec<u8>) -> Vec<u8> {

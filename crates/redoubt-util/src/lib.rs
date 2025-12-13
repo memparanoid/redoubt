@@ -24,7 +24,7 @@ mod tests;
 /// # Example
 ///
 /// ```
-/// use memutil::fill_bytes_with_pattern;
+/// use redoubt_util::fill_bytes_with_pattern;
 ///
 /// let mut buffer = [0u8; 8];
 /// fill_bytes_with_pattern(&mut buffer, 0xAB);
@@ -50,7 +50,7 @@ pub fn fill_bytes_with_pattern(slice: &mut [u8], pattern: u8) {
 /// # Example
 ///
 /// ```
-/// use memutil::constant_time_eq;
+/// use redoubt_util::constant_time_eq;
 ///
 /// let a = [1, 2, 3, 4];
 /// let b = [1, 2, 3, 4];
@@ -83,7 +83,7 @@ pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 /// # Example
 ///
 /// ```
-/// use memutil::hex_to_bytes;
+/// use redoubt_util::hex_to_bytes;
 ///
 /// let bytes = hex_to_bytes("deadbeef");
 /// assert_eq!(bytes, vec![0xde, 0xad, 0xbe, 0xef]);
@@ -145,7 +145,7 @@ impl_le_conversions!(usize, 8, usize_from_le, usize_to_le);
 /// # Example
 ///
 /// ```
-/// use memutil::is_slice_zeroized;
+/// use redoubt_util::is_slice_zeroized;
 ///
 /// let zeroed = [0u8; 10];
 /// assert!(is_slice_zeroized(&zeroed));
@@ -175,7 +175,7 @@ pub fn is_slice_zeroized(slice: &[u8]) -> bool {
 /// # Example
 ///
 /// ```
-/// use memutil::{fast_zeroize_vec, is_vec_fully_zeroized};
+/// use redoubt_util::{fast_zeroize_vec, is_vec_fully_zeroized};
 ///
 /// let mut vec = vec![1u8, 2, 3, 4, 5];
 /// vec.truncate(2); // len = 2, capacity = 5
@@ -225,7 +225,7 @@ pub fn is_vec_fully_zeroized(vec: &Vec<u8>) -> bool {
 /// # Example
 ///
 /// ```
-/// use memutil::zeroize_primitive;
+/// use redoubt_util::zeroize_primitive;
 ///
 /// let mut x = 42u32;
 /// zeroize_primitive(&mut x);
@@ -257,7 +257,7 @@ pub fn zeroize_primitive<T>(val: &mut T) {
 /// # Example
 ///
 /// ```
-/// use memutil::fast_zeroize_slice;
+/// use redoubt_util::fast_zeroize_slice;
 ///
 /// let mut data = vec![1u8, 2, 3, 4, 5];
 /// fast_zeroize_slice(&mut data);
@@ -292,7 +292,7 @@ pub fn fast_zeroize_slice<T>(slice: &mut [T]) {
 /// # Example
 ///
 /// ```
-/// use memutil::{fast_zeroize_vec, is_vec_fully_zeroized};
+/// use redoubt_util::{fast_zeroize_vec, is_vec_fully_zeroized};
 ///
 /// let mut vec = vec![0xFFu8; 100];
 /// vec.truncate(10);  // len = 10, capacity = 100, spare has 0xFF
@@ -323,7 +323,7 @@ pub fn fast_zeroize_vec<T>(vec: &mut Vec<T>) {
 /// # Example
 ///
 /// ```
-/// use memutil::zeroize_spare_capacity;
+/// use redoubt_util::zeroize_spare_capacity;
 ///
 /// let mut vec = vec![0xFFu8; 100];
 /// vec.truncate(10);  // len = 10, capacity = 100, spare has 0xFF
@@ -349,7 +349,7 @@ pub fn zeroize_spare_capacity<T>(vec: &mut Vec<T>) {
     }
 }
 
-/// Checks if the spare capacity of a Vec<T> is fully zeroized.
+/// Checks if the spare capacity of a `Vec<T>` is fully zeroized.
 ///
 /// This function reads the spare capacity region (from len to capacity) at the
 /// byte level without constructing any T values. Returns true if all bytes in
@@ -365,7 +365,7 @@ pub fn zeroize_spare_capacity<T>(vec: &mut Vec<T>) {
 /// # Example
 ///
 /// ```
-/// use memutil::{zeroize_spare_capacity, is_spare_capacity_zeroized};
+/// use redoubt_util::{zeroize_spare_capacity, is_spare_capacity_zeroized};
 ///
 /// let mut vec = vec![1u32, 2, 3, 4, 5];
 /// vec.truncate(2);  // len = 2, capacity = 5, spare has old data
@@ -406,7 +406,7 @@ pub fn is_spare_capacity_zeroized<T>(vec: &Vec<T>) -> bool {
 /// # Example
 ///
 /// ```
-/// use memutil::try_split_at_mut;
+/// use redoubt_util::try_split_at_mut;
 ///
 /// let mut data = [1, 2, 3, 4, 5];
 ///
@@ -447,7 +447,7 @@ pub fn try_split_at_mut<T>(slice: &mut [T], mid: usize) -> Option<(&mut [T], &mu
 /// # Example
 ///
 /// ```
-/// use memutil::try_split_at_mut_from_end;
+/// use redoubt_util::try_split_at_mut_from_end;
 ///
 /// let mut data = [1, 2, 3, 4, 5];
 ///

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use memutil::is_vec_fully_zeroized;
+use redoubt_util::is_vec_fully_zeroized;
 use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
 
 use crate::allocked_vec::{AllockedVec, AllockedVecBehaviour};

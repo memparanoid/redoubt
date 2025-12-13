@@ -58,7 +58,7 @@ fn test_slice() {
     slice.fast_zeroize();
 
     assert!(slice.is_zeroized());
-    assert!(memutil::is_slice_zeroized(slice));
+    assert!(redoubt_util::is_slice_zeroized(slice));
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn test_array() {
     array.fast_zeroize();
 
     assert!(array.is_zeroized());
-    assert!(memutil::is_slice_zeroized(&array));
+    assert!(redoubt_util::is_slice_zeroized(&array));
 }
 
 // === === === === === === === === === ===
@@ -139,7 +139,7 @@ fn test_vec() {
 
     // Assert zeroization!
     assert!(vec.is_zeroized());
-    assert!(memutil::is_vec_fully_zeroized(&vec));
+    assert!(redoubt_util::is_vec_fully_zeroized(&vec));
 }
 
 #[test]
@@ -219,5 +219,5 @@ fn test_string() {
     s.fast_zeroize();
 
     assert!(s.is_zeroized());
-    assert!(memutil::is_slice_zeroized(s.as_bytes()));
+    assert!(redoubt_util::is_slice_zeroized(s.as_bytes()));
 }

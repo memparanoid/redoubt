@@ -8,7 +8,7 @@ members = [
   "crates/memaead",
   "crates/memsecret",
   "crates/memrand",
-  "crates/memutil",
+  "crates/redoubt-util",
   "crates/memvault",
   "crates/memvault/core",
   "crates/memvault/derive",
@@ -40,7 +40,7 @@ resolver = "2"
   memguard       = { path = "crates/memguard" }
   memrand        = { path = "crates/memrand" }
   memsecret      = { path = "crates/memsecret" }
-  memutil        = { path = "crates/memutil" }
+  redoubt-util   = { path = "crates/redoubt-util" }
   memvault       = { path = "crates/memvault" }
   memvault_core  = { path = "crates/memvault/core" }
   memvault_derive = { path = "crates/memvault/derive" }

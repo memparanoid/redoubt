@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod fill_bytes_with_pattern_tests {
-    use memutil::{fill_bytes_with_pattern, is_slice_zeroized};
+    use redoubt_util::{fill_bytes_with_pattern, is_slice_zeroized};
 
     #[test]
     fn test_fill_bytes_with_pattern_zeros() {

@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod try_split_at_mut_tests {
-    use memutil::try_split_at_mut;
+    use redoubt_util::try_split_at_mut;
 
     #[test]
     fn test_try_split_at_mut_valid() {

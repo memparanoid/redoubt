@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod fast_zeroize_vec_tests {
-    use memutil::{fast_zeroize_vec, is_vec_fully_zeroized};
+    use redoubt_util::{fast_zeroize_vec, is_vec_fully_zeroized};
 
     #[test]
     fn test_fast_zeroize_vec_zeros_all_bytes() {

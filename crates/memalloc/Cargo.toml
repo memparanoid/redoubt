@@ -15,7 +15,7 @@ unsafe = []
 
 [dependencies]
 memzer.workspace    = true
-memutil.workspace   = true
+redoubt-util.workspace   = true
 thiserror.workspace = true
 
 [dev-dependencies]

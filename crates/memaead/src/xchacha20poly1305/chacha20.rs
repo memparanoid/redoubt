@@ -6,7 +6,7 @@
 //!
 //! All sensitive state is zeroized on drop using memzer.
 
-use memutil::{u32_from_le, u32_to_le};
+use redoubt_util::{u32_from_le, u32_to_le};
 use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer};
 
 use super::consts::{

@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod is_slice_zeroized_tests {
-    use memutil::is_slice_zeroized;
+    use redoubt_util::is_slice_zeroized;
 
     #[test]
     fn test_is_slice_zeroized_empty() {

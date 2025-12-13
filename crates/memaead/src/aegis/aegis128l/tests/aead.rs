@@ -4,7 +4,7 @@
 
 //! High-level AEAD API tests with RFC vectors.
 
-use memutil::hex_to_bytes;
+use redoubt_util::hex_to_bytes;
 
 use crate::aegis::aegis128l::aead::Aegis128L;
 use crate::aegis::aegis128l::consts::{Aegis128LKey, Aegis128LNonce, Aegis128LTag};

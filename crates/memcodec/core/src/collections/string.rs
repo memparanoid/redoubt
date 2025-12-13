@@ -32,10 +32,10 @@ fn cleanup_encode_error(s: &mut String, buf: &mut CodecBuffer) {
 fn cleanup_decode_error(s: &mut String, buf: &mut &mut [u8]) {
     // SAFETY: We're zeroizing and then clearing, so UTF-8 invariant is restored
     unsafe {
-        memutil::fast_zeroize_slice(s.as_bytes_mut());
+        redoubt_util::fast_zeroize_slice(s.as_bytes_mut());
     }
     s.clear();
-    memutil::fast_zeroize_slice(buf);
+    redoubt_util::fast_zeroize_slice(buf);
 }
 
 #[inline(always)]
@@ -155,7 +155,7 @@ impl PreAlloc for String {
         // The bytes will be written by decode before being read as UTF-8
         unsafe {
             let vec = self.as_mut_vec();
-            memutil::fast_zeroize_vec(vec);
+            redoubt_util::fast_zeroize_vec(vec);
             vec.set_len(size);
         }
     }
