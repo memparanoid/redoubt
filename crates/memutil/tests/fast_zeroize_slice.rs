@@ -4,14 +4,13 @@
 
 #[cfg(test)]
 mod fast_zeroize_slice_tests {
-    use memutil::fast_zeroize_slice;
-    use memzer::ZeroizationProbe;
+    use memutil::{fast_zeroize_slice, is_vec_fully_zeroized};
 
     #[test]
     fn test_fast_zeroize_slice_zeros_all_bytes() {
         let mut data = vec![0xABu8; 1024];
         fast_zeroize_slice(&mut data);
-        assert!(data.is_zeroized());
+        assert!(is_vec_fully_zeroized(&data));
     }
 
     #[test]

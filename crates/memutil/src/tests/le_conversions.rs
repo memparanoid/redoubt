@@ -5,7 +5,6 @@
 #[cfg(test)]
 mod le_conversions_tests {
     use crate::*;
-    use memzer::ZeroizationProbe;
 
     // u16 tests
     #[test]
@@ -80,7 +79,7 @@ mod le_conversions_tests {
         #[cfg(target_pointer_width = "32")]
         assert_eq!(value, 0x04030201);
 
-        assert!(bytes.is_zeroized());
+        assert!(is_slice_zeroized(&bytes));
     }
 
     #[test]
