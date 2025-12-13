@@ -180,7 +180,8 @@ fn test_codec_buffer_realloc_pointer_invariants() {
     let mut buf = CodecBuffer::with_capacity(5);
 
     // Write initial data to verify pointers are valid
-    buf.as_mut_slice().copy_from_slice(&[0xAA, 0xBB, 0xCC, 0xDD, 0xEE]);
+    buf.as_mut_slice()
+        .copy_from_slice(&[0xAA, 0xBB, 0xCC, 0xDD, 0xEE]);
     assert_eq!(buf.as_slice(), &[0xAA, 0xBB, 0xCC, 0xDD, 0xEE]);
 
     // Realloc to larger capacity - this changes internal pointers
@@ -188,42 +189,80 @@ fn test_codec_buffer_realloc_pointer_invariants() {
 
     // Verify pointer invariants:
     // 1. as_slice() returns valid slice with new capacity
-    assert_eq!(buf.as_slice().len(), 10, "as_slice() length should match new capacity");
+    assert_eq!(
+        buf.as_slice().len(),
+        10,
+        "as_slice() length should match new capacity"
+    );
 
     // 2. as_mut_slice() returns valid mutable slice
-    assert_eq!(buf.as_mut_slice().len(), 10, "as_mut_slice() length should match new capacity");
+    assert_eq!(
+        buf.as_mut_slice().len(),
+        10,
+        "as_mut_slice() length should match new capacity"
+    );
 
     // 3. Content is zeroed after realloc (fill_with_default)
-    assert!(buf.as_slice().is_zeroized(), "realloc should zero-initialize new buffer");
+    assert!(
+        buf.as_slice().is_zeroized(),
+        "realloc should zero-initialize new buffer"
+    );
 
     // 4. Can write to buffer after realloc (pointers are valid)
-    buf.as_mut_slice().copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    assert_eq!(buf.as_slice(), &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "can write after realloc");
+    buf.as_mut_slice()
+        .copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    assert_eq!(
+        buf.as_slice(),
+        &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        "can write after realloc"
+    );
 
     // Realloc to smaller capacity - another pointer update
     buf.realloc_with_capacity(3);
 
     // Verify invariants again:
+    // Original data must be preserved
     assert_eq!(buf.as_slice().len(), 3, "as_slice() length after shrinking");
-    assert_eq!(buf.as_mut_slice().len(), 3, "as_mut_slice() length after shrinking");
-
-    // Content should be zeroed
-    assert!(buf.as_slice().is_zeroized(), "shrinking realloc should zero-initialize");
+    assert_eq!(
+        buf.as_mut_slice().len(),
+        3,
+        "as_mut_slice() length after shrinking"
+    );
+    assert_eq!(buf.as_slice(), &[1, 2, 3]);
 
     // Can still write after shrinking
     buf.as_mut_slice().copy_from_slice(&[0xFF, 0xFE, 0xFD]);
-    assert_eq!(buf.as_slice(), &[0xFF, 0xFE, 0xFD], "can write after shrinking realloc");
+    assert_eq!(
+        buf.as_slice(),
+        &[0xFF, 0xFE, 0xFD],
+        "can write after shrinking realloc"
+    );
 
     // Multiple reallocs in sequence
     for new_cap in [1, 20, 5, 100, 0, 7] {
         buf.realloc_with_capacity(new_cap);
-        assert_eq!(buf.as_slice().len(), new_cap, "length matches after realloc to {}", new_cap);
-        assert_eq!(buf.as_mut_slice().len(), new_cap, "mut_slice length matches after realloc to {}", new_cap);
+        assert_eq!(
+            buf.as_slice().len(),
+            new_cap,
+            "length matches after realloc to {}",
+            new_cap
+        );
+        assert_eq!(
+            buf.as_mut_slice().len(),
+            new_cap,
+            "mut_slice length matches after realloc to {}",
+            new_cap
+        );
 
         // Verify can read/write at every capacity
         if new_cap > 0 {
             buf.as_mut_slice()[0] = 0x42;
-            assert_eq!(buf.as_slice()[0], 0x42, "can read/write at capacity {}", new_cap);
+            assert_eq!(
+                buf.as_slice()[0],
+                0x42,
+                "can read/write at capacity {}",
+                new_cap
+            );
         }
     }
 }

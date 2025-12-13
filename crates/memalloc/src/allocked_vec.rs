@@ -5,7 +5,7 @@
 use alloc::vec::Vec;
 
 use crate::error::AllockedVecError;
-use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata};
+use memzer::{FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel};
 
 /// Test behaviour for injecting failures in `AllockedVec` operations.
 ///
@@ -160,8 +160,8 @@ where
         let new_allocked_vec = {
             let mut allocked_vec = AllockedVec::<T>::with_capacity(capacity);
             allocked_vec
-                 .drain_from(self.as_mut_slice())
-                 .expect("realloc_with: drain_from cannot fail - new vec has sufficient capacity");
+                .drain_from(self.as_mut_slice())
+                .expect("realloc_with: drain_from cannot fail - new vec has sufficient capacity");
             allocked_vec
         };
 
