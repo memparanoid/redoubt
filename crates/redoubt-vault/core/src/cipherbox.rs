@@ -179,6 +179,22 @@ where
         Ok(())
     }
 
+    /// Decrypts a single field by cloning the ciphertext first.
+    ///
+    /// # Design Note
+    ///
+    /// This method CLONES `ciphertexts[M]` into `tmp_field_cyphertext` before decryption.
+    /// This is critical because:
+    /// - Decryption is in-place and destructive (drains the buffer)
+    /// - By operating on a copy, the original ciphertext remains intact
+    /// - This enables `leak_field` to return ownership without re-encryption
+    /// - The temporary buffer is zeroized by `decode_from` (line 202)
+    ///
+    /// # Memory Safety
+    ///
+    /// Zeroization of `tmp_field_cyphertext` is verified in:
+    /// - Happy path: `test_decrypt_field_ok`
+    /// - Error path: `test_decrypt_field_propagates_decode_error`
     #[inline(always)]
     fn try_decrypt_field<F, const M: usize>(
         &mut self,
@@ -284,6 +300,28 @@ where
         }
     }
 
+    /// Provides read-only access to the entire struct via a callback.
+    ///
+    /// # Design Note: Why decrypt → encrypt?
+    ///
+    /// This method performs a full decrypt-encrypt cycle even for read-only access.
+    /// This seems wasteful but is necessary because:
+    ///
+    /// 1. `decrypt_struct` is IN-PLACE and DESTRUCTIVE:
+    ///    - Drains `ciphertexts[]` (they become zeros)
+    ///    - Decodes into `value` (plaintext)
+    ///
+    /// 2. Without re-encryption, the ciphertexts would be permanently lost
+    ///
+    /// 3. The alternative (duplicating logic between `open` and `open_mut`) is worse:
+    ///    - More code to maintain
+    ///    - Higher risk of divergence
+    ///    - `open` is rarely used in practice (most code uses `leak_field`)
+    ///
+    /// # Usage Note
+    ///
+    /// For better performance when reading a single field, prefer `leak_field` which
+    /// avoids the full struct decrypt-encrypt cycle by cloning only the field's ciphertext.
     #[inline(always)]
     fn open_dyn(&mut self, f: &mut dyn Fn(&T)) -> Result<(), CipherBoxError> {
         self.assert_healthy()?;
@@ -302,6 +340,26 @@ where
         Ok(())
     }
 
+    /// Provides mutable access to the entire struct via a callback.
+    ///
+    /// # Design Note
+    ///
+    /// This method performs decrypt → callback → encrypt:
+    /// 1. `decrypt_struct` drains `ciphertexts[]` into plaintext `value`
+    /// 2. Callback modifies `value`
+    /// 3. `encrypt_struct` re-encrypts modified `value` back to `ciphertexts[]`
+    ///
+    /// The decrypt-encrypt cycle is mandatory because decryption is destructive (in-place).
+    ///
+    /// # Callback Safety
+    ///
+    /// Callbacks CANNOT return `Result` by design:
+    /// - If callback fails mid-execution, `value` may be partially modified
+    /// - No saved state exists for rollback (ciphertexts were drained)
+    /// - Re-encrypting corrupted state → data loss
+    /// - Not re-encrypting → plaintext memory leak
+    ///
+    /// For fallible operations, use the leak-operate-commit pattern (see CIPHERBOX_DESIGN.md).
     #[inline(always)]
     fn open_mut_dyn(&mut self, f: &mut dyn Fn(&mut T)) -> Result<(), CipherBoxError> {
         self.assert_healthy()?;
@@ -404,6 +462,32 @@ where
         self.open_field_mut_dyn::<Field, M>(&mut f)
     }
 
+    /// Leaks a single field by returning ownership (no re-encryption needed).
+    ///
+    /// # Why "leak"?
+    ///
+    /// This returns ownership of the decrypted field, allowing it to outlive the callback.
+    /// The field is wrapped in `ZeroizingGuard` for automatic cleanup when dropped.
+    ///
+    /// # Performance
+    ///
+    /// This is the MOST EFFICIENT way to read a single field because:
+    /// 1. Only clones the field's ciphertext (not the entire struct)
+    /// 2. No re-encryption required (original ciphertext remains intact)
+    /// 3. Avoids the full struct decrypt-encrypt cycle of `open`
+    ///
+    /// # Design Note
+    ///
+    /// `decrypt_field` clones `ciphertexts[M]` before decryption, allowing this method
+    /// to return ownership without losing the encrypted data. See `try_decrypt_field`
+    /// for implementation details.
+    ///
+    /// # Usage Pattern
+    ///
+    /// Prefer this over `open_field` when you need to:
+    /// - Perform operations outside the callback scope
+    /// - Use the field data across multiple statements
+    /// - Implement the leak-operate-commit pattern for fallible operations
     #[inline(always)]
     pub fn leak_field<Field, const M: usize>(
         &mut self,
