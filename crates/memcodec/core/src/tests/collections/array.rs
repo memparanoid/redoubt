@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use crate::codec_buffer::CodecBuffer;
-use mem_test_utils::{apply_permutation, index_permutations};
+use redoubt_test_utils::{apply_permutation, index_permutations};
 #[cfg(feature = "zeroize")]
 use redoubt_zero::ZeroizationProbe;
 

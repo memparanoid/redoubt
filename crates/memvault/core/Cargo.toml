@@ -13,7 +13,7 @@ no_std = []
 [dependencies]
 memcodec = { workspace = true, features = ["zeroize"]}
 redoubt-alloc.workspace = true
-memsecret.workspace = true
+redoubt-secret.workspace = true
 redoubt-buffer.workspace = true
 redoubt-guard.workspace = true
 redoubt-rand.workspace = true
@@ -24,7 +24,7 @@ thiserror.workspace = true
 [dev-dependencies]
 memaead = { workspace = true, features = ["test_utils"] }
 memcodec = { workspace = true, features = ["test_utils"] }
-mem_test_utils.workspace = true
+redoubt-test-utils.workspace = true
 redoubt-util.workspace = true
 
 [target.'cfg(unix)'.dev-dependencies]

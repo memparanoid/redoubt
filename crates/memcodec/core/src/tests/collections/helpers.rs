@@ -14,7 +14,7 @@ use crate::collections::helpers::{
 use crate::error::{CodecBufferError, DecodeError, OverflowError};
 use crate::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use crate::traits::{BytesRequired, Decode, DecodeZeroize, Encode, EncodeZeroize};
-use mem_test_utils::{apply_permutation, index_permutations};
+use redoubt_test_utils::{apply_permutation, index_permutations};
 
 // header_size
 

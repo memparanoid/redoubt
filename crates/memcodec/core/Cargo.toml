@@ -30,5 +30,5 @@ features  = ["unsafe"]
 
 [dev-dependencies]
 redoubt-alloc = { workspace = true, features = ["test_utils"] }
-mem_test_utils.workspace = true
+redoubt-test-utils.workspace = true
 insta.workspace = true
