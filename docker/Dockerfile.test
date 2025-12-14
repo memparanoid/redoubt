@@ -17,49 +17,49 @@ WORKDIR /workspace
 COPY Cargo.toml Cargo.lock Makefile.toml ./
 
 # Copy all crate Cargo.toml files
-COPY crates/redoubt_guard/Cargo.toml ./crates/redoubt_guard/
-COPY crates/memalloc/Cargo.toml ./crates/memalloc/
-COPY crates/memzer/Cargo.toml ./crates/memzer/
-COPY crates/memzer/core/Cargo.toml ./crates/memzer/core/
-COPY crates/memzer/derive/Cargo.toml ./crates/memzer/derive/
-COPY crates/memsecret/Cargo.toml ./crates/memsecret/
-COPY crates/memrand/Cargo.toml ./crates/memrand/
+COPY crates/redoubt-guard/Cargo.toml ./crates/redoubt-guard/
+COPY crates/redoubt-alloc/Cargo.toml ./crates/redoubt-alloc/
+COPY crates/redoubt-zero/Cargo.toml ./crates/redoubt-zero/
+COPY crates/redoubt-zero/core/Cargo.toml ./crates/redoubt-zero/core/
+COPY crates/redoubt-zero/derive/Cargo.toml ./crates/redoubt-zero/derive/
+COPY crates/redoubt-secret/Cargo.toml ./crates/redoubt-secret/
+COPY crates/redoubt-rand/Cargo.toml ./crates/redoubt-rand/
 COPY crates/redoubt-util/Cargo.toml ./crates/redoubt-util/
-COPY crates/memvault/Cargo.toml ./crates/memvault/
-COPY crates/memvault/core/Cargo.toml ./crates/memvault/core/
-COPY crates/memvault/derive/Cargo.toml ./crates/memvault/derive/
-COPY crates/memaead/Cargo.toml ./crates/memaead/
+COPY crates/redoubt-vault/Cargo.toml ./crates/redoubt-vault/
+COPY crates/redoubt-vault/core/Cargo.toml ./crates/redoubt-vault/core/
+COPY crates/redoubt-vault/derive/Cargo.toml ./crates/redoubt-vault/derive/
+COPY crates/redoubt-aead/Cargo.toml ./crates/redoubt-aead/
 COPY benchmarks/Cargo.toml ./benchmarks/
-COPY crates/memcodec/Cargo.toml ./crates/memcodec/
-COPY crates/memcodec/core/Cargo.toml ./crates/memcodec/core/
-COPY crates/memcodec/derive/Cargo.toml ./crates/memcodec/derive/
-COPY crates/membuffer/Cargo.toml ./crates/membuffer/
-COPY crates/mem_test_utils/Cargo.toml ./crates/mem_test_utils/
+COPY crates/redoubt-codec/Cargo.toml ./crates/redoubt-codec/
+COPY crates/redoubt-codec/core/Cargo.toml ./crates/redoubt-codec/core/
+COPY crates/redoubt-codec/derive/Cargo.toml ./crates/redoubt-codec/derive/
+COPY crates/redoubt-buffer/Cargo.toml ./crates/redoubt-buffer/
+COPY crates/redoubt-test-utils/Cargo.toml ./crates/redoubt-test-utils/
 COPY examples/wasm-demo/rust/Cargo.toml ./examples/wasm-demo/rust/
 
 # Create stub lib.rs files to satisfy cargo build
-RUN mkdir -p crates/redoubt_guard/src && echo "// stub" > crates/redoubt_guard/src/lib.rs && \
-    mkdir -p crates/memalloc/src && echo "// stub" > crates/memalloc/src/lib.rs && \
-    mkdir -p crates/memzer/src && echo "// stub" > crates/memzer/src/lib.rs && \
-    mkdir -p crates/memzer/core/src && echo "// stub" > crates/memzer/core/src/lib.rs && \
-    mkdir -p crates/memzer/derive/src && echo "// stub" > crates/memzer/derive/src/lib.rs && \
-    mkdir -p crates/memsecret/src && echo "// stub" > crates/memsecret/src/lib.rs && \
-    mkdir -p crates/memrand/src && echo "// stub" > crates/memrand/src/lib.rs && \
+RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/src/lib.rs && \
+    mkdir -p crates/redoubt-alloc/src && echo "// stub" > crates/redoubt-alloc/src/lib.rs && \
+    mkdir -p crates/redoubt-zero/src && echo "// stub" > crates/redoubt-zero/src/lib.rs && \
+    mkdir -p crates/redoubt-zero/core/src && echo "// stub" > crates/redoubt-zero/core/src/lib.rs && \
+    mkdir -p crates/redoubt-zero/derive/src && echo "// stub" > crates/redoubt-zero/derive/src/lib.rs && \
+    mkdir -p crates/redoubt-secret/src && echo "// stub" > crates/redoubt-secret/src/lib.rs && \
+    mkdir -p crates/redoubt-rand/src && echo "// stub" > crates/redoubt-rand/src/lib.rs && \
     mkdir -p crates/redoubt-util/src && echo "// stub" > crates/redoubt-util/src/lib.rs && \
-    mkdir -p crates/memvault/src && echo "// stub" > crates/memvault/src/lib.rs && \
-    mkdir -p crates/memvault/core/src && echo "// stub" > crates/memvault/core/src/lib.rs && \
-    mkdir -p crates/memvault/derive/src && echo "// stub" > crates/memvault/derive/src/lib.rs && \
-    mkdir -p crates/memaead/src && echo "// stub" > crates/memaead/src/lib.rs && \
+    mkdir -p crates/redoubt-vault/src && echo "// stub" > crates/redoubt-vault/src/lib.rs && \
+    mkdir -p crates/redoubt-vault/core/src && echo "// stub" > crates/redoubt-vault/core/src/lib.rs && \
+    mkdir -p crates/redoubt-vault/derive/src && echo "// stub" > crates/redoubt-vault/derive/src/lib.rs && \
+    mkdir -p crates/redoubt-aead/src && echo "// stub" > crates/redoubt-aead/src/lib.rs && \
     mkdir -p benchmarks/benches && echo "fn main() {}" > benchmarks/benches/aegis128l.rs && \
     echo "fn main() {}" > benchmarks/benches/xchacha20poly1305.rs && \
-    echo "fn main() {}" > benchmarks/benches/memcodec.rs && \
+    echo "fn main() {}" > benchmarks/benches/codec.rs && \
     echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
     echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
-    mkdir -p crates/memcodec/src && echo "// stub" > crates/memcodec/src/lib.rs && \
-    mkdir -p crates/memcodec/core/src && echo "// stub" > crates/memcodec/core/src/lib.rs && \
-    mkdir -p crates/memcodec/derive/src && echo "// stub" > crates/memcodec/derive/src/lib.rs && \
-    mkdir -p crates/membuffer/src && echo "// stub" > crates/membuffer/src/lib.rs && \
-    mkdir -p crates/mem_test_utils/src && echo "// stub" > crates/mem_test_utils/src/lib.rs && \
+    mkdir -p crates/redoubt-codec/src && echo "// stub" > crates/redoubt-codec/src/lib.rs && \
+    mkdir -p crates/redoubt-codec/core/src && echo "// stub" > crates/redoubt-codec/core/src/lib.rs && \
+    mkdir -p crates/redoubt-codec/derive/src && echo "// stub" > crates/redoubt-codec/derive/src/lib.rs && \
+    mkdir -p crates/redoubt-buffer/src && echo "// stub" > crates/redoubt-buffer/src/lib.rs && \
+    mkdir -p crates/redoubt-test-utils/src && echo "// stub" > crates/redoubt-test-utils/src/lib.rs && \
     mkdir -p examples/wasm-demo/rust/src && echo "// stub" > examples/wasm-demo/rust/src/lib.rs
 
 # Build workspace and dependencies with cache mount

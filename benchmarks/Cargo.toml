@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-memaead = { path = "../crates/memaead" }
-memcodec = { path = "../crates/memcodec" }
-memvault = { path = "../crates/memvault" }
+redoubt-aead = { path = "../crates/redoubt-aead" }
+redoubt-codec = { path = "../crates/redoubt-codec" }
+redoubt-vault = { path = "../crates/redoubt-vault" }
 redoubt-buffer = { path = "../crates/redoubt-buffer" }
 redoubt-zero = { path = "../crates/redoubt-zero" }
 redoubt-util = { path = "../crates/redoubt-util" }
@@ -23,7 +23,7 @@ name = "xchacha20poly1305"
 harness = false
 
 [[bench]]
-name = "memcodec"
+name = "codec"
 harness = false
 
 [[bench]]

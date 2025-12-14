@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# Coverage runner (per-crate) for Memora workspace with selective instrumentation.
+# Coverage runner (per-crate) for Redoubt workspace with selective instrumentation.
 #
 # What this script does:
 #   - Runs coverage for specific workspace crates using cargo-llvm-cov (nightly).
@@ -14,9 +14,9 @@
 #   - nightly toolchain + cargo-llvm-cov installed
 #
 # Usage examples:
-#   docker run memora-coverage                          # All crates
-#   docker run memora-coverage memcodec-core            # Single crate
-#   docker run memora-coverage memcrypt "test_utils"    # Crate with features
+#   docker run redoubt-coverage                                    # All crates
+#   docker run redoubt-coverage redoubt-codec-core                 # Single crate
+#   docker run redoubt-coverage redoubt-codec-core "test_utils"    # Crate with features
 # -----------------------------------------------------------------------------
 
 set -e
@@ -25,7 +25,7 @@ REPO_ROOT="$(pwd)"
 OUT="/.coverage"
 
 mk() {
-  crate_name="$1"       # e.g., memcrypt
+  crate_name="$1"       # e.g., redoubt-codec-core
   features_csv="${2:-}" # e.g., "test_utils" (optional; may be empty)
 
   cd "$REPO_ROOT"
@@ -83,31 +83,32 @@ if [ $# -ge 1 ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Default behavior: run coverage for all Memora crates
+# Default behavior: run coverage for all Redoubt crates
 # ---------------------------------------------------------------------------
 
 cargo +nightly llvm-cov clean
 mkdir -p "$OUT"
 
 # --- Per-crate runs ---
-mk redoubt_guard
-mk memalloc
-mk memzer
-mk memzer_core
-mk memzer_derive
-mk memsecret
-mk memrand
+mk redoubt-guard
+mk redoubt-alloc
+mk redoubt-zero
+mk redoubt-zero-core
+mk redoubt-test-utils
+mk redoubt-zero-derive
+mk redoubt-secret
+mk redoubt-rand
 mk redoubt-util
-mk memvault
-mk memvault_core
-mk memvault_derive
-mk memaead
-mk membuffer
-mk memcodec
-mk memcodec zeroize
-mk memcodec_core
-mk memcodec_core zeroize
-mk memcodec_derive
+mk redoubt-vault
+mk redoubt-vault-core
+mk redoubt-vault-derive
+mk redoubt-aead
+mk redoubt-buffer
+mk redoubt-codec
+mk redoubt-codec zeroize
+mk redoubt-codec-core
+mk redoubt-codec-core zeroize
+mk redoubt-codec-derive
 
 # --- Aggregated HTML report (consumes the profraw generated above) ---
 CARGO_TARGET_DIR="target" \

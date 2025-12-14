@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-# Docker Infrastructure for Memora
+# Docker Infrastructure for Redoubt
 
-This directory contains optimized Docker configurations for testing and coverage analysis of the Memora framework.
+This directory contains optimized Docker configurations for testing and coverage analysis of the Redoubt framework.
 
 ## Key Features
 
@@ -22,7 +22,7 @@ The coverage system uses `rustc-nocov-deps.sh` as a `RUSTC_WRAPPER` to ensure:
 
 - **Only the target crate is instrumented** for coverage
 - **Workspace dependencies are compiled without coverage flags**
-- **Prevents monomorphized code pollution**: Coverage for `memcode-core` won't include lines from `memzer-core` that are instantiated in `memcode-core` tests
+- **Prevents monomorphized code pollution**: Coverage for `redoubt-codec-core` won't include lines from `redoubt-zero-core` that are instantiated in `redoubt-codec-core` tests
 
 **How it works**:
 - `COVER_CRATES` environment variable specifies which crates to instrument
@@ -52,17 +52,17 @@ The coverage system uses `rustc-nocov-deps.sh` as a `RUSTC_WRAPPER` to ensure:
 ./scripts/test.sh
 
 # Specific crate
-./scripts/test.sh -p memcode-core
+./scripts/test.sh -p redoubt-codec-core
 
 # Specific test in a crate
-./scripts/test.sh -p memcode-core test_roundtrip
+./scripts/test.sh -p redoubt-codec-core test_roundtrip
 
 # With flags
 ./scripts/test.sh --lib
-./scripts/test.sh -p memcrypt --features test_utils
+./scripts/test.sh -p redoubt-aead --features test_utils
 
 # Specific test with features
-./scripts/test.sh -p memcrypt --features test_utils test_encrypt_decrypt
+./scripts/test.sh -p redoubt-aead --features test_utils test_encrypt_decrypt
 ```
 
 ### Running Coverage
@@ -72,10 +72,10 @@ The coverage system uses `rustc-nocov-deps.sh` as a `RUSTC_WRAPPER` to ensure:
 ./scripts/coverage.sh
 
 # Single crate only
-./scripts/coverage.sh memcode-core
+./scripts/coverage.sh redoubt-codec-core
 
 # Crate with features
-./scripts/coverage.sh memcrypt test_utils
+./scripts/coverage.sh redoubt-aead test_utils
 ```
 
 **Output**: `coverage/index.html` (HTML report)
@@ -86,13 +86,13 @@ The coverage system uses `rustc-nocov-deps.sh` as a `RUSTC_WRAPPER` to ensure:
 
 Without selective instrumentation:
 ```
-memcode-core uses memzer-core::Secret<T>
+redoubt-codec-core uses redoubt-zero-core::Secret<T>
 ↓
-memzer-core code is monomorphized in memcode-core binary
+redoubt-zero-core code is monomorphized in redoubt-codec-core binary
 ↓
-Coverage report shows memzer-core lines as "covered" by memcode-core tests
+Coverage report shows redoubt-zero-core lines as "covered" by redoubt-codec-core tests
 ↓
-memzer-core appears to have higher coverage than it actually does
+redoubt-zero-core appears to have higher coverage than it actually does
 ```
 
 ### Solution: Per-Crate Instrumentation
@@ -101,15 +101,15 @@ memzer-core appears to have higher coverage than it actually does
 # Step 1: Clean previous runs
 cargo +nightly llvm-cov clean
 
-# Step 2: Run coverage for memcode-core only
-COVER_CRATES="memcode-core" \
+# Step 2: Run coverage for redoubt-codec-core only
+COVER_CRATES="redoubt-codec-core" \
 RUSTC_WRAPPER="/usr/local/bin/rustc-nocov-deps" \
-cargo +nightly llvm-cov -p memcode-core --branch --no-report
+cargo +nightly llvm-cov -p redoubt-codec-core --branch --no-report
 
-# Step 3: Run coverage for memzer-core only
-COVER_CRATES="memzer-core" \
+# Step 3: Run coverage for redoubt-zero-core only
+COVER_CRATES="redoubt-zero-core" \
 RUSTC_WRAPPER="/usr/local/bin/rustc-nocov-deps" \
-cargo +nightly llvm-cov -p memzer-core --branch --no-report
+cargo +nightly llvm-cov -p redoubt-zero-core --branch --no-report
 
 # Step 4: Generate aggregated report
 cargo +nightly llvm-cov report --branch --html --output-dir /.coverage
@@ -164,7 +164,7 @@ Layer 7b: rustc-nocov-deps wrapper
 **Reasons**:
 - Smaller image size (~1GB vs ~2GB)
 - musl libc (static linking, simpler deployment)
-- Aligns with Memora's minimalist security model
+- Aligns with Redoubt's minimalist security model
 
 **Trade-off**: Some C libraries may need manual compilation (e.g., libseccomp if needed later).
 
@@ -182,8 +182,8 @@ When adding a new crate to workspace:
 
 3. Rebuild images to cache new dependencies:
    ```bash
-   docker build -f docker/Dockerfile.test -t memora-test .
-   docker build -f docker/Dockerfile.coverage -t memora-coverage .
+   docker build -f docker/Dockerfile.test -t redoubt-test .
+   docker build -f docker/Dockerfile.coverage -t redoubt-coverage .
    ```
 
 ## Debugging
@@ -200,7 +200,7 @@ log_info() {
 }
 
 # Run coverage, then inspect:
-docker run --rm memora-coverage memcode-core
+docker run --rm redoubt-coverage redoubt-codec-core
 docker cp <container-id>:/tmp/coverage_debug.txt .
 ```
 
@@ -208,13 +208,13 @@ docker cp <container-id>:/tmp/coverage_debug.txt .
 
 ```bash
 # First build (slow)
-time docker build -f docker/Dockerfile.test -t memora-test .
+time docker build -f docker/Dockerfile.test -t redoubt-test .
 
 # Change a single file
-echo "// comment" >> crates/memcode/core/src/lib.rs
+echo "// comment" >> crates/redoubt-codec/core/src/lib.rs
 
 # Second build (fast - should skip Layer 5)
-time docker build -f docker/Dockerfile.test -t memora-test .
+time docker build -f docker/Dockerfile.test -t redoubt-test .
 ```
 
-Expected: Second build completes in <1 minute (only recompiles memcode-core).
+Expected: Second build completes in <1 minute (only recompiles redoubt-codec-core).

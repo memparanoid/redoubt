@@ -4,13 +4,13 @@
 
 use wasm_bindgen::prelude::*;
 
-use memcodec::Codec;
-use memvault::cipherbox;
-use memzer::MemZer;
+use redoubt_codec::Codec;
+use redoubt_vault::cipherbox;
+use redoubt_zero::RedoubtZero;
 
 #[cipherbox(SecretBox)]
-#[derive(Default, MemZer, Codec)]
-#[memzer(drop)]
+#[derive(Default, RedoubtZero, Codec)]
+#[fast_zeroize(drop)]
 struct Secrets {
     master_key: [u8; 32],
     encryption_key: [u8; 32],

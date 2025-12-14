@@ -1,6 +1,6 @@
 [package]
 name = "redoubt-test-utils"
-description = "Test utilities for memora crates"
+description = "Test utilities for Redoubt crates"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

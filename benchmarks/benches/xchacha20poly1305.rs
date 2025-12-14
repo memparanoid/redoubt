@@ -4,7 +4,7 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
 
-use memaead::{AeadBackend, xchacha20poly1305::XChacha20Poly1305};
+use redoubt_aead::{AeadBackend, xchacha20poly1305::XChacha20Poly1305};
 
 fn benchmark_xchacha20poly1305_encrypt(c: &mut Criterion) {
     let mut group = c.benchmark_group("xchacha20poly1305_encrypt");

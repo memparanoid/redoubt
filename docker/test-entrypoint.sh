@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# Test runner for Memora workspace
+# Test runner for Redoubt workspace
 #
 # Usage:
-#   docker run memora-test                           # Run all tests
-#   docker run memora-test -p memcode-core           # Run specific crate tests
-#   docker run memora-test -p memcode-core test_name # Run specific test
-#   docker run memora-test --lib                     # Run only lib tests
+#   docker run redoubt-test                              # Run all tests
+#   docker run redoubt-test -p redoubt-codec-core        # Run specific crate tests
+#   docker run redoubt-test -p redoubt-codec-core test_name # Run specific test
+#   docker run redoubt-test --lib                        # Run only lib tests
 # -----------------------------------------------------------------------------
 
 set -e

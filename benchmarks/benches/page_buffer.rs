@@ -6,7 +6,7 @@
 
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
-use membuffer::{Buffer, PageBuffer, ProtectionStrategy};
+use redoubt_buffer::{Buffer, PageBuffer, ProtectionStrategy};
 use redoubt_util::fill_bytes_with_pattern;
 
 fn bench_open_mut_fill_32(c: &mut Criterion) {

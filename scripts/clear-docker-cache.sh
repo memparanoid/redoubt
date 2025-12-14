@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Clear Docker cache for Memora project
+# Clear Docker cache for Redoubt project
 #
 # Usage:
 #   ./scripts/clear-docker-cache.sh           # Interactive mode
@@ -10,13 +10,13 @@
 set -euo pipefail
 
 # Volume names
-TEST_CARGO_CACHE="memora-cargo-cache"
-TEST_TARGET_CACHE="memora-target-cache"
-COVERAGE_TARGET_CACHE="memora-coverage-target-cache"
+TEST_CARGO_CACHE="redoubt-cargo-cache"
+TEST_TARGET_CACHE="redoubt-target-cache"
+COVERAGE_TARGET_CACHE="redoubt-coverage-target-cache"
 
 # Image names
-TEST_IMAGE="memora-test"
-COVERAGE_IMAGE="memora-coverage"
+TEST_IMAGE="redoubt-test"
+COVERAGE_IMAGE="redoubt-coverage"
 
 clear_test_cache() {
   echo "Removing test caches..."

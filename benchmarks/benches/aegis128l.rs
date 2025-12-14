@@ -4,7 +4,7 @@
 
 use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
 
-use memaead::{AeadBackend, Aegis128L};
+use redoubt_aead::{AeadBackend, Aegis128L};
 
 fn benchmark_aegis128l_encrypt(c: &mut Criterion) {
     let mut group = c.benchmark_group("aegis128l_encrypt");

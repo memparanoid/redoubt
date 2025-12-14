@@ -61,7 +61,7 @@ cargo make clean
 - `open_mut()` for safe mutable access to encrypted data
 - `open()` for read-only access with verification
 - Encryption/decryption roundtrip with assertions
-- Automatic zeroization via `MemZer` derive
+- Automatic zeroization via `RedoubtZero` derive
 - Full `no_std` compatibility in WASM environment
 
 ## Technical Notes
