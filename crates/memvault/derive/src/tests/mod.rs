@@ -4,4 +4,4 @@
 
 mod codec_default;
 mod expand;
-mod is_drop_sentinel;
+mod is_zeroize_on_drop_sentinel;

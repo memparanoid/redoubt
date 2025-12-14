@@ -104,7 +104,7 @@ fn snapshot_named_struct_with_codec_default_field() {
 }
 
 #[test]
-fn snapshot_named_struct_with_drop_sentinel() {
+fn snapshot_named_struct_with_zeroize_on_drop_sentinel() {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero, Codec)]
         #[fast_zeroize(drop)]

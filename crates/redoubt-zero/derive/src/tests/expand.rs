@@ -214,7 +214,7 @@ fn snapshot_tuple_struct_ok() {
 }
 
 #[test]
-fn snapshot_tuple_struct_with_non_drop_sentinel_types() {
+fn snapshot_tuple_struct_with_non_zeroize_on_drop_sentinel_types() {
     // Test que el tipo detection funciona con tipos complejos
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]

@@ -109,7 +109,7 @@ pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStr
 /// Detects if a type is `ZeroizeOnDropSentinel` by checking the type path.
 ///
 /// Used for tuple struct support where we identify the sentinel field by type.
-pub(crate) fn is_drop_sentinel_type(ty: &Type) -> bool {
+pub(crate) fn is_zeroize_on_drop_sentinel_type(ty: &Type) -> bool {
     matches!(
         ty,
         Type::Path(type_path)
@@ -188,25 +188,25 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
 
     // 3) Identify the __sentinel field
     let sentinel_ident = format_ident!("__sentinel");
-    let mut drop_sentinel_index: Option<usize> = None;
-    let mut drop_sentinel_access: Option<TokenStream2> = None;
+    let mut sentinel_inddex: Option<usize> = None;
+    let mut sentinel_access: Option<TokenStream2> = None;
 
     for (i, f) in &all_fields {
         let is_sentinel = if let Some(ident) = &f.ident {
             // Named field: check if name is __sentinel
             if *ident == sentinel_ident {
-                drop_sentinel_index = Some(*i);
-                drop_sentinel_access = Some(quote! { self.#sentinel_ident });
+                sentinel_inddex = Some(*i);
+                sentinel_access = Some(quote! { self.#sentinel_ident });
                 true
             } else {
                 false
             }
         } else {
             // Unnamed field: check if type is ZeroizeOnDropSentinel
-            if is_drop_sentinel_type(&f.ty) {
+            if is_zeroize_on_drop_sentinel_type(&f.ty) {
                 let idx = Index::from(*i);
-                drop_sentinel_index = Some(*i);
-                drop_sentinel_access = Some(quote! { self.#idx });
+                sentinel_inddex = Some(*i);
+                sentinel_access = Some(quote! { self.#idx });
                 true
             } else {
                 false
@@ -218,7 +218,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         }
     }
 
-    if drop_sentinel_index.is_none() {
+    if sentinel_inddex.is_none() {
         return Err(syn::Error::new_spanned(
             struct_name,
             "RedoubtZero: missing field `__sentinel` (named structs) or field of type `ZeroizeOnDropSentinel` (tuple structs)",
@@ -226,8 +226,8 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         .to_compile_error());
     }
 
-    let sentinel_access = drop_sentinel_access.unwrap();
-    let sentinel_idx = drop_sentinel_index.unwrap();
+    let sentinel_access = sentinel_access.unwrap();
+    let sentinel_idx = sentinel_inddex.unwrap();
 
     // 4) Validate and filter fields
     // - Check for immutable references without #[fast_zeroize(skip)]
@@ -258,12 +258,12 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     }
 
     // 5) Generate two sets of field references:
-    //    - immut_refs_without_drop_sentinel: for ZeroizationProbe (excludes sentinel and skipped)
-    //    - mut_refs_with_drop_sentinel: for FastZeroizable (includes sentinel, excludes skipped)
+    //    - immut_refs_without_sentinel: for ZeroizationProbe (excludes sentinel and skipped)
+    //    - mut_refs_with_sentinel: for FastZeroizable (includes sentinel, excludes skipped)
 
     // For ZeroizationProbe: filter out sentinel and skipped fields
     // Special handling: if field is already &mut T, pass self.field directly (not &self.field)
-    let (immut_refs_without_drop_sentinel, _): (Vec<TokenStream2>, Vec<TokenStream2>) = all_fields
+    let (immut_refs_without_sentinel, _): (Vec<TokenStream2>, Vec<TokenStream2>) = all_fields
         .iter()
         .filter(|(i, f)| *i != sentinel_idx && !has_fast_zeroize_skip(&f.attrs))
         .map(|(i, f)| {
@@ -290,7 +290,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
 
     // For FastZeroizable: include ALL fields except skipped (including sentinel)
     // Special handling: if field is already &mut T, pass self.field directly (not &mut self.field)
-    let (_, mut_refs_with_drop_sentinel): (Vec<TokenStream2>, Vec<TokenStream2>) = all_fields
+    let (_, mut_refs_with_sentinel): (Vec<TokenStream2>, Vec<TokenStream2>) = all_fields
         .iter()
         .filter(|(_, f)| !has_fast_zeroize_skip(&f.attrs))
         .map(|(i, f)| {
@@ -316,11 +316,11 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         .unzip();
 
     // 5) Calculate lengths
-    let len_without_sentinel = immut_refs_without_drop_sentinel.len();
+    let len_without_sentinel = immut_refs_without_sentinel.len();
     let len_without_sentinel_lit =
         syn::LitInt::new(&len_without_sentinel.to_string(), Span::call_site());
 
-    let len_with_sentinel = mut_refs_with_drop_sentinel.len();
+    let len_with_sentinel = mut_refs_with_sentinel.len();
     let len_with_sentinel_lit = syn::LitInt::new(&len_with_sentinel.to_string(), Span::call_site());
 
     // 6) Check if we should generate Drop implementation
@@ -347,7 +347,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         impl #impl_generics #root::FastZeroizable for #struct_name #ty_generics #where_clause {
             fn fast_zeroize(&mut self) {
                 let fields: [&mut dyn #root::FastZeroizable; #len_with_sentinel_lit] = [
-                    #( #root::collections::to_fast_zeroizable_dyn_mut(#mut_refs_with_drop_sentinel) ),*
+                    #( #root::collections::to_fast_zeroizable_dyn_mut(#mut_refs_with_sentinel) ),*
                 ];
                 #root::collections::zeroize_collection(&mut fields.into_iter())
             }
@@ -356,7 +356,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         impl #impl_generics #root::ZeroizationProbe for #struct_name #ty_generics #where_clause {
             fn is_zeroized(&self) -> bool {
                 let fields: [&dyn #root::ZeroizationProbe; #len_without_sentinel_lit] = [
-                    #( #root::collections::to_zeroization_probe_dyn_ref(#immut_refs_without_drop_sentinel) ),*
+                    #( #root::collections::to_zeroization_probe_dyn_ref(#immut_refs_without_sentinel) ),*
                 ];
                 #root::collections::collection_zeroed(&mut fields.into_iter())
             }
