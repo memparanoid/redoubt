@@ -1,0 +1,154 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+---
+source: crates/redoubt-vault/derive/src/tests/expand.rs
+expression: pretty(token_stream)
+---
+#[derive(RedoubtZero, Codec)]
+struct Delta {
+    pub alpha: Vec<u8>,
+    pub beta: [u8; 32],
+    #[codec(default)]
+    pub gamma: [u8; 16],
+    #[codec(default)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
+}
+use redoubt_vault_core::CipherBoxDyns as _;
+impl redoubt_vault_core::CipherBoxDyns<2> for Delta {
+    fn to_encryptable_dyn_fields(
+        &mut self,
+    ) -> [&mut dyn redoubt_vault_core::Encryptable; 2] {
+        [&mut self.alpha, &mut self.beta]
+    }
+    fn to_decryptable_dyn_fields(
+        &mut self,
+    ) -> [&mut dyn redoubt_vault_core::Decryptable; 2] {
+        [&mut self.alpha, &mut self.beta]
+    }
+}
+impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 2> for Delta {
+    fn encrypt_into(
+        &mut self,
+        aead: &mut A,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 2],
+        tags: &mut [Vec<u8>; 2],
+    ) -> Result<[Vec<u8>; 2], redoubt_vault_core::CipherBoxError> {
+        redoubt_vault_core::encrypt_into(
+            self.to_encryptable_dyn_fields(),
+            aead,
+            aead_key,
+            nonces,
+            tags,
+        )
+    }
+}
+impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 2> for Delta {
+    fn decrypt_from(
+        &mut self,
+        aead: &mut A,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 2],
+        tags: &mut [Vec<u8>; 2],
+        ciphertexts: &mut [Vec<u8>; 2],
+    ) -> Result<(), redoubt_vault_core::CipherBoxError> {
+        redoubt_vault_core::decrypt_from(
+            &mut self.to_decryptable_dyn_fields(),
+            aead,
+            aead_key,
+            nonces,
+            tags,
+            ciphertexts,
+        )
+    }
+}
+pub struct DeltaBox {
+    inner: redoubt_vault_core::CipherBox<Delta, redoubt_aead::Aead, 2>,
+}
+impl DeltaBox {
+    #[inline(always)]
+    pub fn new() -> Self {
+        Self {
+            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+        }
+    }
+    #[inline(always)]
+    pub fn open<F>(&mut self, f: F) -> Result<(), redoubt_vault_core::CipherBoxError>
+    where
+        F: Fn(&Delta),
+    {
+        self.inner.open(f)
+    }
+    #[inline(always)]
+    pub fn open_mut<F>(&mut self, f: F) -> Result<(), redoubt_vault_core::CipherBoxError>
+    where
+        F: Fn(&mut Delta),
+    {
+        self.inner.open_mut(f)
+    }
+    #[inline(always)]
+    pub fn leak_alpha(
+        &mut self,
+    ) -> Result<
+        redoubt_zero::ZeroizingGuard<Vec<u8>>,
+        redoubt_vault_core::CipherBoxError,
+    > {
+        self.inner.leak_field::<Vec<u8>, 0>()
+    }
+    #[inline(always)]
+    pub fn leak_beta(
+        &mut self,
+    ) -> Result<
+        redoubt_zero::ZeroizingGuard<[u8; 32]>,
+        redoubt_vault_core::CipherBoxError,
+    > {
+        self.inner.leak_field::<[u8; 32], 1>()
+    }
+    #[inline(always)]
+    pub fn open_alpha<F>(
+        &mut self,
+        f: F,
+    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    where
+        F: Fn(&Vec<u8>),
+    {
+        self.inner.open_field::<Vec<u8>, 0, F>(f)
+    }
+    #[inline(always)]
+    pub fn open_beta<F>(
+        &mut self,
+        f: F,
+    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    where
+        F: Fn(&[u8; 32]),
+    {
+        self.inner.open_field::<[u8; 32], 1, F>(f)
+    }
+    #[inline(always)]
+    pub fn open_alpha_mut<F>(
+        &mut self,
+        f: F,
+    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    where
+        F: Fn(&mut Vec<u8>),
+    {
+        self.inner.open_field_mut::<Vec<u8>, 0, F>(f)
+    }
+    #[inline(always)]
+    pub fn open_beta_mut<F>(
+        &mut self,
+        f: F,
+    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    where
+        F: Fn(&mut [u8; 32]),
+    {
+        self.inner.open_field_mut::<[u8; 32], 1, F>(f)
+    }
+}
+impl Default for DeltaBox {
+    fn default() -> Self {
+        Self::new()
+    }
+}

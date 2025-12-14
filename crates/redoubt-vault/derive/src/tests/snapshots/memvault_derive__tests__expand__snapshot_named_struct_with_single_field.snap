@@ -1,0 +1,111 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+---
+source: crates/redoubt-vault/derive/src/tests/expand.rs
+expression: pretty(token_stream)
+---
+struct Gamma {
+    pub value: [u8; 32],
+    #[codec(default)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
+}
+use redoubt_vault_core::CipherBoxDyns as _;
+impl redoubt_vault_core::CipherBoxDyns<1> for Gamma {
+    fn to_encryptable_dyn_fields(&mut self) -> [&mut dyn redoubt_vault_core::Encryptable; 1] {
+        [&mut self.value]
+    }
+    fn to_decryptable_dyn_fields(&mut self) -> [&mut dyn redoubt_vault_core::Decryptable; 1] {
+        [&mut self.value]
+    }
+}
+impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 1> for Gamma {
+    fn encrypt_into(
+        &mut self,
+        aead: &mut A,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 1],
+        tags: &mut [Vec<u8>; 1],
+    ) -> Result<[Vec<u8>; 1], redoubt_vault_core::CipherBoxError> {
+        redoubt_vault_core::encrypt_into(
+            self.to_encryptable_dyn_fields(),
+            aead,
+            aead_key,
+            nonces,
+            tags,
+        )
+    }
+}
+impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 1> for Gamma {
+    fn decrypt_from(
+        &mut self,
+        aead: &mut A,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 1],
+        tags: &mut [Vec<u8>; 1],
+        ciphertexts: &mut [Vec<u8>; 1],
+    ) -> Result<(), redoubt_vault_core::CipherBoxError> {
+        redoubt_vault_core::decrypt_from(
+            &mut self.to_decryptable_dyn_fields(),
+            aead,
+            aead_key,
+            nonces,
+            tags,
+            ciphertexts,
+        )
+    }
+}
+pub struct GammaBox {
+    inner: redoubt_vault_core::CipherBox<Gamma, redoubt_aead::Aead, 1>,
+}
+impl GammaBox {
+    #[inline(always)]
+    pub fn new() -> Self {
+        Self {
+            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+        }
+    }
+    #[inline(always)]
+    pub fn open<F>(&mut self, f: F) -> Result<(), redoubt_vault_core::CipherBoxError>
+    where
+        F: Fn(&Gamma),
+    {
+        self.inner.open(f)
+    }
+    #[inline(always)]
+    pub fn open_mut<F>(&mut self, f: F) -> Result<(), redoubt_vault_core::CipherBoxError>
+    where
+        F: Fn(&mut Gamma),
+    {
+        self.inner.open_mut(f)
+    }
+    #[inline(always)]
+    pub fn leak_value(
+        &mut self,
+    ) -> Result<redoubt_zero::ZeroizingGuard<[u8; 32]>, redoubt_vault_core::CipherBoxError> {
+        self.inner.leak_field::<[u8; 32], 0>()
+    }
+    #[inline(always)]
+    pub fn open_value<F>(&mut self, f: F) -> Result<(), redoubt_vault_core::CipherBoxError>
+    where
+        F: Fn(&[u8; 32]),
+    {
+        self.inner.open_field::<[u8; 32], 0, F>(f)
+    }
+    #[inline(always)]
+    pub fn open_value_mut<F>(
+        &mut self,
+        f: F,
+    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    where
+        F: Fn(&mut [u8; 32]),
+    {
+        self.inner.open_field_mut::<[u8; 32], 0, F>(f)
+    }
+}
+impl Default for GammaBox {
+    fn default() -> Self {
+        Self::new()
+    }
+}

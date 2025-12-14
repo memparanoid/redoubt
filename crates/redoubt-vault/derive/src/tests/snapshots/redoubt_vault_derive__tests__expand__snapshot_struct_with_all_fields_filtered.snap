@@ -1,0 +1,95 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+---
+source: crates/redoubt-vault/derive/src/tests/expand.rs
+expression: pretty(token_stream)
+---
+struct OnlyDefaults {
+    #[codec(default)]
+    pub field1: u64,
+    #[codec(default)]
+    pub field2: u32,
+    #[codec(default)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
+}
+use redoubt_vault_core::CipherBoxDyns as _;
+impl redoubt_vault_core::CipherBoxDyns<0> for OnlyDefaults {
+    fn to_encryptable_dyn_fields(
+        &mut self,
+    ) -> [&mut dyn redoubt_vault_core::Encryptable; 0] {
+        []
+    }
+    fn to_decryptable_dyn_fields(
+        &mut self,
+    ) -> [&mut dyn redoubt_vault_core::Decryptable; 0] {
+        []
+    }
+}
+impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 0> for OnlyDefaults {
+    fn encrypt_into(
+        &mut self,
+        aead: &mut A,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 0],
+        tags: &mut [Vec<u8>; 0],
+    ) -> Result<[Vec<u8>; 0], redoubt_vault_core::CipherBoxError> {
+        redoubt_vault_core::encrypt_into(
+            self.to_encryptable_dyn_fields(),
+            aead,
+            aead_key,
+            nonces,
+            tags,
+        )
+    }
+}
+impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 0> for OnlyDefaults {
+    fn decrypt_from(
+        &mut self,
+        aead: &mut A,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 0],
+        tags: &mut [Vec<u8>; 0],
+        ciphertexts: &mut [Vec<u8>; 0],
+    ) -> Result<(), redoubt_vault_core::CipherBoxError> {
+        redoubt_vault_core::decrypt_from(
+            &mut self.to_decryptable_dyn_fields(),
+            aead,
+            aead_key,
+            nonces,
+            tags,
+            ciphertexts,
+        )
+    }
+}
+pub struct OnlyDefaultsBox {
+    inner: redoubt_vault_core::CipherBox<OnlyDefaults, redoubt_aead::Aead, 0>,
+}
+impl OnlyDefaultsBox {
+    #[inline(always)]
+    pub fn new() -> Self {
+        Self {
+            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+        }
+    }
+    #[inline(always)]
+    pub fn open<F>(&mut self, f: F) -> Result<(), redoubt_vault_core::CipherBoxError>
+    where
+        F: Fn(&OnlyDefaults),
+    {
+        self.inner.open(f)
+    }
+    #[inline(always)]
+    pub fn open_mut<F>(&mut self, f: F) -> Result<(), redoubt_vault_core::CipherBoxError>
+    where
+        F: Fn(&mut OnlyDefaults),
+    {
+        self.inner.open_mut(f)
+    }
+}
+impl Default for OnlyDefaultsBox {
+    fn default() -> Self {
+        Self::new()
+    }
+}

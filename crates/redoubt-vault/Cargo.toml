@@ -1,0 +1,17 @@
+[package]
+name = "redoubt-vault"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+default = []
+no_std = ["redoubt-vault-core/no_std"]
+
+[dependencies]
+redoubt-vault-core = { path = "core" }
+redoubt-vault-derive = { path = "derive" }
+
+[dev-dependencies]

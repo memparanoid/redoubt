@@ -1,0 +1,34 @@
+[package]
+name = "redoubt-vault-core"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+default = []
+no_std = []
+
+[dependencies]
+redoubt-codec = { workspace = true, features = ["zeroize"]}
+redoubt-alloc.workspace = true
+redoubt-secret.workspace = true
+redoubt-buffer.workspace = true
+redoubt-guard.workspace = true
+redoubt-rand.workspace = true
+redoubt-zero.workspace = true
+redoubt-aead.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+redoubt-aead = { workspace = true, features = ["test_utils"] }
+redoubt-codec = { workspace = true, features = ["test_utils"] }
+redoubt-test-utils.workspace = true
+redoubt-util.workspace = true
+
+[target.'cfg(unix)'.dev-dependencies]
+libc.workspace = true
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+libseccomp.workspace = true
