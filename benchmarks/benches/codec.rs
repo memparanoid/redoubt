@@ -6,7 +6,7 @@ use criterion::{
     BatchSize, BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main,
 };
 
-use redoubt_codec::{BytesRequired, Codec, CodecBuffer, Decode, Encode};
+use redoubt_codec::{BytesRequired, Decode, Encode, RedoubtCodec, RedoubtCodecBuffer};
 
 // Fast mode: FAST_BENCH=1 cargo bench -p membench --bench codec
 fn is_fast_mode() -> bool {
@@ -27,7 +27,7 @@ fn configure_group(group: &mut criterion::BenchmarkGroup<criterion::measurement:
 
 // === Single struct for all benchmarks ===
 
-#[derive(Clone, Default, Codec)]
+#[derive(Clone, Default, RedoubtCodec)]
 struct MixedData {
     bytes_1k: Vec<u8>,
     bytes_2k: Vec<u8>,
@@ -94,7 +94,7 @@ fn bench_encode(c: &mut Criterion) {
             |mut data| {
                 let size = BytesRequired::encode_bytes_required(&data)
                     .expect("failed to calculate bytes required");
-                let mut buf = CodecBuffer::with_capacity(size);
+                let mut buf = RedoubtCodecBuffer::with_capacity(size);
                 data.encode_into(&mut buf).expect("failed to encode data");
                 black_box(buf)
             },
@@ -118,7 +118,7 @@ fn bench_decode(c: &mut Criterion) {
     let mut mc_data = data.clone();
     let size =
         BytesRequired::encode_bytes_required(&mc_data).expect("failed to calculate bytes required");
-    let mut memcodec_buf = CodecBuffer::with_capacity(size);
+    let mut memcodec_buf = RedoubtCodecBuffer::with_capacity(size);
     mc_data
         .encode_into(&mut memcodec_buf)
         .expect("failed to encode data");
@@ -189,7 +189,7 @@ fn bench_roundtrip(c: &mut Criterion) {
             |mut data| {
                 let size = BytesRequired::encode_bytes_required(&data)
                     .expect("failed to calculate bytes required");
-                let mut buf = CodecBuffer::with_capacity(size);
+                let mut buf = RedoubtCodecBuffer::with_capacity(size);
 
                 data.encode_into(&mut buf).expect("failed to encode data");
 

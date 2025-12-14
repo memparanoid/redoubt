@@ -10,13 +10,13 @@
 
 use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
 
-use memcodec::Codec;
-use memvault::cipherbox;
-use redobut_zero::{RedoubtZero, ZeroizeOnDropSentinel};
+use redoubt_codec::RedoubtCodec;
+use redoubt_vault::cipherbox;
+use redoubt_zero::{RedoubtZero, ZeroizeOnDropSentinel};
 
 /// Multi-field struct with 7 Vec<u8> fields (one per size)
 #[cipherbox(DataCipherBox)]
-#[derive(Default, RedoubtZero, Codec, Clone)]
+#[derive(Default, RedoubtZero, RedoubtCodec, Clone)]
 #[fast_zeroize(drop)]
 struct Data {
     field_512kb: Vec<u8>,
