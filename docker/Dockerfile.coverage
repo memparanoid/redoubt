@@ -35,6 +35,7 @@ RUN mkdir -p crates/redoubt-codec/src
 RUN mkdir -p crates/redoubt-codec/core/src
 RUN mkdir -p crates/redoubt-codec/derive/src
 RUN mkdir -p crates/redoubt-buffer/src
+RUN mkdir -p crates/redoubt/src
 RUN mkdir -p examples/wasm-demo/rust/src
 
 # Copy workspace Cargo.toml and Cargo.lock
@@ -53,12 +54,13 @@ COPY crates/redoubt-vault/Cargo.toml ./crates/redoubt-vault/
 COPY crates/redoubt-vault/core/Cargo.toml ./crates/redoubt-vault/core/
 COPY crates/redoubt-vault/derive/Cargo.toml ./crates/redoubt-vault/derive/
 COPY crates/redoubt-aead/Cargo.toml ./crates/redoubt-aead/
-COPY benchmarks/Cargo.toml ./benchmarks/
 COPY crates/redoubt-codec/Cargo.toml ./crates/redoubt-codec/
 COPY crates/redoubt-codec/core/Cargo.toml ./crates/redoubt-codec/core/
 COPY crates/redoubt-codec/derive/Cargo.toml ./crates/redoubt-codec/derive/
 COPY crates/redoubt-buffer/Cargo.toml ./crates/redoubt-buffer/
 COPY crates/redoubt-test-utils/Cargo.toml ./crates/redoubt-test-utils/
+COPY crates/redoubt/Cargo.toml ./crates/redoubt/
+COPY benchmarks/Cargo.toml ./benchmarks/
 COPY examples/wasm-demo/rust/Cargo.toml ./examples/wasm-demo/rust/
 
 # Create stub lib.rs files to satisfy cargo build
@@ -74,17 +76,18 @@ RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/s
     mkdir -p crates/redoubt-vault/core/src && echo "// stub" > crates/redoubt-vault/core/src/lib.rs && \
     mkdir -p crates/redoubt-vault/derive/src && echo "// stub" > crates/redoubt-vault/derive/src/lib.rs && \
     mkdir -p crates/redoubt-aead/src && echo "// stub" > crates/redoubt-aead/src/lib.rs && \
-    mkdir -p benchmarks/benches && echo "fn main() {}" > benchmarks/benches/aegis128l.rs && \
-    echo "fn main() {}" > benchmarks/benches/xchacha20poly1305.rs && \
-    echo "fn main() {}" > benchmarks/benches/codec.rs && \
-    echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
-    echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
     mkdir -p crates/redoubt-codec/src && echo "// stub" > crates/redoubt-codec/src/lib.rs && \
     mkdir -p crates/redoubt-codec/core/src && echo "// stub" > crates/redoubt-codec/core/src/lib.rs && \
     mkdir -p crates/redoubt-codec/derive/src && echo "// stub" > crates/redoubt-codec/derive/src/lib.rs && \
     mkdir -p crates/redoubt-buffer/src && echo "// stub" > crates/redoubt-buffer/src/lib.rs && \
     mkdir -p crates/redoubt-test-utils/src && echo "// stub" > crates/redoubt-test-utils/src/lib.rs && \
-    mkdir -p examples/wasm-demo/rust/src && echo "// stub" > examples/wasm-demo/rust/src/lib.rs
+    mkdir -p crates/redoubt/src && echo "// stub" > crates/redoubt/src/lib.rs && \
+    mkdir -p examples/wasm-demo/rust/src && echo "// stub" > examples/wasm-demo/rust/src/lib.rs && \
+    mkdir -p benchmarks/benches && echo "fn main() {}" > benchmarks/benches/aegis128l.rs && \
+    echo "fn main() {}" > benchmarks/benches/xchacha20poly1305.rs && \
+    echo "fn main() {}" > benchmarks/benches/codec.rs && \
+    echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
+    echo "fn main() {}" > benchmarks/benches/page_buffer.rs
 
 # Build workspace and dependencies with cache mount
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
