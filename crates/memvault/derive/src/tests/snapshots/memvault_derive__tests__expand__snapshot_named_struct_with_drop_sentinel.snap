@@ -7,7 +7,7 @@ source: crates/memvault/derive/src/tests/expand.rs
 expression: pretty(token_stream)
 ---
 #[derive(RedoubtZero, Codec)]
-#[RedoubtZero(drop)]
+#[fast_zeroize(drop)]
 struct Epsilon {
     pub master_seed: [u8; 32],
     pub encryption_key: [u8; 32],
