@@ -61,6 +61,80 @@ def parse_coverage_html():
         }
     }
 
+def coverage_color(percentage, exponent=24):
+    """
+    Calculate badge color using strict HSL curve.
+    HSL: hue 60 = yellow, hue 120 = green
+    With high exponent, green only appears at very high coverage.
+
+    Examples with exponent=24:
+    - 90%   → hue 66  (yellow)
+    - 99%   → hue 102 (yellow)
+    - 99.5% → hue 110 (yellowish-green)
+    - 99.9% → hue 118 (almost green)
+    - 100%  → hue 120 (pure green)
+    """
+    t = pow(percentage / 100.0, exponent)
+    hue = 60 + 60 * t
+    return hsl_to_hex(hue, 100, 45)
+
+def hsl_to_hex(h, s, l):
+    """Convert HSL to hex color for shields.io badges."""
+    h, s, l = h / 360.0, s / 100.0, l / 100.0
+
+    def hue_to_rgb(p, q, t):
+        if t < 0: t += 1
+        if t > 1: t -= 1
+        if t < 1/6: return p + (q - p) * 6 * t
+        if t < 1/2: return q
+        if t < 2/3: return p + (q - p) * (2/3 - t) * 6
+        return p
+
+    if s == 0:
+        r = g = b = l
+    else:
+        q = l * (1 + s) if l < 0.5 else l + s - l * s
+        p = 2 * l - q
+        r = hue_to_rgb(p, q, h + 1/3)
+        g = hue_to_rgb(p, q, h)
+        b = hue_to_rgb(p, q, h - 1/3)
+
+    return f"{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+
+def update_readme_badges(coverage, audit):
+    """Update coverage, vulnerability, and license badges in README.md."""
+    readme_path = Path('README.md')
+    if not readme_path.exists():
+        return
+
+    content = readme_path.read_text()
+
+    if coverage:
+        # Use line coverage percentage (most standard metric)
+        pct = coverage['line']['percent']
+        color = coverage_color(pct, exponent=24)
+
+        # Update coverage badge
+        old_badge_pattern = r'<img src="https://img\.shields\.io/badge/coverage-[^"]*" alt="coverage">'
+        new_badge = f'<img src="https://img.shields.io/badge/coverage-{pct:.2f}%25-{color}" alt="coverage">'
+        content = re.sub(old_badge_pattern, new_badge, content)
+
+    if audit:
+        # Update vulnerabilities badge
+        vuln_count = 0 if audit['clean'] else '?'
+        vuln_color = 'brightgreen' if audit['clean'] else 'red'
+
+        old_vuln_pattern = r'<img src="https://img\.shields\.io/badge/vulnerabilities-[^"]*" alt="security">'
+        new_vuln = f'<img src="https://img.shields.io/badge/vulnerabilities-{vuln_count}-{vuln_color}" alt="security">'
+        content = re.sub(old_vuln_pattern, new_vuln, content)
+
+    # Update license badge to dual license
+    old_license_pattern = r'<a href="[^"]*"><img src="https://img\.shields\.io/badge/license-[^"]*" alt="license"></a>'
+    new_license = '<a href="#license"><img src="https://img.shields.io/badge/license-GPL--3.0--only-blue" alt="license"></a>'
+    content = re.sub(old_license_pattern, new_license, content)
+
+    readme_path.write_text(content)
+
 def parse_tokei_rust(output):
     """Parse tokei output and extract Rust stats."""
     for line in output.split('\n'):
@@ -184,6 +258,9 @@ def main():
     else:
         lines.append(f"⚠️ **Vulnerabilities detected** — run `cargo audit` for details\n")
 
+    # Update README.md badges
+    update_readme_badges(coverage, audit)
+
     # Code Stats Section
     lines.append("## 📈 Code Statistics\n")
 
@@ -281,12 +358,13 @@ def main():
 
     # Footer
     lines.append("---\n")
-    lines.append("<p align=\"center\"><sub>Generated with <code>python insights.py</code></sub></p>")
+    lines.append("<p align=\"center\"><sub>Generated with <code>python scripts/insights.py</code></sub></p>")
 
     # Write to file
     output = '\n'.join(lines)
     Path('INSIGHTS.md').write_text(output)
     print(f"✅ Generated INSIGHTS.md")
+    print(f"✅ Updated README.md badges")
     print(f"   Coverage: {coverage['line']['percent']:.2f}% lines" if coverage else "   Coverage: N/A")
     print(f"   Tests: {total_tests}")
     print(f"   Assertions: {total_assertions}")

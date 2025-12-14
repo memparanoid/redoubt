@@ -8,7 +8,7 @@
 
 <h1 align="center">Project Insights</h1>
 
-<p align="center"><em>Generated on 2025-12-14 13:46</em></p>
+<p align="center"><em>Generated on 2025-12-14 14:19</em></p>
 
 ---
 
@@ -83,4 +83,4 @@
 
 ---
 
-<p align="center"><sub>Generated with <code>python insights.py</code></sub></p>
+<p align="center"><sub>Generated with <code>python scripts/insights.py</code></sub></p>
