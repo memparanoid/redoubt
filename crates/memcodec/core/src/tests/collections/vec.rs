@@ -216,7 +216,10 @@ fn perm_test_vec_encode_into_propagates_error_at_any_position() {
         vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 3)],
         vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 4)],
         vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 5)],
-        vec![CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceEncodeError, 6)],
+        vec![CodecTestBreaker::new(
+            CodecTestBreakerBehaviour::ForceEncodeError,
+            6,
+        )],
     ];
     let bytes_required = vec
         .encode_bytes_required()
@@ -390,7 +393,7 @@ fn test_vec_prealloc_zero_init_false() {
     vec_prealloc(&mut vec, 5, false);
 
     assert_eq!(vec.len(), 5);
-    assert!(vec.iter().all(|tb| tb.usize.data == 104729)); // Default value
+    assert!(vec.is_zeroized());
 }
 
 #[test]
@@ -414,6 +417,21 @@ fn test_vec_prealloc_zeroizes_existing_elements() {
     assert_eq!(vec.len(), 2);
     // fast_zeroize() always zeroizes, regardless of zeroize feature
     assert!(vec.is_zeroized());
+}
+
+#[test]
+fn test_vec_prealloc_zeroizes_large_vec() {
+    use crate::collections::vec::vec_prealloc;
+
+    // Force multiple reallocations with many elements
+    let mut vec: Vec<CodecTestBreaker> = (0..10_000)
+        .map(|i| CodecTestBreaker::new(CodecTestBreakerBehaviour::None, i))
+        .collect();
+
+    vec_prealloc(&mut vec, 5_000, false);
+
+    assert_eq!(vec.len(), 5_000);
+    assert!(vec.is_zeroized(), "Large vec should be fully zeroized");
 }
 
 #[test]
