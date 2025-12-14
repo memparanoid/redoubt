@@ -7,14 +7,12 @@ use crate::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 use crate::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 use crate::zeroizing_mut_guard::ZeroizingMutGuard;
 
-/// CRITICAL TEST: Verifies that structs WITH #[zeroize(drop)] properly zeroize on drop.
+/// CRITICAL TEST: Verifies that structs WITH #[fast_zeroize(drop)] properly zeroize on drop.
 ///
-/// This test ensures that when a struct has #[zeroize(drop)], the ZeroizeOnDropSentinel correctly
-/// detects zeroization. This is essential for security because it confirms that sensitive
-/// data is being cleared from memory when structs are dropped, even in panic scenarios.
-///
-/// Without this verification, memory might contain sensitive data after drop, creating
-/// security vulnerabilities.
+/// The test struct below manually implements the same code that #[fast_zeroize(drop)] would generate:
+/// a Drop impl that calls fast_zeroize(). This ensures ZeroizeOnDropSentinel correctly detects
+/// zeroization, which is essential for security - confirming sensitive data is cleared from memory
+/// when structs are dropped, even in panic scenarios.
 #[test]
 fn test_assert_zeroized_on_drop_ok() {
     struct StructThatIsZeroizedOnDrop<'a> {
@@ -65,10 +63,10 @@ fn test_assert_zeroized_on_drop_ok() {
     assert!(data.is_zeroized());
 }
 
-/// CRITICAL TEST: Verifies that structs WITHOUT #[zeroize(drop)] are detected and panic.
+/// CRITICAL TEST: Verifies that structs WITHOUT #[fast_zeroize(drop)] are detected and panic.
 ///
 /// This test is ESSENTIAL for security. It ensures that ZeroizeOnDropSentinel correctly identifies
-/// when a struct is NOT being zeroized on drop (missing #[zeroize(drop)] attribute).
+/// when a struct is NOT being zeroized on drop (missing #[fast_zeroize(drop)] attribute).
 ///
 /// ZeroizeOnDropSentinel must ONLY zeroize when explicitly told to (via parent's zeroize()).
 /// If it auto-zeroized itself, it would create FALSE POSITIVES - reporting structs as

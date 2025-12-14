@@ -71,7 +71,7 @@ fn test_sentinel_zeroizes_clone() {
 /// have a Drop impl that zeroizes itself, because that would create false positives.
 ///
 /// If ZeroizeOnDropSentinel auto-zeroized on drop, every struct would appear "zeroized" even
-/// without #[zeroize(drop)], making the sentinel useless for security verification.
+/// without #[fast_zeroize(drop)], making the sentinel useless for security verification.
 ///
 /// The sentinel should ONLY zeroize when the parent struct explicitly calls zeroize().
 /// This test verifies that dropping a sentinel leaves it in the non-zeroized state.

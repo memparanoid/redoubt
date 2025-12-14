@@ -23,7 +23,7 @@ use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 ///
 /// - Wraps `&'a mut T` (borrows the value mutably)
 /// - Implements `Deref` and `DerefMut` for convenient access
-/// - Zeroizes `*inner` on drop via `#[zeroize(drop)]`
+/// - Zeroizes `*inner` on drop via `#[fast_zeroize(drop)]`
 /// - Contains [`ZeroizeOnDropSentinel`] to verify zeroization happened
 ///
 /// # Usage
