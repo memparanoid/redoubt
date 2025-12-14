@@ -6,7 +6,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use redoubt_aead::AeadApi;
-use memcodec::CodecBuffer;
+use redoubt_codec::CodecBuffer;
 use redoubt_zero::{FastZeroizable, ZeroizationProbe};
 
 use crate::error::CipherBoxError;

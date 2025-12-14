@@ -1,8 +1,0 @@
----
-source: crates/memcodec/derive/src/tests/expand.rs
-assertion_line: 19
-expression: pretty(ts_2)
----
-compile_error!(
-    "Codec: could not find memcodec or memcodec_core. Add memcodec to Cargo.toml."
-);

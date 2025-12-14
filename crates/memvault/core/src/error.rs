@@ -8,7 +8,7 @@ use thiserror::Error;
 
 use redoubt_aead::AeadError;
 use redoubt_buffer::BufferError;
-use memcodec::{DecodeError, EncodeError, OverflowError};
+use redoubt_codec::{DecodeError, EncodeError, OverflowError};
 use redoubt_rand::EntropyError;
 
 #[derive(Debug, Error)]

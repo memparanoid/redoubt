@@ -1,0 +1,34 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["encoding", "memory-management"]
+description          = "Core implementation for redoubt-codec"
+edition.workspace    = true
+keywords             = ["codec", "zeroize", "security", "encoding"]
+license.workspace    = true
+name                 = "redoubt-codec-core"
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+default = ["zeroize"]
+zeroize = ["dep:smallvec"]
+benchmark = []
+test_utils = ["zeroize"]
+
+[dependencies]
+redoubt-util.workspace   = true
+redoubt-zero.workspace    = true
+smallvec = { workspace = true, optional = true }
+thiserror.workspace = true
+
+[dependencies.redoubt-alloc]
+workspace = true
+features  = ["unsafe"]
+
+[dev-dependencies]
+redoubt-alloc = { workspace = true, features = ["test_utils"] }
+redoubt-test-utils.workspace = true
+insta.workspace = true

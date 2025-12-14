@@ -19,7 +19,7 @@ pub use traits::MemMove;
 
 use core::fmt;
 
-use memcodec::{BytesRequired, Codec, Decode, Encode};
+use redoubt_codec::{BytesRequired, Codec, Decode, Encode};
 use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel};
 
 /// Wrapper that prevents accidental exposure of sensitive data.

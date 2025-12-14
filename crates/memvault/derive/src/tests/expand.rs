@@ -73,7 +73,7 @@ fn snapshot_named_struct_with_single_field() {
 #[test]
 fn snapshot_named_struct_with_generics() {
     let derive_input = parse_quote! {
-        struct Container<T> where T: memcodec::BytesRequired + memcodec::Encode + memcodec::Decode {
+        struct Container<T> where T: redoubt_codec::BytesRequired + redoubt_codec::Encode + redoubt_codec::Decode {
             pub value: T,
             pub count: u64,
         }

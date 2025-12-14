@@ -11,7 +11,7 @@ default = []
 no_std = []
 
 [dependencies]
-memcodec = { workspace = true, features = ["zeroize"]}
+redoubt-codec = { workspace = true, features = ["zeroize"]}
 redoubt-alloc.workspace = true
 redoubt-secret.workspace = true
 redoubt-buffer.workspace = true
@@ -23,7 +23,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 redoubt-aead = { workspace = true, features = ["test_utils"] }
-memcodec = { workspace = true, features = ["test_utils"] }
+redoubt-codec = { workspace = true, features = ["test_utils"] }
 redoubt-test-utils.workspace = true
 redoubt-util.workspace = true
 

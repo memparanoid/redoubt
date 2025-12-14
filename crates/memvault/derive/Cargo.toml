@@ -18,6 +18,6 @@ insta.workspace         = true
 prettyplease.workspace  = true
 trybuild.workspace      = true
 redoubt-aead.workspace = true
-memcodec.workspace = true
+redoubt-codec.workspace = true
 memvault_core.workspace = true
 redoubt-zero.workspace = true

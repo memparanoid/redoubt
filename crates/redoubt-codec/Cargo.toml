@@ -1,0 +1,22 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["encoding", "memory-management"]
+description          = "High-performance secure codec with memory zeroization"
+edition.workspace    = true
+keywords             = ["codec", "zeroize", "security", "encoding"]
+license.workspace    = true
+name                 = "redoubt-codec"
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+default = ["zeroize"]
+zeroize = ["redoubt-codec-core/zeroize", "redoubt-codec-derive/zeroize"]
+test_utils = ["redoubt-codec-core/test_utils"]
+
+[dependencies]
+redoubt-codec-core.workspace   = true
+redoubt-codec-derive.workspace = true

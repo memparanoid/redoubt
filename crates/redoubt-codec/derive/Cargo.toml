@@ -1,0 +1,30 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["encoding", "memory-management"]
+description          = "Derive macros for redoubt-codec"
+edition.workspace    = true
+keywords             = ["codec", "zeroize", "security", "encoding"]
+license.workspace    = true
+name                 = "redoubt-codec-derive"
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+proc-macro = true
+path = "src/lib.rs"
+
+[features]
+default = ["zeroize"]
+zeroize = ["redoubt-codec-core/zeroize"]
+
+[dependencies]
+proc-macro-crate.workspace = true
+proc-macro2.workspace      = true
+quote.workspace            = true
+syn.workspace              = true
+
+[dev-dependencies]
+redoubt-zero.workspace = true
+insta.workspace         = true
+redoubt-codec-core.workspace = true
+prettyplease.workspace  = true

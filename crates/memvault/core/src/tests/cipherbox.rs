@@ -4,8 +4,8 @@
 
 use redoubt_aead::AeadApi;
 use redoubt_aead::support::test_utils::{AeadMock, AeadMockBehaviour};
-use memcodec::Codec;
-use memcodec::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
+use redoubt_codec::Codec;
+use redoubt_codec::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use redoubt_rand::EntropyError;
 use redoubt_util::is_vec_fully_zeroized;
 use redoubt_zero::{RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel};

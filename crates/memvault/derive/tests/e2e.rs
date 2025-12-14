@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod tests {
-    use memcodec::Codec;
+    use redoubt_codec::Codec;
     use memvault_derive::cipherbox;
     use redoubt_zero::{RedoubtZero, ZeroizationProbe};
 

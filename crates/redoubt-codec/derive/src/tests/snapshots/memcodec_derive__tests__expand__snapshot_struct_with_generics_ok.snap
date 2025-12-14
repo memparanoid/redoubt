@@ -1,0 +1,58 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+---
+source: crates/redoubt-codec/derive/src/tests/expand.rs
+expression: pretty(token_stream)
+---
+impl<T> redoubt_codec_core::BytesRequired for Container<T>
+where
+    T: memcodec::BytesRequired + memcodec::Encode + memcodec::Decode,
+{
+    fn encode_bytes_required(&self) -> Result<usize, redoubt_codec_core::OverflowError> {
+        let fields: [&dyn redoubt_codec_core::BytesRequired; 2] = [
+            redoubt_codec_core::collections::helpers::to_bytes_required_dyn_ref(&self.value),
+            redoubt_codec_core::collections::helpers::to_bytes_required_dyn_ref(&self.count),
+        ];
+        redoubt_codec_core::collections::helpers::bytes_required_sum(fields.into_iter())
+    }
+}
+impl<T> redoubt_codec_core::Encode for Container<T>
+where
+    T: memcodec::BytesRequired + memcodec::Encode + memcodec::Decode,
+{
+    fn encode_into(
+        &mut self,
+        buf: &mut redoubt_codec_core::CodecBuffer,
+    ) -> Result<(), redoubt_codec_core::EncodeError> {
+        let fields: [&mut dyn redoubt_codec_core::EncodeZeroize; 2] = [
+            redoubt_codec_core::collections::helpers::to_encode_zeroize_dyn_mut(
+                &mut self.value,
+            ),
+            redoubt_codec_core::collections::helpers::to_encode_zeroize_dyn_mut(
+                &mut self.count,
+            ),
+        ];
+        redoubt_codec_core::collections::helpers::encode_fields(fields.into_iter(), buf)
+    }
+}
+impl<T> redoubt_codec_core::Decode for Container<T>
+where
+    T: memcodec::BytesRequired + memcodec::Encode + memcodec::Decode,
+{
+    fn decode_from(
+        &mut self,
+        buf: &mut &mut [u8],
+    ) -> Result<(), redoubt_codec_core::DecodeError> {
+        let fields: [&mut dyn redoubt_codec_core::DecodeZeroize; 2] = [
+            redoubt_codec_core::collections::helpers::to_decode_zeroize_dyn_mut(
+                &mut self.value,
+            ),
+            redoubt_codec_core::collections::helpers::to_decode_zeroize_dyn_mut(
+                &mut self.count,
+            ),
+        ];
+        redoubt_codec_core::collections::helpers::decode_fields(fields.into_iter(), buf)
+    }
+}

@@ -5,8 +5,8 @@
 use redoubt_test_utils::{apply_permutation, index_permutations};
 use redoubt_aead::AeadApi;
 use redoubt_aead::support::test_utils::{AeadMock, AeadMockBehaviour};
-use memcodec::CodecBuffer;
-use memcodec::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
+use redoubt_codec::CodecBuffer;
+use redoubt_codec::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use redoubt_zero::ZeroizationProbe;
 
 use crate::error::CipherBoxError;
