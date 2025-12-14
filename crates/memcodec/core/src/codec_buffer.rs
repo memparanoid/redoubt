@@ -5,7 +5,7 @@
 //! Secure buffer with locked capacity and automatic zeroization.
 use alloc::vec::Vec;
 
-use memalloc::AllockedVec;
+use redoubt_alloc::AllockedVec;
 
 #[cfg(feature = "zeroize")]
 use redoubt_zero::{

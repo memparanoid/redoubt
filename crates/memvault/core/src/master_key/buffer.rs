@@ -5,11 +5,11 @@
 //! Buffer creation logic
 use alloc::boxed::Box;
 
-use membuffer::{Buffer, BufferError, PortableBuffer};
+use redoubt_buffer::{Buffer, BufferError, PortableBuffer};
 use redoubt_rand::{EntropySource, SystemEntropySource};
 
 #[cfg(all(unix, not(target_os = "wasi")))]
-use membuffer::{PageBuffer, ProtectionStrategy};
+use redoubt_buffer::{PageBuffer, ProtectionStrategy};
 
 use super::consts::MASTER_KEY_LEN;
 

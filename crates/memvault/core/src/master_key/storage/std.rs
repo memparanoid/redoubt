@@ -6,7 +6,7 @@
 
 use std::sync::{Mutex, OnceLock};
 
-use membuffer::{Buffer, BufferError};
+use redoubt_buffer::{Buffer, BufferError};
 
 use super::super::buffer::create_initialized_buffer;
 

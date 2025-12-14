@@ -6,7 +6,7 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use membuffer::BufferError;
+use redoubt_buffer::BufferError;
 use redoubt_zero::ZeroizingGuard;
 
 pub mod buffer;

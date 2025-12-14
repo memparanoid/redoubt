@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use memalloc::AllockedVec;
+use redoubt_alloc::AllockedVec;
 use redoubt_zero::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
 use crate::zeroizing::Zeroizing;

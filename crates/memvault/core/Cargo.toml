@@ -12,9 +12,9 @@ no_std = []
 
 [dependencies]
 memcodec = { workspace = true, features = ["zeroize"]}
-memalloc.workspace = true
+redoubt-alloc.workspace = true
 memsecret.workspace = true
-membuffer.workspace = true
+redoubt-buffer.workspace = true
 redoubt-guard.workspace = true
 redoubt-rand.workspace = true
 redoubt-zero.workspace = true
