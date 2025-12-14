@@ -39,10 +39,10 @@ redoubt = "0.1"
 
 ## Quick Start
 ```rust
-use redoubt::{cipherbox, Secret};
+use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, Secret};
 
 #[cipherbox(WalletBox)]
-#[derive(Default)]
+#[derive(Default, RedoubtCodec, RedoubtZero)]
 struct Wallet {
     master_seed: Secret<[u8; 64]>,
     signing_key: Secret<[u8; 32]>,
@@ -116,10 +116,10 @@ let signature = sign(&signing_key, message);
 
 ## A realistic example
 ```rust
-use redoubt::{cipherbox, Secret, RedoubtVec, RedoubtString};
+use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, Secret, RedoubtVec, RedoubtString};
 
 #[cipherbox(WalletSecretsBox)]
-#[derive(Default)]
+#[derive(Default, RedoubtCodec, RedoubtZero)]
 struct WalletSecrets {
     /// BIP-39 seed (64 bytes from mnemonic)
     master_seed: Secret<[u8; 64]>,
@@ -221,7 +221,7 @@ let mut password: Secret<RedoubtString> = Secret::new(RedoubtString::new());
 
 ## Security
 
-- Sensitive data is authenticated encrypted at rest
+- Sensitive data uses AEAD encryption at rest
 - Memory is zeroized using barriers that prevent compiler optimization
 - On Linux, Redoubt stores the master key in a memory page protected by `prctl` and `mlock`, inaccessible to non-root memory dumps
 - Field-level encryption minimizes secret exposure time
