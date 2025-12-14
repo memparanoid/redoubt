@@ -7,8 +7,8 @@ edition = "2024"
 memaead = { path = "../crates/memaead" }
 memcodec = { path = "../crates/memcodec" }
 memvault = { path = "../crates/memvault" }
-membuffer = { path = "../crates/membuffer" }
-memzer = { path = "../crates/memzer" }
+redoubt-buffer = { path = "../crates/redoubt-buffer" }
+redoubt-zero = { path = "../crates/redoubt-zero" }
 redoubt-util = { path = "../crates/redoubt-util" }
 
 [dev-dependencies]
