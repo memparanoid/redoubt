@@ -12,6 +12,7 @@ use crate::error::{BufferError, PageError};
 use crate::page::Page;
 use crate::traits::Buffer;
 
+/// Memory protection strategy for the buffer.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ProtectionStrategy {
     /// mlock + mprotect toggling (full protection)
@@ -20,6 +21,7 @@ pub enum ProtectionStrategy {
     MemNonProtected,
 }
 
+/// A buffer backed by a memory-locked page with optional memory protection.
 pub struct PageBuffer {
     page: Page,
     len: usize,
@@ -39,6 +41,7 @@ impl PageBuffer {
         }
     }
 
+    /// Creates a new PageBuffer with the specified protection strategy and length.
     pub fn new(strategy: ProtectionStrategy, len: usize) -> Result<Self, PageError> {
         let page = Page::new()?;
 
@@ -99,10 +102,12 @@ impl PageBuffer {
         Ok(())
     }
 
+    /// Returns true if the buffer has zero length.
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
 
+    /// Disposes of the underlying page, releasing all resources.
     pub fn dispose(&mut self) {
         self.page.dispose();
     }

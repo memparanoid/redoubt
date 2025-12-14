@@ -22,22 +22,28 @@ pub enum PageError {
     Unprotect = 3,
 }
 
+/// Errors that can occur when working with buffers.
 #[derive(Debug, Error)]
 pub enum BufferError {
+    /// An error occurred during a page operation.
     #[error("PageError: {0}")]
     Page(#[from] PageError),
 
+    /// The page is no longer available.
     #[error("page is no longer available")]
     PageNoLongerAvailable,
 
+    /// An error occurred in a callback function.
     #[error("callback error: {0:?}")]
     CallbackError(Box<dyn core::fmt::Debug + Send + Sync + 'static>),
 
+    /// A mutex was poisoned.
     #[error("mutex poisoned")]
     MutexPoisoned,
 }
 
 impl BufferError {
+    /// Creates a CallbackError from any Debug + Send + Sync error.
     pub fn callback_error<E: core::fmt::Debug + Send + Sync + 'static>(e: E) -> Self {
         Self::CallbackError(Box::new(e))
     }

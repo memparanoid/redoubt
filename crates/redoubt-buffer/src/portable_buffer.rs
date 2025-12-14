@@ -16,6 +16,7 @@ use redoubt_zero::{RedoubtZero, ZeroizeOnDropSentinel};
 use crate::error::BufferError;
 use crate::traits::Buffer;
 
+/// A portable buffer backed by a standard Vec with automatic zeroization on drop.
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
 pub struct PortableBuffer {
@@ -24,6 +25,7 @@ pub struct PortableBuffer {
 }
 
 impl PortableBuffer {
+    /// Creates a new PortableBuffer with the specified length.
     pub fn create(len: usize) -> Self {
         let inner = alloc::vec![0u8; len];
 
