@@ -806,6 +806,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "redoubt"
+version = "0.0.1"
+dependencies = [
+ "redoubt-aead",
+ "redoubt-codec",
+ "redoubt-vault",
+ "redoubt-zero",
+]
+
+[[package]]
 name = "redoubt-aead"
 version = "0.0.1"
 dependencies = [
@@ -1437,10 +1447,7 @@ dependencies = [
 name = "wasm-demo"
 version = "0.1.0"
 dependencies = [
- "redoubt-aead",
- "redoubt-codec",
- "redoubt-vault",
- "redoubt-zero",
+ "redoubt",
  "wasm-bindgen",
 ]
 

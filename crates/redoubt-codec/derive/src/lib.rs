@@ -55,7 +55,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     let struct_name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    let root = find_root_with_candidates(&["redoubt-codec-core", "redoubt-codec"]);
+    let root = find_root_with_candidates(&["redoubt-codec-core", "redoubt-codec", "redoubt"]);
 
     // Get fields
     let fields: Vec<(usize, &syn::Field)> = match &input.data {

@@ -1,0 +1,17 @@
+[package]
+name = "redoubt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+redoubt-zero = { workspace = true }
+redoubt-codec = { workspace = true }
+redoubt-vault = { workspace = true }
+redoubt-aead = { workspace = true }
+
+[features]
+default = []
+no_std = ["redoubt-vault/no_std"]
+test_utils = ["redoubt-aead/test_utils", "redoubt-codec/test_utils"]

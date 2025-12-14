@@ -168,7 +168,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     // 1) Resolve the `redoubt_zero_core` or `RedoubtZero` crate (prefer redoubt_zero_core)
-    let root = find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero"]);
+    let root = find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero", "redoubt"]);
 
     // 2) Get all fields as a Vec
     let all_fields: Vec<(usize, &syn::Field)> = match &input.data {

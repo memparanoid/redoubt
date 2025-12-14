@@ -1,6 +1,7 @@
 [workspace]
 exclude = ["scripts"]
 members = [
+  "crates/redoubt",
   "crates/redoubt-guard",
   "crates/redoubt-zero",
   "crates/redoubt-zero/core",
@@ -31,6 +32,7 @@ resolver = "2"
 
   [workspace.dependencies]
   # Internal crates
+  redoubt            = { path = "crates/redoubt" }
   redoubt-aead       = { path = "crates/redoubt-aead" }
   redoubt-alloc      = { path = "crates/redoubt-alloc" }
   redoubt-buffer     = { path = "crates/redoubt-buffer" }

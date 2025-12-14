@@ -8,10 +8,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 wasm-bindgen = "=0.2.106"
-redoubt-vault = { workspace = true, features = ["no_std"] }
-redoubt-codec.workspace = true
-redoubt-zero.workspace = true
-redoubt-aead.workspace = true
+redoubt = { workspace = true, features = ["no_std"] }
 
 [profile.release]
 opt-level = "z"
