@@ -4,7 +4,7 @@
 
 //! AEAD trait definitions.
 
-use memrand::EntropyError;
+use redoubt_rand::EntropyError;
 
 use crate::AeadError;
 

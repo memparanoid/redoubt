@@ -22,7 +22,7 @@ thiserror.workspace = true
 libc.workspace = true
 
 [dev-dependencies]
-memrand.workspace = true
+redoubt-rand.workspace = true
 serial_test.workspace = true
 insta.workspace = true
 

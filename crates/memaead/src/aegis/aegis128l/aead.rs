@@ -4,7 +4,7 @@
 
 //! AEGIS-128L AEAD implementation.
 
-use memrand::{
+use redoubt_rand::{
     EntropyError, EntropySource, NonceGenerator, NonceSessionGenerator, SystemEntropySource,
 };
 

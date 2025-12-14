@@ -9,7 +9,7 @@ use thiserror::Error;
 use memaead::AeadError;
 use membuffer::BufferError;
 use memcodec::{DecodeError, EncodeError, OverflowError};
-use memrand::EntropyError;
+use redoubt_rand::EntropyError;
 
 #[derive(Debug, Error)]
 pub enum CipherBoxError {

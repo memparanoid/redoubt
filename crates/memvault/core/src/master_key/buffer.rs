@@ -6,7 +6,7 @@
 use alloc::boxed::Box;
 
 use membuffer::{Buffer, BufferError, PortableBuffer};
-use memrand::{EntropySource, SystemEntropySource};
+use redoubt_rand::{EntropySource, SystemEntropySource};
 
 #[cfg(all(unix, not(target_os = "wasi")))]
 use membuffer::{PageBuffer, ProtectionStrategy};

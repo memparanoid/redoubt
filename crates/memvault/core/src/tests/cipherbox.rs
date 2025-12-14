@@ -6,7 +6,7 @@ use memaead::AeadApi;
 use memaead::support::test_utils::{AeadMock, AeadMockBehaviour};
 use memcodec::Codec;
 use memcodec::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
-use memrand::EntropyError;
+use redoubt_rand::EntropyError;
 use redoubt_util::is_vec_fully_zeroized;
 use memzer::{MemZer, ZeroizationProbe, ZeroizeOnDropSentinel};
 

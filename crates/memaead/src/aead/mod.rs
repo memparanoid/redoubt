@@ -18,7 +18,7 @@
 #[cfg(test)]
 mod tests;
 
-use memrand::{EntropyError, SystemEntropySource};
+use redoubt_rand::{EntropyError, SystemEntropySource};
 
 use crate::error::AeadError;
 use crate::feature_detector::FeatureDetector;
@@ -341,7 +341,7 @@ impl AeadApi for Aead {
     }
 
     #[inline(always)]
-    fn api_generate_nonce(&mut self) -> Result<Vec<u8>, memrand::EntropyError> {
+    fn api_generate_nonce(&mut self) -> Result<Vec<u8>, redoubt_rand::EntropyError> {
         self.generate_nonce()
     }
 

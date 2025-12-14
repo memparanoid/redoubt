@@ -5,7 +5,7 @@
 //! Mock AEAD for testing.
 
 use core::cell::Cell;
-use memrand::{EntropyError, SystemEntropySource};
+use redoubt_rand::{EntropyError, SystemEntropySource};
 
 use crate::error::AeadError;
 use crate::traits::{AeadApi, AeadBackend};

@@ -6,7 +6,7 @@
 //!
 //! All sensitive state is zeroized on drop using memzer.
 
-use memrand::{
+use redoubt_rand::{
     EntropyError, EntropySource, NonceGenerator, NonceSessionGenerator, SystemEntropySource,
 };
 use redoubt_util::{constant_time_eq, u64_to_le};
@@ -83,7 +83,7 @@ impl Default for XChacha20Poly1305<SystemEntropySource> {
 
 impl<E> AeadBackend for XChacha20Poly1305<E>
 where
-    E: memrand::EntropySource,
+    E: redoubt_rand::EntropySource,
 {
     type Key = AeadKey;
     type Nonce = XNonce;

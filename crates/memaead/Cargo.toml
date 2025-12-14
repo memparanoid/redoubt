@@ -13,7 +13,7 @@ version.workspace   = true
 test_utils = []
 
 [dependencies]
-memrand.workspace     = true
+redoubt-rand.workspace     = true
 redoubt-util.workspace     = true
 memzer.workspace      = true
 thiserror.workspace   = true
