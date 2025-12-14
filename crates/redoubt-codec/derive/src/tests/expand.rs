@@ -39,7 +39,7 @@ fn test_find_root_with_candidates() {
 #[test]
 fn snapshot_named_struct_ok() {
     let derive_input = parse_quote! {
-        #[derive(Codec)]
+        #[derive(RedoubtCodec)]
         struct Data {
             pub alpha: Vec<u8>,
             pub beta: u64,
@@ -53,7 +53,7 @@ fn snapshot_named_struct_ok() {
 #[test]
 fn snapshot_tuple_struct_ok() {
     let derive_input = parse_quote! {
-        #[derive(Codec)]
+        #[derive(RedoubtCodec)]
         struct Data(Vec<u8>, u64, u32);
     };
 
@@ -64,7 +64,7 @@ fn snapshot_tuple_struct_ok() {
 #[test]
 fn snapshot_unit_struct_ok() {
     let derive_input = parse_quote! {
-        #[derive(Codec)]
+        #[derive(RedoubtCodec)]
         struct Empty;
     };
 
@@ -75,7 +75,7 @@ fn snapshot_unit_struct_ok() {
 #[test]
 fn snapshot_struct_with_generics_ok() {
     let derive_input = parse_quote! {
-        #[derive(Codec)]
+        #[derive(RedoubtCodec)]
         struct Container<T> where T: redoubt_codec::BytesRequired + redoubt_codec::Encode + redoubt_codec::Decode {
             pub value: T,
             pub count: u64,
@@ -89,7 +89,7 @@ fn snapshot_struct_with_generics_ok() {
 #[test]
 fn snapshot_enum_fails() {
     let derive_input = parse_quote! {
-        #[derive(Codec)]
+        #[derive(RedoubtCodec)]
         enum Choice {
             A,
             B,
@@ -105,7 +105,7 @@ fn snapshot_enum_fails() {
 #[test]
 fn snapshot_named_struct_ok_with_codec_default() {
     let derive_input = parse_quote! {
-        #[derive(Codec)]
+        #[derive(RedoubtCodec)]
         struct Sigma {
             pub alpha: Vec<u8>,
             pub beta: [u8; 32],
@@ -121,7 +121,7 @@ fn snapshot_named_struct_ok_with_codec_default() {
 #[test]
 fn snapshot_tuple_struct_ok_with_codec_default() {
     let derive_input = parse_quote! {
-        #[derive(Codec)]
+        #[derive(RedoubtCodec)]
         struct Sigma(Vec<u8>, [u8; 32], #[codec(default)] [u8; 16]);
     };
 
@@ -132,7 +132,7 @@ fn snapshot_tuple_struct_ok_with_codec_default() {
 #[test]
 fn snapshot_named_struct_with_non_default_codec_attr() {
     let derive_input = parse_quote! {
-        #[derive(Codec)]
+        #[derive(RedoubtCodec)]
         struct Sigma {
             pub alpha: Vec<u8>,
             #[codec(skip)]
@@ -147,7 +147,7 @@ fn snapshot_named_struct_with_non_default_codec_attr() {
 #[test]
 fn snapshot_named_struct_with_other_list_attr() {
     let derive_input = parse_quote! {
-        #[derive(Codec)]
+        #[derive(RedoubtCodec)]
         struct Sigma {
             pub alpha: Vec<u8>,
             #[serde(default)]

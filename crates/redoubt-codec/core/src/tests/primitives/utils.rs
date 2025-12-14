@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::codec_buffer::CodecBuffer;
+use crate::codec_buffer::RedoubtCodecBuffer;
 #[cfg(feature = "zeroize")]
 use redoubt_zero::ZeroizationProbe;
 
-use crate::error::{CodecBufferError, DecodeBufferError, DecodeError, EncodeError};
+use crate::error::{DecodeBufferError, DecodeError, EncodeError, RedoubtCodecBufferError};
 use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice};
 
 /// Generates n equidistant values in [0, MAX] for unsigned types
@@ -83,7 +83,10 @@ where
 pub(crate) fn test_bytes_required<T: BytesRequired>(value: &T) {
     let result = value.encode_bytes_required();
     assert!(result.is_ok());
-    assert_eq!(result.expect("Failed to encode_bytes_required()"), core::mem::size_of::<T>());
+    assert_eq!(
+        result.expect("Failed to encode_bytes_required()"),
+        core::mem::size_of::<T>()
+    );
 }
 
 /// Tests that encode_into fails with CapacityExceeded when buffer is too small
@@ -95,15 +98,15 @@ where
         .encode_bytes_required()
         .expect("Failed to get bytes_required");
     let insufficient_bytes = bytes_required - 1;
-    let mut buf = CodecBuffer::with_capacity(insufficient_bytes);
+    let mut buf = RedoubtCodecBuffer::with_capacity(insufficient_bytes);
 
     let result = value.encode_into(&mut buf);
 
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(EncodeError::CodecBufferError(
-            CodecBufferError::CapacityExceeded
+        Err(EncodeError::RedoubtCodecBufferError(
+            RedoubtCodecBufferError::CapacityExceeded
         ))
     ));
 
@@ -164,15 +167,15 @@ pub(crate) fn test_encode_slice_insufficient_buffer<T: EncodeSlice>(slice: &mut 
     }
     let bytes_required = std::mem::size_of_val(slice);
     let insufficient_bytes = bytes_required - 1;
-    let mut buf = CodecBuffer::with_capacity(insufficient_bytes);
+    let mut buf = RedoubtCodecBuffer::with_capacity(insufficient_bytes);
 
     let result = T::encode_slice_into(slice, &mut buf);
 
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(EncodeError::CodecBufferError(
-            CodecBufferError::CapacityExceeded
+        Err(EncodeError::RedoubtCodecBufferError(
+            RedoubtCodecBufferError::CapacityExceeded
         ))
     ));
 }
@@ -206,7 +209,7 @@ where
 {
     let mut original = original_value.clone();
 
-    let mut buf = CodecBuffer::with_capacity(
+    let mut buf = RedoubtCodecBuffer::with_capacity(
         original
             .encode_bytes_required()
             .expect("Failed to get encode_bytes_required()"),

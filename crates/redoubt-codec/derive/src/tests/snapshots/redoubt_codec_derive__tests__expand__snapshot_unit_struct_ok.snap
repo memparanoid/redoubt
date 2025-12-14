@@ -15,7 +15,7 @@ impl redoubt_codec_core::BytesRequired for Empty {
 impl redoubt_codec_core::Encode for Empty {
     fn encode_into(
         &mut self,
-        buf: &mut redoubt_codec_core::CodecBuffer,
+        buf: &mut redoubt_codec_core::RedoubtCodecBuffer,
     ) -> Result<(), redoubt_codec_core::EncodeError> {
         let fields: [&mut dyn redoubt_codec_core::EncodeZeroize; 0] = [];
         redoubt_codec_core::collections::helpers::encode_fields(fields.into_iter(), buf)

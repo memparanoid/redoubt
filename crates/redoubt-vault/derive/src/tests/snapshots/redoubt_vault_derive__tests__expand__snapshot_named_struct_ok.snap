@@ -6,7 +6,7 @@
 source: crates/redoubt-vault/derive/src/tests/expand.rs
 expression: pretty(token_stream)
 ---
-#[derive(RedoubtZero, Codec)]
+#[derive(RedoubtZero, RedoubtCodec)]
 struct Data {
     pub alpha: Vec<u8>,
     pub beta: u64,

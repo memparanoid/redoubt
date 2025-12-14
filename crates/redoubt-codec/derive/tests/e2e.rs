@@ -4,13 +4,13 @@
 
 #[cfg(test)]
 mod tests {
-    use redoubt_codec_core::{BytesRequired, CodecBuffer, Decode, Encode};
-    use redoubt_codec_derive::Codec;
+    use redoubt_codec_core::{BytesRequired, Decode, Encode, RedoubtCodecBuffer};
+    use redoubt_codec_derive::RedoubtCodec;
     use redoubt_zero::ZeroizationProbe;
 
     #[test]
     fn test_derive_named_struct_roundtrip() {
-        #[derive(Codec, Default, PartialEq, Debug, Clone)]
+        #[derive(RedoubtCodec, Default, PartialEq, Debug, Clone)]
         struct TestData {
             pub value: u64,
             pub data: Vec<u8>,
@@ -27,7 +27,7 @@ mod tests {
         let bytes_required = original
             .encode_bytes_required()
             .expect("Failed to get encode_bytes_required()");
-        let mut buf = CodecBuffer::with_capacity(bytes_required);
+        let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
         // Encode
         original_clone
@@ -53,7 +53,7 @@ mod tests {
 
     #[test]
     fn test_derive_tuple_struct_roundtrip() {
-        #[derive(Codec, Default, PartialEq, Debug, Clone)]
+        #[derive(RedoubtCodec, Default, PartialEq, Debug, Clone)]
         struct TupleData(u64, Vec<u8>, u32);
 
         let original = TupleData(0xdeadbeef, vec![10, 20, 30], 42);
@@ -62,7 +62,7 @@ mod tests {
         let bytes_required = original
             .encode_bytes_required()
             .expect("Failed to get encode_bytes_required()");
-        let mut buf = CodecBuffer::with_capacity(bytes_required);
+        let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
         // Encode
         original_clone
@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn test_derive_unit_struct() {
-        #[derive(Codec, Default, PartialEq, Debug, Clone)]
+        #[derive(RedoubtCodec, Default, PartialEq, Debug, Clone)]
         struct EmptyStruct;
 
         let original = EmptyStruct;
@@ -99,7 +99,7 @@ mod tests {
             .expect("Failed to get encode_bytes_required()");
         assert_eq!(bytes_required, 0);
 
-        let mut buf = CodecBuffer::with_capacity(1);
+        let mut buf = RedoubtCodecBuffer::with_capacity(1);
 
         // Encode
         original_clone

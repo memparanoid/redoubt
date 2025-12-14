@@ -47,7 +47,7 @@ fn test_find_root_with_candidates() {
 #[test]
 fn snapshot_named_struct_ok() {
     let derive_input = parse_quote! {
-        #[derive(RedoubtZero, Codec)]
+        #[derive(RedoubtZero, RedoubtCodec)]
         struct Data {
             pub alpha: Vec<u8>,
             pub beta: u64,
@@ -79,7 +79,8 @@ fn snapshot_named_struct_with_generics() {
         }
     };
 
-    let token_stream = expand(syn::parse_quote!(ContainerBox), derive_input).expect("expand failed");
+    let token_stream =
+        expand(syn::parse_quote!(ContainerBox), derive_input).expect("expand failed");
     insta::assert_snapshot!(pretty(token_stream));
 }
 
@@ -90,7 +91,7 @@ fn snapshot_named_struct_with_generics() {
 #[test]
 fn snapshot_named_struct_with_codec_default_field() {
     let derive_input = parse_quote! {
-        #[derive(RedoubtZero, Codec)]
+        #[derive(RedoubtZero, RedoubtCodec)]
         struct Delta {
             pub alpha: Vec<u8>,
             pub beta: [u8; 32],
@@ -106,7 +107,7 @@ fn snapshot_named_struct_with_codec_default_field() {
 #[test]
 fn snapshot_named_struct_with_zeroize_on_drop_sentinel() {
     let derive_input = parse_quote! {
-        #[derive(RedoubtZero, Codec)]
+        #[derive(RedoubtZero, RedoubtCodec)]
         #[fast_zeroize(drop)]
         struct Epsilon {
             pub master_seed: [u8; 32],
@@ -123,7 +124,7 @@ fn snapshot_named_struct_with_zeroize_on_drop_sentinel() {
 #[test]
 fn snapshot_named_struct_with_multiple_filtered_fields() {
     let derive_input = parse_quote! {
-        #[derive(RedoubtZero, Codec)]
+        #[derive(RedoubtZero, RedoubtCodec)]
         struct Zeta {
             pub field1: Vec<u8>,
             #[codec(default)]
@@ -168,7 +169,8 @@ fn snapshot_struct_with_all_fields_filtered() {
         }
     };
 
-    let token_stream = expand(syn::parse_quote!(OnlyDefaultsBox), derive_input).expect("expand failed");
+    let token_stream =
+        expand(syn::parse_quote!(OnlyDefaultsBox), derive_input).expect("expand failed");
     insta::assert_snapshot!(pretty(token_stream));
 }
 
@@ -193,7 +195,7 @@ fn snapshot_unit_struct_ok() {
 #[test]
 fn snapshot_tuple_struct_fails() {
     let derive_input = parse_quote! {
-        #[derive(Codec)]
+        #[derive(RedoubtCodec)]
         struct Data(Vec<u8>, u64, u32);
     };
 

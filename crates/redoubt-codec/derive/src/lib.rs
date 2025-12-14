@@ -18,8 +18,8 @@ use syn::{Attribute, Data, DeriveInput, Fields, Ident, Index, LitStr, Meta, pars
 /// # Attributes
 ///
 /// - `#[codec(default)]` on a field: Skip encoding/decoding, use `Default::default()`
-#[proc_macro_derive(Codec, attributes(codec))]
-pub fn derive_codec(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(RedoubtCodec, attributes(codec))]
+pub fn derive_redoubt_codec(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     expand(input).unwrap_or_else(|e| e).into()
 }
@@ -37,7 +37,7 @@ pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStr
         }
     }
 
-    let msg = "Codec: could not find redoubt-codec or redoubt-codec-core. Add redoubt-codec to Cargo.toml.";
+    let msg = "RedoubtCodec: could not find redoubt-codec or redoubt-codec-core. Add redoubt-codec to Cargo.toml.";
     let lit = LitStr::new(msg, Span::call_site());
     quote! { compile_error!(#lit); }
 }
@@ -67,7 +67,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         _ => {
             return Err(syn::Error::new_spanned(
                 &input.ident,
-                "Codec can only be derived for structs.",
+                "RedoubtCodec can only be derived for structs.",
             )
             .to_compile_error());
         }
@@ -101,7 +101,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         }
 
         impl #impl_generics #root::Encode for #struct_name #ty_generics #where_clause {
-            fn encode_into(&mut self, buf: &mut #root::CodecBuffer) -> Result<(), #root::EncodeError> {
+            fn encode_into(&mut self, buf: &mut #root::RedoubtCodecBuffer) -> Result<(), #root::EncodeError> {
                 let fields: [&mut dyn #root::EncodeZeroize; #len_lit] = [
                     #( #root::collections::helpers::to_encode_zeroize_dyn_mut(#mut_refs) ),*
                 ];

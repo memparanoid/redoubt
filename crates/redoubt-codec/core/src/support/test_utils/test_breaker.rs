@@ -4,7 +4,7 @@
 
 use redoubt_zero::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
-use crate::codec_buffer::CodecBuffer;
+use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::collections::helpers::{
     bytes_required_sum, decode_fields, encode_fields, to_bytes_required_dyn_ref,
     to_decode_zeroize_dyn_mut, to_encode_zeroize_dyn_mut,
@@ -19,7 +19,7 @@ const MAGIC: usize = 0xDEADBEEF;
 
 /// Behavior control for error injection testing in redoubt-codec.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CodecTestBreakerBehaviour {
+pub enum RedoubtCodecTestBreakerBehaviour {
     /// Normal behavior (no error injection).
     None,
     /// Force `encode_bytes_required()` to return `usize::MAX`.
@@ -34,7 +34,7 @@ pub enum CodecTestBreakerBehaviour {
     ForceDecodeError,
 }
 
-impl Default for CodecTestBreakerBehaviour {
+impl Default for RedoubtCodecTestBreakerBehaviour {
     fn default() -> Self {
         Self::None
     }
@@ -43,17 +43,17 @@ impl Default for CodecTestBreakerBehaviour {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Usize {
     /// Controls error injection behavior.
-    pub behaviour: CodecTestBreakerBehaviour,
+    pub behaviour: RedoubtCodecTestBreakerBehaviour,
     /// Test data.
     pub data: usize,
 }
 
 impl Usize {
-    pub fn new(behaviour: CodecTestBreakerBehaviour, data: usize) -> Self {
+    pub fn new(behaviour: RedoubtCodecTestBreakerBehaviour, data: usize) -> Self {
         Self { behaviour, data }
     }
 
-    pub fn set_behaviour(&mut self, behaviour: CodecTestBreakerBehaviour) {
+    pub fn set_behaviour(&mut self, behaviour: RedoubtCodecTestBreakerBehaviour) {
         self.behaviour = behaviour;
     }
 }
@@ -67,8 +67,8 @@ impl BytesRequired for Usize {
 }
 
 impl Encode for Usize {
-    fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
-        if self.behaviour == CodecTestBreakerBehaviour::ForceEncodeError {
+    fn encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
+        if self.behaviour == RedoubtCodecTestBreakerBehaviour::ForceEncodeError {
             return Err(EncodeError::IntentionalEncodeError);
         }
 
@@ -82,7 +82,7 @@ impl Encode for Usize {
 
 impl Decode for Usize {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-        if self.behaviour == CodecTestBreakerBehaviour::ForceDecodeError {
+        if self.behaviour == RedoubtCodecTestBreakerBehaviour::ForceDecodeError {
             return Err(DecodeError::IntentionalDecodeError);
         }
 
@@ -112,28 +112,28 @@ impl ZeroizationProbe for Usize {
 
 /// Test fixture for error injection and edge case testing in redoubt-codec.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct CodecTestBreaker {
+pub struct RedoubtCodecTestBreaker {
     /// Controls error injection behavior.
-    pub behaviour: CodecTestBreakerBehaviour,
+    pub behaviour: RedoubtCodecTestBreakerBehaviour,
     /// Test data.
     pub usize: Usize,
     /// Magic data, if tampered, decode will fail
     magic: usize,
 }
 
-impl Default for CodecTestBreaker {
+impl Default for RedoubtCodecTestBreaker {
     fn default() -> Self {
         Self {
-            behaviour: CodecTestBreakerBehaviour::None,
-            usize: Usize::new(CodecTestBreakerBehaviour::None, 104729),
+            behaviour: RedoubtCodecTestBreakerBehaviour::None,
+            usize: Usize::new(RedoubtCodecTestBreakerBehaviour::None, 104729),
             magic: MAGIC,
         }
     }
 }
 
-impl CodecTestBreaker {
+impl RedoubtCodecTestBreaker {
     /// Creates a new test breaker with the specified behavior and data value.
-    pub fn new(behaviour: CodecTestBreakerBehaviour, data: usize) -> Self {
+    pub fn new(behaviour: RedoubtCodecTestBreakerBehaviour, data: usize) -> Self {
         Self {
             behaviour,
             usize: Usize::new(behaviour, data),
@@ -142,7 +142,7 @@ impl CodecTestBreaker {
     }
 
     /// Creates a new test breaker with default data and specified behavior.
-    pub fn with_behaviour(behaviour: CodecTestBreakerBehaviour) -> Self {
+    pub fn with_behaviour(behaviour: RedoubtCodecTestBreakerBehaviour) -> Self {
         Self {
             behaviour,
             usize: Usize::new(behaviour, 104729),
@@ -151,19 +151,19 @@ impl CodecTestBreaker {
     }
 
     /// Changes the error injection behavior.
-    pub fn set_behaviour(&mut self, behaviour: CodecTestBreakerBehaviour) {
+    pub fn set_behaviour(&mut self, behaviour: RedoubtCodecTestBreakerBehaviour) {
         self.behaviour = behaviour;
         self.usize.set_behaviour(behaviour);
     }
 }
 
-impl BytesRequired for CodecTestBreaker {
+impl BytesRequired for RedoubtCodecTestBreaker {
     fn encode_bytes_required(&self) -> Result<usize, OverflowError> {
         match &self.behaviour {
-            CodecTestBreakerBehaviour::BytesRequiredReturnMax => Ok(usize::MAX),
-            CodecTestBreakerBehaviour::BytesRequiredReturn(n) => Ok(*n),
-            CodecTestBreakerBehaviour::ForceBytesRequiredOverflow => Err(OverflowError {
-                reason: "CodecTestBreaker forced overflow".into(),
+            RedoubtCodecTestBreakerBehaviour::BytesRequiredReturnMax => Ok(usize::MAX),
+            RedoubtCodecTestBreakerBehaviour::BytesRequiredReturn(n) => Ok(*n),
+            RedoubtCodecTestBreakerBehaviour::ForceBytesRequiredOverflow => Err(OverflowError {
+                reason: "RedoubtCodecTestBreaker forced overflow".into(),
             }),
             _ => {
                 let fields: [&dyn BytesRequired; 2] = [
@@ -177,8 +177,8 @@ impl BytesRequired for CodecTestBreaker {
     }
 }
 
-impl Encode for CodecTestBreaker {
-    fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
+impl Encode for RedoubtCodecTestBreaker {
+    fn encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
         let fields: [&mut dyn EncodeZeroize; 2] = [
             to_encode_zeroize_dyn_mut(&mut self.usize),
             to_encode_zeroize_dyn_mut(&mut self.magic),
@@ -190,7 +190,7 @@ impl Encode for CodecTestBreaker {
     }
 }
 
-impl Decode for CodecTestBreaker {
+impl Decode for RedoubtCodecTestBreaker {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         let fields: [&mut dyn DecodeZeroize; 2] = [
             to_decode_zeroize_dyn_mut(&mut self.usize),
@@ -207,8 +207,11 @@ impl Decode for CodecTestBreaker {
     }
 }
 
-impl EncodeSlice for CodecTestBreaker {
-    fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError> {
+impl EncodeSlice for RedoubtCodecTestBreaker {
+    fn encode_slice_into(
+        slice: &mut [Self],
+        buf: &mut RedoubtCodecBuffer,
+    ) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {
             elem.encode_into(buf)?;
         }
@@ -216,7 +219,7 @@ impl EncodeSlice for CodecTestBreaker {
     }
 }
 
-impl DecodeSlice for CodecTestBreaker {
+impl DecodeSlice for RedoubtCodecTestBreaker {
     fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         for elem in slice.iter_mut() {
             elem.decode_from(buf)?;
@@ -225,27 +228,27 @@ impl DecodeSlice for CodecTestBreaker {
     }
 }
 
-impl PreAlloc for CodecTestBreaker {
+impl PreAlloc for RedoubtCodecTestBreaker {
     const ZERO_INIT: bool = false;
 
     fn prealloc(&mut self, _size: usize) {
-        // No-op: CodecTestBreaker does not need to prealloc.
+        // No-op: RedoubtCodecTestBreaker does not need to prealloc.
     }
 }
 
-impl ZeroizeMetadata for CodecTestBreaker {
+impl ZeroizeMetadata for RedoubtCodecTestBreaker {
     /// Keep CAN_BE_BULK_ZEROIZED = false to test recursive zeroization path.
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
-impl FastZeroizable for CodecTestBreaker {
+impl FastZeroizable for RedoubtCodecTestBreaker {
     fn fast_zeroize(&mut self) {
         self.usize.fast_zeroize();
         self.magic.fast_zeroize();
     }
 }
 
-impl ZeroizationProbe for CodecTestBreaker {
+impl ZeroizationProbe for RedoubtCodecTestBreaker {
     fn is_zeroized(&self) -> bool {
         (self.usize.is_zeroized()) & (self.magic.is_zeroized())
     }

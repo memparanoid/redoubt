@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Codec benchmarks - enabled with the `benchmark` feature.
+//! RedoubtCodec benchmarks - enabled with the `benchmark` feature.
 
-use crate::codec_buffer::CodecBuffer;
+use crate::codec_buffer::RedoubtCodecBuffer;
 
 use crate::collections::helpers::{
     bytes_required_sum, decode_fields, encode_fields, to_bytes_required_dyn_ref,
@@ -95,7 +95,7 @@ impl BytesRequired for MixedData {
 }
 
 impl Encode for MixedData {
-    fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
+    fn encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
         let fields: [&mut dyn EncodeZeroize; 11] = [
             to_encode_zeroize_dyn_mut(&mut self.bytes_1k),
             to_encode_zeroize_dyn_mut(&mut self.bytes_2k),
@@ -141,20 +141,27 @@ fn benchmark_codec_roundtrip() {
 
     // Setup: encode initial data
     let mut data = MixedData::new();
-    let buf_size = data.encode_bytes_required().expect("Failed to encode_bytes_required()");
-    let mut global_buf = CodecBuffer::with_capacity(buf_size);
-    data.encode_into(&mut global_buf).expect("Failed to encode_into(..)");
+    let buf_size = data
+        .encode_bytes_required()
+        .expect("Failed to encode_bytes_required()");
+    let mut global_buf = RedoubtCodecBuffer::with_capacity(buf_size);
+    data.encode_into(&mut global_buf)
+        .expect("Failed to encode_into(..)");
 
     let start = Instant::now();
 
     for i in 0..iterations {
         let mut data = MixedData::empty();
         // Decode: fills data from buf
-        data.decode_from(&mut global_buf.as_mut_slice()).expect("Failed to decode_from(..)");
+        data.decode_from(&mut global_buf.as_mut_slice())
+            .expect("Failed to decode_from(..)");
         // Encode: writes data back to buf
-        let cap = data.encode_bytes_required().expect("Failed to encode_bytes_required()");
-        let mut buf = CodecBuffer::with_capacity(cap);
-        data.encode_into(&mut buf).expect("Failed to encode_into(..)");
+        let cap = data
+            .encode_bytes_required()
+            .expect("Failed to encode_bytes_required()");
+        let mut buf = RedoubtCodecBuffer::with_capacity(cap);
+        data.encode_into(&mut buf)
+            .expect("Failed to encode_into(..)");
         global_buf = buf;
 
         if i == 0 {
@@ -169,7 +176,7 @@ fn benchmark_codec_roundtrip() {
     let throughput_gbps = (total_bytes as f64) / elapsed.as_secs_f64() / 1_000_000_000.0;
 
     println!(
-        "Codec roundtrip - Total: {:?}, Per iter: {:?}, Throughput: {:.2} GB/s",
+        "RedoubtCodec roundtrip - Total: {:?}, Per iter: {:?}, Throughput: {:.2} GB/s",
         elapsed, per_iter, throughput_gbps
     );
 }

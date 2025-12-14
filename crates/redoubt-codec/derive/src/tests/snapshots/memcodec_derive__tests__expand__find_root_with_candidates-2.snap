@@ -4,5 +4,5 @@ assertion_line: 19
 expression: pretty(ts_2)
 ---
 compile_error!(
-    "Codec: could not find memcodec or redoubt_codec_core. Add memcodec to Cargo.toml."
+    "RedoubtCodec: could not find memcodec or redoubt_codec_core. Add memcodec to Cargo.toml."
 );

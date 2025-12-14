@@ -3,5 +3,5 @@ source: crates/redoubt-codec/derive/src/tests/expand.rs
 expression: pretty(ts_2)
 ---
 compile_error!(
-    "Codec: could not find redoubt-codec or redoubt-codec-core. Add redoubt-codec to Cargo.toml."
+    "RedoubtCodec: could not find redoubt-codec or redoubt-codec-core. Add redoubt-codec to Cargo.toml."
 );

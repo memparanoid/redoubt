@@ -3,14 +3,14 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(feature = "zeroize")]
-use core::sync::atomic::{compiler_fence, Ordering};
+use core::sync::atomic::{Ordering, compiler_fence};
 #[cfg(feature = "zeroize")]
 use redoubt_zero::FastZeroizable;
 #[cfg(feature = "zeroize")]
 use smallvec::SmallVec;
 
-use crate::codec_buffer::CodecBuffer;
-use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
+use crate::codec_buffer::RedoubtCodecBuffer;
+use crate::error::{DecodeError, EncodeError, OverflowError, RedoubtCodecBufferError};
 use crate::traits::{BytesRequired, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize};
 use crate::zeroizing::Zeroizing;
 
@@ -20,10 +20,10 @@ pub fn header_size() -> usize {
 
 #[inline(always)]
 pub fn write_header(
-    buf: &mut CodecBuffer,
+    buf: &mut RedoubtCodecBuffer,
     size: &mut usize,
     bytes_required: &mut usize,
-) -> Result<(), CodecBufferError> {
+) -> Result<(), RedoubtCodecBufferError> {
     buf.write(size)?;
     buf.write(bytes_required)?;
 
@@ -123,7 +123,7 @@ pub fn bytes_required_sum<'a>(
 #[inline(always)]
 pub fn encode_fields<'a>(
     fields: impl Iterator<Item = &'a mut dyn EncodeZeroize>,
-    buf: &mut CodecBuffer,
+    buf: &mut RedoubtCodecBuffer,
 ) -> Result<(), EncodeError> {
     let mut result = Ok(());
 

@@ -10,7 +10,7 @@ use core::fmt;
 use thiserror::Error;
 
 #[derive(Debug, Error, Eq, PartialEq)]
-pub enum CodecBufferError {
+pub enum RedoubtCodecBufferError {
     #[error("CapacityExceeded")]
     CapacityExceeded,
 }
@@ -26,8 +26,8 @@ pub enum EncodeError {
     #[error("OverflowError: {0}")]
     OverflowError(#[from] OverflowError),
 
-    #[error("CodecBufferError: {0}")]
-    CodecBufferError(#[from] CodecBufferError),
+    #[error("RedoubtCodecBufferError: {0}")]
+    RedoubtCodecBufferError(#[from] RedoubtCodecBufferError),
 
     /// Test-only error for simulating encode failures.
     ///

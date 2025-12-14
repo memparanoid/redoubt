@@ -6,7 +6,7 @@ use alloc::vec::Vec;
 
 use redoubt_zero::{FastZeroizable, ZeroizeMetadata};
 
-use crate::codec_buffer::CodecBuffer;
+use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
     BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc, TryDecode, TryEncode,
@@ -21,7 +21,7 @@ use super::helpers::{header_size, process_header, write_header};
 #[inline(never)]
 fn cleanup_encode_error<T: FastZeroizable + ZeroizeMetadata>(
     vec: &mut Vec<T>,
-    buf: &mut CodecBuffer,
+    buf: &mut RedoubtCodecBuffer,
 ) {
     vec.fast_zeroize();
     buf.fast_zeroize();
@@ -66,7 +66,7 @@ impl<T> TryEncode for Vec<T>
 where
     T: EncodeSlice + BytesRequired + FastZeroizable + ZeroizeMetadata,
 {
-    fn try_encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
+    fn try_encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
         let mut size = Zeroizing::from(&mut self.len());
         let mut bytes_required = Zeroizing::from(&mut self.encode_bytes_required()?);
 
@@ -81,7 +81,7 @@ where
     T: EncodeSlice + BytesRequired + FastZeroizable + ZeroizeMetadata,
 {
     #[inline(always)]
-    fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
+    fn encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
         let result = self.try_encode_into(buf);
 
         #[cfg(feature = "zeroize")]
@@ -100,7 +100,10 @@ where
     T: EncodeSlice + BytesRequired + FastZeroizable + ZeroizeMetadata,
 {
     #[inline(always)]
-    fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError> {
+    fn encode_slice_into(
+        slice: &mut [Self],
+        buf: &mut RedoubtCodecBuffer,
+    ) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {
             elem.encode_into(buf)?;
         }

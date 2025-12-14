@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::codec_buffer::CodecBuffer;
+use crate::codec_buffer::RedoubtCodecBuffer;
 #[cfg(feature = "zeroize")]
 use redoubt_zero::ZeroizationProbe;
 
 use crate::collections::helpers::header_size;
 use crate::collections::string::string_bytes_required;
-use crate::error::{CodecBufferError, OverflowError};
+use crate::error::{OverflowError, RedoubtCodecBufferError};
 use crate::tests::primitives::utils::{EQUIDISTANT_SAMPLE_SIZE, equidistant_unsigned};
 use crate::traits::{Decode, DecodeSlice, Encode, EncodeSlice};
 use crate::{BytesRequired, DecodeError, EncodeError};
@@ -42,15 +42,15 @@ fn test_string_bytes_required_overflow() {
 #[test]
 fn test_string_encode_propagates_write_header_error() {
     let mut s = String::from("hello");
-    let mut buf = CodecBuffer::with_capacity(1); // Too small for header
+    let mut buf = RedoubtCodecBuffer::with_capacity(1); // Too small for header
 
     let result = s.encode_into(&mut buf);
 
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(EncodeError::CodecBufferError(
-            CodecBufferError::CapacityExceeded
+        Err(EncodeError::RedoubtCodecBufferError(
+            RedoubtCodecBufferError::CapacityExceeded
         ))
     ));
 
@@ -65,15 +65,15 @@ fn test_string_encode_propagates_write_header_error() {
 #[test]
 fn test_string_encode_into_propagates_encode_slice_error() {
     let mut s = String::from("hello");
-    let mut buf = CodecBuffer::with_capacity(header_size()); // Fits header, not data
+    let mut buf = RedoubtCodecBuffer::with_capacity(header_size()); // Fits header, not data
 
     let result = s.encode_into(&mut buf);
 
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(EncodeError::CodecBufferError(
-            CodecBufferError::CapacityExceeded
+        Err(EncodeError::RedoubtCodecBufferError(
+            RedoubtCodecBufferError::CapacityExceeded
         ))
     ));
 
@@ -91,15 +91,15 @@ fn test_string_encode_into_propagates_encode_slice_error() {
 fn test_string_encode_into_propagates_try_encode_into_error() {
     // Force try_encode_into to fail via buffer too small, then check zeroization
     let mut s = String::from("hello");
-    let mut buf = CodecBuffer::with_capacity(1); // Too small
+    let mut buf = RedoubtCodecBuffer::with_capacity(1); // Too small
 
     let result = s.encode_into(&mut buf);
 
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(EncodeError::CodecBufferError(
-            CodecBufferError::CapacityExceeded
+        Err(EncodeError::RedoubtCodecBufferError(
+            RedoubtCodecBufferError::CapacityExceeded
         ))
     ));
 
@@ -117,7 +117,7 @@ fn test_string_encode_ok() {
     let bytes_required = s
         .encode_bytes_required()
         .expect("Failed to get encode_bytes_required()");
-    let mut buf = CodecBuffer::with_capacity(bytes_required);
+    let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
     let result = s.encode_into(&mut buf);
 
@@ -138,7 +138,7 @@ fn test_string_encode_slice_ok() {
     let buf_size = s_slice
         .encode_bytes_required()
         .expect("Failed to get encode_bytes_required()");
-    let mut buf = CodecBuffer::with_capacity(buf_size);
+    let mut buf = RedoubtCodecBuffer::with_capacity(buf_size);
 
     let result = String::encode_slice_into(&mut s_slice, &mut buf);
 
@@ -154,15 +154,15 @@ fn test_string_encode_slice_ok() {
 #[test]
 fn test_string_encode_slice_propagates_encode_into_error() {
     let mut s_slice = [String::from("hello"), String::from("world")];
-    let mut buf = CodecBuffer::with_capacity(1); // Too small
+    let mut buf = RedoubtCodecBuffer::with_capacity(1); // Too small
 
     let result = String::encode_slice_into(&mut s_slice, &mut buf);
 
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(EncodeError::CodecBufferError(
-            CodecBufferError::CapacityExceeded
+        Err(EncodeError::RedoubtCodecBufferError(
+            RedoubtCodecBufferError::CapacityExceeded
         ))
     ));
 }
@@ -172,7 +172,7 @@ fn test_string_encode_slice_propagates_encode_into_error() {
 #[test]
 fn test_string_decode_from_propagates_process_header_error() {
     let mut s = String::new();
-    let mut buf = CodecBuffer::with_capacity(1); // Too small for header;
+    let mut buf = RedoubtCodecBuffer::with_capacity(1); // Too small for header;
 
     let mut decode_buf = buf.export_as_vec();
     let result = s.decode_from(&mut decode_buf.as_mut_slice());
@@ -194,7 +194,7 @@ fn test_string_decode_from_utf8_validation_error() {
     let bytes_required = s
         .encode_bytes_required()
         .expect("Failed to get encode_bytes_required()");
-    let mut buf = CodecBuffer::with_capacity(bytes_required);
+    let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
     s.encode_into(&mut buf).expect("encode failed");
 
@@ -227,7 +227,7 @@ fn test_string_decode_from_propagates_error() {
     // Start with a string with data to verify zeroization
     let mut s = String::from("existing data");
 
-    let mut buf = CodecBuffer::with_capacity(1); // Too small
+    let mut buf = RedoubtCodecBuffer::with_capacity(1); // Too small
     let mut decode_buf = buf.export_as_vec();
     let result = s.decode_from(&mut decode_buf.as_mut_slice());
 
@@ -252,7 +252,7 @@ fn test_string_slice_roundtrip_ok() {
     let bytes_required = s_slice
         .encode_bytes_required()
         .expect("Failed to get encode_bytes_required()");
-    let mut buf = CodecBuffer::with_capacity(bytes_required);
+    let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
     String::encode_slice_into(&mut s_slice, &mut buf).expect("encode failed");
 
@@ -277,7 +277,7 @@ fn test_string_slice_roundtrip_ok() {
 #[test]
 fn test_string_decode_slice_propagates_decode_from_error() {
     let mut s_slice = [String::from("existing"), String::from("data")];
-    let mut buf = CodecBuffer::with_capacity(1); // Too small
+    let mut buf = RedoubtCodecBuffer::with_capacity(1); // Too small
     let mut decode_buf = buf.export_as_vec();
 
     let result = String::decode_slice_from(&mut s_slice, &mut decode_buf.as_mut_slice());
@@ -295,7 +295,7 @@ fn test_string_roundtrip_ok() {
     let bytes_required = s
         .encode_bytes_required()
         .expect("Failed to get encode_bytes_required()");
-    let mut buf = CodecBuffer::with_capacity(bytes_required);
+    let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
     s.encode_into(&mut buf).expect("encode failed");
 

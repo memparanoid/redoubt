@@ -5,14 +5,14 @@
 #[cfg(feature = "zeroize")]
 use redoubt_zero::ZeroizationProbe;
 
-use crate::codec_buffer::CodecBuffer;
+use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::collections::helpers::{
     bytes_required_sum, decode_fields, encode_fields, header_size, process_header,
     to_bytes_required_dyn_ref, to_decode_dyn_mut, to_decode_zeroize_dyn_mut, to_encode_dyn_mut,
     to_encode_zeroize_dyn_mut, write_header,
 };
-use crate::error::{CodecBufferError, DecodeError, OverflowError};
-use crate::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
+use crate::error::{DecodeError, OverflowError, RedoubtCodecBufferError};
+use crate::support::test_utils::{RedoubtCodecTestBreaker, RedoubtCodecTestBreakerBehaviour};
 use crate::traits::{BytesRequired, Decode, DecodeZeroize, Encode, EncodeZeroize};
 use redoubt_test_utils::{apply_permutation, index_permutations};
 
@@ -29,7 +29,7 @@ fn test_header_size() {
 fn test_write_header_ok() {
     let mut size = 42usize;
     let mut bytes_required = 128usize;
-    let mut buf = CodecBuffer::with_capacity(header_size());
+    let mut buf = RedoubtCodecBuffer::with_capacity(header_size());
 
     let result = write_header(&mut buf, &mut size, &mut bytes_required);
 
@@ -40,24 +40,30 @@ fn test_write_header_ok() {
 fn test_write_header_capacity_exceeded_for_size() {
     let mut size = 42usize;
     let mut bytes_required = 128usize;
-    let mut buf = CodecBuffer::with_capacity(1); // Too small for size
+    let mut buf = RedoubtCodecBuffer::with_capacity(1); // Too small for size
 
     let result = write_header(&mut buf, &mut size, &mut bytes_required);
 
     assert!(result.is_err());
-    assert!(matches!(result, Err(CodecBufferError::CapacityExceeded)));
+    assert!(matches!(
+        result,
+        Err(RedoubtCodecBufferError::CapacityExceeded)
+    ));
 }
 
 #[test]
 fn test_write_header_capacity_exceeded_for_bytes_required() {
     let mut size = 42usize;
     let mut bytes_required = 128usize;
-    let mut buf = CodecBuffer::with_capacity(size_of::<usize>()); // Enough for size, too small for bytes_required
+    let mut buf = RedoubtCodecBuffer::with_capacity(size_of::<usize>()); // Enough for size, too small for bytes_required
 
     let result = write_header(&mut buf, &mut size, &mut bytes_required);
 
     assert!(result.is_err());
-    assert!(matches!(result, Err(CodecBufferError::CapacityExceeded)));
+    assert!(matches!(
+        result,
+        Err(RedoubtCodecBufferError::CapacityExceeded)
+    ));
 }
 
 // process_header
@@ -76,7 +82,7 @@ fn test_process_header_buffer_too_small_for_header() {
 #[test]
 fn test_process_header_buffer_too_small_for_data() {
     // Second precondition violated: buf.len() < *expected_len
-    let mut buf = CodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
+    let mut buf = RedoubtCodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
 
     let mut size: usize = 20;
     let mut excessive_bytes_required: usize = 1024;
@@ -98,7 +104,7 @@ fn test_process_header_buffer_too_small_for_data() {
 #[test]
 fn test_process_header_buffer_header_size_gt_bytes_required() {
     // Third precondition violated: *bytes_required > *header_size
-    let mut buf = CodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
+    let mut buf = RedoubtCodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
 
     let mut size: usize = 1;
     let mut insufficient_bytes_required: usize = header_size() - 1;
@@ -119,7 +125,7 @@ fn test_process_header_buffer_header_size_gt_bytes_required() {
 
 #[test]
 fn test_process_header_ok() {
-    let mut buf = CodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
+    let mut buf = RedoubtCodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
 
     let mut size: usize = 1;
     let mut data: u8 = 1;
@@ -143,7 +149,7 @@ fn test_process_header_ok() {
 
 #[test]
 fn test_to_bytes_required_dyn_ref() {
-    let tb = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
+    let tb = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
     let dyn_ref: &dyn BytesRequired = to_bytes_required_dyn_ref(&tb);
 
     assert_eq!(
@@ -156,8 +162,8 @@ fn test_to_bytes_required_dyn_ref() {
 
 #[test]
 fn test_to_encode_dyn_mut() {
-    let mut tb = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
-    let mut buf = CodecBuffer::with_capacity(1024);
+    let mut tb = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
+    let mut buf = RedoubtCodecBuffer::with_capacity(1024);
 
     let dyn_mut: &mut dyn Encode = to_encode_dyn_mut(&mut tb);
     let result = dyn_mut.encode_into(&mut buf);
@@ -170,15 +176,15 @@ fn test_to_encode_dyn_mut() {
 #[test]
 fn test_to_decode_dyn_mut() {
     // First encode
-    let mut tb = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
+    let mut tb = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
     let bytes_required = tb.encode_bytes_required().expect("Failed");
-    let mut buf = CodecBuffer::with_capacity(bytes_required);
+    let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
     tb.encode_into(&mut buf).expect("Failed to encode");
 
     // Decode
     {
         let mut decode_buf = buf.export_as_vec();
-        let mut decoded = CodecTestBreaker::default();
+        let mut decoded = RedoubtCodecTestBreaker::default();
         let dyn_mut: &mut dyn Decode = to_decode_dyn_mut(&mut decoded);
         let result = dyn_mut.decode_from(&mut decode_buf.as_mut_slice());
 
@@ -205,8 +211,8 @@ fn test_to_decode_dyn_mut() {
 
 #[test]
 fn test_bytes_required_sum_ok() {
-    let tb1 = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
-    let tb2 = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 200);
+    let tb1 = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
+    let tb2 = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 200);
 
     let refs: [&dyn BytesRequired; 2] = [
         to_bytes_required_dyn_ref(&tb1),
@@ -220,8 +226,11 @@ fn test_bytes_required_sum_ok() {
 
 #[test]
 fn test_bytes_required_sum_element_error() {
-    let tb1 = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
-    let tb2 = CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceBytesRequiredOverflow, 200);
+    let tb1 = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
+    let tb2 = RedoubtCodecTestBreaker::new(
+        RedoubtCodecTestBreakerBehaviour::ForceBytesRequiredOverflow,
+        200,
+    );
 
     let refs: [&dyn BytesRequired; 2] = [
         to_bytes_required_dyn_ref(&tb1),
@@ -233,14 +242,20 @@ fn test_bytes_required_sum_element_error() {
     assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(OverflowError { reason }) if reason == "CodecTestBreaker forced overflow"
+        Err(OverflowError { reason }) if reason == "RedoubtCodecTestBreaker forced overflow"
     ));
 }
 
 #[test]
 fn test_bytes_required_sum_overflow() {
-    let tb1 = CodecTestBreaker::new(CodecTestBreakerBehaviour::BytesRequiredReturn(usize::MAX), 100);
-    let tb2 = CodecTestBreaker::new(CodecTestBreakerBehaviour::BytesRequiredReturn(1), 200);
+    let tb1 = RedoubtCodecTestBreaker::new(
+        RedoubtCodecTestBreakerBehaviour::BytesRequiredReturn(usize::MAX),
+        100,
+    );
+    let tb2 = RedoubtCodecTestBreaker::new(
+        RedoubtCodecTestBreakerBehaviour::BytesRequiredReturn(1),
+        200,
+    );
 
     let refs: [&dyn BytesRequired; 2] = [
         to_bytes_required_dyn_ref(&tb1),
@@ -257,12 +272,12 @@ fn test_bytes_required_sum_overflow() {
 #[test]
 fn perm_test_encode_fields_propagates_error_at_any_position() {
     let fields = [
-        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 1),
-        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 2),
-        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 3),
-        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 4),
-        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 5),
-        CodecTestBreaker::new(CodecTestBreakerBehaviour::ForceEncodeError, 6),
+        RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 1),
+        RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 2),
+        RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 3),
+        RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 4),
+        RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 5),
+        RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::ForceEncodeError, 6),
     ];
     let bytes_required = fields
         .encode_bytes_required()
@@ -272,7 +287,7 @@ fn perm_test_encode_fields_propagates_error_at_any_position() {
         let mut fields_clone = fields;
         apply_permutation(&mut fields_clone, idx_perm);
 
-        let mut buf = CodecBuffer::with_capacity(bytes_required);
+        let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
         let result = encode_fields(
             fields_clone.iter_mut().map(to_encode_zeroize_dyn_mut),
@@ -293,12 +308,12 @@ fn perm_test_encode_fields_propagates_error_at_any_position() {
 #[test]
 fn perm_test_decode_fields_propagates_error_at_any_position() {
     let fields = [
-        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 1),
-        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 2),
-        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 3),
-        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 4),
-        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 5),
-        CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 6),
+        RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 1),
+        RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 2),
+        RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 3),
+        RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 4),
+        RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 5),
+        RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 6),
     ];
 
     let bytes_required = fields
@@ -307,14 +322,14 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
         .sum();
 
     let mut recovered_fields = fields;
-    recovered_fields[0].set_behaviour(CodecTestBreakerBehaviour::ForceDecodeError);
+    recovered_fields[0].set_behaviour(RedoubtCodecTestBreakerBehaviour::ForceDecodeError);
 
     index_permutations(fields.len(), |idx_perm| {
         // Encode
         let mut fields_clone = fields;
         apply_permutation(&mut fields_clone, idx_perm);
 
-        let mut buf = CodecBuffer::with_capacity(bytes_required);
+        let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
         encode_fields(
             fields_clone.iter_mut().map(to_encode_zeroize_dyn_mut),
             &mut buf,
@@ -359,9 +374,9 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
 #[test]
 fn test_fields_roundtrip_ok() {
     // Encode
-    let mut tb1 = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 100);
-    let mut tb2 = CodecTestBreaker::new(CodecTestBreakerBehaviour::None, 200);
-    let mut buf = CodecBuffer::with_capacity(1024);
+    let mut tb1 = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
+    let mut tb2 = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 200);
+    let mut buf = RedoubtCodecBuffer::with_capacity(1024);
 
     let encode_refs: [&mut dyn EncodeZeroize; 2] = [
         to_encode_zeroize_dyn_mut(&mut tb1),
@@ -377,8 +392,8 @@ fn test_fields_roundtrip_ok() {
     }
 
     // Decode
-    let mut decoded1 = CodecTestBreaker::default();
-    let mut decoded2 = CodecTestBreaker::default();
+    let mut decoded1 = RedoubtCodecTestBreaker::default();
+    let mut decoded2 = RedoubtCodecTestBreaker::default();
 
     let decode_refs: [&mut dyn DecodeZeroize; 2] = [
         to_decode_zeroize_dyn_mut(&mut decoded1),

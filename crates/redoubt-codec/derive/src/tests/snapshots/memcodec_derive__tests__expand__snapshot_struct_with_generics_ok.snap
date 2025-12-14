@@ -24,7 +24,7 @@ where
 {
     fn encode_into(
         &mut self,
-        buf: &mut redoubt_codec_core::CodecBuffer,
+        buf: &mut redoubt_codec_core::RedoubtCodecBuffer,
     ) -> Result<(), redoubt_codec_core::EncodeError> {
         let fields: [&mut dyn redoubt_codec_core::EncodeZeroize; 2] = [
             redoubt_codec_core::collections::helpers::to_encode_zeroize_dyn_mut(

@@ -22,7 +22,7 @@ macro_rules! impl_traits_for_primitives {
 
             impl $crate::traits::TryEncode for $ty {
                 #[inline(always)]
-                fn try_encode_into(&mut self, buf: &mut $crate::codec_buffer::CodecBuffer) -> Result<(), $crate::error::EncodeError> {
+                fn try_encode_into(&mut self, buf: &mut $crate::codec_buffer::RedoubtCodecBuffer) -> Result<(), $crate::error::EncodeError> {
                     buf.write(self)?;
                     Ok(())
                 }
@@ -30,7 +30,7 @@ macro_rules! impl_traits_for_primitives {
 
             impl $crate::traits::Encode for $ty {
                 #[inline(always)]
-                fn encode_into(&mut self, buf: &mut $crate::codec_buffer::CodecBuffer) -> Result<(), $crate::error::EncodeError> {
+                fn encode_into(&mut self, buf: &mut $crate::codec_buffer::RedoubtCodecBuffer) -> Result<(), $crate::error::EncodeError> {
                     let result = self.try_encode_into(buf);
 
                     #[cfg(feature = "zeroize")]
@@ -48,7 +48,7 @@ macro_rules! impl_traits_for_primitives {
             /// Caller is responsible for zeroizing slice and buffer on error.
             impl $crate::traits::EncodeSlice for $ty {
                 #[inline(always)]
-                fn encode_slice_into(slice: &mut [Self], buf: &mut $crate::codec_buffer::CodecBuffer) -> Result<(), $crate::error::EncodeError> {
+                fn encode_slice_into(slice: &mut [Self], buf: &mut $crate::codec_buffer::RedoubtCodecBuffer) -> Result<(), $crate::error::EncodeError> {
                     buf.write_slice(slice)?;
                     Ok(())
                 }

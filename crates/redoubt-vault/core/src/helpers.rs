@@ -6,7 +6,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use redoubt_aead::AeadApi;
-use redoubt_codec::CodecBuffer;
+use redoubt_codec::RedoubtCodecBuffer;
 use redoubt_zero::{FastZeroizable, ZeroizationProbe};
 
 use crate::error::CipherBoxError;
@@ -46,7 +46,7 @@ pub fn encrypt_into<const N: usize>(
     tags: &mut [Vec<u8>; N],
 ) -> Result<[Vec<u8>; N], CipherBoxError> {
     let sizes = get_sizes(&fields)?;
-    let mut buffers: [CodecBuffer; N] = sizes.map(CodecBuffer::with_capacity);
+    let mut buffers: [RedoubtCodecBuffer; N] = sizes.map(RedoubtCodecBuffer::with_capacity);
     let mut ciphertexts: [Vec<u8>; N] = core::array::from_fn(|_| vec![]);
 
     encrypt_into_buffers(
@@ -69,7 +69,7 @@ fn try_encrypt_into_buffers<const N: usize>(
     aead_key: &[u8],
     nonces: &mut [Vec<u8>; N],
     tags: &mut [Vec<u8>; N],
-    buffers: &mut [CodecBuffer; N],
+    buffers: &mut [RedoubtCodecBuffer; N],
     ciphertexts: &mut [Vec<u8>; N],
 ) -> Result<(), CipherBoxError> {
     for (idx, field) in fields.iter_mut().enumerate() {
@@ -105,7 +105,7 @@ pub(crate) fn encrypt_into_buffers<const N: usize>(
     aead_key: &[u8],
     nonces: &mut [Vec<u8>; N],
     tags: &mut [Vec<u8>; N],
-    buffers: &mut [CodecBuffer; N],
+    buffers: &mut [RedoubtCodecBuffer; N],
     ciphertexts: &mut [Vec<u8>; N],
 ) -> Result<(), CipherBoxError> {
     let result =

@@ -19,7 +19,7 @@ pub use traits::MemMove;
 
 use core::fmt;
 
-use redoubt_codec::{BytesRequired, Codec, Decode, Encode};
+use redoubt_codec::{BytesRequired, Decode, Encode, RedoubtCodec};
 use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel};
 
 /// Wrapper that prevents accidental exposure of sensitive data.
@@ -56,7 +56,7 @@ use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropS
 ///
 /// // Auto-zeroizes on drop
 /// ```
-#[derive(Default, PartialEq, Eq, RedoubtZero, Codec)]
+#[derive(Default, PartialEq, Eq, RedoubtZero, RedoubtCodec)]
 #[fast_zeroize(drop)]
 pub struct Secret<T>
 where

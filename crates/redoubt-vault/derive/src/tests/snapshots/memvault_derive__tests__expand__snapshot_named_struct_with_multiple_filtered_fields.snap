@@ -6,7 +6,7 @@
 source: crates/redoubt-vault/derive/src/tests/expand.rs
 expression: pretty(token_stream)
 ---
-#[derive(RedoubtZero, Codec)]
+#[derive(RedoubtZero, RedoubtCodec)]
 struct Zeta {
     pub field1: Vec<u8>,
     #[codec(default)]

@@ -8,7 +8,7 @@ use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 use redoubt_aead::AeadApi;
-use redoubt_codec::{BytesRequired, CodecBuffer, Decode, Encode};
+use redoubt_codec::{BytesRequired, Decode, Encode, RedoubtCodecBuffer};
 use redoubt_zero::{
     FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,
     ZeroizingGuard,
@@ -41,7 +41,7 @@ where
     nonces: [Vec<u8>; N],
     tags: [Vec<u8>; N],
     tmp_field_cyphertext: Vec<u8>,
-    tmp_field_codec_buff: CodecBuffer,
+    tmp_field_codec_buff: RedoubtCodecBuffer,
     __sentinel: ZeroizeOnDropSentinel,
     #[fast_zeroize(skip)]
     aead: A,
@@ -73,7 +73,7 @@ where
     }
 
     #[cfg(test)]
-    pub(crate) fn __unsafe_get_tmp_codec_buff(&mut self) -> &CodecBuffer {
+    pub(crate) fn __unsafe_get_tmp_codec_buff(&mut self) -> &RedoubtCodecBuffer {
         &self.tmp_field_codec_buff
     }
 
@@ -108,7 +108,7 @@ where
             healthy: true,
             initialized: false,
             tmp_field_cyphertext: Vec::default(),
-            tmp_field_codec_buff: CodecBuffer::default(),
+            tmp_field_codec_buff: RedoubtCodecBuffer::default(),
             __sentinel: ZeroizeOnDropSentinel::default(),
             _marker: PhantomData,
         }

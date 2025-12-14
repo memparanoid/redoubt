@@ -7,7 +7,7 @@ use alloc::string::String;
 #[cfg(feature = "zeroize")]
 use redoubt_zero::FastZeroizable;
 
-use crate::codec_buffer::CodecBuffer;
+use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
     BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc, TryDecode, TryEncode,
@@ -20,7 +20,7 @@ use super::helpers::{header_size, process_header, write_header};
 #[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
-fn cleanup_encode_error(s: &mut String, buf: &mut CodecBuffer) {
+fn cleanup_encode_error(s: &mut String, buf: &mut RedoubtCodecBuffer) {
     s.fast_zeroize();
     buf.fast_zeroize();
 }
@@ -58,7 +58,7 @@ impl BytesRequired for String {
 }
 
 impl TryEncode for String {
-    fn try_encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
+    fn try_encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
         let mut bytes_required = Zeroizing::from(&mut self.encode_bytes_required()?);
         let mut size = Zeroizing::from(&mut self.len());
 
@@ -71,7 +71,7 @@ impl TryEncode for String {
 
 impl Encode for String {
     #[inline(always)]
-    fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
+    fn encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
         let result = self.try_encode_into(buf);
 
         #[cfg(feature = "zeroize")]
@@ -87,7 +87,10 @@ impl Encode for String {
 }
 
 impl EncodeSlice for String {
-    fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError> {
+    fn encode_slice_into(
+        slice: &mut [Self],
+        buf: &mut RedoubtCodecBuffer,
+    ) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {
             elem.encode_into(buf)?;
         }

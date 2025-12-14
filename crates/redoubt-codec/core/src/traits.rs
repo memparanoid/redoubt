@@ -4,7 +4,7 @@
 
 use redoubt_zero::FastZeroizable;
 
-use crate::codec_buffer::CodecBuffer;
+use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::error::{DecodeBufferError, DecodeError, EncodeError, OverflowError};
 
 pub trait BytesRequired {
@@ -22,18 +22,21 @@ pub trait BytesRequired {
 /// - Clean separation of concerns (logic vs security)
 /// - The public API to guarantee zeroization invariants on all error paths
 pub(crate) trait TryEncode: Encode + Sized {
-    fn try_encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError>;
+    fn try_encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError>;
 }
 
 pub trait Encode {
-    fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError>;
+    fn encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError>;
 }
 
 /// Encode a slice of elements into the buffer.
 /// - Primitives: NO zeroize (collection handles it)
 /// - Collections: YES zeroize (handle their own cleanup)
 pub(crate) trait EncodeSlice: Encode + Sized {
-    fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError>;
+    fn encode_slice_into(
+        slice: &mut [Self],
+        buf: &mut RedoubtCodecBuffer,
+    ) -> Result<(), EncodeError>;
 }
 
 /// Internal decoding trait that performs decoding without zeroization.

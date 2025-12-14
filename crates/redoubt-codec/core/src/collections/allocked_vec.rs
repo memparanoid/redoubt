@@ -7,7 +7,7 @@ use redoubt_zero::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
 use crate::zeroizing::Zeroizing;
 
-use crate::codec_buffer::CodecBuffer;
+use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
     BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc, TryDecode, TryEncode,
@@ -18,7 +18,7 @@ use super::helpers::{header_size, process_header, write_header};
 /// Cleanup function for encode errors. Marked #[cold] to keep it out of the hot path.
 #[cold]
 #[inline(never)]
-fn cleanup_encode_error<T>(vec: &mut AllockedVec<T>, buf: &mut CodecBuffer)
+fn cleanup_encode_error<T>(vec: &mut AllockedVec<T>, buf: &mut RedoubtCodecBuffer)
 where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
 {
@@ -64,7 +64,7 @@ impl<T> TryEncode for AllockedVec<T>
 where
     T: FastZeroizable + ZeroizeMetadata + EncodeSlice + BytesRequired + ZeroizationProbe,
 {
-    fn try_encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
+    fn try_encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
         let mut size = Zeroizing::from(&mut self.len());
         let mut bytes_required = Zeroizing::from(&mut self.encode_bytes_required()?);
 
@@ -79,7 +79,7 @@ where
     T: FastZeroizable + ZeroizeMetadata + EncodeSlice + BytesRequired + ZeroizationProbe,
 {
     #[inline(always)]
-    fn encode_into(&mut self, buf: &mut CodecBuffer) -> Result<(), EncodeError> {
+    fn encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
         let result = self.try_encode_into(buf);
 
         if result.is_err() {
@@ -96,7 +96,10 @@ impl<T> EncodeSlice for AllockedVec<T>
 where
     T: FastZeroizable + ZeroizeMetadata + EncodeSlice + BytesRequired + ZeroizationProbe,
 {
-    fn encode_slice_into(slice: &mut [Self], buf: &mut CodecBuffer) -> Result<(), EncodeError> {
+    fn encode_slice_into(
+        slice: &mut [Self],
+        buf: &mut RedoubtCodecBuffer,
+    ) -> Result<(), EncodeError> {
         for elem in slice.iter_mut() {
             elem.encode_into(buf)?;
         }

@@ -22,6 +22,6 @@ pub mod collections;
 #[cfg(any(test, feature = "test_utils"))]
 pub mod support;
 
-pub use codec_buffer::CodecBuffer;
+pub use codec_buffer::RedoubtCodecBuffer;
 pub use error::{DecodeError, EncodeError, OverflowError};
 pub use traits::{BytesRequired, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize};

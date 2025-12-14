@@ -4,12 +4,12 @@
 
 #[cfg(test)]
 mod tests {
-    use redoubt_codec::Codec;
+    use redoubt_codec::RedoubtCodec;
     use redoubt_vault_derive::cipherbox;
     use redoubt_zero::{RedoubtZero, ZeroizationProbe};
 
     #[cipherbox(WalletSecretsCipherBox)]
-    #[derive(Default, RedoubtZero, Codec)]
+    #[derive(Default, RedoubtZero, RedoubtCodec)]
     #[fast_zeroize(drop)]
     struct WalletSecrets {
         master_seed: [u8; 32],

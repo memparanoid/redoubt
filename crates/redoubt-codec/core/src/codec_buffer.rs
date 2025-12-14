@@ -13,9 +13,9 @@ use redoubt_zero::{
     assert::assert_zeroize_on_drop,
 };
 
-use crate::error::CodecBufferError;
+use crate::error::RedoubtCodecBufferError;
 
-pub struct CodecBuffer {
+pub struct RedoubtCodecBuffer {
     pub ptr: *mut u8,
     pub end: *mut u8,
     pub cursor: *mut u8,
@@ -25,14 +25,14 @@ pub struct CodecBuffer {
 }
 
 #[cfg(feature = "zeroize")]
-impl Drop for CodecBuffer {
+impl Drop for RedoubtCodecBuffer {
     fn drop(&mut self) {
         self.fast_zeroize();
     }
 }
 
 #[cfg(feature = "zeroize")]
-impl AssertZeroizeOnDrop for CodecBuffer {
+impl AssertZeroizeOnDrop for RedoubtCodecBuffer {
     fn clone_sentinel(&self) -> ZeroizeOnDropSentinel {
         self.__sentinel.clone()
     }
@@ -43,19 +43,19 @@ impl AssertZeroizeOnDrop for CodecBuffer {
 }
 
 #[cfg(feature = "zeroize")]
-impl ZeroizationProbe for CodecBuffer {
+impl ZeroizationProbe for RedoubtCodecBuffer {
     fn is_zeroized(&self) -> bool {
         self.ptr.is_null() & self.cursor.is_null() & self.allocked_vec.is_zeroized()
     }
 }
 
 #[cfg(feature = "zeroize")]
-impl ZeroizeMetadata for CodecBuffer {
+impl ZeroizeMetadata for RedoubtCodecBuffer {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
 #[cfg(feature = "zeroize")]
-impl FastZeroizable for CodecBuffer {
+impl FastZeroizable for RedoubtCodecBuffer {
     fn fast_zeroize(&mut self) {
         unsafe {
             core::ptr::write_volatile(&mut self.ptr, core::ptr::null_mut());
@@ -66,13 +66,13 @@ impl FastZeroizable for CodecBuffer {
     }
 }
 
-impl Default for CodecBuffer {
+impl Default for RedoubtCodecBuffer {
     fn default() -> Self {
         Self::with_capacity(0)
     }
 }
 
-impl CodecBuffer {
+impl RedoubtCodecBuffer {
     #[inline(always)]
     fn debug_assert_invariant(&self) {
         debug_assert!(
@@ -140,12 +140,12 @@ impl CodecBuffer {
     }
 
     #[inline(always)]
-    pub fn write<T>(&mut self, src: &mut T) -> Result<(), CodecBufferError> {
+    pub fn write<T>(&mut self, src: &mut T) -> Result<(), RedoubtCodecBufferError> {
         let len = core::mem::size_of::<T>();
 
         unsafe {
             if self.cursor.add(len) > self.end {
-                return Err(CodecBufferError::CapacityExceeded);
+                return Err(RedoubtCodecBufferError::CapacityExceeded);
             }
 
             core::ptr::copy_nonoverlapping(src as *const T as *const u8, self.cursor, len);
@@ -159,12 +159,12 @@ impl CodecBuffer {
     }
 
     #[inline(always)]
-    pub fn write_slice<T>(&mut self, src: &mut [T]) -> Result<(), CodecBufferError> {
+    pub fn write_slice<T>(&mut self, src: &mut [T]) -> Result<(), RedoubtCodecBufferError> {
         let byte_len = core::mem::size_of_val(src);
 
         unsafe {
             if self.cursor.add(byte_len) > self.end {
-                return Err(CodecBufferError::CapacityExceeded);
+                return Err(RedoubtCodecBufferError::CapacityExceeded);
             }
 
             core::ptr::copy_nonoverlapping(src.as_ptr() as *const u8, self.cursor, byte_len);
@@ -181,20 +181,20 @@ impl CodecBuffer {
     ///
     /// This method creates a new `Vec` containing a copy of the buffer's data,
     /// then immediately zeroizes the internal buffer. The zeroization ensures
-    /// that sensitive data is cleared from the `CodecBuffer` after export,
+    /// that sensitive data is cleared from the `RedoubtCodecBuffer` after export,
     /// preventing potential memory leaks of plaintext data.
     ///
     /// # Security
     ///
     /// The zeroization happens **after** copying the data to the returned `Vec`,
     /// ensuring the internal buffer is always cleaned up when data is exported.
-    /// This is crucial when the `CodecBuffer` contains sensitive plaintext that
+    /// This is crucial when the `RedoubtCodecBuffer` contains sensitive plaintext that
     /// should not remain in memory after encoding is complete.
     ///
     /// # Example
     ///
     /// ```ignore
-    /// let mut buf = CodecBuffer::with_capacity(10);
+    /// let mut buf = RedoubtCodecBuffer::with_capacity(10);
     /// buf.write_usize(&42).unwrap();
     /// let exported = buf.export_as_vec();
     /// // buf is now zeroized, exported contains the data

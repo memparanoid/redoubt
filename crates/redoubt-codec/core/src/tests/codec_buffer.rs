@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::codec_buffer::CodecBuffer;
+use crate::codec_buffer::RedoubtCodecBuffer;
 
 #[cfg(feature = "zeroize")]
 use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
@@ -12,7 +12,7 @@ use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
 fn test_codec_buffer_assert_zeroization_on_drop() {
     use redoubt_zero::FastZeroizable;
 
-    let mut buf = CodecBuffer::default();
+    let mut buf = RedoubtCodecBuffer::default();
 
     // Buffer should NOT be zeroized: it's initialized with pointers.
     assert!(!buf.is_zeroized());
@@ -26,25 +26,25 @@ fn test_codec_buffer_assert_zeroization_on_drop() {
 
 #[test]
 fn test_codec_buffer_default() {
-    let buf = CodecBuffer::default();
+    let buf = RedoubtCodecBuffer::default();
     assert_eq!(buf.as_slice().len(), 0);
 }
 
 #[test]
 fn test_codec_buffer_with_capacity_zero() {
-    let buf = CodecBuffer::with_capacity(0);
+    let buf = RedoubtCodecBuffer::with_capacity(0);
     assert_eq!(buf.as_slice().len(), 0);
 }
 
 #[test]
 fn test_codec_buffer_with_capacity_64() {
-    let buf = CodecBuffer::with_capacity(64);
+    let buf = RedoubtCodecBuffer::with_capacity(64);
     assert_eq!(buf.as_slice().len(), 64);
 }
 
 #[test]
 fn test_codec_buffer_realloc_with_capacity() {
-    let mut buf = CodecBuffer::default();
+    let mut buf = RedoubtCodecBuffer::default();
 
     // Buffer should NOT be zeroized: it's initialized with pointers.
     #[cfg(feature = "zeroize")]
@@ -65,7 +65,7 @@ fn test_codec_buffer_realloc_with_capacity() {
 #[test]
 fn test_codec_buffer_clear() {
     let capacity = 10;
-    let mut buf = CodecBuffer::with_capacity(capacity);
+    let mut buf = RedoubtCodecBuffer::with_capacity(capacity);
 
     // Write data
     let slice = buf.as_mut_slice();
@@ -91,7 +91,7 @@ fn test_codec_buffer_clear() {
 // #[test]
 // fn test_codec_buffer_as_slice() {
 //     let capacity = 10;
-//     let mut buf = CodecBuffer::with_capacity(capacity);
+//     let mut buf = RedoubtCodecBuffer::with_capacity(capacity);
 
 //     // Write some data
 //     let slice = buf.as_mut_slice();
@@ -110,7 +110,7 @@ fn test_codec_buffer_clear() {
 #[test]
 fn test_codec_buffer_as_mut_slice() {
     let capacity = 5;
-    let mut buf = CodecBuffer::with_capacity(capacity);
+    let mut buf = RedoubtCodecBuffer::with_capacity(capacity);
 
     // Write via as_mut_slice
     let slice = buf.as_mut_slice();
@@ -132,32 +132,32 @@ fn test_codec_buffer_as_mut_slice() {
 #[test]
 fn test_codec_buffer_len() {
     let capacity = 10;
-    let buf = CodecBuffer::with_capacity(capacity);
+    let buf = RedoubtCodecBuffer::with_capacity(capacity);
 
     // len() should return the capacity
     assert_eq!(buf.len(), capacity);
 
     // Verify with different capacities
-    let buf_zero = CodecBuffer::with_capacity(0);
+    let buf_zero = RedoubtCodecBuffer::with_capacity(0);
     assert_eq!(buf_zero.len(), 0);
 
-    let buf_large = CodecBuffer::with_capacity(1024);
+    let buf_large = RedoubtCodecBuffer::with_capacity(1024);
     assert_eq!(buf_large.len(), 1024);
 }
 
 #[test]
 fn test_codec_buffer_is_empty() {
-    let buf_empty = CodecBuffer::with_capacity(0);
+    let buf_empty = RedoubtCodecBuffer::with_capacity(0);
     assert!(buf_empty.is_empty());
 
-    let buf_non_empty = CodecBuffer::with_capacity(10);
+    let buf_non_empty = RedoubtCodecBuffer::with_capacity(10);
     assert!(!buf_non_empty.is_empty());
 }
 
 #[test]
 fn test_codec_buffer_to_vec() {
     let capacity = 6;
-    let mut buf = CodecBuffer::with_capacity(capacity);
+    let mut buf = RedoubtCodecBuffer::with_capacity(capacity);
 
     // Write via as_mut_slice
     let slice = buf.as_mut_slice();
@@ -177,7 +177,7 @@ fn test_codec_buffer_to_vec() {
 /// This test catches potential UB from dangling pointers after reallocation
 #[test]
 fn test_codec_buffer_realloc_pointer_invariants() {
-    let mut buf = CodecBuffer::with_capacity(5);
+    let mut buf = RedoubtCodecBuffer::with_capacity(5);
 
     // Write initial data to verify pointers are valid
     buf.as_mut_slice()

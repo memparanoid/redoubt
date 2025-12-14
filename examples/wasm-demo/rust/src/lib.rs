@@ -4,12 +4,12 @@
 
 use wasm_bindgen::prelude::*;
 
-use redoubt_codec::Codec;
+use redoubt_codec::RedoubtCodec;
 use redoubt_vault::cipherbox;
 use redoubt_zero::RedoubtZero;
 
 #[cipherbox(SecretBox)]
-#[derive(Default, RedoubtZero, Codec)]
+#[derive(Default, RedoubtZero, RedoubtCodec)]
 #[fast_zeroize(drop)]
 struct Secrets {
     master_key: [u8; 32],

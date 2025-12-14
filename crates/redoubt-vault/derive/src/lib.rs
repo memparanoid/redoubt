@@ -8,11 +8,11 @@
 mod tests;
 
 use proc_macro::TokenStream;
+use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{format_ident, quote};
 use syn::{
-    parse_macro_input, Attribute, Data, DeriveInput, Field, Fields, Ident, LitStr, Meta, Type,
+    Attribute, Data, DeriveInput, Field, Fields, Ident, LitStr, Meta, Type, parse_macro_input,
 };
 
 /// Derives a CipherBox wrapper struct with per-field access methods.
@@ -24,7 +24,7 @@ use syn::{
 ///
 /// ```ignore
 /// #[cipherbox(WalletSecretsCipherBox)]  // ← Must come FIRST
-/// #[derive(RedoubtZero, Codec)]              // ← Then derives
+/// #[derive(RedoubtZero, RedoubtCodec)]              // ← Then derives
 /// #[fast_zeroize(drop)]
 /// struct WalletSecrets {
 ///     master_seed: [u8; 32],
@@ -42,13 +42,13 @@ use syn::{
 /// ✅ Correct order:
 /// ```ignore
 /// #[cipherbox(MyBox)]
-/// #[derive(RedoubtZero, Codec)]
+/// #[derive(RedoubtZero, RedoubtCodec)]
 /// struct MySecrets { ... }
 /// ```
 ///
 /// 🚫 Incorrect order (will fail to compile):
 /// ```ignore
-/// #[derive(RedoubtZero, Codec)]  // ← Runs first, fails because __sentinel is missing
+/// #[derive(RedoubtZero, RedoubtCodec)]  // ← Runs first, fails because __sentinel is missing
 /// #[cipherbox(MyBox)]       // ← Runs second, but too late
 /// struct MySecrets { ... }
 /// ```
