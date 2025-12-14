@@ -23,7 +23,7 @@ impl memvault_core::CipherBoxDyns<2> for Epsilon {
         [&mut self.master_seed, &mut self.encryption_key]
     }
 }
-impl<A: memaead::AeadApi> memvault_core::EncryptStruct<A, 2> for Epsilon {
+impl<A: redoubt_aead::AeadApi> memvault_core::EncryptStruct<A, 2> for Epsilon {
     fn encrypt_into(
         &mut self,
         aead: &mut A,
@@ -40,7 +40,7 @@ impl<A: memaead::AeadApi> memvault_core::EncryptStruct<A, 2> for Epsilon {
         )
     }
 }
-impl<A: memaead::AeadApi> memvault_core::DecryptStruct<A, 2> for Epsilon {
+impl<A: redoubt_aead::AeadApi> memvault_core::DecryptStruct<A, 2> for Epsilon {
     fn decrypt_from(
         &mut self,
         aead: &mut A,
@@ -60,13 +60,13 @@ impl<A: memaead::AeadApi> memvault_core::DecryptStruct<A, 2> for Epsilon {
     }
 }
 pub struct EpsilonBox {
-    inner: memvault_core::CipherBox<Epsilon, memaead::Aead, 2>,
+    inner: memvault_core::CipherBox<Epsilon, redoubt_aead::Aead, 2>,
 }
 impl EpsilonBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
-            inner: memvault_core::CipherBox::new(memaead::Aead::new()),
+            inner: memvault_core::CipherBox::new(redoubt_aead::Aead::new()),
         }
     }
     #[inline(always)]

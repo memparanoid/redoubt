@@ -5,7 +5,7 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use memaead::AeadApi;
+use redoubt_aead::AeadApi;
 use memcodec::CodecBuffer;
 use redoubt_zero::{FastZeroizable, ZeroizationProbe};
 

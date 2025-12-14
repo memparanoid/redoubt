@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 
 use core::marker::PhantomData;
 
-use memaead::AeadApi;
+use redoubt_aead::AeadApi;
 use memcodec::{BytesRequired, CodecBuffer, Decode, Encode};
 use redoubt_zero::{
     FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,

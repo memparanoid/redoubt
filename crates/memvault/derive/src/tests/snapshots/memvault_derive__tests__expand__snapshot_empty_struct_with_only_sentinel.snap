@@ -20,7 +20,7 @@ impl memvault_core::CipherBoxDyns<0> for Empty {
         []
     }
 }
-impl<A: memaead::AeadApi> memvault_core::EncryptStruct<A, 0> for Empty {
+impl<A: redoubt_aead::AeadApi> memvault_core::EncryptStruct<A, 0> for Empty {
     fn encrypt_into(
         &mut self,
         aead: &mut A,
@@ -37,7 +37,7 @@ impl<A: memaead::AeadApi> memvault_core::EncryptStruct<A, 0> for Empty {
         )
     }
 }
-impl<A: memaead::AeadApi> memvault_core::DecryptStruct<A, 0> for Empty {
+impl<A: redoubt_aead::AeadApi> memvault_core::DecryptStruct<A, 0> for Empty {
     fn decrypt_from(
         &mut self,
         aead: &mut A,
@@ -57,13 +57,13 @@ impl<A: memaead::AeadApi> memvault_core::DecryptStruct<A, 0> for Empty {
     }
 }
 pub struct EmptyBox {
-    inner: memvault_core::CipherBox<Empty, memaead::Aead, 0>,
+    inner: memvault_core::CipherBox<Empty, redoubt_aead::Aead, 0>,
 }
 impl EmptyBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
-            inner: memvault_core::CipherBox::new(memaead::Aead::new()),
+            inner: memvault_core::CipherBox::new(redoubt_aead::Aead::new()),
         }
     }
     #[inline(always)]

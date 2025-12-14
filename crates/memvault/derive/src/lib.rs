@@ -8,11 +8,11 @@
 mod tests;
 
 use proc_macro::TokenStream;
-use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Span, TokenStream as TokenStream2};
+use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{format_ident, quote};
 use syn::{
-    Attribute, Data, DeriveInput, Field, Fields, Ident, LitStr, Meta, Type, parse_macro_input,
+    parse_macro_input, Attribute, Data, DeriveInput, Field, Fields, Ident, LitStr, Meta, Type,
 };
 
 /// Derives a CipherBox wrapper struct with per-field access methods.
@@ -156,6 +156,7 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
 
     let root = find_root_with_candidates(&["memvault_core", "memvault"]);
     let redoubt_zero_root = find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero"]);
+    let redoubt_aead_root = find_root_with_candidates(&["redoubt-aead"]);
 
     // Get fields
     let fields: Vec<(usize, &syn::Field)> = match &input.data {
@@ -263,7 +264,7 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
         }
 
         // Implement EncryptStruct
-        impl<A: memaead::AeadApi> #root::EncryptStruct<A, #num_fields_lit> for #struct_name #ty_generics #where_clause {
+        impl<A: #redoubt_aead_root::AeadApi> #root::EncryptStruct<A, #num_fields_lit> for #struct_name #ty_generics #where_clause {
             fn encrypt_into(
                 &mut self,
                 aead: &mut A,
@@ -282,7 +283,7 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
         }
 
         // Implement DecryptStruct
-        impl<A: memaead::AeadApi> #root::DecryptStruct<A, #num_fields_lit> for #struct_name #ty_generics #where_clause {
+        impl<A: #redoubt_aead_root::AeadApi> #root::DecryptStruct<A, #num_fields_lit> for #struct_name #ty_generics #where_clause {
             fn decrypt_from(
                 &mut self,
                 aead: &mut A,
@@ -304,14 +305,14 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
 
         // Generate wrapper struct
         pub struct #wrapper_name {
-            inner: #root::CipherBox<#struct_name, memaead::Aead, #num_fields_lit>,
+            inner: #root::CipherBox<#struct_name, #redoubt_aead_root::Aead, #num_fields_lit>,
         }
 
         impl #wrapper_name {
             #[inline(always)]
             pub fn new() -> Self {
                 Self {
-                    inner: #root::CipherBox::new(memaead::Aead::new()),
+                    inner: #root::CipherBox::new(#redoubt_aead_root::Aead::new()),
                 }
             }
 

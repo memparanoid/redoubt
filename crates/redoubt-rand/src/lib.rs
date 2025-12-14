@@ -4,7 +4,7 @@
 
 //! # redoubt_rand
 //!
-//! Cryptographically secure random number generation for the Memora framework.
+//! Cryptographically secure random number generation for the Redoubt framework.
 //!
 //! Provides entropy sources and nonce generators for cryptographic operations,
 //! specifically designed for XChaCha20-Poly1305 AEAD encryption.
@@ -36,11 +36,11 @@
 //! let nonce = nonce_gen.generate_nonce().expect("Failed to generate nonce");
 //! ```
 //!
-//! ## Integration with Memora
+//! ## Integration with Redoubt
 //!
-//! `redoubt_rand` is used throughout the Memora stack:
-//! - **memaead**: Key and nonce generation for AEAD encryption
-//! - **memvault**: Entropy for master key derivation
+//! `redoubt_rand` is used throughout the Redoubt stack:
+//! - **redoubt-aead**: Key and nonce generation for AEAD encryption
+//! - **redoubt-vault**: Entropy for master key derivation
 //!
 //! ## Platform Support
 //!

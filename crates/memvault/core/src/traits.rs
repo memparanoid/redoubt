@@ -4,7 +4,7 @@
 
 use alloc::vec::Vec;
 
-use memaead::AeadApi;
+use redoubt_aead::AeadApi;
 use memcodec::{BytesRequired, DecodeZeroize, EncodeZeroize};
 
 use crate::error::CipherBoxError;

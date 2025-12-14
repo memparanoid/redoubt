@@ -3,8 +3,8 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_test_utils::{apply_permutation, index_permutations};
-use memaead::AeadApi;
-use memaead::support::test_utils::{AeadMock, AeadMockBehaviour};
+use redoubt_aead::AeadApi;
+use redoubt_aead::support::test_utils::{AeadMock, AeadMockBehaviour};
 use memcodec::CodecBuffer;
 use memcodec::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use redoubt_zero::ZeroizationProbe;

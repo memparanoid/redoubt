@@ -20,7 +20,7 @@ impl memvault_core::CipherBoxDyns<1> for Gamma {
         [&mut self.value]
     }
 }
-impl<A: memaead::AeadApi> memvault_core::EncryptStruct<A, 1> for Gamma {
+impl<A: redoubt_aead::AeadApi> memvault_core::EncryptStruct<A, 1> for Gamma {
     fn encrypt_into(
         &mut self,
         aead: &mut A,
@@ -37,7 +37,7 @@ impl<A: memaead::AeadApi> memvault_core::EncryptStruct<A, 1> for Gamma {
         )
     }
 }
-impl<A: memaead::AeadApi> memvault_core::DecryptStruct<A, 1> for Gamma {
+impl<A: redoubt_aead::AeadApi> memvault_core::DecryptStruct<A, 1> for Gamma {
     fn decrypt_from(
         &mut self,
         aead: &mut A,
@@ -57,13 +57,13 @@ impl<A: memaead::AeadApi> memvault_core::DecryptStruct<A, 1> for Gamma {
     }
 }
 pub struct GammaBox {
-    inner: memvault_core::CipherBox<Gamma, memaead::Aead, 1>,
+    inner: memvault_core::CipherBox<Gamma, redoubt_aead::Aead, 1>,
 }
 impl GammaBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
-            inner: memvault_core::CipherBox::new(memaead::Aead::new()),
+            inner: memvault_core::CipherBox::new(redoubt_aead::Aead::new()),
         }
     }
     #[inline(always)]

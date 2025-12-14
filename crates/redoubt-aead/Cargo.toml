@@ -5,7 +5,7 @@ description         = "Allocation-locked Vec that guarantees no reallocation aft
 edition.workspace   = true
 keywords            = ["xchacha20", "security", "no-realloc"]
 license.workspace   = true
-name                = "memaead"
+name = "redoubt-aead"
 repository.workspace = true
 version.workspace   = true
 

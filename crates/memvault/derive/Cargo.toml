@@ -17,7 +17,7 @@ syn = { workspace = true, features = ["full", "parsing"] }
 insta.workspace         = true
 prettyplease.workspace  = true
 trybuild.workspace      = true
-memaead.workspace = true
+redoubt-aead.workspace = true
 memcodec.workspace = true
 memvault_core.workspace = true
 redoubt-zero.workspace = true

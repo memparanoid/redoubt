@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Test utilities for memaead.
+//! Test utilities for redoubt-aead.
 
 mod aead_mock;
 

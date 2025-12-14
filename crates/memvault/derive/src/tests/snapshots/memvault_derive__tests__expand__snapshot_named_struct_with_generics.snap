@@ -27,7 +27,7 @@ where
         [&mut self.value, &mut self.count]
     }
 }
-impl<A: memaead::AeadApi> memvault_core::EncryptStruct<A, 2> for Container<T>
+impl<A: redoubt_aead::AeadApi> memvault_core::EncryptStruct<A, 2> for Container<T>
 where
     T: memcodec::BytesRequired + memcodec::Encode + memcodec::Decode,
 {
@@ -47,7 +47,7 @@ where
         )
     }
 }
-impl<A: memaead::AeadApi> memvault_core::DecryptStruct<A, 2> for Container<T>
+impl<A: redoubt_aead::AeadApi> memvault_core::DecryptStruct<A, 2> for Container<T>
 where
     T: memcodec::BytesRequired + memcodec::Encode + memcodec::Decode,
 {
@@ -70,13 +70,13 @@ where
     }
 }
 pub struct ContainerBox {
-    inner: memvault_core::CipherBox<Container, memaead::Aead, 2>,
+    inner: memvault_core::CipherBox<Container, redoubt_aead::Aead, 2>,
 }
 impl ContainerBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
-            inner: memvault_core::CipherBox::new(memaead::Aead::new()),
+            inner: memvault_core::CipherBox::new(redoubt_aead::Aead::new()),
         }
     }
     #[inline(always)]

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use memaead::AeadApi;
-use memaead::support::test_utils::{AeadMock, AeadMockBehaviour};
+use redoubt_aead::AeadApi;
+use redoubt_aead::support::test_utils::{AeadMock, AeadMockBehaviour};
 use memcodec::Codec;
 use memcodec::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use redoubt_rand::EntropyError;

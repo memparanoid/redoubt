@@ -6,7 +6,7 @@
 
 use thiserror::Error;
 
-use memaead::AeadError;
+use redoubt_aead::AeadError;
 use redoubt_buffer::BufferError;
 use memcodec::{DecodeError, EncodeError, OverflowError};
 use redoubt_rand::EntropyError;

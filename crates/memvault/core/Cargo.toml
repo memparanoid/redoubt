@@ -18,11 +18,11 @@ redoubt-buffer.workspace = true
 redoubt-guard.workspace = true
 redoubt-rand.workspace = true
 redoubt-zero.workspace = true
-memaead.workspace = true
+redoubt-aead.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-memaead = { workspace = true, features = ["test_utils"] }
+redoubt-aead = { workspace = true, features = ["test_utils"] }
 memcodec = { workspace = true, features = ["test_utils"] }
 redoubt-test-utils.workspace = true
 redoubt-util.workspace = true
