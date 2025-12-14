@@ -238,4 +238,9 @@ let mut password: Secret<RedoubtString> = Secret::new(RedoubtString::new());
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+
+
+This project is licensed under the [GNU General Public License v3.0-only](LICENSE).
+
+
+
