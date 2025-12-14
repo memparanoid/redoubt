@@ -118,26 +118,8 @@ pub trait FastZeroizable {
 ///
 /// # Usage
 ///
-///
-///
-///
-///
-/// ```rust,ignore
-/// use zeroize::Zeroize;
-/// use redoubt_zero_core::FastZeroize;
-///
-/// struct MyStruct {
-///     data: Vec<u8>,
-/// }
-///
-/// impl FastZeroize for MyStruct {
-///     const CAN_BE_BULK_ZEROIZED = false;
-///
-///     fn fast_zeroize(&mut self) {
-///         self.zeroize(); // Delegate to zeroize crate
-///     }
-/// }
-/// ```
+/// Most types should use `#[derive(RedoubtZero)]` which implements this automatically.
+/// Manual implementation is only needed for custom types with special zeroization requirements.
 ///
 /// # `CAN_BE_BULK_ZEROIZED` Constant
 ///

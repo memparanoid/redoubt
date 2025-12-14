@@ -43,20 +43,19 @@ use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 /// assert!(sensitive.is_zeroized());
 /// ```
 ///
-/// # Composition with Crypto Operations
+/// # Composition with Temporary Data
 ///
-/// `ZeroizingMutGuard` is heavily used in `memaead` for wrapping keys and nonces:
+/// `ZeroizingMutGuard` is useful for wrapping sensitive temporary data:
 ///
 /// ```rust,ignore
 /// use redoubt_zero_core::ZeroizingMutGuard;
-/// use memaead::Aegis128L;
 ///
-/// struct EncryptionContext<'a> {
-///     key: ZeroizingMutGuard<'a, [u8; 16]>,
+/// struct Context<'a> {
+///     key: ZeroizingMutGuard<'a, [u8; 32]>,
 ///     nonce: ZeroizingMutGuard<'a, [u8; 16]>,
 /// }
 ///
-/// impl Drop for EncryptionContext<'_> {
+/// impl Drop for Context<'_> {
 ///     fn drop(&mut self) {
 ///         // key and nonce auto-zeroize when guards drop
 ///     }

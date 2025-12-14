@@ -13,13 +13,11 @@
 //! - **Traits**: [`FastZeroizable`], [`ZeroizationProbe`], [`AssertZeroizeOnDrop`], [`MutGuarded`]
 //! - **Derive macro**: `#[derive(RedoubtZero)]` for automatic trait implementations
 //!
-//! For high-level wrappers, see the `memsecret` crate which provides `Secret<T>` and `MemMove`.
-//!
 //! ## Design Principles
 //!
 //! 1. **Systematic zeroization**: Guards auto-zeroize on drop (impossible to forget)
 //! 2. **Runtime verification**: [`ZeroizeOnDropSentinel`] ensures zeroization happened
-//! 3. **API safety**: High-level wrappers (like `memsecret::Secret<T>`) prevent direct access
+//! 3. **API safety**: High-level wrappers can prevent direct access to sensitive data
 //! 4. **Composability**: Traits work with collections, nested types, custom structs
 //!
 //! ## Quick Start
@@ -93,23 +91,6 @@
 //! // Verify zeroization happens on drop
 //! creds.assert_zeroize_on_drop(); // ✅ Passes
 //! ```
-//!
-//! ## Integration with Memora
-//!
-//! `redoubt-zero-core` is a foundational crate in the **Memora** framework:
-//!
-//! ```text
-//! memvault (encrypted storage)
-//!     ├─> memaead (AEAD encryption) ──> guards from RedoubtZero
-//!     └─> memcode (serialization) ────> guards from RedoubtZero
-//!         └─> RedoubtZero (this crate)
-//! ```
-//!
-//! Guards compose with other Memora crates:
-//! - **memsecret**: High-level `Secret<T>` wrapper built on RedoubtZero traits
-//! - **memcode**: Serialization library with RedoubtZero trait support
-//! - **memaead**: Encryption stages use [`ZeroizingMutGuard`] for keys/nonces
-//! - **memvault**: High-level API uses guards for encrypted in-memory storage
 //!
 //! ## Safety
 //!
