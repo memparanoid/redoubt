@@ -1,9 +1,0 @@
-[package]
-name = "mem_test_utils"
-description = "Test utilities for memora crates"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
-
-[dependencies]
