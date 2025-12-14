@@ -3,10 +3,10 @@
 // See LICENSE in the repository root for full license text.
 
 use criterion::{
-    black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput,
+    BatchSize, BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main,
 };
 
-use memcodec::{BytesRequired, Codec, CodecBuffer, Decode, Encode};
+use redoubt_codec::{BytesRequired, Codec, CodecBuffer, Decode, Encode};
 
 // Fast mode: FAST_BENCH=1 cargo bench -p membench --bench codec
 fn is_fast_mode() -> bool {
@@ -95,8 +95,7 @@ fn bench_encode(c: &mut Criterion) {
                 let size = BytesRequired::encode_bytes_required(&data)
                     .expect("failed to calculate bytes required");
                 let mut buf = CodecBuffer::with_capacity(size);
-                data.encode_into(&mut buf)
-                    .expect("failed to encode data");
+                data.encode_into(&mut buf).expect("failed to encode data");
                 black_box(buf)
             },
             BatchSize::LargeInput,
@@ -117,10 +116,11 @@ fn bench_decode(c: &mut Criterion) {
 
     // Prepare encoded buffer
     let mut mc_data = data.clone();
-    let size = BytesRequired::encode_bytes_required(&mc_data)
-        .expect("failed to calculate bytes required");
+    let size =
+        BytesRequired::encode_bytes_required(&mc_data).expect("failed to calculate bytes required");
     let mut memcodec_buf = CodecBuffer::with_capacity(size);
-    mc_data.encode_into(&mut memcodec_buf)
+    mc_data
+        .encode_into(&mut memcodec_buf)
         .expect("failed to encode data");
     let memcodec_encoded: Vec<u8> = memcodec_buf.as_slice().to_vec();
 
@@ -157,7 +157,8 @@ fn bench_decode(c: &mut Criterion) {
                 || enc.clone(),
                 |mut bytes| {
                     let mut decoded = MixedData::empty();
-                    decoded.decode_from(&mut bytes.as_mut_slice())
+                    decoded
+                        .decode_from(&mut bytes.as_mut_slice())
                         .expect("failed to decode data");
                     // Force work by checking data
                     assert_eq!(decoded.bytes_1m.len(), 1024 * 1024);
@@ -190,12 +191,12 @@ fn bench_roundtrip(c: &mut Criterion) {
                     .expect("failed to calculate bytes required");
                 let mut buf = CodecBuffer::with_capacity(size);
 
-                data.encode_into(&mut buf)
-                    .expect("failed to encode data");
+                data.encode_into(&mut buf).expect("failed to encode data");
 
                 let mut decoded = MixedData::empty();
                 let mut bytes = buf.as_mut_slice();
-                decoded.decode_from(&mut bytes)
+                decoded
+                    .decode_from(&mut bytes)
                     .expect("failed to decode data");
                 black_box(decoded)
             },

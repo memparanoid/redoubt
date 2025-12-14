@@ -71,10 +71,15 @@ if [[ -n "$covered_crates_csv" ]]; then
   instrument_this_crate=false
   IFS=, read -ra allowed_list <<<"$covered_crates_csv"
 
+  # Normalize current crate name: hyphens to underscores
+  normalized_current="${current_crate_name//-/_}"
+
   for allowed in "${allowed_list[@]}"; do
     allowed=$(echo "$allowed" | xargs) # Remove extra spaces
+    # Normalize allowed name: hyphens to underscores
+    normalized_allowed="${allowed//-/_}"
 
-    if [[ "$current_crate_name" == "$allowed" ]]; then
+    if [[ "$normalized_current" == "$normalized_allowed" ]]; then
       instrument_this_crate=true
       break
     fi

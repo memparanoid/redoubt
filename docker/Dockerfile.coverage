@@ -76,7 +76,7 @@ RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/s
     mkdir -p crates/redoubt-aead/src && echo "// stub" > crates/redoubt-aead/src/lib.rs && \
     mkdir -p benchmarks/benches && echo "fn main() {}" > benchmarks/benches/aegis128l.rs && \
     echo "fn main() {}" > benchmarks/benches/xchacha20poly1305.rs && \
-    echo "fn main() {}" > benchmarks/benches/redoubt-codec.rs && \
+    echo "fn main() {}" > benchmarks/benches/codec.rs && \
     echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
     echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
     mkdir -p crates/redoubt-codec/src && echo "// stub" > crates/redoubt-codec/src/lib.rs && \
