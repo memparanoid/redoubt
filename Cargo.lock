@@ -534,8 +534,8 @@ name = "memaead"
 version = "0.0.1"
 dependencies = [
  "cpufeatures",
- "memrand",
  "memzer",
+ "redoubt-rand",
  "redoubt-util",
  "thiserror",
 ]
@@ -557,8 +557,8 @@ dependencies = [
  "insta",
  "libc",
  "libseccomp",
- "memrand",
  "memzer",
+ "redoubt-rand",
  "redoubt-util",
  "serial_test",
  "thiserror",
@@ -606,15 +606,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "memrand"
-version = "0.0.1"
-dependencies = [
- "getrandom",
- "proptest",
- "thiserror",
-]
-
-[[package]]
 name = "memsecret"
 version = "0.0.1"
 dependencies = [
@@ -642,10 +633,10 @@ dependencies = [
  "memalloc",
  "membuffer",
  "memcodec",
- "memrand",
  "memsecret",
  "memzer",
  "redoubt-guard",
+ "redoubt-rand",
  "redoubt-util",
  "thiserror",
 ]
@@ -978,6 +969,15 @@ dependencies = [
  "libc",
  "libseccomp",
  "serial_test",
+]
+
+[[package]]
+name = "redoubt-rand"
+version = "0.0.1"
+dependencies = [
+ "getrandom",
+ "proptest",
+ "thiserror",
 ]
 
 [[package]]
