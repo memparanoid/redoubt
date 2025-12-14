@@ -1,7 +1,13 @@
 [package]
 name = "redoubt-vault"
-version = "0.1.0"
-edition = "2024"
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories = ["cryptography", "memory-management"]
+description = "Encrypted vault with field-level access and automatic zeroization"
+edition.workspace = true
+keywords = ["vault", "encryption", "secrets", "aead", "zeroize"]
+license.workspace = true
+repository.workspace = true
+version.workspace = true
 
 [lib]
 path = "src/lib.rs"
@@ -11,7 +17,7 @@ default = []
 no_std = ["redoubt-vault-core/no_std"]
 
 [dependencies]
-redoubt-vault-core = { path = "core" }
-redoubt-vault-derive = { path = "derive" }
+redoubt-vault-core.workspace = true
+redoubt-vault-derive.workspace = true
 
 [dev-dependencies]

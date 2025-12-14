@@ -1,7 +1,13 @@
 [package]
 name = "redoubt-vault-derive"
-version = "0.1.0"
-edition = "2024"
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories = ["cryptography", "memory-management"]
+description = "Derive macros for redoubt-vault encrypted storage"
+edition.workspace = true
+keywords = ["vault", "encryption", "derive", "macro", "procedural"]
+license.workspace = true
+repository.workspace = true
+version.workspace = true
 
 [lib]
 proc-macro = true

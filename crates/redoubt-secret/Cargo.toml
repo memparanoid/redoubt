@@ -1,13 +1,13 @@
 [package]
-authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories           = ["memory-management"]
-description          = "High-level Secret wrapper with auto-zeroization"
-edition.workspace    = true
-keywords             = ["security", "secret", "zeroize", "memory"]
-license.workspace    = true
 name = "redoubt-secret"
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories = ["memory-management", "cryptography"]
+description = "High-level Secret wrapper with automatic zeroization"
+edition.workspace = true
+keywords = ["secret", "zeroize", "security", "wrapper", "sensitive"]
+license.workspace = true
 repository.workspace = true
-version.workspace    = true
+version.workspace = true
 
 [lib]
 path = "src/lib.rs"

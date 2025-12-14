@@ -1,9 +1,13 @@
 [package]
 name = "redoubt-buffer"
-version.workspace = true
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories = ["memory-management", "data-structures", "os"]
+description = "Page-aligned memory buffers with mlock and mprotect support"
 edition.workspace = true
+keywords = ["mlock", "mprotect", "buffer", "security", "memory"]
 license.workspace = true
 repository.workspace = true
+version.workspace = true
 
 [lib]
 path = "src/lib.rs"

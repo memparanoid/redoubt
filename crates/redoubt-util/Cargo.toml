@@ -1,13 +1,13 @@
 [package]
-authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories           = ["memory-management"]
-description          = "Memory utilities for verification and testing"
-edition.workspace    = true
-keywords             = ["memory", "utilities", "verification"]
-license.workspace    = true
-name                 = "redoubt-util"
+name = "redoubt-util"
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories = ["memory-management", "development-tools"]
+description = "Memory utilities for verification and testing"
+edition.workspace = true
+keywords = ["memory", "utilities", "verification", "testing", "helpers"]
+license.workspace = true
 repository.workspace = true
-version.workspace    = true
+version.workspace = true
 
 [lib]
 path = "src/lib.rs"

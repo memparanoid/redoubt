@@ -1,12 +1,13 @@
 [package]
 name = "redoubt-guard"
-version.workspace = true
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories = ["memory-management", "os"]
+description = "Process-level memory protection via prctl and mlock"
 edition.workspace = true
+keywords = ["prctl", "mlock", "mprotect", "security", "memory"]
 license.workspace = true
 repository.workspace = true
-description = "Process-level memory protection via prctl"
-categories = ["memory-management", "os"]
-keywords = ["security", "memory", "prctl", "dumpable"]
+version.workspace = true
 
 [lib]
 path = "src/lib.rs"

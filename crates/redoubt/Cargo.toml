@@ -1,9 +1,13 @@
 [package]
 name = "redoubt"
-version.workspace = true
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories = ["cryptography", "memory-management", "no-std"]
+description = "Systematic encryption-at-rest for sensitive data in Rust"
 edition.workspace = true
+keywords = ["encryption", "secrets", "zeroize", "aead", "vault"]
 license.workspace = true
 repository.workspace = true
+version.workspace = true
 
 [dependencies]
 redoubt-zero = { workspace = true }

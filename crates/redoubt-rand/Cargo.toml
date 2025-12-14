@@ -1,12 +1,13 @@
 [package]
-categories           = ["cryptography", "no-std"]
-description          = "Cross-platform cryptographic random number generation"
-edition.workspace    = true
-keywords             = ["security", "random", "crypto", "getrandom"]
-license.workspace    = true
-name                 = "redoubt-rand"
+name = "redoubt-rand"
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories = ["cryptography", "no-std"]
+description = "Cross-platform cryptographic random number generation"
+edition.workspace = true
+keywords = ["random", "crypto", "getrandom", "security", "rng"]
+license.workspace = true
 repository.workspace = true
-version.workspace    = true
+version.workspace = true
 
 [lib]
 path = "src/lib.rs"

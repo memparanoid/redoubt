@@ -1,13 +1,13 @@
 [package]
-authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories           = ["encoding", "memory-management"]
-description          = "Derive macros for redoubt-codec"
-edition.workspace    = true
-keywords             = ["codec", "zeroize", "security", "encoding"]
-license.workspace    = true
-name                 = "redoubt-codec-derive"
+name = "redoubt-codec-derive"
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories = ["encoding"]
+description = "Derive macros for redoubt-codec serialization"
+edition.workspace = true
+keywords = ["codec", "derive", "macro", "serialization", "procedural"]
+license.workspace = true
 repository.workspace = true
-version.workspace    = true
+version.workspace = true
 
 [lib]
 proc-macro = true
