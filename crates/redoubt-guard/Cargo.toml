@@ -1,5 +1,5 @@
 [package]
-name = "memguard"
+name = "redoubt-guard"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

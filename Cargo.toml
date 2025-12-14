@@ -1,7 +1,7 @@
 [workspace]
 exclude = ["scripts"]
 members = [
-  "crates/memguard",
+  "crates/redoubt-guard",
   "crates/memzer",
   "crates/memzer/core",
   "crates/memzer/derive",
@@ -37,7 +37,7 @@ resolver = "2"
   memcodec        = { path = "crates/memcodec" }
   memcodec_core   = { path = "crates/memcodec/core" }
   memcodec_derive = { path = "crates/memcodec/derive" }
-  memguard       = { path = "crates/memguard" }
+  redoubt-guard  = { path = "crates/redoubt-guard" }
   memrand        = { path = "crates/memrand" }
   memsecret      = { path = "crates/memsecret" }
   redoubt-util   = { path = "crates/redoubt-util" }

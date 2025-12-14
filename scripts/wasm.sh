@@ -7,7 +7,7 @@ cargo build --target wasm32-unknown-unknown -p membuffer
 cargo build --target wasm32-unknown-unknown -p memcodec
 cargo build --target wasm32-unknown-unknown -p memcodec_core
 cargo build --target wasm32-unknown-unknown -p memcodec_derive
-cargo build --target wasm32-unknown-unknown -p memguard
+cargo build --target wasm32-unknown-unknown -p redoubt_guard
 cargo build --target wasm32-unknown-unknown -p memsecret
 cargo build --target wasm32-unknown-unknown -p memzer_core
 cargo build --target wasm32-unknown-unknown -p memzer_derive

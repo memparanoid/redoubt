@@ -16,7 +16,7 @@ WORKDIR /workspace
 COPY Cargo.toml Cargo.lock ./
 
 # Copy only the crates we need to test + their dependencies
-COPY crates/memguard/Cargo.toml ./crates/memguard/
+COPY crates/redoubt_guard/Cargo.toml ./crates/redoubt_guard/
 COPY crates/memalloc/Cargo.toml ./crates/memalloc/
 COPY crates/membuffer/Cargo.toml ./crates/membuffer/
 COPY crates/memzer/Cargo.toml ./crates/memzer/
@@ -34,7 +34,7 @@ COPY benchmarks/Cargo.toml ./benchmarks/
 COPY crates/mem_test_utils/Cargo.toml ./crates/mem_test_utils/
 
 # Create stub lib.rs files
-RUN mkdir -p crates/memguard/src && echo "// stub" > crates/memguard/src/lib.rs && \
+RUN mkdir -p crates/redoubt_guard/src && echo "// stub" > crates/redoubt_guard/src/lib.rs && \
     mkdir -p crates/memalloc/src && echo "// stub" > crates/memalloc/src/lib.rs && \
     mkdir -p crates/membuffer/src && echo "// stub" > crates/membuffer/src/lib.rs && \
     mkdir -p crates/memzer/src && echo "// stub" > crates/memzer/src/lib.rs && \

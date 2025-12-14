@@ -34,7 +34,7 @@ pub fn create_buffer(is_guarded: bool) -> Box<dyn Buffer> {
 
 pub fn create_initialized_buffer() -> Box<dyn Buffer> {
     #[cfg(all(unix, not(target_os = "wasi")))]
-    let is_guarded = memguard::is_guarded();
+    let is_guarded = redoubt_guard::is_guarded();
     #[cfg(any(target_os = "wasi", not(unix)))]
     let is_guarded = false;
 

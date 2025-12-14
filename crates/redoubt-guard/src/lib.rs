@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! memguard - Process-level memory protection via prctl
+//! redoubt_guard - Process-level memory protection via prctl
 //!
 //! Provides a one-time initialization of `PR_SET_DUMPABLE` to prevent
 //! core dumps and ptrace attachment. Uses a spin lock to ensure only

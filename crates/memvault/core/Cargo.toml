@@ -15,7 +15,7 @@ memcodec = { workspace = true, features = ["zeroize"]}
 memalloc.workspace = true
 memsecret.workspace = true
 membuffer.workspace = true
-memguard.workspace = true
+redoubt-guard.workspace = true
 memrand.workspace = true
 memzer.workspace = true
 memaead.workspace = true
