@@ -24,11 +24,11 @@ redoubt-zero.workspace    = true
 smallvec = { workspace = true, optional = true }
 thiserror.workspace = true
 
-[dependencies.memalloc]
+[dependencies.redoubt-alloc]
 workspace = true
 features  = ["unsafe"]
 
 [dev-dependencies]
-memalloc = { workspace = true, features = ["test_utils"] }
+redoubt-alloc = { workspace = true, features = ["test_utils"] }
 mem_test_utils.workspace = true
 insta.workspace = true

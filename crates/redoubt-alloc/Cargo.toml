@@ -1,0 +1,22 @@
+[package]
+authors             = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories          = ["data-structures", "memory-management"]
+description         = "Allocation-locked Vec that guarantees no reallocation after sealing"
+edition.workspace   = true
+keywords            = ["vec", "zeroize", "security", "no-realloc"]
+license.workspace   = true
+name = "redoubt-alloc"
+repository.workspace = true
+version.workspace   = true
+
+[features]
+test_utils = []
+unsafe = []
+
+[dependencies]
+redoubt-zero.workspace    = true
+redoubt-util.workspace   = true
+thiserror.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
