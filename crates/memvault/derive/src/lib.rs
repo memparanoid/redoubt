@@ -86,7 +86,7 @@ pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStr
 }
 
 /// Detects if a type is `ZeroizeOnDropSentinel` by checking the type path.
-fn is_drop_sentinel_type(ty: &Type) -> bool {
+fn is_zeroize_on_drop_sentinel_type(ty: &Type) -> bool {
     matches!(
         ty,
         Type::Path(type_path)
@@ -106,7 +106,7 @@ fn has_codec_default(attrs: &[Attribute]) -> bool {
 }
 
 /// Injects `__sentinel: ZeroizeOnDropSentinel` field with `#[codec(default)]` attribute.
-fn inject_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
+fn inject_zeroize_on_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
     let root = find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero"]);
     let data = match &mut input.data {
         Data::Struct(data) => data,
@@ -125,12 +125,12 @@ fn inject_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
     };
 
     // Check if __sentinel already exists
-    let has_drop_sentinel = fields
+    let has_sentinel = fields
         .named
         .iter()
         .any(|f| f.ident.as_ref().map(|i| i == "__sentinel").unwrap_or(false));
 
-    if has_drop_sentinel {
+    if has_sentinel {
         // Already has __sentinel, don't inject
         return input;
     }
@@ -149,7 +149,7 @@ fn inject_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
 
 fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     // Inject __sentinel field if it doesn't exist
-    let input = inject_drop_sentinel(input);
+    let input = inject_zeroize_on_drop_sentinel(input);
 
     let struct_name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
@@ -182,7 +182,7 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
     // Filter out fields with #[codec(default)] or ZeroizeOnDropSentinel type
     let encryptable_fields: Vec<(usize, &syn::Field)> = fields
         .iter()
-        .filter(|(_, f)| !has_codec_default(&f.attrs) && !is_drop_sentinel_type(&f.ty))
+        .filter(|(_, f)| !has_codec_default(&f.attrs) && !is_zeroize_on_drop_sentinel_type(&f.ty))
         .map(|(i, f)| (*i, *f))
         .collect();
 
