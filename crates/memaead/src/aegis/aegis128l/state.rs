@@ -8,7 +8,7 @@
 //! All Intrinsics are either zeroized explicitly or via move_to.
 
 use redoubt_util::u64_to_le;
-use memzer::FastZeroizable;
+use redoubt_zero::FastZeroizable;
 
 use crate::aegis::aegis128l::consts::BLOCK_SIZE;
 use crate::aegis::intrinsics::Intrinsics;

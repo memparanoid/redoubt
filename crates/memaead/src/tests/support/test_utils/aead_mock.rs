@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 //! Tests for AeadMock.
-use memzer::ZeroizationProbe;
+use redoubt_zero::ZeroizationProbe;
 
 use crate::error::AeadError;
 use crate::support::test_utils::{AeadMock, AeadMockBehaviour};

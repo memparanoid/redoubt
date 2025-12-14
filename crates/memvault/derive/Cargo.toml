@@ -20,4 +20,4 @@ trybuild.workspace      = true
 memaead.workspace = true
 memcodec.workspace = true
 memvault_core.workspace = true
-memzer.workspace = true
+redoubt-zero.workspace = true

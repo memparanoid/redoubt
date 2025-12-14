@@ -1,0 +1,26 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["memory-management"]
+description          = "Derive macros for RedoubtZero guards and zeroization verification"
+edition.workspace    = true
+keywords             = ["security", "zeroize", "derive", "macro"]
+license.workspace    = true
+name                 = "redoubt-zero-derive"
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path       = "src/lib.rs"
+proc-macro = true
+
+[dependencies]
+redoubt-zero-core.workspace      = true
+proc-macro-crate.workspace = true
+proc-macro2.workspace      = true
+quote.workspace            = true
+syn.workspace              = true
+
+[dev-dependencies]
+insta.workspace        = true
+prettyplease.workspace = true
+trybuild.workspace     = true

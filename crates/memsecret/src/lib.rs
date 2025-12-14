@@ -20,7 +20,7 @@ pub use traits::MemMove;
 use core::fmt;
 
 use memcodec::{BytesRequired, Codec, Decode, Encode};
-use memzer::{FastZeroizable, MemZer, ZeroizationProbe, ZeroizeOnDropSentinel};
+use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel};
 
 /// Wrapper that prevents accidental exposure of sensitive data.
 ///
@@ -87,8 +87,8 @@ use memzer::{FastZeroizable, MemZer, ZeroizationProbe, ZeroizeOnDropSentinel};
 /// // `secret` is now zeroized
 /// assert!(secret.expose().iter().all(|&b| b == 0));
 /// ```
-#[derive(Default, PartialEq, Eq, MemZer, Codec)]
-#[memzer(drop)]
+#[derive(Default, PartialEq, Eq, RedoubtZero, Codec)]
+#[fast_zeroize(drop)]
 pub struct Secret<T>
 where
     T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,

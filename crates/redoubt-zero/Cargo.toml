@@ -1,0 +1,17 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["memory-management"]
+description          = "Memory guards and zeroization primitives with automatic verification"
+edition.workspace    = true
+keywords             = ["security", "zeroize", "memory", "guards"]
+license.workspace    = true
+name                 = "redoubt-zero"
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+redoubt-zero-core.workspace   = true
+redoubt-zero-derive.workspace = true

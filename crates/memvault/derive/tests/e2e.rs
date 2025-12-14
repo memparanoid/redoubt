@@ -6,11 +6,11 @@
 mod tests {
     use memcodec::Codec;
     use memvault_derive::cipherbox;
-    use memzer::{MemZer, ZeroizationProbe};
+    use redoubt_zero::{RedoubtZero, ZeroizationProbe};
 
     #[cipherbox(WalletSecretsCipherBox)]
-    #[derive(Default, MemZer, Codec)]
-    #[memzer(drop)]
+    #[derive(Default, RedoubtZero, Codec)]
+    #[fast_zeroize(drop)]
     struct WalletSecrets {
         master_seed: [u8; 32],
         encryption_key: [u8; 32],

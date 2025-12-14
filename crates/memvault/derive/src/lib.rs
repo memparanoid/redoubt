@@ -17,15 +17,15 @@ use syn::{
 
 /// Derives a CipherBox wrapper struct with per-field access methods.
 ///
-/// **IMPORTANT**: This attribute macro MUST appear BEFORE `#[derive(MemZer)]` to work correctly.
-/// It automatically injects the `__sentinel` field that MemZer requires.
+/// **IMPORTANT**: This attribute macro MUST appear BEFORE `#[derive(RedoubtZero)]` to work correctly.
+/// It automatically injects the `__sentinel` field that RedoubtZero requires.
 ///
 /// # Usage
 ///
 /// ```ignore
 /// #[cipherbox(WalletSecretsCipherBox)]  // ← Must come FIRST
-/// #[derive(MemZer, Codec)]              // ← Then derives
-/// #[memzer(drop)]
+/// #[derive(RedoubtZero, Codec)]              // ← Then derives
+/// #[fast_zeroize(drop)]
 /// struct WalletSecrets {
 ///     master_seed: [u8; 32],
 ///     encryption_key: [u8; 32],
@@ -36,19 +36,19 @@ use syn::{
 /// # Attribute Macro Ordering
 ///
 /// Attribute macros execute in order from top to bottom, BEFORE derive macros.
-/// Since `#[derive(MemZer)]` requires a `__sentinel` field, and `#[cipherbox]`
-/// injects it automatically, `#[cipherbox]` must appear above `#[derive(MemZer)]`.
+/// Since `#[derive(RedoubtZero)]` requires a `__sentinel` field, and `#[cipherbox]`
+/// injects it automatically, `#[cipherbox]` must appear above `#[derive(RedoubtZero)]`.
 ///
 /// ✅ Correct order:
 /// ```ignore
 /// #[cipherbox(MyBox)]
-/// #[derive(MemZer, Codec)]
+/// #[derive(RedoubtZero, Codec)]
 /// struct MySecrets { ... }
 /// ```
 ///
 /// 🚫 Incorrect order (will fail to compile):
 /// ```ignore
-/// #[derive(MemZer, Codec)]  // ← Runs first, fails because __sentinel is missing
+/// #[derive(RedoubtZero, Codec)]  // ← Runs first, fails because __sentinel is missing
 /// #[cipherbox(MyBox)]       // ← Runs second, but too late
 /// struct MySecrets { ... }
 /// ```
@@ -107,7 +107,7 @@ fn has_codec_default(attrs: &[Attribute]) -> bool {
 
 /// Injects `__sentinel: ZeroizeOnDropSentinel` field with `#[codec(default)]` attribute.
 fn inject_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
-    let root = find_root_with_candidates(&["memzer_core", "memzer"]);
+    let root = find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero"]);
     let data = match &mut input.data {
         Data::Struct(data) => data,
         _ => {
@@ -125,12 +125,10 @@ fn inject_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
     };
 
     // Check if __sentinel already exists
-    let has_drop_sentinel = fields.named.iter().any(|f| {
-        f.ident
-            .as_ref()
-            .map(|i| i == "__sentinel")
-            .unwrap_or(false)
-    });
+    let has_drop_sentinel = fields
+        .named
+        .iter()
+        .any(|f| f.ident.as_ref().map(|i| i == "__sentinel").unwrap_or(false));
 
     if has_drop_sentinel {
         // Already has __sentinel, don't inject
@@ -157,6 +155,7 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let root = find_root_with_candidates(&["memvault_core", "memvault"]);
+    let redoubt_zero_root = find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero"]);
 
     // Get fields
     let fields: Vec<(usize, &syn::Field)> = match &input.data {
@@ -215,7 +214,7 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
 
         leak_methods.push(quote! {
             #[inline(always)]
-            pub fn #leak_name(&mut self) -> Result<memzer::ZeroizingGuard<#field_type>, #root::CipherBoxError> {
+            pub fn #leak_name(&mut self) -> Result<#redoubt_zero_root::ZeroizingGuard<#field_type>, #root::CipherBoxError> {
                 self.inner.leak_field::<#field_type, #idx_lit>()
             }
         });

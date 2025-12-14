@@ -5,7 +5,7 @@
 #[cfg(feature = "zeroize")]
 use core::sync::atomic::{compiler_fence, Ordering};
 #[cfg(feature = "zeroize")]
-use memzer::FastZeroizable;
+use redoubt_zero::FastZeroizable;
 #[cfg(feature = "zeroize")]
 use smallvec::SmallVec;
 

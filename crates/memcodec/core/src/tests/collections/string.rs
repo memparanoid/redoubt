@@ -4,7 +4,7 @@
 
 use crate::codec_buffer::CodecBuffer;
 #[cfg(feature = "zeroize")]
-use memzer::ZeroizationProbe;
+use redoubt_zero::ZeroizationProbe;
 
 use crate::collections::helpers::header_size;
 use crate::collections::string::string_bytes_required;

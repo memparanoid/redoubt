@@ -5,7 +5,7 @@
 use core::ops::{Deref, DerefMut};
 
 #[cfg(feature = "zeroize")]
-use memzer::{FastZeroizable, ZeroizeMetadata};
+use redoubt_zero::{FastZeroizable, ZeroizeMetadata};
 
 #[repr(transparent)]
 #[cfg(feature = "zeroize")]

@@ -6,12 +6,12 @@
 source: crates/memvault/derive/src/tests/expand.rs
 expression: pretty(token_stream)
 ---
-#[derive(MemZer, Codec)]
+#[derive(RedoubtZero, Codec)]
 struct Data {
     pub alpha: Vec<u8>,
     pub beta: u64,
     #[codec(default)]
-    __sentinel: memzer::ZeroizeOnDropSentinel,
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 use memvault_core::CipherBoxDyns as _;
 impl memvault_core::CipherBoxDyns<2> for Data {
@@ -85,13 +85,13 @@ impl DataBox {
     #[inline(always)]
     pub fn leak_alpha(
         &mut self,
-    ) -> Result<memzer::ZeroizingGuard<Vec<u8>>, memvault_core::CipherBoxError> {
+    ) -> Result<redoubt_zero::ZeroizingGuard<Vec<u8>>, memvault_core::CipherBoxError> {
         self.inner.leak_field::<Vec<u8>, 0>()
     }
     #[inline(always)]
     pub fn leak_beta(
         &mut self,
-    ) -> Result<memzer::ZeroizingGuard<u64>, memvault_core::CipherBoxError> {
+    ) -> Result<redoubt_zero::ZeroizingGuard<u64>, memvault_core::CipherBoxError> {
         self.inner.leak_field::<u64, 1>()
     }
     #[inline(always)]

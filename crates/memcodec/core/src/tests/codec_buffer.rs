@@ -5,12 +5,12 @@
 use crate::codec_buffer::CodecBuffer;
 
 #[cfg(feature = "zeroize")]
-use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
+use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
 
 #[cfg(feature = "zeroize")]
 #[test]
 fn test_codec_buffer_assert_zeroization_on_drop() {
-    use memzer::FastZeroizable;
+    use redoubt_zero::FastZeroizable;
 
     let mut buf = CodecBuffer::default();
 

@@ -1,0 +1,36 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+---
+source: crates/RedoubtZero/derive/src/tests/expand.rs
+expression: pretty(token_stream)
+---
+impl redoubt_zero_core::ZeroizeMetadata for Delta {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+impl redoubt_zero_core::FastZeroizable for Delta {
+    fn fast_zeroize(&mut self) {
+        let fields: [&mut dyn redoubt_zero_core::FastZeroizable; 2] = [
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(&mut self.alpha),
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(&mut self.__sentinel),
+        ];
+        redoubt_zero_core::collections::zeroize_collection(&mut fields.into_iter())
+    }
+}
+impl redoubt_zero_core::ZeroizationProbe for Delta {
+    fn is_zeroized(&self) -> bool {
+        let fields: [&dyn redoubt_zero_core::ZeroizationProbe; 1] = [
+            redoubt_zero_core::collections::to_zeroization_probe_dyn_ref(&self.alpha),
+        ];
+        redoubt_zero_core::collections::collection_zeroed(&mut fields.into_iter())
+    }
+}
+impl redoubt_zero_core::AssertZeroizeOnDrop for Delta {
+    fn clone_sentinel(&self) -> redoubt_zero_core::ZeroizeOnDropSentinel {
+        self.__sentinel.clone()
+    }
+    fn assert_zeroize_on_drop(self) {
+        redoubt_zero_core::assert::assert_zeroize_on_drop(self);
+    }
+}

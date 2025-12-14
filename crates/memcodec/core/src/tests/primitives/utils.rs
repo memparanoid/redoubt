@@ -4,7 +4,7 @@
 
 use crate::codec_buffer::CodecBuffer;
 #[cfg(feature = "zeroize")]
-use memzer::ZeroizationProbe;
+use redoubt_zero::ZeroizationProbe;
 
 use crate::error::{CodecBufferError, DecodeBufferError, DecodeError, EncodeError};
 use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice};

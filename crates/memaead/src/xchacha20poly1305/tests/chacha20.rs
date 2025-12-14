@@ -4,7 +4,7 @@
 
 //! ChaCha20 unit tests
 
-use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
+use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
 
 use crate::xchacha20poly1305::chacha20::{ChaCha20, HChaCha20, XChaCha20};
 

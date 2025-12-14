@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use mem_test_utils::{apply_permutation, index_permutations};
-use memzer::ZeroizationProbe;
+use redoubt_zero::ZeroizationProbe;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};

@@ -9,8 +9,8 @@ use core::marker::PhantomData;
 
 use memaead::AeadApi;
 use memcodec::{BytesRequired, CodecBuffer, Decode, Encode};
-use memzer::{
-    FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,
+use redoubt_zero::{
+    FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,
     ZeroizingGuard,
 };
 
@@ -20,8 +20,8 @@ use super::master_key::leak_master_key;
 use super::consts::AAD;
 use super::traits::{DecryptStruct, Decryptable, EncryptStruct, Encryptable};
 
-#[derive(MemZer)]
-#[memzer(drop)]
+#[derive(RedoubtZero)]
+#[fast_zeroize(drop)]
 pub struct CipherBox<T, A, const N: usize>
 where
     T: Default
@@ -43,9 +43,9 @@ where
     tmp_field_cyphertext: Vec<u8>,
     tmp_field_codec_buff: CodecBuffer,
     __sentinel: ZeroizeOnDropSentinel,
-    #[memzer(skip)]
+    #[fast_zeroize(skip)]
     aead: A,
-    #[memzer(skip)]
+    #[fast_zeroize(skip)]
     _marker: PhantomData<T>,
 }
 

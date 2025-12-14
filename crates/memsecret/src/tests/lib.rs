@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use crate::Secret;
-use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
+use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
 
 #[test]
 fn test_secret_assert_zeroization_probe_trait() {

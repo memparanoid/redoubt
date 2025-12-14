@@ -8,7 +8,7 @@ use core::arch::aarch64::{
     uint8x16_t, vaeseq_u8, vaesmcq_u8, vandq_u8, vdupq_n_u8, veorq_u8, vld1q_u8, vst1q_u8,
 };
 
-use memzer::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
+use redoubt_zero::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
 /// AES block using ARM Crypto intrinsics.
 ///

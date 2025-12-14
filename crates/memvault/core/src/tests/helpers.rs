@@ -7,7 +7,7 @@ use memaead::AeadApi;
 use memaead::support::test_utils::{AeadMock, AeadMockBehaviour};
 use memcodec::CodecBuffer;
 use memcodec::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
-use memzer::ZeroizationProbe;
+use redoubt_zero::ZeroizationProbe;
 
 use crate::error::CipherBoxError;
 use crate::helpers::{

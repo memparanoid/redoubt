@@ -15,7 +15,7 @@ path = "src/lib.rs"
 [dependencies]
 memcodec = { workspace = true, features = ["zeroize"] }
 redoubt-util.workspace   = true
-memzer.workspace    = true
+redoubt-zero.workspace    = true
 
 [features]
 default = []

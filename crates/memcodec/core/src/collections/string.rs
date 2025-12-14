@@ -5,7 +5,7 @@
 use alloc::string::String;
 
 #[cfg(feature = "zeroize")]
-use memzer::FastZeroizable;
+use redoubt_zero::FastZeroizable;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};

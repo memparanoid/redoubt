@@ -6,7 +6,7 @@
 source: crates/memvault/derive/src/tests/expand.rs
 expression: pretty(token_stream)
 ---
-#[derive(MemZer, Codec)]
+#[derive(RedoubtZero, Codec)]
 struct Zeta {
     pub field1: Vec<u8>,
     #[codec(default)]
@@ -88,13 +88,13 @@ impl ZetaBox {
     #[inline(always)]
     pub fn leak_field1(
         &mut self,
-    ) -> Result<memzer::ZeroizingGuard<Vec<u8>>, memvault_core::CipherBoxError> {
+    ) -> Result<redoubt_zero::ZeroizingGuard<Vec<u8>>, memvault_core::CipherBoxError> {
         self.inner.leak_field::<Vec<u8>, 0>()
     }
     #[inline(always)]
     pub fn leak_field3(
         &mut self,
-    ) -> Result<memzer::ZeroizingGuard<u64>, memvault_core::CipherBoxError> {
+    ) -> Result<redoubt_zero::ZeroizingGuard<u64>, memvault_core::CipherBoxError> {
         self.inner.leak_field::<u64, 1>()
     }
     #[inline(always)]

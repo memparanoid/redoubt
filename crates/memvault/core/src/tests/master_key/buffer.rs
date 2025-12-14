@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use memzer::ZeroizationProbe;
+use redoubt_zero::ZeroizationProbe;
 
 use crate::master_key::buffer::{create_buffer, create_initialized_buffer};
 use crate::master_key::consts::MASTER_KEY_LEN;

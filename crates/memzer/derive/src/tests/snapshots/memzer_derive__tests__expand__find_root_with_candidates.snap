@@ -1,7 +1,0 @@
----
-source: crates/memzer/derive/src/tests/expand.rs
-expression: pretty(ts_1)
----
-compile_error!(
-    "MemZer: could not find memzer or memzer_core. Add memzer to Cargo.toml."
-);

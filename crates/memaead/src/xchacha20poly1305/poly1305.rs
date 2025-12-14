@@ -5,16 +5,16 @@
 //! Minimal Poly1305 implementation with guaranteed zeroization.
 //!
 //! Implements the Poly1305 one-time authenticator (RFC 8439).
-//! All sensitive state is zeroized on drop using memzer.
+//! All sensitive state is zeroized on drop using RedoubtZero.
 
 use redoubt_util::{u32_from_le, u32_to_le};
-use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer};
+use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
 
 use super::consts::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 
 /// Work variables for block processing.
-#[derive(Default, MemZer)]
-#[memzer(drop)]
+#[derive(Default, RedoubtZero)]
+#[fast_zeroize(drop)]
 pub(crate) struct Poly1305Block {
     t: [u32; 4],
     s: [u64; 4],
@@ -33,8 +33,8 @@ impl core::fmt::Debug for Poly1305Block {
 }
 
 /// Work variables for finalization.
-#[derive(Default, MemZer)]
-#[memzer(drop)]
+#[derive(Default, RedoubtZero)]
+#[fast_zeroize(drop)]
 pub(crate) struct Poly1305Final {
     d: [u64; 5], // reduced accumulator
     g: [u64; 4], // h + 5 for comparison
@@ -55,8 +55,8 @@ impl core::fmt::Debug for Poly1305Final {
 }
 
 /// Poly1305 authenticator state.
-#[derive(Default, MemZer)]
-#[memzer(drop)]
+#[derive(Default, RedoubtZero)]
+#[fast_zeroize(drop)]
 pub(crate) struct Poly1305 {
     r: [u32; 5],
     s: [u8; 16],

@@ -14,7 +14,7 @@ test_utils = []
 unsafe = []
 
 [dependencies]
-memzer.workspace    = true
+redoubt-zero.workspace    = true
 redoubt-util.workspace   = true
 thiserror.workspace = true
 

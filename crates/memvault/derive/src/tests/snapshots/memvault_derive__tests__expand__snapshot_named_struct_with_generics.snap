@@ -13,7 +13,7 @@ where
     pub value: T,
     pub count: u64,
     #[codec(default)]
-    __sentinel: memzer::ZeroizeOnDropSentinel,
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 use memvault_core::CipherBoxDyns as _;
 impl<T> memvault_core::CipherBoxDyns<2> for Container<T>
@@ -96,13 +96,13 @@ impl ContainerBox {
     #[inline(always)]
     pub fn leak_value(
         &mut self,
-    ) -> Result<memzer::ZeroizingGuard<T>, memvault_core::CipherBoxError> {
+    ) -> Result<redoubt_zero::ZeroizingGuard<T>, memvault_core::CipherBoxError> {
         self.inner.leak_field::<T, 0>()
     }
     #[inline(always)]
     pub fn leak_count(
         &mut self,
-    ) -> Result<memzer::ZeroizingGuard<u64>, memvault_core::CipherBoxError> {
+    ) -> Result<redoubt_zero::ZeroizingGuard<u64>, memvault_core::CipherBoxError> {
         self.inner.leak_field::<u64, 1>()
     }
     #[inline(always)]

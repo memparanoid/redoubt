@@ -9,7 +9,7 @@ use core::arch::x86_64::{
     _mm_xor_si128,
 };
 
-use memzer::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
+use redoubt_zero::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
 /// AES block using AES-NI intrinsics.
 ///

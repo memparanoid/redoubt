@@ -6,8 +6,8 @@
 source: crates/memvault/derive/src/tests/expand.rs
 expression: pretty(token_stream)
 ---
-#[derive(MemZer, Codec)]
-#[memzer(drop)]
+#[derive(RedoubtZero, Codec)]
+#[RedoubtZero(drop)]
 struct Epsilon {
     pub master_seed: [u8; 32],
     pub encryption_key: [u8; 32],
@@ -86,13 +86,13 @@ impl EpsilonBox {
     #[inline(always)]
     pub fn leak_master_seed(
         &mut self,
-    ) -> Result<memzer::ZeroizingGuard<[u8; 32]>, memvault_core::CipherBoxError> {
+    ) -> Result<redoubt_zero::ZeroizingGuard<[u8; 32]>, memvault_core::CipherBoxError> {
         self.inner.leak_field::<[u8; 32], 0>()
     }
     #[inline(always)]
     pub fn leak_encryption_key(
         &mut self,
-    ) -> Result<memzer::ZeroizingGuard<[u8; 32]>, memvault_core::CipherBoxError> {
+    ) -> Result<redoubt_zero::ZeroizingGuard<[u8; 32]>, memvault_core::CipherBoxError> {
         self.inner.leak_field::<[u8; 32], 1>()
     }
     #[inline(always)]

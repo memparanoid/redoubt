@@ -15,7 +15,7 @@ test_utils = []
 [dependencies]
 redoubt-rand.workspace     = true
 redoubt-util.workspace     = true
-memzer.workspace      = true
+redoubt-zero.workspace      = true
 thiserror.workspace   = true
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]

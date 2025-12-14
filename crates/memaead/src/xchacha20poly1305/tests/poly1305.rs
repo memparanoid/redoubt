@@ -4,7 +4,7 @@
 
 //! Poly1305 tests using RFC 8439 Section 2.5.2 test vector.
 
-use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
+use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
 
 use crate::xchacha20poly1305::poly1305::{Poly1305, Poly1305Block, Poly1305Final};
 

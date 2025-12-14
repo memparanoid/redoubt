@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use memalloc::AllockedVec;
-use memzer::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
+use redoubt_zero::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
 use crate::zeroizing::Zeroizing;
 

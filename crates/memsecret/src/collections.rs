@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 
 use core::mem;
 
-use memzer::{FastZeroizable, ZeroizeMetadata};
+use redoubt_zero::{FastZeroizable, ZeroizeMetadata};
 
 use crate::MemMove;
 

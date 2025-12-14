@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(feature = "zeroize")]
-use memzer::ZeroizationProbe;
+use redoubt_zero::ZeroizationProbe;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::collections::helpers::{

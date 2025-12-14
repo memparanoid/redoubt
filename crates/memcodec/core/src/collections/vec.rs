@@ -4,7 +4,7 @@
 
 use alloc::vec::Vec;
 
-use memzer::{FastZeroizable, ZeroizeMetadata};
+use redoubt_zero::{FastZeroizable, ZeroizeMetadata};
 
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};

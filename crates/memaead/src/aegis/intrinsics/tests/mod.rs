@@ -5,7 +5,7 @@
 //! Tests for AES intrinsics using RFC test vectors.
 
 use redoubt_util::hex_to_bytes;
-use memzer::{FastZeroizable, ZeroizationProbe};
+use redoubt_zero::{FastZeroizable, ZeroizationProbe};
 
 use crate::aegis::intrinsics::Intrinsics;
 

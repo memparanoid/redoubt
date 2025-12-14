@@ -10,7 +10,7 @@
 use core::ptr;
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use memzer::FastZeroizable;
+use redoubt_zero::FastZeroizable;
 
 use super::error::PageError;
 

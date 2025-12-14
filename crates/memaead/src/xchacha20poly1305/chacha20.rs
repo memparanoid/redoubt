@@ -4,10 +4,10 @@
 
 //! ChaCha20 stream cipher implementation (RFC 8439)
 //!
-//! All sensitive state is zeroized on drop using memzer.
+//! All sensitive state is zeroized on drop using RedoubtZero.
 
 use redoubt_util::{u32_from_le, u32_to_le};
-use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer};
+use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
 
 use super::consts::{
     CHACHA20_BLOCK_SIZE, CHACHA20_NONCE_SIZE, HCHACHA20_NONCE_SIZE, KEY_SIZE, XNONCE_SIZE,
@@ -15,8 +15,8 @@ use super::consts::{
 use super::types::{AeadKey, XNonce};
 
 /// ChaCha20 cipher state with guaranteed zeroization.
-#[derive(MemZer)]
-#[memzer(drop)]
+#[derive(RedoubtZero)]
+#[fast_zeroize(drop)]
 pub(crate) struct ChaCha20 {
     initial: [u32; 16],
     working: [u32; 16],
@@ -202,8 +202,8 @@ impl core::fmt::Debug for ChaCha20 {
 }
 
 /// HChaCha20 state for subkey derivation.
-#[derive(MemZer)]
-#[memzer(drop)]
+#[derive(RedoubtZero)]
+#[fast_zeroize(drop)]
 #[derive(Default)]
 pub(crate) struct HChaCha20 {
     state: [u32; 16],
@@ -215,7 +215,6 @@ pub(crate) struct HChaCha20 {
     qr_d: u32,
     __sentinel: ZeroizeOnDropSentinel,
 }
-
 
 impl HChaCha20 {
     #[inline(always)]
@@ -330,8 +329,8 @@ impl core::fmt::Debug for HChaCha20 {
 }
 
 /// XChaCha20 cipher state with guaranteed zeroization.
-#[derive(MemZer)]
-#[memzer(drop)]
+#[derive(RedoubtZero)]
+#[fast_zeroize(drop)]
 pub(crate) struct XChaCha20 {
     subkey: [u8; KEY_SIZE],
     nonce: [u8; CHACHA20_NONCE_SIZE],

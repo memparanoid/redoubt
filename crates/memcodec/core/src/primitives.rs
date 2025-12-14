@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(feature = "zeroize")]
-use memzer::FastZeroizable;
+use redoubt_zero::FastZeroizable;
 
 use crate::error::DecodeError;
 

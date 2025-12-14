@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use crate::codec_buffer::CodecBuffer;
-use memzer::{FastZeroizable, ZeroizationProbe};
+use redoubt_zero::{FastZeroizable, ZeroizationProbe};
 
 use crate::error::{DecodeError, EncodeError};
 use crate::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};

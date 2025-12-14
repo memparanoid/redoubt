@@ -4,7 +4,7 @@
 
 use mem_test_utils::{apply_permutation, index_permutations};
 use memalloc::AllockedVec;
-use memzer::ZeroizationProbe;
+use redoubt_zero::ZeroizationProbe;
 
 use crate::codec_buffer::CodecBuffer;
 use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};

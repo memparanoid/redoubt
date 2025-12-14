@@ -1,0 +1,60 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+---
+source: crates/redoubt-zero/derive/src/tests/expand.rs
+expression: pretty(token_stream)
+---
+impl<'a, T> redoubt_zero_core::ZeroizeMetadata for Tau<'a, T>
+where
+    T: Clone,
+{
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+impl<'a, T> redoubt_zero_core::FastZeroizable for Tau<'a, T>
+where
+    T: Clone,
+{
+    fn fast_zeroize(&mut self) {
+        let fields: [&mut dyn redoubt_zero_core::FastZeroizable; 3] = [
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(&mut self.alpha),
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(self.beta),
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(
+                &mut self.__sentinel,
+            ),
+        ];
+        redoubt_zero_core::collections::zeroize_collection(&mut fields.into_iter())
+    }
+}
+impl<'a, T> redoubt_zero_core::ZeroizationProbe for Tau<'a, T>
+where
+    T: Clone,
+{
+    fn is_zeroized(&self) -> bool {
+        let fields: [&dyn redoubt_zero_core::ZeroizationProbe; 2] = [
+            redoubt_zero_core::collections::to_zeroization_probe_dyn_ref(&self.alpha),
+            redoubt_zero_core::collections::to_zeroization_probe_dyn_ref(self.beta),
+        ];
+        redoubt_zero_core::collections::collection_zeroed(&mut fields.into_iter())
+    }
+}
+impl<'a, T> redoubt_zero_core::AssertZeroizeOnDrop for Tau<'a, T>
+where
+    T: Clone,
+{
+    fn clone_sentinel(&self) -> redoubt_zero_core::ZeroizeOnDropSentinel {
+        self.__sentinel.clone()
+    }
+    fn assert_zeroize_on_drop(self) {
+        redoubt_zero_core::assert::assert_zeroize_on_drop(self);
+    }
+}
+impl<'a, T> Drop for Tau<'a, T>
+where
+    T: Clone,
+{
+    fn drop(&mut self) {
+        redoubt_zero_core::FastZeroizable::fast_zeroize(self);
+    }
+}

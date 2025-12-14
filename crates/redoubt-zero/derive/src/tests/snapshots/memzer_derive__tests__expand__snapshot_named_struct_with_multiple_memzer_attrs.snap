@@ -1,0 +1,47 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+---
+source: crates/RedoubtZero/derive/src/tests/expand.rs
+expression: pretty(token_stream)
+---
+impl<'a> redoubt_zero_core::ZeroizeMetadata for Chi<'a> {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+impl<'a> redoubt_zero_core::FastZeroizable for Chi<'a> {
+    fn fast_zeroize(&mut self) {
+        let fields: [&mut dyn redoubt_zero_core::FastZeroizable; 5] = [
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(&mut self.alpha),
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(&mut self.gamma),
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(&mut self.delta),
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(&mut self.epsilon),
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(&mut self.__sentinel),
+        ];
+        redoubt_zero_core::collections::zeroize_collection(&mut fields.into_iter())
+    }
+}
+impl<'a> redoubt_zero_core::ZeroizationProbe for Chi<'a> {
+    fn is_zeroized(&self) -> bool {
+        let fields: [&dyn redoubt_zero_core::ZeroizationProbe; 4] = [
+            redoubt_zero_core::collections::to_zeroization_probe_dyn_ref(&self.alpha),
+            redoubt_zero_core::collections::to_zeroization_probe_dyn_ref(&self.gamma),
+            redoubt_zero_core::collections::to_zeroization_probe_dyn_ref(&self.delta),
+            redoubt_zero_core::collections::to_zeroization_probe_dyn_ref(&self.epsilon),
+        ];
+        redoubt_zero_core::collections::collection_zeroed(&mut fields.into_iter())
+    }
+}
+impl<'a> redoubt_zero_core::AssertZeroizeOnDrop for Chi<'a> {
+    fn clone_sentinel(&self) -> redoubt_zero_core::ZeroizeOnDropSentinel {
+        self.__sentinel.clone()
+    }
+    fn assert_zeroize_on_drop(self) {
+        redoubt_zero_core::assert::assert_zeroize_on_drop(self);
+    }
+}
+impl<'a> Drop for Chi<'a> {
+    fn drop(&mut self) {
+        redoubt_zero_core::FastZeroizable::fast_zeroize(self);
+    }
+}

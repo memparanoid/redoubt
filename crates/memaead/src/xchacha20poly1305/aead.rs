@@ -4,13 +4,13 @@
 
 //! XChaCha20-Poly1305 AEAD implementation (RFC 8439 + draft-irtf-cfrg-xchacha)
 //!
-//! All sensitive state is zeroized on drop using memzer.
+//! All sensitive state is zeroized on drop using RedoubtZero.
 
 use redoubt_rand::{
     EntropyError, EntropySource, NonceGenerator, NonceSessionGenerator, SystemEntropySource,
 };
 use redoubt_util::{constant_time_eq, u64_to_le};
-use memzer::{ZeroizeOnDropSentinel, FastZeroizable, MemZer};
+use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
 
 use crate::error::AeadError;
 use crate::traits::AeadBackend;
@@ -21,15 +21,15 @@ use super::poly1305::Poly1305;
 use super::types::{AeadKey, XNonce};
 
 /// XChaCha20-Poly1305 AEAD with guaranteed zeroization.
-#[derive(MemZer)]
-#[memzer(drop)]
+#[derive(RedoubtZero)]
+#[fast_zeroize(drop)]
 pub struct XChacha20Poly1305<E: EntropySource> {
     xchacha: XChaCha20,
     poly: Poly1305,
     poly_key: [u8; KEY_SIZE],
     expected_tag: [u8; TAG_SIZE],
     len_block: [u8; TAG_SIZE],
-    #[memzer(skip)]
+    #[fast_zeroize(skip)]
     nonce_gen: NonceSessionGenerator<E, XNONCE_SIZE>,
     __sentinel: ZeroizeOnDropSentinel,
 }

@@ -8,7 +8,7 @@ use memcodec::Codec;
 use memcodec::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};
 use redoubt_rand::EntropyError;
 use redoubt_util::is_vec_fully_zeroized;
-use memzer::{MemZer, ZeroizationProbe, ZeroizeOnDropSentinel};
+use redoubt_zero::{RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel};
 
 use crate::cipherbox::CipherBox;
 use crate::error::CipherBoxError;
@@ -18,8 +18,8 @@ use crate::traits::{CipherBoxDyns, DecryptStruct, Decryptable, EncryptStruct, En
 
 use super::consts::NUM_FIELDS;
 
-#[derive(Codec, MemZer)]
-#[memzer(drop)]
+#[derive(Codec, RedoubtZero)]
+#[fast_zeroize(drop)]
 pub struct CodecTestBreakerBox {
     pub f0: CodecTestBreaker,
     pub f1: CodecTestBreaker,
@@ -27,7 +27,7 @@ pub struct CodecTestBreakerBox {
     pub f3: CodecTestBreaker,
     pub f4: CodecTestBreaker,
     pub f5: CodecTestBreaker,
-    #[memzer(skip)]
+    #[fast_zeroize(skip)]
     #[codec(default)]
     __sentinel: ZeroizeOnDropSentinel,
 }

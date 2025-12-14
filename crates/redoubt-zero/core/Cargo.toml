@@ -1,0 +1,19 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["memory-management"]
+description          = "Core zeroization primitives: guards, sentinels, and RAII wrappers"
+edition.workspace    = true
+keywords             = ["security", "zeroize", "memory"]
+license.workspace    = true
+name                 = "redoubt-zero-core"
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+redoubt-util.workspace = true
+
+[dev-dependencies]
+pastey.workspace = true

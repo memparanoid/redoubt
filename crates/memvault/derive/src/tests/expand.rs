@@ -47,7 +47,7 @@ fn test_find_root_with_candidates() {
 #[test]
 fn snapshot_named_struct_ok() {
     let derive_input = parse_quote! {
-        #[derive(MemZer, Codec)]
+        #[derive(RedoubtZero, Codec)]
         struct Data {
             pub alpha: Vec<u8>,
             pub beta: u64,
@@ -90,7 +90,7 @@ fn snapshot_named_struct_with_generics() {
 #[test]
 fn snapshot_named_struct_with_codec_default_field() {
     let derive_input = parse_quote! {
-        #[derive(MemZer, Codec)]
+        #[derive(RedoubtZero, Codec)]
         struct Delta {
             pub alpha: Vec<u8>,
             pub beta: [u8; 32],
@@ -106,8 +106,8 @@ fn snapshot_named_struct_with_codec_default_field() {
 #[test]
 fn snapshot_named_struct_with_drop_sentinel() {
     let derive_input = parse_quote! {
-        #[derive(MemZer, Codec)]
-        #[memzer(drop)]
+        #[derive(RedoubtZero, Codec)]
+        #[fast_zeroize(drop)]
         struct Epsilon {
             pub master_seed: [u8; 32],
             pub encryption_key: [u8; 32],
@@ -123,7 +123,7 @@ fn snapshot_named_struct_with_drop_sentinel() {
 #[test]
 fn snapshot_named_struct_with_multiple_filtered_fields() {
     let derive_input = parse_quote! {
-        #[derive(MemZer, Codec)]
+        #[derive(RedoubtZero, Codec)]
         struct Zeta {
             pub field1: Vec<u8>,
             #[codec(default)]
@@ -146,7 +146,7 @@ fn snapshot_named_struct_with_multiple_filtered_fields() {
 #[test]
 fn snapshot_empty_struct_with_only_sentinel() {
     let derive_input = parse_quote! {
-        #[derive(MemZer)]
+        #[derive(RedoubtZero)]
         struct Empty {
             #[codec(default)]
             __sentinel: ZeroizeOnDropSentinel,

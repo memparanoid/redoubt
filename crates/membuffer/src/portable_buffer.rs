@@ -11,13 +11,13 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use memzer::{ZeroizeOnDropSentinel, MemZer};
+use redoubt_zero::{RedoubtZero, ZeroizeOnDropSentinel};
 
 use crate::error::BufferError;
 use crate::traits::Buffer;
 
-#[derive(MemZer)]
-#[memzer(drop)]
+#[derive(RedoubtZero)]
+#[fast_zeroize(drop)]
 pub struct PortableBuffer {
     inner: Vec<u8>,
     __sentinel: ZeroizeOnDropSentinel,

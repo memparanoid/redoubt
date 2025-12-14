@@ -17,7 +17,7 @@ memsecret.workspace = true
 membuffer.workspace = true
 redoubt-guard.workspace = true
 redoubt-rand.workspace = true
-memzer.workspace = true
+redoubt-zero.workspace = true
 memaead.workspace = true
 thiserror.workspace = true
 

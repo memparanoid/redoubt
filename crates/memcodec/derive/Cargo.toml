@@ -24,7 +24,7 @@ quote.workspace            = true
 syn.workspace              = true
 
 [dev-dependencies]
-memzer.workspace = true
+redoubt-zero.workspace = true
 insta.workspace         = true
 memcodec_core.workspace = true
 prettyplease.workspace  = true

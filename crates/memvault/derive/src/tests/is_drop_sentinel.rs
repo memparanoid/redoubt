@@ -18,13 +18,13 @@ fn test_drop_sentinel_simple_path() {
 
 #[test]
 fn test_drop_sentinel_qualified_path() {
-    let ty: Type = parse_quote!(memzer::ZeroizeOnDropSentinel);
+    let ty: Type = parse_quote!(redoubt_zero::ZeroizeOnDropSentinel);
     assert!(is_drop_sentinel_type(&ty));
 }
 
 #[test]
 fn test_drop_sentinel_fully_qualified_path() {
-    let ty: Type = parse_quote!(::memzer::ZeroizeOnDropSentinel);
+    let ty: Type = parse_quote!(::redoubt_zero::ZeroizeOnDropSentinel);
     assert!(is_drop_sentinel_type(&ty));
 }
 

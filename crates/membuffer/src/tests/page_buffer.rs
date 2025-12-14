@@ -6,7 +6,7 @@
 
 use serial_test::serial;
 
-use memzer::ZeroizationProbe;
+use redoubt_zero::ZeroizationProbe;
 
 use crate::page_buffer::{PageBuffer, ProtectionStrategy};
 use crate::traits::Buffer;

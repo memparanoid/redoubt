@@ -5,7 +5,9 @@
 use alloc::vec::Vec;
 
 use crate::error::AllockedVecError;
-use memzer::{FastZeroizable, MemZer, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel};
+use redoubt_zero::{
+    FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,
+};
 
 /// Test behaviour for injecting failures in `AllockedVec` operations.
 ///
@@ -108,8 +110,8 @@ impl FastZeroizable for AllockedVecBehaviour {
 /// }
 /// # example().unwrap();
 /// ```
-#[derive(Debug, MemZer)]
-#[memzer(drop)]
+#[derive(Debug, RedoubtZero)]
+#[fast_zeroize(drop)]
 #[cfg_attr(any(test, feature = "test_utils"), derive(Clone))]
 pub struct AllockedVec<T>
 where
@@ -657,7 +659,7 @@ where
     ///
     /// ```rust
     /// use memalloc::AllockedVec;
-    /// use memzer::FastZeroizable;
+    /// use redoubt_zero::FastZeroizable;
     ///
     /// let mut vec = AllockedVec::with_capacity(5);
     /// vec.push(1u8).unwrap();

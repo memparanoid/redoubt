@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_util::is_vec_fully_zeroized;
-use memzer::{AssertZeroizeOnDrop, ZeroizationProbe};
+use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
 
 use crate::allocked_vec::{AllockedVec, AllockedVecBehaviour};
 use crate::error::AllockedVecError;

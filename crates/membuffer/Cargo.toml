@@ -15,7 +15,7 @@ no_std = []
 [dependencies]
 libc = { workspace = true, optional = true }
 redoubt-util.workspace = true
-memzer.workspace = true
+redoubt-zero.workspace = true
 thiserror.workspace = true
 
 [target.'cfg(unix)'.dependencies]

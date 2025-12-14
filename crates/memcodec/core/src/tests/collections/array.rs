@@ -5,7 +5,7 @@
 use crate::codec_buffer::CodecBuffer;
 use mem_test_utils::{apply_permutation, index_permutations};
 #[cfg(feature = "zeroize")]
-use memzer::ZeroizationProbe;
+use redoubt_zero::ZeroizationProbe;
 
 use crate::error::{CodecBufferError, DecodeError, EncodeError, OverflowError};
 use crate::support::test_utils::{CodecTestBreaker, CodecTestBreakerBehaviour};

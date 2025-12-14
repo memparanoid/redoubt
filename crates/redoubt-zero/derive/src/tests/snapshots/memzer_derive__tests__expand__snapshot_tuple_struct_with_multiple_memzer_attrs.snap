@@ -1,0 +1,45 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+---
+source: crates/RedoubtZero/derive/src/tests/expand.rs
+expression: pretty(token_stream)
+---
+impl<'a> redoubt_zero_core::ZeroizeMetadata for Psi<'a> {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+impl<'a> redoubt_zero_core::FastZeroizable for Psi<'a> {
+    fn fast_zeroize(&mut self) {
+        let fields: [&mut dyn redoubt_zero_core::FastZeroizable; 4] = [
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(&mut self.0),
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(&mut self.2),
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(&mut self.3),
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(&mut self.4),
+        ];
+        redoubt_zero_core::collections::zeroize_collection(&mut fields.into_iter())
+    }
+}
+impl<'a> redoubt_zero_core::ZeroizationProbe for Psi<'a> {
+    fn is_zeroized(&self) -> bool {
+        let fields: [&dyn redoubt_zero_core::ZeroizationProbe; 3] = [
+            redoubt_zero_core::collections::to_zeroization_probe_dyn_ref(&self.0),
+            redoubt_zero_core::collections::to_zeroization_probe_dyn_ref(&self.2),
+            redoubt_zero_core::collections::to_zeroization_probe_dyn_ref(&self.3),
+        ];
+        redoubt_zero_core::collections::collection_zeroed(&mut fields.into_iter())
+    }
+}
+impl<'a> redoubt_zero_core::AssertZeroizeOnDrop for Psi<'a> {
+    fn clone_sentinel(&self) -> redoubt_zero_core::ZeroizeOnDropSentinel {
+        self.4.clone()
+    }
+    fn assert_zeroize_on_drop(self) {
+        redoubt_zero_core::assert::assert_zeroize_on_drop(self);
+    }
+}
+impl<'a> Drop for Psi<'a> {
+    fn drop(&mut self) {
+        redoubt_zero_core::FastZeroizable::fast_zeroize(self);
+    }
+}

@@ -8,7 +8,7 @@ use alloc::vec::Vec;
 use memalloc::AllockedVec;
 
 #[cfg(feature = "zeroize")]
-use memzer::{
+use redoubt_zero::{
     AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,
     assert::assert_zeroize_on_drop,
 };

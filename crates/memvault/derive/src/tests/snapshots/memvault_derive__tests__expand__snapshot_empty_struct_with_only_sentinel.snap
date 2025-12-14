@@ -6,7 +6,7 @@
 source: crates/memvault/derive/src/tests/expand.rs
 expression: pretty(token_stream)
 ---
-#[derive(MemZer)]
+#[derive(RedoubtZero)]
 struct Empty {
     #[codec(default)]
     __sentinel: ZeroizeOnDropSentinel,

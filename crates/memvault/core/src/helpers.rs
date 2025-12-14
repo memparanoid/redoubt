@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 
 use memaead::AeadApi;
 use memcodec::CodecBuffer;
-use memzer::{FastZeroizable, ZeroizationProbe};
+use redoubt_zero::{FastZeroizable, ZeroizationProbe};
 
 use crate::error::CipherBoxError;
 use crate::traits::{Decryptable, Encryptable};

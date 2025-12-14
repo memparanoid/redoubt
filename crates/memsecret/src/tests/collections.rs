@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_util::is_vec_fully_zeroized;
-use memzer::{ZeroizeOnDropSentinel, MemZer};
+use redoubt_zero::{RedoubtZero, ZeroizeOnDropSentinel};
 
 use crate::collections::move_vec;
 use crate::traits::MemMove;
@@ -100,7 +100,7 @@ test_vec_mem_move!(
 /// - src.len() == dst.capacity() (boundary case)
 #[test]
 fn test_move_vec_zeroizes_before_reserve() {
-    #[derive(MemZer)]
+    #[derive(RedoubtZero)]
     struct MutByte<'a> {
         inner: &'a mut u8,
         __sentinel: ZeroizeOnDropSentinel,

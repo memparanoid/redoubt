@@ -9,7 +9,7 @@ expression: pretty(token_stream)
 struct Gamma {
     pub value: [u8; 32],
     #[codec(default)]
-    __sentinel: memzer::ZeroizeOnDropSentinel,
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 use memvault_core::CipherBoxDyns as _;
 impl memvault_core::CipherBoxDyns<1> for Gamma {
@@ -83,7 +83,7 @@ impl GammaBox {
     #[inline(always)]
     pub fn leak_value(
         &mut self,
-    ) -> Result<memzer::ZeroizingGuard<[u8; 32]>, memvault_core::CipherBoxError> {
+    ) -> Result<redoubt_zero::ZeroizingGuard<[u8; 32]>, memvault_core::CipherBoxError> {
         self.inner.leak_field::<[u8; 32], 0>()
     }
     #[inline(always)]

@@ -20,7 +20,7 @@ test_utils = ["zeroize"]
 
 [dependencies]
 redoubt-util.workspace   = true
-memzer.workspace    = true
+redoubt-zero.workspace    = true
 smallvec = { workspace = true, optional = true }
 thiserror.workspace = true
 

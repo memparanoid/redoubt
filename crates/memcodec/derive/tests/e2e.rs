@@ -6,7 +6,7 @@
 mod tests {
     use memcodec_core::{BytesRequired, CodecBuffer, Decode, Encode};
     use memcodec_derive::Codec;
-    use memzer::ZeroizationProbe;
+    use redoubt_zero::ZeroizationProbe;
 
     #[test]
     fn test_derive_named_struct_roundtrip() {
