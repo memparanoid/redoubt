@@ -4,26 +4,36 @@
 
 //! Collection utilities for zero-copy moves.
 use alloc::vec::Vec;
-
 use core::mem;
 
-use redoubt_zero::{FastZeroizable, ZeroizeMetadata};
+use redoubt_alloc::{RedoubtString, RedoubtVec};
+use redoubt_zero::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
 use crate::MemMove;
 
-/// Moves data from `src` slice to `dst` slice using `core::mem::take`.
+/// Moves data from `src` slice to `dst` slice using `ptr::copy_nonoverlapping`.
 ///
 /// This function transfers elements from `src` to `dst`, zeroizing
-/// `src` in the process via `mem::take` (which replaces source with Default).
+/// `src` in the process via `fast_zeroize`. This is significantly faster
+/// than per-element moves for large slices.
 ///
 /// Moves `min(src.len(), dst.len())` elements (best-effort, panic-free).
+///
+/// # Performance Note
+///
+/// Uses `ptr::copy_nonoverlapping` for bulk copy instead of individual
+/// `mem::take` operations, which is much faster for large slices.
 #[inline]
-pub(crate) fn move_slice<T: Default>(src: &mut [T], dst: &mut [T]) {
+pub(crate) fn move_slice<T: FastZeroizable + ZeroizeMetadata>(src: &mut [T], dst: &mut [T]) {
     let count = src.len().min(dst.len());
 
-    for i in 0..count {
-        dst[i] = mem::take(&mut src[i]);
+    unsafe {
+        // SAFETY (PRECONDITIONS ARE MET): copying exactly count elements from valid slices
+        core::ptr::copy_nonoverlapping(src.as_ptr(), dst.as_mut_ptr(), count);
     }
+
+    // Zeroize source
+    src.fast_zeroize();
 }
 
 /// Moves a `Vec<T>` from `src` to `dst`, zeroizing `dst` before reserve.
@@ -60,8 +70,13 @@ macro_rules! impl_mem_move_array {
     };
 }
 
-// Implement for common element types
-impl_mem_move_array!(u8, u16, u32, u64, u128, usize);
+// Implement for all primitive types
+impl_mem_move_array!(
+    u8, u16, u32, u64, u128, usize,
+    i8, i16, i32, i64, i128, isize,
+    f32, f64,
+    bool,
+);
 
 /// Macro to implement `MemMove` for `Vec<T>`.
 macro_rules! impl_mem_move_vec {
@@ -76,5 +91,51 @@ macro_rules! impl_mem_move_vec {
     };
 }
 
-// Implement for common element types
-impl_mem_move_vec!(u8, u16, u32, u64, u128, usize);
+// Implement for all primitive types
+impl_mem_move_vec!(
+    u8, u16, u32, u64, u128, usize,
+    i8, i16, i32, i64, i128, isize,
+    f32, f64,
+    bool,
+);
+
+/// Implement `MemMove` for `RedoubtVec<T>`.
+///
+/// Moves data from `src` to `dst` by draining the slice, which
+/// automatically zeroizes the source.
+impl<T> MemMove for RedoubtVec<T>
+where
+    T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe + Default,
+{
+    fn mem_move(src: &mut Self, dst: &mut Self) {
+        dst.clear();
+
+        // Get mutable slice from src (via DerefMut)
+        let src_slice = &mut **src;
+
+        // Drain into dst (this zeroizes src_slice)
+        dst.drain_slice(src_slice);
+
+        // Clear src length (data already zeroized)
+        src.clear();
+    }
+}
+
+/// Implement `MemMove` for `RedoubtString`.
+///
+/// Moves data from `src` to `dst` using `drain_string`, which
+/// automatically zeroizes the source without creating temporary copies.
+impl MemMove for RedoubtString {
+    fn mem_move(src: &mut Self, dst: &mut Self) {
+        dst.clear();
+
+        // Get mutable reference to inner String
+        let src_inner = src.as_mut_string();
+
+        // Drain from src into dst (zeroizes src_inner automatically)
+        dst.drain_string(src_inner);
+
+        // Clear src length (data already zeroized by drain_string)
+        src.clear();
+    }
+}

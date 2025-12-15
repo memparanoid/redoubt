@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use crate::Secret;
-use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
+use redoubt_zero::ZeroizationProbe;
 
 #[test]
 fn test_secret_assert_zeroization_probe_trait() {
@@ -11,14 +11,6 @@ fn test_secret_assert_zeroization_probe_trait() {
     let secret = Secret::from(&mut data);
 
     assert!(!secret.is_zeroized());
-}
-
-#[test]
-fn test_secret_assert_zeroed_on_drop_trait() {
-    let mut data = vec![1u8, 2, 3, 4];
-    let secret = Secret::from(&mut data);
-
-    secret.assert_zeroize_on_drop();
 }
 
 #[test]

@@ -33,7 +33,7 @@ use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropS
 /// - **No `Deref`/`DerefMut`**: Cannot accidentally access inner value via `*secret`
 /// - **No `Clone`**: Prevents unintended copies of sensitive data
 /// - **Redacted `Debug`**: Prints `[REDACTED Secret]` instead of inner value
-/// - **Automatic zeroization**: Inner value zeroized on drop via `#[fast_zeroize(drop)]`
+/// - **Caller must zeroize**: Caller is responsible for zeroizing the exposed value when done
 /// - **Drop verification**: Contains [`ZeroizeOnDropSentinel`] to verify zeroization happened
 ///
 /// # Usage
@@ -53,11 +53,8 @@ use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropS
 /// // Access mutably
 /// secret.expose_mut().iter_mut().for_each(|b| *b = 0xFF);
 /// assert!(secret.expose().iter().all(|&b| b == 0xFF));
-///
-/// // Auto-zeroizes on drop
 /// ```
 #[derive(Default, PartialEq, Eq, RedoubtZero, RedoubtCodec)]
-#[fast_zeroize(drop)]
 pub struct Secret<T>
 where
     T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
