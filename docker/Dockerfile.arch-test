@@ -1,4 +1,4 @@
-# Cross-architecture test for redoubt-codec_core, redoubt-aead, redoubt-util
+# Cross-architecture test for redoubt-codec-core, redoubt-aead, redoubt-util, redoubt-rand
 # Usage:
 #   docker build --platform linux/amd64 -f docker/Dockerfile.arch-test -t redoubt-test-x86 .
 #   docker build --platform linux/arm64 -f docker/Dockerfile.arch-test -t redoubt-test-arm .
@@ -29,7 +29,7 @@ COPY crates/redoubt-codec/Cargo.toml ./crates/redoubt-codec/
 COPY crates/redoubt-codec/core/Cargo.toml ./crates/redoubt-codec/core/
 COPY crates/redoubt-codec/derive/Cargo.toml ./crates/redoubt-codec/derive/
 COPY crates/redoubt-secret/Cargo.toml ./crates/redoubt-secret/
-COPY crates/redoub-vault/Cargo.toml ./crates/redoub-vault/
+COPY crates/redoubt-vault/Cargo.toml ./crates/redoubt-vault/
 COPY benchmarks/Cargo.toml ./benchmarks/
 COPY crates/redoubt-test-utils/Cargo.toml ./crates/redoubt-test-utils/
 
@@ -47,13 +47,14 @@ RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/s
     mkdir -p crates/redoubt-codec/core/src && echo "// stub" > crates/redoubt-codec/core/src/lib.rs && \
     mkdir -p crates/redoubt-codec/derive/src && echo "// stub" > crates/redoubt-codec/derive/src/lib.rs && \
     mkdir -p crates/redoubt-secret/src && echo "// stub" > crates/redoubt-secret/src/lib.rs && \
-    mkdir -p crates/redoub-vault/src && echo "// stub" > crates/redoub-vault/src/lib.rs && \
+    mkdir -p crates/redoubt-vault/src && echo "// stub" > crates/redoubt-vault/src/lib.rs && \
     mkdir -p benchmarks/benches && echo "fn main() {}" > benchmarks/benches/aegis128l.rs && \
-    echo "fn main() {}" > benchmarks/benches/xchacha20poly1305.rs && \
-    echo "fn main() {}" > benchmarks/benches/redoubt-codec.rs && \
-    echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
-    echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
+    echo "fn main() {}" > benchmarks/benches/aegis128l.rs && \
     echo "fn main() {}" > benchmarks/benches/alloc.rs && \
+    echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
+    echo "fn main() {}" > benchmarks/benches/codec.rs && \
+    echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
+    echo "fn main() {}" > benchmarks/benches/xchacha20poly1305.rs && \
     mkdir -p crates/redoubt-test-utils/src && echo "// stub" > crates/redoubt-test-utils/src/lib.rs
 
 # Pre-fetch dependencies
@@ -69,7 +70,8 @@ RUN echo "=== Architecture Info ===" && \
 
 # Run tests for the 3 target crates
 CMD ["sh", "-c", "echo '=== Testing redoubt-util ===' && cargo test -p redoubt-util --release && \
-     echo '=== Testing redoubt-codec_core ===' && cargo test -p redoubt-codec_core --release && \
+     echo '=== Testing redoubt-codec-core ===' && cargo test -p redoubt-codec-core --release && \
      echo '=== Testing redoubt-aead ===' && cargo test -p redoubt-aead --release && \
      echo '=== Testing redoubt-buffer ===' && cargo test -p redoubt-buffer --release && \
+     echo '=== Testing redoubt-rand ===' && cargo test -p redoubt-rand --release && \
      echo '=== ALL ARCH TESTS PASSED ==='"]

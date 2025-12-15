@@ -32,4 +32,12 @@ docker run --rm --platform linux/arm64 \
   redoubt-test-arm
 
 echo ""
+echo "=== Testing riscv64 ==="
+DOCKER_BUILDKIT=1 docker build --platform linux/riscv64 -f "$PROJECT_ROOT/docker/Dockerfile.arch-test" -t redoubt-test-riscv "$PROJECT_ROOT"
+docker run --rm --platform linux/riscv64 \
+  -v redoubt-cargo-cache-riscv:/usr/local/cargo/registry \
+  -v redoubt-target-cache-riscv:/workspace/target \
+  redoubt-test-riscv
+
+echo ""
 echo "=== ALL ARCHITECTURES PASSED ==="

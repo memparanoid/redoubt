@@ -65,6 +65,8 @@ mod support;
 mod system;
 mod traits;
 
+pub mod u64_seed;
+
 pub use error::EntropyError;
 pub use session::NonceSessionGenerator;
 pub use system::SystemEntropySource;

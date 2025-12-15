@@ -899,8 +899,11 @@ dependencies = [
 name = "redoubt-rand"
 version = "0.0.1"
 dependencies = [
+ "cpufeatures",
  "getrandom",
+ "libc",
  "proptest",
+ "redoubt-zero",
  "thiserror",
 ]
 
