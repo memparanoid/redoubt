@@ -94,7 +94,7 @@ fn test_drain_slice() {
     assert_eq!(vec.as_slice(), &[1, 2, 3, 4, 5]);
 
     // Verify source was zeroized
-    assert!(src.iter().all(|&x| x == 0));
+    assert!(src.is_zeroized());
 }
 
 #[test]
@@ -114,7 +114,7 @@ fn test_drain_slice_grows() {
     assert_eq!(vec.as_slice(), &[1, 2, 3, 4, 5, 6, 7]);
 
     // Source zeroized
-    assert!(src.iter().all(|&x| x == 0));
+    assert!(src.is_zeroized());
 }
 
 #[test]
@@ -161,7 +161,7 @@ fn test_drain_slice_zeroizes_default_values() {
     assert_eq!(vec[2].value, 3);
 
     // Source should be zeroized
-    assert!(src.iter().all(|s| s.is_zeroized()));
+    assert!(src.is_zeroized());
 }
 
 #[test]
@@ -179,7 +179,6 @@ fn test_drain_slice_with_sufficient_capacity() {
 
         // Verify source was zeroized
         assert!(src.is_zeroized());
-        assert!(src.iter().all(|&x| x == 0));
 
         // Verify capacity did NOT grow
         assert_eq!(vec.capacity(), initial_capacity);
