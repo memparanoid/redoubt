@@ -82,6 +82,32 @@ fn test_drain_string_zeroizes_source() {
     assert!(src.is_empty());
 }
 
+#[test]
+fn test_drain_string_with_sufficient_capacity() {
+    use redoubt_zero::ZeroizationProbe;
+
+    // Create with large capacity
+    let mut dest = RedoubtString::with_capacity(1000);
+    let initial_capacity = dest.capacity();
+
+    // Drain multiple small strings without exceeding capacity
+    for _ in 0..10 {
+        let mut src = alloc::string::String::from("data");
+        dest.drain_string(&mut src);
+
+        // Verify source was zeroized
+        assert!(src.is_zeroized());
+        assert_eq!(src.len(), 0);
+
+        // Verify capacity did NOT grow
+        assert_eq!(dest.capacity(), initial_capacity);
+    }
+
+    // Final length should be 10 * 4 = 40 bytes
+    assert_eq!(dest.len(), 40);
+    assert_eq!(dest.capacity(), initial_capacity);
+}
+
 // =============================================================================
 // copy_from_str()
 // =============================================================================

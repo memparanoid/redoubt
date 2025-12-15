@@ -165,6 +165,32 @@ fn test_drain_slice_zeroizes_default_values() {
 }
 
 #[test]
+fn test_drain_slice_with_sufficient_capacity() {
+    use redoubt_zero::ZeroizationProbe;
+
+    // Create with large capacity
+    let mut vec = RedoubtVec::with_capacity(1000);
+    let initial_capacity = vec.capacity();
+
+    // Drain multiple small slices without exceeding capacity
+    for _ in 0..10 {
+        let mut src = [42u8, 43, 44, 45];
+        vec.drain_slice(&mut src);
+
+        // Verify source was zeroized
+        assert!(src.is_zeroized());
+        assert!(src.iter().all(|&x| x == 0));
+
+        // Verify capacity did NOT grow
+        assert_eq!(vec.capacity(), initial_capacity);
+    }
+
+    // Final length should be 10 * 4 = 40 elements
+    assert_eq!(vec.len(), 40);
+    assert_eq!(vec.capacity(), initial_capacity);
+}
+
+#[test]
 fn test_maybe_grow_to_single_allocation() {
     let mut vec = RedoubtVec::new();
 

@@ -110,10 +110,6 @@ impl RedoubtString {
     #[cold]
     #[inline(never)]
     fn grow_to(&mut self, min_capacity: usize) {
-        if self.capacity() >= min_capacity {
-            return;
-        }
-
         let new_capacity = min_capacity.next_power_of_two();
 
         // 1. Create temp with current data
