@@ -171,6 +171,14 @@ impl RedoubtString {
     pub fn as_mut_str(&mut self) -> &mut str {
         &mut self.inner
     }
+
+    /// Returns a mutable reference to the inner String.
+    ///
+    /// This allows direct manipulation of the underlying String,
+    /// useful for operations like `drain_string` in MemMove.
+    pub fn as_mut_string(&mut self) -> &mut String {
+        &mut self.inner
+    }
 }
 
 impl Default for RedoubtString {

@@ -212,6 +212,37 @@ fn test_as_mut_str() {
 }
 
 // =============================================================================
+// as_mut_string()
+// =============================================================================
+
+#[test]
+fn test_as_mut_string() {
+    let mut s = RedoubtString::new();
+    s.copy_from_str("secret data");
+
+    let inner_string = s.as_mut_string();
+    inner_string.push_str(" modified");
+
+    assert_eq!(s.as_str(), "secret data modified");
+}
+
+#[test]
+fn test_as_mut_string_drain() {
+    let mut s1 = RedoubtString::new();
+    s1.copy_from_str("destination");
+
+    let mut s2 = RedoubtString::new();
+    s2.copy_from_str("source");
+
+    // Drain from s2 into s1 using as_mut_string
+    let src_inner = s2.as_mut_string();
+    s1.drain_string(src_inner);
+
+    assert_eq!(s1.as_str(), "destinationsource");
+    assert_eq!(s2.len(), 0);
+}
+
+// =============================================================================
 // Default
 // =============================================================================
 
