@@ -30,8 +30,12 @@ COPY crates/redoubt-codec/core/Cargo.toml ./crates/redoubt-codec/core/
 COPY crates/redoubt-codec/derive/Cargo.toml ./crates/redoubt-codec/derive/
 COPY crates/redoubt-secret/Cargo.toml ./crates/redoubt-secret/
 COPY crates/redoubt-vault/Cargo.toml ./crates/redoubt-vault/
+COPY crates/redoubt-vault/core/Cargo.toml ./crates/redoubt-vault/core/
+COPY crates/redoubt-vault/derive/Cargo.toml ./crates/redoubt-vault/derive/
+COPY crates/redoubt/Cargo.toml ./crates/redoubt/
 COPY benchmarks/Cargo.toml ./benchmarks/
 COPY crates/redoubt-test-utils/Cargo.toml ./crates/redoubt-test-utils/
+COPY examples/wasm-demo/rust/Cargo.toml ./examples/wasm-demo/rust/
 
 # Create stub lib.rs files
 RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/src/lib.rs && \
@@ -48,30 +52,34 @@ RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/s
     mkdir -p crates/redoubt-codec/derive/src && echo "// stub" > crates/redoubt-codec/derive/src/lib.rs && \
     mkdir -p crates/redoubt-secret/src && echo "// stub" > crates/redoubt-secret/src/lib.rs && \
     mkdir -p crates/redoubt-vault/src && echo "// stub" > crates/redoubt-vault/src/lib.rs && \
+    mkdir -p crates/redoubt-vault/core/src && echo "// stub" > crates/redoubt-vault/core/src/lib.rs && \
+    mkdir -p crates/redoubt-vault/derive/src && echo "// stub" > crates/redoubt-vault/derive/src/lib.rs && \
+    mkdir -p crates/redoubt/src && echo "// stub" > crates/redoubt/src/lib.rs && \
+    mkdir -p crates/redoubt-test-utils/src && echo "// stub" > crates/redoubt-test-utils/src/lib.rs && \
+    mkdir -p examples/wasm-demo/rust/src && echo "// stub" > examples/wasm-demo/rust/src/lib.rs && \
     mkdir -p benchmarks/benches && echo "fn main() {}" > benchmarks/benches/aegis128l.rs && \
-    echo "fn main() {}" > benchmarks/benches/aegis128l.rs && \
-    echo "fn main() {}" > benchmarks/benches/alloc.rs && \
-    echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
-    echo "fn main() {}" > benchmarks/benches/codec.rs && \
-    echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
     echo "fn main() {}" > benchmarks/benches/xchacha20poly1305.rs && \
-    mkdir -p crates/redoubt-test-utils/src && echo "// stub" > crates/redoubt-test-utils/src/lib.rs
+    echo "fn main() {}" > benchmarks/benches/codec.rs && \
+    echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
+    echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
+    echo "fn main() {}" > benchmarks/benches/alloc.rs
 
 # Pre-fetch dependencies
 RUN cargo fetch
 
 # Copy actual source code
 COPY crates ./crates
+COPY examples ./examples
 
 # Print architecture info
 RUN echo "=== Architecture Info ===" && \
     uname -m && \
     rustc --print cfg | grep -E "(target_arch|target_endian)"
 
-# Run tests for the 3 target crates
+# Run tests for the target crates
 CMD ["sh", "-c", "echo '=== Testing redoubt-util ===' && cargo test -p redoubt-util --release && \
      echo '=== Testing redoubt-codec-core ===' && cargo test -p redoubt-codec-core --release && \
      echo '=== Testing redoubt-aead ===' && cargo test -p redoubt-aead --release && \
      echo '=== Testing redoubt-buffer ===' && cargo test -p redoubt-buffer --release && \
-     echo '=== Testing redoubt-rand ===' && cargo test -p redoubt-rand --release && \
+     echo '=== Testing redoubt-rand (including ignored) ===' && cargo test --lib -p redoubt-rand --release -- --include-ignored --nocapture && \
      echo '=== ALL ARCH TESTS PASSED ==='"]

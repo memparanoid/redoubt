@@ -65,6 +65,8 @@ mod support;
 mod system;
 mod traits;
 
+pub mod permutation;
+pub mod u64;
 pub mod u64_seed;
 
 pub use error::EntropyError;

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::u64_seed::{get_entropy_u64, U64Seed};
+use crate::u64::U64;
+use crate::u64_seed::{generate, get_entropy_u64};
 
 #[test]
 fn test_get_entropy_u64_succeeds() {
@@ -14,7 +15,7 @@ fn test_get_entropy_u64_succeeds() {
 #[test]
 fn test_u64_seed_drain_from() {
     let mut source = 0x1234567890ABCDEFu64;
-    let mut seed = U64Seed::new();
+    let mut seed = U64::new();
 
     seed.drain_from(&mut source);
 
@@ -25,7 +26,7 @@ fn test_u64_seed_drain_from() {
 #[test]
 fn test_u64_seed_drain_from_bytes() {
     let mut bytes = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0];
-    let mut seed = U64Seed::new();
+    let mut seed = U64::new();
 
     seed.drain_from_bytes(&mut bytes);
 
@@ -35,16 +36,16 @@ fn test_u64_seed_drain_from_bytes() {
 
 #[test]
 fn test_u64_seed_debug() {
-    let mut seed = U64Seed::new();
-    seed.generate().expect("Failed to generate seed");
+    let mut seed = U64::new();
+    generate(&mut seed).expect("Failed to generate seed");
 
     let debug_output = format!("{:?}", seed);
-    assert_eq!(debug_output, "U64Seed([REDACTED])");
+    assert_eq!(debug_output, "U64([REDACTED])");
 }
 
 #[test]
 fn test_u64_seed_default() {
-    let seed = U64Seed::default();
+    let seed = U64::default();
     assert_eq!(seed.expose(), 0);
 }
 
@@ -104,14 +105,14 @@ fn test_entropy_distribution() {
     );
 
     // Additional sanity check: no value should be wildly off
-    // With 50M samples, allow ±7% deviation from expected (~31 standard deviations)
-    let tolerance = EXPECTED_PER_VALUE * 0.07;
+    // With 50M samples, allow ±2% deviation from expected
+    let tolerance = EXPECTED_PER_VALUE * 0.02;
     for (value, &count) in counts.iter().enumerate() {
         let observed = count as f64;
         let deviation = (observed - EXPECTED_PER_VALUE).abs();
         assert!(
             deviation < tolerance,
-            "Value {} appeared {} times (expected ~{:.0}, deviation {:.2})",
+            "Value {} appeared {} times (expected ~{:.0}, deviation {:.2}, ±2% tolerance)",
             value,
             count,
             EXPECTED_PER_VALUE,

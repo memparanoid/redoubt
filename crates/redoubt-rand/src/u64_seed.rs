@@ -30,114 +30,28 @@
 //! introduce intermediate copies in memory. Direct hardware instructions (RDSEED,
 //! RDRAND, RNDR) provide the shortest path from entropy source to application.
 
-use core::fmt;
-
-use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
-
 use crate::error::EntropyError;
+use crate::u64::U64;
 
-/// A u64 seed with automatic zeroization on drop.
+/// Generates entropy from the best available hardware or OS source.
 ///
-/// `U64Seed` ensures that entropy values are handled securely:
-/// - Debug output is redacted
-/// - Memory is zeroized on drop via sentinel
-/// - Provides controlled drain operations that zeroize sources
+/// Writes directly to the U64 storage to avoid stack copies.
+///
+/// # Errors
+///
+/// Returns `EntropyError::EntropyNotAvailable` if entropy cannot be obtained.
 ///
 /// # Example
 ///
 /// ```rust
-/// use redoubt_rand::u64_seed::U64Seed;
+/// use redoubt_rand::u64::U64;
+/// use redoubt_rand::u64_seed::generate;
 ///
-/// let mut seed = U64Seed::new();
-/// seed.generate().expect("Failed to generate seed");
-/// let value = seed.expose();
+/// let mut seed = U64::new();
+/// generate(&mut seed).expect("Failed to generate entropy");
 /// ```
-#[derive(RedoubtZero)]
-#[fast_zeroize(drop)]
-pub struct U64Seed {
-    value: u64,
-    __sentinel: ZeroizeOnDropSentinel,
-}
-
-impl U64Seed {
-    /// Creates a new zero-initialized seed.
-    pub fn new() -> Self {
-        Self {
-            value: 0,
-            __sentinel: ZeroizeOnDropSentinel::default(),
-        }
-    }
-
-    /// Generates entropy from the best available hardware or OS source.
-    ///
-    /// Writes directly to internal storage to avoid stack copies.
-    ///
-    /// # Errors
-    ///
-    /// Returns `EntropyError::EntropyNotAvailable` if entropy cannot be obtained.
-    pub fn generate(&mut self) -> Result<(), EntropyError> {
-        get_entropy_u64_internal(self)
-    }
-
-    /// Drains a u64 value, zeroizing the source.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use redoubt_rand::u64_seed::U64Seed;
-    ///
-    /// let mut source = 0x1234567890ABCDEFu64;
-    /// let mut seed = U64Seed::new();
-    /// seed.drain_from(&mut source);
-    ///
-    /// assert_eq!(seed.expose(), 0x1234567890ABCDEF);
-    /// assert_eq!(source, 0); // zeroized
-    /// ```
-    pub fn drain_from(&mut self, src: &mut u64) {
-        self.value = *src;
-        src.fast_zeroize();
-    }
-
-    /// Drains from an 8-byte array, zeroizing the source.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use redoubt_rand::u64_seed::U64Seed;
-    ///
-    /// let mut bytes = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0];
-    /// let mut seed = U64Seed::new();
-    /// seed.drain_from_bytes(&mut bytes);
-    ///
-    /// assert_eq!(seed.expose(), 0xF0DEBC9A78563412u64); // little-endian
-    /// assert_eq!(bytes, [0; 8]); // zeroized
-    /// ```
-    pub fn drain_from_bytes(&mut self, src: &mut [u8; 8]) {
-        self.value = 0;
-        for i in 0..8 {
-            let byte = core::mem::take(&mut src[i]);
-            self.value |= (byte as u64) << (i * 8);
-        }
-    }
-
-    /// Exposes the seed value.
-    ///
-    /// The caller is responsible for handling the exposed value securely.
-    pub fn expose(&self) -> u64 {
-        self.value
-    }
-}
-
-impl Default for U64Seed {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl fmt::Debug for U64Seed {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "U64Seed([REDACTED])")
-    }
+pub fn generate(seed: &mut U64) -> Result<(), EntropyError> {
+    get_entropy_u64_internal(seed)
 }
 
 /// Maximum retry attempts for hardware RNG instructions.
@@ -149,7 +63,8 @@ const MAX_RETRIES: usize = 10;
 
 /// Obtains a u64 seed from the best available entropy source.
 ///
-/// This is a convenience wrapper around `U64Seed::generate()`.
+/// This is a convenience function that creates a U64, fills it with entropy,
+/// and returns the raw u64 value.
 ///
 /// # Example
 ///
@@ -159,12 +74,12 @@ const MAX_RETRIES: usize = 10;
 /// let seed = get_entropy_u64().expect("Failed to get entropy");
 /// ```
 pub fn get_entropy_u64() -> Result<u64, EntropyError> {
-    let mut seed = U64Seed::new();
-    seed.generate()?;
+    let mut seed = U64::new();
+    generate(&mut seed)?;
     Ok(seed.expose())
 }
 
-/// Internal function that writes entropy directly to a U64Seed.
+/// Internal function that writes entropy directly to a U64.
 ///
 /// This function attempts to use platform-specific hardware instructions
 /// first, falling back to OS-provided sources if necessary.
@@ -179,7 +94,7 @@ pub fn get_entropy_u64() -> Result<u64, EntropyError> {
 /// # Errors
 ///
 /// Returns `EntropyError::EntropyNotAvailable` if entropy cannot be obtained.
-fn get_entropy_u64_internal(seed: &mut U64Seed) -> Result<(), EntropyError> {
+fn get_entropy_u64_internal(seed: &mut U64) -> Result<(), EntropyError> {
     #[cfg(target_arch = "x86_64")]
     {
         get_entropy_u64_x86_64(seed)
@@ -277,8 +192,8 @@ unsafe fn try_rdrand(dst: *mut u64) -> bool {
 /// 3. getrandom/libc (fallback: OS syscall)
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-fn get_entropy_u64_x86_64(seed: &mut U64Seed) -> Result<(), EntropyError> {
-    let dst = &mut seed.value as *mut u64;
+fn get_entropy_u64_x86_64(seed: &mut U64) -> Result<(), EntropyError> {
+    let dst = seed.as_mut_ptr();
 
     // Try RDSEED first (best option)
     if x86_features::rdseed_cpuid::get() {
@@ -317,7 +232,7 @@ fn get_entropy_u64_x86_64(seed: &mut U64Seed) -> Result<(), EntropyError> {
 /// remains strong even with kernel-sourced seeds.
 #[cfg(target_arch = "aarch64")]
 #[inline(always)]
-fn get_entropy_u64_aarch64(seed: &mut U64Seed) -> Result<(), EntropyError> {
+fn get_entropy_u64_aarch64(seed: &mut U64) -> Result<(), EntropyError> {
     get_entropy_u64_fallback(seed)
 }
 
@@ -330,7 +245,7 @@ fn get_entropy_u64_aarch64(seed: &mut U64Seed) -> Result<(), EntropyError> {
 /// Uses getrandom crate which wraps JS crypto.getRandomValues.
 #[cfg(target_arch = "wasm32")]
 #[inline(always)]
-fn get_entropy_u64_wasm32(seed: &mut U64Seed) -> Result<(), EntropyError> {
+fn get_entropy_u64_wasm32(seed: &mut U64) -> Result<(), EntropyError> {
     let mut bytes = [0u8; 8];
 
     getrandom::getrandom(&mut bytes).map_err(|_| EntropyError::EntropyNotAvailable)?;
@@ -349,7 +264,7 @@ fn get_entropy_u64_wasm32(seed: &mut U64Seed) -> Result<(), EntropyError> {
 /// reliability and less intermediate buffering. Falls back to getrandom crate
 /// for Windows and other platforms.
 #[inline(always)]
-fn get_entropy_u64_fallback(seed: &mut U64Seed) -> Result<(), EntropyError> {
+fn get_entropy_u64_fallback(seed: &mut U64) -> Result<(), EntropyError> {
     let mut bytes = [0u8; 8];
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
