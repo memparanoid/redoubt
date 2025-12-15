@@ -3,3 +3,20 @@
 // See LICENSE in the repository root for full license text.
 
 mod vec;
+mod redoubt_vec;
+mod redoubt_string;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_str() {
+        let mut s = String::from("hello");
+        unsafe {
+            s.as_bytes_mut().fill(0); // Todos los bytes a 0x00
+        }
+
+        assert_eq!(s.len(), 5); // ✅ len = 5, NO 0
+        assert_eq!(s.is_empty(), false); // ✅ NO está vacío
+        assert_eq!(s, "\0\0\0\0\0"); // 5 NUL characters
+    }
+}

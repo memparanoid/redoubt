@@ -359,7 +359,7 @@ where
     /// - Re-encrypting corrupted state → data loss
     /// - Not re-encrypting → plaintext memory leak
     ///
-    /// For fallible operations, use the leak-operate-commit pattern (see CIPHERBOX_DESIGN.md).
+    /// For fallible operations, use the leak-operate-commit pattern (see DESIGN.md).
     #[inline(always)]
     fn open_mut_dyn(&mut self, f: &mut dyn Fn(&mut T)) -> Result<(), CipherBoxError> {
         self.assert_healthy()?;

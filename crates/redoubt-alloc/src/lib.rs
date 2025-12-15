@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Allocation-locked Vec with controlled reallocation and automatic zeroization.
+//! Secure allocation containers with automatic zeroization.
 //!
-//! `AllockedVec<T>` is a wrapper around `Vec<T>` that prevents accidental reallocation
-//! through fallible operations and ensures automatic zeroization of old allocations.
+//! This crate provides three main types:
+//!
+//! - [`AllockedVec`]: Capacity-locked Vec with fallible operations
+//! - [`RedoubtVec`]: Auto-growing Vec with safe reallocation (2x growth)
+//! - [`RedoubtString`]: Auto-growing String with safe reallocation (2x growth)
 //!
 //! # Core Guarantees
 //!
@@ -101,12 +104,16 @@ extern crate alloc;
 
 mod allocked_vec;
 mod error;
+mod redoubt_vec;
+mod redoubt_string;
 
 #[cfg(test)]
 mod tests;
 
 pub use allocked_vec::AllockedVec;
 pub use error::AllockedVecError;
+pub use redoubt_vec::RedoubtVec;
+pub use redoubt_string::RedoubtString;
 
 #[cfg(any(test, feature = "test_utils"))]
 pub use allocked_vec::AllockedVecBehaviour;
