@@ -34,6 +34,17 @@ pub struct RedoubtString {
     __sentinel: ZeroizeOnDropSentinel,
 }
 
+#[cfg(any(test, feature = "test_utils"))]
+impl PartialEq for RedoubtString {
+    fn eq(&self, other: &Self) -> bool {
+        // Skip __sentinel (metadata that changes during zeroization)
+        self.inner == other.inner
+    }
+}
+
+#[cfg(any(test, feature = "test_utils"))]
+impl Eq for RedoubtString {}
+
 impl RedoubtString {
     /// Creates a new empty `RedoubtString`.
     pub fn new() -> Self {

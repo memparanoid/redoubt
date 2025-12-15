@@ -253,6 +253,67 @@ fn test_default() {
 }
 
 // =============================================================================
+// PartialEq / Eq
+// =============================================================================
+
+#[test]
+fn test_partial_eq_equal_strings() {
+    let mut s1 = RedoubtString::new();
+    s1.push_str("hello world");
+
+    let mut s2 = RedoubtString::new();
+    s2.push_str("hello world");
+
+    assert_eq!(s1.as_str(), s2.as_str());
+    assert!(s1 == s2);
+}
+
+#[test]
+fn test_partial_eq_different_strings() {
+    let mut s1 = RedoubtString::new();
+    s1.push_str("hello world");
+
+    let mut s2 = RedoubtString::new();
+    s2.push_str("hello rust");
+
+    assert_ne!(s1.as_str(), s2.as_str());
+    assert!(s1 != s2);
+}
+
+#[test]
+fn test_partial_eq_different_lengths() {
+    let mut s1 = RedoubtString::new();
+    s1.push_str("hello");
+
+    let mut s2 = RedoubtString::new();
+    s2.push_str("hello world");
+
+    assert_ne!(s1.as_str(), s2.as_str());
+    assert!(s1 != s2);
+}
+
+#[test]
+fn test_partial_eq_empty_strings() {
+    let s1 = RedoubtString::new();
+    let s2 = RedoubtString::new();
+
+    assert_eq!(s1.as_str(), s2.as_str());
+    assert!(s1 == s2);
+}
+
+#[test]
+fn test_partial_eq_with_unicode() {
+    let mut s1 = RedoubtString::new();
+    s1.push_str("Hello 世界 🦀");
+
+    let mut s2 = RedoubtString::new();
+    s2.push_str("Hello 世界 🦀");
+
+    assert_eq!(s1.as_str(), s2.as_str());
+    assert!(s1 == s2);
+}
+
+// =============================================================================
 // Deref / DerefMut
 // =============================================================================
 

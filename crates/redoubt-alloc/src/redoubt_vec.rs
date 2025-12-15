@@ -40,6 +40,19 @@ where
     __sentinel: ZeroizeOnDropSentinel,
 }
 
+#[cfg(any(test, feature = "test_utils"))]
+impl<T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe + PartialEq> PartialEq
+    for RedoubtVec<T>
+{
+    fn eq(&self, other: &Self) -> bool {
+        // Skip __sentinel (metadata that changes during zeroization)
+        self.inner == other.inner
+    }
+}
+
+#[cfg(any(test, feature = "test_utils"))]
+impl<T: FastZeroizable + ZeroizeMetadata + Eq + ZeroizationProbe> Eq for RedoubtVec<T> {}
+
 impl<T> RedoubtVec<T>
 where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,

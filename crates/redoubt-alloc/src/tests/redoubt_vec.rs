@@ -257,6 +257,66 @@ fn test_default() {
 }
 
 // =============================================================================
+// PartialEq / Eq
+// =============================================================================
+
+#[test]
+fn test_partial_eq_equal_vecs() {
+    let mut vec1 = RedoubtVec::new();
+    vec1.push(1u8);
+    vec1.push(2u8);
+    vec1.push(3u8);
+
+    let mut vec2 = RedoubtVec::new();
+    vec2.push(1u8);
+    vec2.push(2u8);
+    vec2.push(3u8);
+
+    assert_eq!(vec1.as_slice(), vec2.as_slice());
+    assert!(vec1 == vec2);
+}
+
+#[test]
+fn test_partial_eq_different_vecs() {
+    let mut vec1 = RedoubtVec::new();
+    vec1.push(1u8);
+    vec1.push(2u8);
+    vec1.push(3u8);
+
+    let mut vec2 = RedoubtVec::new();
+    vec2.push(1u8);
+    vec2.push(2u8);
+    vec2.push(4u8);
+
+    assert_ne!(vec1.as_slice(), vec2.as_slice());
+    assert!(vec1 != vec2);
+}
+
+#[test]
+fn test_partial_eq_different_lengths() {
+    let mut vec1 = RedoubtVec::new();
+    vec1.push(1u8);
+    vec1.push(2u8);
+
+    let mut vec2 = RedoubtVec::new();
+    vec2.push(1u8);
+    vec2.push(2u8);
+    vec2.push(3u8);
+
+    assert_ne!(vec1.as_slice(), vec2.as_slice());
+    assert!(vec1 != vec2);
+}
+
+#[test]
+fn test_partial_eq_empty_vecs() {
+    let vec1: RedoubtVec<u8> = RedoubtVec::new();
+    let vec2: RedoubtVec<u8> = RedoubtVec::new();
+
+    assert_eq!(vec1.as_slice(), vec2.as_slice());
+    assert!(vec1 == vec2);
+}
+
+// =============================================================================
 // Deref / DerefMut
 // =============================================================================
 

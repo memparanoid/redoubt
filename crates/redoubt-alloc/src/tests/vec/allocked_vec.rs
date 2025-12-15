@@ -755,6 +755,79 @@ fn test_allocked_vec_zeroize_on_drop() {
 }
 
 // =============================================================================
+// PartialEq / Eq
+// =============================================================================
+
+#[test]
+fn test_allocked_vec_partial_eq_equal_vecs() {
+    let mut vec1 = AllockedVec::with_capacity(5);
+    vec1.push(1u8).expect("Failed to push");
+    vec1.push(2u8).expect("Failed to push");
+    vec1.push(3u8).expect("Failed to push");
+
+    let mut vec2 = AllockedVec::with_capacity(5);
+    vec2.push(1u8).expect("Failed to push");
+    vec2.push(2u8).expect("Failed to push");
+    vec2.push(3u8).expect("Failed to push");
+
+    assert_eq!(vec1.as_slice(), vec2.as_slice());
+    assert!(vec1 == vec2);
+}
+
+#[test]
+fn test_allocked_vec_partial_eq_different_data() {
+    let mut vec1 = AllockedVec::with_capacity(5);
+    vec1.push(1u8).expect("Failed to push");
+    vec1.push(2u8).expect("Failed to push");
+
+    let mut vec2 = AllockedVec::with_capacity(5);
+    vec2.push(1u8).expect("Failed to push");
+    vec2.push(3u8).expect("Failed to push");
+
+    assert_ne!(vec1.as_slice(), vec2.as_slice());
+    assert!(vec1 != vec2);
+}
+
+#[test]
+fn test_allocked_vec_partial_eq_different_lengths() {
+    let mut vec1 = AllockedVec::with_capacity(5);
+    vec1.push(1u8).expect("Failed to push");
+    vec1.push(2u8).expect("Failed to push");
+
+    let mut vec2 = AllockedVec::with_capacity(5);
+    vec2.push(1u8).expect("Failed to push");
+    vec2.push(2u8).expect("Failed to push");
+    vec2.push(3u8).expect("Failed to push");
+
+    assert_ne!(vec1.as_slice(), vec2.as_slice());
+    assert!(vec1 != vec2);
+}
+
+#[test]
+fn test_allocked_vec_partial_eq_different_capacities() {
+    let mut vec1 = AllockedVec::with_capacity(3);
+    vec1.push(1u8).expect("Failed to push");
+    vec1.push(2u8).expect("Failed to push");
+
+    let mut vec2 = AllockedVec::with_capacity(5);
+    vec2.push(1u8).expect("Failed to push");
+    vec2.push(2u8).expect("Failed to push");
+
+    // Same data, different capacity
+    assert_eq!(vec1.as_slice(), vec2.as_slice());
+    assert!(vec1 == vec2);
+}
+
+#[test]
+fn test_allocked_vec_partial_eq_empty_vecs() {
+    let vec1 = AllockedVec::<u8>::with_capacity(5);
+    let vec2 = AllockedVec::<u8>::with_capacity(5);
+
+    assert_eq!(vec1.as_slice(), vec2.as_slice());
+    assert!(vec1 == vec2);
+}
+
+// =============================================================================
 // Debug
 // =============================================================================
 
