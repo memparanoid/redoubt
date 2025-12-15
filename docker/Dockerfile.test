@@ -55,6 +55,7 @@ RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/s
     echo "fn main() {}" > benchmarks/benches/codec.rs && \
     echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
     echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
+    echo "fn main() {}" > benchmarks/benches/alloc.rs && \
     mkdir -p crates/redoubt-codec/src && echo "// stub" > crates/redoubt-codec/src/lib.rs && \
     mkdir -p crates/redoubt-codec/core/src && echo "// stub" > crates/redoubt-codec/core/src/lib.rs && \
     mkdir -p crates/redoubt-codec/derive/src && echo "// stub" > crates/redoubt-codec/derive/src/lib.rs && \

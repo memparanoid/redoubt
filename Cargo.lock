@@ -35,6 +35,7 @@ version = "0.0.1"
 dependencies = [
  "criterion",
  "redoubt-aead",
+ "redoubt-alloc",
  "redoubt-buffer",
  "redoubt-codec",
  "redoubt-util",

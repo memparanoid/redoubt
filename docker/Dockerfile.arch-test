@@ -53,6 +53,7 @@ RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/s
     echo "fn main() {}" > benchmarks/benches/redoubt-codec.rs && \
     echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
     echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
+    echo "fn main() {}" > benchmarks/benches/alloc.rs && \
     mkdir -p crates/redoubt-test-utils/src && echo "// stub" > crates/redoubt-test-utils/src/lib.rs
 
 # Pre-fetch dependencies

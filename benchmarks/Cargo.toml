@@ -5,6 +5,7 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+redoubt-alloc = { path = "../crates/redoubt-alloc" }
 redoubt-aead = { path = "../crates/redoubt-aead" }
 redoubt-codec = { path = "../crates/redoubt-codec" }
 redoubt-vault = { path = "../crates/redoubt-vault" }
@@ -33,4 +34,8 @@ harness = false
 
 [[bench]]
 name = "page_buffer"
+harness = false
+
+[[bench]]
+name = "alloc"
 harness = false
