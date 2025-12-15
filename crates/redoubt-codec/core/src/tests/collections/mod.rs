@@ -6,6 +6,8 @@
 mod allocked_vec;
 mod array;
 mod helpers;
+mod redoubt_string;
+mod redoubt_vec;
 mod string;
 mod utils;
 mod vec;

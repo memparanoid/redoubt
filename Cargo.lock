@@ -908,6 +908,7 @@ dependencies = [
 name = "redoubt-secret"
 version = "0.0.1"
 dependencies = [
+ "redoubt-alloc",
  "redoubt-codec",
  "redoubt-util",
  "redoubt-zero",
