@@ -213,6 +213,37 @@ where
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         &mut self.inner
     }
+
+    /// Initializes the vector to the specified size using the most efficient method.
+    ///
+    /// For types that can be bulk zeroized (primitives), this uses zero initialization.
+    /// For complex types, it uses `T::default()`.
+    #[cfg(feature = "default_init")]
+    pub fn default_init_to_size(&mut self, size: usize)
+    where
+        T: Default,
+    {
+        self.clear();
+        self.maybe_grow_to(size);
+
+        if T::CAN_BE_BULK_ZEROIZED {
+            // Zero init path (SUPER FAST for primitives like u8, u32, etc.)
+            self.inner.fast_zeroize();
+            // SAFETY: T can be bulk zeroized, so all-zeros is a valid state.
+            // The inner vec has sufficient capacity from maybe_grow_to.
+            unsafe {
+                self.inner.set_len(size);
+            }
+        } else {
+            // Default path for complex types
+            for _ in 0..size {
+                self.inner.push(T::default());
+            }
+            self.inner.fast_zeroize();
+        }
+
+        debug_assert_eq!(self.len(), size);
+    }
 }
 
 impl<T> Default for RedoubtVec<T>

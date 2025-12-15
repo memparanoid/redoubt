@@ -12,6 +12,7 @@ version.workspace = true
 [features]
 test_utils = []
 unsafe = []
+default_init = []
 
 [dependencies]
 redoubt-zero.workspace    = true

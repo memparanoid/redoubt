@@ -369,3 +369,109 @@ fn test_debug_redacted() {
     assert!(!debug_output.contains("43"));
     assert!(!debug_output.contains("44"));
 }
+
+// =============================================================================
+// default_init_to_size()
+// =============================================================================
+
+#[test]
+#[cfg(feature = "default_init")]
+fn test_default_init_to_size_with_bulk_zeroizable() {
+    let mut vec = RedoubtVec::<u8>::new();
+
+    // Initialize with bulk-zeroizable type (u8)
+    vec.default_init_to_size(100);
+
+    assert_eq!(vec.len(), 100);
+    assert!(vec.capacity() >= 100);
+
+    // Should be zero-initialized
+    assert!(vec.is_zeroized());
+}
+
+#[test]
+#[cfg(feature = "default_init")]
+fn test_default_init_to_size_with_complex_type() {
+    #[derive(Debug, PartialEq, Clone, Copy)]
+    struct TestStruct {
+        value: u32,
+    }
+
+    impl Default for TestStruct {
+        fn default() -> Self {
+            Self { value: 42 }
+        }
+    }
+
+    impl redoubt_zero::ZeroizeMetadata for TestStruct {
+        const CAN_BE_BULK_ZEROIZED: bool = false;
+    }
+
+    impl redoubt_zero::FastZeroizable for TestStruct {
+        fn fast_zeroize(&mut self) {
+            self.value = 0;
+        }
+    }
+
+    impl redoubt_zero::ZeroizationProbe for TestStruct {
+        fn is_zeroized(&self) -> bool {
+            self.value == 0
+        }
+    }
+
+    let mut vec = RedoubtVec::<TestStruct>::new();
+
+    // Initialize with complex type
+    vec.default_init_to_size(50);
+
+    assert_eq!(vec.len(), 50);
+    assert!(vec.capacity() >= 50);
+
+    // All elements should be zeroized after default_init_to_size
+    assert!(vec.is_zeroized());
+}
+
+#[test]
+#[cfg(feature = "default_init")]
+fn test_default_init_to_size_clears_existing_data() {
+    let mut vec = RedoubtVec::<u8>::new();
+    vec.push(1u8);
+    vec.push(2u8);
+    vec.push(3u8);
+
+    assert_eq!(vec.len(), 3);
+
+    // Re-initialize to different size
+    vec.default_init_to_size(10);
+
+    assert_eq!(vec.len(), 10);
+    // All zeros (bulk zeroizable type)
+    assert!(vec.is_zeroized());
+}
+
+#[test]
+#[cfg(feature = "default_init")]
+fn test_default_init_to_size_large() {
+    let mut vec = RedoubtVec::<u8>::new();
+
+    // Test with large size to ensure performance path works
+    vec.default_init_to_size(10_000);
+
+    assert_eq!(vec.len(), 10_000);
+    assert!(vec.capacity() >= 10_000);
+    assert!(vec.is_zeroized());
+}
+
+#[test]
+#[cfg(feature = "default_init")]
+fn test_default_init_to_size_zero() {
+    let mut vec = RedoubtVec::<u8>::new();
+    vec.push(1u8);
+    vec.push(2u8);
+
+    // Initialize to size 0
+    vec.default_init_to_size(0);
+
+    assert_eq!(vec.len(), 0);
+    assert!(vec.is_empty());
+}
