@@ -222,6 +222,22 @@ where
         &mut self.inner
     }
 
+    /// Returns a reference to the inner Vec.
+    ///
+    /// This allows direct access to the underlying Vec for operations
+    /// that require Vec-specific APIs, such as codec implementations.
+    pub fn as_vec(&self) -> &Vec<T> {
+        &self.inner
+    }
+
+    /// Returns a mutable reference to the inner Vec.
+    ///
+    /// This allows direct manipulation of the underlying Vec for operations
+    /// that require Vec-specific APIs, such as codec implementations.
+    pub fn as_mut_vec(&mut self) -> &mut Vec<T> {
+        &mut self.inner
+    }
+
     /// Initializes the vector to the specified size using the most efficient method.
     ///
     /// For types that can be bulk zeroized (primitives), this uses zero initialization

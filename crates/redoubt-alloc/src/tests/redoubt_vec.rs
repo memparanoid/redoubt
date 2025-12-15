@@ -303,6 +303,42 @@ fn test_as_mut_slice() {
 }
 
 // =============================================================================
+// as_vec()
+// =============================================================================
+
+#[test]
+fn test_as_vec() {
+    let mut vec = RedoubtVec::new();
+    let mut data = vec![1u8, 2, 3];
+    vec.drain_slice(&mut data);
+    assert!(data.is_zeroized());
+
+    let inner = vec.as_vec();
+    assert_eq!(inner.len(), 3);
+    assert_eq!(inner[0], 1);
+    assert_eq!(inner[1], 2);
+    assert_eq!(inner[2], 3);
+}
+
+// =============================================================================
+// as_mut_vec()
+// =============================================================================
+
+#[test]
+fn test_as_mut_vec() {
+    let mut vec = RedoubtVec::new();
+    let mut data = vec![10u8, 20, 30];
+    vec.drain_slice(&mut data);
+    assert!(data.is_zeroized());
+
+    let inner_mut = vec.as_mut_vec();
+    inner_mut.push(40);
+
+    assert_eq!(vec.len(), 4);
+    assert_eq!(vec[3], 40);
+}
+
+// =============================================================================
 // Default
 // =============================================================================
 
