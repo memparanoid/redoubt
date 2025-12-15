@@ -22,13 +22,16 @@ use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
 ///
 /// ```rust
 /// use redoubt_alloc::RedoubtString;
+/// use redoubt_zero::ZeroizationProbe;
 ///
 /// let mut s = RedoubtString::new();
-/// s.push_str("secret");
-/// // Automatic safe reallocation when capacity is exceeded
+/// let mut secret = String::from("password123");
+/// s.drain_string(&mut secret);
+///
+/// // Source is guaranteed to be zeroized
+/// assert!(secret.is_zeroized());
 /// ```
 #[derive(RedoubtZero)]
-#[fast_zeroize(drop)]
 pub struct RedoubtString {
     inner: String,
     __sentinel: ZeroizeOnDropSentinel,
@@ -104,7 +107,9 @@ impl RedoubtString {
     ///
     /// By accepting `min_capacity` and doing a single grow, this is O(n) instead
     /// of O(n log n) when growing by large amounts.
-    fn maybe_grow_to(&mut self, min_capacity: usize) {
+    #[cold]
+    #[inline(never)]
+    fn grow_to(&mut self, min_capacity: usize) {
         if self.capacity() >= min_capacity {
             return;
         }
@@ -123,25 +128,20 @@ impl RedoubtString {
         self.inner.reserve_exact(new_capacity);
 
         // 4. Drain from tmp
-        self.drain_from_string(&mut tmp);
+        self.drain_string(&mut tmp);
     }
 
-    /// Appends a given string slice onto the end of this String.
-    ///
-    /// If capacity is exceeded, performs safe reallocation to next power of 2.
-    pub fn push_str(&mut self, s: &str) {
-        self.maybe_grow_to(self.len() + s.len());
-        self.inner.push_str(s);
+    #[inline(always)]
+    fn maybe_grow_to(&mut self, min_capacity: usize) {
+        if self.capacity() >= min_capacity {
+            return;
+        }
+
+        self.grow_to(min_capacity);
     }
 
-    /// Appends a char to the end of this String.
-    pub fn push(&mut self, ch: char) {
-        self.maybe_grow_to(self.len() + ch.len_utf8());
-        self.inner.push(ch);
-    }
-
-    /// Drains from String, zeroizing and clearing source.
-    pub fn drain_from_string(&mut self, src: &mut String) {
+    /// Drains a String into this String, zeroizing the source.
+    pub fn drain_string(&mut self, src: &mut String) {
         self.maybe_grow_to(self.len() + src.len());
 
         self.inner.push_str(src);
@@ -196,7 +196,7 @@ impl DerefMut for RedoubtString {
 impl From<String> for RedoubtString {
     fn from(mut s: String) -> Self {
         let mut redoubt = Self::with_capacity(s.len());
-        redoubt.drain_from_string(&mut s);
+        redoubt.drain_string(&mut s);
         redoubt
     }
 }

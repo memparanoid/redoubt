@@ -24,14 +24,16 @@ use redoubt_zero::{
 ///
 /// ```rust
 /// use redoubt_alloc::RedoubtVec;
+/// use redoubt_zero::ZeroizationProbe;
 ///
 /// let mut vec = RedoubtVec::new();
-/// vec.push(42u8);
-/// vec.push(43u8);
-/// // Automatic safe reallocation when capacity is exceeded
+/// let mut data = [42u8, 43];
+/// vec.drain_slice(&mut data);
+///
+/// // Source is guaranteed to be zeroized
+/// assert!(data.is_zeroized());
 /// ```
 #[derive(RedoubtZero)]
-#[fast_zeroize(drop)]
 pub struct RedoubtVec<T>
 where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
@@ -125,18 +127,16 @@ where
     ///
     /// By accepting `min_capacity` and doing a single grow, this is O(n) instead
     /// of O(n log n) when growing by large amounts.
-    fn maybe_grow_to(&mut self, min_capacity: usize) {
-        if self.capacity() >= min_capacity {
-            return;
-        }
-
+    #[cold]
+    #[inline(never)]
+    fn grow_to(&mut self, min_capacity: usize) {
         let current_len = self.len();
         let new_capacity = min_capacity.next_power_of_two();
 
         // 1. Allocate temp and copy current data
         let mut tmp = Vec::with_capacity(current_len);
         unsafe {
-            // SAFETY: We're copying exactly len() elements from a valid Vec
+            // SAFETY (PRECONDITIONS ARE MET): copying exactly len() elements from valid Vec
             core::ptr::copy_nonoverlapping(self.inner.as_ptr(), tmp.as_mut_ptr(), current_len);
             tmp.set_len(current_len);
         }
@@ -151,7 +151,7 @@ where
 
         // 4. Copy data back from tmp
         unsafe {
-            // SAFETY: tmp has exactly current_len elements, self has sufficient capacity
+            // SAFETY (PRECONDITIONS ARE MET): tmp has exactly current_len elements, self has sufficient capacity from reserve_exact
             core::ptr::copy_nonoverlapping(tmp.as_ptr(), self.inner.as_mut_ptr(), current_len);
             self.inner.set_len(current_len);
         }
@@ -160,35 +160,43 @@ where
         tmp.fast_zeroize();
     }
 
-    /// Appends an element to the back of the vector.
-    ///
-    /// If capacity is exceeded, performs safe reallocation to next power of 2.
-    pub fn push(&mut self, value: T) {
-        self.maybe_grow_to(self.len() + 1);
-        self.inner.push(value);
+    #[inline(always)]
+    fn maybe_grow_to(&mut self, min_capacity: usize) {
+        if self.capacity() >= min_capacity {
+            return;
+        }
+
+        self.grow_to(min_capacity);
     }
 
-    /// Drains from slice, zeroizing source.
+    /// Drains a slice into the vector, zeroizing the source.
     ///
     /// Grows the vector if necessary to accommodate the slice.
-    pub fn drain_from_slice(&mut self, src: &mut [T])
+    ///
+    /// # Performance Note
+    ///
+    /// Uses `ptr::copy_nonoverlapping` for bulk copy instead of individual
+    /// operations. This is significantly faster for large slices.
+    pub fn drain_slice(&mut self, src: &mut [T])
     where
         T: Default,
     {
         self.maybe_grow_to(self.len() + src.len());
 
-        // Drain elements using mem::take (moves ownership)
-        for i in 0..src.len() {
-            let item = core::mem::take(&mut src[i]);
-            self.inner.push(item);
+        unsafe {
+            // SAFETY (PRECONDITIONS ARE MET): src has exactly src.len() elements, self has sufficient capacity from maybe_grow_to
+            let src_ptr = src.as_ptr();
+            let dst_ptr = self.inner.as_mut_ptr().add(self.len());
+            core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, src.len());
+            self.inner.set_len(self.len() + src.len());
         }
 
-        // Zeroize source (now contains Default values)
+        // Zeroize source
         src.fast_zeroize();
     }
 
-    /// Drains from single value, zeroizing source.
-    pub fn drain_from_value(&mut self, src: &mut T)
+    /// Drains a single value into the vector, zeroizing the source.
+    pub fn drain_value(&mut self, src: &mut T)
     where
         T: Default,
     {
@@ -216,8 +224,19 @@ where
 
     /// Initializes the vector to the specified size using the most efficient method.
     ///
-    /// For types that can be bulk zeroized (primitives), this uses zero initialization.
-    /// For complex types, it uses `T::default()`.
+    /// For types that can be bulk zeroized (primitives), this uses zero initialization
+    /// which is extremely fast. For complex types, it uses `T::default()`.
+    ///
+    /// # Performance
+    ///
+    /// - If `T::CAN_BE_BULK_ZEROIZED == true`: O(1) memset operation
+    /// - Otherwise: O(n) pushing defaults
+    ///
+    /// # Safety
+    ///
+    /// After calling this method, the vector will have exactly `size` elements,
+    /// all properly initialized either to zero (if bulk zeroizable) or to their
+    /// default value.
     #[cfg(feature = "default_init")]
     pub fn default_init_to_size(&mut self, size: usize)
     where

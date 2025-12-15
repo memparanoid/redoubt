@@ -4,6 +4,7 @@
 
 use crate::RedoubtString;
 use alloc::string::String;
+use redoubt_zero::ZeroizationProbe;
 
 // =============================================================================
 // new()
@@ -34,129 +35,51 @@ fn test_with_capacity() {
 // Tested implicitly in other tests
 
 // =============================================================================
-// push_str()
+// drain_string()
 // =============================================================================
 
 #[test]
-fn test_push_str() {
-    let mut s = RedoubtString::new();
-    s.push_str("hello");
-
-    assert_eq!(s.len(), 5);
-    assert_eq!(s.as_str(), "hello");
-}
-
-#[test]
-fn test_push_str_grows_to_power_of_2() {
-    let mut s = RedoubtString::new();
-
-    // First push: 0 → next_power_of_two(5) = 8
-    s.push_str("hello");
-    assert!(s.capacity() >= 8);
-
-    // Add more to trigger growth
-    s.push_str(" world! This is a longer string");
-
-    // Should have grown
-    assert!(s.capacity() >= s.len());
-}
-
-// =============================================================================
-// push()
-// =============================================================================
-
-#[test]
-fn test_push_char() {
-    let mut s = RedoubtString::new();
-    s.push('a');
-    s.push('b');
-    s.push('c');
-
-    assert_eq!(s.as_str(), "abc");
-}
-
-#[test]
-fn test_push_emoji() {
-    let mut s = RedoubtString::new();
-    s.push('🦀');
-    s.push('🔒');
-    s.push('✅');
-
-    assert_eq!(s.as_str(), "🦀🔒✅");
-}
-
-#[test]
-fn test_push_redoubt_emoji() {
-    let mut s = RedoubtString::new();
-    s.push('🇷'); // R
-    s.push('🇪'); // E
-    s.push('🇩'); // D
-    s.push('🇴'); // O
-    s.push('🇺'); // U
-    s.push('🇧'); // B
-    s.push('🇹'); // T
-
-    assert_eq!(s.as_str(), "🇷🇪🇩🇴🇺🇧🇹");
-    assert_eq!(s.len(), 28);
-}
-
-#[test]
-fn test_utf8_handling() {
-    let mut s = RedoubtString::new();
-    s.push_str("Hello 世界 🦀");
-
-    assert_eq!(s.as_str(), "Hello 世界 🦀");
-}
-
-// =============================================================================
-// drain_from_string()
-// =============================================================================
-
-#[test]
-fn test_drain_from_string() {
+fn test_drain_string() {
     let mut dest = RedoubtString::new();
     let mut src = String::from("secret password");
 
     let original_len = src.len();
-    dest.drain_from_string(&mut src);
+    dest.drain_string(&mut src);
 
     // Data moved to dest
     assert_eq!(dest.as_str(), "secret password");
     assert_eq!(dest.len(), original_len);
 
     // Source zeroized and cleared
+    assert!(src.is_zeroized());
     assert_eq!(src.len(), 0);
     assert!(src.is_empty());
 }
 
 #[test]
-fn test_drain_from_string_appends() {
+fn test_drain_string_appends() {
     let mut dest = RedoubtString::new();
-    dest.push_str("prefix: ");
+    dest.copy_from_str("prefix: ");
 
     let mut src = String::from("data");
-    dest.drain_from_string(&mut src);
+    dest.drain_string(&mut src);
 
     assert_eq!(dest.as_str(), "prefix: data");
+    assert!(src.is_zeroized());
     assert_eq!(src.len(), 0);
 }
 
 #[test]
-fn test_drain_from_string_zeroizes_source() {
+fn test_drain_string_zeroizes_source() {
     let mut dest = RedoubtString::new();
     let mut src = String::from("sensitive_data_12345");
 
-    // Get pointer before drain (for documentation purposes)
-    let _ptr = src.as_ptr();
+    dest.drain_string(&mut src);
 
-    dest.drain_from_string(&mut src);
-
-    // Source should be empty and zeroized
+    // Source should be zeroized, empty and cleared
+    assert!(src.is_zeroized());
     assert_eq!(src.len(), 0);
     assert!(src.is_empty());
-
-    // Note: The actual bytes in the old allocation have been zeroized
-    // but we can't safely verify this after the clear()
 }
 
 // =============================================================================
@@ -166,32 +89,80 @@ fn test_drain_from_string_zeroizes_source() {
 #[test]
 fn test_copy_from_str() {
     let mut s = RedoubtString::new();
-    let data = "hello world";
+    s.copy_from_str("hello");
 
-    s.copy_from_str(data);
-
-    assert_eq!(s.as_str(), "hello world");
-
-    // Source unchanged (it's &str, can't be zeroized)
-    assert_eq!(data, "hello world");
+    assert_eq!(s.len(), 5);
+    assert_eq!(s.as_str(), "hello");
 }
 
 #[test]
 fn test_copy_from_str_appends() {
     let mut s = RedoubtString::new();
-    s.push_str("hello ");
+    s.copy_from_str("hello ");
     s.copy_from_str("world");
 
     assert_eq!(s.as_str(), "hello world");
 }
 
 #[test]
-fn test_maybe_grow_to_single_allocation() {
+fn test_copy_from_str_grows_to_power_of_2() {
     let mut s = RedoubtString::new();
 
-    // Push a large string should do only ONE grow
+    // First copy: 0 → next_power_of_two(5) = 8
+    s.copy_from_str("hello");
+    assert!(s.capacity() >= 8);
+
+    // Add more to trigger growth
+    s.copy_from_str(" world! This is a longer string");
+
+    // Should have grown
+    assert!(s.capacity() >= s.len());
+}
+
+#[test]
+fn test_copy_from_str_chars() {
+    let mut s = RedoubtString::new();
+    s.copy_from_str("a");
+    s.copy_from_str("b");
+    s.copy_from_str("c");
+
+    assert_eq!(s.as_str(), "abc");
+}
+
+#[test]
+fn test_copy_from_str_emoji() {
+    let mut s = RedoubtString::new();
+    s.copy_from_str("🦀");
+    s.copy_from_str("🔒");
+    s.copy_from_str("✅");
+
+    assert_eq!(s.as_str(), "🦀🔒✅");
+}
+
+#[test]
+fn test_copy_from_str_redoubt_emoji() {
+    let mut s = RedoubtString::new();
+    s.copy_from_str("🇷🇪🇩🇴🇺🇧🇹");
+
+    assert_eq!(s.as_str(), "🇷🇪🇩🇴🇺🇧🇹");
+    assert_eq!(s.len(), 28);
+}
+
+#[test]
+fn test_copy_from_str_utf8_handling() {
+    let mut s = RedoubtString::new();
+    s.copy_from_str("Hello 世界 🦀");
+
+    assert_eq!(s.as_str(), "Hello 世界 🦀");
+}
+
+#[test]
+fn test_copy_from_str_single_allocation() {
+    let mut s = RedoubtString::new();
+
+    // Copy a large string should do only ONE grow
     let large = "a".repeat(100);
-    s.push_str(&large);
+    s.copy_from_str(&large);
 
     // Should grow to next_power_of_two(100) = 128
     assert_eq!(s.len(), 100);
@@ -205,7 +176,7 @@ fn test_maybe_grow_to_single_allocation() {
 #[test]
 fn test_clear() {
     let mut s = RedoubtString::new();
-    s.push_str("data");
+    s.copy_from_str("data");
 
     s.clear();
 
@@ -220,7 +191,7 @@ fn test_clear() {
 #[test]
 fn test_as_str() {
     let mut s = RedoubtString::new();
-    s.push_str("hello world");
+    s.copy_from_str("hello world");
 
     assert_eq!(s.as_str(), "hello world");
 }
@@ -232,7 +203,7 @@ fn test_as_str() {
 #[test]
 fn test_as_mut_str() {
     let mut s = RedoubtString::new();
-    s.push_str("hello");
+    s.copy_from_str("hello");
 
     let str_mut = s.as_mut_str();
     str_mut.make_ascii_uppercase();
@@ -253,74 +224,13 @@ fn test_default() {
 }
 
 // =============================================================================
-// PartialEq / Eq
-// =============================================================================
-
-#[test]
-fn test_partial_eq_equal_strings() {
-    let mut s1 = RedoubtString::new();
-    s1.push_str("hello world");
-
-    let mut s2 = RedoubtString::new();
-    s2.push_str("hello world");
-
-    assert_eq!(s1.as_str(), s2.as_str());
-    assert!(s1 == s2);
-}
-
-#[test]
-fn test_partial_eq_different_strings() {
-    let mut s1 = RedoubtString::new();
-    s1.push_str("hello world");
-
-    let mut s2 = RedoubtString::new();
-    s2.push_str("hello rust");
-
-    assert_ne!(s1.as_str(), s2.as_str());
-    assert!(s1 != s2);
-}
-
-#[test]
-fn test_partial_eq_different_lengths() {
-    let mut s1 = RedoubtString::new();
-    s1.push_str("hello");
-
-    let mut s2 = RedoubtString::new();
-    s2.push_str("hello world");
-
-    assert_ne!(s1.as_str(), s2.as_str());
-    assert!(s1 != s2);
-}
-
-#[test]
-fn test_partial_eq_empty_strings() {
-    let s1 = RedoubtString::new();
-    let s2 = RedoubtString::new();
-
-    assert_eq!(s1.as_str(), s2.as_str());
-    assert!(s1 == s2);
-}
-
-#[test]
-fn test_partial_eq_with_unicode() {
-    let mut s1 = RedoubtString::new();
-    s1.push_str("Hello 世界 🦀");
-
-    let mut s2 = RedoubtString::new();
-    s2.push_str("Hello 世界 🦀");
-
-    assert_eq!(s1.as_str(), s2.as_str());
-    assert!(s1 == s2);
-}
-
-// =============================================================================
 // Deref / DerefMut
 // =============================================================================
 
 #[test]
 fn test_deref() {
     let mut s = RedoubtString::new();
-    s.push_str("test");
+    s.copy_from_str("test");
 
     // Deref to &str
     let str_ref: &str = &s;
@@ -344,7 +254,7 @@ fn test_from_string() {
     assert_eq!(redoubt.as_str(), "secret");
 
     // Note: from() clones, so original is unchanged
-    // Use drain_from_string for zeroization
+    // Use drain_string for zeroization
 }
 
 // =============================================================================
@@ -358,13 +268,74 @@ fn test_from_str() {
 }
 
 // =============================================================================
+// PartialEq / Eq
+// =============================================================================
+
+#[test]
+fn test_partial_eq_equal_strings() {
+    let mut s1 = RedoubtString::new();
+    s1.copy_from_str("hello world");
+
+    let mut s2 = RedoubtString::new();
+    s2.copy_from_str("hello world");
+
+    assert_eq!(s1.as_str(), s2.as_str());
+    assert!(s1 == s2);
+}
+
+#[test]
+fn test_partial_eq_different_strings() {
+    let mut s1 = RedoubtString::new();
+    s1.copy_from_str("hello world");
+
+    let mut s2 = RedoubtString::new();
+    s2.copy_from_str("hello rust");
+
+    assert_ne!(s1.as_str(), s2.as_str());
+    assert!(s1 != s2);
+}
+
+#[test]
+fn test_partial_eq_different_lengths() {
+    let mut s1 = RedoubtString::new();
+    s1.copy_from_str("hello");
+
+    let mut s2 = RedoubtString::new();
+    s2.copy_from_str("hello world");
+
+    assert_ne!(s1.as_str(), s2.as_str());
+    assert!(s1 != s2);
+}
+
+#[test]
+fn test_partial_eq_empty_strings() {
+    let s1 = RedoubtString::new();
+    let s2 = RedoubtString::new();
+
+    assert_eq!(s1.as_str(), s2.as_str());
+    assert!(s1 == s2);
+}
+
+#[test]
+fn test_partial_eq_with_unicode() {
+    let mut s1 = RedoubtString::new();
+    s1.copy_from_str("Hello 世界 🦀");
+
+    let mut s2 = RedoubtString::new();
+    s2.copy_from_str("Hello 世界 🦀");
+
+    assert_eq!(s1.as_str(), s2.as_str());
+    assert!(s1 == s2);
+}
+
+// =============================================================================
 // Debug
 // =============================================================================
 
 #[test]
 fn test_debug_redacted() {
     let mut s = RedoubtString::new();
-    s.push_str("secret password 123");
+    s.copy_from_str("secret password 123");
 
     let debug_output = format!("{:?}", s);
 

@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use crate::RedoubtVec;
-use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
+use redoubt_zero::ZeroizationProbe;
 
 // =============================================================================
 // new()
@@ -34,53 +34,60 @@ fn test_with_capacity() {
 // Tested implicitly in other tests
 
 // =============================================================================
-// push()
+// drain_value()
 // =============================================================================
 
 #[test]
-fn test_push_single() {
+fn test_drain_value_single() {
     let mut vec = RedoubtVec::new();
-    vec.push(42u8);
+    let mut value = 42u8;
+    vec.drain_value(&mut value);
 
     assert_eq!(vec.len(), 1);
     assert_eq!(vec[0], 42);
+    assert_eq!(value, 0); // zeroized
 }
 
 #[test]
-fn test_push_grows_to_power_of_2() {
+fn test_drain_value_grows_to_power_of_2() {
     let mut vec = RedoubtVec::new();
 
-    // First push: 0 → 1
-    vec.push(1u8);
+    // First drain: 0 → 1
+    let mut v1 = 1u8;
+    vec.drain_value(&mut v1);
     assert_eq!(vec.capacity(), 1);
 
-    // Second push: 1 → 2
-    vec.push(2u8);
+    // Second drain: 1 → 2
+    let mut v2 = 2u8;
+    vec.drain_value(&mut v2);
     assert_eq!(vec.capacity(), 2);
 
-    // Third push: 2 → 4
-    vec.push(3u8);
+    // Third drain: 2 → 4
+    let mut v3 = 3u8;
+    vec.drain_value(&mut v3);
     assert_eq!(vec.capacity(), 4);
 
-    // Fourth push: stays at 4
-    vec.push(4u8);
+    // Fourth drain: stays at 4
+    let mut v4 = 4u8;
+    vec.drain_value(&mut v4);
     assert_eq!(vec.capacity(), 4);
 
-    // Fifth push: 4 → 8
-    vec.push(5u8);
+    // Fifth drain: 4 → 8
+    let mut v5 = 5u8;
+    vec.drain_value(&mut v5);
     assert_eq!(vec.capacity(), 8);
 }
 
 // =============================================================================
-// drain_from_slice()
+// drain_slice()
 // =============================================================================
 
 #[test]
-fn test_drain_from_slice() {
+fn test_drain_slice() {
     let mut vec = RedoubtVec::new();
     let mut src = [1u8, 2, 3, 4, 5];
 
-    vec.drain_from_slice(&mut src);
+    vec.drain_slice(&mut src);
 
     // Verify data was moved
     assert_eq!(vec.len(), 5);
@@ -91,13 +98,15 @@ fn test_drain_from_slice() {
 }
 
 #[test]
-fn test_drain_from_slice_grows() {
+fn test_drain_slice_grows() {
     let mut vec = RedoubtVec::with_capacity(2);
-    vec.push(1u8);
-    vec.push(2u8);
+    let mut v1 = 1u8;
+    let mut v2 = 2u8;
+    vec.drain_value(&mut v1);
+    vec.drain_value(&mut v2);
 
     let mut src = [3u8, 4, 5, 6, 7];
-    vec.drain_from_slice(&mut src);
+    vec.drain_slice(&mut src);
 
     // Should grow to accommodate: len=2 + src.len=5 = 7 → next_power_of_two = 8
     assert_eq!(vec.len(), 7);
@@ -109,7 +118,7 @@ fn test_drain_from_slice_grows() {
 }
 
 #[test]
-fn test_drain_from_slice_zeroizes_default_values() {
+fn test_drain_slice_zeroizes_default_values() {
     #[derive(Debug, PartialEq, Clone, Copy)]
     struct TestStruct {
         value: u32,
@@ -144,7 +153,7 @@ fn test_drain_from_slice_zeroizes_default_values() {
         TestStruct { value: 3 },
     ];
 
-    vec.drain_from_slice(&mut src);
+    vec.drain_slice(&mut src);
 
     assert_eq!(vec.len(), 3);
     assert_eq!(vec[0].value, 1);
@@ -165,7 +174,7 @@ fn test_maybe_grow_to_single_allocation() {
         src[i] = i as u8;
     }
 
-    vec.drain_from_slice(&mut src);
+    vec.drain_slice(&mut src);
 
     // Should grow to next_power_of_two(100) = 128
     assert_eq!(vec.len(), 100);
@@ -178,15 +187,15 @@ fn test_maybe_grow_to_single_allocation() {
 }
 
 // =============================================================================
-// drain_from_value()
+// drain_value()
 // =============================================================================
 
 #[test]
-fn test_drain_from_value() {
+fn test_drain_value() {
     let mut vec = RedoubtVec::new();
     let mut value = 42u8;
 
-    vec.drain_from_value(&mut value);
+    vec.drain_value(&mut value);
 
     assert_eq!(vec.len(), 1);
     assert_eq!(vec[0], 42);
@@ -202,9 +211,17 @@ fn test_drain_from_value() {
 #[test]
 fn test_clear() {
     let mut vec = RedoubtVec::new();
-    vec.push(1u8);
-    vec.push(2u8);
-    vec.push(3u8);
+    let mut v1 = 1u8;
+    let mut v2 = 2u8;
+    let mut v3 = 3u8;
+    vec.drain_value(&mut v1);
+    vec.drain_value(&mut v2);
+    vec.drain_value(&mut v3);
+
+    // Assert zeroization
+    assert!(v1.is_zeroized());
+    assert!(v2.is_zeroized());
+    assert!(v3.is_zeroized());
 
     vec.clear();
 
@@ -219,9 +236,17 @@ fn test_clear() {
 #[test]
 fn test_as_slice() {
     let mut vec = RedoubtVec::new();
-    vec.push(1u8);
-    vec.push(2u8);
-    vec.push(3u8);
+    let mut v1 = 1u8;
+    let mut v2 = 2u8;
+    let mut v3 = 3u8;
+    vec.drain_value(&mut v1);
+    vec.drain_value(&mut v2);
+    vec.drain_value(&mut v3);
+
+    // Assert zeroization
+    assert!(v1.is_zeroized());
+    assert!(v2.is_zeroized());
+    assert!(v3.is_zeroized());
 
     let slice = vec.as_slice();
     assert_eq!(slice, &[1, 2, 3]);
@@ -234,9 +259,17 @@ fn test_as_slice() {
 #[test]
 fn test_as_mut_slice() {
     let mut vec = RedoubtVec::new();
-    vec.push(1u8);
-    vec.push(2u8);
-    vec.push(3u8);
+    let mut v1 = 1u8;
+    let mut v2 = 2u8;
+    let mut v3 = 3u8;
+    vec.drain_value(&mut v1);
+    vec.drain_value(&mut v2);
+    vec.drain_value(&mut v3);
+
+    // Assert zeroization
+    assert!(v1.is_zeroized());
+    assert!(v2.is_zeroized());
+    assert!(v3.is_zeroized());
 
     let slice = vec.as_mut_slice();
     slice[1] = 42;
@@ -263,14 +296,14 @@ fn test_default() {
 #[test]
 fn test_partial_eq_equal_vecs() {
     let mut vec1 = RedoubtVec::new();
-    vec1.push(1u8);
-    vec1.push(2u8);
-    vec1.push(3u8);
+    let mut src1 = [1u8, 2, 3];
+    vec1.drain_slice(&mut src1);
+    assert!(src1.is_zeroized());
 
     let mut vec2 = RedoubtVec::new();
-    vec2.push(1u8);
-    vec2.push(2u8);
-    vec2.push(3u8);
+    let mut src2 = [1u8, 2, 3];
+    vec2.drain_slice(&mut src2);
+    assert!(src2.is_zeroized());
 
     assert_eq!(vec1.as_slice(), vec2.as_slice());
     assert!(vec1 == vec2);
@@ -279,14 +312,14 @@ fn test_partial_eq_equal_vecs() {
 #[test]
 fn test_partial_eq_different_vecs() {
     let mut vec1 = RedoubtVec::new();
-    vec1.push(1u8);
-    vec1.push(2u8);
-    vec1.push(3u8);
+    let mut src1 = [1u8, 2, 3];
+    vec1.drain_slice(&mut src1);
+    assert!(src1.is_zeroized());
 
     let mut vec2 = RedoubtVec::new();
-    vec2.push(1u8);
-    vec2.push(2u8);
-    vec2.push(4u8);
+    let mut src2 = [1u8, 2, 4];
+    vec2.drain_slice(&mut src2);
+    assert!(src2.is_zeroized());
 
     assert_ne!(vec1.as_slice(), vec2.as_slice());
     assert!(vec1 != vec2);
@@ -295,13 +328,14 @@ fn test_partial_eq_different_vecs() {
 #[test]
 fn test_partial_eq_different_lengths() {
     let mut vec1 = RedoubtVec::new();
-    vec1.push(1u8);
-    vec1.push(2u8);
+    let mut src1 = [1u8, 2];
+    vec1.drain_slice(&mut src1);
+    assert!(src1.is_zeroized());
 
     let mut vec2 = RedoubtVec::new();
-    vec2.push(1u8);
-    vec2.push(2u8);
-    vec2.push(3u8);
+    let mut src2 = [1u8, 2, 3];
+    vec2.drain_slice(&mut src2);
+    assert!(src2.is_zeroized());
 
     assert_ne!(vec1.as_slice(), vec2.as_slice());
     assert!(vec1 != vec2);
@@ -323,9 +357,9 @@ fn test_partial_eq_empty_vecs() {
 #[test]
 fn test_deref() {
     let mut vec = RedoubtVec::new();
-    vec.push(1u8);
-    vec.push(2u8);
-    vec.push(3u8);
+    let mut src = [1u8, 2, 3];
+    vec.drain_slice(&mut src);
+    assert!(src.is_zeroized());
 
     // Deref to slice
     let slice: &[u8] = &vec;
@@ -338,25 +372,15 @@ fn test_deref() {
 }
 
 // =============================================================================
-// Drop (zeroization)
-// =============================================================================
-
-#[test]
-fn test_drop_zeroizes() {
-    let vec = RedoubtVec::<u8>::new();
-    vec.assert_zeroize_on_drop();
-}
-
-// =============================================================================
 // Debug
 // =============================================================================
 
 #[test]
 fn test_debug_redacted() {
     let mut vec = RedoubtVec::new();
-    vec.push(42u8);
-    vec.push(43u8);
-    vec.push(44u8);
+    let mut src = [42u8, 43, 44];
+    vec.drain_slice(&mut src);
+    assert!(src.is_zeroized());
 
     let debug_output = format!("{:?}", vec);
 
@@ -435,9 +459,9 @@ fn test_default_init_to_size_with_complex_type() {
 #[cfg(feature = "default_init")]
 fn test_default_init_to_size_clears_existing_data() {
     let mut vec = RedoubtVec::<u8>::new();
-    vec.push(1u8);
-    vec.push(2u8);
-    vec.push(3u8);
+    let mut src = [1u8, 2, 3];
+    vec.drain_slice(&mut src);
+    assert!(src.is_zeroized());
 
     assert_eq!(vec.len(), 3);
 
@@ -466,8 +490,9 @@ fn test_default_init_to_size_large() {
 #[cfg(feature = "default_init")]
 fn test_default_init_to_size_zero() {
     let mut vec = RedoubtVec::<u8>::new();
-    vec.push(1u8);
-    vec.push(2u8);
+    let mut src = [1u8, 2];
+    vec.drain_slice(&mut src);
+    assert!(src.is_zeroized());
 
     // Initialize to size 0
     vec.default_init_to_size(0);

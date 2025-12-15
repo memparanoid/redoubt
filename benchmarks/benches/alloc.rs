@@ -49,9 +49,8 @@ fn bench_vec_push_individual(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("RedoubtVec", size), &size, |b, &s| {
             b.iter(|| {
                 let mut vec = RedoubtVec::new();
-                for i in 0..s {
-                    vec.push(i as u8);
-                }
+                let mut data: Vec<u8> = (0..s).map(|i| i as u8).collect();
+                vec.drain_slice(&mut data);
                 black_box(vec)
             });
         });
@@ -82,9 +81,8 @@ fn bench_vec_push_only(c: &mut Criterion) {
             let mut vec = RedoubtVec::with_capacity(s);
             b.iter(|| {
                 vec.clear();
-                for i in 0..s {
-                    vec.push(i as u8);
-                }
+                let mut data: Vec<u8> = (0..s).map(|i| i as u8).collect();
+                vec.drain_slice(&mut data);
                 black_box(&vec);
             });
         });
@@ -115,9 +113,8 @@ fn bench_vec_allocation_only(c: &mut Criterion) {
             let mut vec = RedoubtVec::<u8>::with_capacity(s);
             b.iter(|| {
                 vec.clear();
-                for i in 0..s {
-                    vec.push(i as u8);
-                }
+                let mut data: Vec<u8> = (0..s).map(|i| i as u8).collect();
+                vec.drain_slice(&mut data);
                 black_box(&vec);
             });
         });
@@ -126,40 +123,48 @@ fn bench_vec_allocation_only(c: &mut Criterion) {
     group.finish();
 }
 
-fn bench_vec_drain_from_slice(c: &mut Criterion) {
-    let mut group = c.benchmark_group("vec_drain_from_slice");
+fn bench_vec_drain_slice(c: &mut Criterion) {
+    let mut group = c.benchmark_group("vec_drain_slice");
     configure_group(&mut group);
 
     for size in [100, 1_000, 10_000, 100_000] {
         group.throughput(Throughput::Elements(size as u64));
 
-        group.bench_with_input(BenchmarkId::new("Vec::extend_from_slice", size), &size, |b, &s| {
-            b.iter_batched(
-                || {
-                    let source: Vec<u8> = (0..s).map(|i| i as u8).collect();
-                    (Vec::new(), source)
-                },
-                |(mut vec, source)| {
-                    vec.extend_from_slice(&source);
-                    black_box(vec)
-                },
-                BatchSize::LargeInput,
-            );
-        });
+        group.bench_with_input(
+            BenchmarkId::new("Vec::extend_from_slice", size),
+            &size,
+            |b, &s| {
+                b.iter_batched(
+                    || {
+                        let source: Vec<u8> = (0..s).map(|i| i as u8).collect();
+                        (Vec::new(), source)
+                    },
+                    |(mut vec, source)| {
+                        vec.extend_from_slice(&source);
+                        black_box(vec)
+                    },
+                    BatchSize::LargeInput,
+                );
+            },
+        );
 
-        group.bench_with_input(BenchmarkId::new("RedoubtVec::drain_from_slice", size), &size, |b, &s| {
-            b.iter_batched(
-                || {
-                    let source: Vec<u8> = (0..s).map(|i| i as u8).collect();
-                    (RedoubtVec::new(), source)
-                },
-                |(mut vec, mut source)| {
-                    vec.drain_from_slice(&mut source);
-                    black_box(vec)
-                },
-                BatchSize::LargeInput,
-            );
-        });
+        group.bench_with_input(
+            BenchmarkId::new("RedoubtVec::drain_slice", size),
+            &size,
+            |b, &s| {
+                b.iter_batched(
+                    || {
+                        let source: Vec<u8> = (0..s).map(|i| i as u8).collect();
+                        (RedoubtVec::new(), source)
+                    },
+                    |(mut vec, mut source)| {
+                        vec.drain_slice(&mut source);
+                        black_box(vec)
+                    },
+                    BatchSize::LargeInput,
+                );
+            },
+        );
     }
 
     group.finish();
@@ -193,9 +198,8 @@ fn bench_vec_clear(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let mut vec = RedoubtVec::with_capacity(s);
-                    for i in 0..s {
-                        vec.push(i as u8);
-                    }
+                    let mut data: Vec<u8> = (0..s).map(|i| i as u8).collect();
+                    vec.drain_slice(&mut data);
                     vec
                 },
                 |mut vec| {
@@ -214,8 +218,8 @@ fn bench_vec_clear(c: &mut Criterion) {
 // String vs RedoubtString
 // =============================================================================
 
-fn bench_string_push_str(c: &mut Criterion) {
-    let mut group = c.benchmark_group("string_push_str");
+fn bench_string_copy_from_str(c: &mut Criterion) {
+    let mut group = c.benchmark_group("string_copy_from_str");
     configure_group(&mut group);
 
     let data_100 = "a".repeat(100);
@@ -242,7 +246,7 @@ fn bench_string_push_str(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("RedoubtString", name), data, |b, d| {
             b.iter(|| {
                 let mut s = RedoubtString::new();
-                s.push_str(d);
+                s.copy_from_str(d);
                 black_box(s)
             });
         });
@@ -279,7 +283,7 @@ fn bench_string_with_capacity(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("RedoubtString", name), data, |b, d| {
             b.iter(|| {
                 let mut s = RedoubtString::with_capacity(d.len());
-                s.push_str(d);
+                s.copy_from_str(d);
                 black_box(s)
             });
         });
@@ -288,8 +292,8 @@ fn bench_string_with_capacity(c: &mut Criterion) {
     group.finish();
 }
 
-fn bench_string_drain_from_string(c: &mut Criterion) {
-    let mut group = c.benchmark_group("string_drain_from_string");
+fn bench_string_drain_string(c: &mut Criterion) {
+    let mut group = c.benchmark_group("string_drain_string");
     configure_group(&mut group);
 
     let data_100 = "a".repeat(100);
@@ -309,7 +313,7 @@ fn bench_string_drain_from_string(c: &mut Criterion) {
             b.iter_batched(
                 || (RedoubtString::new(), String::from(d.as_str())),
                 |(mut s, mut source)| {
-                    s.drain_from_string(&mut source);
+                    s.drain_string(&mut source);
                     black_box(s)
                 },
                 BatchSize::LargeInput,
@@ -356,7 +360,7 @@ fn bench_string_clear(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let mut s = RedoubtString::with_capacity(d.len());
-                    s.push_str(d);
+                    s.copy_from_str(d);
                     s
                 },
                 |mut s| {
@@ -376,16 +380,16 @@ criterion_group!(
     bench_vec_allocation_only,
     bench_vec_push_only,
     bench_vec_push_individual,
-    bench_vec_drain_from_slice,
+    bench_vec_drain_slice,
     bench_vec_clear
 );
 
-// criterion_group!(
-//     string_benches,
-//     bench_string_push_str,
-//     bench_string_with_capacity,
-//     bench_string_drain_from_string,
-//     bench_string_clear
-// );
+criterion_group!(
+    string_benches,
+    bench_string_copy_from_str,
+    bench_string_with_capacity,
+    bench_string_drain_string,
+    bench_string_clear
+);
 
 criterion_main!(vec_benches);
