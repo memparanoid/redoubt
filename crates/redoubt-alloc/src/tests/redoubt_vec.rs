@@ -346,3 +346,26 @@ fn test_drop_zeroizes() {
     let vec = RedoubtVec::<u8>::new();
     vec.assert_zeroize_on_drop();
 }
+
+// =============================================================================
+// Debug
+// =============================================================================
+
+#[test]
+fn test_debug_redacted() {
+    let mut vec = RedoubtVec::new();
+    vec.push(42u8);
+    vec.push(43u8);
+    vec.push(44u8);
+
+    let debug_output = format!("{:?}", vec);
+
+    assert!(debug_output.contains("RedoubtVec"));
+    assert!(debug_output.contains("REDACTED"));
+    assert!(debug_output.contains("len"));
+    assert!(debug_output.contains("capacity"));
+    // Verify actual data values are not in the output
+    assert!(!debug_output.contains("42"));
+    assert!(!debug_output.contains("43"));
+    assert!(!debug_output.contains("44"));
+}

@@ -45,6 +45,16 @@ impl PartialEq for RedoubtString {
 #[cfg(any(test, feature = "test_utils"))]
 impl Eq for RedoubtString {}
 
+impl core::fmt::Debug for RedoubtString {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("RedoubtString")
+            .field("data", &"REDACTED")
+            .field("len", &self.len())
+            .field("capacity", &self.capacity())
+            .finish()
+    }
+}
+
 impl RedoubtString {
     /// Creates a new empty `RedoubtString`.
     pub fn new() -> Self {

@@ -832,6 +832,24 @@ fn test_allocked_vec_partial_eq_empty_vecs() {
 // =============================================================================
 
 #[test]
+fn test_allocked_vec_debug_redacted() {
+    let mut vec = AllockedVec::with_capacity(5);
+    vec.push(41u8).expect("Failed to push");
+    vec.push(42u8).expect("Failed to push");
+    vec.push(43u8).expect("Failed to push");
+
+    let debug_output = format!("{:?}", vec);
+
+    assert!(debug_output.contains("AllockedVec"));
+    assert!(debug_output.contains("REDACTED"));
+    assert!(debug_output.contains("len"));
+    assert!(debug_output.contains("capacity"));
+    assert!(!debug_output.contains("41"));
+    assert!(!debug_output.contains("42"));
+    assert!(!debug_output.contains("43"));
+}
+
+#[test]
 fn test_allocked_vec_debug_snapshot() {
     let mut vec = AllockedVec::with_capacity(5);
 

@@ -356,3 +356,23 @@ fn test_from_str() {
     let redoubt = RedoubtString::from("hello");
     assert_eq!(redoubt.as_str(), "hello");
 }
+
+// =============================================================================
+// Debug
+// =============================================================================
+
+#[test]
+fn test_debug_redacted() {
+    let mut s = RedoubtString::new();
+    s.push_str("secret password 123");
+
+    let debug_output = format!("{:?}", s);
+
+    assert!(debug_output.contains("RedoubtString"));
+    assert!(debug_output.contains("REDACTED"));
+    assert!(debug_output.contains("len"));
+    assert!(debug_output.contains("capacity"));
+    assert!(!debug_output.contains("secret"));
+    assert!(!debug_output.contains("password"));
+    assert!(!debug_output.contains("123"));
+}

@@ -53,6 +53,19 @@ impl<T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe + PartialEq> Partial
 #[cfg(any(test, feature = "test_utils"))]
 impl<T: FastZeroizable + ZeroizeMetadata + Eq + ZeroizationProbe> Eq for RedoubtVec<T> {}
 
+impl<T> core::fmt::Debug for RedoubtVec<T>
+where
+    T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("RedoubtVec")
+            .field("data", &"REDACTED")
+            .field("len", &self.len())
+            .field("capacity", &self.capacity())
+            .finish()
+    }
+}
+
 impl<T> RedoubtVec<T>
 where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,

@@ -110,7 +110,7 @@ impl FastZeroizable for AllockedVecBehaviour {
 /// }
 /// # example().unwrap();
 /// ```
-#[derive(Debug, RedoubtZero)]
+#[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
 #[cfg_attr(any(test, feature = "test_utils"), derive(Clone))]
 pub struct AllockedVec<T>
@@ -122,6 +122,19 @@ where
     #[cfg(any(test, feature = "test_utils"))]
     behaviour: AllockedVecBehaviour,
     __sentinel: ZeroizeOnDropSentinel,
+}
+
+impl<T> core::fmt::Debug for AllockedVec<T>
+where
+    T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("AllockedVec")
+            .field("data", &"REDACTED")
+            .field("len", &self.len())
+            .field("capacity", &self.capacity())
+            .finish()
+    }
 }
 
 #[cfg(any(test, feature = "test_utils"))]

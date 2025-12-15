@@ -2,4 +2,4 @@
 source: crates/redoubt-alloc/src/tests/vec/allocked_vec.rs
 expression: snapshot
 ---
-AllockedVec { inner: [1, 2], has_been_sealed: true, behaviour: None, __sentinel: ZeroizeOnDropSentinel(true) }
+AllockedVec { data: "REDACTED", len: 2, capacity: 5 }
