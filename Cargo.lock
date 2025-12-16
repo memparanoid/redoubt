@@ -912,6 +912,7 @@ dependencies = [
  "getrandom",
  "libc",
  "proptest",
+ "redoubt-hkdf",
  "redoubt-zero",
  "thiserror",
 ]
