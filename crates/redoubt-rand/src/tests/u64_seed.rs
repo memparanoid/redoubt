@@ -2,51 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::u64::U64;
-use crate::u64_seed::{generate, get_entropy_u64};
+use crate::u64_seed::generate;
 
 #[test]
-fn test_get_entropy_u64_succeeds() {
-    // Happy path: should always succeed
-    let result = get_entropy_u64();
+fn test_generate_succeeds() {
+    let mut seed = 0u64;
+    let result = unsafe { generate(&mut seed as *mut u64) };
     assert!(result.is_ok());
-}
-
-#[test]
-fn test_u64_seed_drain_from() {
-    let mut source = 0x1234567890ABCDEFu64;
-    let mut seed = U64::new();
-
-    seed.drain_from(&mut source);
-
-    assert_eq!(seed.expose(), 0x1234567890ABCDEF);
-    assert_eq!(source, 0); // zeroized
-}
-
-#[test]
-fn test_u64_seed_drain_from_bytes() {
-    let mut bytes = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0];
-    let mut seed = U64::new();
-
-    seed.drain_from_bytes(&mut bytes);
-
-    assert_eq!(seed.expose(), 0xF0DEBC9A78563412u64); // little-endian
-    assert_eq!(bytes, [0; 8]); // zeroized
-}
-
-#[test]
-fn test_u64_seed_debug() {
-    let mut seed = U64::new();
-    generate(&mut seed).expect("Failed to generate seed");
-
-    let debug_output = format!("{:?}", seed);
-    assert_eq!(debug_output, "U64([REDACTED])");
-}
-
-#[test]
-fn test_u64_seed_default() {
-    let seed = U64::default();
-    assert_eq!(seed.expose(), 0);
+    assert_ne!(seed, 0); // Should have been filled with entropy
 }
 
 #[test]
@@ -63,7 +26,8 @@ fn test_entropy_distribution() {
     println!("Collecting {} samples ({} bytes)...", SAMPLES, TOTAL_BYTES);
 
     for _ in 0..SAMPLES {
-        let seed = get_entropy_u64().expect("Failed to get entropy");
+        let mut seed = 0u64;
+        unsafe { generate(&mut seed as *mut u64).expect("Failed to get entropy") };
 
         // Extract all 8 bytes from the u64
         for i in 0..8 {
