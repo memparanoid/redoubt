@@ -110,23 +110,22 @@ mod x86_features {
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 unsafe fn try_rdseed(dst: *mut u64) -> bool {
-    let mut value: u64;
     let success: u8;
 
     core::arch::asm!(
-        "rdseed {value}",      // Read hardware entropy
-        "setc {success}",      // CF=1 if success, 0 if underflow
-        value = out(reg) value,
-        success = out(reg_byte) success,
-        options(nostack, nomem)
+        "rdseed {tmp}",
+        "setc {success}",
+        "test {success}, {success}",
+        "jz 2f",
+        "mov [{dst}], {tmp}",
+        "2:",
+        dst = in(reg) dst,
+        tmp = lateout(reg) _,
+        success = lateout(reg_byte) success,
+        options(nostack, volatile)
     );
 
-    if success != 0 {
-        core::ptr::write_volatile(dst, value);
-        true
-    } else {
-        false
-    }
+    success != 0
 }
 
 /// Attempts to read pseudorandom from RDRAND instruction.
@@ -137,23 +136,22 @@ unsafe fn try_rdseed(dst: *mut u64) -> bool {
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 unsafe fn try_rdrand(dst: *mut u64) -> bool {
-    let mut value: u64;
     let success: u8;
 
     core::arch::asm!(
-        "rdrand {value}",      // Read DRBG output
-        "setc {success}",      // CF=1 if success, 0 if underflow
-        value = out(reg) value,
-        success = out(reg_byte) success,
-        options(nostack, nomem)
+        "rdrand {tmp}",
+        "setc {success}",
+        "test {success}, {success}",
+        "jz 2f",
+        "mov [{dst}], {tmp}",
+        "2:",
+        dst = in(reg) dst,
+        tmp = lateout(reg) _,
+        success = lateout(reg_byte) success,
+        options(nostack, volatile)
     );
 
-    if success != 0 {
-        core::ptr::write_volatile(dst, value);
-        true
-    } else {
-        false
-    }
+    success != 0
 }
 
 /// Gets entropy from x86_64 with hardware instruction hierarchy.
@@ -216,9 +214,13 @@ unsafe fn get_entropy_u64_aarch64(dst: *mut u64) -> Result<(), EntropyError> {
 #[cfg(target_arch = "wasm32")]
 #[inline(always)]
 unsafe fn get_entropy_u64_wasm32(dst: *mut u64) -> Result<(), EntropyError> {
-    let slice = unsafe { core::slice::from_raw_parts_mut(dst as *mut u8, 8) };
-    getrandom::getrandom(slice).map_err(|_| EntropyError::EntropyNotAvailable)?;
-    Ok(())
+    unsafe {
+        getrandom::getrandom(core::slice::from_raw_parts_mut(
+            dst as *mut u8,
+            core::mem::size_of::<u64>(),
+        ))
+        .map_err(|_| EntropyError::EntropyNotAvailable)
+    }
 }
 
 // =============================================================================
@@ -234,13 +236,7 @@ unsafe fn get_entropy_u64_wasm32(dst: *mut u64) -> Result<(), EntropyError> {
 unsafe fn get_entropy_u64_fallback(dst: *mut u64) -> Result<(), EntropyError> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
-        let ret = unsafe {
-            libc::getrandom(
-                dst as *mut libc::c_void,
-                8,
-                0,
-            )
-        };
+        let ret = unsafe { libc::getrandom(dst as *mut libc::c_void, 8, 0) };
 
         if ret == 8 {
             return Ok(());
