@@ -6,7 +6,7 @@
 //!
 //! All intermediate buffers live in HkdfState for guaranteed zeroization.
 
-use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel};
+use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
 
 use super::consts::{BLOCK_LEN, HASH_LEN, MAX_OUTPUT_LEN};
 use super::error::HkdfError;
