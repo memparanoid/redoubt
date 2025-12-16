@@ -24,6 +24,7 @@ COPY crates/redoubt-zero/core/Cargo.toml ./crates/redoubt-zero/core/
 COPY crates/redoubt-zero/derive/Cargo.toml ./crates/redoubt-zero/derive/
 COPY crates/redoubt-secret/Cargo.toml ./crates/redoubt-secret/
 COPY crates/redoubt-rand/Cargo.toml ./crates/redoubt-rand/
+COPY crates/redoubt-hkdf/Cargo.toml ./crates/redoubt-hkdf/
 COPY crates/redoubt-util/Cargo.toml ./crates/redoubt-util/
 COPY crates/redoubt-vault/Cargo.toml ./crates/redoubt-vault/
 COPY crates/redoubt-vault/core/Cargo.toml ./crates/redoubt-vault/core/
@@ -45,6 +46,7 @@ RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/s
     mkdir -p crates/redoubt-zero/derive/src && echo "// stub" > crates/redoubt-zero/derive/src/lib.rs && \
     mkdir -p crates/redoubt-secret/src && echo "// stub" > crates/redoubt-secret/src/lib.rs && \
     mkdir -p crates/redoubt-rand/src && echo "// stub" > crates/redoubt-rand/src/lib.rs && \
+    mkdir -p crates/redoubt-hkdf/src && echo "// stub" > crates/redoubt-hkdf/src/lib.rs && \
     mkdir -p crates/redoubt-util/src && echo "// stub" > crates/redoubt-util/src/lib.rs && \
     mkdir -p crates/redoubt-vault/src && echo "// stub" > crates/redoubt-vault/src/lib.rs && \
     mkdir -p crates/redoubt-vault/core/src && echo "// stub" > crates/redoubt-vault/core/src/lib.rs && \

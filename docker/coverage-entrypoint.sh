@@ -99,6 +99,7 @@ mk redoubt-zero-derive
 mk redoubt-secret
 mk redoubt-rand
 mk redoubt-util
+mk redoubt-hkdf
 mk redoubt-vault
 mk redoubt-vault-core
 mk redoubt-vault-derive

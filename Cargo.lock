@@ -896,6 +896,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "redoubt-hkdf"
+version = "0.0.1"
+dependencies = [
+ "redoubt-util",
+ "redoubt-zero",
+ "thiserror",
+]
+
+[[package]]
 name = "redoubt-rand"
 version = "0.0.1"
 dependencies = [
