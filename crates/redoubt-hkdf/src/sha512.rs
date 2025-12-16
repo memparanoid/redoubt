@@ -4,7 +4,7 @@
 
 //! SHA-512 implementation per RFC 6234 Section 6.4
 
-use memzer::{DropSentinel, FastZeroizable, MemZer};
+use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
 
 use super::consts::{BLOCK_LEN, HASH_LEN};
 use super::word::Word64;
@@ -111,8 +111,8 @@ const H0: [u64; 8] = [
 ///
 /// All sensitive working variables live in the struct for guaranteed zeroization.
 /// No stack allocations for sensitive data that persists across rounds.
-#[derive(MemZer)]
-#[memzer(drop)]
+#[derive(RedoubtZero)]
+#[fast_zeroize(drop)]
 pub(crate) struct Sha512State {
     // ═══════════════════════════════════════════════════════════════════════════
     // Hash state H(i) per RFC 6234 Section 6.4.1
@@ -168,8 +168,8 @@ pub(crate) struct Sha512State {
     /// Total message length in bytes
     total_len: u128,
 
-    /// Drop sentinel for zeroization verification
-    __drop_sentinel: DropSentinel,
+    /// ZeroizeOnDropSentinel for zeroization verification
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl Sha512State {
@@ -203,7 +203,7 @@ impl Sha512State {
             tmp_word: [0u8; 8],
             buffer_len: 0,
             total_len: 0,
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 

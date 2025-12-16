@@ -4,7 +4,7 @@
 
 //! Tests for HKDF-SHA512
 
-use memzer::AssertZeroizeOnDrop;
+use redoubt_zero::AssertZeroizeOnDrop;
 
 use crate::consts::{BLOCK_LEN, HASH_LEN};
 use crate::error::HkdfError;

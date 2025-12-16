@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use memzer::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 use crate::sha512::Sha512State;
 

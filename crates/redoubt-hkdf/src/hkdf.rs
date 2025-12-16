@@ -6,7 +6,7 @@
 //!
 //! All intermediate buffers live in HkdfState for guaranteed zeroization.
 
-use memzer::{DropSentinel, FastZeroizable, MemZer};
+use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
 
 use super::consts::{BLOCK_LEN, HASH_LEN, MAX_OUTPUT_LEN};
 use super::error::HkdfError;
@@ -16,8 +16,8 @@ use super::sha512::Sha512State;
 ///
 /// All sensitive data lives in this struct for guaranteed zeroization on drop.
 /// No stack allocations for sensitive data.
-#[derive(MemZer)]
-#[memzer(drop)]
+#[derive(RedoubtZero)]
+#[fast_zeroize(drop)]
 pub(crate) struct HkdfState {
     // ═══════════════════════════════════════════════════════════════════════════
     // HMAC-SHA512 buffers per RFC 6234 Section 8
@@ -43,8 +43,8 @@ pub(crate) struct HkdfState {
     /// Length of valid data in t_prev (0 for T(0))
     t_prev_len: usize,
 
-    /// Drop sentinel for zeroization verification
-    __drop_sentinel: DropSentinel,
+    /// ZeroizeOnDropSentinel for zeroization verification
+    __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl HkdfState {
@@ -59,7 +59,7 @@ impl HkdfState {
             t_prev: [0u8; HASH_LEN],
             t_curr: [0u8; HASH_LEN],
             t_prev_len: 0,
-            __drop_sentinel: DropSentinel::default(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 

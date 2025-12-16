@@ -7,7 +7,7 @@
 //! All operations are in-place to avoid stack temporaries.
 //! SHA-512 functions use internal temporaries that are zeroized before return.
 
-use memzer::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
+use redoubt_zero::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
 /// 64-bit word wrapper with guaranteed zeroization.
 ///
