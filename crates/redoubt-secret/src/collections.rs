@@ -72,10 +72,7 @@ macro_rules! impl_mem_move_array {
 
 // Implement for all primitive types
 impl_mem_move_array!(
-    u8, u16, u32, u64, u128, usize,
-    i8, i16, i32, i64, i128, isize,
-    f32, f64,
-    bool,
+    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64, bool,
 );
 
 /// Macro to implement `MemMove` for `Vec<T>`.
@@ -93,10 +90,7 @@ macro_rules! impl_mem_move_vec {
 
 // Implement for all primitive types
 impl_mem_move_vec!(
-    u8, u16, u32, u64, u128, usize,
-    i8, i16, i32, i64, i128, isize,
-    f32, f64,
-    bool,
+    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64, bool,
 );
 
 /// Implement `MemMove` for `RedoubtVec<T>`.

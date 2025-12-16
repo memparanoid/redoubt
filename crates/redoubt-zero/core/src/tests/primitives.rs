@@ -90,10 +90,7 @@ fn test_float_zeroization() {
     assert!(value_f64.is_zeroized(), "0.0 f64 should be zeroized");
 
     value_f64 = core::f64::consts::PI;
-    assert!(
-        !value_f64.is_zeroized(),
-        "PI f64 should not be zeroized"
-    );
+    assert!(!value_f64.is_zeroized(), "PI f64 should not be zeroized");
 
     value_f64.fast_zeroize();
     assert!(

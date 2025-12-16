@@ -7,7 +7,6 @@
 //! Provides open/open_mut access pattern with automatic protect/unprotect.
 //! On protection errors, the page is disposed and the process aborts.
 
-
 use crate::error::{BufferError, PageError};
 use crate::page::Page;
 use crate::traits::Buffer;
@@ -127,7 +126,10 @@ impl core::fmt::Debug for PageBuffer {
 
 impl Buffer for PageBuffer {
     #[inline(always)]
-    fn open(&mut self, f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError> {
+    fn open(
+        &mut self,
+        f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
+    ) -> Result<(), BufferError> {
         let result = self.try_open(f);
 
         if let Err(BufferError::Page(e)) = &result {

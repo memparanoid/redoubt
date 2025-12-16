@@ -60,7 +60,9 @@ impl AeadMock {
         let current = self.encrypt_count.get();
         self.encrypt_count.set(current + 1);
 
-        if let AeadMockBehaviour::FailEncryptAt(idx) = self.behaviour && current == idx {
+        if let AeadMockBehaviour::FailEncryptAt(idx) = self.behaviour
+            && current == idx
+        {
             return Err(AeadError::AuthenticationFailed);
         }
 
@@ -79,7 +81,9 @@ impl AeadMock {
         let current = self.decrypt_count.get();
         self.decrypt_count.set(current + 1);
 
-        if let AeadMockBehaviour::FailDecryptAt(idx) = self.behaviour && current == idx {
+        if let AeadMockBehaviour::FailDecryptAt(idx) = self.behaviour
+            && current == idx
+        {
             return Err(AeadError::AuthenticationFailed);
         }
 
@@ -90,7 +94,9 @@ impl AeadMock {
         let current = self.generate_nonce_count.get();
         self.generate_nonce_count.set(current + 1);
 
-        if let AeadMockBehaviour::FailGenerateNonceAt(idx) = self.behaviour && current == idx {
+        if let AeadMockBehaviour::FailGenerateNonceAt(idx) = self.behaviour
+            && current == idx
+        {
             return Err(EntropyError::EntropyNotAvailable);
         }
 

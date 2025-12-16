@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::{ZeroizingGuard, ZeroizationProbe, FastZeroizable, AssertZeroizeOnDrop};
+use crate::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe, ZeroizingGuard};
 
 #[test]
 fn test_zeroizing_guard_auto_zeroizes_on_drop() {

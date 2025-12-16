@@ -20,7 +20,11 @@ fn test_nonce_session_generator_counter_increments() {
             .generate_nonce()
             .expect("Failed to generate_nonce() (#0)");
         // Counter part (first bytes) should increment
-        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into().expect("Failed to convert bytes to Counter"));
+        let counter = Counter::from_le_bytes(
+            nonce[0..size_of::<Counter>()]
+                .try_into()
+                .expect("Failed to convert bytes to Counter"),
+        );
 
         assert_eq!(counter, 0);
     }
@@ -31,7 +35,11 @@ fn test_nonce_session_generator_counter_increments() {
             .generate_nonce()
             .expect("Failed to generate_nonce() (#1)");
         // Counter part (first bytes) should increment
-        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into().expect("Failed to convert bytes to Counter"));
+        let counter = Counter::from_le_bytes(
+            nonce[0..size_of::<Counter>()]
+                .try_into()
+                .expect("Failed to convert bytes to Counter"),
+        );
 
         assert_eq!(counter, 1);
     }
@@ -42,7 +50,11 @@ fn test_nonce_session_generator_counter_increments() {
             .generate_nonce()
             .expect("Failed to generate_nonce() (#2)");
         // Counter part (first bytes) should increment
-        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into().expect("Failed to convert bytes to Counter"));
+        let counter = Counter::from_le_bytes(
+            nonce[0..size_of::<Counter>()]
+                .try_into()
+                .expect("Failed to convert bytes to Counter"),
+        );
 
         assert_eq!(counter, 2);
     }
@@ -62,7 +74,11 @@ fn test_nonce_session_generator_counter_wraps() {
             .generate_nonce()
             .expect("Failed to generate_nonce() (#0)");
         // Counter part (first bytes) should increment
-        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into().expect("Failed to convert bytes to Counter"));
+        let counter = Counter::from_le_bytes(
+            nonce[0..size_of::<Counter>()]
+                .try_into()
+                .expect("Failed to convert bytes to Counter"),
+        );
 
         assert_eq!(counter, Counter::MAX - 1);
     }
@@ -73,7 +89,11 @@ fn test_nonce_session_generator_counter_wraps() {
             .generate_nonce()
             .expect("Failed to generate_nonce() (#1)");
         // Counter part (first bytes) should increment
-        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into().expect("Failed to convert bytes to Counter"));
+        let counter = Counter::from_le_bytes(
+            nonce[0..size_of::<Counter>()]
+                .try_into()
+                .expect("Failed to convert bytes to Counter"),
+        );
 
         assert_eq!(counter, Counter::MAX);
     }
@@ -84,7 +104,11 @@ fn test_nonce_session_generator_counter_wraps() {
             .generate_nonce()
             .expect("Failed to generate_nonce() (#2)");
         // Counter part (first bytes) should increment
-        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into().expect("Failed to convert bytes to Counter"));
+        let counter = Counter::from_le_bytes(
+            nonce[0..size_of::<Counter>()]
+                .try_into()
+                .expect("Failed to convert bytes to Counter"),
+        );
 
         assert_eq!(counter, 0);
     }

@@ -108,7 +108,10 @@ mod linux {
             })
             .collect();
 
-        let results: Vec<bool> = handles.into_iter().map(|h| h.join().expect("Failed to join()")).collect();
+        let results: Vec<bool> = handles
+            .into_iter()
+            .map(|h| h.join().expect("Failed to join()"))
+            .collect();
 
         // All threads should get the same result (true on Linux)
         assert!(results.iter().all(|&r| r == results[0]));

@@ -155,7 +155,8 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let root = find_root_with_candidates(&["redoubt-vault-core", "redoubt-vault", "redoubt"]);
-    let redoubt_zero_root = find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero", "redoubt"]);
+    let redoubt_zero_root =
+        find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero", "redoubt"]);
     let redoubt_aead_root = find_root_with_candidates(&["redoubt-aead", "redoubt"]);
 
     // Get fields

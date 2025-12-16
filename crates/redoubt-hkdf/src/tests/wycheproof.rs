@@ -11,8 +11,8 @@ use alloc::vec::Vec;
 
 use redoubt_util::hex_to_bytes;
 
-use crate::hkdf;
 use crate::consts::MAX_OUTPUT_LEN;
+use crate::hkdf;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -107,8 +107,8 @@ fn run_test_case(tc: &TestCase) -> Result<(), String> {
 
 // Minimal hex encoder for test output (avoid adding hex crate as dependency)
 mod hex {
-    use super::format;
     use super::String;
+    use super::format;
 
     pub fn encode(data: &[u8]) -> String {
         data.iter().map(|b| format!("{:02x}", b)).collect()

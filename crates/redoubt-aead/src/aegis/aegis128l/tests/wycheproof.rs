@@ -189,11 +189,17 @@ fn test_wycheproof_valid_with_flipped_tag() {
             continue;
         }
 
-        let key: [u8; KEY_SIZE] = hex_to_bytes(&tc.key).try_into().expect("Failed to convert hex to key");
-        let nonce: [u8; NONCE_SIZE] = hex_to_bytes(&tc.iv).try_into().expect("Failed to convert hex to nonce");
+        let key: [u8; KEY_SIZE] = hex_to_bytes(&tc.key)
+            .try_into()
+            .expect("Failed to convert hex to key");
+        let nonce: [u8; NONCE_SIZE] = hex_to_bytes(&tc.iv)
+            .try_into()
+            .expect("Failed to convert hex to nonce");
         let aad = hex_to_bytes(&tc.aad);
         let mut data = hex_to_bytes(&tc.ct);
-        let mut tag: [u8; TAG_SIZE] = hex_to_bytes(&tc.tag).try_into().expect("Failed to convert hex to tag");
+        let mut tag: [u8; TAG_SIZE] = hex_to_bytes(&tc.tag)
+            .try_into()
+            .expect("Failed to convert hex to tag");
 
         // Flip first bit
         tag[0] ^= 0x01;
@@ -242,11 +248,17 @@ fn test_wycheproof_roundtrip() {
             continue;
         }
 
-        let key: [u8; KEY_SIZE] = hex_to_bytes(&tc.key).try_into().expect("Failed to convert hex to key");
-        let nonce: [u8; NONCE_SIZE] = hex_to_bytes(&tc.iv).try_into().expect("Failed to convert hex to nonce");
+        let key: [u8; KEY_SIZE] = hex_to_bytes(&tc.key)
+            .try_into()
+            .expect("Failed to convert hex to key");
+        let nonce: [u8; NONCE_SIZE] = hex_to_bytes(&tc.iv)
+            .try_into()
+            .expect("Failed to convert hex to nonce");
         let aad = hex_to_bytes(&tc.aad);
         let original_ct = hex_to_bytes(&tc.ct);
-        let original_tag: [u8; TAG_SIZE] = hex_to_bytes(&tc.tag).try_into().expect("Failed to convert hex to tag");
+        let original_tag: [u8; TAG_SIZE] = hex_to_bytes(&tc.tag)
+            .try_into()
+            .expect("Failed to convert hex to tag");
 
         // Decrypt
         let mut data = original_ct.clone();

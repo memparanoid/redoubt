@@ -9,8 +9,8 @@ use core::ops::{Deref, DerefMut};
 use core::sync::atomic::{Ordering, compiler_fence};
 
 use super::assert::assert_zeroize_on_drop;
-use super::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+use super::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 
 /// RAII guard for mutable references that automatically zeroizes on drop.
 ///

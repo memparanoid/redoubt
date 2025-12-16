@@ -5,7 +5,7 @@
 use crate::error::{DecodeBufferError, DecodeError};
 use crate::traits::Decode;
 
-use super::utils::{equidistant_signed, test_all_pairs, EQUIDISTANT_SAMPLE_SIZE};
+use super::utils::{EQUIDISTANT_SAMPLE_SIZE, equidistant_signed, test_all_pairs};
 
 #[test]
 fn test_i8_all_pairs() {
@@ -67,7 +67,9 @@ fn test_signed_decode_from_empty_buffer() {
             assert!(result.is_err());
             assert!(matches!(
                 result,
-                Err(DecodeError::DecodeBufferError(DecodeBufferError::OutOfBounds))
+                Err(DecodeError::DecodeBufferError(
+                    DecodeBufferError::OutOfBounds
+                ))
             ));
         }};
     }

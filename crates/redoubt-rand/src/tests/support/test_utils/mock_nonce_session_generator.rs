@@ -12,10 +12,8 @@ use crate::traits::NonceGenerator;
 #[test]
 fn test_mock_nonce_generator_behaviour_none() {
     let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
-    let mut mock = MockNonceSessionGenerator::<_, 24>::new(
-        entropy,
-        MockNonceSessionGeneratorBehaviour::None,
-    );
+    let mut mock =
+        MockNonceSessionGenerator::<_, 24>::new(entropy, MockNonceSessionGeneratorBehaviour::None);
 
     let result = mock.generate_nonce();
 
@@ -39,10 +37,8 @@ fn test_mock_nonce_generator_behaviour_fail_at_fill_bytes() {
 #[test]
 fn test_mock_nonce_generator_change_behaviour() {
     let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
-    let mut mock = MockNonceSessionGenerator::<_, 24>::new(
-        entropy,
-        MockNonceSessionGeneratorBehaviour::None,
-    );
+    let mut mock =
+        MockNonceSessionGenerator::<_, 24>::new(entropy, MockNonceSessionGeneratorBehaviour::None);
 
     // First works
     assert!(mock.generate_nonce().is_ok());

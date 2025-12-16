@@ -4,8 +4,8 @@
 
 //! State function tests with RFC vectors.
 
-use redoubt_util::hex_to_bytes;
 use crate::aegis::aegis128l::state;
+use redoubt_util::hex_to_bytes;
 
 /// A.2.2 - Test Vector 1 (16-byte msg, no ad)
 #[test]
@@ -62,7 +62,11 @@ fn test_vector_2_empty_msg_no_ad() {
         state::encrypt(&key, &nonce, &[], &mut data, &mut tag);
     }
 
-    assert_eq!(&tag[..], &expected_tag[..], "Tag mismatch for empty message");
+    assert_eq!(
+        &tag[..],
+        &expected_tag[..],
+        "Tag mismatch for empty message"
+    );
 }
 
 /// A.2.4 - Test Vector 3 (32-byte msg, 8-byte ad)
@@ -80,8 +84,7 @@ fn test_vector_3_32byte_msg_8byte_ad() {
         .try_into()
         .expect("Failed to convert hex to nonce");
     let ad = hex_to_bytes("0001020304050607");
-    let mut msg =
-        hex_to_bytes("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
+    let mut msg = hex_to_bytes("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
     let expected_ct =
         hex_to_bytes("79d94593d8c2119d7e8fd9b8fc77845c5c077a05b2528b6ac54b563aed8efe84");
     let expected_tag: [u8; 16] = hex_to_bytes("cc6f3372f6aa1bb82388d695c3962d9a")

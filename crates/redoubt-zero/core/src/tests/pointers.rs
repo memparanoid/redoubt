@@ -41,9 +41,7 @@ macro_rules! test_ptr_zeroization {
 #[test]
 fn test_ptr_zeroization_all_types() {
     test_ptr_zeroization!(
-        u8, u16, u32, u64, u128, usize,
-        i8, i16, i32, i64, i128, isize,
-        f32, f64, bool, char,
+        u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64, bool, char,
     );
 }
 

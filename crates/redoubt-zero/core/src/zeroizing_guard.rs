@@ -11,8 +11,8 @@ use core::sync::atomic::{Ordering, compiler_fence};
 use crate::collections::{collection_zeroed, to_zeroization_probe_dyn_ref};
 
 use super::assert::assert_zeroize_on_drop;
-use super::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+use super::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 
 /// RAII guard for owned values that automatically zeroizes on drop.
 ///

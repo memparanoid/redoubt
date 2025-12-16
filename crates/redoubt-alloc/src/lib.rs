@@ -104,16 +104,16 @@ extern crate alloc;
 
 mod allocked_vec;
 mod error;
-mod redoubt_vec;
 mod redoubt_string;
+mod redoubt_vec;
 
 #[cfg(test)]
 mod tests;
 
 pub use allocked_vec::AllockedVec;
 pub use error::AllockedVecError;
-pub use redoubt_vec::RedoubtVec;
 pub use redoubt_string::RedoubtString;
+pub use redoubt_vec::RedoubtVec;
 
 #[cfg(any(test, feature = "test_utils"))]
 pub use allocked_vec::AllockedVecBehaviour;

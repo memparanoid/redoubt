@@ -6,10 +6,10 @@
 
 use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
 
-use crate::traits::AeadBackend;
-use crate::xchacha20poly1305::consts::TAG_SIZE;
-use crate::xchacha20poly1305::XChacha20Poly1305;
 use crate::AeadError;
+use crate::traits::AeadBackend;
+use crate::xchacha20poly1305::XChacha20Poly1305;
+use crate::xchacha20poly1305::consts::TAG_SIZE;
 
 #[test]
 fn test_aead_zeroization_on_drop() {
@@ -93,8 +93,7 @@ fn test_xchacha20_poly1305_decrypt() {
     ];
 
     let mut aead = XChacha20Poly1305::default();
-    aead
-        .decrypt(&key, &xnonce, &aad, &mut data, &tag)
+    aead.decrypt(&key, &xnonce, &aad, &mut data, &tag)
         .expect("decryption failed");
 
     assert_eq!(
@@ -187,8 +186,7 @@ fn test_roundtrip() {
     assert_ne!(&data, original);
 
     // Decrypt in-place
-    aead
-        .decrypt(&key, &xnonce, aad, &mut data, &tag)
+    aead.decrypt(&key, &xnonce, aad, &mut data, &tag)
         .expect("decryption failed");
 
     assert_eq!(&data, original);
@@ -205,8 +203,7 @@ fn test_empty_plaintext() {
     aead.encrypt(&key, &xnonce, aad, &mut [], &mut tag);
 
     // Decrypt empty ciphertext
-    aead
-        .decrypt(&key, &xnonce, aad, &mut [], &tag)
+    aead.decrypt(&key, &xnonce, aad, &mut [], &tag)
         .expect("decryption failed");
 }
 
@@ -225,8 +222,7 @@ fn test_empty_aad() {
     assert_ne!(&data, original);
 
     // Decrypt in-place
-    aead
-        .decrypt(&key, &xnonce, b"", &mut data, &tag)
+    aead.decrypt(&key, &xnonce, b"", &mut data, &tag)
         .expect("decryption failed");
 
     assert_eq!(&data, original);

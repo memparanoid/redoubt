@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
 
 use redoubt_aead::{AeadBackend, xchacha20poly1305::XChacha20Poly1305};
 
@@ -54,12 +54,17 @@ fn benchmark_xchacha20poly1305_decrypt(c: &mut Criterion) {
                     black_box(&[]),
                     black_box(&mut data),
                     black_box(&tag),
-                ).expect("xchacha20poly1305 decrypt failed");
+                )
+                .expect("xchacha20poly1305 decrypt failed");
             });
         });
     }
     group.finish();
 }
 
-criterion_group!(benches, benchmark_xchacha20poly1305_encrypt, benchmark_xchacha20poly1305_decrypt);
+criterion_group!(
+    benches,
+    benchmark_xchacha20poly1305_encrypt,
+    benchmark_xchacha20poly1305_decrypt
+);
 criterion_main!(benches);
