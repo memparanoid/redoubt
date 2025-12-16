@@ -60,6 +60,7 @@ extern crate alloc;
 mod tests;
 
 mod error;
+mod generate_random_key;
 mod session;
 mod support;
 mod system;
@@ -68,6 +69,7 @@ mod traits;
 pub mod u64_seed;
 
 pub use error::EntropyError;
+pub use generate_random_key::generate_random_key;
 pub use session::NonceSessionGenerator;
 pub use system::SystemEntropySource;
 pub use traits::{EntropySource, NonceGenerator};

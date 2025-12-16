@@ -13,6 +13,7 @@ version.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
+redoubt-hkdf.workspace = true
 redoubt-zero.workspace = true
 thiserror.workspace = true
 
