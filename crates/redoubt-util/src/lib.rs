@@ -138,6 +138,42 @@ impl_le_conversions!(usize, 4, usize_from_le, usize_to_le);
 #[cfg(target_pointer_width = "64")]
 impl_le_conversions!(usize, 8, usize_from_le, usize_to_le);
 
+/// Generates `{type}_from_be` and `{type}_to_be` functions for integer types.
+macro_rules! impl_be_conversions {
+    ($type:ty, $size:expr, $fn_from:ident, $fn_to:ident) => {
+        #[doc = concat!("Converts ", stringify!($size), " bytes to a big-endian `", stringify!($type), "`, zeroizing the source bytes.")]
+        ///
+        /// This function avoids creating temporary byte arrays that could
+        /// leak sensitive data on the stack. Instead, it builds the integer using
+        /// bit shifts and zeroizes each source byte after reading.
+        #[inline(always)]
+        pub fn $fn_from(dst: &mut $type, bytes: &mut [u8; $size]) {
+            *dst = 0;
+            for (i, byte) in bytes.iter_mut().enumerate() {
+                *dst |= (*byte as $type) << (8 * ($size - 1 - i));
+                *byte = 0;
+            }
+        }
+
+        #[doc = concat!("Converts a `", stringify!($type), "` to big-endian bytes, zeroizing the source.")]
+        ///
+        /// This function avoids creating temporary byte arrays that could
+        /// leak sensitive data on the stack. Instead, it extracts bytes using
+        /// bit shifts and zeroizes the source integer after writing.
+        #[inline(always)]
+        pub fn $fn_to(src: &mut $type, bytes: &mut [u8; $size]) {
+            for i in 0..$size {
+                bytes[i] = (*src >> (8 * ($size - 1 - i))) as u8;
+            }
+            *src = 0;
+        }
+    };
+}
+
+impl_be_conversions!(u16, 2, u16_from_be, u16_to_be);
+impl_be_conversions!(u32, 4, u32_from_be, u32_to_be);
+impl_be_conversions!(u64, 8, u64_from_be, u64_to_be);
+
 /// Verifies that a slice is zeroized.
 ///
 /// Checks that all bytes in the slice are zero.

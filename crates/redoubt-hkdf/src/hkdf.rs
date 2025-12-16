@@ -28,6 +28,10 @@ pub(crate) struct HkdfState {
     k_opad: [u8; BLOCK_LEN],
     /// Key block when key > BLOCK_LEN (hashed key, zero-padded)
     key_block: [u8; BLOCK_LEN],
+    /// SHA512 state for inner hash computation
+    sha_inner: Sha512State,
+    /// SHA512 state for outer hash computation
+    sha_outer: Sha512State,
     /// Inner hash result: SHA512(K ⊕ ipad || message)
     inner_hash: [u8; HASH_LEN],
 
@@ -54,6 +58,8 @@ impl HkdfState {
             k_ipad: [0u8; BLOCK_LEN],
             k_opad: [0u8; BLOCK_LEN],
             key_block: [0u8; BLOCK_LEN],
+            sha_inner: Sha512State::new(),
+            sha_outer: Sha512State::new(),
             inner_hash: [0u8; HASH_LEN],
             prk: [0u8; HASH_LEN],
             t_prev: [0u8; HASH_LEN],
@@ -75,22 +81,18 @@ impl HkdfState {
         }
 
         // Inner hash: SHA512(k_ipad || t_prev || info || counter)
-        {
-            let mut sha = Sha512State::new();
-            sha.update(&self.k_ipad);
-            sha.update(&self.t_prev[..self.t_prev_len]);
-            sha.update(info);
-            sha.update(&[counter]);
-            sha.finalize(&mut self.inner_hash);
-        }
+        self.sha_inner.reset();
+        self.sha_inner.update(&self.k_ipad);
+        self.sha_inner.update(&self.t_prev[..self.t_prev_len]);
+        self.sha_inner.update(info);
+        self.sha_inner.update(&[counter]);
+        self.sha_inner.finalize(&mut self.inner_hash);
 
         // Outer hash: SHA512(k_opad || inner_hash)
-        {
-            let mut sha = Sha512State::new();
-            sha.update(&self.k_opad);
-            sha.update(&self.inner_hash);
-            sha.finalize(&mut self.t_curr);
-        }
+        self.sha_outer.reset();
+        self.sha_outer.update(&self.k_opad);
+        self.sha_outer.update(&self.inner_hash);
+        self.sha_outer.finalize(&mut self.t_curr);
 
         // Zeroize HMAC intermediates immediately
         self.k_ipad.fast_zeroize();
@@ -103,9 +105,9 @@ impl HkdfState {
         // Determine effective key (salt) length
         let key_len = if salt.len() > BLOCK_LEN {
             // Hash salt into key_block
-            let mut sha = Sha512State::new();
-            sha.update(salt);
-            sha.finalize(
+            self.sha_inner.reset();
+            self.sha_inner.update(salt);
+            self.sha_inner.finalize(
                 (&mut self.key_block[..HASH_LEN])
                     .try_into()
                     .expect("Failed to convert slice"),
@@ -126,20 +128,16 @@ impl HkdfState {
         }
 
         // Inner hash: SHA512(k_ipad || ikm)
-        {
-            let mut sha = Sha512State::new();
-            sha.update(&self.k_ipad);
-            sha.update(ikm);
-            sha.finalize(&mut self.inner_hash);
-        }
+        self.sha_inner.reset();
+        self.sha_inner.update(&self.k_ipad);
+        self.sha_inner.update(ikm);
+        self.sha_inner.finalize(&mut self.inner_hash);
 
         // Outer hash: SHA512(k_opad || inner_hash) -> prk
-        {
-            let mut sha = Sha512State::new();
-            sha.update(&self.k_opad);
-            sha.update(&self.inner_hash);
-            sha.finalize(&mut self.prk);
-        }
+        self.sha_outer.reset();
+        self.sha_outer.update(&self.k_opad);
+        self.sha_outer.update(&self.inner_hash);
+        self.sha_outer.finalize(&mut self.prk);
 
         // Zeroize HMAC intermediates immediately
         self.k_ipad.fast_zeroize();

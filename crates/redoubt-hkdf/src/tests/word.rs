@@ -30,7 +30,7 @@ fn ch_matches_reference() {
                 let expected = (x & y) ^ (!x & z);
 
                 assert_eq!(
-                    out.get(),
+                    out.as_u64(),
                     expected,
                     "Ch mismatch for x={x:#018x}, y={y:#018x}, z={z:#018x}"
                 );
@@ -60,7 +60,7 @@ fn maj_matches_reference() {
 
                 let expected = (x & y) ^ (x & z) ^ (y & z);
                 assert_eq!(
-                    out.get(),
+                    out.as_u64(),
                     expected,
                     "Maj mismatch for x={x:#018x}, y={y:#018x}, z={z:#018x}"
                 );
@@ -85,7 +85,7 @@ fn bsig0_matches_reference() {
         Word64::set_bsig0(&mut out, &wx);
 
         let expected = x.rotate_right(28) ^ x.rotate_right(34) ^ x.rotate_right(39);
-        assert_eq!(out.get(), expected, "BSIG0 mismatch for x={x:#018x}");
+        assert_eq!(out.as_u64(), expected, "BSIG0 mismatch for x={x:#018x}");
 
         // zeroize before drop to avoid debug_assert error
         out.fast_zeroize();
@@ -103,7 +103,7 @@ fn bsig1_matches_reference() {
         Word64::set_bsig1(&mut out, &wx);
 
         let expected = x.rotate_right(14) ^ x.rotate_right(18) ^ x.rotate_right(41);
-        assert_eq!(out.get(), expected, "BSIG1 mismatch for x={x:#018x}");
+        assert_eq!(out.as_u64(), expected, "BSIG1 mismatch for x={x:#018x}");
 
         // zeroize before drop to avoid debug_assert error
         out.fast_zeroize();
@@ -121,7 +121,7 @@ fn ssig0_matches_reference() {
         Word64::set_ssig0(&mut out, &wx);
 
         let expected = x.rotate_right(1) ^ x.rotate_right(8) ^ (x >> 7);
-        assert_eq!(out.get(), expected, "SSIG0 mismatch for x={x:#018x}");
+        assert_eq!(out.as_u64(), expected, "SSIG0 mismatch for x={x:#018x}");
 
         // zeroize before drop to avoid debug_assert error
         out.fast_zeroize();
@@ -139,7 +139,7 @@ fn ssig1_matches_reference() {
         Word64::set_ssig1(&mut out, &wx);
 
         let expected = x.rotate_right(19) ^ x.rotate_right(61) ^ (x >> 6);
-        assert_eq!(out.get(), expected, "SSIG1 mismatch for x={x:#018x}");
+        assert_eq!(out.as_u64(), expected, "SSIG1 mismatch for x={x:#018x}");
 
         // zeroize before drop to avoid debug_assert error
         out.fast_zeroize();

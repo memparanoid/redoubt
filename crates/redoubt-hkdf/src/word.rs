@@ -7,6 +7,7 @@
 //! All operations are in-place to avoid stack temporaries.
 //! SHA-512 functions use internal temporaries that are zeroized before return.
 
+use redoubt_util::{u64_from_be, u64_to_be};
 use redoubt_zero::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
 /// 64-bit word wrapper with guaranteed zeroization.
@@ -14,6 +15,7 @@ use redoubt_zero::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 /// - `#[repr(transparent)]` ensures same layout as u64
 /// - Drop asserts zeroized (debug) then zeroizes (safety net)
 /// - All operations are `_assign` variants for in-place mutation
+#[derive(Default)]
 #[repr(transparent)]
 pub struct Word64(u64);
 
@@ -30,16 +32,22 @@ impl Word64 {
         Self(0)
     }
 
-    /// Get inner value (read-only)
+    /// Copy value from another Word64
     #[inline(always)]
-    pub fn get(&self) -> u64 {
-        self.0
+    pub fn copy_from(&mut self, src: &Word64) {
+        self.0 = src.0;
     }
 
-    /// Set inner value
+    /// Read from big-endian bytes, zeroizing source bytes
     #[inline(always)]
-    pub fn set(&mut self, value: u64) {
-        self.0 = value;
+    pub fn from_be_bytes(&mut self, bytes: &mut [u8; 8]) {
+        u64_from_be(&mut self.0, bytes);
+    }
+
+    /// Write to big-endian bytes, zeroizing self
+    #[inline(always)]
+    pub fn to_be_bytes_consuming(&mut self, bytes: &mut [u8; 8]) {
+        u64_to_be(&mut self.0, bytes);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -107,11 +115,13 @@ impl Word64 {
     #[inline(always)]
     pub fn set_ch(out: &mut Word64, x: &Word64, y: &Word64, z: &Word64) {
         // t1 = x & y
-        let mut t1 = Word64::new(x.get());
+        let mut t1 = Word64::zero();
+        t1.copy_from(x);
         t1.and_assign(y);
 
         // t2 = !x & z
-        let mut t2 = Word64::new(x.get());
+        let mut t2 = Word64::zero();
+        t2.copy_from(x);
         t2.not_assign();
         t2.and_assign(z);
 
@@ -131,11 +141,13 @@ impl Word64 {
     #[inline(always)]
     pub fn set_maj(out: &mut Word64, x: &Word64, y: &Word64, z: &Word64) {
         // xy = x & y
-        let mut xy = Word64::new(x.get());
+        let mut xy = Word64::zero();
+        xy.copy_from(x);
         xy.and_assign(y);
 
         // z_and_x_xor_y = z & (x ^ y)
-        let mut z_and_x_xor_y = Word64::new(x.get());
+        let mut z_and_x_xor_y = Word64::zero();
+        z_and_x_xor_y.copy_from(x);
         z_and_x_xor_y.xor_assign(y);
         z_and_x_xor_y.and_assign(z);
 
@@ -152,7 +164,8 @@ impl Word64 {
     /// Σ0(x) = ROTR^28(x) ⊕ ROTR^34(x) ⊕ ROTR^39(x) per RFC 6234 Section 5.3.3
     #[inline(always)]
     pub fn set_bsig0(out: &mut Word64, x: &Word64) {
-        let mut v = Word64::new(x.get());
+        let mut v = Word64::zero();
+        v.copy_from(x);
 
         out.fast_zeroize();
 
@@ -176,7 +189,8 @@ impl Word64 {
     /// Σ1(x) = ROTR^14(x) ⊕ ROTR^18(x) ⊕ ROTR^41(x) per RFC 6234 Section 5.3.4
     #[inline(always)]
     pub fn set_bsig1(out: &mut Word64, x: &Word64) {
-        let mut v = Word64::new(x.get());
+        let mut v = Word64::zero();
+        v.copy_from(x);
 
         out.fast_zeroize();
 
@@ -200,8 +214,10 @@ impl Word64 {
     /// σ0(x) = ROTR^1(x) ⊕ ROTR^8(x) ⊕ SHR^7(x) per RFC 6234 Section 5.3.5
     #[inline(always)]
     pub fn set_ssig0(out: &mut Word64, x: &Word64) {
-        let mut v_rot = Word64::new(x.get());
-        let mut v_shr = Word64::new(x.get());
+        let mut v_rot = Word64::zero();
+        v_rot.copy_from(x);
+        let mut v_shr = Word64::zero();
+        v_shr.copy_from(x);
 
         out.fast_zeroize();
 
@@ -224,8 +240,10 @@ impl Word64 {
     /// σ1(x) = ROTR^19(x) ⊕ ROTR^61(x) ⊕ SHR^6(x) per RFC 6234 Section 5.3.6
     #[inline(always)]
     pub fn set_ssig1(out: &mut Word64, x: &Word64) {
-        let mut v_rot = Word64::new(x.get());
-        let mut v_shr = Word64::new(x.get());
+        let mut v_rot = Word64::zero();
+        v_rot.copy_from(x);
+        let mut v_shr = Word64::zero();
+        v_shr.copy_from(x);
 
         out.fast_zeroize();
 
@@ -243,6 +261,13 @@ impl Word64 {
         v_shr.shift_right_assign(6);
         out.xor_assign(&v_shr);
         v_shr.fast_zeroize();
+    }
+
+    /// Get inner u64 value for testing/assertions only
+    #[cfg(test)]
+    #[inline(always)]
+    pub(crate) fn as_u64(&self) -> u64 {
+        self.0
     }
 }
 

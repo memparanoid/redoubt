@@ -153,6 +153,8 @@ pub(crate) struct Sha512State {
     t2: Word64,
     /// Scratch for σ/Σ/Ch/Maj results
     scratch: Word64,
+    /// Temporary for W[] copies (borrow checker workaround)
+    w_tmp: Word64,
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Input buffering
@@ -198,6 +200,7 @@ impl Sha512State {
             t1: Word64::zero(),
             t2: Word64::zero(),
             scratch: Word64::zero(),
+            w_tmp: Word64::zero(),
             buffer: [0u8; BLOCK_LEN],
             tmp_block: [0u8; BLOCK_LEN],
             tmp_word: [0u8; 8],
@@ -205,6 +208,37 @@ impl Sha512State {
             total_len: 0,
             __sentinel: ZeroizeOnDropSentinel::default(),
         }
+    }
+
+    /// Resets the SHA-512 to a valid state for reuse
+    pub fn reset(&mut self) {
+        self.fast_zeroize();
+        self.h[0] = Word64::new(H0[0]);
+        self.h[1] = Word64::new(H0[1]);
+        self.h[2] = Word64::new(H0[2]);
+        self.h[3] = Word64::new(H0[3]);
+        self.h[4] = Word64::new(H0[4]);
+        self.h[5] = Word64::new(H0[5]);
+        self.h[6] = Word64::new(H0[6]);
+        self.h[7] = Word64::new(H0[7]);
+        self.w.fast_zeroize();
+        self.wv_a.fast_zeroize();
+        self.wv_b.fast_zeroize();
+        self.wv_c.fast_zeroize();
+        self.wv_d.fast_zeroize();
+        self.wv_e.fast_zeroize();
+        self.wv_f.fast_zeroize();
+        self.wv_g.fast_zeroize();
+        self.wv_h.fast_zeroize();
+        self.t1.fast_zeroize();
+        self.t2.fast_zeroize();
+        self.scratch.fast_zeroize();
+        self.w_tmp.fast_zeroize();
+        self.buffer.fast_zeroize();
+        self.tmp_block.fast_zeroize();
+        self.tmp_word.fast_zeroize();
+        self.buffer_len.fast_zeroize();
+        self.total_len.fast_zeroize();
     }
 
     /// Update state with data
@@ -249,7 +283,7 @@ impl Sha512State {
     }
 
     /// Finalize and output hash
-    pub fn finalize(mut self, out: &mut [u8; HASH_LEN]) {
+    pub fn finalize(&mut self, out: &mut [u8; HASH_LEN]) {
         // Padding per RFC 6234 Section 4.2
         let bit_len = self.total_len * 8;
 
@@ -283,10 +317,17 @@ impl Sha512State {
         self.tmp_block.fast_zeroize();
 
         // Output hash H(N)
-        for (i, word) in self.h.iter().enumerate() {
-            out[i * 8..(i + 1) * 8].copy_from_slice(&word.get().to_be_bytes());
+        for (i, word) in self.h.iter_mut().enumerate() {
+            let mut bytes = [0u8; 8];
+
+            word.to_be_bytes_consuming(&mut bytes);
+            out[i * 8..(i + 1) * 8].copy_from_slice(&bytes);
+
+            bytes.fast_zeroize();
         }
-        // Drop zeroizes via MemZer derive
+
+        // Zeroize entire state after finalization
+        self.fast_zeroize();
     }
 
     /// Compress one block per RFC 6234 Section 6.4.2
@@ -299,8 +340,8 @@ impl Sha512State {
         for t in 0..16 {
             self.tmp_word
                 .copy_from_slice(&self.tmp_block[t * 8..(t + 1) * 8]);
-            self.w[t].set(u64::from_be_bytes(self.tmp_word));
-            self.tmp_word.fast_zeroize();
+            self.w[t].from_be_bytes(&mut self.tmp_word);
+            // tmp_word zeroized by from_be_bytes
         }
 
         // W[16..79]: W[t] = σ1(W[t-2]) + W[t-7] + σ0(W[t-15]) + W[t-16]
@@ -314,7 +355,9 @@ impl Sha512State {
             self.scratch.fast_zeroize();
 
             // + W[t-7]
-            self.w[t].wrapping_add_assign_val(self.w[t - 7].get());
+            self.w_tmp.copy_from(&self.w[t - 7]);
+            self.w[t].wrapping_add_assign(&self.w_tmp);
+            self.w_tmp.fast_zeroize();
 
             // + σ0(W[t-15])
             Word64::set_ssig0(&mut self.scratch, &self.w[t - 15]);
@@ -322,27 +365,29 @@ impl Sha512State {
             self.scratch.fast_zeroize();
 
             // + W[t-16]
-            self.w[t].wrapping_add_assign_val(self.w[t - 16].get());
+            self.w_tmp.copy_from(&self.w[t - 16]);
+            self.w[t].wrapping_add_assign(&self.w_tmp);
+            self.w_tmp.fast_zeroize();
         }
 
         // ═══════════════════════════════════════════════════════════════════════
         // Step 2: Initialize working variables with H(i-1)
         // ═══════════════════════════════════════════════════════════════════════
-        self.wv_a.set(self.h[0].get());
-        self.wv_b.set(self.h[1].get());
-        self.wv_c.set(self.h[2].get());
-        self.wv_d.set(self.h[3].get());
-        self.wv_e.set(self.h[4].get());
-        self.wv_f.set(self.h[5].get());
-        self.wv_g.set(self.h[6].get());
-        self.wv_h.set(self.h[7].get());
+        self.wv_a.copy_from(&self.h[0]);
+        self.wv_b.copy_from(&self.h[1]);
+        self.wv_c.copy_from(&self.h[2]);
+        self.wv_d.copy_from(&self.h[3]);
+        self.wv_e.copy_from(&self.h[4]);
+        self.wv_f.copy_from(&self.h[5]);
+        self.wv_g.copy_from(&self.h[6]);
+        self.wv_h.copy_from(&self.h[7]);
 
         // ═══════════════════════════════════════════════════════════════════════
         // Step 3: 80 rounds
         // ═══════════════════════════════════════════════════════════════════════
         for t in 0..80 {
             // T1 = h + Σ1(e) + Ch(e,f,g) + K[t] + W[t]
-            self.t1.set(self.wv_h.get());
+            self.t1.copy_from(&self.wv_h);
 
             // + Σ1(e)
             Word64::set_bsig1(&mut self.scratch, &self.wv_e);
@@ -377,15 +422,15 @@ impl Sha512State {
             self.scratch.fast_zeroize();
 
             // Rotate working variables: h=g, g=f, f=e, e=d+T1, d=c, c=b, b=a, a=T1+T2
-            self.wv_h.set(self.wv_g.get());
-            self.wv_g.set(self.wv_f.get());
-            self.wv_f.set(self.wv_e.get());
-            self.wv_e.set(self.wv_d.get());
+            self.wv_h.copy_from(&self.wv_g);
+            self.wv_g.copy_from(&self.wv_f);
+            self.wv_f.copy_from(&self.wv_e);
+            self.wv_e.copy_from(&self.wv_d);
             self.wv_e.wrapping_add_assign(&self.t1);
-            self.wv_d.set(self.wv_c.get());
-            self.wv_c.set(self.wv_b.get());
-            self.wv_b.set(self.wv_a.get());
-            self.wv_a.set(self.t1.get());
+            self.wv_d.copy_from(&self.wv_c);
+            self.wv_c.copy_from(&self.wv_b);
+            self.wv_b.copy_from(&self.wv_a);
+            self.wv_a.copy_from(&self.t1);
             self.wv_a.wrapping_add_assign(&self.t2);
 
             // Zeroize T1, T2 after each round
