@@ -6,7 +6,7 @@
 //!
 //! All intermediate buffers live in HkdfState for guaranteed zeroization.
 
-use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
+use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel};
 
 use super::consts::{BLOCK_LEN, HASH_LEN, MAX_OUTPUT_LEN};
 use super::error::HkdfError;
@@ -102,16 +102,17 @@ impl HkdfState {
 
     /// HMAC-SHA512 for extract phase, output directly to prk
     fn hmac_sha512_extract(&mut self, salt: &[u8], ikm: &[u8]) {
+        // prevent stale-bytes window (possible dump during extraction).
+        self.key_block.fast_zeroize();
+
         // Determine effective key (salt) length
         let key_len = if salt.len() > BLOCK_LEN {
             // Hash salt into key_block
             self.sha_inner.reset();
             self.sha_inner.update(salt);
-            self.sha_inner.finalize(
-                (&mut self.key_block[..HASH_LEN])
-                    .try_into()
-                    .expect("Failed to convert slice"),
-            );
+            self.sha_inner.finalize(&mut self.inner_hash);
+            self.key_block[..HASH_LEN].copy_from_slice(&self.inner_hash);
+            self.inner_hash.fast_zeroize();
             HASH_LEN
         } else {
             // Copy salt into key_block
