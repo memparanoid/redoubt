@@ -787,15 +787,15 @@ FUNC(aegis128l_decrypt):
     cbz x1, .Ldec_finalize
 
     // Generate keystream
+    // z0 = S1 ^ S6 ^ (S2 & S3)
     and v16.16b, v2.16b, v3.16b
     eor v16.16b, v16.16b, v1.16b
-    eor v16.16b, v16.16b, v4.16b
-    eor v16.16b, v16.16b, v5.16b
+    eor v16.16b, v16.16b, v6.16b
 
-    and v17.16b, v3.16b, v4.16b
+    // z1 = S2 ^ S5 ^ (S6 & S7)
+    and v17.16b, v6.16b, v7.16b
     eor v17.16b, v17.16b, v2.16b
     eor v17.16b, v17.16b, v5.16b
-    eor v17.16b, v17.16b, v6.16b
 
 // ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
 // ║

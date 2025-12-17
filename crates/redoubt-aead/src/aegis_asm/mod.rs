@@ -206,6 +206,75 @@ mod tests {
 
     #[test]
     #[cfg(target_arch = "aarch64")]
+    fn test_aegis128l_roundtrip_vector2_empty() {
+        // AEGIS-128L RFC Test Vector A.2.3 - Test Vector 2
+        // key:   10010000000000000000000000000000
+        // nonce: 10000200000000000000000000000000
+        // ad:    (empty)
+        // msg:   (empty)
+        // ct:    (empty)
+        // tag:   c2b879a67def9d74e6c14f708bbcc9b4
+
+        let key: [u8; 16] = [
+            0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let nonce: [u8; 16] = [
+            0x10, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let mut data: [u8; 0] = [];  // Empty message
+        let expected_tag: [u8; 16] = [
+            0xc2, 0xb8, 0x79, 0xa6, 0x7d, 0xef, 0x9d, 0x74,
+            0xe6, 0xc1, 0x4f, 0x70, 0x8b, 0xbc, 0xc9, 0xb4,
+        ];
+
+        let mut tag: [u8; 16] = [0xFF; 16];
+
+        // === ENCRYPT ===
+        unsafe {
+            aegis128l_encrypt(
+                &key,
+                &nonce,
+                std::ptr::null(),          // No AAD
+                0,                          // AAD length = 0
+                data.as_mut_ptr(),         // Empty data
+                data.len(),                 // length = 0
+                &mut tag,
+            );
+        }
+
+        assert_eq!(
+            tag, expected_tag,
+            "Tag mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            tag, expected_tag
+        );
+
+        // === DECRYPT ===
+        let mut computed_tag: [u8; 16] = [0xFF; 16];
+
+        unsafe {
+            aegis128l_decrypt(
+                &key,
+                &nonce,
+                std::ptr::null(),
+                0,
+                data.as_mut_ptr(),
+                data.len(),
+                &expected_tag,
+                &mut computed_tag,
+            );
+        }
+
+        assert_eq!(
+            computed_tag, expected_tag,
+            "Computed tag mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            computed_tag, expected_tag
+        );
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
     fn test_aegis128l_encrypt_decrypt_roundtrip() {
         // AEGIS-128L RFC Test Vector A.2.4 - Test Vector 3
         // key:   10010000000000000000000000000000
@@ -300,6 +369,417 @@ mod tests {
             plaintext, original_plaintext,
             "Decrypted plaintext (in-place) mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
             plaintext, original_plaintext
+        );
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_aegis128l_roundtrip_vector4_partial() {
+        // AEGIS-128L RFC Test Vector A.2.5 - Test Vector 4
+        // key:   10010000000000000000000000000000
+        // nonce: 10000200000000000000000000000000
+        // ad:    0001020304050607
+        // msg:   000102030405060708090a0b0c0d (14 bytes - partial block)
+        // ct:    79d94593d8c2119d7e8fd9b8fc77
+        // tag:   5c04b3dba849b2701effbe32c7f0fab7
+
+        let key: [u8; 16] = [
+            0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let nonce: [u8; 16] = [
+            0x10, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let aad: [u8; 8] = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
+        let mut plaintext: [u8; 14] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+        ];
+        let expected_ciphertext: [u8; 14] = [
+            0x79, 0xd9, 0x45, 0x93, 0xd8, 0xc2, 0x11, 0x9d,
+            0x7e, 0x8f, 0xd9, 0xb8, 0xfc, 0x77,
+        ];
+        let expected_tag: [u8; 16] = [
+            0x5c, 0x04, 0xb3, 0xdb, 0xa8, 0x49, 0xb2, 0x70,
+            0x1e, 0xff, 0xbe, 0x32, 0xc7, 0xf0, 0xfa, 0xb7,
+        ];
+
+        // Save original plaintext for comparison after decrypt
+        let original_plaintext = plaintext.clone();
+
+        let mut tag: [u8; 16] = [0xFF; 16];
+
+        // === ENCRYPT ===
+        unsafe {
+            aegis128l_encrypt(
+                &key,
+                &nonce,
+                aad.as_ptr(),
+                aad.len(),
+                plaintext.as_mut_ptr(),
+                plaintext.len(),
+                &mut tag,
+            );
+        }
+
+        // Verify plaintext buffer was overwritten with ciphertext
+        assert_eq!(
+            plaintext, expected_ciphertext,
+            "Ciphertext (in-place) mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            plaintext, expected_ciphertext
+        );
+
+        assert_eq!(
+            tag, expected_tag,
+            "Tag mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            tag, expected_tag
+        );
+
+        // === DECRYPT ===
+        // Now plaintext contains ciphertext, decrypt it in-place
+        let mut computed_tag: [u8; 16] = [0xFF; 16];
+
+        unsafe {
+            aegis128l_decrypt(
+                &key,
+                &nonce,
+                aad.as_ptr(),
+                aad.len(),
+                plaintext.as_mut_ptr(),  // contains ciphertext, will be overwritten with plaintext
+                plaintext.len(),
+                &expected_tag,
+                &mut computed_tag,
+            );
+        }
+
+        assert_eq!(
+            computed_tag, expected_tag,
+            "Computed tag mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            computed_tag, expected_tag
+        );
+
+        // Verify in-place decrypt restored original plaintext
+        assert_eq!(
+            plaintext, original_plaintext,
+            "Decrypted plaintext (in-place) mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            plaintext, original_plaintext
+        );
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_aegis128l_roundtrip_vector5_long() {
+        // AEGIS-128L RFC Test Vector A.2.6 - Test Vector 5
+        // key:   10010000000000000000000000000000
+        // nonce: 10000200000000000000000000000000
+        // ad:    000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223242526272829 (42 bytes)
+        // msg:   101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334353637 (40 bytes)
+        // ct:    b31052ad1cca4e291abcf2df3502e6bdb1bfd6db36798be3607b1f94d34478aa7ede7f7a990fec10
+        // tag:   7542a745733014f9474417b337399507
+
+        let key: [u8; 16] = [
+            0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let nonce: [u8; 16] = [
+            0x10, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let aad: [u8; 42] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+            0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+            0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+            0x28, 0x29,
+        ];
+        let mut plaintext: [u8; 40] = [
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+            0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+            0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+            0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        ];
+        let expected_ciphertext: [u8; 40] = [
+            0xb3, 0x10, 0x52, 0xad, 0x1c, 0xca, 0x4e, 0x29,
+            0x1a, 0xbc, 0xf2, 0xdf, 0x35, 0x02, 0xe6, 0xbd,
+            0xb1, 0xbf, 0xd6, 0xdb, 0x36, 0x79, 0x8b, 0xe3,
+            0x60, 0x7b, 0x1f, 0x94, 0xd3, 0x44, 0x78, 0xaa,
+            0x7e, 0xde, 0x7f, 0x7a, 0x99, 0x0f, 0xec, 0x10,
+        ];
+        let expected_tag: [u8; 16] = [
+            0x75, 0x42, 0xa7, 0x45, 0x73, 0x30, 0x14, 0xf9,
+            0x47, 0x44, 0x17, 0xb3, 0x37, 0x39, 0x95, 0x07,
+        ];
+
+        // Save original plaintext for comparison after decrypt
+        let original_plaintext = plaintext.clone();
+
+        let mut tag: [u8; 16] = [0xFF; 16];
+
+        // === ENCRYPT ===
+        unsafe {
+            aegis128l_encrypt(
+                &key,
+                &nonce,
+                aad.as_ptr(),
+                aad.len(),
+                plaintext.as_mut_ptr(),
+                plaintext.len(),
+                &mut tag,
+            );
+        }
+
+        // Verify plaintext buffer was overwritten with ciphertext
+        assert_eq!(
+            plaintext, expected_ciphertext,
+            "Ciphertext (in-place) mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            plaintext, expected_ciphertext
+        );
+
+        assert_eq!(
+            tag, expected_tag,
+            "Tag mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            tag, expected_tag
+        );
+
+        // === DECRYPT ===
+        // Now plaintext contains ciphertext, decrypt it in-place
+        let mut computed_tag: [u8; 16] = [0xFF; 16];
+
+        unsafe {
+            aegis128l_decrypt(
+                &key,
+                &nonce,
+                aad.as_ptr(),
+                aad.len(),
+                plaintext.as_mut_ptr(),  // contains ciphertext, will be overwritten with plaintext
+                plaintext.len(),
+                &expected_tag,
+                &mut computed_tag,
+            );
+        }
+
+        assert_eq!(
+            computed_tag, expected_tag,
+            "Computed tag mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            computed_tag, expected_tag
+        );
+
+        // Verify in-place decrypt restored original plaintext
+        assert_eq!(
+            plaintext, original_plaintext,
+            "Decrypted plaintext (in-place) mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            plaintext, original_plaintext
+        );
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_aegis128l_negative_vector6_wrong_key() {
+        // AEGIS-128L RFC Test Vector A.2.7 - Test Vector 6
+        // This test MUST return a "verification failed" error.
+        // key:   10000200000000000000000000000000 (WRONG - swapped with nonce)
+        // nonce: 10010000000000000000000000000000
+        // ad:    0001020304050607
+        // ct:    79d94593d8c2119d7e8fd9b8fc77
+        // tag:   5c04b3dba849b2701effbe32c7f0fab7
+
+        let key: [u8; 16] = [
+            0x10, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,  // WRONG KEY
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let nonce: [u8; 16] = [
+            0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let aad: [u8; 8] = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
+        let mut ciphertext: [u8; 14] = [
+            0x79, 0xd9, 0x45, 0x93, 0xd8, 0xc2, 0x11, 0x9d,
+            0x7e, 0x8f, 0xd9, 0xb8, 0xfc, 0x77,
+        ];
+        let expected_tag: [u8; 16] = [
+            0x5c, 0x04, 0xb3, 0xdb, 0xa8, 0x49, 0xb2, 0x70,
+            0x1e, 0xff, 0xbe, 0x32, 0xc7, 0xf0, 0xfa, 0xb7,
+        ];
+
+        let mut computed_tag: [u8; 16] = [0xFF; 16];
+
+        // === DECRYPT with WRONG KEY ===
+        unsafe {
+            aegis128l_decrypt(
+                &key,                       // WRONG KEY
+                &nonce,
+                aad.as_ptr(),
+                aad.len(),
+                ciphertext.as_mut_ptr(),
+                ciphertext.len(),
+                &expected_tag,
+                &mut computed_tag,
+            );
+        }
+
+        // Verify that computed tag does NOT match expected tag (verification should fail)
+        assert_ne!(
+            computed_tag, expected_tag,
+            "Verification should fail with wrong key.\nComputed tag should NOT match expected tag."
+        );
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_aegis128l_negative_vector7_wrong_ct() {
+        // AEGIS-128L RFC Test Vector A.2.8 - Test Vector 7
+        // This test MUST return a "verification failed" error.
+        // key:   10010000000000000000000000000000
+        // nonce: 10000200000000000000000000000000
+        // ad:    0001020304050607
+        // ct:    79d94593d8c2119d7e8fd9b8fc78 (WRONG - last byte 0x78 instead of 0x77)
+        // tag:   5c04b3dba849b2701effbe32c7f0fab7
+
+        let key: [u8; 16] = [
+            0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let nonce: [u8; 16] = [
+            0x10, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let aad: [u8; 8] = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
+        let mut ciphertext: [u8; 14] = [
+            0x79, 0xd9, 0x45, 0x93, 0xd8, 0xc2, 0x11, 0x9d,
+            0x7e, 0x8f, 0xd9, 0xb8, 0xfc, 0x78,  // WRONG - 0x78 instead of 0x77
+        ];
+        let expected_tag: [u8; 16] = [
+            0x5c, 0x04, 0xb3, 0xdb, 0xa8, 0x49, 0xb2, 0x70,
+            0x1e, 0xff, 0xbe, 0x32, 0xc7, 0xf0, 0xfa, 0xb7,
+        ];
+
+        let mut computed_tag: [u8; 16] = [0xFF; 16];
+
+        // === DECRYPT with WRONG CIPHERTEXT ===
+        unsafe {
+            aegis128l_decrypt(
+                &key,
+                &nonce,
+                aad.as_ptr(),
+                aad.len(),
+                ciphertext.as_mut_ptr(),    // WRONG CIPHERTEXT
+                ciphertext.len(),
+                &expected_tag,
+                &mut computed_tag,
+            );
+        }
+
+        // Verify that computed tag does NOT match expected tag (verification should fail)
+        assert_ne!(
+            computed_tag, expected_tag,
+            "Verification should fail with wrong ciphertext.\nComputed tag should NOT match expected tag."
+        );
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_aegis128l_negative_vector8_wrong_aad() {
+        // AEGIS-128L RFC Test Vector A.2.9 - Test Vector 8
+        // This test MUST return a "verification failed" error.
+        // key:   10010000000000000000000000000000
+        // nonce: 10000200000000000000000000000000
+        // ad:    0001020304050608 (WRONG - last byte 0x08 instead of 0x07)
+        // ct:    79d94593d8c2119d7e8fd9b8fc77
+        // tag:   5c04b3dba849b2701effbe32c7f0fab7
+
+        let key: [u8; 16] = [
+            0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let nonce: [u8; 16] = [
+            0x10, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let aad: [u8; 8] = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x08];  // WRONG - 0x08 instead of 0x07
+        let mut ciphertext: [u8; 14] = [
+            0x79, 0xd9, 0x45, 0x93, 0xd8, 0xc2, 0x11, 0x9d,
+            0x7e, 0x8f, 0xd9, 0xb8, 0xfc, 0x77,
+        ];
+        let expected_tag: [u8; 16] = [
+            0x5c, 0x04, 0xb3, 0xdb, 0xa8, 0x49, 0xb2, 0x70,
+            0x1e, 0xff, 0xbe, 0x32, 0xc7, 0xf0, 0xfa, 0xb7,
+        ];
+
+        let mut computed_tag: [u8; 16] = [0xFF; 16];
+
+        // === DECRYPT with WRONG AAD ===
+        unsafe {
+            aegis128l_decrypt(
+                &key,
+                &nonce,
+                aad.as_ptr(),               // WRONG AAD
+                aad.len(),
+                ciphertext.as_mut_ptr(),
+                ciphertext.len(),
+                &expected_tag,
+                &mut computed_tag,
+            );
+        }
+
+        // Verify that computed tag does NOT match expected tag (verification should fail)
+        assert_ne!(
+            computed_tag, expected_tag,
+            "Verification should fail with wrong AAD.\nComputed tag should NOT match expected tag."
+        );
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_aegis128l_negative_vector9_wrong_tag() {
+        // AEGIS-128L RFC Test Vector A.2.10 - Test Vector 9
+        // This test MUST return a "verification failed" error.
+        // key:   10010000000000000000000000000000
+        // nonce: 10000200000000000000000000000000
+        // ad:    0001020304050607
+        // ct:    79d94593d8c2119d7e8fd9b8fc77
+        // tag:   6c04b3dba849b2701effbe32c7f0fab8 (WRONG - first byte 0x6c instead of 0x5c, last byte 0xb8 instead of 0xb7)
+
+        let key: [u8; 16] = [
+            0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let nonce: [u8; 16] = [
+            0x10, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let aad: [u8; 8] = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
+        let mut ciphertext: [u8; 14] = [
+            0x79, 0xd9, 0x45, 0x93, 0xd8, 0xc2, 0x11, 0x9d,
+            0x7e, 0x8f, 0xd9, 0xb8, 0xfc, 0x77,
+        ];
+        let expected_tag: [u8; 16] = [
+            0x6c, 0x04, 0xb3, 0xdb, 0xa8, 0x49, 0xb2, 0x70,  // WRONG TAG
+            0x1e, 0xff, 0xbe, 0x32, 0xc7, 0xf0, 0xfa, 0xb8,
+        ];
+
+        let mut computed_tag: [u8; 16] = [0xFF; 16];
+
+        // === DECRYPT with WRONG TAG ===
+        unsafe {
+            aegis128l_decrypt(
+                &key,
+                &nonce,
+                aad.as_ptr(),
+                aad.len(),
+                ciphertext.as_mut_ptr(),
+                ciphertext.len(),
+                &expected_tag,              // WRONG TAG
+                &mut computed_tag,
+            );
+        }
+
+        // Verify that computed tag does NOT match expected tag (verification should fail)
+        assert_ne!(
+            computed_tag, expected_tag,
+            "Verification should fail with wrong tag.\nComputed tag should NOT match expected tag."
         );
     }
 
