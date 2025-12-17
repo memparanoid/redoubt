@@ -22,11 +22,11 @@ unsafe extern "C" {
     /// - `nonce` must point to 16 bytes
     pub fn aegis128l_init(state: *mut [u8; 128], key: *const [u8; 16], nonce: *const [u8; 16]);
 
-    /// Performs complete AEGIS-128L encryption.
+    /// Performs complete AEGIS-128L encryption (in-place).
     ///
     /// # Safety
     /// - All pointers must be valid for their specified lengths
-    /// - `ciphertext` buffer must be at least `plaintext_len` bytes
+    /// - `plaintext` buffer will be overwritten with ciphertext
     /// - `tag` must point to 16 bytes
     pub fn aegis128l_encrypt(
         key: *const [u8; 16],
@@ -35,18 +35,22 @@ unsafe extern "C" {
         aad_len: usize,
         plaintext: *mut u8,
         plaintext_len: usize,
-        ciphertext: *mut u8,
         tag: *mut [u8; 16],
     );
 
+    /// Performs complete AEGIS-128L decryption (in-place).
+    ///
+    /// # Safety
+    /// - All pointers must be valid for their specified lengths
+    /// - `ciphertext` buffer will be overwritten with plaintext
+    /// - `expected_tag` and `computed_tag` must point to 16 bytes
     pub fn aegis128l_decrypt(
         key: *const [u8; 16],
         nonce: *const [u8; 16],
         aad: *const u8,
         aad_len: usize,
-        ciphertext: *const u8,
+        ciphertext: *mut u8,
         ciphertext_len: usize,
-        plaintext: *mut u8,
         expected_tag: *const [u8; 16],
         computed_tag: *mut [u8; 16],
     );
@@ -187,8 +191,7 @@ mod tests {
             0x10, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ];
-        let mut plaintext: [u8; 16] = [0x00; 16];
-        let mut ciphertext: [u8; 16] = [0xFF; 16];
+        let mut data: [u8; 16] = [0x00; 16];
         let mut tag: [u8; 16] = [0xFF; 16];
 
         let expected_ciphertext: [u8; 16] = [
@@ -206,17 +209,16 @@ mod tests {
                 &nonce,
                 std::ptr::null(),          // No AAD
                 0,                          // AAD length = 0
-                plaintext.as_mut_ptr(),
-                plaintext.len(),
-                ciphertext.as_mut_ptr(),
+                data.as_mut_ptr(),
+                data.len(),
                 &mut tag,
             );
         }
 
         assert_eq!(
-            ciphertext, expected_ciphertext,
+            data, expected_ciphertext,
             "Ciphertext mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
-            ciphertext, expected_ciphertext
+            data, expected_ciphertext
         );
 
         assert_eq!(
@@ -266,7 +268,6 @@ mod tests {
         // Save original plaintext for comparison after decrypt
         let original_plaintext = plaintext.clone();
 
-        let mut ciphertext: [u8; 32] = [0xFF; 32];
         let mut tag: [u8; 16] = [0xFF; 16];
 
         // === ENCRYPT ===
@@ -278,25 +279,15 @@ mod tests {
                 aad.len(),
                 plaintext.as_mut_ptr(),
                 plaintext.len(),
-                ciphertext.as_mut_ptr(),
                 &mut tag,
             );
         }
 
-        println!("Plaintext after encrypt (should be ciphertext): {:02x?}", plaintext);
-        println!("Expected ciphertext:                            {:02x?}", expected_ciphertext);
-
         // Verify plaintext buffer was overwritten with ciphertext
         assert_eq!(
             plaintext, expected_ciphertext,
-            "Plaintext (in-place) mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            "Ciphertext (in-place) mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
             plaintext, expected_ciphertext
-        );
-
-        assert_eq!(
-            ciphertext, expected_ciphertext,
-            "Ciphertext mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
-            ciphertext, expected_ciphertext
         );
 
         assert_eq!(
@@ -307,7 +298,6 @@ mod tests {
 
         // === DECRYPT ===
         // Now plaintext contains ciphertext, decrypt it in-place
-        let mut decrypted: [u8; 32] = [0xFF; 32];
         let mut computed_tag: [u8; 16] = [0xFF; 16];
 
         unsafe {
@@ -316,9 +306,8 @@ mod tests {
                 &nonce,
                 aad.as_ptr(),
                 aad.len(),
-                plaintext.as_mut_ptr(),  // plaintext now has ciphertext
+                plaintext.as_mut_ptr(),  // contains ciphertext, will be overwritten with plaintext
                 plaintext.len(),
-                decrypted.as_mut_ptr(),
                 &expected_tag,
                 &mut computed_tag,
             );
@@ -336,12 +325,6 @@ mod tests {
             "Decrypted plaintext (in-place) mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
             plaintext, original_plaintext
         );
-
-        assert_eq!(
-            decrypted, original_plaintext,
-            "Decrypted plaintext mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
-            decrypted, original_plaintext
-        );
     }
 
     #[test]
@@ -354,15 +337,14 @@ mod tests {
 
         let key: Aligned16<[u8; 16]> = Aligned16([0x42; 16]);
         let nonce: Aligned16<[u8; 16]> = Aligned16([0x43; 16]);
-        let mut plaintext: Aligned16<[u8; 32]> = Aligned16([0x00; 32]);
-        let mut ciphertext: Aligned16<[u8; 32]> = Aligned16([0xFF; 32]);
+        let mut data: Aligned16<[u8; 32]> = Aligned16([0x00; 32]);
         let mut tag: Aligned16<[u8; 16]> = Aligned16([0; 16]);
+        let original_data = data.0.clone();
 
         // Verify alignment
         assert_eq!((key.0.as_ptr() as usize) % 16, 0, "Key not aligned");
         assert_eq!((nonce.0.as_ptr() as usize) % 16, 0, "Nonce not aligned");
-        assert_eq!((plaintext.0.as_ptr() as usize) % 16, 0, "Plaintext not aligned");
-        assert_eq!((ciphertext.0.as_ptr() as usize) % 16, 0, "Ciphertext not aligned");
+        assert_eq!((data.0.as_ptr() as usize) % 16, 0, "Data not aligned");
 
         unsafe {
             aegis128l_encrypt(
@@ -370,18 +352,16 @@ mod tests {
                 &nonce.0,
                 std::ptr::null(),     // No AAD
                 0,                     // AAD length = 0
-                plaintext.0.as_mut_ptr(),
-                plaintext.0.len(),
-                ciphertext.0.as_mut_ptr(),
+                data.0.as_mut_ptr(),
+                data.0.len(),
                 &mut tag.0,
             );
         }
 
         // Verify ciphertext was written
-        assert_ne!(ciphertext.0, [0xFF; 32], "Ciphertext should have been written");
-        assert_ne!(ciphertext.0, plaintext.0, "Ciphertext should differ from plaintext");
+        assert_ne!(data.0, original_data, "Data should have been transformed");
 
-        println!("Ciphertext: {:02x?}", ciphertext.0);
+        println!("Ciphertext: {:02x?}", data.0);
         println!("Tag: {:02x?}", tag.0);
     }
 }

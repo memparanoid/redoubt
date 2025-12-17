@@ -389,10 +389,9 @@ FUNC(aegis128l_update):
 //   x1 = pointer to nonce (16 bytes)
 //   x2 = pointer to AAD (additional authenticated data)
 //   x3 = AAD length in bytes
-//   x4 = pointer to plaintext
+//   x4 = pointer to plaintext (overwritten with ciphertext in-place)
 //   x5 = plaintext length in bytes
-//   x6 = pointer to ciphertext output buffer
-//   x7 = pointer to tag output (16 bytes)
+//   x6 = pointer to tag output (16 bytes)
 //
 // Register allocation (ALL caller-saved):
 //   v0-v7   = AEGIS state S0-S7
@@ -403,13 +402,12 @@ FUNC(aegis128l_update):
 //   v20-v31 = temporaries for update, keystream, data
 //   x8      = AAD pointer
 //   x9      = AAD length (preserved for finalization)
-//   x10     = plaintext pointer
+//   x10     = plaintext pointer (data transformed in-place)
 //   x11     = plaintext length (preserved for finalization)
-//   x12     = ciphertext pointer
-//   x13     = tag pointer
+//   x12     = tag pointer
 //   x0-x7   = temporaries (loop counters, pointers)
 //
-// Returns: void (ciphertext and tag are written to output buffers)
+// Returns: void (plaintext buffer contains ciphertext, tag written)
 //
 .global FUNC(aegis128l_encrypt)
 HIDDEN_FUNC(aegis128l_encrypt)
@@ -422,13 +420,12 @@ FUNC(aegis128l_encrypt):
 
     // Save parameters to caller-saved registers
     // x0=key, x1=nonce used immediately then become temps
-    // x8-x13 hold values needed throughout
+    // x8-x12 hold values needed throughout
     mov x8, x2                       // x8 = AAD pointer
     mov x9, x3                       // x9 = AAD length (keep for finalization)
-    mov x10, x4                      // x10 = plaintext pointer
+    mov x10, x4                      // x10 = plaintext pointer (in-place transform)
     mov x11, x5                      // x11 = plaintext length (keep for finalization)
-    mov x12, x6                      // x12 = ciphertext pointer
-    mov x13, x7                      // x13 = tag pointer
+    mov x12, x6                      // x12 = tag pointer
 
     // === Phase 1: Initialization ===
     // Load key and nonce
@@ -571,10 +568,6 @@ FUNC(aegis128l_encrypt):
     st1 {v30.16b, v31.16b}, [x0]
     add x0, x0, #32
 
-    // Store ciphertext to output buffer (keep for now)
-    st1 {v30.16b, v31.16b}, [x12]
-    add x12, x12, #32
-
     // Update state with plaintext (not ciphertext!)
     AEGIS_UPDATE v18, v19
 
@@ -634,17 +627,6 @@ FUNC(aegis128l_encrypt):
 
     // Store ciphertext to buffer
     st1 {v30.16b, v31.16b}, [sp]
-
-    // Copy only valid ciphertext bytes to output
-    mov x2, sp
-    mov x3, x1
-.Lenc_copy_ct_loop:
-    cbz x3, .Lenc_copy_ct_done
-    ldrb w4, [x2], #1
-    strb w4, [x12], #1
-    sub x3, x3, #1
-    b .Lenc_copy_ct_loop
-.Lenc_copy_ct_done:
 
     // Copy ciphertext in-place to plaintext buffer
     sub x0, x0, x1                   // Rewind x0 to start of partial block
@@ -706,7 +688,7 @@ FUNC(aegis128l_encrypt):
     eor v16.16b, v16.16b, v6.16b
 
     // Write tag
-    st1 {v16.16b}, [x13]
+    st1 {v16.16b}, [x12]
 
     // Zeroize all caller-saved registers
     AEGIS_ZEROIZE_ALL
@@ -732,13 +714,12 @@ FUNC(aegis128l_encrypt):
 //   x1 = pointer to nonce (16 bytes)
 //   x2 = pointer to AAD
 //   x3 = AAD length in bytes
-//   x4 = pointer to ciphertext
+//   x4 = pointer to ciphertext (overwritten with plaintext in-place)
 //   x5 = ciphertext length in bytes
-//   x6 = pointer to plaintext output buffer
-//   x7 = pointer to expected tag (16 bytes)
-//   [sp] = pointer to computed tag output (16 bytes) - 9th param on stack
+//   x6 = pointer to expected tag (16 bytes)
+//   x7 = pointer to computed tag output (16 bytes)
 //
-// Returns: void (plaintext and computed tag are written to output buffers)
+// Returns: void (ciphertext buffer contains plaintext, computed tag written)
 //
 .global FUNC(aegis128l_decrypt)
 HIDDEN_FUNC(aegis128l_decrypt)
@@ -752,11 +733,10 @@ FUNC(aegis128l_decrypt):
     // Save parameters
     mov x8, x2                       // x8 = AAD pointer
     mov x9, x3                       // x9 = AAD length
-    mov x10, x4                      // x10 = ciphertext pointer
+    mov x10, x4                      // x10 = ciphertext pointer (in-place transform)
     mov x11, x5                      // x11 = ciphertext length
-    mov x12, x6                      // x12 = plaintext pointer
-    mov x13, x7                      // x13 = expected_tag pointer
-    ldr x14, [sp]                    // x14 = computed_tag pointer (9th param from stack)
+    mov x12, x6                      // x12 = expected_tag pointer
+    mov x13, x7                      // x13 = computed_tag pointer
 
     // === Phase 1: Initialization ===
     ld1 {v16.16b}, [x0]              // v16 = key
@@ -895,10 +875,6 @@ FUNC(aegis128l_decrypt):
     st1 {v18.16b, v19.16b}, [x0]
     add x0, x0, #32
 
-    // Store plaintext to output buffer (keep for now)
-    st1 {v18.16b, v19.16b}, [x12]
-    add x12, x12, #32
-
     // Update state with PLAINTEXT
     AEGIS_UPDATE v18, v19
 
@@ -972,17 +948,6 @@ FUNC(aegis128l_decrypt):
     b .Ldec_zero_padding_loop
 .Ldec_zero_padding_done:
 
-    // Copy valid plaintext bytes to output
-    mov x2, sp
-    mov x3, x1
-.Ldec_copy_pt_loop:
-    cbz x3, .Ldec_copy_pt_done
-    ldrb w4, [x2], #1
-    strb w4, [x12], #1
-    sub x3, x3, #1
-    b .Ldec_copy_pt_loop
-.Ldec_copy_pt_done:
-
     // Copy plaintext in-place to ciphertext buffer
     sub x0, x0, x1                   // Rewind x0 to start of partial block
     mov x2, sp                       // x2 = stack buffer with plaintext
@@ -1037,7 +1002,7 @@ FUNC(aegis128l_decrypt):
     eor v16.16b, v16.16b, v6.16b
 
     // Write computed tag
-    st1 {v16.16b}, [x14]
+    st1 {v16.16b}, [x13]
 
     // Zeroize all caller-saved registers
     AEGIS_ZEROIZE_ALL
