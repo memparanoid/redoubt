@@ -33,7 +33,7 @@ unsafe extern "C" {
         nonce: *const [u8; 16],
         aad: *const u8,
         aad_len: usize,
-        plaintext: *const u8,
+        plaintext: *mut u8,
         plaintext_len: usize,
         ciphertext: *mut u8,
         tag: *mut [u8; 16],
@@ -187,7 +187,7 @@ mod tests {
             0x10, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ];
-        let plaintext: [u8; 16] = [0x00; 16];
+        let mut plaintext: [u8; 16] = [0x00; 16];
         let mut ciphertext: [u8; 16] = [0xFF; 16];
         let mut tag: [u8; 16] = [0xFF; 16];
 
@@ -206,7 +206,7 @@ mod tests {
                 &nonce,
                 std::ptr::null(),          // No AAD
                 0,                          // AAD length = 0
-                plaintext.as_ptr(),
+                plaintext.as_mut_ptr(),
                 plaintext.len(),
                 ciphertext.as_mut_ptr(),
                 &mut tag,
@@ -246,7 +246,7 @@ mod tests {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ];
         let aad: [u8; 8] = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
-        let plaintext: [u8; 32] = [
+        let mut plaintext: [u8; 32] = [
             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
             0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
             0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
@@ -263,6 +263,9 @@ mod tests {
             0x23, 0x88, 0xd6, 0x95, 0xc3, 0x96, 0x2d, 0x9a,
         ];
 
+        // Save original plaintext for comparison after decrypt
+        let original_plaintext = plaintext.clone();
+
         let mut ciphertext: [u8; 32] = [0xFF; 32];
         let mut tag: [u8; 16] = [0xFF; 16];
 
@@ -273,12 +276,22 @@ mod tests {
                 &nonce,
                 aad.as_ptr(),
                 aad.len(),
-                plaintext.as_ptr(),
+                plaintext.as_mut_ptr(),
                 plaintext.len(),
                 ciphertext.as_mut_ptr(),
                 &mut tag,
             );
         }
+
+        println!("Plaintext after encrypt (should be ciphertext): {:02x?}", plaintext);
+        println!("Expected ciphertext:                            {:02x?}", expected_ciphertext);
+
+        // Verify plaintext buffer was overwritten with ciphertext
+        assert_eq!(
+            plaintext, expected_ciphertext,
+            "Plaintext (in-place) mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            plaintext, expected_ciphertext
+        );
 
         assert_eq!(
             ciphertext, expected_ciphertext,
@@ -293,6 +306,7 @@ mod tests {
         );
 
         // === DECRYPT ===
+        // Now plaintext contains ciphertext, decrypt it in-place
         let mut decrypted: [u8; 32] = [0xFF; 32];
         let mut computed_tag: [u8; 16] = [0xFF; 16];
 
@@ -302,8 +316,8 @@ mod tests {
                 &nonce,
                 aad.as_ptr(),
                 aad.len(),
-                ciphertext.as_ptr(),
-                ciphertext.len(),
+                plaintext.as_mut_ptr(),  // plaintext now has ciphertext
+                plaintext.len(),
                 decrypted.as_mut_ptr(),
                 &expected_tag,
                 &mut computed_tag,
@@ -316,10 +330,17 @@ mod tests {
             computed_tag, expected_tag
         );
 
+        // Verify in-place decrypt restored original plaintext
         assert_eq!(
-            decrypted, plaintext,
+            plaintext, original_plaintext,
+            "Decrypted plaintext (in-place) mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            plaintext, original_plaintext
+        );
+
+        assert_eq!(
+            decrypted, original_plaintext,
             "Decrypted plaintext mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
-            decrypted, plaintext
+            decrypted, original_plaintext
         );
     }
 
@@ -333,7 +354,7 @@ mod tests {
 
         let key: Aligned16<[u8; 16]> = Aligned16([0x42; 16]);
         let nonce: Aligned16<[u8; 16]> = Aligned16([0x43; 16]);
-        let plaintext: Aligned16<[u8; 32]> = Aligned16([0x00; 32]);
+        let mut plaintext: Aligned16<[u8; 32]> = Aligned16([0x00; 32]);
         let mut ciphertext: Aligned16<[u8; 32]> = Aligned16([0xFF; 32]);
         let mut tag: Aligned16<[u8; 16]> = Aligned16([0; 16]);
 
@@ -349,7 +370,7 @@ mod tests {
                 &nonce.0,
                 std::ptr::null(),     // No AAD
                 0,                     // AAD length = 0
-                plaintext.0.as_ptr(),
+                plaintext.0.as_mut_ptr(),
                 plaintext.0.len(),
                 ciphertext.0.as_mut_ptr(),
                 &mut tag.0,

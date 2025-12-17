@@ -560,17 +560,20 @@ FUNC(aegis128l_encrypt):
     eor v17.16b, v17.16b, v2.16b
     eor v17.16b, v17.16b, v5.16b
 
-    // Load plaintext
-    ld1 {v18.16b}, [x0], #16         // plaintext block 0
-    ld1 {v19.16b}, [x0], #16         // plaintext block 1
+    // Load plaintext (32 bytes)
+    ld1 {v18.16b, v19.16b}, [x0]
 
     // XOR to produce ciphertext
     eor v30.16b, v18.16b, v16.16b    // ciphertext0
     eor v31.16b, v19.16b, v17.16b    // ciphertext1
 
-    // Store ciphertext
-    st1 {v30.16b}, [x12], #16
-    st1 {v31.16b}, [x12], #16
+    // Write ciphertext in-place to plaintext buffer
+    st1 {v30.16b, v31.16b}, [x0]
+    add x0, x0, #32
+
+    // Store ciphertext to output buffer (keep for now)
+    st1 {v30.16b, v31.16b}, [x12]
+    add x12, x12, #32
 
     // Update state with plaintext (not ciphertext!)
     AEGIS_UPDATE v18, v19
@@ -642,6 +645,18 @@ FUNC(aegis128l_encrypt):
     sub x3, x3, #1
     b .Lenc_copy_ct_loop
 .Lenc_copy_ct_done:
+
+    // Copy ciphertext in-place to plaintext buffer
+    sub x0, x0, x1                   // Rewind x0 to start of partial block
+    mov x2, sp                       // x2 = stack buffer with ciphertext
+    mov x3, x1                       // x3 = bytes to copy
+.Lenc_copy_ct_inplace_loop:
+    cbz x3, .Lenc_copy_ct_inplace_done
+    ldrb w4, [x2], #1
+    strb w4, [x0], #1
+    sub x3, x3, #1
+    b .Lenc_copy_ct_inplace_loop
+.Lenc_copy_ct_inplace_done:
 
 // ║
 // ║ >>> ZEROIZATION OF SPILL BUFFER HAPPENS HERE <<<
@@ -869,17 +884,20 @@ FUNC(aegis128l_decrypt):
     eor v17.16b, v17.16b, v2.16b
     eor v17.16b, v17.16b, v5.16b
 
-    // Load ciphertext
-    ld1 {v30.16b}, [x0], #16
-    ld1 {v31.16b}, [x0], #16
+    // Load ciphertext (32 bytes)
+    ld1 {v30.16b, v31.16b}, [x0]
 
     // XOR to get plaintext
     eor v18.16b, v30.16b, v16.16b    // plaintext0
     eor v19.16b, v31.16b, v17.16b    // plaintext1
 
-    // Store plaintext
-    st1 {v18.16b}, [x12], #16
-    st1 {v19.16b}, [x12], #16
+    // Write plaintext in-place to ciphertext buffer
+    st1 {v18.16b, v19.16b}, [x0]
+    add x0, x0, #32
+
+    // Store plaintext to output buffer (keep for now)
+    st1 {v18.16b, v19.16b}, [x12]
+    add x12, x12, #32
 
     // Update state with PLAINTEXT
     AEGIS_UPDATE v18, v19
@@ -964,6 +982,18 @@ FUNC(aegis128l_decrypt):
     sub x3, x3, #1
     b .Ldec_copy_pt_loop
 .Ldec_copy_pt_done:
+
+    // Copy plaintext in-place to ciphertext buffer
+    sub x0, x0, x1                   // Rewind x0 to start of partial block
+    mov x2, sp                       // x2 = stack buffer with plaintext
+    mov x3, x1                       // x3 = bytes to copy
+.Ldec_copy_pt_inplace_loop:
+    cbz x3, .Ldec_copy_pt_inplace_done
+    ldrb w4, [x2], #1
+    strb w4, [x0], #1
+    sub x3, x3, #1
+    b .Ldec_copy_pt_inplace_loop
+.Ldec_copy_pt_inplace_done:
 
     // Reload padded plaintext for state update
     ld1 {v18.16b, v19.16b}, [sp]
