@@ -60,6 +60,10 @@
 //   x19-x26 = Saved parameters (callee-saved - will be restored after)
 //
 .macro AEGIS_ZEROIZE_ALL
+    // === NUCLEAR REGISTER ZEROIZATION ===
+    // Zeroize ALL registers used during encryption/decryption
+    // This happens BEFORE restoration of callee-saved registers
+
     // Zeroize state registers (v0-v7) - caller-saved
     movi v0.16b, #0
     movi v1.16b, #0
@@ -98,7 +102,20 @@
     movi v30.16b, #0
     movi v31.16b, #0
 
-    // Zeroize temporary general purpose registers
+    // Zeroize ALL caller-saved general purpose registers (x0-x9)
+    // These may contain sensitive pointers, lengths, or intermediate values
+    mov x0, xzr
+    mov x1, xzr
+    mov x2, xzr
+    mov x3, xzr
+    mov x4, xzr
+    mov x5, xzr
+    mov x6, xzr
+    mov x7, xzr
+    mov x8, xzr
+    mov x9, xzr
+
+    // Zeroize temporary general purpose registers (x10-x14)
     mov x10, xzr
     mov x11, xzr
     mov x12, xzr
@@ -345,16 +362,27 @@ FUNC(aegis128l_init):
     st1 {v0.16b-v3.16b}, [x3], #64
     st1 {v4.16b-v7.16b}, [x3]
 
-    // Nuclear zeroization: clear ALL registers (including callee-saved v8-v11)
+    // === NUCLEAR ZEROIZATION PROTOCOL ===
+
+    // Step 1: Zeroize ALL registers (including key/nonce)
     AEGIS_ZEROIZE_ALL
 
     // Zeroize additional temporaries used in this function
     mov x3, xzr
     mov x4, xzr
 
-    // Epilogue: restore callee-saved registers (overwrites zeros with original values)
+    // Step 2: Restore callee-saved registers from stack
     ldp d10, d11, [sp, #16]
-    ldp d8, d9, [sp], #32
+    ldp d8, d9, [sp, #0]
+
+    // Step 3: NUCLEAR STACK ZEROIZATION
+    // Zeroize the entire 32-byte stack frame
+    // stp writes 16 bytes per iteration: 32 / 16 = 2 stores
+    stp xzr, xzr, [sp, #0]           // Zero bytes [0..15]
+    stp xzr, xzr, [sp, #16]          // Zero bytes [16..31]
+
+    // Step 4: Restore stack pointer and return
+    add sp, sp, #32
     ret
 
 #if !defined(__APPLE__) && !defined(_WIN32) && !defined(_WIN64)
@@ -547,19 +575,18 @@ FUNC(aegis128l_encrypt):
     // Copy partial AAD bytes to stack buffer
     mov x12, sp                      // x12 = buffer pointer
     mov x13, x11                     // x13 = bytes to copy
-.Laad_copy_loop:
-    cbz x13, .Laad_copy_done
+.Laad_spill_copy_loop:
+    cbz x13, .Laad_spill_copy_done
     ldrb w14, [x10], #1              // Load byte from AAD
     strb w14, [x12], #1              // Store to buffer
     sub x13, x13, #1
-    b .Laad_copy_loop
-.Laad_copy_done:
+    b .Laad_spill_copy_loop
+.Laad_spill_copy_done:
 
     // Load zero-padded AAD from buffer
-    ld1 {v12.16b}, [sp]              // M0
-    ld1 {v13.16b}, [sp, #16]         // M1
+    ld1 {v12.16b, v13.16b}, [sp]     // M0, M1 (32 bytes)
 
-    // IMMEDIATE zeroization of stack buffer
+    // IMMEDIATE zeroization of spill buffer
     stp xzr, xzr, [sp]
     stp xzr, xzr, [sp, #16]
     add sp, sp, #32
@@ -633,38 +660,36 @@ FUNC(aegis128l_encrypt):
     // Copy partial plaintext to buffer
     mov x12, sp                      // x12 = buffer pointer
     mov x13, x11                     // x13 = bytes to copy
-.Lenc_copy_pt_loop:
-    cbz x13, .Lenc_copy_pt_done
+.Lenc_spill_copy_pt_loop:
+    cbz x13, .Lenc_spill_copy_pt_done
     ldrb w14, [x10], #1              // Load byte from plaintext
     strb w14, [x12], #1              // Store to buffer
     sub x13, x13, #1
-    b .Lenc_copy_pt_loop
-.Lenc_copy_pt_done:
+    b .Lenc_spill_copy_pt_loop
+.Lenc_spill_copy_pt_done:
 
     // Load zero-padded plaintext from buffer
-    ld1 {v14.16b}, [sp]              // plaintext block 0 (padded)
-    ld1 {v15.16b}, [sp, #16]         // plaintext block 1 (padded)
+    ld1 {v14.16b, v15.16b}, [sp]     // plaintext blocks 0, 1 (32 bytes)
 
     // XOR with keystream
     eor v26.16b, v14.16b, v12.16b    // ciphertext0
     eor v27.16b, v15.16b, v13.16b    // ciphertext1
 
     // Store ciphertext to buffer (will extract only valid bytes)
-    st1 {v26.16b}, [sp]
-    st1 {v27.16b}, [sp, #16]
+    st1 {v26.16b, v27.16b}, [sp]     // ciphertext 0, 1 (32 bytes)
 
     // Copy only valid ciphertext bytes to output
     mov x12, sp                      // x12 = buffer pointer
     mov x13, x11                     // x13 = bytes to copy
-.Lenc_copy_ct_loop:
-    cbz x13, .Lenc_copy_ct_done
+.Lenc_spill_copy_ct_loop:
+    cbz x13, .Lenc_spill_copy_ct_done
     ldrb w14, [x12], #1              // Load byte from buffer
     strb w14, [x25], #1              // Store to ciphertext output
     sub x13, x13, #1
-    b .Lenc_copy_ct_loop
-.Lenc_copy_ct_done:
+    b .Lenc_spill_copy_ct_loop
+.Lenc_spill_copy_ct_done:
 
-    // IMMEDIATE zeroization of stack buffer
+    // IMMEDIATE zeroization of spill buffer
     stp xzr, xzr, [sp]
     stp xzr, xzr, [sp, #16]
     add sp, sp, #32
@@ -711,17 +736,33 @@ FUNC(aegis128l_encrypt):
     // Write tag to output
     st1 {v29.16b}, [x26]
 
-    // Nuclear zeroization: clear ALL registers
+    // === NUCLEAR ZEROIZATION PROTOCOL ===
+
+    // Step 1: Zeroize ALL registers (including sensitive data)
     AEGIS_ZEROIZE_ALL
 
-    // Epilogue: restore callee-saved registers
+    // Step 2: Restore callee-saved registers from stack
     ldp d10, d11, [sp, #96]
     ldp d8, d9, [sp, #80]
     ldp x25, x26, [sp, #64]
     ldp x23, x24, [sp, #48]
     ldp x21, x22, [sp, #32]
     ldp x19, x20, [sp, #16]
-    ldp x29, x30, [sp], #112
+    ldp x29, x30, [sp, #0]
+
+    // Step 3: NUCLEAR STACK ZEROIZATION
+    // Zeroize the entire 112-byte stack frame
+    // stp writes 16 bytes per store: 112 / 16 = 7 stores
+    stp xzr, xzr, [sp, #0]           // Zero bytes [0..15]
+    stp xzr, xzr, [sp, #16]          // Zero bytes [16..31]
+    stp xzr, xzr, [sp, #32]          // Zero bytes [32..47]
+    stp xzr, xzr, [sp, #48]          // Zero bytes [48..63]
+    stp xzr, xzr, [sp, #64]          // Zero bytes [64..79]
+    stp xzr, xzr, [sp, #80]          // Zero bytes [80..95]
+    stp xzr, xzr, [sp, #96]          // Zero bytes [96..111]
+
+    // Step 4: Restore stack pointer and return
+    add sp, sp, #112
     ret
 
 #if !defined(__APPLE__) && !defined(_WIN32) && !defined(_WIN64)
@@ -845,16 +886,15 @@ FUNC(aegis128l_decrypt):
     // Copy partial AAD
     mov x12, sp
     mov x13, x11
-.Ldec_aad_copy:
-    cbz x13, .Ldec_aad_copy_done
+.Ldec_aad_spill_copy_loop:
+    cbz x13, .Ldec_aad_spill_copy_done
     ldrb w14, [x10], #1
     strb w14, [x12], #1
     sub x13, x13, #1
-    b .Ldec_aad_copy
-.Ldec_aad_copy_done:
+    b .Ldec_aad_spill_copy_loop
+.Ldec_aad_spill_copy_done:
 
-    ld1 {v12.16b}, [sp]
-    ld1 {v13.16b}, [sp, #16]
+    ld1 {v12.16b, v13.16b}, [sp]     // AAD M0, M1 (32 bytes)
 
     // Zeroize buffer
     stp xzr, xzr, [sp]
@@ -926,17 +966,16 @@ FUNC(aegis128l_decrypt):
     // Copy partial ciphertext to buffer
     mov x12, sp
     mov x13, x11
-.Ldec_copy_ct:
-    cbz x13, .Ldec_copy_ct_done
+.Ldec_spill_copy_ct_loop:
+    cbz x13, .Ldec_spill_copy_ct_done
     ldrb w14, [x10], #1
     strb w14, [x12], #1
     sub x13, x13, #1
-    b .Ldec_copy_ct
-.Ldec_copy_ct_done:
+    b .Ldec_spill_copy_ct_loop
+.Ldec_spill_copy_ct_done:
 
     // Load zero-padded ciphertext
-    ld1 {v26.16b}, [sp]
-    ld1 {v27.16b}, [sp, #16]
+    ld1 {v26.16b, v27.16b}, [sp]     // ciphertext 0, 1 (32 bytes)
 
     // XOR to get plaintext (zero-padded)
     eor v14.16b, v26.16b, v12.16b
@@ -944,34 +983,32 @@ FUNC(aegis128l_decrypt):
 
     // For partial blocks, we need to zero the padding in plaintext
     // before updating state. Store plaintext, zero extra bytes, reload.
-    st1 {v14.16b}, [sp]
-    st1 {v15.16b}, [sp, #16]
+    st1 {v14.16b, v15.16b}, [sp]     // plaintext 0, 1 (32 bytes)
 
     // Zero bytes beyond the valid plaintext length
     add x12, sp, x11                 // x12 = buffer + valid_len
     mov x13, #32
     sub x13, x13, x11                // x13 = 32 - valid_len = bytes to zero
-.Ldec_zero_padding:
-    cbz x13, .Ldec_zero_padding_done
+.Ldec_spill_zero_padding_loop:
+    cbz x13, .Ldec_spill_zero_padding_done
     strb wzr, [x12], #1
     sub x13, x13, #1
-    b .Ldec_zero_padding
-.Ldec_zero_padding_done:
+    b .Ldec_spill_zero_padding_loop
+.Ldec_spill_zero_padding_done:
 
     // Copy valid plaintext bytes to output
     mov x12, sp
     mov x13, x11
-.Ldec_copy_pt:
-    cbz x13, .Ldec_copy_pt_done
+.Ldec_spill_copy_pt_loop:
+    cbz x13, .Ldec_spill_copy_pt_done
     ldrb w14, [x12], #1
     strb w14, [x25], #1
     sub x13, x13, #1
-    b .Ldec_copy_pt
-.Ldec_copy_pt_done:
+    b .Ldec_spill_copy_pt_loop
+.Ldec_spill_copy_pt_done:
 
     // Reload properly padded plaintext for state update
-    ld1 {v14.16b}, [sp]
-    ld1 {v15.16b}, [sp, #16]
+    ld1 {v14.16b, v15.16b}, [sp]     // plaintext 0, 1 (32 bytes, zero-padded)
 
     // Zeroize buffer
     stp xzr, xzr, [sp]
@@ -1009,17 +1046,33 @@ FUNC(aegis128l_decrypt):
     // Write computed tag (caller must compare with expected tag)
     st1 {v29.16b}, [x26]
 
-    // Nuclear zeroization
+    // === NUCLEAR ZEROIZATION PROTOCOL ===
+
+    // Step 1: Zeroize ALL registers (including sensitive plaintext)
     AEGIS_ZEROIZE_ALL
 
-    // Epilogue
+    // Step 2: Restore callee-saved registers from stack
     ldp d10, d11, [sp, #96]
     ldp d8, d9, [sp, #80]
     ldp x25, x26, [sp, #64]
     ldp x23, x24, [sp, #48]
     ldp x21, x22, [sp, #32]
     ldp x19, x20, [sp, #16]
-    ldp x29, x30, [sp], #112
+    ldp x29, x30, [sp, #0]
+
+    // Step 3: NUCLEAR STACK ZEROIZATION
+    // Zeroize the entire 112-byte stack frame
+    // stp writes 16 bytes per store: 112 / 16 = 7 stores
+    stp xzr, xzr, [sp, #0]           // Zero bytes [0..15]
+    stp xzr, xzr, [sp, #16]          // Zero bytes [16..31]
+    stp xzr, xzr, [sp, #32]          // Zero bytes [32..47]
+    stp xzr, xzr, [sp, #48]          // Zero bytes [48..63]
+    stp xzr, xzr, [sp, #64]          // Zero bytes [64..79]
+    stp xzr, xzr, [sp, #80]          // Zero bytes [80..95]
+    stp xzr, xzr, [sp, #96]          // Zero bytes [96..111]
+
+    // Step 4: Restore stack pointer and return
+    add sp, sp, #112
     ret
 
 #if !defined(__APPLE__) && !defined(_WIN32) && !defined(_WIN64)

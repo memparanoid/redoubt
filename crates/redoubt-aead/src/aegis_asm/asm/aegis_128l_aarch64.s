@@ -364,7 +364,8 @@ FUNC(aegis128l_init):
 
     // 🗑️❗ NUCLEAR ZEROIZATION PROTOCOL BEGIN
     // Step 1: Zeroize ALL registers (including key/nonce)
-    AEGIS_ZEROIZE_ALL
+    // TEMPORARY DISABLED TO DEBUG
+    // AEGIS_ZEROIZE_ALL
 
     // Zeroize additional temporaries used in this function
     mov x3, xzr
@@ -375,13 +376,11 @@ FUNC(aegis128l_init):
     ldp d8, d9, [sp, #0]
 
     // Step 3: NUCLEAR STACK ZEROIZATION
-    // Zeroize the entire 32-byte stack frame
-    mov x10, sp                      // x10 = start of stack frame
-    mov x11, #4                      // x11 = 32 bytes / 8 = 4 iterations
-.Lzero_stack_init:
-    stp xzr, xzr, [x10], #16         // Zero 16 bytes, advance pointer
-    sub x11, x11, #1
-    cbnz x11, .Lzero_stack_init
+    // Zeroize the entire 32-byte stack frame BEFORE adjusting sp
+    // stp writes 16 bytes per instruction: 32 / 16 = 2 stores
+    // TEMPORARY DISABLED TO DEBUG
+    // stp xzr, xzr, [sp, #0]           // Zero bytes [0..15]
+    // stp xzr, xzr, [sp, #16]          // Zero bytes [16..31]
 
     // Step 4: Restore stack pointer and return
     add sp, sp, #32
@@ -778,7 +777,8 @@ FUNC(aegis128l_encrypt):
 
     // 🗑️❗ NUCLEAR ZEROIZATION PROTOCOL BEGIN
     // Step 1: Zeroize ALL registers (including sensitive data)
-    AEGIS_ZEROIZE_ALL
+    // TEMPORARY DISABLED TO DEBUG
+    // AEGIS_ZEROIZE_ALL
 
     // Step 2: Restore callee-saved registers from stack
     ldp d10, d11, [sp, #96]
@@ -790,19 +790,15 @@ FUNC(aegis128l_encrypt):
     ldp x29, x30, [sp, #0]
 
     // Step 3: NUCLEAR STACK ZEROIZATION
-    // Zeroize the entire 112-byte stack frame that may contain:
-    //   - Spilled register values
-    //   - Intermediate computation results
-    //   - Potential sensitive data residue from previous operations
-    //
-    // Defense in depth: we don't know what was in memory before our function
-    // was called, so we zero everything we touched.
-    mov x10, sp                      // x10 = start of stack frame
-    mov x11, #14                     // x11 = 112 bytes / 8 = 14 iterations
-.Lzero_stack_encrypt:
-    stp xzr, xzr, [x10], #16         // Zero 16 bytes, advance pointer
-    sub x11, x11, #1
-    cbnz x11, .Lzero_stack_encrypt
+    // Zeroize the entire 112-byte stack frame BEFORE adjusting sp
+    // stp writes 16 bytes per store: 112 / 16 = 7 stores
+    stp xzr, xzr, [sp, #0]           // Zero bytes [0..15]
+    stp xzr, xzr, [sp, #16]          // Zero bytes [16..31]
+    stp xzr, xzr, [sp, #32]          // Zero bytes [32..47]
+    stp xzr, xzr, [sp, #48]          // Zero bytes [48..63]
+    stp xzr, xzr, [sp, #64]          // Zero bytes [64..79]
+    stp xzr, xzr, [sp, #80]          // Zero bytes [80..95]
+    stp xzr, xzr, [sp, #96]          // Zero bytes [96..111]
 
     // Step 4: Restore stack pointer and return
     add sp, sp, #112
@@ -1125,7 +1121,8 @@ FUNC(aegis128l_decrypt):
 
     // 🗑️❗ NUCLEAR ZEROIZATION PROTOCOL BEGIN
     // Step 1: Zeroize ALL registers (including sensitive plaintext)
-    AEGIS_ZEROIZE_ALL
+    // TEMPORARY DISABLED TO DEBUG
+    // AEGIS_ZEROIZE_ALL
 
     // Step 2: Restore callee-saved registers from stack
     ldp d10, d11, [sp, #96]
@@ -1137,20 +1134,15 @@ FUNC(aegis128l_decrypt):
     ldp x29, x30, [sp, #0]
 
     // Step 3: NUCLEAR STACK ZEROIZATION
-    // Zeroize the entire 112-byte stack frame that may contain:
-    //   - Spilled register values
-    //   - DECRYPTED PLAINTEXT residue (highly sensitive!)
-    //   - Intermediate computation results
-    //   - Potential sensitive data residue from previous operations
-    //
-    // Defense in depth: we don't know what was in memory before our function
-    // was called, so we zero everything we touched.
-    mov x10, sp                      // x10 = start of stack frame
-    mov x11, #14                     // x11 = 112 bytes / 8 = 14 iterations
-.Lzero_stack_decrypt:
-    stp xzr, xzr, [x10], #16         // Zero 16 bytes, advance pointer
-    sub x11, x11, #1
-    cbnz x11, .Lzero_stack_decrypt
+    // Zeroize the entire 112-byte stack frame BEFORE adjusting sp
+    // stp writes 16 bytes per store: 112 / 16 = 7 stores
+    stp xzr, xzr, [sp, #0]           // Zero bytes [0..15]
+    stp xzr, xzr, [sp, #16]          // Zero bytes [16..31]
+    stp xzr, xzr, [sp, #32]          // Zero bytes [32..47]
+    stp xzr, xzr, [sp, #48]          // Zero bytes [48..63]
+    stp xzr, xzr, [sp, #64]          // Zero bytes [64..79]
+    stp xzr, xzr, [sp, #80]          // Zero bytes [80..95]
+    stp xzr, xzr, [sp, #96]          // Zero bytes [96..111]
 
     // Step 4: Restore stack pointer and return
     add sp, sp, #112
