@@ -8,19 +8,15 @@
 unsafe extern "C" {
     /// Performs one AEGIS-128L state update round with message absorption.
     ///
+    /// NOTE: Not used by encrypt/decrypt (they inline updates), but kept for:
+    /// - RFC test vector validation (early issue detection)
+    /// - Debugging/testing individual update operations
+    ///
     /// # Safety
     /// - `state` must point to 128 bytes (8 blocks of 16 bytes each) and be 16-byte aligned
     /// - `m0` must point to 16 bytes (first message block)
     /// - `m1` must point to 16 bytes (second message block)
     pub fn aegis128l_update(state: *mut [u8; 128], m0: *const [u8; 16], m1: *const [u8; 16]);
-
-    /// Initializes AEGIS-128L state with key and nonce.
-    ///
-    /// # Safety
-    /// - `state` must point to 128 bytes (8 blocks of 16 bytes each) and be 16-byte aligned
-    /// - `key` must point to 16 bytes
-    /// - `nonce` must point to 16 bytes
-    pub fn aegis128l_init(state: *mut [u8; 128], key: *const [u8; 16], nonce: *const [u8; 16]);
 
     /// Performs complete AEGIS-128L encryption (in-place).
     ///
@@ -150,26 +146,6 @@ mod tests {
             state, expected,
             "AEGIS-128L update does not match RFC test vector"
         );
-    }
-
-    #[test]
-    #[cfg(target_arch = "aarch64")]
-    fn test_aegis128l_init_direct() {
-        // Test init function directly
-        #[repr(align(16))]
-        struct Aligned16<T>(T);
-
-        let key: Aligned16<[u8; 16]> = Aligned16([0x42; 16]);
-        let nonce: Aligned16<[u8; 16]> = Aligned16([0x43; 16]);
-        let mut state: Aligned16<[u8; 128]> = Aligned16([0xFF; 128]);
-
-        unsafe {
-            aegis128l_init(&mut state.0, &key.0, &nonce.0);
-        }
-
-        // Verify state was modified
-        assert_ne!(&state.0[..16], &[0xFF; 16], "State S0 should have changed");
-        println!("State S0-S1: {:02x?}", &state.0[..32]);
     }
 
     #[test]

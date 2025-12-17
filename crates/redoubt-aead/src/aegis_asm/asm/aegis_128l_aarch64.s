@@ -231,111 +231,13 @@ AEGIS_C1:
 .text
 
 // ============================================================================
-// AEGIS-128L State Initialization Function
-// ============================================================================
-//
-// Initializes the AEGIS-128L state with key and nonce.
-//
-// Initial state (RFC Section 2.2):
-//   S0 = key ^ nonce
-//   S1 = C1
-//   S2 = C0
-//   S3 = C1
-//   S4 = key ^ nonce
-//   S5 = key ^ C0
-//   S6 = key ^ C1
-//   S7 = key ^ C0
-//
-// Then performs 10 update rounds with (nonce, key) to mix the state.
-//
-// Parameters:
-//   x0 = pointer to state output (128 bytes, must be 16-byte aligned)
-//   x1 = pointer to key (16 bytes)
-//   x2 = pointer to nonce (16 bytes)
-//
-// Register allocation:
-//   v0-v7   = S0-S7 (state blocks)
-//   v16     = key (caller-saved)
-//   v17     = nonce (caller-saved)
-//   v18     = C0 constant (caller-saved)
-//   v19     = C1 constant (caller-saved)
-//   v20-v29 = temporaries for update macro
-//   v31     = zero vector
-//   x3      = state pointer (preserved)
-//
-// Returns: void (state is written to memory)
-//
-.global FUNC(aegis128l_init)
-HIDDEN_FUNC(aegis128l_init)
-#if !defined(__APPLE__) && !defined(_WIN32) && !defined(_WIN64)
-.type FUNC(aegis128l_init), @function
-#endif
-.p2align 4
-FUNC(aegis128l_init):
-    // Save state pointer (x0 will be reused)
-    mov x3, x0
-
-    // Load key and nonce into caller-saved SIMD registers
-    ld1 {v16.16b}, [x1]              // v16 = key
-    ld1 {v17.16b}, [x2]              // v17 = nonce
-
-    // Load constants C0 and C1 (reuse x0 as temp)
-#if defined(__APPLE__)
-    adrp x0, AEGIS_C0@PAGE
-    add x0, x0, AEGIS_C0@PAGEOFF
-    ld1 {v18.16b}, [x0]              // v18 = C0
-    adrp x0, AEGIS_C1@PAGE
-    add x0, x0, AEGIS_C1@PAGEOFF
-    ld1 {v19.16b}, [x0]              // v19 = C1
-#else
-    adrp x0, AEGIS_C0
-    add x0, x0, :lo12:AEGIS_C0
-    ld1 {v18.16b}, [x0]              // v18 = C0
-    adrp x0, AEGIS_C1
-    add x0, x0, :lo12:AEGIS_C1
-    ld1 {v19.16b}, [x0]              // v19 = C1
-#endif
-
-    // Initialize state in registers
-    eor v0.16b, v16.16b, v17.16b     // S0 = key ^ nonce
-    mov v1.16b, v19.16b              // S1 = C1
-    mov v2.16b, v18.16b              // S2 = C0
-    mov v3.16b, v19.16b              // S3 = C1
-    eor v4.16b, v16.16b, v17.16b     // S4 = key ^ nonce
-    eor v5.16b, v16.16b, v18.16b     // S5 = key ^ C0
-    eor v6.16b, v16.16b, v19.16b     // S6 = key ^ C1
-    eor v7.16b, v16.16b, v18.16b     // S7 = key ^ C0
-
-    // Perform 10 update rounds with (nonce, key)
-    AEGIS_UPDATE v17, v16            // Round 1
-    AEGIS_UPDATE v17, v16            // Round 2
-    AEGIS_UPDATE v17, v16            // Round 3
-    AEGIS_UPDATE v17, v16            // Round 4
-    AEGIS_UPDATE v17, v16            // Round 5
-    AEGIS_UPDATE v17, v16            // Round 6
-    AEGIS_UPDATE v17, v16            // Round 7
-    AEGIS_UPDATE v17, v16            // Round 8
-    AEGIS_UPDATE v17, v16            // Round 9
-    AEGIS_UPDATE v17, v16            // Round 10
-
-    // Write final state to memory
-    st1 {v0.16b-v3.16b}, [x3], #64
-    st1 {v4.16b-v7.16b}, [x3]
-
-    // Zeroize all caller-saved registers
-    AEGIS_ZEROIZE_ALL
-
-    ret
-
-#if !defined(__APPLE__) && !defined(_WIN32) && !defined(_WIN64)
-.size FUNC(aegis128l_init), .-FUNC(aegis128l_init)
-#endif
-
-// ============================================================================
 // AEGIS-128L Update Function (pointer-based interface for external use)
 // ============================================================================
 //
 // Performs one AEGIS-128L state update round with message absorption.
+//
+// NOTE: Not used by encrypt/decrypt (they use the AEGIS_UPDATE macro inline),
+//       but kept for RFC test vector validation and early issue detection.
 //
 // Parameters:
 //   x0 = pointer to state (128 bytes, modified in-place)
