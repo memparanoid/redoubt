@@ -625,17 +625,17 @@ FUNC(aegis128l_encrypt):
     b.lt .Lenc_partial               // If less, handle partial block
 
     // Generate keystream (RFC Section 2.4)
-    // keystream0 = S1 ^ S4 ^ S5 ^ (S2 & S3)
+    // keystream0 = S1 ^ S6 ^ (S2 & S3)
     and v12.16b, v2.16b, v3.16b      // v12 = S2 & S3
     eor v12.16b, v12.16b, v1.16b     // v12 ^= S1
-    eor v12.16b, v12.16b, v4.16b     // v12 ^= S4
-    eor v12.16b, v12.16b, v5.16b     // v12 = keystream0
+    eor v12.16b, v12.16b, v6.16b     // v12 ^= S6
+    // v12 = keystream0
 
-    // keystream1 = S2 ^ S5 ^ S6 ^ (S3 & S4)
-    and v13.16b, v3.16b, v4.16b      // v13 = S3 & S4
+    // keystream1 = S2 ^ S5 ^ (S6 & S7)
+    and v13.16b, v6.16b, v7.16b      // v13 = S6 & S7
     eor v13.16b, v13.16b, v2.16b     // v13 ^= S2
     eor v13.16b, v13.16b, v5.16b     // v13 ^= S5
-    eor v13.16b, v13.16b, v6.16b     // v13 = keystream1
+    // v13 = keystream1
 
     // Load plaintext
     ld1 {v14.16b}, [x10], #16        // plaintext block 0
@@ -660,17 +660,15 @@ FUNC(aegis128l_encrypt):
     cbz x11, .Lfinalize              // If 0 bytes, skip to finalization
 
     // Generate keystream BEFORE allocating stack (keep in v12, v13)
-    // keystream0 = S1 ^ S4 ^ S5 ^ (S2 & S3)
+    // keystream0 = S1 ^ S6 ^ (S2 & S3)
     and v12.16b, v2.16b, v3.16b
     eor v12.16b, v12.16b, v1.16b
-    eor v12.16b, v12.16b, v4.16b
-    eor v12.16b, v12.16b, v5.16b
+    eor v12.16b, v12.16b, v6.16b
 
-    // keystream1 = S2 ^ S5 ^ S6 ^ (S3 & S4)
-    and v13.16b, v3.16b, v4.16b
+    // keystream1 = S2 ^ S5 ^ (S6 & S7)
+    and v13.16b, v6.16b, v7.16b
     eor v13.16b, v13.16b, v2.16b
     eor v13.16b, v13.16b, v5.16b
-    eor v13.16b, v13.16b, v6.16b
 
 // ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
 // ║
@@ -739,7 +737,7 @@ FUNC(aegis128l_encrypt):
 .Lfinalize:
     // === Phase 4: Finalization and Tag Generation ===
     // RFC Section 2.5:
-    //   tmp = S3 ^ (aad_bits || msg_bits)  // 128-bit block
+    //   tmp = S2 ^ (aad_bits || msg_bits)  // 128-bit block
     //   Update(tmp, tmp) × 7               // 7 update rounds
     //   tag = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5 ^ S6
 
@@ -752,8 +750,8 @@ FUNC(aegis128l_encrypt):
     fmov d28, x10                    // d28 = aad_bits (lower 64 bits of v28)
     mov v28.d[1], x11                // v28.d[1] = msg_bits (upper 64 bits of v28)
 
-    // tmp = S3 ^ (aad_bits || msg_bits)
-    eor v28.16b, v28.16b, v3.16b     // v28 = tmp
+    // tmp = S2 ^ (aad_bits || msg_bits)
+    eor v28.16b, v28.16b, v2.16b     // v28 = tmp
 
     // Perform 7 finalization rounds: Update(tmp, tmp)
     AEGIS_UPDATE v28, v28            // Round 1
@@ -972,16 +970,14 @@ FUNC(aegis128l_decrypt):
     cmp x11, #32
     b.lt .Ldec_partial
 
-    // Generate keystream
+    // Generate keystream: z0 = S1 ^ S6 ^ (S2 & S3), z1 = S2 ^ S5 ^ (S6 & S7)
     and v12.16b, v2.16b, v3.16b
     eor v12.16b, v12.16b, v1.16b
-    eor v12.16b, v12.16b, v4.16b
-    eor v12.16b, v12.16b, v5.16b
+    eor v12.16b, v12.16b, v6.16b
 
-    and v13.16b, v3.16b, v4.16b
+    and v13.16b, v6.16b, v7.16b
     eor v13.16b, v13.16b, v2.16b
     eor v13.16b, v13.16b, v5.16b
-    eor v13.16b, v13.16b, v6.16b
 
     // Load ciphertext
     ld1 {v26.16b}, [x10], #16
@@ -1004,16 +1000,14 @@ FUNC(aegis128l_decrypt):
 .Ldec_partial:
     cbz x11, .Ldec_finalize
 
-    // Generate keystream
+    // Generate keystream: z0 = S1 ^ S6 ^ (S2 & S3), z1 = S2 ^ S5 ^ (S6 & S7)
     and v12.16b, v2.16b, v3.16b
     eor v12.16b, v12.16b, v1.16b
-    eor v12.16b, v12.16b, v4.16b
-    eor v12.16b, v12.16b, v5.16b
+    eor v12.16b, v12.16b, v6.16b
 
-    and v13.16b, v3.16b, v4.16b
+    and v13.16b, v6.16b, v7.16b
     eor v13.16b, v13.16b, v2.16b
     eor v13.16b, v13.16b, v5.16b
-    eor v13.16b, v13.16b, v6.16b
 
 // ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
 // ║
@@ -1098,7 +1092,7 @@ FUNC(aegis128l_decrypt):
 
     fmov d28, x10
     mov v28.d[1], x11
-    eor v28.16b, v28.16b, v3.16b
+    eor v28.16b, v28.16b, v2.16b     // tmp = S2 ^ (aad_bits || msg_bits)
 
     AEGIS_UPDATE v28, v28
     AEGIS_UPDATE v28, v28
