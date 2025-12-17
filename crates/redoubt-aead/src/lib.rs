@@ -27,4 +27,10 @@ pub mod aegis;
     any(target_arch = "x86_64", target_arch = "aarch64"),
     not(target_os = "wasi")
 ))]
+pub mod aegis_asm;
+
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    not(target_os = "wasi")
+))]
 pub use aegis::Aegis128L;

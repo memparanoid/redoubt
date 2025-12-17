@@ -20,3 +20,6 @@ thiserror.workspace   = true
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 cpufeatures.workspace = true
+
+[build-dependencies]
+cc.workspace = true
