@@ -602,8 +602,7 @@ FUNC(aegis128l_encrypt):
     b .Laad_spill_copy_loop
 .Laad_spill_copy_done:
     // Load zero-padded AAD from buffer
-    ld1 {v12.16b}, [sp]              // M0
-    ld1 {v13.16b}, [sp, #16]         // M1
+    ld1 {v12.16b, v13.16b}, [sp]     // M0, M1 (32 bytes)
 
 // ║
 // ║ >>> ZEROIZATION OF SPILL BUFFER HAPPENS HERE <<<
@@ -706,16 +705,14 @@ FUNC(aegis128l_encrypt):
 .Lenc_spill_copy_pt_done:
 
     // Load zero-padded plaintext from buffer
-    ld1 {v14.16b}, [sp]              // plaintext block 0 (padded)
-    ld1 {v15.16b}, [sp, #16]         // plaintext block 1 (padded)
+    ld1 {v14.16b, v15.16b}, [sp]     // plaintext blocks 0, 1 (32 bytes)
 
     // XOR with keystream
     eor v26.16b, v14.16b, v12.16b    // ciphertext0
     eor v27.16b, v15.16b, v13.16b    // ciphertext1
 
     // Store ciphertext to buffer (will extract only valid bytes)
-    st1 {v26.16b}, [sp]
-    st1 {v27.16b}, [sp, #16]
+    st1 {v26.16b, v27.16b}, [sp]     // ciphertext 0, 1 (32 bytes)
 
     // Copy only valid ciphertext bytes to output
     mov x12, sp                      // x12 = buffer pointer
@@ -956,8 +953,8 @@ FUNC(aegis128l_decrypt):
     sub x13, x13, #1
     b .Ldec_aad_spill_copy_loop
 .Ldec_aad_spill_copy_done:
-    ld1 {v12.16b}, [sp]
-    ld1 {v13.16b}, [sp, #16]
+    ld1 {v12.16b, v13.16b}, [sp]     // AAD M0, M1 (32 bytes)
+
 // ║
 // ║ >>> ZEROIZATION OF SPILL BUFFER HAPPENS HERE <<<
 // ║
@@ -1053,8 +1050,7 @@ FUNC(aegis128l_decrypt):
     b .Ldec_spill_copy_ct_loop
 .Ldec_spill_copy_ct_done:
     // Load zero-padded ciphertext
-    ld1 {v26.16b}, [sp]
-    ld1 {v27.16b}, [sp, #16]
+    ld1 {v26.16b, v27.16b}, [sp]     // ciphertext 0, 1 (32 bytes)
 
     // XOR to get plaintext (zero-padded)
     eor v14.16b, v26.16b, v12.16b
@@ -1062,8 +1058,7 @@ FUNC(aegis128l_decrypt):
 
     // For partial blocks, we need to zero the padding in plaintext
     // before updating state. Store plaintext, zero extra bytes, reload.
-    st1 {v14.16b}, [sp]
-    st1 {v15.16b}, [sp, #16]
+    st1 {v14.16b, v15.16b}, [sp]     // plaintext 0, 1 (32 bytes)
 
     // Zero bytes beyond the valid plaintext length
     add x12, sp, x11                 // x12 = buffer + valid_len
@@ -1086,8 +1081,7 @@ FUNC(aegis128l_decrypt):
     b .Ldec_spill_copy_pt_loop
 .Ldec_spill_copy_pt_done:
     // Reload properly padded plaintext for state update
-    ld1 {v14.16b}, [sp]
-    ld1 {v15.16b}, [sp, #16]
+    ld1 {v14.16b, v15.16b}, [sp]     // plaintext 0, 1 (32 bytes, zero-padded)
 
 // ║
 // ║ >>> ZEROIZATION OF SPILL BUFFER HAPPENS HERE <<<
