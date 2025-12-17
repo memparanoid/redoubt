@@ -60,6 +60,10 @@
 //   x19-x26 = Saved parameters (callee-saved - will be restored after)
 //
 .macro AEGIS_ZEROIZE_ALL
+    // === NUCLEAR REGISTER ZEROIZATION ===
+    // Zeroize ALL registers used during encryption/decryption
+    // This happens BEFORE restoration of callee-saved registers
+
     // Zeroize state registers (v0-v7) - caller-saved
     movi v0.16b, #0
     movi v1.16b, #0
@@ -98,7 +102,20 @@
     movi v30.16b, #0
     movi v31.16b, #0
 
-    // Zeroize temporary general purpose registers
+    // Zeroize ALL caller-saved general purpose registers (x0-x9)
+    // These may contain sensitive pointers, lengths, or intermediate values
+    mov x0, xzr
+    mov x1, xzr
+    mov x2, xzr
+    mov x3, xzr
+    mov x4, xzr
+    mov x5, xzr
+    mov x6, xzr
+    mov x7, xzr
+    mov x8, xzr
+    mov x9, xzr
+
+    // Zeroize temporary general purpose registers (x10-x14)
     mov x10, xzr
     mov x11, xzr
     mov x12, xzr
@@ -345,16 +362,31 @@ FUNC(aegis128l_init):
     st1 {v0.16b-v3.16b}, [x3], #64
     st1 {v4.16b-v7.16b}, [x3]
 
-    // Nuclear zeroization: clear ALL registers (including callee-saved v8-v11)
+    // 🗑️❗ NUCLEAR ZEROIZATION PROTOCOL BEGIN
+    // Step 1: Zeroize ALL registers (including key/nonce)
     AEGIS_ZEROIZE_ALL
 
     // Zeroize additional temporaries used in this function
     mov x3, xzr
     mov x4, xzr
 
-    // Epilogue: restore callee-saved registers (overwrites zeros with original values)
+    // Step 2: Restore callee-saved registers from stack
     ldp d10, d11, [sp, #16]
-    ldp d8, d9, [sp], #32
+    ldp d8, d9, [sp, #0]
+
+    // Step 3: NUCLEAR STACK ZEROIZATION
+    // Zeroize the entire 32-byte stack frame
+    mov x10, sp                      // x10 = start of stack frame
+    mov x11, #4                      // x11 = 32 bytes / 8 = 4 iterations
+.Lzero_stack_init:
+    stp xzr, xzr, [x10], #16         // Zero 16 bytes, advance pointer
+    sub x11, x11, #1
+    cbnz x11, .Lzero_stack_init
+
+    // Step 4: Restore stack pointer and return
+    add sp, sp, #32
+
+    // 🧹 NUCLEAR ZEROIZATION PROTOCOL FINISHED
     ret
 
 #if !defined(__APPLE__) && !defined(_WIN32) && !defined(_WIN64)
@@ -747,17 +779,38 @@ FUNC(aegis128l_encrypt):
     // Write tag to output
     st1 {v29.16b}, [x26]
 
-    // Nuclear zeroization: clear ALL registers
+    // 🗑️❗ NUCLEAR ZEROIZATION PROTOCOL BEGIN
+    // Step 1: Zeroize ALL registers (including sensitive data)
     AEGIS_ZEROIZE_ALL
 
-    // Epilogue: restore callee-saved registers
+    // Step 2: Restore callee-saved registers from stack
     ldp d10, d11, [sp, #96]
     ldp d8, d9, [sp, #80]
     ldp x25, x26, [sp, #64]
     ldp x23, x24, [sp, #48]
     ldp x21, x22, [sp, #32]
     ldp x19, x20, [sp, #16]
-    ldp x29, x30, [sp], #112
+    ldp x29, x30, [sp, #0]
+
+    // Step 3: NUCLEAR STACK ZEROIZATION
+    // Zeroize the entire 112-byte stack frame that may contain:
+    //   - Spilled register values
+    //   - Intermediate computation results
+    //   - Potential sensitive data residue from previous operations
+    //
+    // Defense in depth: we don't know what was in memory before our function
+    // was called, so we zero everything we touched.
+    mov x10, sp                      // x10 = start of stack frame
+    mov x11, #14                     // x11 = 112 bytes / 8 = 14 iterations
+.Lzero_stack_encrypt:
+    stp xzr, xzr, [x10], #16         // Zero 16 bytes, advance pointer
+    sub x11, x11, #1
+    cbnz x11, .Lzero_stack_encrypt
+
+    // Step 4: Restore stack pointer and return
+    add sp, sp, #112
+
+    // 🧹 NUCLEAR ZEROIZATION PROTOCOL FINISHED
     ret
 
 #if !defined(__APPLE__) && !defined(_WIN32) && !defined(_WIN64)
@@ -1076,17 +1129,39 @@ FUNC(aegis128l_decrypt):
     // Write computed tag (caller must compare with expected tag)
     st1 {v29.16b}, [x26]
 
-    // Nuclear zeroization
+    // 🗑️❗ NUCLEAR ZEROIZATION PROTOCOL BEGIN
+    // Step 1: Zeroize ALL registers (including sensitive plaintext)
     AEGIS_ZEROIZE_ALL
 
-    // Epilogue
+    // Step 2: Restore callee-saved registers from stack
     ldp d10, d11, [sp, #96]
     ldp d8, d9, [sp, #80]
     ldp x25, x26, [sp, #64]
     ldp x23, x24, [sp, #48]
     ldp x21, x22, [sp, #32]
     ldp x19, x20, [sp, #16]
-    ldp x29, x30, [sp], #112
+    ldp x29, x30, [sp, #0]
+
+    // Step 3: NUCLEAR STACK ZEROIZATION
+    // Zeroize the entire 112-byte stack frame that may contain:
+    //   - Spilled register values
+    //   - DECRYPTED PLAINTEXT residue (highly sensitive!)
+    //   - Intermediate computation results
+    //   - Potential sensitive data residue from previous operations
+    //
+    // Defense in depth: we don't know what was in memory before our function
+    // was called, so we zero everything we touched.
+    mov x10, sp                      // x10 = start of stack frame
+    mov x11, #14                     // x11 = 112 bytes / 8 = 14 iterations
+.Lzero_stack_decrypt:
+    stp xzr, xzr, [x10], #16         // Zero 16 bytes, advance pointer
+    sub x11, x11, #1
+    cbnz x11, .Lzero_stack_decrypt
+
+    // Step 4: Restore stack pointer and return
+    add sp, sp, #112
+
+    // 🧹 NUCLEAR ZEROIZATION PROTOCOL FINISHED
     ret
 
 #if !defined(__APPLE__) && !defined(_WIN32) && !defined(_WIN64)
