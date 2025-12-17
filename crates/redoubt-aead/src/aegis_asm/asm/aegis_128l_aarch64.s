@@ -720,7 +720,8 @@ FUNC(aegis128l_encrypt):
 //   x4 = pointer to ciphertext
 //   x5 = ciphertext length in bytes
 //   x6 = pointer to plaintext output buffer
-//   x7 = pointer to computed tag output (16 bytes)
+//   x7 = pointer to expected tag (16 bytes)
+//   [sp] = pointer to computed tag output (16 bytes) - 9th param on stack
 //
 // Returns: void (plaintext and computed tag are written to output buffers)
 //
@@ -739,7 +740,8 @@ FUNC(aegis128l_decrypt):
     mov x10, x4                      // x10 = ciphertext pointer
     mov x11, x5                      // x11 = ciphertext length
     mov x12, x6                      // x12 = plaintext pointer
-    mov x13, x7                      // x13 = tag pointer
+    mov x13, x7                      // x13 = expected_tag pointer
+    ldr x14, [sp]                    // x14 = computed_tag pointer (9th param from stack)
 
     // === Phase 1: Initialization ===
     ld1 {v16.16b}, [x0]              // v16 = key
@@ -1004,8 +1006,8 @@ FUNC(aegis128l_decrypt):
     eor v16.16b, v16.16b, v5.16b
     eor v16.16b, v16.16b, v6.16b
 
-    // Write tag
-    st1 {v16.16b}, [x13]
+    // Write computed tag
+    st1 {v16.16b}, [x14]
 
     // Zeroize all caller-saved registers
     AEGIS_ZEROIZE_ALL

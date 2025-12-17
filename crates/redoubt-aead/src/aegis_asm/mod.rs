@@ -228,6 +228,103 @@ mod tests {
 
     #[test]
     #[cfg(target_arch = "aarch64")]
+    fn test_aegis128l_encrypt_decrypt_roundtrip() {
+        // AEGIS-128L RFC Test Vector A.2.4 - Test Vector 3
+        // key:   10010000000000000000000000000000
+        // nonce: 10000200000000000000000000000000
+        // ad:    0001020304050607
+        // msg:   000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+        // ct:    79d94593d8c2119d7e8fd9b8fc77845c5c077a05b2528b6ac54b563aed8efe84
+        // tag:   cc6f3372f6aa1bb82388d695c3962d9a
+
+        let key: [u8; 16] = [
+            0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let nonce: [u8; 16] = [
+            0x10, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        let aad: [u8; 8] = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
+        let plaintext: [u8; 32] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+            0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        ];
+        let expected_ciphertext: [u8; 32] = [
+            0x79, 0xd9, 0x45, 0x93, 0xd8, 0xc2, 0x11, 0x9d,
+            0x7e, 0x8f, 0xd9, 0xb8, 0xfc, 0x77, 0x84, 0x5c,
+            0x5c, 0x07, 0x7a, 0x05, 0xb2, 0x52, 0x8b, 0x6a,
+            0xc5, 0x4b, 0x56, 0x3a, 0xed, 0x8e, 0xfe, 0x84,
+        ];
+        let expected_tag: [u8; 16] = [
+            0xcc, 0x6f, 0x33, 0x72, 0xf6, 0xaa, 0x1b, 0xb8,
+            0x23, 0x88, 0xd6, 0x95, 0xc3, 0x96, 0x2d, 0x9a,
+        ];
+
+        let mut ciphertext: [u8; 32] = [0xFF; 32];
+        let mut tag: [u8; 16] = [0xFF; 16];
+
+        // === ENCRYPT ===
+        unsafe {
+            aegis128l_encrypt(
+                &key,
+                &nonce,
+                aad.as_ptr(),
+                aad.len(),
+                plaintext.as_ptr(),
+                plaintext.len(),
+                ciphertext.as_mut_ptr(),
+                &mut tag,
+            );
+        }
+
+        assert_eq!(
+            ciphertext, expected_ciphertext,
+            "Ciphertext mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            ciphertext, expected_ciphertext
+        );
+
+        assert_eq!(
+            tag, expected_tag,
+            "Tag mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            tag, expected_tag
+        );
+
+        // === DECRYPT ===
+        let mut decrypted: [u8; 32] = [0xFF; 32];
+        let mut computed_tag: [u8; 16] = [0xFF; 16];
+
+        unsafe {
+            aegis128l_decrypt(
+                &key,
+                &nonce,
+                aad.as_ptr(),
+                aad.len(),
+                ciphertext.as_ptr(),
+                ciphertext.len(),
+                decrypted.as_mut_ptr(),
+                &expected_tag,
+                &mut computed_tag,
+            );
+        }
+
+        assert_eq!(
+            computed_tag, expected_tag,
+            "Computed tag mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            computed_tag, expected_tag
+        );
+
+        assert_eq!(
+            decrypted, plaintext,
+            "Decrypted plaintext mismatch.\nGot:      {:02x?}\nExpected: {:02x?}",
+            decrypted, plaintext
+        );
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
     #[ignore] // Test after 16-byte works
     fn test_aegis128l_encrypt_aligned() {
         // Test with 16-byte aligned buffers to isolate alignment issue
