@@ -539,21 +539,6 @@ FUNC(aegis128l_encrypt):
     // Handle partial AAD block (1-31 bytes remaining in x11)
     cbz x11, .Laad_done              // If 0 bytes, skip
 
-// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
-// ║
-// ║ SECURITY WARNING: Temporary stack spill of partial AAD data
-// ║
-// ║ We are spilling partial AAD data to a 32-byte stack buffer because:
-// ║   - ARM64 'ins' instruction requires immediate (constant) indices
-// ║   - Variable-index insertion would require 200+ LOC of jump table code
-// ║   - This is a pragmatic compromise between security and maintainability
-// ║
-// ║ CRITICAL REQUIREMENTS:
-// ║   1. Buffer MUST be pre-zeroized before any data is written
-// ║   2. Buffer MUST be immediately zeroized after use
-// ║   3. No other code may execute between use and zeroization
-// ║
-// ║═══════════════════════════════════════════════════════════════════════
     // Allocate and pre-zeroize 32-byte stack buffer
     sub sp, sp, #32
     stp xzr, xzr, [sp]
@@ -562,24 +547,22 @@ FUNC(aegis128l_encrypt):
     // Copy partial AAD bytes to stack buffer
     mov x12, sp                      // x12 = buffer pointer
     mov x13, x11                     // x13 = bytes to copy
-.Laad_spill_copy_loop:
-    cbz x13, .Laad_spill_copy_done
+.Laad_copy_loop:
+    cbz x13, .Laad_copy_done
     ldrb w14, [x10], #1              // Load byte from AAD
     strb w14, [x12], #1              // Store to buffer
     sub x13, x13, #1
-    b .Laad_spill_copy_loop
-.Laad_spill_copy_done:
+    b .Laad_copy_loop
+.Laad_copy_done:
+
     // Load zero-padded AAD from buffer
     ld1 {v12.16b}, [sp]              // M0
     ld1 {v13.16b}, [sp, #16]         // M1
 
-// ║
-// ║ >>> ZEROIZATION OF SPILL BUFFER HAPPENS HERE <<<
-// ║
+    // IMMEDIATE zeroization of stack buffer
     stp xzr, xzr, [sp]
     stp xzr, xzr, [sp, #16]
     add sp, sp, #32
-// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
 
     // Update state with padded AAD
     AEGIS_UPDATE v12, v13
@@ -642,21 +625,6 @@ FUNC(aegis128l_encrypt):
     eor v13.16b, v13.16b, v5.16b
     eor v13.16b, v13.16b, v6.16b
 
-// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
-// ║
-// ║ SECURITY WARNING: Temporary stack spill of partial PLAINTEXT data
-// ║
-// ║ We are spilling partial plaintext/ciphertext to a 32-byte stack buffer.
-// ║ Reason: ARM64 'ins' instruction requires compile-time constant indices.
-// ║
-// ║ CRITICAL SECURITY REQUIREMENTS:
-// ║   1. Buffer MUST be pre-zeroized before plaintext is written
-// ║   2. Buffer MUST be immediately zeroized after ciphertext extraction
-// ║   3. No code may execute between ciphertext copy and zeroization
-// ║
-// ║ This violates the hermetic principle but avoids 200+ LOC of jump tables.
-// ║
-// ║═══════════════════════════════════════════════════════════════════════
     // Allocate and pre-zeroize 32-byte stack buffer
     sub sp, sp, #32
     stp xzr, xzr, [sp]
@@ -665,13 +633,13 @@ FUNC(aegis128l_encrypt):
     // Copy partial plaintext to buffer
     mov x12, sp                      // x12 = buffer pointer
     mov x13, x11                     // x13 = bytes to copy
-.Lenc_spill_copy_pt_loop:
-    cbz x13, .Lenc_spill_copy_pt_done
+.Lenc_copy_pt_loop:
+    cbz x13, .Lenc_copy_pt_done
     ldrb w14, [x10], #1              // Load byte from plaintext
     strb w14, [x12], #1              // Store to buffer
     sub x13, x13, #1
-    b .Lenc_spill_copy_pt_loop
-.Lenc_spill_copy_pt_done:
+    b .Lenc_copy_pt_loop
+.Lenc_copy_pt_done:
 
     // Load zero-padded plaintext from buffer
     ld1 {v14.16b}, [sp]              // plaintext block 0 (padded)
@@ -688,22 +656,18 @@ FUNC(aegis128l_encrypt):
     // Copy only valid ciphertext bytes to output
     mov x12, sp                      // x12 = buffer pointer
     mov x13, x11                     // x13 = bytes to copy
-.Lenc_spill_copy_ct_loop:
-    cbz x13, .Lenc_spill_copy_ct_done
+.Lenc_copy_ct_loop:
+    cbz x13, .Lenc_copy_ct_done
     ldrb w14, [x12], #1              // Load byte from buffer
     strb w14, [x25], #1              // Store to ciphertext output
     sub x13, x13, #1
-    b .Lenc_spill_copy_ct_loop
-.Lenc_spill_copy_ct_done:
+    b .Lenc_copy_ct_loop
+.Lenc_copy_ct_done:
 
-// ║
-// ║ >>> ZEROIZATION OF SPILL BUFFER HAPPENS HERE <<<
-// ║     (contains plaintext - MUST be cleared immediately)
-// ║
+    // IMMEDIATE zeroization of stack buffer
     stp xzr, xzr, [sp]
     stp xzr, xzr, [sp, #16]
     add sp, sp, #32
-// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
 
     // Update state with zero-padded plaintext (v14, v15 still valid)
     AEGIS_UPDATE v14, v15
@@ -873,21 +837,6 @@ FUNC(aegis128l_decrypt):
 .Ldec_aad_partial:
     cbz x11, .Ldec_aad_done
 
-// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
-// ║
-// ║ SECURITY WARNING: Temporary stack spill of partial AAD data
-// ║
-// ║ We are spilling partial AAD data to a 32-byte stack buffer because:
-// ║   - ARM64 'ins' instruction requires immediate (constant) indices
-// ║   - Variable-index insertion would require 200+ LOC of jump table code
-// ║   - This is a pragmatic compromise between security and maintainability
-// ║
-// ║ CRITICAL REQUIREMENTS:
-// ║   1. Buffer MUST be pre-zeroized before any data is written
-// ║   2. Buffer MUST be immediately zeroized after use
-// ║   3. No other code may execute between use and zeroization
-// ║
-// ║═══════════════════════════════════════════════════════════════════════
     // Allocate and pre-zeroize buffer
     sub sp, sp, #32
     stp xzr, xzr, [sp]
@@ -896,26 +845,26 @@ FUNC(aegis128l_decrypt):
     // Copy partial AAD
     mov x12, sp
     mov x13, x11
-.Ldec_aad_spill_copy_loop:
-    cbz x13, .Ldec_aad_spill_copy_done
+.Ldec_aad_copy:
+    cbz x13, .Ldec_aad_copy_done
     ldrb w14, [x10], #1
     strb w14, [x12], #1
     sub x13, x13, #1
-    b .Ldec_aad_spill_copy_loop
-.Ldec_aad_spill_copy_done:
+    b .Ldec_aad_copy
+.Ldec_aad_copy_done:
+
     ld1 {v12.16b}, [sp]
     ld1 {v13.16b}, [sp, #16]
-// ║
-// ║ >>> ZEROIZATION OF SPILL BUFFER HAPPENS HERE <<<
-// ║
+
+    // Zeroize buffer
     stp xzr, xzr, [sp]
     stp xzr, xzr, [sp, #16]
     add sp, sp, #32
-// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
 
     AEGIS_UPDATE v12, v13
 
 .Ldec_aad_done:
+
     // === Phase 3: Decrypt ciphertext ===
     // Key difference from encryption: we XOR ciphertext with keystream to get
     // plaintext, then update state with PLAINTEXT (not ciphertext)
@@ -969,21 +918,6 @@ FUNC(aegis128l_decrypt):
     eor v13.16b, v13.16b, v5.16b
     eor v13.16b, v13.16b, v6.16b
 
-// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
-// ║
-// ║ SECURITY WARNING: Temporary stack spill of CIPHERTEXT and PLAINTEXT
-// ║
-// ║ We are spilling partial ciphertext/plaintext to a 32-byte stack buffer.
-// ║ Reason: ARM64 'ins' instruction requires compile-time constant indices.
-// ║
-// ║ CRITICAL SECURITY REQUIREMENTS:
-// ║   1. Buffer MUST be pre-zeroized before ciphertext is written
-// ║   2. Buffer MUST be immediately zeroized after plaintext extraction
-// ║   3. No code may execute between plaintext copy and zeroization
-// ║
-// ║ WARNING: This buffer will contain DECRYPTED PLAINTEXT (highly sensitive)
-// ║
-// ║═══════════════════════════════════════════════════════════════════════
     // Allocate and pre-zeroize buffer
     sub sp, sp, #32
     stp xzr, xzr, [sp]
@@ -992,13 +926,14 @@ FUNC(aegis128l_decrypt):
     // Copy partial ciphertext to buffer
     mov x12, sp
     mov x13, x11
-.Ldec_spill_copy_ct_loop:
-    cbz x13, .Ldec_spill_copy_ct_done
+.Ldec_copy_ct:
+    cbz x13, .Ldec_copy_ct_done
     ldrb w14, [x10], #1
     strb w14, [x12], #1
     sub x13, x13, #1
-    b .Ldec_spill_copy_ct_loop
-.Ldec_spill_copy_ct_done:
+    b .Ldec_copy_ct
+.Ldec_copy_ct_done:
+
     // Load zero-padded ciphertext
     ld1 {v26.16b}, [sp]
     ld1 {v27.16b}, [sp, #16]
@@ -1016,34 +951,32 @@ FUNC(aegis128l_decrypt):
     add x12, sp, x11                 // x12 = buffer + valid_len
     mov x13, #32
     sub x13, x13, x11                // x13 = 32 - valid_len = bytes to zero
-.Ldec_spill_zero_padding_loop:
-    cbz x13, .Ldec_spill_zero_padding_done
+.Ldec_zero_padding:
+    cbz x13, .Ldec_zero_padding_done
     strb wzr, [x12], #1
     sub x13, x13, #1
-    b .Ldec_spill_zero_padding_loop
-.Ldec_spill_zero_padding_done:
+    b .Ldec_zero_padding
+.Ldec_zero_padding_done:
+
     // Copy valid plaintext bytes to output
     mov x12, sp
     mov x13, x11
-.Ldec_spill_copy_pt_loop:
-    cbz x13, .Ldec_spill_copy_pt_done
+.Ldec_copy_pt:
+    cbz x13, .Ldec_copy_pt_done
     ldrb w14, [x12], #1
     strb w14, [x25], #1
     sub x13, x13, #1
-    b .Ldec_spill_copy_pt_loop
-.Ldec_spill_copy_pt_done:
+    b .Ldec_copy_pt
+.Ldec_copy_pt_done:
+
     // Reload properly padded plaintext for state update
     ld1 {v14.16b}, [sp]
     ld1 {v15.16b}, [sp, #16]
 
-// ║
-// ║ >>> ZEROIZATION OF SPILL BUFFER HAPPENS HERE <<<
-// ║     (contains DECRYPTED PLAINTEXT - MUST be cleared immediately)
-// ║
+    // Zeroize buffer
     stp xzr, xzr, [sp]
     stp xzr, xzr, [sp, #16]
     add sp, sp, #32
-// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
 
     // Update state with zero-padded plaintext
     AEGIS_UPDATE v14, v15

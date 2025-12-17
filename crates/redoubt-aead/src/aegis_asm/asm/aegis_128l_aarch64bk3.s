@@ -1,7 +1,3 @@
-// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
-// SPDX-License-Identifier: GPL-3.0-only
-// See LICENSE in the repository root for full license text.
-
 // AEGIS-128L AEAD Cipher - ARM64/AArch64 Implementation
 //
 // This implementation uses ARM NEON Crypto Extensions for AES operations.
@@ -9,10 +5,6 @@
 //
 // This version uses inline macros to eliminate stack spilling of sensitive data.
 // All state, key, and nonce remain in SIMD registers during initialization.
-//
-// Partial block handling uses a 32-byte stack buffer that is:
-//   1. Pre-zeroized before any sensitive data is written
-//   2. Immediately zeroized after use (before any other code runs)
 //
 // Platform Support: Linux, macOS, Windows (ARM64)
 //
@@ -56,7 +48,7 @@
 //   v0-v7   = AEGIS state (caller-saved)
 //   v8-v11  = key, nonce, C0, C1 (callee-saved - will be restored after)
 //   v12-v31 = Temporary registers (caller-saved)
-//   x10-x14 = Temporary pointers/counters
+//   x10-x11 = Temporary pointers/counters
 //   x19-x26 = Saved parameters (callee-saved - will be restored after)
 //
 .macro AEGIS_ZEROIZE_ALL
@@ -407,7 +399,7 @@ FUNC(aegis128l_update):
 #endif
 
 // ============================================================================
-// AEGIS-128L Encryption Function (Full support including partial blocks)
+// AEGIS-128L Encryption Function (Optimized - all inline, no calls)
 // ============================================================================
 //
 // Performs complete AEGIS-128L encryption with authentication.
@@ -415,13 +407,6 @@ FUNC(aegis128l_update):
 // This version inlines all operations (init, AAD processing, encryption) to
 // avoid stack spilling of sensitive data. Key and nonce remain in callee-saved
 // SIMD registers throughout execution.
-//
-// Partial block handling:
-//   ARM64 cannot use variable indices with 'ins' instruction, so partial
-//   blocks require a 32-byte stack buffer. This buffer is:
-//   1. Pre-zeroized before any sensitive data is written
-//   2. Immediately zeroized after use (before any other code executes)
-//   This minimizes the exposure window of sensitive data on the stack.
 //
 // Parameters:
 //   x0 = pointer to key (16 bytes)
@@ -442,7 +427,7 @@ FUNC(aegis128l_update):
 //   v12-v27 = temporaries for keystream, plaintext, ciphertext
 //   v31     = zero vector
 //   x19-x26 = saved parameter values
-//   x10-x14 = loop counters/pointers/temporaries
+//   x10-x11 = loop counters/pointers
 //
 // Returns: void (ciphertext and tag are written to output buffers)
 //
@@ -454,14 +439,14 @@ HIDDEN_FUNC(aegis128l_encrypt)
 .p2align 4
 FUNC(aegis128l_encrypt):
     // Prologue: save frame pointer and callee-saved registers
-    stp x29, x30, [sp, #-112]!
+    // Note: No need to save x30 (link register) - this function makes no calls
+    stp x29, x19, [sp, #-96]!
     mov x29, sp
-    stp x19, x20, [sp, #16]
-    stp x21, x22, [sp, #32]
-    stp x23, x24, [sp, #48]
-    stp x25, x26, [sp, #64]
-    stp d8, d9, [sp, #80]
-    stp d10, d11, [sp, #96]
+    stp x20, x21, [sp, #16]
+    stp x22, x23, [sp, #32]
+    stp x24, x25, [sp, #48]
+    str x26, [sp, #64]
+    stp d8, d9, [sp, #72]
 
     // Save parameters to callee-saved registers
     mov x19, x0                      // key pointer
@@ -521,78 +506,30 @@ FUNC(aegis128l_encrypt):
     mov x10, x21                     // AAD pointer
     mov x11, x22                     // AAD remaining bytes
 
-.Laad_full_blocks:
+.Laad_loop:
     cmp x11, #32                     // Check if at least 32 bytes remain
-    b.lt .Laad_partial               // If less, handle partial block
+    b.lt .Laad_done                  // If less, done with full blocks
 
-    // Load full 32-byte AAD block
+    // Load AAD block into temporary registers
     ld1 {v12.16b}, [x10], #16        // M0 = first 16 bytes
     ld1 {v13.16b}, [x10], #16        // M1 = second 16 bytes
 
-    // Update state with AAD
+    // Update state with AAD (inline)
     AEGIS_UPDATE v12, v13
 
     sub x11, x11, #32                // Remaining -= 32
-    b .Laad_full_blocks
-
-.Laad_partial:
-    // Handle partial AAD block (1-31 bytes remaining in x11)
-    cbz x11, .Laad_done              // If 0 bytes, skip
-
-// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
-// ║
-// ║ SECURITY WARNING: Temporary stack spill of partial AAD data
-// ║
-// ║ We are spilling partial AAD data to a 32-byte stack buffer because:
-// ║   - ARM64 'ins' instruction requires immediate (constant) indices
-// ║   - Variable-index insertion would require 200+ LOC of jump table code
-// ║   - This is a pragmatic compromise between security and maintainability
-// ║
-// ║ CRITICAL REQUIREMENTS:
-// ║   1. Buffer MUST be pre-zeroized before any data is written
-// ║   2. Buffer MUST be immediately zeroized after use
-// ║   3. No other code may execute between use and zeroization
-// ║
-// ║═══════════════════════════════════════════════════════════════════════
-    // Allocate and pre-zeroize 32-byte stack buffer
-    sub sp, sp, #32
-    stp xzr, xzr, [sp]
-    stp xzr, xzr, [sp, #16]
-
-    // Copy partial AAD bytes to stack buffer
-    mov x12, sp                      // x12 = buffer pointer
-    mov x13, x11                     // x13 = bytes to copy
-.Laad_spill_copy_loop:
-    cbz x13, .Laad_spill_copy_done
-    ldrb w14, [x10], #1              // Load byte from AAD
-    strb w14, [x12], #1              // Store to buffer
-    sub x13, x13, #1
-    b .Laad_spill_copy_loop
-.Laad_spill_copy_done:
-    // Load zero-padded AAD from buffer
-    ld1 {v12.16b}, [sp]              // M0
-    ld1 {v13.16b}, [sp, #16]         // M1
-
-// ║
-// ║ >>> ZEROIZATION OF SPILL BUFFER HAPPENS HERE <<<
-// ║
-    stp xzr, xzr, [sp]
-    stp xzr, xzr, [sp, #16]
-    add sp, sp, #32
-// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
-
-    // Update state with padded AAD
-    AEGIS_UPDATE v12, v13
+    b .Laad_loop
 
 .Laad_done:
+    // TODO: Handle partial AAD blocks (< 32 bytes)
 
     // === Phase 3: Encrypt plaintext ===
     mov x10, x23                     // plaintext pointer
     mov x11, x24                     // plaintext remaining bytes
 
-.Lenc_full_blocks:
+.Lenc_loop:
     cmp x11, #32                     // Check if at least 32 bytes remain
-    b.lt .Lenc_partial               // If less, handle partial block
+    b.lt .Lenc_done                  // If less, done with full blocks
 
     // Generate keystream (RFC Section 2.4)
     // keystream0 = S1 ^ S4 ^ S5 ^ (S2 & S3)
@@ -623,90 +560,15 @@ FUNC(aegis128l_encrypt):
     AEGIS_UPDATE v14, v15
 
     sub x11, x11, #32                // Remaining -= 32
-    b .Lenc_full_blocks
+    b .Lenc_loop
 
-.Lenc_partial:
-    // Handle partial plaintext block (1-31 bytes remaining in x11)
-    cbz x11, .Lfinalize              // If 0 bytes, skip to finalization
-
-    // Generate keystream BEFORE allocating stack (keep in v12, v13)
-    // keystream0 = S1 ^ S4 ^ S5 ^ (S2 & S3)
-    and v12.16b, v2.16b, v3.16b
-    eor v12.16b, v12.16b, v1.16b
-    eor v12.16b, v12.16b, v4.16b
-    eor v12.16b, v12.16b, v5.16b
-
-    // keystream1 = S2 ^ S5 ^ S6 ^ (S3 & S4)
-    and v13.16b, v3.16b, v4.16b
-    eor v13.16b, v13.16b, v2.16b
-    eor v13.16b, v13.16b, v5.16b
-    eor v13.16b, v13.16b, v6.16b
-
-// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
-// ║
-// ║ SECURITY WARNING: Temporary stack spill of partial PLAINTEXT data
-// ║
-// ║ We are spilling partial plaintext/ciphertext to a 32-byte stack buffer.
-// ║ Reason: ARM64 'ins' instruction requires compile-time constant indices.
-// ║
-// ║ CRITICAL SECURITY REQUIREMENTS:
-// ║   1. Buffer MUST be pre-zeroized before plaintext is written
-// ║   2. Buffer MUST be immediately zeroized after ciphertext extraction
-// ║   3. No code may execute between ciphertext copy and zeroization
-// ║
-// ║ This violates the hermetic principle but avoids 200+ LOC of jump tables.
-// ║
-// ║═══════════════════════════════════════════════════════════════════════
-    // Allocate and pre-zeroize 32-byte stack buffer
-    sub sp, sp, #32
-    stp xzr, xzr, [sp]
-    stp xzr, xzr, [sp, #16]
-
-    // Copy partial plaintext to buffer
-    mov x12, sp                      // x12 = buffer pointer
-    mov x13, x11                     // x13 = bytes to copy
-.Lenc_spill_copy_pt_loop:
-    cbz x13, .Lenc_spill_copy_pt_done
-    ldrb w14, [x10], #1              // Load byte from plaintext
-    strb w14, [x12], #1              // Store to buffer
-    sub x13, x13, #1
-    b .Lenc_spill_copy_pt_loop
-.Lenc_spill_copy_pt_done:
-
-    // Load zero-padded plaintext from buffer
-    ld1 {v14.16b}, [sp]              // plaintext block 0 (padded)
-    ld1 {v15.16b}, [sp, #16]         // plaintext block 1 (padded)
-
-    // XOR with keystream
-    eor v26.16b, v14.16b, v12.16b    // ciphertext0
-    eor v27.16b, v15.16b, v13.16b    // ciphertext1
-
-    // Store ciphertext to buffer (will extract only valid bytes)
-    st1 {v26.16b}, [sp]
-    st1 {v27.16b}, [sp, #16]
-
-    // Copy only valid ciphertext bytes to output
-    mov x12, sp                      // x12 = buffer pointer
-    mov x13, x11                     // x13 = bytes to copy
-.Lenc_spill_copy_ct_loop:
-    cbz x13, .Lenc_spill_copy_ct_done
-    ldrb w14, [x12], #1              // Load byte from buffer
-    strb w14, [x25], #1              // Store to ciphertext output
-    sub x13, x13, #1
-    b .Lenc_spill_copy_ct_loop
-.Lenc_spill_copy_ct_done:
-
-// ║
-// ║ >>> ZEROIZATION OF SPILL BUFFER HAPPENS HERE <<<
-// ║     (contains plaintext - MUST be cleared immediately)
-// ║
-    stp xzr, xzr, [sp]
-    stp xzr, xzr, [sp, #16]
-    add sp, sp, #32
-// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
-
-    // Update state with zero-padded plaintext (v14, v15 still valid)
-    AEGIS_UPDATE v14, v15
+.Lenc_done:
+    // TODO: Handle partial plaintext blocks (< 32 bytes)
+    // For now, this implementation only supports plaintext lengths
+    // that are multiples of 32 bytes. Partial blocks should be handled
+    // in Rust wrapper or in a future assembly implementation.
+    //
+    // If x11 != 0 here, we have leftover bytes - this is unsupported
 
 .Lfinalize:
     // === Phase 4: Finalization and Tag Generation ===
@@ -747,348 +609,18 @@ FUNC(aegis128l_encrypt):
     // Write tag to output
     st1 {v29.16b}, [x26]
 
-    // Nuclear zeroization: clear ALL registers
+    // Nuclear zeroization: clear ALL registers (including callee-saved v8-v11)
     AEGIS_ZEROIZE_ALL
 
-    // Epilogue: restore callee-saved registers
-    ldp d10, d11, [sp, #96]
-    ldp d8, d9, [sp, #80]
-    ldp x25, x26, [sp, #64]
-    ldp x23, x24, [sp, #48]
-    ldp x21, x22, [sp, #32]
-    ldp x19, x20, [sp, #16]
-    ldp x29, x30, [sp], #112
+    // Epilogue: restore callee-saved registers (overwrites zeros with original values)
+    ldp d8, d9, [sp, #72]
+    ldr x26, [sp, #64]
+    ldp x24, x25, [sp, #48]
+    ldp x22, x23, [sp, #32]
+    ldp x20, x21, [sp, #16]
+    ldp x29, x19, [sp], #96
     ret
 
 #if !defined(__APPLE__) && !defined(_WIN32) && !defined(_WIN64)
 .size FUNC(aegis128l_encrypt), .-FUNC(aegis128l_encrypt)
-#endif
-
-// ============================================================================
-// AEGIS-128L Decryption Function (Full support including partial blocks)
-// ============================================================================
-//
-// Performs complete AEGIS-128L decryption with authentication verification.
-//
-// IMPORTANT: This function does NOT perform constant-time tag comparison.
-// The caller MUST compare tags in constant time and handle authentication
-// failure appropriately (e.g., zeroize plaintext output on failure).
-//
-// Parameters:
-//   x0 = pointer to key (16 bytes)
-//   x1 = pointer to nonce (16 bytes)
-//   x2 = pointer to AAD (additional authenticated data)
-//   x3 = AAD length in bytes
-//   x4 = pointer to ciphertext
-//   x5 = ciphertext length in bytes
-//   x6 = pointer to plaintext output buffer
-//   x7 = pointer to computed tag output (16 bytes) - caller compares with expected
-//
-// Returns: void (plaintext and computed tag are written to output buffers)
-//
-.global FUNC(aegis128l_decrypt)
-HIDDEN_FUNC(aegis128l_decrypt)
-#if !defined(__APPLE__) && !defined(_WIN32) && !defined(_WIN64)
-.type FUNC(aegis128l_decrypt), @function
-#endif
-.p2align 4
-FUNC(aegis128l_decrypt):
-    // Prologue: save frame pointer and callee-saved registers
-    stp x29, x30, [sp, #-112]!
-    mov x29, sp
-    stp x19, x20, [sp, #16]
-    stp x21, x22, [sp, #32]
-    stp x23, x24, [sp, #48]
-    stp x25, x26, [sp, #64]
-    stp d8, d9, [sp, #80]
-    stp d10, d11, [sp, #96]
-
-    // Save parameters to callee-saved registers
-    mov x19, x0                      // key pointer
-    mov x20, x1                      // nonce pointer
-    mov x21, x2                      // AAD pointer
-    mov x22, x3                      // AAD length
-    mov x23, x4                      // ciphertext pointer
-    mov x24, x5                      // ciphertext length
-    mov x25, x6                      // plaintext output pointer
-    mov x26, x7                      // tag output pointer
-
-    // === Phase 1: Initialization (same as encryption) ===
-    ld1 {v8.16b}, [x19]              // v8 = key
-    ld1 {v9.16b}, [x20]              // v9 = nonce
-
-#if defined(__APPLE__)
-    adrp x10, AEGIS_C0@PAGE
-    add x10, x10, AEGIS_C0@PAGEOFF
-    ld1 {v10.16b}, [x10]
-    adrp x10, AEGIS_C1@PAGE
-    add x10, x10, AEGIS_C1@PAGEOFF
-    ld1 {v11.16b}, [x10]
-#else
-    adrp x10, AEGIS_C0
-    add x10, x10, :lo12:AEGIS_C0
-    ld1 {v10.16b}, [x10]
-    adrp x10, AEGIS_C1
-    add x10, x10, :lo12:AEGIS_C1
-    ld1 {v11.16b}, [x10]
-#endif
-
-    // Initialize state
-    eor v0.16b, v8.16b, v9.16b       // S0 = key ^ nonce
-    mov v1.16b, v11.16b              // S1 = C1
-    mov v2.16b, v10.16b              // S2 = C0
-    mov v3.16b, v11.16b              // S3 = C1
-    eor v4.16b, v8.16b, v9.16b       // S4 = key ^ nonce
-    eor v5.16b, v8.16b, v10.16b      // S5 = key ^ C0
-    eor v6.16b, v8.16b, v11.16b      // S6 = key ^ C1
-    eor v7.16b, v8.16b, v10.16b      // S7 = key ^ C0
-
-    // 10 init rounds
-    AEGIS_UPDATE v9, v8
-    AEGIS_UPDATE v9, v8
-    AEGIS_UPDATE v9, v8
-    AEGIS_UPDATE v9, v8
-    AEGIS_UPDATE v9, v8
-    AEGIS_UPDATE v9, v8
-    AEGIS_UPDATE v9, v8
-    AEGIS_UPDATE v9, v8
-    AEGIS_UPDATE v9, v8
-    AEGIS_UPDATE v9, v8
-
-    // === Phase 2: Process AAD (same as encryption) ===
-    mov x10, x21                     // AAD pointer
-    mov x11, x22                     // AAD remaining bytes
-
-.Ldec_aad_full_blocks:
-    cmp x11, #32
-    b.lt .Ldec_aad_partial
-
-    ld1 {v12.16b}, [x10], #16
-    ld1 {v13.16b}, [x10], #16
-    AEGIS_UPDATE v12, v13
-
-    sub x11, x11, #32
-    b .Ldec_aad_full_blocks
-
-.Ldec_aad_partial:
-    cbz x11, .Ldec_aad_done
-
-// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
-// ║
-// ║ SECURITY WARNING: Temporary stack spill of partial AAD data
-// ║
-// ║ We are spilling partial AAD data to a 32-byte stack buffer because:
-// ║   - ARM64 'ins' instruction requires immediate (constant) indices
-// ║   - Variable-index insertion would require 200+ LOC of jump table code
-// ║   - This is a pragmatic compromise between security and maintainability
-// ║
-// ║ CRITICAL REQUIREMENTS:
-// ║   1. Buffer MUST be pre-zeroized before any data is written
-// ║   2. Buffer MUST be immediately zeroized after use
-// ║   3. No other code may execute between use and zeroization
-// ║
-// ║═══════════════════════════════════════════════════════════════════════
-    // Allocate and pre-zeroize buffer
-    sub sp, sp, #32
-    stp xzr, xzr, [sp]
-    stp xzr, xzr, [sp, #16]
-
-    // Copy partial AAD
-    mov x12, sp
-    mov x13, x11
-.Ldec_aad_spill_copy_loop:
-    cbz x13, .Ldec_aad_spill_copy_done
-    ldrb w14, [x10], #1
-    strb w14, [x12], #1
-    sub x13, x13, #1
-    b .Ldec_aad_spill_copy_loop
-.Ldec_aad_spill_copy_done:
-    ld1 {v12.16b}, [sp]
-    ld1 {v13.16b}, [sp, #16]
-// ║
-// ║ >>> ZEROIZATION OF SPILL BUFFER HAPPENS HERE <<<
-// ║
-    stp xzr, xzr, [sp]
-    stp xzr, xzr, [sp, #16]
-    add sp, sp, #32
-// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
-
-    AEGIS_UPDATE v12, v13
-
-.Ldec_aad_done:
-    // === Phase 3: Decrypt ciphertext ===
-    // Key difference from encryption: we XOR ciphertext with keystream to get
-    // plaintext, then update state with PLAINTEXT (not ciphertext)
-    mov x10, x23                     // ciphertext pointer
-    mov x11, x24                     // ciphertext remaining bytes
-
-.Ldec_full_blocks:
-    cmp x11, #32
-    b.lt .Ldec_partial
-
-    // Generate keystream
-    and v12.16b, v2.16b, v3.16b
-    eor v12.16b, v12.16b, v1.16b
-    eor v12.16b, v12.16b, v4.16b
-    eor v12.16b, v12.16b, v5.16b
-
-    and v13.16b, v3.16b, v4.16b
-    eor v13.16b, v13.16b, v2.16b
-    eor v13.16b, v13.16b, v5.16b
-    eor v13.16b, v13.16b, v6.16b
-
-    // Load ciphertext
-    ld1 {v26.16b}, [x10], #16
-    ld1 {v27.16b}, [x10], #16
-
-    // XOR to get plaintext
-    eor v14.16b, v26.16b, v12.16b    // plaintext0
-    eor v15.16b, v27.16b, v13.16b    // plaintext1
-
-    // Store plaintext
-    st1 {v14.16b}, [x25], #16
-    st1 {v15.16b}, [x25], #16
-
-    // Update state with PLAINTEXT
-    AEGIS_UPDATE v14, v15
-
-    sub x11, x11, #32
-    b .Ldec_full_blocks
-
-.Ldec_partial:
-    cbz x11, .Ldec_finalize
-
-    // Generate keystream
-    and v12.16b, v2.16b, v3.16b
-    eor v12.16b, v12.16b, v1.16b
-    eor v12.16b, v12.16b, v4.16b
-    eor v12.16b, v12.16b, v5.16b
-
-    and v13.16b, v3.16b, v4.16b
-    eor v13.16b, v13.16b, v2.16b
-    eor v13.16b, v13.16b, v5.16b
-    eor v13.16b, v13.16b, v6.16b
-
-// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
-// ║
-// ║ SECURITY WARNING: Temporary stack spill of CIPHERTEXT and PLAINTEXT
-// ║
-// ║ We are spilling partial ciphertext/plaintext to a 32-byte stack buffer.
-// ║ Reason: ARM64 'ins' instruction requires compile-time constant indices.
-// ║
-// ║ CRITICAL SECURITY REQUIREMENTS:
-// ║   1. Buffer MUST be pre-zeroized before ciphertext is written
-// ║   2. Buffer MUST be immediately zeroized after plaintext extraction
-// ║   3. No code may execute between plaintext copy and zeroization
-// ║
-// ║ WARNING: This buffer will contain DECRYPTED PLAINTEXT (highly sensitive)
-// ║
-// ║═══════════════════════════════════════════════════════════════════════
-    // Allocate and pre-zeroize buffer
-    sub sp, sp, #32
-    stp xzr, xzr, [sp]
-    stp xzr, xzr, [sp, #16]
-
-    // Copy partial ciphertext to buffer
-    mov x12, sp
-    mov x13, x11
-.Ldec_spill_copy_ct_loop:
-    cbz x13, .Ldec_spill_copy_ct_done
-    ldrb w14, [x10], #1
-    strb w14, [x12], #1
-    sub x13, x13, #1
-    b .Ldec_spill_copy_ct_loop
-.Ldec_spill_copy_ct_done:
-    // Load zero-padded ciphertext
-    ld1 {v26.16b}, [sp]
-    ld1 {v27.16b}, [sp, #16]
-
-    // XOR to get plaintext (zero-padded)
-    eor v14.16b, v26.16b, v12.16b
-    eor v15.16b, v27.16b, v13.16b
-
-    // For partial blocks, we need to zero the padding in plaintext
-    // before updating state. Store plaintext, zero extra bytes, reload.
-    st1 {v14.16b}, [sp]
-    st1 {v15.16b}, [sp, #16]
-
-    // Zero bytes beyond the valid plaintext length
-    add x12, sp, x11                 // x12 = buffer + valid_len
-    mov x13, #32
-    sub x13, x13, x11                // x13 = 32 - valid_len = bytes to zero
-.Ldec_spill_zero_padding_loop:
-    cbz x13, .Ldec_spill_zero_padding_done
-    strb wzr, [x12], #1
-    sub x13, x13, #1
-    b .Ldec_spill_zero_padding_loop
-.Ldec_spill_zero_padding_done:
-    // Copy valid plaintext bytes to output
-    mov x12, sp
-    mov x13, x11
-.Ldec_spill_copy_pt_loop:
-    cbz x13, .Ldec_spill_copy_pt_done
-    ldrb w14, [x12], #1
-    strb w14, [x25], #1
-    sub x13, x13, #1
-    b .Ldec_spill_copy_pt_loop
-.Ldec_spill_copy_pt_done:
-    // Reload properly padded plaintext for state update
-    ld1 {v14.16b}, [sp]
-    ld1 {v15.16b}, [sp, #16]
-
-// ║
-// ║ >>> ZEROIZATION OF SPILL BUFFER HAPPENS HERE <<<
-// ║     (contains DECRYPTED PLAINTEXT - MUST be cleared immediately)
-// ║
-    stp xzr, xzr, [sp]
-    stp xzr, xzr, [sp, #16]
-    add sp, sp, #32
-// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
-
-    // Update state with zero-padded plaintext
-    AEGIS_UPDATE v14, v15
-
-.Ldec_finalize:
-    // === Phase 4: Finalization (same as encryption) ===
-    lsl x10, x22, #3                 // aad_bits
-    lsl x11, x24, #3                 // msg_bits
-
-    fmov d28, x10
-    mov v28.d[1], x11
-    eor v28.16b, v28.16b, v3.16b
-
-    AEGIS_UPDATE v28, v28
-    AEGIS_UPDATE v28, v28
-    AEGIS_UPDATE v28, v28
-    AEGIS_UPDATE v28, v28
-    AEGIS_UPDATE v28, v28
-    AEGIS_UPDATE v28, v28
-    AEGIS_UPDATE v28, v28
-
-    // Generate tag
-    eor v29.16b, v0.16b, v1.16b
-    eor v29.16b, v29.16b, v2.16b
-    eor v29.16b, v29.16b, v3.16b
-    eor v29.16b, v29.16b, v4.16b
-    eor v29.16b, v29.16b, v5.16b
-    eor v29.16b, v29.16b, v6.16b
-
-    // Write computed tag (caller must compare with expected tag)
-    st1 {v29.16b}, [x26]
-
-    // Nuclear zeroization
-    AEGIS_ZEROIZE_ALL
-
-    // Epilogue
-    ldp d10, d11, [sp, #96]
-    ldp d8, d9, [sp, #80]
-    ldp x25, x26, [sp, #64]
-    ldp x23, x24, [sp, #48]
-    ldp x21, x22, [sp, #32]
-    ldp x19, x20, [sp, #16]
-    ldp x29, x30, [sp], #112
-    ret
-
-#if !defined(__APPLE__) && !defined(_WIN32) && !defined(_WIN64)
-.size FUNC(aegis128l_decrypt), .-FUNC(aegis128l_decrypt)
 #endif
