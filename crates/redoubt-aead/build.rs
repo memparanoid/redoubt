@@ -15,4 +15,15 @@ fn main() {
 
         println!("cargo:rerun-if-changed=src/aegis_asm/asm/aegis_128l_aarch64.S");
     }
+
+    // x86_64 assembly implementation (Linux, macOS - AES-NI required)
+    #[cfg(target_arch = "x86_64")]
+    {
+        cc::Build::new()
+            .file("src/aegis_asm/asm/aegis_128l_x86_64.S")
+            .flag("-maes")
+            .compile("aegis_asm");
+
+        println!("cargo:rerun-if-changed=src/aegis_asm/asm/aegis_128l_x86_64.S");
+    }
 }

@@ -97,10 +97,9 @@ pub unsafe fn generate(dst: *mut u64) -> Result<(), EntropyError> {
 // =============================================================================
 
 #[cfg(target_arch = "x86_64")]
-mod x86_features {
-    cpufeatures::new!(rdseed_cpuid, "rdseed");
-    cpufeatures::new!(rdrand_cpuid, "rdrand");
-}
+cpufeatures::new!(x86_64_rdseed_cpuid, "rdseed");
+#[cfg(target_arch = "x86_64")]
+cpufeatures::new!(x86_64_rdrand_cpuid, "rdrand");
 
 /// Attempts to read entropy directly from RDSEED instruction.
 ///
@@ -109,21 +108,23 @@ mod x86_features {
 /// successful and writes the value to `dst`.
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-unsafe fn try_rdseed(dst: *mut u64) -> bool {
+fn try_rdseed(dst: *mut u64) -> bool {
     let success: u8;
 
-    core::arch::asm!(
-        "rdseed {tmp}",
-        "setc {success}",
-        "test {success}, {success}",
-        "jz 2f",
-        "mov [{dst}], {tmp}",
-        "2:",
-        dst = in(reg) dst,
-        tmp = lateout(reg) _,
-        success = lateout(reg_byte) success,
-        options(nostack, volatile)
-    );
+    unsafe {
+        core::arch::asm!(
+            "rdseed {tmp}",
+            "setc {success}",
+            "test {success}, {success}",
+            "jz 2f",
+            "mov [{dst}], {tmp}",
+            "2:",
+            dst = in(reg) dst,
+            tmp = lateout(reg) _,
+            success = lateout(reg_byte) success,
+            options(nostack)
+        );
+    }
 
     success != 0
 }
@@ -135,21 +136,23 @@ unsafe fn try_rdseed(dst: *mut u64) -> bool {
 /// successful and writes the value to `dst`.
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
-unsafe fn try_rdrand(dst: *mut u64) -> bool {
+fn try_rdrand(dst: *mut u64) -> bool {
     let success: u8;
 
-    core::arch::asm!(
-        "rdrand {tmp}",
-        "setc {success}",
-        "test {success}, {success}",
-        "jz 2f",
-        "mov [{dst}], {tmp}",
-        "2:",
-        dst = in(reg) dst,
-        tmp = lateout(reg) _,
-        success = lateout(reg_byte) success,
-        options(nostack, volatile)
-    );
+    unsafe {
+        core::arch::asm!(
+            "rdrand {tmp}",
+            "setc {success}",
+            "test {success}, {success}",
+            "jz 2f",
+            "mov [{dst}], {tmp}",
+            "2:",
+            dst = in(reg) dst,
+            tmp = lateout(reg) _,
+            success = lateout(reg_byte) success,
+            options(nostack)
+        );
+    }
 
     success != 0
 }
@@ -164,7 +167,7 @@ unsafe fn try_rdrand(dst: *mut u64) -> bool {
 #[inline(always)]
 unsafe fn get_entropy_u64_x86_64(dst: *mut u64) -> Result<(), EntropyError> {
     // Try RDSEED first (best option)
-    if x86_features::rdseed_cpuid::get() {
+    if x86_64_rdseed_cpuid::get() {
         for _ in 0..MAX_RETRIES {
             if try_rdseed(dst) {
                 return Ok(());
@@ -173,7 +176,7 @@ unsafe fn get_entropy_u64_x86_64(dst: *mut u64) -> Result<(), EntropyError> {
     }
 
     // Try RDRAND (fallback, more widely available)
-    if x86_features::rdrand_cpuid::get() {
+    if x86_64_rdrand_cpuid::get() {
         for _ in 0..MAX_RETRIES {
             if try_rdrand(dst) {
                 return Ok(());

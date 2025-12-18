@@ -11,7 +11,6 @@ use crate::traits::AeadBackend;
 
 use super::consts::{Aegis128LKey, Aegis128LNonce, Aegis128LTag, NONCE_SIZE};
 
-#[cfg(target_arch = "aarch64")]
 unsafe extern "C" {
     /// Performs one AEGIS-128L state update round with message absorption.
     ///
@@ -87,7 +86,6 @@ where
     type Nonce = Aegis128LNonce;
     type Tag = Aegis128LTag;
 
-    #[cfg(target_arch = "aarch64")]
     #[inline(always)]
     fn encrypt(
         &mut self,
@@ -110,7 +108,6 @@ where
         }
     }
 
-    #[cfg(target_arch = "aarch64")]
     #[inline(always)]
     fn decrypt(
         &mut self,
