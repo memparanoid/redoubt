@@ -155,6 +155,7 @@ impl RedoubtString {
 
     /// Clears the string, removing all contents.
     pub fn clear(&mut self) {
+        self.inner.fast_zeroize();
         self.inner.clear();
     }
 
