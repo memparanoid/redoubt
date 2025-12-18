@@ -2,7 +2,7 @@
 # Run tests with optional cross-architecture support
 #
 # Usage:
-#   ./scripts/test.sh [ARCH] [cargo test args...]
+#   ./scripts/test.sh [ARCH] [cargo test args...] [--no-cache]
 #
 # ARCH (optional):
 #   x86      - x86_64/amd64 architecture
@@ -11,12 +11,16 @@
 #   riscv64  - RISC-V 64-bit architecture
 #   (empty)  - Use native architecture (default)
 #
+# Flags:
+#   --no-cache  - Disable Docker layer caching (force rebuild, must be last arg)
+#
 # Examples:
 #   ./scripts/test.sh                                      # Native arch, all tests
 #   ./scripts/test.sh -p redoubt-aead                      # Native arch, specific crate
 #   ./scripts/test.sh x86 -p redoubt-aead                  # x86_64, specific crate
 #   ./scripts/test.sh arm -p redoubt-codec --features test_utils
 #   ./scripts/test.sh s390x -p redoubt-util                # Big-endian testing
+#   ./scripts/test.sh x86 -p redoubt-aead --no-cache       # Force rebuild, no cache
 
 set -euo pipefail
 
@@ -83,6 +87,7 @@ show_archs_and_exit() {
 # Parse arguments
 TARGET_ARCH=""
 CARGO_ARGS=()
+NO_CACHE=""
 
 # Check if first argument is an architecture
 if [[ $# -gt 0 ]]; then
@@ -105,6 +110,12 @@ if [[ $# -gt 0 ]]; then
         # Otherwise, treat as test filter (use native arch)
         TARGET_ARCH=""
     fi
+fi
+
+# Check for --no-cache at the end of arguments
+if [[ "${@: -1}" == "--no-cache" ]]; then
+    NO_CACHE="--no-cache"
+    set -- "${@:1:$(($#-1))}"  # Remove last argument
 fi
 
 # Collect remaining args for cargo
@@ -134,6 +145,7 @@ if [[ "$TARGET_ARCH" == "$NATIVE_ARCH" ]]; then
     # Native build: use Dockerfile.test with full capabilities
     echo "Building test Docker image (native with capabilities)..."
     DOCKER_BUILDKIT=1 docker build \
+        $NO_CACHE \
         -f "$PROJECT_ROOT/docker/Dockerfile.test" \
         -t redoubt-test \
         "$PROJECT_ROOT"
@@ -150,6 +162,7 @@ else
     # Cross-architecture build: use Dockerfile.arch-test (no capabilities)
     echo "Building cross-architecture test image for $TARGET_ARCH..."
     DOCKER_BUILDKIT=1 docker build \
+        $NO_CACHE \
         --platform "$PLATFORM" \
         -f "$PROJECT_ROOT/docker/Dockerfile.arch-test" \
         -t "redoubt-test-$TARGET_ARCH" \
