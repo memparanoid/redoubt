@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_test_utils::{apply_permutation, index_permutations};
-use redoubt_zero::ZeroizationProbe;
+use redoubt_zero::{FastZeroizable, ZeroizationProbe};
 
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError, RedoubtCodecBufferError};
@@ -516,4 +516,43 @@ fn test_vec_prealloc_grows() {
     vec_prealloc(&mut vec, 3, false);
 
     assert_eq!(vec.len(), 3);
+}
+
+// Stress tests
+#[test]
+fn stress_test_vec_clear_push_encode_decode_cycles() {
+    const SIZE: usize = 1000;
+
+    let original: Vec<RedoubtCodecTestBreaker> = (0..SIZE)
+        .map(|i| RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i))
+        .collect();
+
+    let mut vec = Vec::new();
+
+    for i in (0..=SIZE).rev() {
+        vec.fast_zeroize();
+        vec.clear();
+        vec.extend_from_slice(&original[0..i]);
+
+        let bytes_required = vec
+            .encode_bytes_required()
+            .expect("Failed encode_bytes_required");
+        let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
+        vec.encode_into(&mut buf).expect("Failed encode_into");
+
+        let mut recovered: Vec<RedoubtCodecTestBreaker> = Vec::new();
+        let mut decode_buf = buf.export_as_vec();
+        recovered
+            .decode_from(&mut decode_buf.as_mut_slice())
+            .expect("Failed decode_from");
+
+        assert_eq!(recovered, &original[0..i], "Cycle failed at i={}", i);
+
+        #[cfg(feature = "zeroize")]
+        {
+            assert!(buf.is_zeroized());
+            assert!(decode_buf.is_zeroized());
+            assert!(vec.is_zeroized());
+        }
+    }
 }
