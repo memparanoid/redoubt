@@ -209,6 +209,7 @@ where
 
     /// Clears the vector, removing all values.
     pub fn clear(&mut self) {
+        self.inner.fast_zeroize();
         self.inner.clear();
     }
 

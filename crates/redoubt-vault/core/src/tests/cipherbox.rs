@@ -4,6 +4,7 @@
 
 use redoubt_aead::AeadApi;
 use redoubt_aead::support::test_utils::{AeadMock, AeadMockBehaviour};
+use redoubt_alloc::RedoubtVec;
 use redoubt_codec::RedoubtCodec;
 use redoubt_codec::support::test_utils::{
     RedoubtCodecTestBreaker, RedoubtCodecTestBreakerBehaviour,
@@ -98,6 +99,72 @@ impl<A: AeadApi> DecryptStruct<A, NUM_FIELDS> for RedoubtCodecTestBreakerBox {
         nonces: &mut [Vec<u8>; NUM_FIELDS],
         tags: &mut [Vec<u8>; NUM_FIELDS],
         ciphertexts: &mut [Vec<u8>; NUM_FIELDS],
+    ) -> Result<(), CipherBoxError> {
+        decrypt_from(
+            &mut self.to_decryptable_dyn_fields(),
+            aead,
+            aead_key,
+            nonces,
+            tags,
+            ciphertexts,
+        )
+    }
+}
+
+// Stress test CipherBox with single RedoubtVec field
+#[derive(RedoubtCodec, RedoubtZero)]
+#[fast_zeroize(drop)]
+pub struct RedoubtVecBox {
+    pub vec: RedoubtVec<RedoubtCodecTestBreaker>,
+    #[codec(default)]
+    __sentinel: ZeroizeOnDropSentinel,
+}
+
+impl Default for RedoubtVecBox {
+    fn default() -> Self {
+        Self {
+            vec: RedoubtVec::new(),
+            __sentinel: ZeroizeOnDropSentinel::default(),
+        }
+    }
+}
+
+impl CipherBoxDyns<1> for RedoubtVecBox {
+    fn to_decryptable_dyn_fields(&mut self) -> [&mut dyn Decryptable; 1] {
+        [&mut self.vec]
+    }
+
+    fn to_encryptable_dyn_fields(&mut self) -> [&mut dyn Encryptable; 1] {
+        [&mut self.vec]
+    }
+}
+
+impl<A: AeadApi> EncryptStruct<A, 1> for RedoubtVecBox {
+    fn encrypt_into(
+        &mut self,
+        aead: &mut A,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 1],
+        tags: &mut [Vec<u8>; 1],
+    ) -> Result<[Vec<u8>; 1], CipherBoxError> {
+        encrypt_into(
+            self.to_encryptable_dyn_fields(),
+            aead,
+            aead_key,
+            nonces,
+            tags,
+        )
+    }
+}
+
+impl<A: AeadApi> DecryptStruct<A, 1> for RedoubtVecBox {
+    fn decrypt_from(
+        &mut self,
+        aead: &mut A,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 1],
+        tags: &mut [Vec<u8>; 1],
+        ciphertexts: &mut [Vec<u8>; 1],
     ) -> Result<(), CipherBoxError> {
         decrypt_from(
             &mut self.to_decryptable_dyn_fields(),
@@ -892,4 +959,106 @@ fn test_cipherbox_happy_path_test() {
     assert_eq!(data_3.usize.data, 128);
     assert_eq!(data_4.usize.data, 256);
     assert_eq!(data_5.usize.data, 512);
+}
+
+// =============================================================================
+// Stress Tests
+// =============================================================================
+
+fn stress_test_redoubt_vec_grow_shrink_cycles(size: usize) {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<RedoubtVecBox, AeadMock, 1>::new(aead);
+
+    // Create original data
+    let original: Vec<RedoubtCodecTestBreaker> = (0..size)
+        .map(|i| RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i))
+        .collect();
+
+    // Phase 1: Grow acumulativo (0, 1, 2, ..., size)
+    let mut accumulated: Vec<RedoubtCodecTestBreaker> = Vec::new();
+
+    for i in 0..=size {
+        cb.open_mut(|vault| {
+            let mut src = original[0..i].to_vec();
+            vault.vec.drain_slice(&mut src);
+        })
+        .expect("Failed open_mut during grow phase");
+
+        // Update expected accumulated
+        accumulated.extend_from_slice(&original[0..i]);
+        let expected_len = (i * (i + 1)) / 2;
+
+        cb.open(|vault| {
+            assert_eq!(
+                vault.vec.as_slice().len(),
+                expected_len,
+                "Grow phase len mismatch at i={}",
+                i
+            );
+            assert_eq!(
+                vault.vec.as_slice(),
+                &accumulated,
+                "Grow phase content mismatch at i={}",
+                i
+            );
+        })
+        .expect("Failed open during grow verify");
+    }
+
+    // Clear after grow phase
+    cb.open_mut(|vault| {
+        vault.vec.clear();
+    })
+    .expect("Failed to open_mut(..)");
+
+    cb.open(|vault| {
+        assert_eq!(vault.vec.len(), 0);
+    })
+    .expect("Failed to open(..)");
+
+    // Phase 2: Grow acumulativo reversed (size, size-1, ..., 1, 0)
+    let mut accumulated: Vec<RedoubtCodecTestBreaker> = Vec::new();
+
+    for i in (0..=size).rev() {
+        cb.open_mut(|vault| {
+            let mut src = original[0..i].to_vec();
+            vault.vec.drain_slice(&mut src);
+        })
+        .expect("Failed open_mut during shrink phase");
+
+        // Update expected accumulated
+        accumulated.extend_from_slice(&original[0..i]);
+        let expected_len = (size - i + 1) * (size + i) / 2;
+
+        cb.open(|vault| {
+            assert_eq!(
+                vault.vec.as_slice().len(),
+                expected_len,
+                "Shrink phase len mismatch at i={}",
+                i
+            );
+            assert_eq!(
+                vault.vec.as_slice(),
+                &accumulated,
+                "Shrink phase content mismatch at i={}",
+                i
+            );
+        })
+        .expect("Failed open during shrink verify");
+    }
+}
+
+#[test]
+fn stress_test_redoubt_vec_grow_shrink_cycles_small() {
+    stress_test_redoubt_vec_grow_shrink_cycles(10);
+}
+
+#[test]
+fn stress_test_redoubt_vec_grow_shrink_cycles_medium() {
+    stress_test_redoubt_vec_grow_shrink_cycles(100);
+}
+
+#[test]
+fn stress_test_redoubt_vec_grow_shrink_cycles_large() {
+    stress_test_redoubt_vec_grow_shrink_cycles(1000);
 }
