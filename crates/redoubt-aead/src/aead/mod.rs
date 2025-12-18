@@ -29,7 +29,7 @@ use crate::traits::{AeadApi, AeadBackend};
     any(target_arch = "x86_64", target_arch = "aarch64"),
     not(target_os = "wasi")
 ))]
-use crate::aegis::aegis128l::consts::{
+use crate::aegis_asm::consts::{
     KEY_SIZE as AEGIS_KEY_SIZE, NONCE_SIZE as AEGIS_NONCE_SIZE, TAG_SIZE as AEGIS_TAG_SIZE,
 };
 

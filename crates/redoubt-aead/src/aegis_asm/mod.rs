@@ -8,6 +8,6 @@
 mod tests;
 
 pub mod aead;
-mod consts;
+pub mod consts;
 
 pub use aead::Aegis128L;

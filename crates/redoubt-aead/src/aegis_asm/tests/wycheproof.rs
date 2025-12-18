@@ -6,10 +6,11 @@
 
 use redoubt_util::hex_to_bytes;
 
-use super::super::consts::*;
 use crate::AeadError;
-use crate::aegis::Aegis128L;
+use crate::aegis_asm::Aegis128L;
 use crate::traits::AeadBackend;
+
+use super::super::consts::*;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -120,12 +121,6 @@ fn run_test_case(tc: &TestCase) -> Result<(), String> {
 
 #[test]
 fn test_wycheproof_first_10() {
-    #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-    {
-        eprintln!("Skipping: AEGIS-128L requires AES hardware support");
-        return;
-    }
-
     use super::wycheproof_vectors::test_vectors;
 
     let vectors = test_vectors();
@@ -173,12 +168,6 @@ fn test_wycheproof_all() {
 
 #[test]
 fn test_wycheproof_valid_with_flipped_tag() {
-    #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-    {
-        eprintln!("Skipping: AEGIS-128L requires AES hardware support");
-        return;
-    }
-
     use super::wycheproof_vectors::test_vectors;
 
     let vectors = test_vectors();
@@ -232,12 +221,6 @@ fn test_wycheproof_valid_with_flipped_tag() {
 
 #[test]
 fn test_wycheproof_roundtrip() {
-    #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-    {
-        eprintln!("Skipping: AEGIS-128L requires AES hardware support");
-        return;
-    }
-
     use super::wycheproof_vectors::test_vectors;
 
     let vectors = test_vectors();
