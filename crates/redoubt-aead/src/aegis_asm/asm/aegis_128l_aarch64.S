@@ -150,10 +150,20 @@
 //   Solution: Use aese with zero (no-op XOR), then manual eor for AddRoundKey
 //
 .macro AEGIS_UPDATE m0_reg, m1_reg
+    // PRECONDITION: v22 must be initialized to zero (movi v22.16b, #0)
+    //               before first invocation. Persistent across all calls.
+
     // Preserve old S7 for S'0 (S7 is overwritten early in the in-place schedule)
     mov v20.16b, v7.16b
 
-    // ---- Compute S'7..S'1 in descending order (safe in-place schedule) ----
+    // ---- Compute S'7..S'1 in descending order (in-place safe) ----
+    //
+    // Schedule safety: Each S'i = AESRound(S_{i-1}, S_i)
+    //   - Reads S_{i-1} and S_i BEFORE overwriting S_i
+    //   - Descending order ensures S_{i-1} not yet overwritten when needed
+    //   - Example: S'7 reads S6,S7 → overwrites S7 → S'6 reads S5,S6 (S6 intact)
+    //
+    // Exception: S'0 = AESRound(S7, S0^M0) needs OLD S7 → saved in v20 first
 
     // S'7 = AESRound(S6, S7)
     mov v18.16b, v6.16b
@@ -297,18 +307,26 @@ FUNC(aegis128l_update):
 //   x5 = plaintext length in bytes
 //   x6 = pointer to tag output (16 bytes)
 //
-// Register allocation (ALL caller-saved, with reuse):
+// Register allocation (encrypt/decrypt share the same budget):
 //
-// SIMD Register Budget (PEAK <= 15):
-//   v0-v7   = AEGIS state S0-S7 (permanent throughout)
-//   v16-v17 = Message blocks (M0/M1) | Init: key/nonce
-//   v18-v19 = Keystream/ciphertext temporaries | Init: C0/C1 constants
-//   v20     = Update temp (saved old S7)
-//   v22     = Persistent zero vector for aese
+// SIMD Register Budget:
+//   - Peak live SIMD set (measured from current schedule): 14
+//   - Design budget (contract): <= 15
+//
+// SIMD Registers (caller-saved only):
+//   v0-v7   = AEGIS state S0-S7 (live for the entire algorithm)
+//   v16-v17 = Data blocks (M0/M1): AAD / PT / CT (depending on phase)
+//             - Encrypt: PT loaded into v16/v17; CT written out after XOR
+//             - Decrypt: CT loaded into v16/v17; PT produced in-place in v16/v17
+//   v18-v19 = Scratch / keystream / XOR temps (also used by AEGIS_UPDATE)
+//             - Init: used to load C0/C1 constants, then reused as scratch
+//   v20     = AEGIS_UPDATE temp: saved old S7 (required for S'0 computation)
+//   v22     = Persistent zero vector for aese (movi v22.16b, #0 once)
 //
 // Notes:
-//   - AEGIS_UPDATE uses fixed scratch: v18, v19, v20, and requires v22=0.
+//   - AEGIS_UPDATE fixed scratch: v18, v19, v20 and requires v22 = 0.
 //   - No use of v8-v15 (callee-saved SIMD).
+//   - No hidden stack spills except explicitly marked spill regions (32-byte buffer).
 //
 // x86-64 portability:
 //   - Fits within 16 XMM registers (same budgeting strategy carries over).
@@ -617,6 +635,9 @@ FUNC(aegis128l_encrypt):
 //   x5 = ciphertext length in bytes
 //   x6 = pointer to expected tag (16 bytes)
 //   x7 = pointer to computed tag output (16 bytes)
+//
+// Register allocation: Identical to aegis128l_encrypt (see above).
+//   Only difference: x13 = computed tag pointer (extra parameter).
 //
 // Returns: void (ciphertext buffer contains plaintext, computed tag written)
 //
