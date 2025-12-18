@@ -392,7 +392,6 @@ FUNC(aegis128l_encrypt):
     mov [rsp + 24], rax
 
     // Copy rcx bytes from [rdi] to [rsp]
-    mov rax, rcx            // save len for rewind if needed (not strictly needed here)
     lea rsi, [rsp]
 .Laad_copy_loop_x86:
     test rcx, rcx
@@ -492,7 +491,7 @@ FUNC(aegis128l_encrypt):
     mov [rsp + 24], rax
 
     // Copy rcx bytes plaintext -> stack buffer
-    mov rax, rcx              // save len
+    mov r10, rcx              // save len in r10 (caller-saved)
     lea rsi, [rsp]
 .Lenc_copy_pt_loop_x86:
     test rcx, rcx
@@ -506,7 +505,7 @@ FUNC(aegis128l_encrypt):
 .Lenc_copy_pt_done_x86:
 
     // Rewind rdi to start of partial block
-    sub rdi, rax
+    sub rdi, r10
 
     // Load padded plaintext into xmm8/xmm9
     movdqu xmm8, [rsp]
@@ -520,8 +519,8 @@ FUNC(aegis128l_encrypt):
     movdqu [rsp],      xmm10
     movdqu [rsp + 16], xmm11
 
-    // Copy only 'rax' bytes ciphertext back in-place
-    mov rcx, rax
+    // Copy only 'r10' bytes ciphertext back in-place
+    mov rcx, r10
     lea rsi, [rsp]
 .Lenc_copy_ct_loop_x86:
     test rcx, rcx
@@ -799,7 +798,7 @@ FUNC(aegis128l_decrypt):
     mov [rsp + 24], rax
 
     // Copy rcx bytes ciphertext -> buffer
-    mov rax, rcx              // save len
+    mov r11, rcx              // save len in r11 (expected_tag pointer unused in this path)
     lea rsi, [rsp]
 .Ldec_copy_ct_loop_x86:
     test rcx, rcx
@@ -813,7 +812,7 @@ FUNC(aegis128l_decrypt):
 .Ldec_copy_ct_done_x86:
 
     // Rewind rdi to start of partial block
-    sub rdi, rax
+    sub rdi, r11
 
     // Load padded ciphertext into xmm8/xmm9
     movdqu xmm8, [rsp]
@@ -830,9 +829,9 @@ FUNC(aegis128l_decrypt):
     // Zero padding bytes beyond valid length so state absorbs padded-plaintext=0
     // (This is REQUIRED; otherwise keystream bytes would be absorbed as data.)
     lea rsi, [rsp]
-    add rsi, rax              // rsi = buf + len
+    add rsi, r11              // rsi = buf + len
     mov rcx, 32
-    sub rcx, rax
+    sub rcx, r11
 .Ldec_zero_pad_loop_x86:
     test rcx, rcx
     jz   .Ldec_zero_pad_done_x86
@@ -843,7 +842,7 @@ FUNC(aegis128l_decrypt):
 .Ldec_zero_pad_done_x86:
 
     // Copy plaintext first 'len' bytes back in-place
-    mov rcx, rax
+    mov rcx, r11
     lea rsi, [rsp]
 .Ldec_copy_pt_loop_x86:
     test rcx, rcx
