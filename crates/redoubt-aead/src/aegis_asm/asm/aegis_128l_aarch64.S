@@ -7,8 +7,10 @@
 // This implementation uses ARM NEON Crypto Extensions for AES operations.
 // The AEGIS-128L state consists of 8 blocks of 128 bits each (1024 bits total).
 //
-// This version uses inline macros to eliminate stack spilling of sensitive data.
-// All state, key, and nonce remain in SIMD registers during initialization.
+// Register-budgeted design goal:
+//   - Maximum live SIMD registers across the full algorithm: <= 15
+//   - No hidden stack spills (except in explicitly marked spill regions)
+//   - Caller-saved only (no prologue/epilogue save/restore)
 //
 // Partial block handling uses a 32-byte stack buffer that is:
 //   1. Pre-zeroized before any sensitive data is written
@@ -112,20 +114,25 @@
 .endm
 
 // ============================================================================
-// AEGIS-128L Update Macro (Inline - no stack spilling)
+// AEGIS-128L Update Macro (Inline - register-budgeted, no stack spilling)
 // ============================================================================
 //
 // Performs one AEGIS-128L state update round completely in registers.
+// This macro is carefully structured to keep the peak SIMD live set <= 15.
 //
 // Inputs (registers):
-//   v0-v7   = Current state S0-S7
-//   \m0_reg = First message block (M0)
-//   \m1_reg = Second message block (M1)
+//   v0-v7      = Current state S0-S7
+//   \m0_reg    = First message block (M0)
+//   \m1_reg    = Second message block (M1)
+//   v22        = MUST be zero vector (persistent) for aese
 //
 // Outputs:
-//   v0-v7   = Updated state S'0-S'7 (modified in-place)
+//   v0-v7      = Updated state S'0-S'7 (modified in-place)
 //
-// Temporaries used: v20-v27, v31
+// Temporaries used (fixed):
+//   v18        = AES round working register
+//   v19        = Key/XOR temporary
+//   v20        = Saved old S7 (required for S'0)
 //
 // Update algorithm (RFC Section 2.3):
 //   S'0 = AESRound(S7, S0 ^ M0)
@@ -143,70 +150,62 @@
 //   Solution: Use aese with zero (no-op XOR), then manual eor for AddRoundKey
 //
 .macro AEGIS_UPDATE m0_reg, m1_reg
-    // Create zero vector for aese instruction
-    movi v31.16b, #0
+    // Preserve old S7 for S'0 (S7 is overwritten early in the in-place schedule)
+    mov v20.16b, v7.16b
 
-    // Compute new state in v20-v27 (preserves v0-v7 for all computations)
-
-    // S'0 = AESRound(S7, S0 ^ M0)
-    mov v20.16b, v7.16b              // v20 = S7
-    aese v20.16b, v31.16b            // SubBytes + ShiftRows
-    aesmc v20.16b, v20.16b           // MixColumns
-    eor v28.16b, v0.16b, \m0_reg\().16b  // v28 = S0 ^ M0
-    eor v20.16b, v20.16b, v28.16b    // AddRoundKey
-
-    // S'1 = AESRound(S0, S1)
-    mov v21.16b, v0.16b
-    aese v21.16b, v31.16b
-    aesmc v21.16b, v21.16b
-    eor v21.16b, v21.16b, v1.16b
-
-    // S'2 = AESRound(S1, S2)
-    mov v22.16b, v1.16b
-    aese v22.16b, v31.16b
-    aesmc v22.16b, v22.16b
-    eor v22.16b, v22.16b, v2.16b
-
-    // S'3 = AESRound(S2, S3)
-    mov v23.16b, v2.16b
-    aese v23.16b, v31.16b
-    aesmc v23.16b, v23.16b
-    eor v23.16b, v23.16b, v3.16b
-
-    // S'4 = AESRound(S3, S4 ^ M1)
-    mov v24.16b, v3.16b
-    aese v24.16b, v31.16b
-    aesmc v24.16b, v24.16b
-    eor v29.16b, v4.16b, \m1_reg\().16b  // v29 = S4 ^ M1
-    eor v24.16b, v24.16b, v29.16b
-
-    // S'5 = AESRound(S4, S5)
-    mov v25.16b, v4.16b
-    aese v25.16b, v31.16b
-    aesmc v25.16b, v25.16b
-    eor v25.16b, v25.16b, v5.16b
-
-    // S'6 = AESRound(S5, S6)
-    mov v26.16b, v5.16b
-    aese v26.16b, v31.16b
-    aesmc v26.16b, v26.16b
-    eor v26.16b, v26.16b, v6.16b
+    // ---- Compute S'7..S'1 in descending order (safe in-place schedule) ----
 
     // S'7 = AESRound(S6, S7)
-    mov v27.16b, v6.16b
-    aese v27.16b, v31.16b
-    aesmc v27.16b, v27.16b
-    eor v27.16b, v27.16b, v7.16b
+    mov v18.16b, v6.16b
+    aese v18.16b, v22.16b
+    aesmc v18.16b, v18.16b
+    eor v7.16b, v18.16b, v7.16b
 
-    // Move new state to v0-v7
-    mov v0.16b, v20.16b
-    mov v1.16b, v21.16b
-    mov v2.16b, v22.16b
-    mov v3.16b, v23.16b
-    mov v4.16b, v24.16b
-    mov v5.16b, v25.16b
-    mov v6.16b, v26.16b
-    mov v7.16b, v27.16b
+    // S'6 = AESRound(S5, S6)
+    mov v18.16b, v5.16b
+    aese v18.16b, v22.16b
+    aesmc v18.16b, v18.16b
+    eor v6.16b, v18.16b, v6.16b
+
+    // S'5 = AESRound(S4, S5)
+    mov v18.16b, v4.16b
+    aese v18.16b, v22.16b
+    aesmc v18.16b, v18.16b
+    eor v5.16b, v18.16b, v5.16b
+
+    // S'4 = AESRound(S3, S4 ^ M1)
+    eor v19.16b, v4.16b, \m1_reg\().16b
+    mov v18.16b, v3.16b
+    aese v18.16b, v22.16b
+    aesmc v18.16b, v18.16b
+    eor v4.16b, v18.16b, v19.16b
+
+    // S'3 = AESRound(S2, S3)
+    mov v18.16b, v2.16b
+    aese v18.16b, v22.16b
+    aesmc v18.16b, v18.16b
+    eor v3.16b, v18.16b, v3.16b
+
+    // S'2 = AESRound(S1, S2)
+    mov v18.16b, v1.16b
+    aese v18.16b, v22.16b
+    aesmc v18.16b, v18.16b
+    eor v2.16b, v18.16b, v2.16b
+
+    // S'1 = AESRound(S0, S1)
+    mov v18.16b, v0.16b
+    aese v18.16b, v22.16b
+    aesmc v18.16b, v18.16b
+    eor v1.16b, v18.16b, v1.16b
+
+    // ---- Compute S'0 last (requires old S7 and old S0) ----
+
+    // S'0 = AESRound(old S7, S0 ^ M0)
+    eor v19.16b, v0.16b, \m0_reg\().16b
+    mov v18.16b, v20.16b
+    aese v18.16b, v22.16b
+    aesmc v18.16b, v18.16b
+    eor v0.16b, v18.16b, v19.16b
 .endm
 
 // ============================================================================
@@ -260,11 +259,14 @@ FUNC(aegis128l_update):
     ld1 {v0.16b-v3.16b}, [x0], #64
     ld1 {v4.16b-v7.16b}, [x0]
 
-    // Load M0, M1 into temporary registers
+    // Persistent zero vector for aese
+    movi v22.16b, #0
+
+    // Load M0, M1
     ld1 {v16.16b}, [x1]              // v16 = M0
     ld1 {v17.16b}, [x2]              // v17 = M1
 
-    // Perform update using inline macro
+    // Update
     AEGIS_UPDATE v16, v17
 
     // Store updated state back to memory
@@ -295,19 +297,29 @@ FUNC(aegis128l_update):
 //   x5 = plaintext length in bytes
 //   x6 = pointer to tag output (16 bytes)
 //
-// Register allocation (ALL caller-saved):
-//   v0-v7   = AEGIS state S0-S7
-//   v16     = key (zeroized before return)
-//   v17     = nonce (zeroized before return)
-//   v18     = C0 constant
-//   v19     = C1 constant
-//   v20-v31 = temporaries for update, keystream, data
+// Register allocation (ALL caller-saved, with reuse):
+//
+// SIMD Register Budget (PEAK <= 15):
+//   v0-v7   = AEGIS state S0-S7 (permanent throughout)
+//   v16-v17 = Message blocks (M0/M1) | Init: key/nonce
+//   v18-v19 = Keystream/ciphertext temporaries | Init: C0/C1 constants
+//   v20     = Update temp (saved old S7)
+//   v22     = Persistent zero vector for aese
+//
+// Notes:
+//   - AEGIS_UPDATE uses fixed scratch: v18, v19, v20, and requires v22=0.
+//   - No use of v8-v15 (callee-saved SIMD).
+//
+// x86-64 portability:
+//   - Fits within 16 XMM registers (same budgeting strategy carries over).
+//
+// GPR Registers:
 //   x8      = AAD pointer
 //   x9      = AAD length (preserved for finalization)
 //   x10     = plaintext pointer (data transformed in-place)
 //   x11     = plaintext length (preserved for finalization)
 //   x12     = tag pointer
-//   x0-x7   = temporaries (loop counters, pointers)
+//   x0-x7   = temporaries (loop counters, pointers, etc)
 //
 // Returns: void (plaintext buffer contains ciphertext, tag written)
 //
@@ -321,33 +333,34 @@ FUNC(aegis128l_encrypt):
     // No prologue needed - using only caller-saved registers
 
     // Save parameters to caller-saved registers
-    // x0=key, x1=nonce used immediately then become temps
-    // x8-x12 hold values needed throughout
-    mov x8, x2                       // x8 = AAD pointer
-    mov x9, x3                       // x9 = AAD length (keep for finalization)
+    mov x8, x2                       // x8  = AAD pointer
+    mov x9, x3                       // x9  = AAD length (keep for finalization)
     mov x10, x4                      // x10 = plaintext pointer (in-place transform)
     mov x11, x5                      // x11 = plaintext length (keep for finalization)
     mov x12, x6                      // x12 = tag pointer
+
+    // Persistent zero vector for aese (required by AEGIS_UPDATE)
+    movi v22.16b, #0
 
     // === Phase 1: Initialization ===
     // Load key and nonce
     ld1 {v16.16b}, [x0]              // v16 = key
     ld1 {v17.16b}, [x1]              // v17 = nonce
 
-    // Load constants (reuse x0 as temp - no longer needed)
+    // Load constants (reuse x0 as temp)
 #if defined(__APPLE__)
     adrp x0, AEGIS_C0@PAGE
-    add x0, x0, AEGIS_C0@PAGEOFF
+    add  x0, x0, AEGIS_C0@PAGEOFF
     ld1 {v18.16b}, [x0]              // v18 = C0
     adrp x0, AEGIS_C1@PAGE
-    add x0, x0, AEGIS_C1@PAGEOFF
+    add  x0, x0, AEGIS_C1@PAGEOFF
     ld1 {v19.16b}, [x0]              // v19 = C1
 #else
     adrp x0, AEGIS_C0
-    add x0, x0, :lo12:AEGIS_C0
+    add  x0, x0, :lo12:AEGIS_C0
     ld1 {v18.16b}, [x0]              // v18 = C0
     adrp x0, AEGIS_C1
-    add x0, x0, :lo12:AEGIS_C1
+    add  x0, x0, :lo12:AEGIS_C1
     ld1 {v19.16b}, [x0]              // v19 = C1
 #endif
 
@@ -361,7 +374,7 @@ FUNC(aegis128l_encrypt):
     eor v6.16b, v16.16b, v19.16b     // S6 = key ^ C1
     eor v7.16b, v16.16b, v18.16b     // S7 = key ^ C0
 
-    // 10 initialization rounds
+    // 10 initialization rounds (absorb nonce/key)
     AEGIS_UPDATE v17, v16
     AEGIS_UPDATE v17, v16
     AEGIS_UPDATE v17, v16
@@ -374,7 +387,6 @@ FUNC(aegis128l_encrypt):
     AEGIS_UPDATE v17, v16
 
     // === Phase 2: Process AAD ===
-    // Use x0, x1 as loop variables (AAD pointer copy, remaining bytes)
     mov x0, x8                       // x0 = AAD pointer
     mov x1, x9                       // x1 = AAD remaining
 
@@ -382,7 +394,6 @@ FUNC(aegis128l_encrypt):
     cmp x1, #32
     b.lt .Laad_partial
 
-    // Load full 32-byte AAD block into v16, v17 (reuse - key/nonce no longer needed)
     ld1 {v16.16b}, [x0], #16         // M0
     ld1 {v17.16b}, [x0], #16         // M1
     AEGIS_UPDATE v16, v17
@@ -409,12 +420,10 @@ FUNC(aegis128l_encrypt):
 // ║
 // ║═══════════════════════════════════════════════════════════════════════
 
-    // Allocate and pre-zeroize 32-byte stack buffer
     sub sp, sp, #32
     stp xzr, xzr, [sp]
     stp xzr, xzr, [sp, #16]
 
-    // Copy partial AAD bytes (x2, x3 as temps)
     mov x2, sp
     mov x3, x1
 .Laad_copy_loop:
@@ -424,7 +433,6 @@ FUNC(aegis128l_encrypt):
     sub x3, x3, #1
     b .Laad_copy_loop
 .Laad_copy_done:
-    // Load padded AAD
     ld1 {v16.16b, v17.16b}, [sp]
 
 // ║
@@ -440,7 +448,6 @@ FUNC(aegis128l_encrypt):
 .Laad_done:
 
     // === Phase 3: Encrypt plaintext ===
-    // x0, x1 as loop variables (plaintext pointer copy, remaining bytes)
     mov x0, x10                      // x0 = plaintext pointer
     mov x1, x11                      // x1 = plaintext remaining
 
@@ -448,30 +455,30 @@ FUNC(aegis128l_encrypt):
     cmp x1, #32
     b.lt .Lenc_partial
 
+    // Load plaintext into v16/v17 (kept intact for state update)
+    ld1 {v16.16b, v17.16b}, [x0]
+
     // Generate keystream (RFC Section 2.4)
     // z0 = S1 ^ S6 ^ (S2 & S3)
-    and v16.16b, v2.16b, v3.16b
-    eor v16.16b, v16.16b, v1.16b
-    eor v16.16b, v16.16b, v6.16b
+    and v18.16b, v2.16b, v3.16b
+    eor v18.16b, v18.16b, v1.16b
+    eor v18.16b, v18.16b, v6.16b
 
     // z1 = S2 ^ S5 ^ (S6 & S7)
-    and v17.16b, v6.16b, v7.16b
-    eor v17.16b, v17.16b, v2.16b
-    eor v17.16b, v17.16b, v5.16b
+    and v19.16b, v6.16b, v7.16b
+    eor v19.16b, v19.16b, v2.16b
+    eor v19.16b, v19.16b, v5.16b
 
-    // Load plaintext (32 bytes)
-    ld1 {v18.16b, v19.16b}, [x0]
+    // ciphertext = plaintext ^ keystream (store in v18/v19; plaintext stays in v16/v17)
+    eor v18.16b, v18.16b, v16.16b
+    eor v19.16b, v19.16b, v17.16b
 
-    // XOR to produce ciphertext
-    eor v30.16b, v18.16b, v16.16b    // ciphertext0
-    eor v31.16b, v19.16b, v17.16b    // ciphertext1
-
-    // Write ciphertext in-place to plaintext buffer
-    st1 {v30.16b, v31.16b}, [x0]
+    // Write ciphertext in-place
+    st1 {v18.16b, v19.16b}, [x0]
     add x0, x0, #32
 
-    // Update state with plaintext (not ciphertext!)
-    AEGIS_UPDATE v18, v19
+    // Update state with plaintext (not ciphertext)
+    AEGIS_UPDATE v16, v17
 
     sub x1, x1, #32
     b .Lenc_full_blocks
@@ -479,16 +486,14 @@ FUNC(aegis128l_encrypt):
 .Lenc_partial:
     cbz x1, .Lfinalize
 
-    // Generate keystream BEFORE stack allocation (keep in v16, v17)
-    // z0 = S1 ^ S6 ^ (S2 & S3)
-    and v16.16b, v2.16b, v3.16b
-    eor v16.16b, v16.16b, v1.16b
-    eor v16.16b, v16.16b, v6.16b
+    // Generate keystream BEFORE stack allocation (keep in v18/v19)
+    and v18.16b, v2.16b, v3.16b
+    eor v18.16b, v18.16b, v1.16b
+    eor v18.16b, v18.16b, v6.16b
 
-    // z1 = S2 ^ S5 ^ (S6 & S7)
-    and v17.16b, v6.16b, v7.16b
-    eor v17.16b, v17.16b, v2.16b
-    eor v17.16b, v17.16b, v5.16b
+    and v19.16b, v6.16b, v7.16b
+    eor v19.16b, v19.16b, v2.16b
+    eor v19.16b, v19.16b, v5.16b
 
 // ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
 // ║
@@ -504,7 +509,6 @@ FUNC(aegis128l_encrypt):
 // ║
 // ║═══════════════════════════════════════════════════════════════════════
 
-    // Allocate and pre-zeroize 32-byte stack buffer
     sub sp, sp, #32
     stp xzr, xzr, [sp]
     stp xzr, xzr, [sp, #16]
@@ -520,20 +524,20 @@ FUNC(aegis128l_encrypt):
     b .Lenc_copy_pt_loop
 .Lenc_copy_pt_done:
 
-    // Load zero-padded plaintext from buffer
-    ld1 {v18.16b, v19.16b}, [sp]
+    // Load zero-padded plaintext into v16/v17
+    ld1 {v16.16b, v17.16b}, [sp]
 
-    // XOR with keystream
-    eor v30.16b, v18.16b, v16.16b
-    eor v31.16b, v19.16b, v17.16b
+    // ciphertext = plaintext ^ keystream (write into v18/v19)
+    eor v18.16b, v18.16b, v16.16b
+    eor v19.16b, v19.16b, v17.16b
 
     // Store ciphertext to buffer
-    st1 {v30.16b, v31.16b}, [sp]
+    st1 {v18.16b, v19.16b}, [sp]
 
     // Copy ciphertext in-place to plaintext buffer
-    sub x0, x0, x1                   // Rewind x0 to start of partial block
-    mov x2, sp                       // x2 = stack buffer with ciphertext
-    mov x3, x1                       // x3 = bytes to copy
+    sub x0, x0, x1
+    mov x2, sp
+    mov x3, x1
 .Lenc_copy_ct_inplace_loop:
     cbz x3, .Lenc_copy_ct_inplace_done
     ldrb w4, [x2], #1
@@ -551,8 +555,8 @@ FUNC(aegis128l_encrypt):
     add sp, sp, #32
 // ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
 
-    // Update state with zero-padded plaintext (v18, v19 still valid)
-    AEGIS_UPDATE v18, v19
+    // Update state with zero-padded plaintext
+    AEGIS_UPDATE v16, v17
 
 .Lfinalize:
     // === Phase 4: Finalization and Tag Generation ===
@@ -561,18 +565,13 @@ FUNC(aegis128l_encrypt):
     //   Update(tmp, tmp) × 7
     //   tag = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5 ^ S6
 
-    // Convert lengths to bits (x9 = AAD len, x11 = msg len)
-    lsl x0, x9, #3                   // x0 = aad_bits
-    lsl x1, x11, #3                  // x1 = msg_bits
+    lsl x0, x9, #3                   // aad_bits
+    lsl x1, x11, #3                  // msg_bits
 
-    // Build 128-bit block in v16
-    fmov d16, x0                     // lower 64 bits = aad_bits
-    mov v16.d[1], x1                 // upper 64 bits = msg_bits
+    fmov d16, x0
+    mov  v16.d[1], x1
+    eor  v16.16b, v16.16b, v2.16b
 
-    // tmp = S2 ^ (lengths block)
-    eor v16.16b, v16.16b, v2.16b
-
-    // 7 finalization rounds
     AEGIS_UPDATE v16, v16
     AEGIS_UPDATE v16, v16
     AEGIS_UPDATE v16, v16
@@ -581,7 +580,7 @@ FUNC(aegis128l_encrypt):
     AEGIS_UPDATE v16, v16
     AEGIS_UPDATE v16, v16
 
-    // Generate tag: S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5 ^ S6
+    // tag = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5 ^ S6
     eor v16.16b, v0.16b, v1.16b
     eor v16.16b, v16.16b, v2.16b
     eor v16.16b, v16.16b, v3.16b
@@ -589,12 +588,10 @@ FUNC(aegis128l_encrypt):
     eor v16.16b, v16.16b, v5.16b
     eor v16.16b, v16.16b, v6.16b
 
-    // Write tag
     st1 {v16.16b}, [x12]
 
     // Zeroize all caller-saved registers
     AEGIS_ZEROIZE_ALL
-
     ret
 
 #if !defined(__APPLE__) && !defined(_WIN32) && !defined(_WIN64)
@@ -633,12 +630,15 @@ FUNC(aegis128l_decrypt):
     // No prologue needed - using only caller-saved registers
 
     // Save parameters
-    mov x8, x2                       // x8 = AAD pointer
-    mov x9, x3                       // x9 = AAD length
+    mov x8,  x2                      // x8  = AAD pointer
+    mov x9,  x3                      // x9  = AAD length
     mov x10, x4                      // x10 = ciphertext pointer (in-place transform)
     mov x11, x5                      // x11 = ciphertext length
     mov x12, x6                      // x12 = expected_tag pointer
     mov x13, x7                      // x13 = computed_tag pointer
+
+    // Persistent zero vector for aese (required by AEGIS_UPDATE)
+    movi v22.16b, #0
 
     // === Phase 1: Initialization ===
     ld1 {v16.16b}, [x0]              // v16 = key
@@ -646,18 +646,18 @@ FUNC(aegis128l_decrypt):
 
 #if defined(__APPLE__)
     adrp x0, AEGIS_C0@PAGE
-    add x0, x0, AEGIS_C0@PAGEOFF
-    ld1 {v18.16b}, [x0]
+    add  x0, x0, AEGIS_C0@PAGEOFF
+    ld1 {v18.16b}, [x0]              // v18 = C0
     adrp x0, AEGIS_C1@PAGE
-    add x0, x0, AEGIS_C1@PAGEOFF
-    ld1 {v19.16b}, [x0]
+    add  x0, x0, AEGIS_C1@PAGEOFF
+    ld1 {v19.16b}, [x0]              // v19 = C1
 #else
     adrp x0, AEGIS_C0
-    add x0, x0, :lo12:AEGIS_C0
-    ld1 {v18.16b}, [x0]
+    add  x0, x0, :lo12:AEGIS_C0
+    ld1 {v18.16b}, [x0]              // v18 = C0
     adrp x0, AEGIS_C1
-    add x0, x0, :lo12:AEGIS_C1
-    ld1 {v19.16b}, [x0]
+    add  x0, x0, :lo12:AEGIS_C1
+    ld1 {v19.16b}, [x0]              // v19 = C1
 #endif
 
     // Initialize state
@@ -716,12 +716,10 @@ FUNC(aegis128l_decrypt):
 // ║
 // ║═══════════════════════════════════════════════════════════════════════
 
-    // Allocate and pre-zeroize 32-byte stack buffer
     sub sp, sp, #32
     stp xzr, xzr, [sp]
     stp xzr, xzr, [sp, #16]
 
-    // Copy partial AAD bytes
     mov x2, sp
     mov x3, x1
 .Ldec_aad_copy_loop:
@@ -732,7 +730,6 @@ FUNC(aegis128l_decrypt):
     b .Ldec_aad_copy_loop
 .Ldec_aad_copy_done:
 
-    // Load padded AAD
     ld1 {v16.16b, v17.16b}, [sp]
 
 // ║
@@ -748,37 +745,35 @@ FUNC(aegis128l_decrypt):
 .Ldec_aad_done:
 
     // === Phase 3: Decrypt ciphertext ===
-    mov x0, x10                      // ciphertext pointer
-    mov x1, x11                      // ciphertext remaining
+    mov x0, x10
+    mov x1, x11
 
 .Ldec_full_blocks:
     cmp x1, #32
     b.lt .Ldec_partial
 
+    // Load ciphertext
+    ld1 {v16.16b, v17.16b}, [x0]
+
     // Generate keystream
-    // z0 = S1 ^ S6 ^ (S2 & S3)
-    and v16.16b, v2.16b, v3.16b
-    eor v16.16b, v16.16b, v1.16b
-    eor v16.16b, v16.16b, v6.16b
+    and v18.16b, v2.16b, v3.16b
+    eor v18.16b, v18.16b, v1.16b
+    eor v18.16b, v18.16b, v6.16b
 
-    // z1 = S2 ^ S5 ^ (S6 & S7)
-    and v17.16b, v6.16b, v7.16b
-    eor v17.16b, v17.16b, v2.16b
-    eor v17.16b, v17.16b, v5.16b
+    and v19.16b, v6.16b, v7.16b
+    eor v19.16b, v19.16b, v2.16b
+    eor v19.16b, v19.16b, v5.16b
 
-    // Load ciphertext (32 bytes)
-    ld1 {v30.16b, v31.16b}, [x0]
+    // plaintext = ciphertext ^ keystream (in-place in v16/v17)
+    eor v16.16b, v16.16b, v18.16b
+    eor v17.16b, v17.16b, v19.16b
 
-    // XOR to get plaintext
-    eor v18.16b, v30.16b, v16.16b    // plaintext0
-    eor v19.16b, v31.16b, v17.16b    // plaintext1
-
-    // Write plaintext in-place to ciphertext buffer
-    st1 {v18.16b, v19.16b}, [x0]
+    // Store plaintext in-place
+    st1 {v16.16b, v17.16b}, [x0]
     add x0, x0, #32
 
     // Update state with PLAINTEXT
-    AEGIS_UPDATE v18, v19
+    AEGIS_UPDATE v16, v17
 
     sub x1, x1, #32
     b .Ldec_full_blocks
@@ -786,16 +781,14 @@ FUNC(aegis128l_decrypt):
 .Ldec_partial:
     cbz x1, .Ldec_finalize
 
-    // Generate keystream
-    // z0 = S1 ^ S6 ^ (S2 & S3)
-    and v16.16b, v2.16b, v3.16b
-    eor v16.16b, v16.16b, v1.16b
-    eor v16.16b, v16.16b, v6.16b
+    // Generate keystream (v18/v19) BEFORE stack allocation
+    and v18.16b, v2.16b, v3.16b
+    eor v18.16b, v18.16b, v1.16b
+    eor v18.16b, v18.16b, v6.16b
 
-    // z1 = S2 ^ S5 ^ (S6 & S7)
-    and v17.16b, v6.16b, v7.16b
-    eor v17.16b, v17.16b, v2.16b
-    eor v17.16b, v17.16b, v5.16b
+    and v19.16b, v6.16b, v7.16b
+    eor v19.16b, v19.16b, v2.16b
+    eor v19.16b, v19.16b, v5.16b
 
 // ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
 // ║
@@ -813,7 +806,6 @@ FUNC(aegis128l_decrypt):
 // ║
 // ║═══════════════════════════════════════════════════════════════════════
 
-    // Allocate buffer
     sub sp, sp, #32
     stp xzr, xzr, [sp]
     stp xzr, xzr, [sp, #16]
@@ -829,17 +821,17 @@ FUNC(aegis128l_decrypt):
     b .Ldec_copy_ct_loop
 .Ldec_copy_ct_done:
 
-    // Load padded ciphertext
-    ld1 {v30.16b, v31.16b}, [sp]
+    // Load zero-padded ciphertext into v16/v17
+    ld1 {v16.16b, v17.16b}, [sp]
 
-    // XOR to get plaintext
-    eor v18.16b, v30.16b, v16.16b
-    eor v19.16b, v31.16b, v17.16b
+    // plaintext = ciphertext ^ keystream (in-place v16/v17)
+    eor v16.16b, v16.16b, v18.16b
+    eor v17.16b, v17.16b, v19.16b
 
-    // Store plaintext to buffer, then zero padding
-    st1 {v18.16b, v19.16b}, [sp]
+    // Store plaintext to buffer (still padded)
+    st1 {v16.16b, v17.16b}, [sp]
 
-    // Zero bytes beyond valid length
+    // Zero bytes beyond valid length (padding must not be absorbed as real bytes)
     add x2, sp, x1
     mov x3, #32
     sub x3, x3, x1
@@ -851,9 +843,9 @@ FUNC(aegis128l_decrypt):
 .Ldec_zero_padding_done:
 
     // Copy plaintext in-place to ciphertext buffer
-    sub x0, x0, x1                   // Rewind x0 to start of partial block
-    mov x2, sp                       // x2 = stack buffer with plaintext
-    mov x3, x1                       // x3 = bytes to copy
+    sub x0, x0, x1
+    mov x2, sp
+    mov x3, x1
 .Ldec_copy_pt_inplace_loop:
     cbz x3, .Ldec_copy_pt_inplace_done
     ldrb w4, [x2], #1
@@ -863,20 +855,19 @@ FUNC(aegis128l_decrypt):
 .Ldec_copy_pt_inplace_done:
 
     // Reload padded plaintext for state update
-    ld1 {v18.16b, v19.16b}, [sp]
+    ld1 {v16.16b, v17.16b}, [sp]
 
 // ║
 // ║ >>> ZEROIZATION OF SPILL BUFFER HAPPENS HERE <<<
 // ║     (contains DECRYPTED PLAINTEXT - MUST be cleared immediately)
 // ║
-    // Zeroize buffer
     stp xzr, xzr, [sp]
     stp xzr, xzr, [sp, #16]
     add sp, sp, #32
 // ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
 
-    // Update state
-    AEGIS_UPDATE v18, v19
+    // Update state with zero-padded plaintext
+    AEGIS_UPDATE v16, v17
 
 .Ldec_finalize:
     // === Phase 4: Finalization ===
@@ -884,8 +875,8 @@ FUNC(aegis128l_decrypt):
     lsl x1, x11, #3                  // msg_bits
 
     fmov d16, x0
-    mov v16.d[1], x1
-    eor v16.16b, v16.16b, v2.16b
+    mov  v16.d[1], x1
+    eor  v16.16b, v16.16b, v2.16b
 
     AEGIS_UPDATE v16, v16
     AEGIS_UPDATE v16, v16
@@ -895,7 +886,7 @@ FUNC(aegis128l_decrypt):
     AEGIS_UPDATE v16, v16
     AEGIS_UPDATE v16, v16
 
-    // Generate tag
+    // Generate computed tag
     eor v16.16b, v0.16b, v1.16b
     eor v16.16b, v16.16b, v2.16b
     eor v16.16b, v16.16b, v3.16b
@@ -903,12 +894,10 @@ FUNC(aegis128l_decrypt):
     eor v16.16b, v16.16b, v5.16b
     eor v16.16b, v16.16b, v6.16b
 
-    // Write computed tag
     st1 {v16.16b}, [x13]
 
     // Zeroize all caller-saved registers
     AEGIS_ZEROIZE_ALL
-
     ret
 
 #if !defined(__APPLE__) && !defined(_WIN32) && !defined(_WIN64)
