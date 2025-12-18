@@ -9,7 +9,7 @@
 use std::time::Instant;
 
 #[cfg(target_arch = "aarch64")]
-use redoubt_aead::aegis_asm::{aegis128l_decrypt, aegis128l_encrypt};
+use redoubt_aead::aegis_asm::aead::{aegis128l_decrypt, aegis128l_encrypt};
 
 #[cfg(target_arch = "aarch64")]
 fn benchmark_size(size: usize, iterations: usize) {
