@@ -10,7 +10,7 @@
 //!     </p>
 //! </picture>
 //!
-//! <p align="center"><em>Systematic encryption-at-rest for sensitive data in Rust.</em></p>
+//! <p align="center"><em>Systematic encryption-at-rest for in-memory sensitive data in Rust.</em></p>
 //!
 //! ---
 //!

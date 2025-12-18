@@ -2,7 +2,7 @@
 name = "redoubt"
 authors = ["Federico Hoerth <memparanoid@gmail.com>"]
 categories = ["cryptography", "memory-management", "no-std"]
-description = "Systematic encryption-at-rest for sensitive data in Rust"
+description = "Systematic encryption-at-rest for in-memory sensitive data in Rust"
 edition.workspace = true
 keywords = ["encryption", "secrets", "zeroize", "aead", "vault"]
 license.workspace = true

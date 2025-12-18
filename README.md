@@ -6,7 +6,7 @@
     </p>
 </picture>
 
-<p align="center"><em>Systematic encryption-at-rest for sensitive data in Rust.</em></p>
+<p align="center"><em>Systematic encryption-at-rest for in-memory sensitive data in Rust.</em></p>
 
 <p align="center">
     <a href="https://crates.io/crates/redoubt"><img src="https://img.shields.io/crates/v/redoubt.svg" alt="crates.io"></a>
