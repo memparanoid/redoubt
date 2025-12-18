@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-// AEGIS-128L AEAD Cipher - x86_64 (SysV) Implementation
+// AEGIS-128L AEAD Cipher - x86_64 (SysV ABI) Implementation
 //
 // This implementation uses AES-NI (aesenc) for AES round operations.
 // The AEGIS-128L state consists of 8 blocks of 128 bits each (1024 bits total).
@@ -16,7 +16,13 @@
 //   1. Pre-zeroized before any sensitive data is written
 //   2. Immediately zeroized after use (before any other code runs)
 //
-// Platform Support: Linux x86_64, macOS x86_64
+// Platform Support:
+//   - Linux x86_64 (SysV ABI)
+//   - macOS x86_64 (SysV ABI)
+//   - Windows x86_64 EXCLUDED: Only 6 XMM caller-saved (xmm0-xmm5) insufficient for our
+//     register allocation strategy. Supporting Windows would require excessive stack
+//     spilling in cryptographic hot paths, introducing branching complexity and
+//     performance degradation unacceptable for security-critical code.
 //
 // References:
 // - AEGIS: A Fast Authenticated Encryption Algorithm (v1.1)
@@ -121,13 +127,27 @@ AEGIS_C1:
 //   xmm12       = saved old S7
 //   xmm13       = AES round working register
 //
+// PRECONDITION: None (all temporaries initialized within macro)
+//
+// Schedule safety: In-place descending update (S'7→S'1) ensures each S'i
+// reads S_{i-1} before it's overwritten. S'0 requires old S7 (saved in xmm12 first).
+//
 // AES-NI mapping:
 //   aesenc dst, rk  performs SubBytes + ShiftRows + MixColumns + AddRoundKey(rk).
 //   Therefore: AESRound(A, B) == aesenc(A, B) with A as data, B as "round key".
 //
 .macro AEGIS_UPDATE m0, m1
-    // Preserve old S7 for S'0
+    // Preserve old S7 for S'0 (S7 is overwritten early in the in-place schedule)
     movdqa xmm12, xmm7
+
+    // ---- Compute S'7..S'1 in descending order (in-place safe) ----
+    //
+    // Schedule safety: Each S'i = AESRound(S_{i-1}, S_i)
+    //   - Reads S_{i-1} and S_i BEFORE overwriting S_i
+    //   - Descending order ensures S_{i-1} not yet overwritten when needed
+    //   - Example: S'7 reads S6,S7 → overwrites S7 → S'6 reads S5,S6 (S6 intact)
+    //
+    // Exception: S'0 = AESRound(S7, S0^M0) needs OLD S7 → saved in xmm12 first
 
     // S'7 = AESRound(S6, S7)
     movdqa xmm13, xmm6
@@ -165,6 +185,8 @@ AEGIS_C1:
     movdqa xmm13, xmm0
     aesenc xmm13, xmm1
     movdqa xmm1, xmm13
+
+    // ---- Compute S'0 last (requires old S7 and old S0) ----
 
     // S'0 = AESRound(old S7, S0 ^ M0)
     movdqa xmm10, xmm0
@@ -215,6 +237,48 @@ FUNC(aegis128l_update):
 
     ret
 
+// ============================================================================
+// Register Allocation (encrypt/decrypt share the same budget)
+// ============================================================================
+//
+// XMM Register Budget:
+//   - Peak live XMM set (measured from current schedule): 13
+//   - Design budget (contract): <= 15
+//
+// XMM Registers (caller-saved, SysV ABI):
+//   xmm0-xmm7   = AEGIS state S0-S7 (live for entire algorithm)
+//   xmm8-xmm9   = Data blocks (M0/M1): AAD / PT / CT (depending on phase)
+//                 - Encrypt: PT loaded into xmm8/xmm9; CT written out after XOR
+//                 - Decrypt: CT loaded into xmm8/xmm9; PT produced in-place
+//   xmm10-xmm11 = Scratch / keystream / XOR temps
+//                 - Init: used to load C0/C1 constants, then reused as scratch
+//   xmm12       = AEGIS_UPDATE: saved old S7 (required for S'0 computation)
+//   xmm13       = AEGIS_UPDATE: AES round working register
+//
+// Notes:
+//   - AEGIS_UPDATE fixed scratch: xmm10, xmm12, xmm13
+//   - No use of xmm14-xmm15 (available for future optimization)
+//   - No hidden stack spills except explicitly marked spill regions (32-byte buffer)
+//
+// ARM64 portability:
+//   - Equivalent register budgeting (14 SIMD regs on ARM64 vs 13 XMM on x86_64)
+//   - Same in-place descending update schedule for state transformation
+//
+// GPR Registers (caller-saved):
+//   rdi, rsi    = Input pointers (key, nonce); cursors for data iteration
+//   rax         = Temporary / length calculations / constant loading
+//   rcx         = Loop counter / remaining bytes
+//   rdx         = AAD length (preserved across phases for finalization)
+//   r8-r9       = Data pointer / length (preserved across phases)
+//   r10-r11     = Tag pointers / bit counts
+//
+// Notes:
+//   - No use of callee-saved regs (rbx, rbp, r12-r15)
+//   - No prologue/epilogue needed
+//   - Stack spills only for partial blocks (32-byte buffer, zeroized immediately)
+//
+// Returns: void (plaintext buffer contains ciphertext, tag written)
+//
 // ============================================================================
 // AEGIS-128L Encryption Function (Full support including partial blocks)
 // ============================================================================
