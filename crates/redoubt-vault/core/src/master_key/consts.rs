@@ -2,4 +2,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-pub const MASTER_KEY_LEN: usize = 1024;
+pub const MASTER_KEY_LEN: usize = 32;

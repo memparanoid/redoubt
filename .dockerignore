@@ -1,0 +1,7 @@
+target/
+.git/
+*.log
+*.tmp
+.DS_Store
+**/*.profraw
+**/*.profdata

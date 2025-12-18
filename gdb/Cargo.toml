@@ -1,0 +1,14 @@
+[package]
+name = "gdb-tests"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "test_redoubt_leaks"
+path = "src/bin/test_redoubt_leaks.rs"
+
+
+[dependencies]
+redoubt = { path = "../crates/redoubt", features = ["gdb"] }
+libc.workspace = true

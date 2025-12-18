@@ -9,9 +9,10 @@ fn main() {
     #[cfg(target_arch = "aarch64")]
     {
         cc::Build::new()
-            .file("src/aegis_asm/asm/aegis_128l_aarch64.s")
+            .file("src/aegis_asm/asm/aegis_128l_aarch64.S")
+            .flag("-march=armv8-a+crypto")
             .compile("aegis_asm");
 
-        println!("cargo:rerun-if-changed=src/aegis_asm/asm/aegis_128l_aarch64.s");
+        println!("cargo:rerun-if-changed=src/aegis_asm/asm/aegis_128l_aarch64.S");
     }
 }

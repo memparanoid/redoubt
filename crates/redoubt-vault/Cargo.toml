@@ -15,6 +15,7 @@ path = "src/lib.rs"
 [features]
 default = []
 no_std = ["redoubt-vault-core/no_std"]
+gdb = ["redoubt-vault-core/gdb"]
 
 [dependencies]
 redoubt-vault-core.workspace = true

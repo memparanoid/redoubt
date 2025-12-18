@@ -20,8 +20,9 @@ members = [
   "crates/redoubt-codec/derive",
   "crates/redoubt-buffer",
   "crates/redoubt-test-utils",
-  "benchmarks",
   "examples/wasm-demo/rust",
+  "benchmarks",
+  "gdb",
 ]
 resolver = "2"
 

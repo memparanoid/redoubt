@@ -185,6 +185,7 @@ pub mod collections;
 pub mod support;
 
 pub use redoubt_aead::*;
+pub use redoubt_alloc::*;
 pub use redoubt_codec::*;
 pub use redoubt_vault::*;
 pub use redoubt_zero::*;

@@ -15,6 +15,9 @@ pub mod storage;
 
 use consts::MASTER_KEY_LEN;
 
+#[cfg(feature = "gdb")]
+pub use storage::reset;
+
 pub fn leak_master_key(truncate_at: usize) -> Result<ZeroizingGuard<Vec<u8>>, BufferError> {
     let mut master_key = vec![0u8; truncate_at];
 

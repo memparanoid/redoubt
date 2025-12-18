@@ -10,6 +10,7 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
+redoubt-alloc = { workspace = true }
 redoubt-zero = { workspace = true }
 redoubt-codec = { workspace = true }
 redoubt-vault = { workspace = true }
@@ -19,3 +20,4 @@ redoubt-aead = { workspace = true }
 default = []
 no_std = ["redoubt-vault/no_std"]
 test_utils = ["redoubt-aead/test_utils", "redoubt-codec/test_utils"]
+gdb = ["redoubt-vault/gdb"]

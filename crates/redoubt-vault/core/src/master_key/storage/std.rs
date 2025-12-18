@@ -17,3 +17,23 @@ pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), B
     let mut guard = mutex.lock().map_err(|_| BufferError::MutexPoisoned)?;
     guard.open(f)
 }
+
+/// Resets the master key storage (GDB only)
+///
+/// # Safety
+///
+/// This function is only available with the `gdb` feature.
+/// It reinitializes the master key buffer, discarding the previous key material.
+/// This should only be used for memory leak detection in controlled testing environments.
+///
+/// # Panics
+///
+/// Panics if the buffer has not been initialized yet or if the mutex is poisoned.
+#[cfg(feature = "gdb")]
+pub fn reset() {
+    let mutex = BUFFER
+        .get()
+        .expect("BUFFER must be initialized before reset");
+    let mut guard = mutex.lock().expect("Mutex must not be poisoned");
+    *guard = create_initialized_buffer();
+}

@@ -15,3 +15,9 @@ pub use std::open;
 
 #[cfg(feature = "no_std")]
 pub use portable::open;
+
+#[cfg(all(feature = "gdb", not(feature = "no_std")))]
+pub use std::reset;
+
+#[cfg(all(feature = "gdb", feature = "no_std"))]
+pub use portable::reset;

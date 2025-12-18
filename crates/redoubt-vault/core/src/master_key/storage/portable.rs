@@ -99,3 +99,31 @@ pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), B
 
     result
 }
+
+/// Resets the master key storage (GDB testing only)
+///
+/// # Safety
+///
+/// This function is only available with the `gdb` feature.
+/// It reinitializes the master key buffer, discarding the previous key material.
+/// This should only be used for memory leak detection in controlled testing environments.
+///
+/// # Panics
+///
+/// Panics if the buffer has not been initialized yet.
+#[cfg(feature = "gdb")]
+pub fn reset() {
+    assert_eq!(
+        INIT_STATE.load(Ordering::Acquire),
+        STATE_DONE,
+        "BUFFER must be initialized before reset"
+    );
+
+    acquire();
+
+    unsafe {
+        *BUFFER.0.get() = Some(create_initialized_buffer());
+    }
+
+    release();
+}
