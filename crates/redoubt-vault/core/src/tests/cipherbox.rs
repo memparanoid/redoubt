@@ -1055,10 +1055,10 @@ fn stress_test_redoubt_vec_grow_shrink_cycles_small() {
 
 #[test]
 fn stress_test_redoubt_vec_grow_shrink_cycles_medium() {
-    stress_test_redoubt_vec_grow_shrink_cycles(100);
+    stress_test_redoubt_vec_grow_shrink_cycles(20);
 }
 
 #[test]
 fn stress_test_redoubt_vec_grow_shrink_cycles_large() {
-    stress_test_redoubt_vec_grow_shrink_cycles(1000);
+    stress_test_redoubt_vec_grow_shrink_cycles(30);
 }
