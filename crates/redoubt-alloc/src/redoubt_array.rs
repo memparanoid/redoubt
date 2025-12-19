@@ -117,6 +117,18 @@ where
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         &mut self.inner
     }
+
+    /// Returns a reference to the underlying array.
+    #[inline]
+    pub fn as_array(&self) -> &[T; N] {
+        &self.inner
+    }
+
+    /// Returns a mutable reference to the underlying array.
+    #[inline]
+    pub fn as_mut_array(&mut self) -> &mut [T; N] {
+        &mut self.inner
+    }
 }
 
 impl<T, const N: usize> Default for RedoubtArray<T, N>

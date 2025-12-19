@@ -119,6 +119,70 @@ fn test_as_mut_slice() {
 }
 
 // =============================================================================
+// as_array()
+// =============================================================================
+
+#[test]
+fn test_as_array() {
+    let mut arr = RedoubtArray::<u8, 32>::new();
+    let mut src = [7u8; 32];
+    arr.replace_from_mut_array(&mut src);
+    assert!(src.is_zeroized());
+
+    let array_ref: &[u8; 32] = arr.as_array();
+    assert_eq!(array_ref.len(), 32);
+    assert_eq!(array_ref[0], 7);
+}
+
+#[test]
+fn test_as_array_pattern_matching() {
+    let mut arr = RedoubtArray::<u8, 3>::new();
+    let mut src = [10u8, 20u8, 30u8];
+    arr.replace_from_mut_array(&mut src);
+    assert!(src.is_zeroized());
+
+    let [a, b, c] = *arr.as_array();
+    assert_eq!(a, 10);
+    assert_eq!(b, 20);
+    assert_eq!(c, 30);
+}
+
+// =============================================================================
+// as_mut_array()
+// =============================================================================
+
+#[test]
+fn test_as_mut_array() {
+    let mut arr = RedoubtArray::<u8, 32>::new();
+    let mut src = [1u8; 32];
+    arr.replace_from_mut_array(&mut src);
+    assert!(src.is_zeroized());
+
+    let array_ref = arr.as_mut_array();
+    array_ref[0] = 99;
+    array_ref[31] = 88;
+
+    assert_eq!(arr[0], 99);
+    assert_eq!(arr[31], 88);
+}
+
+#[test]
+fn test_as_mut_array_full_replacement() {
+    let mut arr = RedoubtArray::<u8, 4>::new();
+    let mut src = [1u8, 2u8, 3u8, 4u8];
+    arr.replace_from_mut_array(&mut src);
+    assert!(src.is_zeroized());
+
+    let array_ref = arr.as_mut_array();
+    *array_ref = [10u8, 20u8, 30u8, 40u8];
+
+    assert_eq!(arr[0], 10);
+    assert_eq!(arr[1], 20);
+    assert_eq!(arr[2], 30);
+    assert_eq!(arr[3], 40);
+}
+
+// =============================================================================
 // Default
 // =============================================================================
 
