@@ -45,6 +45,7 @@ impl PageBuffer {
         let page = Page::new()?;
 
         page.lock()?;
+        page.mark_dontdump()?;
 
         if strategy == ProtectionStrategy::MemProtected {
             page.protect()?;

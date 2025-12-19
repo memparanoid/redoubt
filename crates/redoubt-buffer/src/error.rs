@@ -20,6 +20,9 @@ pub enum PageError {
 
     #[error("mprotect(PROT_WRITE) failed")]
     Unprotect = 3,
+
+    #[error("madvise(MADV_DONTDUMP) failed")]
+    Madvise = 4,
 }
 
 /// Errors that can occur when working with buffers.

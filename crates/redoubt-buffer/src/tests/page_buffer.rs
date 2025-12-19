@@ -61,7 +61,7 @@ fn test_new_returns_creation_failed() {
 mod seccomp_new {
     use super::*;
     use crate::error::PageError;
-    use crate::tests::utils::{block_mlock, block_mprotect, run_test_as_subprocess};
+    use crate::tests::utils::{block_madvise, block_mlock, block_mprotect, run_test_as_subprocess};
 
     #[test]
     #[ignore]
@@ -101,6 +101,29 @@ mod seccomp_new {
     fn test_new_returns_protection_failed() {
         let exit_code = run_test_as_subprocess(
             "tests::page_buffer::seccomp_new::subprocess_test_new_returns_protection_failed",
+        );
+        assert_eq!(
+            exit_code,
+            Some(0),
+            "Subprocess should exit cleanly after assertion"
+        );
+    }
+
+    #[test]
+    #[ignore]
+    fn subprocess_test_new_returns_madvise_failed() {
+        block_madvise();
+        let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
+
+        assert!(result.is_err());
+        assert!(matches!(result, Err(PageError::Madvise)));
+    }
+
+    #[test]
+    #[serial(page_buffer)]
+    fn test_new_returns_madvise_failed() {
+        let exit_code = run_test_as_subprocess(
+            "tests::page_buffer::seccomp_new::subprocess_test_new_returns_madvise_failed",
         );
         assert_eq!(
             exit_code,

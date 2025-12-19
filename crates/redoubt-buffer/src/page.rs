@@ -70,6 +70,30 @@ impl Page {
         Ok(())
     }
 
+    /// Marks page as non-dumpable (excludes from core dumps).
+    #[cfg(target_os = "linux")]
+    pub fn mark_dontdump(&self) -> Result<(), PageError> {
+        let failed = unsafe {
+            libc::madvise(
+                self.ptr as *mut libc::c_void,
+                self.capacity,
+                libc::MADV_DONTDUMP,
+            )
+        } != 0;
+
+        if failed {
+            return Err(PageError::Madvise);
+        }
+
+        Ok(())
+    }
+
+    /// No-op on non-Linux platforms.
+    #[cfg(not(target_os = "linux"))]
+    pub fn mark_dontdump(&self) -> Result<(), PageError> {
+        Ok(())
+    }
+
     /// Sets page to PROT_NONE (no read/write access).
     pub fn protect(&self) -> Result<(), PageError> {
         let failed =

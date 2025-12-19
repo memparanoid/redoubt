@@ -45,3 +45,8 @@ pub fn block_mlock() {
 pub fn block_mprotect() {
     block_syscall("mprotect");
 }
+
+#[cfg(target_os = "linux")]
+pub fn block_madvise() {
+    block_syscall("madvise");
+}

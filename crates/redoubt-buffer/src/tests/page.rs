@@ -128,6 +128,62 @@ mod seccomp_lock {
 }
 
 // =============================================================================
+// mark_dontdump()
+// =============================================================================
+
+#[cfg(target_os = "linux")]
+#[test]
+#[serial(page)]
+fn test_mark_dontdump_succeeds() {
+    let page = Page::new().expect("Failed to new()");
+
+    page.mark_dontdump().expect("Failed to mark_dontdump()");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+#[serial(page)]
+fn test_mark_dontdump_multiple_times_succeeds() {
+    let page = Page::new().expect("Failed to new()");
+
+    page.mark_dontdump().expect("Failed to mark_dontdump()");
+    page.mark_dontdump().expect("Failed to mark_dontdump()");
+}
+
+#[cfg(target_os = "linux")]
+mod seccomp_mark_dontdump {
+    use super::*;
+    use crate::tests::utils::{block_madvise, run_test_as_subprocess};
+
+    #[test]
+    #[ignore]
+    fn subprocess_test_mark_dontdump_fails_when_madvise_blocked() {
+        let page = Page::new().expect("Failed to new()");
+
+        block_madvise();
+
+        let result = page.mark_dontdump();
+
+        assert!(result.is_err());
+        assert!(matches!(result, Err(PageError::Madvise)));
+    }
+
+    #[test]
+    #[serial(page)]
+    fn test_mark_dontdump_fails_when_madvise_blocked() {
+        let exit_code = run_test_as_subprocess(
+            "tests::page::seccomp_mark_dontdump::subprocess_test_mark_dontdump_fails_when_madvise_blocked",
+        );
+
+        assert_eq!(
+            exit_code,
+            Some(0),
+            "Subprocess should exit cleanly after assertion"
+        );
+    }
+}
+
+// =============================================================================
 // protect()
 // =============================================================================
 
