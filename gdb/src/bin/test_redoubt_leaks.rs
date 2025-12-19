@@ -3,8 +3,8 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt::{
-    cipherbox, leak_master_key, reset_master_key, FastZeroizable, RedoubtCodec, RedoubtVec,
-    RedoubtZero, ZeroizationProbe,
+    FastZeroizable, RedoubtCodec, RedoubtVec, RedoubtZero, ZeroizationProbe, cipherbox,
+    leak_master_key, reset_master_key,
 };
 
 #[cipherbox(TestBox)]
@@ -43,6 +43,42 @@ fn main() {
         // Initialize cipherbox (generates master key)
         let mut test_box = TestBox::new();
 
+        // Open TestBox to generate master key.
+        test_box
+            .open_mut(|_tb| {})
+            .expect("Failed to create MASTER_KEY by opening TestBox by the first time");
+
+        // Reset master key until it has sufficient entropy (we want to make sure that the key pattern being searched in the dump is unique)
+        // i.e a key of 0000000000.. (valid key) could make the test fail since that pattern most likely ...
+        // CLAUDE complete this comment in a very professiional way.
+        const MIN_ENTROPY: f64 = 4.5;
+        const MAX_ATTEMPTS: usize = 1000;
+        let mut attempts = 0;
+        let mut master_key = loop {
+            attempts += 1;
+
+            if attempts > MAX_ATTEMPTS {
+                panic!("Failed to generate high-entropy key after {MAX_ATTEMPTS} attempts");
+            }
+
+            let mut key = leak_master_key(32).expect("Failed to leak master key");
+            let entropy = shannon_entropy(&key);
+
+            println!("  Attempt {attempts}: entropy = {entropy:.3} bits/byte");
+
+            if entropy >= MIN_ENTROPY {
+                println!();
+                println!("[+] Found high-entropy key after {attempts} attempts");
+                println!("[+] Master key entropy: {entropy:.3} bits/byte");
+                break key;
+            }
+
+            key.fast_zeroize();
+
+            // Reset and try again
+            reset_master_key();
+        };
+
         // Open the box 1 million times to ensure leak is NOT from our open_mut
         // println!("[*] Opening cipherbox 1,000,000 times to test for leaks...");
         // for i in 0..100 {
@@ -61,55 +97,21 @@ fn main() {
         // Enable core dumps AFTER cipherbox creation
         // (redoubt-guard disables them, but we need them for forensic analysis)
 
-        const MIN_ENTROPY: f64 = 4.5;
-        const MAX_ATTEMPTS: usize = 1000;
+        // println!("[*] Searching for high-entropy master key (>= {MIN_ENTROPY} bits/byte)...");
 
-        println!("[*] Searching for high-entropy master key (>= {MIN_ENTROPY} bits/byte)...");
+        // for i in 0..100 {
+        //     test_box
+        //         .open_mut(|data| {
+        //             data.field = [
+        //                 44, 55, 66, 77, 88, 99, 11, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+        //             ];
+        //         })
+        //         .expect("Failed to open cipherbox");
 
-        // let mut attempts = 0;
-        // let mut master_key = loop {
-        //     attempts += 1;
-
-        //     if attempts > MAX_ATTEMPTS {
-        //         panic!("Failed to generate high-entropy key after {MAX_ATTEMPTS} attempts");
+        //     if (i + 1) % 100_000 == 0 {
+        //         println!("  Completed {} iterations...", i + 1);
         //     }
-
-        //     let mut key = leak_master_key(32).expect("Failed to leak master key");
-        //     let entropy = shannon_entropy(&key);
-
-        //     println!("  Attempt {attempts}: entropy = {entropy:.3} bits/byte");
-
-        //     if entropy >= MIN_ENTROPY {
-        //         println!();
-        //         println!("[+] Found high-entropy key after {attempts} attempts");
-        //         println!("[+] Master key entropy: {entropy:.3} bits/byte");
-        //         break key;
-        //     }
-
-        //     key.fast_zeroize();
-
-        //     // Reset and try again
-        //     reset_master_key();
-        // };
-        //
-        for i in 0..100 {
-            test_box
-                .open_mut(|data| {
-                    data.field = [
-                        44, 55, 66, 77, 88, 99, 11, 22, 23, 24, 25, 26, 27, 28, 29, 30,
-                    ];
-                })
-                .expect("Failed to open cipherbox");
-
-            if (i + 1) % 100_000 == 0 {
-                println!("  Completed {} iterations...", i + 1);
-            }
-        }
-
-        #[cfg(target_os = "linux")]
-        unsafe {
-            libc::prctl(libc::PR_SET_DUMPABLE, 1, 0, 0, 0);
-        }
+        // }
 
         let mut master_key = leak_master_key(32).expect("Failed to leak master key");
 

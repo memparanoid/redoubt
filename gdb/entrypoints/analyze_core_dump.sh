@@ -30,6 +30,12 @@ echo "$KEY_HEX" > /tmp/key.hex
 echo "[+] Generated key captured: ${KEY_HEX:0:16}...${KEY_HEX: -16}"
 echo ""
 
+echo ""
+echo "[*] Test binary output:"
+echo ""
+cat /tmp/rust_output.txt
+echo ""
+
 # Give it a moment to settle
 sleep 1
 
@@ -51,7 +57,11 @@ fi
 
 echo "[+] Core dump generated: $CORE_FILE"
 CORE_SIZE=$(stat -c%s "$CORE_FILE" 2>/dev/null || stat -f%z "$CORE_FILE")
-echo "[*] Core dump size: $((CORE_SIZE / 1024 / 1024)) MB"
+if [ $CORE_SIZE -lt 1048576 ]; then
+    echo "[*] Core dump size: $((CORE_SIZE / 1024)) KB"
+else
+    echo "[*] Core dump size: $((CORE_SIZE / 1024 / 1024)) MB"
+fi
 echo ""
 
 # Run Python analysis
@@ -60,8 +70,6 @@ echo ""
 
 python3 gdb/scripts/search_patterns_in_core_dump.py "$CORE_FILE" /tmp/key.hex
 RESULT=$?
-
-echo ""
 
 # Cleanup
 rm -f /tmp/key.hex
