@@ -12,7 +12,7 @@ use crate::traits::{BytesRequired, Decode, Encode};
 #[test]
 fn test_redoubt_vec_codec_roundtrip() {
     let mut vec = RedoubtVec::<u8>::new();
-    vec.drain_slice(&mut [1, 2, 3, 4, 5]);
+    vec.extend_from_mut_slice(&mut [1, 2, 3, 4, 5]);
 
     let bytes_required = vec
         .encode_bytes_required()
@@ -58,7 +58,7 @@ fn stress_test_redoubt_vec_clear_push_encode_decode_cycles() {
 
         // Clone the portion we need from original (RedoubtVec doesn't have clone)
         let mut vec = original[0..i].to_vec();
-        redoubt_vec.drain_slice(&mut vec);
+        redoubt_vec.extend_from_mut_slice(&mut vec);
 
         let bytes_required = redoubt_vec
             .encode_bytes_required()

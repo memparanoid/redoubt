@@ -980,7 +980,7 @@ fn stress_test_redoubt_vec_grow_shrink_cycles(size: usize) {
     for i in 0..=size {
         cb.open_mut(|vault| {
             let mut src = original[0..i].to_vec();
-            vault.vec.drain_slice(&mut src);
+            vault.vec.extend_from_mut_slice(&mut src);
         })
         .expect("Failed open_mut during grow phase");
 
@@ -1022,7 +1022,7 @@ fn stress_test_redoubt_vec_grow_shrink_cycles(size: usize) {
     for i in (0..=size).rev() {
         cb.open_mut(|vault| {
             let mut src = original[0..i].to_vec();
-            vault.vec.drain_slice(&mut src);
+            vault.vec.extend_from_mut_slice(&mut src);
         })
         .expect("Failed open_mut during shrink phase");
 

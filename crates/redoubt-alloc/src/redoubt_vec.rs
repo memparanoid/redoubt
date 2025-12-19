@@ -28,7 +28,7 @@ use redoubt_zero::{
 ///
 /// let mut vec = RedoubtVec::new();
 /// let mut data = [42u8, 43];
-/// vec.drain_slice(&mut data);
+/// vec.extend_from_mut_slice(&mut data);
 ///
 /// // Source is guaranteed to be zeroized
 /// assert!(data.is_zeroized());
@@ -169,7 +169,7 @@ where
         self.grow_to(min_capacity);
     }
 
-    /// Drains a slice into the vector, zeroizing the source.
+    /// Extends from a mutable slice, zeroizing the source.
     ///
     /// Grows the vector if necessary to accommodate the slice.
     ///
@@ -177,7 +177,7 @@ where
     ///
     /// Uses `ptr::copy_nonoverlapping` for bulk copy instead of individual
     /// operations. This is significantly faster for large slices.
-    pub fn drain_slice(&mut self, src: &mut [T])
+    pub fn extend_from_mut_slice(&mut self, src: &mut [T])
     where
         T: Default,
     {

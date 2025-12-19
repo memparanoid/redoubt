@@ -26,7 +26,7 @@ use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
 ///
 /// let mut s = RedoubtString::new();
 /// let mut secret = String::from("password123");
-/// s.drain_string(&mut secret);
+/// s.extend_from_mut_string(&mut secret);
 ///
 /// // Source is guaranteed to be zeroized
 /// assert!(secret.is_zeroized());
@@ -124,7 +124,7 @@ impl RedoubtString {
         self.inner.reserve_exact(new_capacity);
 
         // 4. Drain from tmp
-        self.drain_string(&mut tmp);
+        self.extend_from_mut_string(&mut tmp);
     }
 
     #[inline(always)]
@@ -136,8 +136,8 @@ impl RedoubtString {
         self.grow_to(min_capacity);
     }
 
-    /// Drains a String into this String, zeroizing the source.
-    pub fn drain_string(&mut self, src: &mut String) {
+    /// Extends from a mutable String, zeroizing the source.
+    pub fn extend_from_mut_string(&mut self, src: &mut String) {
         self.maybe_grow_to(self.len() + src.len());
 
         self.inner.push_str(src);
@@ -147,8 +147,8 @@ impl RedoubtString {
         src.clear();
     }
 
-    /// Copies from str (no zeroization, src is immutable).
-    pub fn copy_from_str(&mut self, src: &str) {
+    /// Extends from str (no zeroization, src is immutable).
+    pub fn extend_from_str(&mut self, src: &str) {
         self.maybe_grow_to(self.len() + src.len());
         self.inner.push_str(src);
     }
@@ -209,7 +209,7 @@ impl DerefMut for RedoubtString {
 impl From<String> for RedoubtString {
     fn from(mut s: String) -> Self {
         let mut redoubt = Self::with_capacity(s.len());
-        redoubt.drain_string(&mut s);
+        redoubt.extend_from_mut_string(&mut s);
         redoubt
     }
 }
@@ -217,7 +217,7 @@ impl From<String> for RedoubtString {
 impl From<&str> for RedoubtString {
     fn from(s: &str) -> Self {
         let mut redoubt = Self::with_capacity(s.len());
-        redoubt.copy_from_str(s);
+        redoubt.extend_from_str(s);
         redoubt
     }
 }

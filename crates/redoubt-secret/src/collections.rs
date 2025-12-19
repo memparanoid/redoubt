@@ -107,8 +107,8 @@ where
         // Get mutable slice from src (via DerefMut)
         let src_slice = &mut **src;
 
-        // Drain into dst (this zeroizes src_slice)
-        dst.drain_slice(src_slice);
+        // Extend dst from src (this zeroizes src_slice)
+        dst.extend_from_mut_slice(src_slice);
 
         // Clear src length (data already zeroized)
         src.clear();
@@ -117,7 +117,7 @@ where
 
 /// Implement `MemMove` for `RedoubtString`.
 ///
-/// Moves data from `src` to `dst` using `drain_string`, which
+/// Moves data from `src` to `dst` using `extend_from_mut_string`, which
 /// automatically zeroizes the source without creating temporary copies.
 impl MemMove for RedoubtString {
     fn mem_move(src: &mut Self, dst: &mut Self) {
@@ -126,10 +126,10 @@ impl MemMove for RedoubtString {
         // Get mutable reference to inner String
         let src_inner = src.as_mut_string();
 
-        // Drain from src into dst (zeroizes src_inner automatically)
-        dst.drain_string(src_inner);
+        // Extend dst from src (zeroizes src_inner automatically)
+        dst.extend_from_mut_string(src_inner);
 
-        // Clear src length (data already zeroized by drain_string)
+        // Clear src length (data already zeroized by extend_from_mut_string)
         src.clear();
     }
 }

@@ -11,7 +11,7 @@ use crate::traits::{BytesRequired, Decode, Encode};
 #[test]
 fn test_redoubt_string_codec_roundtrip() {
     let mut s = RedoubtString::new();
-    s.drain_string(&mut String::from("REDOUBT"));
+    s.extend_from_mut_string(&mut String::from("REDOUBT"));
 
     let bytes_required = s
         .encode_bytes_required()
@@ -57,7 +57,7 @@ fn stress_test_redoubt_string_clear_push_encode_decode_cycles() {
 
         // Clone the portion we need (RedoubtString doesn't have clone)
         let mut src = expected.clone();
-        redoubt_string.drain_string(&mut src);
+        redoubt_string.extend_from_mut_string(&mut src);
 
         let bytes_required = redoubt_string
             .encode_bytes_required()
