@@ -12,6 +12,7 @@ use redoubt_zero::ZeroizationProbe;
 #[test]
 fn test_new() {
     let vec: RedoubtVec<u8> = RedoubtVec::new();
+
     assert_eq!(vec.len(), 0);
     assert_eq!(vec.capacity(), 0);
 }
@@ -23,6 +24,7 @@ fn test_new() {
 #[test]
 fn test_with_capacity() {
     let vec: RedoubtVec<u8> = RedoubtVec::with_capacity(10);
+
     assert_eq!(vec.len(), 0);
     assert_eq!(vec.capacity(), 10);
 }
@@ -41,6 +43,7 @@ fn test_with_capacity() {
 fn test_drain_value_single() {
     let mut vec = RedoubtVec::new();
     let mut value = 42u8;
+
     vec.drain_value(&mut value);
 
     assert_eq!(vec.len(), 1);
@@ -102,6 +105,7 @@ fn test_extend_from_mut_slice_grows() {
     let mut vec = RedoubtVec::with_capacity(2);
     let mut v1 = 1u8;
     let mut v2 = 2u8;
+
     vec.drain_value(&mut v1);
     vec.drain_value(&mut v2);
 
@@ -287,6 +291,7 @@ fn test_as_mut_slice() {
     let mut v1 = 1u8;
     let mut v2 = 2u8;
     let mut v3 = 3u8;
+
     vec.drain_value(&mut v1);
     vec.drain_value(&mut v2);
     vec.drain_value(&mut v3);
@@ -296,8 +301,8 @@ fn test_as_mut_slice() {
     assert!(v2.is_zeroized());
     assert!(v3.is_zeroized());
 
-    let slice = vec.as_mut_slice();
-    slice[1] = 42;
+    let slice_mut = vec.as_mut_slice();
+    slice_mut[1] = 42;
 
     assert_eq!(vec.as_slice(), &[1, 42, 3]);
 }
@@ -310,14 +315,16 @@ fn test_as_mut_slice() {
 fn test_as_vec() {
     let mut vec = RedoubtVec::new();
     let mut data = vec![1u8, 2, 3];
+
     vec.extend_from_mut_slice(&mut data);
     assert!(data.is_zeroized());
 
-    let inner = vec.as_vec();
-    assert_eq!(inner.len(), 3);
-    assert_eq!(inner[0], 1);
-    assert_eq!(inner[1], 2);
-    assert_eq!(inner[2], 3);
+    let vec_ref = vec.as_vec();
+
+    assert_eq!(vec_ref.len(), 3);
+    assert_eq!(vec_ref[0], 1);
+    assert_eq!(vec_ref[1], 2);
+    assert_eq!(vec_ref[2], 3);
 }
 
 // =============================================================================
@@ -328,11 +335,12 @@ fn test_as_vec() {
 fn test_as_mut_vec() {
     let mut vec = RedoubtVec::new();
     let mut data = vec![10u8, 20, 30];
+
     vec.extend_from_mut_slice(&mut data);
     assert!(data.is_zeroized());
 
-    let inner_mut = vec.as_mut_vec();
-    inner_mut.push(40);
+    let vec_mut_ref = vec.as_mut_vec();
+    vec_mut_ref.push(40);
 
     assert_eq!(vec.len(), 4);
     assert_eq!(vec[3], 40);
@@ -345,6 +353,7 @@ fn test_as_mut_vec() {
 #[test]
 fn test_default() {
     let vec: RedoubtVec<u8> = RedoubtVec::default();
+
     assert_eq!(vec.len(), 0);
     assert_eq!(vec.capacity(), 0);
     assert!(vec.is_empty());
@@ -419,6 +428,7 @@ fn test_partial_eq_empty_vecs() {
 fn test_deref() {
     let mut vec = RedoubtVec::new();
     let mut src = [1u8, 2, 3];
+
     vec.extend_from_mut_slice(&mut src);
     assert!(src.is_zeroized());
 
@@ -429,6 +439,7 @@ fn test_deref() {
     // DerefMut to slice
     let slice_mut: &mut [u8] = &mut vec;
     slice_mut[1] = 42;
+
     assert_eq!(vec[1], 42);
 }
 
@@ -440,6 +451,7 @@ fn test_deref() {
 fn test_debug_redacted() {
     let mut vec = RedoubtVec::new();
     let mut src = [42u8, 43, 44];
+
     vec.extend_from_mut_slice(&mut src);
     assert!(src.is_zeroized());
 

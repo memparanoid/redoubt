@@ -13,6 +13,7 @@ use redoubt_zero::ZeroizationProbe;
 #[test]
 fn test_new() {
     let s = RedoubtString::new();
+
     assert_eq!(s.len(), 0);
     assert!(s.is_empty());
 }
@@ -24,6 +25,7 @@ fn test_new() {
 #[test]
 fn test_with_capacity() {
     let s = RedoubtString::with_capacity(10);
+
     assert_eq!(s.len(), 0);
     assert!(s.capacity() >= 10);
 }
@@ -244,11 +246,13 @@ fn test_as_mut_str() {
 #[test]
 fn test_as_string() {
     let mut s = RedoubtString::new();
+
     s.extend_from_str("hello world");
 
-    let inner = s.as_string();
-    assert_eq!(inner.as_str(), "hello world");
-    assert_eq!(inner.len(), 11);
+    let string_ref = s.as_string();
+
+    assert_eq!(string_ref.as_str(), "hello world");
+    assert_eq!(string_ref.len(), 11);
 }
 
 // =============================================================================
@@ -258,10 +262,11 @@ fn test_as_string() {
 #[test]
 fn test_as_mut_string() {
     let mut s = RedoubtString::new();
+
     s.extend_from_str("secret data");
 
-    let inner_string = s.as_mut_string();
-    inner_string.push_str(" modified");
+    let string_mut_ref = s.as_mut_string();
+    string_mut_ref.push_str(" modified");
 
     assert_eq!(s.as_str(), "secret data modified");
 }
@@ -289,6 +294,7 @@ fn test_as_mut_string_drain() {
 #[test]
 fn test_default() {
     let s = RedoubtString::default();
+
     assert_eq!(s.len(), 0);
     assert!(s.is_empty());
     assert_eq!(s.capacity(), 0);
@@ -301,6 +307,7 @@ fn test_default() {
 #[test]
 fn test_deref() {
     let mut s = RedoubtString::new();
+
     s.extend_from_str("test");
 
     // Deref to &str
@@ -310,6 +317,7 @@ fn test_deref() {
     // DerefMut to &mut str
     let str_mut: &mut str = &mut s;
     str_mut.make_ascii_uppercase();
+
     assert_eq!(s.as_str(), "TEST");
 }
 
@@ -406,6 +414,7 @@ fn test_partial_eq_with_unicode() {
 #[test]
 fn test_debug_redacted() {
     let mut s = RedoubtString::new();
+
     s.extend_from_str("secret password 123");
 
     let debug_output = format!("{:?}", s);
