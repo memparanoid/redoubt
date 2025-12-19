@@ -3,40 +3,56 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(target_os = "linux")]
-pub fn block_mem_syscalls() {
+fn block_syscall(name: &str) {
     use libseccomp::{ScmpAction, ScmpFilterContext, ScmpSyscall};
 
     let mut filter = ScmpFilterContext::new(ScmpAction::Allow).expect("Failed to create filter");
-
-    for syscall in &["mprotect", "mlock", "munlock", "madvise"] {
-        filter
-            .add_rule(
-                ScmpAction::Errno(libc::EPERM),
-                ScmpSyscall::from_name(syscall).expect("Failed to from_name(..)"),
-            )
-            .expect("Failed to add rule");
-    }
-
+    filter
+        .add_rule(
+            ScmpAction::Errno(libc::EPERM),
+            ScmpSyscall::from_name(name).expect("Failed to from_name(..)"),
+        )
+        .expect("Failed to add rule");
     filter.load().expect("Failed to load seccomp filter");
 }
 
 #[cfg(target_os = "linux")]
-pub fn block_entropy_syscalls() {
-    use libseccomp::{ScmpAction, ScmpFilterContext, ScmpSyscall};
+pub fn block_mprotect() {
+    block_syscall("mprotect");
+}
 
-    let mut filter = ScmpFilterContext::new(ScmpAction::Allow).expect("Failed to create filter");
+#[cfg(target_os = "linux")]
+pub fn block_mlock() {
+    block_syscall("mlock");
+}
 
-    // Block getrandom syscall and /dev/urandom fallback
-    for syscall in &["getrandom", "read", "openat"] {
-        filter
-            .add_rule(
-                ScmpAction::Errno(libc::EPERM),
-                ScmpSyscall::from_name(syscall).expect("Failed to from_name(..)"),
-            )
-            .expect("Failed to add rule");
-    }
+#[cfg(target_os = "linux")]
+pub fn block_munlock() {
+    block_syscall("munlock");
+}
 
-    filter.load().expect("Failed to load seccomp filter");
+#[cfg(target_os = "linux")]
+pub fn block_madvise() {
+    block_syscall("madvise");
+}
+
+/// Blocks the getrandom syscall (primary entropy source on Linux).
+#[cfg(target_os = "linux")]
+pub fn block_getrandom() {
+    block_syscall("getrandom");
+}
+
+/// Blocks the read syscall (used by getrandom crate to read from /dev/urandom fallback).
+#[cfg(target_os = "linux")]
+pub fn block_read() {
+    block_syscall("read");
+}
+
+/// Blocks the openat syscall (used by getrandom crate to open /dev/urandom fallback).
+/// Together with block_getrandom() and block_read(), this completely blocks all entropy sources.
+#[cfg(target_os = "linux")]
+pub fn block_openat() {
+    block_syscall("openat");
 }
 
 pub fn run_test_as_subprocess(test_name: &str) -> Option<i32> {
