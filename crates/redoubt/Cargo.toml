@@ -20,4 +20,4 @@ redoubt-aead = { workspace = true }
 default = []
 no_std = ["redoubt-vault/no_std"]
 test_utils = ["redoubt-aead/test_utils", "redoubt-codec/test_utils"]
-gdb = ["redoubt-vault/gdb"]
+__internal__forensics = ["redoubt-vault/__internal__forensics"]

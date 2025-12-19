@@ -23,7 +23,7 @@ pub use helpers::{decrypt_from, encrypt_into};
 pub use master_key::leak_master_key;
 pub use traits::{CipherBoxDyns, DecryptStruct, Decryptable, EncryptStruct, Encryptable};
 
-#[cfg(feature = "gdb")]
+#[cfg(feature = "__internal__forensics")]
 pub use master_key::reset as reset_master_key;
 
 #[cfg(test)]

@@ -22,7 +22,7 @@ members = [
   "crates/redoubt-test-utils",
   "examples/wasm-demo/rust",
   "benchmarks",
-  "gdb",
+  "forensics/memory_analysis",
 ]
 resolver = "2"
 

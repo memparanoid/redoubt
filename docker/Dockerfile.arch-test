@@ -37,7 +37,7 @@ COPY crates/redoubt/Cargo.toml ./crates/redoubt/
 COPY benchmarks/Cargo.toml ./benchmarks/
 COPY crates/redoubt-test-utils/Cargo.toml ./crates/redoubt-test-utils/
 COPY examples/wasm-demo/rust/Cargo.toml ./examples/wasm-demo/rust/
-COPY gdb/Cargo.toml ./gdb/
+COPY forensics/memory_analysis/Cargo.toml ./forensics/memory_analysis/
 
 # Create stub lib.rs files
 RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/src/lib.rs && \
@@ -66,7 +66,7 @@ RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/s
     echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
     echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
     echo "fn main() {}" > benchmarks/benches/alloc.rs && \
-    mkdir -p gdb/src/bin && echo "fn main() {}" > gdb/src/bin/test_redoubt_leaks.rs
+    mkdir -p forensics/memory_analysis/src/bin && echo "fn main() {}" > forensics/memory_analysis/src/bin/test_redoubt_leaks.rs
 
 # Pre-fetch dependencies
 RUN cargo fetch

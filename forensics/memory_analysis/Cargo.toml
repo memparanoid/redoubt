@@ -1,5 +1,5 @@
 [package]
-name = "gdb-tests"
+name = "redoubt-forensics"
 version = "0.1.0"
 edition = "2024"
 publish = false
@@ -10,5 +10,5 @@ path = "src/bin/test_redoubt_leaks.rs"
 
 
 [dependencies]
-redoubt = { path = "../crates/redoubt", features = ["gdb"] }
+redoubt = { path = "../../crates/redoubt", features = ["__internal__forensics"] }
 libc.workspace = true

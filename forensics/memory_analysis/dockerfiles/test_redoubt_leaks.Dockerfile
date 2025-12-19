@@ -19,14 +19,14 @@ WORKDIR /workspace
 COPY . .
 
 # Build the binary in release mode (build.rs handles architecture-specific crypto flags)
-RUN cargo build --release --bin test_redoubt_leaks -p gdb-tests
+RUN cargo build --release --bin test_redoubt_leaks -p redoubt-forensics
 
 # Make scripts executable
-RUN chmod +x gdb/entrypoints/analyze_core_dump.sh && \
-    chmod +x gdb/scripts/search_patterns_in_core_dump.py
+RUN chmod +x forensics/memory_analysis/entrypoints/analyze_core_dump.sh && \
+    chmod +x forensics/memory_analysis/scripts/search_patterns_in_core_dump.py
 
 # Enable core dumps (disabled by default in containers)
 RUN echo 'ulimit -c unlimited' >> /root/.bashrc
 
 # Default command: run core dump analysis
-CMD ["sh", "-c", "ulimit -c unlimited && ./gdb/entrypoints/analyze_core_dump.sh"]
+CMD ["sh", "-c", "ulimit -c unlimited && ./forensics/memory_analysis/entrypoints/analyze_core_dump.sh"]

@@ -15,7 +15,7 @@ path = "src/lib.rs"
 [features]
 default = []
 no_std = []
-gdb = ["redoubt-guard/gdb"]
+__internal__forensics = ["redoubt-guard/__internal__forensics"]
 
 [dependencies]
 redoubt-codec = { workspace = true, features = ["zeroize"]}

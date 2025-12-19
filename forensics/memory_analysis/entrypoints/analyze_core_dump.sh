@@ -101,7 +101,7 @@ for i in $(seq 1 $PATTERN_COUNT); do
     PATTERN_FILE="/tmp/pattern_${i}.hex"
 
     echo "[*] Analyzing Pattern #${i}..."
-    python3 gdb/scripts/search_patterns_in_core_dump.py "$CORE_FILE" "$PATTERN_FILE"
+    python3 forensics/memory_analysis/scripts/search_patterns_in_core_dump.py "$CORE_FILE" "$PATTERN_FILE"
     RESULT=$?
 
     if [ $RESULT -eq 1 ]; then

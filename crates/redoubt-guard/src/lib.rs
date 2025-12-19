@@ -95,7 +95,7 @@ fn init_slow() {
         Ordering::Relaxed,
     ) {
         Ok(_) => {
-            #[cfg(feature = "gdb")]
+            #[cfg(feature = "__internal__forensics")]
             {
                 PRCTL_SUCCEEDED.store(0, Ordering::Relaxed);
                 RLIMIT_SUCCEEDED.store(0, Ordering::Relaxed);
@@ -127,19 +127,19 @@ fn init_slow() {
     }
 }
 
-#[cfg(all(target_os = "linux", not(feature = "gdb")))]
+#[cfg(all(target_os = "linux", not(feature = "__internal__forensics")))]
 fn prctl_set_not_dumpable() -> bool {
     // PR_SET_DUMPABLE = 4, 0 = not dumpable
     unsafe { libc::prctl(libc::PR_SET_DUMPABLE, 0, 0, 0, 0) == 0 }
 }
 
-#[cfg(any(not(target_os = "linux"), feature = "gdb"))]
+#[cfg(any(not(target_os = "linux"), feature = "__internal__forensics"))]
 fn prctl_set_not_dumpable() -> bool {
     // prctl is Linux-only, or disabled for forensic analysis
     false
 }
 
-#[cfg(all(target_os = "linux", not(feature = "gdb")))]
+#[cfg(all(target_os = "linux", not(feature = "__internal__forensics")))]
 fn setrlimit_core_zero() -> bool {
     let limit = libc::rlimit {
         rlim_cur: 0,
@@ -148,7 +148,7 @@ fn setrlimit_core_zero() -> bool {
     unsafe { libc::setrlimit(libc::RLIMIT_CORE, &limit) == 0 }
 }
 
-#[cfg(any(not(target_os = "linux"), feature = "gdb"))]
+#[cfg(any(not(target_os = "linux"), feature = "__internal__forensics"))]
 fn setrlimit_core_zero() -> bool {
     // setrlimit RLIMIT_CORE is Linux-specific, or disabled for forensic analysis
     false

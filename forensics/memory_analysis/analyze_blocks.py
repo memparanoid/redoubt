@@ -3,11 +3,12 @@
 
 import sys
 
+
 def find_blocks(dump_path, byte_value, min_length=16):
     """Find contiguous blocks of a specific byte value."""
     blocks = []
 
-    with open(dump_path, 'rb') as f:
+    with open(dump_path, "rb") as f:
         data = f.read()
 
     start = None
@@ -30,6 +31,7 @@ def find_blocks(dump_path, byte_value, min_length=16):
 
     return blocks
 
+
 def main():
     if len(sys.argv) != 2:
         print(f"Usage: {sys.argv[0]} <core_dump_path>")
@@ -41,9 +43,9 @@ def main():
     for byte_val, name in [(0xAA, "0xAA"), (0x41, "0x41 'A'"), (0xCC, "0xCC")]:
         blocks = find_blocks(dump_path, byte_val, min_length=64)
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Pattern: {name}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"Total blocks found: {len(blocks)}")
 
         if blocks:
@@ -52,6 +54,7 @@ def main():
             print(f"\nBlock details:")
             for i, (offset, length) in enumerate(blocks, 1):
                 print(f"  Block {i}: offset=0x{offset:08x}, size={length:4d} bytes")
+
 
 if __name__ == "__main__":
     main()

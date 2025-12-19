@@ -385,14 +385,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gdb-tests"
-version = "0.1.0"
-dependencies = [
- "libc",
- "redoubt",
-]
-
-[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -910,6 +902,14 @@ dependencies = [
  "redoubt-codec-core",
  "redoubt-zero",
  "syn",
+]
+
+[[package]]
+name = "redoubt-forensics"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "redoubt",
 ]
 
 [[package]]

@@ -15,7 +15,7 @@ pub mod storage;
 
 use consts::MASTER_KEY_LEN;
 
-#[cfg(feature = "gdb")]
+#[cfg(feature = "__internal__forensics")]
 pub use storage::reset;
 
 pub fn leak_master_key(truncate_at: usize) -> Result<ZeroizingGuard<Vec<u8>>, BufferError> {

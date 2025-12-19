@@ -48,7 +48,7 @@ pub fn create_initialized_buffer_with(status: redoubt_guard::GuardStatus) -> Box
     let _ = status;
 
     // Forensic analysis warning (applies to all platforms when gdb feature is active)
-    #[cfg(all(feature = "gdb", not(feature = "no_std")))]
+    #[cfg(all(feature = "__internal__forensics", not(feature = "no_std")))]
     {
         eprintln!("\x1b[31m⚠️  WARNING: Forensic analysis mode enabled - memory protections DISABLED\x1b[0m");
         eprintln!("\x1b[31m   prctl(PR_SET_DUMPABLE) and setrlimit(RLIMIT_CORE) are NOT applied.\x1b[0m");
