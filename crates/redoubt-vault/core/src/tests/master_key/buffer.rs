@@ -100,6 +100,49 @@ fn subprocess_create_buffer_falls_back_to_portable() {
 
 #[cfg(target_os = "linux")]
 #[test]
+fn test_create_initialized_buffer_succeeds_when_guard_syscalls_blocked() {
+    let exit_code = run_test_as_subprocess(
+        "tests::master_key::buffer::subprocess_create_initialized_buffer_succeeds_when_guard_syscalls_blocked",
+    );
+    assert_eq!(exit_code, Some(0), "subprocess should exit with 0");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore]
+fn subprocess_create_initialized_buffer_succeeds_when_guard_syscalls_blocked() {
+    use redoubt_guard::GuardStatus;
+    use crate::master_key::buffer::create_initialized_buffer_with;
+
+    // Simulate both guard protections failing
+    let status = GuardStatus {
+        prctl_succeeded: false,
+        rlimit_succeeded: false,
+    };
+
+    let mut buffer = create_initialized_buffer_with(status);
+
+    // Buffer should still be created successfully (PageBuffer with MemProtected)
+    let debug_output = format!("{:?}", buffer);
+    assert!(
+        debug_output.contains("PageBuffer"),
+        "Expected PageBuffer even when guard syscalls blocked"
+    );
+    assert!(
+        debug_output.contains("MemProtected"),
+        "Expected MemProtected strategy"
+    );
+
+    buffer
+        .open(&mut |bytes| {
+            assert_eq!(bytes.len(), MASTER_KEY_LEN);
+            Ok(())
+        })
+        .expect("Failed to open buffer");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
 fn test_create_initialized_buffer_panics_on_entropy_failure() {
     let exit_code = run_test_as_subprocess(
         "tests::master_key::buffer::subprocess_create_initialized_buffer_panics_on_entropy_failure",
