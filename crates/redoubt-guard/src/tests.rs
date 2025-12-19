@@ -12,6 +12,7 @@ mod linux {
         use core::sync::atomic::Ordering;
         crate::INIT_STATE.store(crate::STATE_UNINIT, Ordering::SeqCst);
         crate::PRCTL_SUCCEEDED.store(0, Ordering::SeqCst);
+        crate::RLIMIT_SUCCEEDED.store(0, Ordering::SeqCst);
     }
 
     /// Runs an ignored test as a subprocess and returns its exit code.
@@ -31,11 +32,11 @@ mod linux {
     }
 
     #[test]
-    fn test_is_guarded_is_idempotent() {
+    fn test_guard_status_is_idempotent() {
         // Multiple calls should not panic or deadlock
-        let _ = crate::is_guarded();
-        let _ = crate::is_guarded();
-        let _ = crate::is_guarded();
+        let _ = crate::guard_status();
+        let _ = crate::guard_status();
+        let _ = crate::guard_status();
     }
 
     // Subprocess test: prctl blocked by seccomp
@@ -57,7 +58,10 @@ mod linux {
 
         reset_state();
 
-        assert!(!crate::is_guarded(), "prctl should have failed");
+        let status = crate::guard_status();
+
+        assert!(!status.prctl_succeeded, "prctl should have failed");
+        assert!(status.rlimit_succeeded, "rlimit should have succeeded");
 
         std::process::exit(0);
     }
@@ -76,7 +80,10 @@ mod linux {
     fn subprocess_test_prctl_succeeds() {
         reset_state();
 
-        assert!(crate::is_guarded(), "prctl should have succeeded");
+        let status = crate::guard_status();
+
+        assert!(status.prctl_succeeded, "prctl should have succeeded");
+        assert!(status.rlimit_succeeded, "rlimit should have succeeded");
 
         std::process::exit(0);
     }
@@ -103,19 +110,20 @@ mod linux {
                 let barrier = Arc::clone(&barrier);
                 thread::spawn(move || {
                     barrier.wait();
-                    crate::is_guarded()
+                    crate::guard_status()
                 })
             })
             .collect();
 
-        let results: Vec<bool> = handles
+        let results: Vec<crate::GuardStatus> = handles
             .into_iter()
             .map(|h| h.join().expect("Failed to join()"))
             .collect();
 
-        // All threads should get the same result (true on Linux)
-        assert!(results.iter().all(|&r| r == results[0]));
-        assert!(results[0], "prctl should have succeeded");
+        // All threads should get the same result
+        assert!(results.iter().all(|r| r == &results[0]));
+        assert!(results[0].prctl_succeeded, "prctl should have succeeded");
+        assert!(results[0].rlimit_succeeded, "rlimit should have succeeded");
 
         std::process::exit(0);
     }
@@ -131,7 +139,10 @@ mod linux {
 #[cfg(not(target_os = "linux"))]
 mod non_linux {
     #[test]
-    fn test_is_guarded_returns_false() {
-        assert!(!crate::is_guarded(), "prctl not available on non-Linux");
+    fn test_guard_status_returns_not_protected() {
+        let status = crate::guard_status();
+
+        assert!(!status.prctl_succeeded, "prctl not available on non-Linux");
+        assert!(!status.rlimit_succeeded, "rlimit not available on non-Linux");
     }
 }
