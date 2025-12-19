@@ -128,8 +128,11 @@ fn main() {
         println!();
 
         // Run 2 iterations to try to provoke leaks
-        println!("[*] Running 2 iterations with pattern copies...");
-        const ITERATIONS: usize = 20;
+        const ITERATIONS: usize = 50;
+        println!(
+            "[*] Running {:?} iterations with pattern copies...",
+            ITERATIONS
+        );
 
         for i in 0..ITERATIONS {
             test_box
@@ -166,33 +169,20 @@ fn main() {
         println!("[+] Completed {} iterations", ITERATIONS);
         println!();
 
-        // Leak master key for Pattern #1
+        // Leak master key
         let mut master_key = redoubt::leak_master_key(32).expect("Failed to leak master key");
 
-        // Print patterns for script to capture - using encode_to_slice to avoid heap allocation
-        print!("Pattern #1: ");
+        // Print master key and patterns for script to capture
+        print!("Master Key: ");
         for byte in master_key.as_slice() {
             print!("{:02x}", byte);
         }
         println!();
 
-        print!("Pattern #2: ");
-        for byte in &patterns.vec_pattern {
-            print!("{:02x}", byte);
-        }
-        println!();
-
-        print!("Pattern #3: ");
-        for byte in &patterns.string_pattern {
-            print!("{:02x}", byte);
-        }
-        println!();
-
-        print!("Pattern #4: ");
-        for byte in &patterns.array_pattern {
-            print!("{:02x}", byte);
-        }
-        println!();
+        // Print hardcoded pattern bytes (not full arrays)
+        println!("Pattern #1: aa"); // Vec pattern (1024 bytes of 0xAA)
+        println!("Pattern #2: 41"); // String pattern (1024 bytes of 0x41)
+        println!("Pattern #3: cc"); // Array pattern (1024 bytes of 0xCC)
         println!();
 
         // Zeroize all patterns

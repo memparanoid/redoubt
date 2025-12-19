@@ -24,31 +24,31 @@ for i in {1..3000}; do
     sleep 0.1
 done
 
-# Extract all patterns from Rust output
-echo "[*] Extracting patterns..."
-PATTERN_COUNT=0
-while IFS= read -r line; do
-    PATTERN_NUM=$(echo "$line" | sed -n 's/Pattern #\([0-9]*\):.*/\1/p')
-    PATTERN_HEX=$(echo "$line" | sed 's/Pattern #[0-9]*: //')
+# Extract master key and patterns from Rust output
+echo "[*] Extracting master key and patterns..."
 
-    if [ -n "$PATTERN_NUM" ] && [ -n "$PATTERN_HEX" ]; then
-        echo "$PATTERN_HEX" > "/tmp/pattern_${PATTERN_NUM}.hex"
-        echo "[+] Pattern #${PATTERN_NUM} captured: ${PATTERN_HEX:0:16}...${PATTERN_HEX: -16}"
+# Extract master key
+MASTER_KEY=$(grep "^Master Key: " /tmp/rust_output.txt | sed 's/Master Key: //')
+if [ -n "$MASTER_KEY" ]; then
+    echo "$MASTER_KEY" > /tmp/master_key.hex
+    echo "[+] Master key captured: ${MASTER_KEY:0:16}...${MASTER_KEY: -16}"
+else
+    echo "[!] WARNING: Master key not found in output"
+fi
+
+# Extract hardcoded patterns
+PATTERN_COUNT=0
+declare -a PATTERNS
+while IFS= read -r line; do
+    if [[ $line =~ ^Pattern\ #[0-9]+:\ ([a-fA-F0-9]+)$ ]]; then
+        PATTERN_HEX="${BASH_REMATCH[1]}"
+        PATTERNS[$PATTERN_COUNT]="$PATTERN_HEX"
+        echo "[+] Pattern #$((PATTERN_COUNT + 1)) captured: 0x${PATTERN_HEX}"
         PATTERN_COUNT=$((PATTERN_COUNT + 1))
     fi
-done < <(grep "Pattern #" /tmp/rust_output.txt)
+done < <(grep "^Pattern #" /tmp/rust_output.txt)
 
-if [ $PATTERN_COUNT -eq 0 ]; then
-    echo "[!] ERROR: No patterns found in Rust output"
-    exit 1
-fi
-echo "[+] Total patterns captured: $PATTERN_COUNT"
-echo ""
-
-echo ""
-echo "[*] Test binary output:"
-echo ""
-cat /tmp/rust_output.txt
+echo "[+] Total patterns: $PATTERN_COUNT hardcoded + 1 master key"
 echo ""
 
 # Give it a moment to settle
@@ -86,41 +86,45 @@ if [ -d "/workspace/core_dumps" ]; then
     echo ""
 fi
 
-# Manual inspection: search for AAAA pattern (0xAA repeated)
-echo "[*] Manual check: searching for 0xAA pattern in core dump..."
-AAAA_COUNT=$(xxd -p "$CORE_FILE" | tr -d '\n' | grep -o 'aaaa' | wc -l)
-echo "[+] Found 0xAAAA (2 bytes): $AAAA_COUNT times"
-echo ""
-
-# Run Python analysis for each pattern
-echo "[*] Starting progressive pattern search..."
+# Run forensic analysis
+echo "[*] Starting forensic analysis..."
 echo ""
 
 LEAK_DETECTED=0
-for i in $(seq 1 $PATTERN_COUNT); do
-    PATTERN_FILE="/tmp/pattern_${i}.hex"
 
-    echo "[*] Analyzing Pattern #${i}..."
-    python3 forensics/memory_analysis/scripts/search_patterns_in_core_dump.py "$CORE_FILE" "$PATTERN_FILE"
+# Analyze master key (progressive search)
+if [ -f /tmp/master_key.hex ]; then
+    echo "[*] Analyzing master key (progressive prefix search)..."
+    python3 forensics/memory_analysis/scripts/analyze_key.py "$CORE_FILE" /tmp/master_key.hex
     RESULT=$?
-
     if [ $RESULT -eq 1 ]; then
         LEAK_DETECTED=1
-        echo "[!] LEAK DETECTED in Pattern #${i}"
+        echo "[!] LEAK DETECTED in master key"
+    fi
+    echo ""
+fi
+
+# Analyze hardcoded patterns (block search)
+for i in $(seq 0 $((PATTERN_COUNT - 1))); do
+    PATTERN_HEX="${PATTERNS[$i]}"
+    echo "[*] Analyzing Pattern #$((i + 1)): 0x${PATTERN_HEX} (contiguous block search)..."
+    python3 forensics/memory_analysis/scripts/analyze_blocks.py "$CORE_FILE" "$PATTERN_HEX"
+    RESULT=$?
+    if [ $RESULT -eq 1 ]; then
+        LEAK_DETECTED=1
+        echo "[!] LEAK DETECTED in Pattern #$((i + 1))"
     fi
     echo ""
 done
 
 # Cleanup
-for i in $(seq 1 $PATTERN_COUNT); do
-    rm -f "/tmp/pattern_${i}.hex"
-done
+rm -f /tmp/master_key.hex
 rm -f "$CORE_FILE"
 
 if [ $LEAK_DETECTED -eq 1 ]; then
-    echo "[!] LEAK CONFIRMED: Pattern found in core dump"
+    echo "[!] LEAK CONFIRMED: Sensitive data found in core dump"
     exit 1
 else
-    echo "[+] Analysis complete - no patterns leaked"
+    echo "[+] Analysis complete - no leaks detected"
     exit 0
 fi

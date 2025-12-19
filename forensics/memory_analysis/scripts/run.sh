@@ -24,8 +24,8 @@ echo ""
 echo "[*] Building Docker image..."
 docker build \
     $PLATFORM \
-    -f "${PROJECT_ROOT}/forensics/memory_analysis/dockerfiles/test_redoubt_leaks.Dockerfile" \
-    -t redoubt-test-leaks \
+    -f "${PROJECT_ROOT}/forensics/memory_analysis/Dockerfile" \
+    -t redoubt-forensics \
     "${PROJECT_ROOT}"
 
 echo ""
@@ -38,7 +38,7 @@ CORE_OUTPUT="${PROJECT_ROOT}/forensics/core_dumps"
 mkdir -p "${CORE_OUTPUT}"
 
 # Run the container with volume mount
-docker run --rm $PLATFORM -v "${CORE_OUTPUT}:/workspace/core_dumps" redoubt-test-leaks
+docker run --rm $PLATFORM -v "${CORE_OUTPUT}:/workspace/core_dumps" redoubt-forensics
 
 echo ""
 echo "[+] Test complete"

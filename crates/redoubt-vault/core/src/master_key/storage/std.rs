@@ -18,11 +18,11 @@ pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), B
     guard.open(f)
 }
 
-/// Resets the master key storage (GDB only)
+/// Resets the master key storage (forensics only)
 ///
 /// # Safety
 ///
-/// This function is only available with the `gdb` feature.
+/// This function is only available with the `__internal__forensics` feature.
 /// It reinitializes the master key buffer, discarding the previous key material.
 /// This should only be used for memory leak detection in controlled testing environments.
 ///

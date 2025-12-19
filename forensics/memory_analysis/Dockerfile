@@ -23,7 +23,8 @@ RUN cargo build --release --bin test_redoubt_leaks -p redoubt-forensics
 
 # Make scripts executable
 RUN chmod +x forensics/memory_analysis/entrypoints/analyze_core_dump.sh && \
-    chmod +x forensics/memory_analysis/scripts/search_patterns_in_core_dump.py
+    chmod +x forensics/memory_analysis/scripts/analyze_key.py && \
+    chmod +x forensics/memory_analysis/scripts/analyze_blocks.py
 
 # Enable core dumps (disabled by default in containers)
 RUN echo 'ulimit -c unlimited' >> /root/.bashrc
