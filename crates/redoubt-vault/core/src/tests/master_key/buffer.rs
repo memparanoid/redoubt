@@ -11,7 +11,7 @@ use crate::tests::utils::{block_entropy_syscalls, block_mem_syscalls, run_test_a
 
 #[test]
 fn test_create_buffer_returns_correct_length() {
-    let mut buffer = create_buffer(false);
+    let mut buffer = create_buffer();
 
     #[cfg(all(unix, not(target_os = "wasi")))]
     {
@@ -23,43 +23,6 @@ fn test_create_buffer_returns_correct_length() {
         assert!(
             debug_output.contains("MemProtected"),
             "Expected MemProtected strategy when not guarded"
-        );
-    }
-
-    #[cfg(any(target_os = "wasi", not(unix)))]
-    {
-        let debug_output = format!("{:?}", buffer);
-        assert!(
-            debug_output.contains("PortableBuffer"),
-            "Expected PortableBuffer on non-unix platforms"
-        );
-    }
-
-    buffer
-        .open(&mut |bytes| {
-            assert!(
-                bytes.is_zeroized(),
-                "Key is not initialized: should be zeroized"
-            );
-            Ok(())
-        })
-        .expect("Failed to open buffer");
-}
-
-#[test]
-fn test_create_buffer_guarded_returns_correct_length() {
-    let mut buffer = create_buffer(true);
-
-    #[cfg(all(unix, not(target_os = "wasi")))]
-    {
-        let debug_output = format!("{:?}", buffer);
-        assert!(
-            debug_output.contains("PageBuffer"),
-            "Expected PageBuffer (not fallback)"
-        );
-        assert!(
-            debug_output.contains("MemNonProtected"),
-            "Expected MemNonProtected strategy when guarded"
         );
     }
 
@@ -113,7 +76,7 @@ fn test_create_buffer_falls_back_to_portable_on_protected_failure() {
 fn subprocess_create_buffer_falls_back_to_portable() {
     block_mem_syscalls();
 
-    let mut buffer = create_buffer(false);
+    let mut buffer = create_buffer();
 
     // Assert that we fell back to PortableBuffer when syscalls are blocked
     assert!(
