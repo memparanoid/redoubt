@@ -6,6 +6,7 @@
 pub mod allocked_vec;
 pub mod array;
 pub mod helpers;
+pub mod redoubt_array;
 pub mod redoubt_string;
 pub mod redoubt_vec;
 pub mod string;

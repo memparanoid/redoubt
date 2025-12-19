@@ -4,9 +4,10 @@
 
 //! Secure allocation containers with automatic zeroization.
 //!
-//! This crate provides three main types:
+//! This crate provides four main types:
 //!
 //! - [`AllockedVec`]: Capacity-locked Vec with fallible operations
+//! - [`RedoubtArray`]: Fixed-size array with automatic zeroization
 //! - [`RedoubtVec`]: Auto-growing Vec with safe reallocation (2x growth)
 //! - [`RedoubtString`]: Auto-growing String with safe reallocation (2x growth)
 //!
@@ -104,6 +105,7 @@ extern crate alloc;
 
 mod allocked_vec;
 mod error;
+mod redoubt_array;
 mod redoubt_string;
 mod redoubt_vec;
 
@@ -112,6 +114,7 @@ mod tests;
 
 pub use allocked_vec::AllockedVec;
 pub use error::AllockedVecError;
+pub use redoubt_array::RedoubtArray;
 pub use redoubt_string::RedoubtString;
 pub use redoubt_vec::RedoubtVec;
 
