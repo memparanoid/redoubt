@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut};
 
 use redoubt_zero::{
@@ -31,7 +32,7 @@ pub struct RedoubtArray<T, const N: usize>
 where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
 {
-    inner: [T; N],
+    inner: Box<[T; N]>,
     __sentinel: ZeroizeOnDropSentinel,
 }
 
@@ -73,7 +74,7 @@ where
         T: Default,
     {
         Self {
-            inner: core::array::from_fn(|_| T::default()),
+            inner: Box::new(core::array::from_fn(|_| T::default())),
             __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
@@ -94,40 +95,43 @@ where
     ///
     /// # Performance Note
     ///
-    /// Uses `ptr::copy_nonoverlapping` for bulk copy instead of individual
-    /// operations. This is significantly faster for large arrays.
+    /// Uses `ptr::swap_nonoverlapping` to exchange contents with the source
+    /// without creating intermediate copies that could spill to stack.
     pub fn replace_from_mut_array(&mut self, src: &mut [T; N]) {
+        self.fast_zeroize();
+
         unsafe {
-            // SAFETY: Both arrays have exactly N elements
-            core::ptr::copy_nonoverlapping(src.as_ptr(), self.inner.as_mut_ptr(), N);
+            // SAFETY: Both arrays have exactly N elements and are properly aligned
+            // Swap exchanges contents without intermediate copies
+            core::ptr::swap_nonoverlapping(src.as_mut_ptr(), self.inner.as_mut_ptr(), N);
         }
 
-        // Zeroize source
+        // Zeroize source (which now contains the old self.inner values, all zeros)
         src.fast_zeroize();
     }
 
     /// Returns a slice containing the entire array.
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        &self.inner
+        self.inner.as_ref()
     }
 
     /// Returns a mutable slice containing the entire array.
     #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        &mut self.inner
+        self.inner.as_mut()
     }
 
     /// Returns a reference to the underlying array.
     #[inline]
     pub fn as_array(&self) -> &[T; N] {
-        &self.inner
+        &*self.inner
     }
 
     /// Returns a mutable reference to the underlying array.
     #[inline]
     pub fn as_mut_array(&mut self) -> &mut [T; N] {
-        &mut self.inner
+        &mut *self.inner
     }
 }
 
@@ -147,7 +151,7 @@ where
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
-        &self.inner
+        &*self.inner
     }
 }
 
@@ -156,6 +160,6 @@ where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
+        &mut *self.inner
     }
 }

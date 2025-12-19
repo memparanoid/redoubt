@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Progressive key leak detection in core dumps.
+Progressive pattern detection in core dumps.
 
-Searches for progressively longer prefixes of the master key to determine
-at what point the key material is no longer present in memory.
+Searches for progressively longer prefixes of sensitive data patterns to determine
+at what point the pattern is no longer present in memory.
 """
 
 import sys
@@ -13,8 +13,8 @@ CHUNK = 1024 * 1024 * 16  # 16 MiB
 MAX_LINES = 200           # avoid spam; adjust if needed
 REPORT_EVERY = 1          # 1 = report every prefix; can increase (e.g., 2, 4, 8)
 
-def read_key_hex(path: str) -> bytes:
-    """Read hex key from file and convert to bytes."""
+def read_pattern_hex(path: str) -> bytes:
+    """Read hex pattern from file and convert to bytes."""
     with open(path, "rt", encoding="utf-8") as f:
         s = f.read().strip()  # trim whitespace
 
@@ -63,17 +63,17 @@ def count_occurrences(path: str, needle: bytes, chunk: int) -> int:
 
 def main():
     if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} <core_dump_path> <key_hex_path>", file=sys.stderr)
+        print(f"Usage: {sys.argv[0]} <core_dump_path> <pattern_hex_path>", file=sys.stderr)
         sys.exit(1)
 
     core_path = sys.argv[1]
-    key_hex_path = sys.argv[2]
+    pattern_hex_path = sys.argv[2]
 
-    print(f"[*] Reading key from: {key_hex_path}")
-    key = read_key_hex(key_hex_path)
+    print(f"[*] Reading pattern from: {pattern_hex_path}")
+    pattern = read_pattern_hex(pattern_hex_path)
 
-    print(f"[*] Key size: {len(key)} bytes")
-    print(f"[*] Key hex:  {key.hex()}")
+    print(f"[*] Pattern size: {len(pattern)} bytes")
+    print(f"[*] Pattern hex:  {pattern.hex()}")
     print(f"[*] Searching core dump: {core_path}")
     print()
 
@@ -81,28 +81,28 @@ def main():
     prev = None
     leak_detected = False
 
-    for n in range(1, len(key) + 1):
-        if (n % REPORT_EVERY) != 0 and n != len(key):
+    for n in range(1, len(pattern) + 1):
+        if (n % REPORT_EVERY) != 0 and n != len(pattern):
             continue
 
-        pref = key[:n]
+        pref = pattern[:n]
         c = count_occurrences(core_path, pref, CHUNK)
 
         pref_hex = pref.hex()
-        print(f"  [{n:02d}/{len(key)}] prefix={pref_hex}  occurrences={c}")
+        print(f"  [{n:02d}/{len(pattern)}] prefix={pref_hex}  occurrences={c}")
 
         # Detect when occurrences drop to 0
         if prev is not None and prev != 0 and c == 0:
             print(f"      -> Dropped to 0 at prefix length {n} ({n*8} bits)")
 
-        # Check if full key is found
-        if n == len(key) and c > 0:
+        # Check if full pattern is found
+        if n == len(pattern) and c > 0:
             leak_detected = True
 
         prev = c
 
         lines += 1
-        if lines >= MAX_LINES and n != len(key):
+        if lines >= MAX_LINES and n != len(pattern):
             print(f"Reached MAX_LINES={MAX_LINES}. Stopping early.")
             print(f"Increase MAX_LINES or REPORT_EVERY to continue.")
             break
@@ -110,12 +110,12 @@ def main():
     print()
     if leak_detected:
         print("[!] ============================================")
-        print("[!] KEY LEAK DETECTED!")
-        print(f"[!] Full {len(key)}-byte key found {prev} time(s) in core dump")
+        print("[!] PATTERN LEAK DETECTED!")
+        print(f"[!] Full {len(pattern)}-byte pattern found {prev} time(s) in core dump")
         print("[!] ============================================")
         sys.exit(1)
     else:
-        print("[+] No full key found in core dump (key protected)")
+        print("[+] No full pattern found in core dump (pattern protected)")
         sys.exit(0)
 
 if __name__ == "__main__":

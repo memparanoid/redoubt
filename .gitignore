@@ -7,4 +7,5 @@
 node_modules
 target
 coverage
+gdb/core_dumps/
 /*.txt

@@ -18,8 +18,8 @@ WORKDIR /workspace
 # Copy entire workspace
 COPY . .
 
-# Build the binary (build.rs handles architecture-specific crypto flags)
-RUN cargo build --bin test_redoubt_leaks -p gdb-tests
+# Build the binary in release mode (build.rs handles architecture-specific crypto flags)
+RUN cargo build --release --bin test_redoubt_leaks -p gdb-tests
 
 # Make scripts executable
 RUN chmod +x gdb/entrypoints/analyze_core_dump.sh && \

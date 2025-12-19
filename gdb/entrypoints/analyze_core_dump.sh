@@ -4,30 +4,45 @@ set -euo pipefail
 echo "[*] Core Dump Analysis - Progressive Key Search"
 echo ""
 
-# Launch the test binary in background, capturing stdout
+# Launch the test binary in background, capturing stdout to file
 echo "[*] Launching test binary..."
-./target/debug/test_redoubt_leaks > /tmp/rust_output.txt 2>&1 &
+./target/release/test_redoubt_leaks > /tmp/rust_output.txt 2>&1 &
 RUST_PID=$!
 echo "[+] Process started with PID: $RUST_PID"
+
+# Show output in real-time
+tail -f /tmp/rust_output.txt &
+TAIL_PID=$!
 echo ""
 
-# Wait for KEY_READY:DEADBEEF signal
-echo "[*] Waiting for key generation..."
+# Wait for DUMP_NOW signal
+echo "[*] Waiting for patterns generation..."
 for i in {1..3000}; do
-    if grep -q "KEY_READY:DEADBEEF" /tmp/rust_output.txt 2>/dev/null; then
+    if grep -q "DUMP_NOW" /tmp/rust_output.txt 2>/dev/null; then
         break
     fi
     sleep 0.1
 done
 
-# Extract key from Rust output
-KEY_HEX=$(grep "KEY_HEX:" /tmp/rust_output.txt | cut -d: -f2)
-if [ -z "$KEY_HEX" ]; then
-    echo "[!] ERROR: Failed to extract key from Rust output"
+# Extract all patterns from Rust output
+echo "[*] Extracting patterns..."
+PATTERN_COUNT=0
+while IFS= read -r line; do
+    PATTERN_NUM=$(echo "$line" | sed -n 's/Pattern #\([0-9]*\):.*/\1/p')
+    PATTERN_HEX=$(echo "$line" | sed 's/Pattern #[0-9]*: //')
+
+    if [ -n "$PATTERN_NUM" ] && [ -n "$PATTERN_HEX" ]; then
+        echo "$PATTERN_HEX" > "/tmp/pattern_${PATTERN_NUM}.hex"
+        echo "[+] Pattern #${PATTERN_NUM} captured: ${PATTERN_HEX:0:16}...${PATTERN_HEX: -16}"
+        PATTERN_COUNT=$((PATTERN_COUNT + 1))
+    fi
+done < <(grep "Pattern #" /tmp/rust_output.txt)
+
+if [ $PATTERN_COUNT -eq 0 ]; then
+    echo "[!] ERROR: No patterns found in Rust output"
     exit 1
 fi
-echo "$KEY_HEX" > /tmp/key.hex
-echo "[+] Generated key captured: ${KEY_HEX:0:16}...${KEY_HEX: -16}"
+echo "[+] Total patterns captured: $PATTERN_COUNT"
 echo ""
 
 echo ""
@@ -64,21 +79,48 @@ else
 fi
 echo ""
 
-# Run Python analysis
+# Copy core dump to mounted volume for manual inspection
+if [ -d "/workspace/core_dumps" ]; then
+    cp "$CORE_FILE" "/workspace/core_dumps/core_dump_$(date +%Y%m%d_%H%M%S)"
+    echo "[+] Core dump copied to /workspace/core_dumps/"
+    echo ""
+fi
+
+# Manual inspection: search for AAAA pattern (0xAA repeated)
+echo "[*] Manual check: searching for 0xAA pattern in core dump..."
+AAAA_COUNT=$(xxd -p "$CORE_FILE" | tr -d '\n' | grep -o 'aaaa' | wc -l)
+echo "[+] Found 0xAAAA (2 bytes): $AAAA_COUNT times"
+echo ""
+
+# Run Python analysis for each pattern
 echo "[*] Starting progressive pattern search..."
 echo ""
 
-python3 gdb/scripts/search_patterns_in_core_dump.py "$CORE_FILE" /tmp/key.hex
-RESULT=$?
+LEAK_DETECTED=0
+for i in $(seq 1 $PATTERN_COUNT); do
+    PATTERN_FILE="/tmp/pattern_${i}.hex"
+
+    echo "[*] Analyzing Pattern #${i}..."
+    python3 gdb/scripts/search_patterns_in_core_dump.py "$CORE_FILE" "$PATTERN_FILE"
+    RESULT=$?
+
+    if [ $RESULT -eq 1 ]; then
+        LEAK_DETECTED=1
+        echo "[!] LEAK DETECTED in Pattern #${i}"
+    fi
+    echo ""
+done
 
 # Cleanup
-rm -f /tmp/key.hex
+for i in $(seq 1 $PATTERN_COUNT); do
+    rm -f "/tmp/pattern_${i}.hex"
+done
 rm -f "$CORE_FILE"
 
-if [ $RESULT -eq 1 ]; then
-    echo "[!] LEAK CONFIRMED: getrandom left key material in memory"
+if [ $LEAK_DETECTED -eq 1 ]; then
+    echo "[!] LEAK CONFIRMED: Pattern found in core dump"
     exit 1
 else
-    echo "[+] Analysis complete - no leak detected"
+    echo "[+] Analysis complete - no patterns leaked"
     exit 0
 fi

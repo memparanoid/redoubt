@@ -3,16 +3,9 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt::{
-    FastZeroizable, RedoubtCodec, RedoubtVec, RedoubtZero, ZeroizationProbe, cipherbox,
-    leak_master_key, reset_master_key,
+    FastZeroizable, RedoubtArray, RedoubtCodec, RedoubtString, RedoubtVec, RedoubtZero,
+    ZeroizeOnDropSentinel, cipherbox, reset_master_key,
 };
-
-#[cipherbox(TestBox)]
-#[derive(Default, RedoubtZero, RedoubtCodec)]
-#[fast_zeroize(drop)]
-struct TestData {
-    field: [u8; 16],
-}
 
 /// Calculate Shannon entropy in bits per byte
 fn shannon_entropy(data: &[u8]) -> f64 {
@@ -34,106 +27,193 @@ fn shannon_entropy(data: &[u8]) -> f64 {
     entropy
 }
 
+#[cipherbox(TestBox)]
+#[derive(Default, RedoubtZero, RedoubtCodec)]
+#[fast_zeroize(drop)]
+struct TestData {
+    vec_data: RedoubtVec<u8>,
+    string_data: RedoubtString,
+    array_data: RedoubtArray<u8, 1024>,
+}
+
+#[derive(Clone, RedoubtZero)]
+#[fast_zeroize(drop)]
+struct Patterns {
+    _padding: [u8; 1024],
+    array_pattern: [u8; 1024],
+    string_pattern: [u8; 1024],
+    vec_pattern: [u8; 1024],
+    __sentinel: ZeroizeOnDropSentinel,
+}
+
+impl Default for Patterns {
+    fn default() -> Self {
+        Self {
+            _padding: [0u8; 1024],
+            string_pattern: [0u8; 1024],
+            array_pattern: [0u8; 1024],
+            vec_pattern: [0u8; 1024],
+            __sentinel: ZeroizeOnDropSentinel::default(),
+        }
+    }
+}
+
+impl Patterns {
+    fn fill(&mut self) {
+        println!("[*] Creating hardcoded test patterns...");
+        println!();
+
+        self.vec_pattern = core::array::from_fn(|_| 0xAA);
+        self.string_pattern = core::array::from_fn(|_| 0x41); // 'A' - valid ASCII/UTF-8
+        self.array_pattern = core::array::from_fn(|_| 0xCC);
+
+        println!("[+] Vec pattern: AAAA... (1024 bytes of 0xAA)");
+        println!("[+] String pattern: AAAA... (1024 bytes of 0x41 'A')");
+        println!("[+] Array pattern: CCCC... (1024 bytes of 0xCC)");
+        println!();
+    }
+}
+
 fn main() {
     {
-        println!("[*] Master Key Leak Detection Test");
-        println!("[*] This test detects if getrandom leaves key material in memory");
+        println!("[*] Redoubt Forensic Analysis - Sensitive Data Pattern Detection");
+        println!("[*] Testing for sensitive data patterns in core dumps");
         println!();
 
         // Initialize cipherbox (generates master key)
         let mut test_box = TestBox::new();
 
-        // Open TestBox to generate master key.
+        // Open TestBox to generate master key
         test_box
-            .open_mut(|_tb| {})
-            .expect("Failed to create MASTER_KEY by opening TestBox by the first time");
+            .open_mut(|_| {})
+            .expect("Failed to initialize TestBox");
 
-        // Reset master key until it has sufficient entropy (we want to make sure that the key pattern being searched in the dump is unique)
-        // i.e a key of 0000000000.. (valid key) could make the test fail since that pattern most likely ...
-        // CLAUDE complete this comment in a very professiional way.
+        // Reset master key until it has sufficient entropy
+        println!("[*] Searching for high-entropy master key...");
         const MIN_ENTROPY: f64 = 4.5;
-        const MAX_ATTEMPTS: usize = 1000;
         let mut attempts = 0;
-        let mut master_key = loop {
+        loop {
             attempts += 1;
-
-            if attempts > MAX_ATTEMPTS {
-                panic!("Failed to generate high-entropy key after {MAX_ATTEMPTS} attempts");
-            }
-
-            let mut key = leak_master_key(32).expect("Failed to leak master key");
+            let mut key = redoubt::leak_master_key(32).expect("Failed to leak master key");
             let entropy = shannon_entropy(&key);
 
-            println!("  Attempt {attempts}: entropy = {entropy:.3} bits/byte");
+            println!("  Attempt {}: entropy = {:.3} bits/byte", attempts, entropy);
 
             if entropy >= MIN_ENTROPY {
                 println!();
-                println!("[+] Found high-entropy key after {attempts} attempts");
-                println!("[+] Master key entropy: {entropy:.3} bits/byte");
-                break key;
+                println!(
+                    "[+] Found high-entropy master key after {} attempts",
+                    attempts
+                );
+                println!("[+] Master key entropy: {:.3} bits/byte", entropy);
+                key.fast_zeroize();
+                break;
             }
 
             key.fast_zeroize();
-
-            // Reset and try again
             reset_master_key();
-        };
-
-        // Open the box 1 million times to ensure leak is NOT from our open_mut
-        // println!("[*] Opening cipherbox 1,000,000 times to test for leaks...");
-        // for i in 0..100 {
-        //     test_box
-        //         .open_mut(|data| {
-        //             data.field.copy_from_slice(&[0xAA; 16]);
-        //         })
-        //         .expect("Failed to open cipherbox");
-
-        //     if (i + 1) % 100_000 == 0 {
-        //         println!("  Completed {} iterations...", i + 1);
-        //     }
-        // }
-        // println!("[+] Completed 1M iterations");
-
-        // Enable core dumps AFTER cipherbox creation
-        // (redoubt-guard disables them, but we need them for forensic analysis)
-
-        // println!("[*] Searching for high-entropy master key (>= {MIN_ENTROPY} bits/byte)...");
-
-        // for i in 0..100 {
-        //     test_box
-        //         .open_mut(|data| {
-        //             data.field = [
-        //                 44, 55, 66, 77, 88, 99, 11, 22, 23, 24, 25, 26, 27, 28, 29, 30,
-        //             ];
-        //         })
-        //         .expect("Failed to open cipherbox");
-
-        //     if (i + 1) % 100_000 == 0 {
-        //         println!("  Completed {} iterations...", i + 1);
-        //     }
-        // }
-
-        let mut master_key = leak_master_key(32).expect("Failed to leak master key");
-
-        // Print key in hex for script to capture
-        println!();
-        print!("KEY_HEX:");
-        for byte in master_key.iter() {
-            print!("{byte:02x}");
         }
-        master_key.fast_zeroize();
+        println!();
+
+        // Generate high-entropy patterns for RedoubtVec/String/Array
+        println!("[*] Creating hardcoded test patterns...");
+        println!();
+
+        let mut patterns = Patterns::default();
+        patterns.fill();
+
+        println!("[+] Vec pattern: AAAA... (1024 bytes of 0xAA)");
+        println!("[+] String pattern: BBBB... (1024 bytes of 0xBB)");
+        println!("[+] Array pattern: CCCC... (1024 bytes of 0xCC)");
+        println!();
+
+        // Run 2 iterations to try to provoke leaks
+        println!("[*] Running 2 iterations with pattern copies...");
+        const ITERATIONS: usize = 20;
+
+        for i in 0..ITERATIONS {
+            test_box
+                .open_mut(|data| {
+                    let mut temp_patterns = Patterns::default();
+                    temp_patterns.fill();
+
+                    // Populate RedoubtVec
+                    data.vec_data.clear();
+                    data.vec_data
+                        .extend_from_mut_slice(&mut temp_patterns.vec_pattern);
+
+                    // Populate RedoubtString
+                    data.string_data.clear();
+                    let string_pattern = std::str::from_utf8(&temp_patterns.string_pattern)
+                        .expect("String pattern should be valid UTF-8");
+                    data.string_data.extend_from_str(string_pattern);
+
+                    // Populate RedoubtArray using copy_from_slice
+                    data.array_data
+                        .as_mut_slice()
+                        .copy_from_slice(&temp_patterns.array_pattern);
+
+                    // Zeroize temporary clone
+                    temp_patterns.fast_zeroize();
+                })
+                .expect("Failed to open cipherbox");
+
+            if (i + 1) % 100 == 0 {
+                println!("  Completed {} iterations...", i + 1);
+            }
+        }
+
+        println!("[+] Completed {} iterations", ITERATIONS);
+        println!();
+
+        // Leak master key for Pattern #1
+        let mut master_key = redoubt::leak_master_key(32).expect("Failed to leak master key");
+
+        // Print patterns for script to capture - using encode_to_slice to avoid heap allocation
+        print!("Pattern #1: ");
+        for byte in master_key.as_slice() {
+            print!("{:02x}", byte);
+        }
+        println!();
+
+        print!("Pattern #2: ");
+        for byte in &patterns.vec_pattern {
+            print!("{:02x}", byte);
+        }
+        println!();
+
+        print!("Pattern #3: ");
+        for byte in &patterns.string_pattern {
+            print!("{:02x}", byte);
+        }
+        println!();
+
+        print!("Pattern #4: ");
+        for byte in &patterns.array_pattern {
+            print!("{:02x}", byte);
+        }
         println!();
         println!();
 
-        // Zeroize all key material
+        // Zeroize all patterns
         master_key.fast_zeroize();
+        patterns.fast_zeroize();
 
-        // Signal to script that key is ready
-        println!("KEY_READY:DEADBEEF");
+        // Verify zeroization worked
+        let vec_sum: u32 = patterns.vec_pattern.iter().map(|&b| b as u32).sum();
+        let str_sum: u32 = patterns.string_pattern.iter().map(|&b| b as u32).sum();
+        let arr_sum: u32 = patterns.array_pattern.iter().map(|&b| b as u32).sum();
+        println!("[*] Post-zeroize verification:");
+        println!("    vec_pattern sum: {} (should be 0)", vec_sum);
+        println!("    string_pattern sum: {} (should be 0)", str_sum);
+        println!("    array_pattern sum: {} (should be 0)", arr_sum);
+        println!();
 
-        println!("[+] Key sent to script via stdout");
+        // Signal to script that we're ready for dump
+        println!("DUMP_NOW");
+        println!();
 
-        // Signal to script that we're ready
+        println!("[+] Patterns sent to script via stdout");
         println!("[*] Process is now ready for core dump analysis");
         println!("[*] PID: {}", std::process::id());
         println!(
@@ -141,6 +221,7 @@ fn main() {
         );
         println!();
     };
+
     // Sleep forever - script will kill us to generate core dump
     loop {
         std::thread::sleep(std::time::Duration::from_secs(3600));

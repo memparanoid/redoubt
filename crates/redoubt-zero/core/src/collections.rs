@@ -217,3 +217,21 @@ impl ZeroizationProbe for String {
         redoubt_util::is_slice_zeroized(self.as_bytes())
     }
 }
+
+// Blanket impls for Box<T>
+impl<T: ZeroizeMetadata + FastZeroizable> ZeroizeMetadata for alloc::boxed::Box<T> {
+    const CAN_BE_BULK_ZEROIZED: bool = T::CAN_BE_BULK_ZEROIZED;
+}
+
+impl<T: FastZeroizable> FastZeroizable for alloc::boxed::Box<T> {
+    #[inline(always)]
+    fn fast_zeroize(&mut self) {
+        (**self).fast_zeroize();
+    }
+}
+
+impl<T: ZeroizationProbe> ZeroizationProbe for alloc::boxed::Box<T> {
+    fn is_zeroized(&self) -> bool {
+        (**self).is_zeroized()
+    }
+}
