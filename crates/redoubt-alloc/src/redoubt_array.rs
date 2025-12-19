@@ -96,10 +96,7 @@ where
     ///
     /// Uses `ptr::copy_nonoverlapping` for bulk copy instead of individual
     /// operations. This is significantly faster for large arrays.
-    pub fn replace_from_mut_array(&mut self, src: &mut [T; N])
-    where
-        T: Default,
-    {
+    pub fn replace_from_mut_array(&mut self, src: &mut [T; N]) {
         unsafe {
             // SAFETY: Both arrays have exactly N elements
             core::ptr::copy_nonoverlapping(src.as_ptr(), self.inner.as_mut_ptr(), N);
