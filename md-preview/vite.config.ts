@@ -12,8 +12,8 @@ export default defineConfig({
     {
       name: 'watch-markdown-files',
       configureServer(server) {
-        // Watch all .md files in root
-        server.watcher.add(resolve(ROOT_DIR, '*.md'))
+        // Watch all .md files recursively
+        server.watcher.add(resolve(ROOT_DIR, '**/*.md'))
         server.watcher.on('change', (path) => {
           if (path.endsWith('.md')) {
             server.ws.send({ type: 'full-reload' })
@@ -48,8 +48,8 @@ export default defineConfig({
             const url = new URL(req.url, 'http://localhost')
             const file = url.searchParams.get('file') || 'README.md'
 
-            // Security: only allow .md files in root directory
-            if (!file.endsWith('.md') || file.includes('/') || file.includes('\\')) {
+            // Security: only allow .md files, prevent path traversal
+            if (!file.endsWith('.md') || file.includes('..')) {
               res.statusCode = 400
               res.end('Invalid file')
               return
