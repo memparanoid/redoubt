@@ -60,16 +60,24 @@ use syn::{
 /// - `EncryptStruct<N>` and `DecryptStruct<N>` trait impls
 /// - Per-field `leak_*`, `open_*`, `open_*_mut` methods
 /// - Global `open` and `open_mut` methods
-/// Extract custom error type from attribute tokens.
-///
-/// Parses "WrapperName" or "WrapperName, error = ErrorType"
-/// Returns (wrapper_name, custom_error_type)
+#[proc_macro_attribute]
+pub fn cipherbox(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let (wrapper_name, custom_error) = parse_cipherbox_attr(attr);
+    let input = parse_macro_input!(item as DeriveInput);
+    expand(wrapper_name, custom_error, input)
+        .unwrap_or_else(|e| e)
+        .into()
+}
+
+// Extract custom error type from attribute tokens.
+// Parses "WrapperName" or "WrapperName, error = ErrorType"
+// Returns (wrapper_name, custom_error_type)
 fn parse_cipherbox_attr(attr: TokenStream) -> (Ident, Option<Type>) {
     let attr_str = attr.to_string();
     let parts: Vec<&str> = attr_str.split(',').map(|s| s.trim()).collect();
 
-    let wrapper_name = syn::parse_str::<Ident>(parts[0])
-        .expect("cipherbox: first argument must be wrapper name");
+    let wrapper_name =
+        syn::parse_str::<Ident>(parts[0]).expect("cipherbox: first argument must be wrapper name");
 
     let custom_error = (parts.len() > 1).then(|| {
         let error_part = parts[1];
@@ -79,20 +87,11 @@ fn parse_cipherbox_attr(attr: TokenStream) -> (Ident, Option<Type>) {
             .map(|s| s.trim())
             .expect("cipherbox: expected 'error = ErrorType' after comma");
 
-        syn::parse_str::<Type>(error_type_str)
-            .expect("cipherbox: invalid error type")
+        syn::parse_str::<Type>(error_type_str).expect("cipherbox: invalid error type")
     });
 
     (wrapper_name, custom_error)
 }
-
-#[proc_macro_attribute]
-pub fn cipherbox(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let (wrapper_name, custom_error) = parse_cipherbox_attr(attr);
-    let input = parse_macro_input!(item as DeriveInput);
-    expand(wrapper_name, custom_error, input).unwrap_or_else(|e| e).into()
-}
-
 /// Find the root crate path from a list of candidates.
 pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStream2 {
     for &candidate in candidates {
@@ -173,7 +172,11 @@ fn inject_zeroize_on_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
     input
 }
 
-fn expand(wrapper_name: Ident, custom_error: Option<Type>, input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
+fn expand(
+    wrapper_name: Ident,
+    custom_error: Option<Type>,
+    input: DeriveInput,
+) -> Result<TokenStream2, TokenStream2> {
     // Inject __sentinel field if it doesn't exist
     let input = inject_zeroize_on_drop_sentinel(input);
 

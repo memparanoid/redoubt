@@ -10,8 +10,6 @@ pub(crate) const KEY_SIZE: usize = 16;
 pub(crate) const NONCE_SIZE: usize = 16;
 /// Tag size: 128 bits (16 bytes)
 pub(crate) const TAG_SIZE: usize = 16;
-/// Block size: 256 bits (32 bytes)
-pub(crate) const BLOCK_SIZE: usize = 32;
 
 /// AEGIS-128L key type
 pub(crate) type Aegis128LKey = [u8; KEY_SIZE];

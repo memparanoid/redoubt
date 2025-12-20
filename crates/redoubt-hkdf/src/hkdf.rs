@@ -172,7 +172,7 @@ impl HkdfState {
             return Ok(());
         }
 
-        let n = (out_len + HASH_LEN - 1) / HASH_LEN;
+        let n = out_len.div_ceil(HASH_LEN);
         let mut offset = 0;
 
         // T(0) = empty

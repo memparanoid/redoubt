@@ -202,7 +202,9 @@ mod tests {
     }
 
     // Custom error type for testing
+    // Note: CipherBox field required for From impl, but not inspected in tests
     #[derive(Debug)]
+    #[allow(dead_code)]
     pub enum CustomError {
         CipherBox(redoubt_vault_core::CipherBoxError),
         IntentionalCustomError,

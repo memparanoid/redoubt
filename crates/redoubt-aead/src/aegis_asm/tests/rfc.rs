@@ -258,7 +258,7 @@ fn test_aegis128l_encrypt_decrypt_roundtrip() {
     ];
 
     // Save original plaintext for comparison after decrypt
-    let original_plaintext = plaintext.clone();
+    let original_plaintext = plaintext;
 
     let mut tag: [u8; 16] = [0xFF; 16];
 
@@ -351,7 +351,7 @@ fn test_aegis128l_roundtrip_vector4_partial() {
     ];
 
     // Save original plaintext for comparison after decrypt
-    let original_plaintext = plaintext.clone();
+    let original_plaintext = plaintext;
 
     let mut tag: [u8; 16] = [0xFF; 16];
 
@@ -452,7 +452,7 @@ fn test_aegis128l_roundtrip_vector5_long() {
     ];
 
     // Save original plaintext for comparison after decrypt
-    let original_plaintext = plaintext.clone();
+    let original_plaintext = plaintext;
 
     let mut tag: [u8; 16] = [0xFF; 16];
 
@@ -730,7 +730,7 @@ fn test_aegis128l_encrypt_aligned() {
     let nonce: Aligned16<[u8; 16]> = Aligned16([0x43; 16]);
     let mut data: Aligned16<[u8; 32]> = Aligned16([0x00; 32]);
     let mut tag: Aligned16<[u8; 16]> = Aligned16([0; 16]);
-    let original_data = data.0.clone();
+    let original_data = data.0;
 
     // Verify alignment
     assert_eq!((key.0.as_ptr() as usize) % 16, 0, "Key not aligned");

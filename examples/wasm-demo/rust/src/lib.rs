@@ -27,6 +27,8 @@ pub fn test_cipherbox() -> String {
     if let Err(e) = secret_box.open_mut(|secrets| {
         secrets.master_key.copy_from_slice(&[1u8; 32]);
         secrets.encryption_key.copy_from_slice(&[2u8; 32]);
+
+        Ok(())
     }) {
         return format!("Error writing: {:?}", e);
     }
@@ -37,6 +39,8 @@ pub fn test_cipherbox() -> String {
         assert_eq!(secrets.master_key[31], 1);
         assert_eq!(secrets.encryption_key[0], 2);
         assert_eq!(secrets.encryption_key[31], 2);
+
+        Ok(())
     }) {
         Ok(_) => "CipherBox works in WASM! ✅ Encryption/decryption verified".to_string(),
         Err(e) => format!("Error reading: {:?}", e),

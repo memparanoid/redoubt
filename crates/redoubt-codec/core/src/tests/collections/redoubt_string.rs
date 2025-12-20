@@ -43,10 +43,6 @@ fn test_redoubt_string_codec_roundtrip() {
 #[test]
 fn stress_test_redoubt_string_clear_push_encode_decode_cycles() {
     const SIZE: usize = 1000;
-
-    // Create original string (digits 0-999 concatenated)
-    let original: String = (0..SIZE).map(|i| format!("{},", i)).collect();
-
     let mut redoubt_string = RedoubtString::new();
 
     for i in (0..=SIZE).rev() {

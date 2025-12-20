@@ -24,7 +24,7 @@ pub use master_key::leak_master_key;
 pub use traits::{CipherBoxDyns, DecryptStruct, Decryptable, EncryptStruct, Encryptable};
 
 #[cfg(feature = "__internal__forensics")]
-pub use master_key::reset as reset_master_key;
+pub use master_key::storage::reset as reset_master_key;
 
 #[cfg(test)]
 mod tests;

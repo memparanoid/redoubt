@@ -66,10 +66,10 @@ test_array_mem_move!(
     -5678,
     f32,
     test_array_mem_move_f32,
-    3.14159,
+    core::f32::consts::PI,
     f64,
     test_array_mem_move_f64,
-    2.718281828,
+    core::f64::consts::E,
     bool,
     test_array_mem_move_bool,
     true,
@@ -226,6 +226,7 @@ fn test_move_vec_zeroizes_before_reserve() {
 
         assert_eq!(*dst[0].inner, 3);
         assert_eq!(*dst[2].inner, 5);
+
         drop(dst); // Drop before checking a, b
 
         assert_eq!(a, 0); // dst was zeroized BEFORE reserve
@@ -247,6 +248,7 @@ fn test_move_vec_zeroizes_before_reserve() {
 
         assert_eq!(*dst[0].inner, 3);
         assert_eq!(*dst[1].inner, 4);
+
         drop(dst); // Drop before checking a, b
 
         assert_eq!(a, 0);
@@ -272,7 +274,7 @@ fn test_redoubt_vec_mem_move() {
 
     let mut src = RedoubtVec::new();
     let mut data = vec![0xAB_u8, 0xCD, 0xEF];
-    src.drain_slice(&mut data);
+    src.extend_from_mut_slice(&mut data);
     assert!(data.is_zeroized());
 
     let mut dst = RedoubtVec::new();
@@ -307,7 +309,7 @@ fn test_redoubt_string_mem_move() {
     use redoubt_zero::ZeroizationProbe;
 
     let mut src = RedoubtString::new();
-    src.copy_from_str("secret password 123");
+    src.extend_from_str("secret password 123");
 
     let mut dst = RedoubtString::new();
 

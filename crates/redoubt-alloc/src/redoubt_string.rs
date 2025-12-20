@@ -83,6 +83,7 @@ impl RedoubtString {
     }
 
     /// Creates a new `RedoubtString` from a string slice.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(src: &str) -> Self {
         let mut s = Self::new();
         s.extend_from_str(src);

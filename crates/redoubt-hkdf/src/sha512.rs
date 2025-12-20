@@ -320,7 +320,7 @@ impl Sha512State {
         for (i, word) in self.h.iter_mut().enumerate() {
             let mut bytes = [0u8; 8];
 
-            word.to_be_bytes_consuming(&mut bytes);
+            word.export_as_be_bytes(&mut bytes);
             out[i * 8..(i + 1) * 8].copy_from_slice(&bytes);
 
             bytes.fast_zeroize();
@@ -340,8 +340,8 @@ impl Sha512State {
         for t in 0..16 {
             self.tmp_word
                 .copy_from_slice(&self.tmp_block[t * 8..(t + 1) * 8]);
-            self.w[t].from_be_bytes(&mut self.tmp_word);
-            // tmp_word zeroized by from_be_bytes
+            self.w[t].fill_with_be_bytes(&mut self.tmp_word);
+            // tmp_word zeroized by fill_with_be_bytes
         }
 
         // W[16..79]: W[t] = σ1(W[t-2]) + W[t-7] + σ0(W[t-15]) + W[t-16]
@@ -385,7 +385,7 @@ impl Sha512State {
         // ═══════════════════════════════════════════════════════════════════════
         // Step 3: 80 rounds
         // ═══════════════════════════════════════════════════════════════════════
-        for t in 0..80 {
+        for (k, w) in K.iter().zip(self.w.iter_mut()) {
             // T1 = h + Σ1(e) + Ch(e,f,g) + K[t] + W[t]
             self.t1.copy_from(&self.wv_h);
 
@@ -400,13 +400,13 @@ impl Sha512State {
             self.scratch.fast_zeroize();
 
             // + K[t]
-            self.t1.wrapping_add_assign_val(K[t]);
+            self.t1.wrapping_add_assign_val(*k);
 
             // + W[t]
-            self.t1.wrapping_add_assign(&self.w[t]);
+            self.t1.wrapping_add_assign(w);
 
             // W[t] no longer needed - zeroize immediately
-            self.w[t].fast_zeroize();
+            w.fast_zeroize();
 
             // T2 = Σ0(a) + Maj(a,b,c)
             self.t2.fast_zeroize();

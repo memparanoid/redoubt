@@ -33,6 +33,10 @@ pub fn create_buffer() -> Box<dyn Buffer> {
                 );
                 eprintln!("\x1b[33m   Falling back to heap (no mlock/mprotect/madvise).\x1b[0m");
             }
+            #[cfg(feature = "no_std")]
+            {
+                let _ = e;
+            }
             Box::new(PortableBuffer::create(MASTER_KEY_LEN))
         }
     }

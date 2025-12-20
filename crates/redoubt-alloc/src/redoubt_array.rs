@@ -135,13 +135,13 @@ where
     /// Returns a reference to the underlying array.
     #[inline]
     pub fn as_array(&self) -> &[T; N] {
-        &*self.inner
+        &self.inner
     }
 
     /// Returns a mutable reference to the underlying array.
     #[inline]
     pub fn as_mut_array(&mut self) -> &mut [T; N] {
-        &mut *self.inner
+        &mut self.inner
     }
 }
 

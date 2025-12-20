@@ -86,8 +86,8 @@ fn test_replace_from_mut_array_replaces_existing() {
 fn test_replace_from_mut_array_pattern() {
     let mut arr = RedoubtArray::<u8, 32>::new();
     let mut src = [0u8; 32];
-    for i in 0..32 {
-        src[i] = i as u8;
+    for (i, item) in src.iter_mut().enumerate() {
+        *item = i as u8;
     }
 
     arr.replace_from_mut_array(&mut src);

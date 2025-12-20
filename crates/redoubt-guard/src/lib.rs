@@ -101,22 +101,23 @@ fn init_slow() {
                 RLIMIT_SUCCEEDED.store(0, Ordering::Relaxed);
 
                 INIT_STATE.store(STATE_DONE, Ordering::Release);
-
-                return;
             }
 
-            let prctl_ok = prctl_set_not_dumpable();
-            let rlimit_ok = setrlimit_core_zero();
+            #[cfg(not(feature = "__internal__forensics"))]
+            {
+                let prctl_ok = prctl_set_not_dumpable();
+                let rlimit_ok = setrlimit_core_zero();
 
-            PRCTL_SUCCEEDED.store(prctl_ok as u8, Ordering::Relaxed);
-            RLIMIT_SUCCEEDED.store(rlimit_ok as u8, Ordering::Relaxed);
+                PRCTL_SUCCEEDED.store(prctl_ok as u8, Ordering::Relaxed);
+                RLIMIT_SUCCEEDED.store(rlimit_ok as u8, Ordering::Relaxed);
 
-            // Delay STATE_DONE to allow other threads to enter init_slow()
-            // and hit the spin loop for coverage. Without this, initialization
-            // completes too fast and threads skip init_slow() entirely.
-            #[cfg(test)]
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            INIT_STATE.store(STATE_DONE, Ordering::Release);
+                // Delay STATE_DONE to allow other threads to enter init_slow()
+                // and hit the spin loop for coverage. Without this, initialization
+                // completes too fast and threads skip init_slow() entirely.
+                #[cfg(test)]
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                INIT_STATE.store(STATE_DONE, Ordering::Release);
+            }
         }
         Err(_) => {
             // Another thread is initializing or already done, spin until done
@@ -133,7 +134,7 @@ fn prctl_set_not_dumpable() -> bool {
     unsafe { libc::prctl(libc::PR_SET_DUMPABLE, 0, 0, 0, 0) == 0 }
 }
 
-#[cfg(any(not(target_os = "linux"), feature = "__internal__forensics"))]
+#[cfg(all(not(target_os = "linux"), not(feature = "__internal__forensics")))]
 fn prctl_set_not_dumpable() -> bool {
     // prctl is Linux-only, or disabled for forensic analysis
     false
@@ -148,7 +149,7 @@ fn setrlimit_core_zero() -> bool {
     unsafe { libc::setrlimit(libc::RLIMIT_CORE, &limit) == 0 }
 }
 
-#[cfg(any(not(target_os = "linux"), feature = "__internal__forensics"))]
+#[cfg(all(not(target_os = "linux"), not(feature = "__internal__forensics")))]
 fn setrlimit_core_zero() -> bool {
     // setrlimit RLIMIT_CORE is Linux-specific, or disabled for forensic analysis
     false

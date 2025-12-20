@@ -38,15 +38,15 @@ impl Word64 {
         self.0 = src.0;
     }
 
-    /// Read from big-endian bytes, zeroizing source bytes
+    /// Fill word with big-endian bytes, zeroizing source bytes
     #[inline(always)]
-    pub fn from_be_bytes(&mut self, bytes: &mut [u8; 8]) {
+    pub fn fill_with_be_bytes(&mut self, bytes: &mut [u8; 8]) {
         u64_from_be(&mut self.0, bytes);
     }
 
-    /// Write to big-endian bytes, zeroizing self
+    /// Export word as big-endian bytes, zeroizing self
     #[inline(always)]
-    pub fn to_be_bytes_consuming(&mut self, bytes: &mut [u8; 8]) {
+    pub fn export_as_be_bytes(&mut self, bytes: &mut [u8; 8]) {
         u64_to_be(&mut self.0, bytes);
     }
 

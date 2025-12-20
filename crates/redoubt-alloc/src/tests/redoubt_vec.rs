@@ -136,15 +136,9 @@ fn test_extend_from_mut_slice_grows() {
 
 #[test]
 fn test_extend_from_mut_slice_zeroizes_default_values() {
-    #[derive(Debug, PartialEq, Clone, Copy)]
+    #[derive(Debug, PartialEq, Clone, Copy, Default)]
     struct TestStruct {
         value: u32,
-    }
-
-    impl Default for TestStruct {
-        fn default() -> Self {
-            Self { value: 0 }
-        }
     }
 
     impl redoubt_zero::ZeroizeMetadata for TestStruct {
@@ -212,8 +206,8 @@ fn test_maybe_grow_to_single_allocation() {
 
     // Drain a large slice should do only ONE grow
     let mut src = [0u8; 100];
-    for i in 0..100 {
-        src[i] = i as u8;
+    for (i, item) in src.iter_mut().enumerate() {
+        *item = i as u8;
     }
 
     vec.extend_from_mut_slice(&mut src);

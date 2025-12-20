@@ -253,9 +253,9 @@ unsafe fn get_entropy_u64_fallback(dst: *mut u64) -> Result<(), EntropyError> {
         let ret = unsafe { libc::getentropy(dst as *mut libc::c_void, 8) };
 
         if ret == 0 {
-            return Ok(());
+            Ok(())
         } else {
-            return Err(EntropyError::EntropyNotAvailable);
+            Err(EntropyError::EntropyNotAvailable)
         }
     }
 
@@ -269,6 +269,7 @@ unsafe fn get_entropy_u64_fallback(dst: *mut u64) -> Result<(), EntropyError> {
         // getrandom crate requires a slice
         let slice = unsafe { core::slice::from_raw_parts_mut(dst as *mut u8, 8) };
         getrandom::getrandom(slice).map_err(|_| EntropyError::EntropyNotAvailable)?;
+
         Ok(())
     }
 }
