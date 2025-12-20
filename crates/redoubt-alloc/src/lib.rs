@@ -106,6 +106,7 @@ extern crate alloc;
 mod allocked_vec;
 mod error;
 mod redoubt_array;
+mod redoubt_option;
 mod redoubt_string;
 mod redoubt_vec;
 
@@ -113,8 +114,9 @@ mod redoubt_vec;
 mod tests;
 
 pub use allocked_vec::AllockedVec;
-pub use error::AllockedVecError;
+pub use error::{AllockedVecError, RedoubtOptionError};
 pub use redoubt_array::RedoubtArray;
+pub use redoubt_option::RedoubtOption;
 pub use redoubt_string::RedoubtString;
 pub use redoubt_vec::RedoubtVec;
 

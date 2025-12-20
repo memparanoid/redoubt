@@ -25,3 +25,11 @@ pub enum AllockedVecError {
     #[error("Capacity exceeded: cannot push beyond sealed capacity")]
     CapacityExceeded,
 }
+
+/// Error type for `RedoubtOption` operations.
+#[derive(Debug, Error, Eq, PartialEq)]
+pub enum RedoubtOptionError {
+    /// Attempted to access value when option is empty.
+    #[error("RedoubtOption is empty")]
+    Empty,
+}
