@@ -406,12 +406,13 @@ where
     }
 
     #[inline(always)]
-    pub fn open_field_dyn<Field, const M: usize>(
+    pub fn open_field_dyn<Field, const M: usize, E>(
         &mut self,
         f: &mut dyn Fn(&Field),
-    ) -> Result<(), CipherBoxError>
+    ) -> Result<(), E>
     where
         Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
+        E: From<CipherBoxError>,
     {
         self.assert_healthy()?;
         self.maybe_initialize()?;
@@ -429,12 +430,13 @@ where
     }
 
     #[inline(always)]
-    pub fn open_field_mut_dyn<Field, const M: usize>(
+    pub fn open_field_mut_dyn<Field, const M: usize, E>(
         &mut self,
         f: &mut dyn Fn(&mut Field),
-    ) -> Result<(), CipherBoxError>
+    ) -> Result<(), E>
     where
         Field: Default + FastZeroizable + Encryptable + Decryptable + ZeroizationProbe,
+        E: From<CipherBoxError>,
     {
         self.assert_healthy()?;
         self.maybe_initialize()?;
@@ -471,24 +473,26 @@ where
     }
 
     #[inline(always)]
-    pub fn open_field<Field, const M: usize, F>(&mut self, mut f: F) -> Result<(), CipherBoxError>
+    pub fn open_field<Field, const M: usize, F, E>(&mut self, mut f: F) -> Result<(), E>
     where
         Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
         F: Fn(&Field),
+        E: From<CipherBoxError>,
     {
-        self.open_field_dyn::<Field, M>(&mut f)
+        self.open_field_dyn::<Field, M, E>(&mut f)
     }
 
     #[inline(always)]
-    pub fn open_field_mut<Field, const M: usize, F>(
+    pub fn open_field_mut<Field, const M: usize, F, E>(
         &mut self,
         mut f: F,
-    ) -> Result<(), CipherBoxError>
+    ) -> Result<(), E>
     where
         Field: Default + FastZeroizable + Encryptable + Decryptable + ZeroizationProbe,
         F: Fn(&mut Field),
+        E: From<CipherBoxError>,
     {
-        self.open_field_mut_dyn::<Field, M>(&mut f)
+        self.open_field_mut_dyn::<Field, M, E>(&mut f)
     }
 
     /// Leaks a single field by returning ownership (no re-encryption needed).
@@ -518,11 +522,12 @@ where
     /// - Use the field data across multiple statements
     /// - Implement the leak-operate-commit pattern for fallible operations
     #[inline(always)]
-    pub fn leak_field<Field, const M: usize>(
+    pub fn leak_field<Field, const M: usize, E>(
         &mut self,
-    ) -> Result<ZeroizingGuard<Field>, CipherBoxError>
+    ) -> Result<ZeroizingGuard<Field>, E>
     where
         Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
+        E: From<CipherBoxError>,
     {
         self.assert_healthy()?;
         self.maybe_initialize()?;

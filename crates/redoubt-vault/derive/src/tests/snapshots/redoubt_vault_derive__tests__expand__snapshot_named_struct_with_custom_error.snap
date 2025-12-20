@@ -3,26 +3,27 @@ source: crates/redoubt-vault/derive/src/tests/expand.rs
 expression: pretty(token_stream)
 ---
 #[derive(RedoubtZero, RedoubtCodec)]
-struct Data {
-    pub alpha: Vec<u8>,
-    pub beta: u64,
+struct WithCustomError {
+    pub field1: Vec<u8>,
+    pub field2: u64,
     #[codec(default)]
     __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 use redoubt_vault_core::CipherBoxDyns as _;
-impl redoubt_vault_core::CipherBoxDyns<2> for Data {
+impl redoubt_vault_core::CipherBoxDyns<2> for WithCustomError {
     fn to_encryptable_dyn_fields(
         &mut self,
     ) -> [&mut dyn redoubt_vault_core::Encryptable; 2] {
-        [&mut self.alpha, &mut self.beta]
+        [&mut self.field1, &mut self.field2]
     }
     fn to_decryptable_dyn_fields(
         &mut self,
     ) -> [&mut dyn redoubt_vault_core::Decryptable; 2] {
-        [&mut self.alpha, &mut self.beta]
+        [&mut self.field1, &mut self.field2]
     }
 }
-impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 2> for Data {
+impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 2>
+for WithCustomError {
     fn encrypt_into(
         &mut self,
         aead: &mut A,
@@ -39,7 +40,8 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 2> for Data 
         )
     }
 }
-impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 2> for Data {
+impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 2>
+for WithCustomError {
     fn decrypt_from(
         &mut self,
         aead: &mut A,
@@ -58,10 +60,10 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 2> for Data 
         )
     }
 }
-pub struct DataBox {
-    inner: redoubt_vault_core::CipherBox<Data, redoubt_aead::Aead, 2>,
+pub struct WithCustomErrorBox {
+    inner: redoubt_vault_core::CipherBox<WithCustomError, redoubt_aead::Aead, 2>,
 }
-impl DataBox {
+impl WithCustomErrorBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
@@ -69,79 +71,61 @@ impl DataBox {
         }
     }
     #[inline(always)]
-    pub fn open<F, R>(&mut self, f: F) -> Result<R, redoubt_vault_core::CipherBoxError>
+    pub fn open<F, R>(&mut self, f: F) -> Result<R, MyCustomError>
     where
-        F: Fn(&Data) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        F: Fn(&WithCustomError) -> Result<R, MyCustomError>,
     {
         self.inner.open(f)
     }
     #[inline(always)]
-    pub fn open_mut<F, R>(
-        &mut self,
-        f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    pub fn open_mut<F, R>(&mut self, f: F) -> Result<R, MyCustomError>
     where
-        F: Fn(&mut Data) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        F: Fn(&mut WithCustomError) -> Result<R, MyCustomError>,
     {
         self.inner.open_mut(f)
     }
     #[inline(always)]
-    pub fn leak_alpha(
+    pub fn leak_field1(
         &mut self,
-    ) -> Result<
-        redoubt_zero::ZeroizingGuard<Vec<u8>>,
-        redoubt_vault_core::CipherBoxError,
-    > {
-        self.inner.leak_field::<Vec<u8>, 0, redoubt_vault_core::CipherBoxError>()
+    ) -> Result<redoubt_zero::ZeroizingGuard<Vec<u8>>, MyCustomError> {
+        self.inner.leak_field::<Vec<u8>, 0, MyCustomError>()
     }
     #[inline(always)]
-    pub fn leak_beta(
+    pub fn leak_field2(
         &mut self,
-    ) -> Result<redoubt_zero::ZeroizingGuard<u64>, redoubt_vault_core::CipherBoxError> {
-        self.inner.leak_field::<u64, 1, redoubt_vault_core::CipherBoxError>()
+    ) -> Result<redoubt_zero::ZeroizingGuard<u64>, MyCustomError> {
+        self.inner.leak_field::<u64, 1, MyCustomError>()
     }
     #[inline(always)]
-    pub fn open_alpha<F>(
-        &mut self,
-        f: F,
-    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    pub fn open_field1<F>(&mut self, f: F) -> Result<(), MyCustomError>
     where
         F: Fn(&Vec<u8>),
     {
-        self.inner.open_field::<Vec<u8>, 0, F, redoubt_vault_core::CipherBoxError>(f)
+        self.inner.open_field::<Vec<u8>, 0, F, MyCustomError>(f)
     }
     #[inline(always)]
-    pub fn open_beta<F>(
-        &mut self,
-        f: F,
-    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    pub fn open_field2<F>(&mut self, f: F) -> Result<(), MyCustomError>
     where
         F: Fn(&u64),
     {
-        self.inner.open_field::<u64, 1, F, redoubt_vault_core::CipherBoxError>(f)
+        self.inner.open_field::<u64, 1, F, MyCustomError>(f)
     }
     #[inline(always)]
-    pub fn open_alpha_mut<F>(
-        &mut self,
-        f: F,
-    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    pub fn open_field1_mut<F>(&mut self, f: F) -> Result<(), MyCustomError>
     where
         F: Fn(&mut Vec<u8>),
     {
-        self.inner.open_field_mut::<Vec<u8>, 0, F, redoubt_vault_core::CipherBoxError>(f)
+        self.inner.open_field_mut::<Vec<u8>, 0, F, MyCustomError>(f)
     }
     #[inline(always)]
-    pub fn open_beta_mut<F>(
-        &mut self,
-        f: F,
-    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    pub fn open_field2_mut<F>(&mut self, f: F) -> Result<(), MyCustomError>
     where
         F: Fn(&mut u64),
     {
-        self.inner.open_field_mut::<u64, 1, F, redoubt_vault_core::CipherBoxError>(f)
+        self.inner.open_field_mut::<u64, 1, F, MyCustomError>(f)
     }
 }
-impl Default for DataBox {
+impl Default for WithCustomErrorBox {
     fn default() -> Self {
         Self::new()
     }

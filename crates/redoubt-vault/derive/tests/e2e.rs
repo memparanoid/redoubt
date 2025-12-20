@@ -37,6 +37,8 @@ mod tests {
             assert!(ws.encryption_key.is_zeroized());
             assert!(ws.signing_key.is_zeroized());
             assert!(ws.pin_hash.is_zeroized());
+
+            Ok(())
         })
         .expect("Failed to open(..)");
     }
@@ -50,6 +52,8 @@ mod tests {
             ws.encryption_key = [0xAB; 32];
             ws.signing_key = [0xCD; 32];
             ws.pin_hash = [0xEF; 32];
+
+            Ok(())
         })
         .expect("Failed to open_mut(..)");
 
@@ -58,6 +62,8 @@ mod tests {
             assert_eq!(ws.encryption_key, [0xAB; 32]);
             assert_eq!(ws.signing_key, [0xCD; 32]);
             assert_eq!(ws.pin_hash, [0xEF; 32]);
+
+            Ok(())
         })
         .expect("Failed to open(..)");
     }
@@ -72,6 +78,8 @@ mod tests {
             ws.encryption_key = [0xAB; 32];
             ws.signing_key = [0xCD; 32];
             ws.pin_hash = [0xEF; 32];
+
+            Ok(())
         })
         .expect("Failed to open_mut(..)");
 
@@ -128,6 +136,8 @@ mod tests {
             assert_eq!(ws.encryption_key, [0xAB; 32]);
             assert_eq!(ws.signing_key, [0xCD; 32]);
             assert_eq!(ws.pin_hash, [0xEF; 32]);
+
+            Ok(())
         })
         .expect("Failed to open(..)");
     }
@@ -140,6 +150,8 @@ mod tests {
         cb.open_mut(|ws| {
             ws.master_seed = [0x42; 32];
             ws.encryption_key = [0xAB; 32];
+
+            Ok(())
         })
         .expect("Failed to open_mut(..)");
 
@@ -158,7 +170,62 @@ mod tests {
         cb.open(|ws| {
             assert_eq!(ws.master_seed, [0x42; 32]);
             assert_eq!(ws.encryption_key, [0xAB; 32]);
+
+            Ok(())
         })
         .expect("Failed to open(..)");
+    }
+
+    #[test]
+    fn test_cipherbox_api() {
+        let mut cb = WalletSecretsCipherBox::new();
+
+        // Set values
+        cb.open_mut(|ws| {
+            ws.master_seed = [0x42; 32];
+            ws.encryption_key = [0xAB; 32];
+
+            Ok(())
+        })
+        .expect("Failed to open_mut(..)");
+
+        // Extract the first byte from each field
+        let first_master_seed_byte = cb
+            .open(|ws| Ok(ws.master_seed[0]))
+            .expect("Failed to open(..)");
+        let first_encryption_key_byte = cb
+            .open(|ws| Ok(ws.encryption_key[0]))
+            .expect("Failed to open(..)");
+
+        assert_eq!(first_master_seed_byte, 0x42);
+        assert_eq!(first_encryption_key_byte, 0xAB);
+    }
+
+    // Custom error type for testing
+    #[derive(Debug)]
+    pub enum CustomError {
+        CipherBox(redoubt_vault_core::CipherBoxError),
+        IntentionalCustomError,
+    }
+
+    impl From<redoubt_vault_core::CipherBoxError> for CustomError {
+        fn from(e: redoubt_vault_core::CipherBoxError) -> Self {
+            CustomError::CipherBox(e)
+        }
+    }
+
+    #[cipherbox(CustomErrorBox, error = CustomError)]
+    #[derive(Default, RedoubtZero, RedoubtCodec)]
+    #[fast_zeroize(drop)]
+    struct CustomErrorSecrets {
+        data: [u8; 32],
+    }
+
+    #[test]
+    fn test_custom_error_intentional_failure() {
+        let mut cb = CustomErrorBox::new();
+        let result: Result<(), CustomError> = cb.open(|_| Err(CustomError::IntentionalCustomError));
+
+        assert!(matches!(result, Err(CustomError::IntentionalCustomError)));
     }
 }

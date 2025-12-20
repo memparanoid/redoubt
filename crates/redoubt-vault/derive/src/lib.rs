@@ -60,11 +60,37 @@ use syn::{
 /// - `EncryptStruct<N>` and `DecryptStruct<N>` trait impls
 /// - Per-field `leak_*`, `open_*`, `open_*_mut` methods
 /// - Global `open` and `open_mut` methods
+/// Extract custom error type from attribute tokens.
+///
+/// Parses "WrapperName" or "WrapperName, error = ErrorType"
+/// Returns (wrapper_name, custom_error_type)
+fn parse_cipherbox_attr(attr: TokenStream) -> (Ident, Option<Type>) {
+    let attr_str = attr.to_string();
+    let parts: Vec<&str> = attr_str.split(',').map(|s| s.trim()).collect();
+
+    let wrapper_name = syn::parse_str::<Ident>(parts[0])
+        .expect("cipherbox: first argument must be wrapper name");
+
+    let custom_error = (parts.len() > 1).then(|| {
+        let error_part = parts[1];
+        let error_type_str = error_part
+            .strip_prefix("error")
+            .and_then(|s| s.trim().strip_prefix('='))
+            .map(|s| s.trim())
+            .expect("cipherbox: expected 'error = ErrorType' after comma");
+
+        syn::parse_str::<Type>(error_type_str)
+            .expect("cipherbox: invalid error type")
+    });
+
+    (wrapper_name, custom_error)
+}
+
 #[proc_macro_attribute]
 pub fn cipherbox(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let wrapper_name = parse_macro_input!(attr as Ident);
+    let (wrapper_name, custom_error) = parse_cipherbox_attr(attr);
     let input = parse_macro_input!(item as DeriveInput);
-    expand(wrapper_name, input).unwrap_or_else(|e| e).into()
+    expand(wrapper_name, custom_error, input).unwrap_or_else(|e| e).into()
 }
 
 /// Find the root crate path from a list of candidates.
@@ -147,7 +173,7 @@ fn inject_zeroize_on_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
     input
 }
 
-fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
+fn expand(wrapper_name: Ident, custom_error: Option<Type>, input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     // Inject __sentinel field if it doesn't exist
     let input = inject_zeroize_on_drop_sentinel(input);
 
@@ -200,6 +226,12 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
         })
         .collect();
 
+    // Determine error type to use
+    let error_type = custom_error
+        .as_ref()
+        .map(|ty| quote! { #ty })
+        .unwrap_or_else(|| quote! { #root::CipherBoxError });
+
     // Generate per-field methods
     let mut leak_methods = Vec::new();
     let mut open_methods = Vec::new();
@@ -216,28 +248,28 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
 
         leak_methods.push(quote! {
             #[inline(always)]
-            pub fn #leak_name(&mut self) -> Result<#redoubt_zero_root::ZeroizingGuard<#field_type>, #root::CipherBoxError> {
-                self.inner.leak_field::<#field_type, #idx_lit>()
+            pub fn #leak_name(&mut self) -> Result<#redoubt_zero_root::ZeroizingGuard<#field_type>, #error_type> {
+                self.inner.leak_field::<#field_type, #idx_lit, #error_type>()
             }
         });
 
         open_methods.push(quote! {
             #[inline(always)]
-            pub fn #open_name<F>(&mut self, f: F) -> Result<(), #root::CipherBoxError>
+            pub fn #open_name<F>(&mut self, f: F) -> Result<(), #error_type>
             where
                 F: Fn(&#field_type),
             {
-                self.inner.open_field::<#field_type, #idx_lit, F>(f)
+                self.inner.open_field::<#field_type, #idx_lit, F, #error_type>(f)
             }
         });
 
         open_mut_methods.push(quote! {
             #[inline(always)]
-            pub fn #open_mut_name<F>(&mut self, f: F) -> Result<(), #root::CipherBoxError>
+            pub fn #open_mut_name<F>(&mut self, f: F) -> Result<(), #error_type>
             where
                 F: Fn(&mut #field_type),
             {
-                self.inner.open_field_mut::<#field_type, #idx_lit, F>(f)
+                self.inner.open_field_mut::<#field_type, #idx_lit, F, #error_type>(f)
             }
         });
     }
@@ -318,17 +350,17 @@ fn expand(wrapper_name: Ident, input: DeriveInput) -> Result<TokenStream2, Token
             }
 
             #[inline(always)]
-            pub fn open<F>(&mut self, f: F) -> Result<(), #root::CipherBoxError>
+            pub fn open<F, R>(&mut self, f: F) -> Result<R, #error_type>
             where
-                F: Fn(&#struct_name),
+                F: Fn(&#struct_name) -> Result<R, #error_type>,
             {
                 self.inner.open(f)
             }
 
             #[inline(always)]
-            pub fn open_mut<F>(&mut self, f: F) -> Result<(), #root::CipherBoxError>
+            pub fn open_mut<F, R>(&mut self, f: F) -> Result<R, #error_type>
             where
-                F: Fn(&mut #struct_name),
+                F: Fn(&mut #struct_name) -> Result<R, #error_type>,
             {
                 self.inner.open_mut(f)
             }

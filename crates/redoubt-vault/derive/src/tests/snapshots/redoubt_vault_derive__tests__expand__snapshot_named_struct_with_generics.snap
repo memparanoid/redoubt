@@ -1,7 +1,3 @@
-// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
-// SPDX-License-Identifier: GPL-3.0-only
-// See LICENSE in the repository root for full license text.
-
 ---
 source: crates/redoubt-vault/derive/src/tests/expand.rs
 expression: pretty(token_stream)
@@ -84,16 +80,19 @@ impl ContainerBox {
         }
     }
     #[inline(always)]
-    pub fn open<F>(&mut self, f: F) -> Result<(), redoubt_vault_core::CipherBoxError>
+    pub fn open<F, R>(&mut self, f: F) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&Container),
+        F: Fn(&Container) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner.open(f)
     }
     #[inline(always)]
-    pub fn open_mut<F>(&mut self, f: F) -> Result<(), redoubt_vault_core::CipherBoxError>
+    pub fn open_mut<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&mut Container),
+        F: Fn(&mut Container) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner.open_mut(f)
     }
@@ -101,13 +100,13 @@ impl ContainerBox {
     pub fn leak_value(
         &mut self,
     ) -> Result<redoubt_zero::ZeroizingGuard<T>, redoubt_vault_core::CipherBoxError> {
-        self.inner.leak_field::<T, 0>()
+        self.inner.leak_field::<T, 0, redoubt_vault_core::CipherBoxError>()
     }
     #[inline(always)]
     pub fn leak_count(
         &mut self,
     ) -> Result<redoubt_zero::ZeroizingGuard<u64>, redoubt_vault_core::CipherBoxError> {
-        self.inner.leak_field::<u64, 1>()
+        self.inner.leak_field::<u64, 1, redoubt_vault_core::CipherBoxError>()
     }
     #[inline(always)]
     pub fn open_value<F>(
@@ -117,7 +116,7 @@ impl ContainerBox {
     where
         F: Fn(&T),
     {
-        self.inner.open_field::<T, 0, F>(f)
+        self.inner.open_field::<T, 0, F, redoubt_vault_core::CipherBoxError>(f)
     }
     #[inline(always)]
     pub fn open_count<F>(
@@ -127,7 +126,7 @@ impl ContainerBox {
     where
         F: Fn(&u64),
     {
-        self.inner.open_field::<u64, 1, F>(f)
+        self.inner.open_field::<u64, 1, F, redoubt_vault_core::CipherBoxError>(f)
     }
     #[inline(always)]
     pub fn open_value_mut<F>(
@@ -137,7 +136,7 @@ impl ContainerBox {
     where
         F: Fn(&mut T),
     {
-        self.inner.open_field_mut::<T, 0, F>(f)
+        self.inner.open_field_mut::<T, 0, F, redoubt_vault_core::CipherBoxError>(f)
     }
     #[inline(always)]
     pub fn open_count_mut<F>(
@@ -147,7 +146,7 @@ impl ContainerBox {
     where
         F: Fn(&mut u64),
     {
-        self.inner.open_field_mut::<u64, 1, F>(f)
+        self.inner.open_field_mut::<u64, 1, F, redoubt_vault_core::CipherBoxError>(f)
     }
 }
 impl Default for ContainerBox {
