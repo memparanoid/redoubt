@@ -87,3 +87,37 @@ fn test_redoubt_option_as_mut() {
 
     assert_eq!(*opt.as_ref().expect("Failed to get as_ref"), 99);
 }
+
+#[test]
+fn test_redoubt_option_as_option() {
+    let mut opt = RedoubtOption::<u64>::default();
+
+    // Test None case
+    let inner = opt.as_option();
+    assert!(inner.is_none());
+
+    // Test Some case
+    let mut value = 42u64;
+    opt.replace(&mut value);
+
+    let inner = opt.as_option();
+    assert!(inner.is_some());
+    assert_eq!(*inner.as_ref().expect("Failed to get inner"), 42);
+}
+
+#[test]
+fn test_redoubt_option_as_mut_option() {
+    let mut opt = RedoubtOption::<u64>::default();
+    let mut value = 42u64;
+    opt.replace(&mut value);
+
+    let inner = opt.as_mut_option();
+    assert!(inner.is_some());
+
+    // Modify through mutable reference
+    if let Some(v) = inner {
+        *v = 99;
+    }
+
+    assert_eq!(*opt.as_ref().expect("Failed to get as_ref"), 99);
+}
