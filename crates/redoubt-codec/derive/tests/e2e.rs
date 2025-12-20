@@ -122,4 +122,81 @@ mod tests {
             assert!(decode_buf.is_zeroized());
         }
     }
+
+    #[test]
+    fn test_derive_struct_with_option_fields() {
+        #[derive(RedoubtCodec, Default, PartialEq, Debug, Clone)]
+        struct OptionalData {
+            pub id: u64,
+            pub name: Option<Vec<u8>>,
+            pub count: Option<u32>,
+            pub active: bool,
+        }
+
+        // Test with None values
+        let original_none = OptionalData {
+            id: 0x99,
+            name: None,
+            count: None,
+            active: false,
+        };
+        let mut original_none_clone = original_none.clone();
+
+        let bytes_required = original_none
+            .encode_bytes_required()
+            .expect("Failed to get encode_bytes_required()");
+        let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
+
+        original_none_clone
+            .encode_into(&mut buf)
+            .expect("Failed to encode_into(..)");
+
+        let mut decode_buf = buf.export_as_vec();
+        let mut recovered = OptionalData::default();
+        recovered
+            .decode_from(&mut decode_buf.as_mut_slice())
+            .expect("Failed to decode_from(..)");
+
+        assert_eq!(recovered, original_none);
+
+        #[cfg(feature = "zeroize")]
+        {
+            assert!(original_none_clone.name.is_zeroized());
+            assert!(buf.is_zeroized());
+            assert!(decode_buf.is_zeroized());
+        }
+
+        // Test with Some values
+        let original_some = OptionalData {
+            id: 0x42,
+            name: Some(vec![b'f', b'o', b'o']),
+            count: Some(123),
+            active: true,
+        };
+        let mut original_some_clone = original_some.clone();
+
+        let bytes_required = original_some
+            .encode_bytes_required()
+            .expect("Failed to get encode_bytes_required()");
+        let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
+
+        original_some_clone
+            .encode_into(&mut buf)
+            .expect("Failed to encode_into(..)");
+
+        let mut decode_buf = buf.export_as_vec();
+        let mut recovered = OptionalData::default();
+        recovered
+            .decode_from(&mut decode_buf.as_mut_slice())
+            .expect("Failed to decode_from(..)");
+
+        assert_eq!(recovered, original_some);
+
+        #[cfg(feature = "zeroize")]
+        {
+            assert!(original_some_clone.name.is_zeroized());
+            assert!(buf.is_zeroized());
+            assert!(decode_buf.is_zeroized());
+        }
+    }
 }
