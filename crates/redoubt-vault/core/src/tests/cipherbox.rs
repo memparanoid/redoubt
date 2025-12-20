@@ -683,6 +683,24 @@ fn test_open_mut_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
     assert!(matches!(current_f0_value, Ok(1)));
 }
 
+#[test]
+fn test_open_mut_zeroizes_tmp_ciphertexts_on_callback_failure() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    // Callback fails
+    let result: Result<(), CipherBoxError> =
+        cb.open_mut::<_, _, CipherBoxError>(|_| Err(CipherBoxError::IntentionalCipherBoxError));
+
+    assert!(result.is_err());
+
+    // Verify tmp_ciphertexts are zeroized
+    let tmp_ciphertexts = cb.__unsafe_get_tmp_ciphertexts();
+    assert!(tmp_ciphertexts.is_zeroized());
+}
+
 // =============================================================================
 // open_field()
 // =============================================================================

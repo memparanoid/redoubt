@@ -79,6 +79,11 @@ where
     }
 
     #[cfg(test)]
+    pub(crate) fn __unsafe_get_tmp_ciphertexts(&self) -> &[Vec<u8>; N] {
+        &self.tmp_ciphertexts
+    }
+
+    #[cfg(test)]
     pub(crate) fn __unsafe_get_field_ciphertext<const M: usize>(&mut self) -> &Vec<u8> {
         &self.ciphertexts[M]
     }
