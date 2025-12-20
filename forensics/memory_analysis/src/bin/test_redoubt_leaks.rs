@@ -43,6 +43,7 @@ struct Patterns {
     array_pattern: [u8; 1024],
     string_pattern: [u8; 1024],
     vec_pattern: [u8; 1024],
+    option_pattern: [u8; 1024],
     __sentinel: ZeroizeOnDropSentinel,
 }
 
@@ -53,6 +54,7 @@ impl Default for Patterns {
             string_pattern: [0u8; 1024],
             array_pattern: [0u8; 1024],
             vec_pattern: [0u8; 1024],
+            option_pattern: [0u8; 1024],
             __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
@@ -66,10 +68,12 @@ impl Patterns {
         self.vec_pattern = core::array::from_fn(|_| 0xAA);
         self.string_pattern = core::array::from_fn(|_| 0x41); // 'A' - valid ASCII/UTF-8
         self.array_pattern = core::array::from_fn(|_| 0xCC);
+        self.option_pattern = core::array::from_fn(|_| 0xDD);
 
         println!("[+] Vec pattern: AAAA... (1024 bytes of 0xAA)");
         println!("[+] String pattern: AAAA... (1024 bytes of 0x41 'A')");
         println!("[+] Array pattern: CCCC... (1024 bytes of 0xCC)");
+        println!("[+] Option pattern: DDDD... (1024 bytes of 0xDD)");
         println!();
     }
 }
@@ -127,6 +131,9 @@ fn main() {
         println!("[+] Array pattern: CCCC... (1024 bytes of 0xCC)");
         println!();
 
+        // Create Option<RedoubtVec<u8>> outside cipherbox to test Option zeroization
+        let mut option_data: Option<RedoubtVec<u8>> = None;
+
         // Run 2 iterations to try to provoke leaks
         const ITERATIONS: usize = 50;
         println!(
@@ -169,6 +176,34 @@ fn main() {
         println!("[+] Completed {} iterations", ITERATIONS);
         println!();
 
+        // Test Option<RedoubtVec<u8>> zeroization
+        println!("[*] Testing Option<RedoubtVec<u8>> zeroization...");
+        const OPTION_ITERATIONS: usize = 1000;
+        println!("[*] Running {} iterations with Option pattern...", OPTION_ITERATIONS);
+
+        for i in 0..OPTION_ITERATIONS {
+            let mut temp_patterns = Patterns::default();
+            temp_patterns.fill();
+
+            // Create Some variant with pattern
+            option_data = Some(RedoubtVec::new());
+            if let Some(ref mut vec) = option_data {
+                vec.extend_from_mut_slice(&mut temp_patterns.option_pattern);
+            }
+
+            temp_patterns.fast_zeroize();
+
+            // Zeroize option_data
+            option_data.fast_zeroize();
+
+            if (i + 1) % 200 == 0 {
+                println!("  Completed {} Option iterations...", i + 1);
+            }
+        }
+
+        println!("[+] Completed {} Option iterations", OPTION_ITERATIONS);
+        println!();
+
         // Leak master key
         let mut master_key = redoubt::leak_master_key(32).expect("Failed to leak master key");
 
@@ -183,6 +218,7 @@ fn main() {
         println!("Pattern #1: aa"); // Vec pattern (1024 bytes of 0xAA)
         println!("Pattern #2: 41"); // String pattern (1024 bytes of 0x41)
         println!("Pattern #3: cc"); // Array pattern (1024 bytes of 0xCC)
+        println!("Pattern #4: dd"); // Option pattern (1024 bytes of 0xDD)
         println!();
 
         // Zeroize all patterns
@@ -193,10 +229,12 @@ fn main() {
         let vec_sum: u32 = patterns.vec_pattern.iter().map(|&b| b as u32).sum();
         let str_sum: u32 = patterns.string_pattern.iter().map(|&b| b as u32).sum();
         let arr_sum: u32 = patterns.array_pattern.iter().map(|&b| b as u32).sum();
+        let opt_sum: u32 = patterns.option_pattern.iter().map(|&b| b as u32).sum();
         println!("[*] Post-zeroize verification:");
         println!("    vec_pattern sum: {} (should be 0)", vec_sum);
         println!("    string_pattern sum: {} (should be 0)", str_sum);
         println!("    array_pattern sum: {} (should be 0)", arr_sum);
+        println!("    option_pattern sum: {} (should be 0)", opt_sum);
         println!();
 
         // Signal to script that we're ready for dump
