@@ -38,6 +38,7 @@ where
     healthy: bool,
     key_size: usize,
     ciphertexts: [Vec<u8>; N],
+    tmp_ciphertexts: [Vec<u8>; N],
     nonces: [Vec<u8>; N],
     tags: [Vec<u8>; N],
     tmp_field_cyphertext: Vec<u8>,
@@ -98,6 +99,7 @@ where
         });
 
         let ciphertexts: [Vec<u8>; N] = core::array::from_fn(|_| vec![]);
+        let tmp_ciphertexts: [Vec<u8>; N] = core::array::from_fn(|_| vec![]);
 
         Self {
             aead,
@@ -105,6 +107,7 @@ where
             tags,
             nonces,
             ciphertexts,
+            tmp_ciphertexts,
             healthy: true,
             initialized: false,
             tmp_field_cyphertext: Vec::default(),
@@ -142,13 +145,18 @@ where
 
     #[inline(always)]
     pub fn decrypt_struct(&mut self, aead_key: &[u8]) -> Result<ZeroizingGuard<T>, CipherBoxError> {
+        // Clone ciphertexts for rollback capability
+        for i in 0..N {
+            self.tmp_ciphertexts[i] = self.ciphertexts[i].clone();
+        }
+
         let mut value = ZeroizingGuard::new(T::default());
         let result = value.decrypt_from(
             &mut self.aead,
             aead_key,
             &mut self.nonces,
             &mut self.tags,
-            &mut self.ciphertexts,
+            &mut self.tmp_ciphertexts,
         );
 
         match result {
@@ -307,10 +315,7 @@ where
     /// This method performs a full decrypt-encrypt cycle even for read-only access.
     /// This seems wasteful but is necessary because:
     ///
-    /// 1. `decrypt_struct` is IN-PLACE and DESTRUCTIVE:
-    ///    - Drains `ciphertexts[]` (they become zeros)
-    ///    - Decodes into `value` (plaintext)
-    ///
+    /// 1. `decrypt_struct` operates on `tmp_ciphertexts[]` (cloned from `ciphertexts[]`)
     /// 2. Without re-encryption, the ciphertexts would be permanently lost
     ///
     /// 3. The alternative (duplicating logic between `open` and `open_mut`) is worse:
@@ -323,21 +328,28 @@ where
     /// For better performance when reading a single field, prefer `leak_field` which
     /// avoids the full struct decrypt-encrypt cycle by cloning only the field's ciphertext.
     #[inline(always)]
-    fn open_dyn(&mut self, f: &mut dyn Fn(&T)) -> Result<(), CipherBoxError> {
-        self.assert_healthy()?;
-        self.maybe_initialize()?;
+    fn open_dyn<R, E>(&mut self, f: &mut dyn Fn(&T) -> Result<R, E>) -> Result<R, E>
+    where
+        E: From<CipherBoxError>,
+    {
+        self.assert_healthy().map_err(E::from)?;
+        self.maybe_initialize().map_err(E::from)?;
 
         let master_key = leak_master_key(self.key_size).map_err(|_| {
             self.healthy = false;
-            CipherBoxError::Poisoned
+            E::from(CipherBoxError::Poisoned)
         })?;
-        let mut value = self.decrypt_struct(&master_key)?;
+        let mut value = self.decrypt_struct(&master_key).map_err(E::from)?;
 
-        f(&value);
+        let result = f(&value).inspect_err(|_| {
+            // wipe asap
+            value.fast_zeroize();
+        })?;
 
-        self.encrypt_struct(&master_key, &mut value)?;
+        self.encrypt_struct(&master_key, &mut value)
+            .map_err(E::from)?;
 
-        Ok(())
+        Ok(result)
     }
 
     /// Provides mutable access to the entire struct via a callback.
@@ -345,37 +357,47 @@ where
     /// # Design Note
     ///
     /// This method performs decrypt → callback → encrypt:
-    /// 1. `decrypt_struct` drains `ciphertexts[]` into plaintext `value`
-    /// 2. Callback modifies `value`
-    /// 3. `encrypt_struct` re-encrypts modified `value` back to `ciphertexts[]`
+    /// 1. `decrypt_struct` clones `ciphertexts[]` into `tmp_ciphertexts[]`
+    /// 2. Decrypts `tmp_ciphertexts[]` into plaintext `value`
+    /// 3. Callback modifies `value` and returns `Result<R, E>`
+    /// 4. If callback succeeds: re-encrypts `value` and commits changes
+    /// 5. If callback fails: discards changes, original `ciphertexts[]` remain intact
     ///
-    /// The decrypt-encrypt cycle is mandatory because decryption is destructive (in-place).
+    /// # Rollback Capability
     ///
-    /// # Callback Safety
+    /// Unlike the old design, callbacks CAN now return `Result`:
+    /// - `decrypt_struct` operates on `tmp_ciphertexts[]` (cloned from `ciphertexts[]`)
+    /// - If callback fails, original `ciphertexts[]` are preserved (rollback)
+    /// - If callback succeeds, changes are committed via `encrypt_struct`
     ///
-    /// Callbacks CANNOT return `Result` by design:
-    /// - If callback fails mid-execution, `value` may be partially modified
-    /// - No saved state exists for rollback (ciphertexts were drained)
-    /// - Re-encrypting corrupted state → data loss
-    /// - Not re-encrypting → plaintext memory leak
+    /// # Error Handling
     ///
-    /// For fallible operations, use the leak-operate-commit pattern (see DESIGN.md).
+    /// The error type `E` must implement `From<CipherBoxError>` to handle both:
+    /// - CipherBox internal errors (decrypt/encrypt failures)
+    /// - User callback errors
     #[inline(always)]
-    fn open_mut_dyn(&mut self, f: &mut dyn Fn(&mut T)) -> Result<(), CipherBoxError> {
-        self.assert_healthy()?;
-        self.maybe_initialize()?;
+    fn open_mut_dyn<R, E>(&mut self, f: &mut dyn Fn(&mut T) -> Result<R, E>) -> Result<R, E>
+    where
+        E: From<CipherBoxError>,
+    {
+        self.assert_healthy().map_err(E::from)?;
+        self.maybe_initialize().map_err(E::from)?;
 
         let master_key = leak_master_key(self.key_size).map_err(|_| {
             self.healthy = false;
-            CipherBoxError::Poisoned
+            E::from(CipherBoxError::Poisoned)
         })?;
-        let mut value = self.decrypt_struct(&master_key)?;
+        let mut value = self.decrypt_struct(&master_key).map_err(E::from)?;
 
-        f(&mut value);
+        let result = f(&mut value).inspect_err(|_| {
+            // wipe asap
+            value.fast_zeroize();
+        })?;
 
-        self.encrypt_struct(&master_key, &mut value)?;
+        self.encrypt_struct(&master_key, &mut value)
+            .map_err(E::from)?;
 
-        Ok(())
+        Ok(result)
     }
 
     #[inline(always)]
@@ -426,17 +448,19 @@ where
     }
 
     #[inline(always)]
-    pub fn open<F>(&mut self, mut f: F) -> Result<(), CipherBoxError>
+    pub fn open<F, R, E>(&mut self, mut f: F) -> Result<R, E>
     where
-        F: Fn(&T),
+        F: Fn(&T) -> Result<R, E>,
+        E: From<CipherBoxError>,
     {
         self.open_dyn(&mut f)
     }
 
     #[inline(always)]
-    pub fn open_mut<F>(&mut self, mut f: F) -> Result<(), CipherBoxError>
+    pub fn open_mut<F, R, E>(&mut self, mut f: F) -> Result<R, E>
     where
-        F: Fn(&mut T),
+        F: Fn(&mut T) -> Result<R, E>,
+        E: From<CipherBoxError>,
     {
         self.open_mut_dyn(&mut f)
     }

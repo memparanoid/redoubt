@@ -435,8 +435,8 @@ fn test_open_propagates_poison_error() {
     assert!(cb.encrypt_struct(&aead_key, &mut value).is_err());
     assert!(cb.assert_healthy().is_err());
 
-    let result_1 = cb.open(|_| {});
-    let result_2 = cb.open(|_| {});
+    let result_1 = cb.open::<_, _, CipherBoxError>(|_| Ok(()));
+    let result_2 = cb.open::<_, _, CipherBoxError>(|_| Ok(()));
 
     assert!(result_1.is_err());
     assert!(result_2.is_err());
@@ -449,8 +449,8 @@ fn test_open_propagates_initialization_error() {
     let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
     let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
 
-    let result_1 = cb.open(|_| {});
-    let result_2 = cb.open(|_| {});
+    let result_1 = cb.open::<_, _, CipherBoxError>(|_| Ok(()));
+    let result_2 = cb.open::<_, _, CipherBoxError>(|_| Ok(()));
 
     assert!(cb.assert_healthy().is_err());
 
@@ -469,8 +469,8 @@ fn test_open_propagates_leak_master_key_error() {
 
     cb.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
 
-    let result_1 = cb.open(|_| {});
-    let result_2 = cb.open(|_| {});
+    let result_1 = cb.open::<_, _, CipherBoxError>(|_| Ok(()));
+    let result_2 = cb.open::<_, _, CipherBoxError>(|_| Ok(()));
 
     assert!(cb.assert_healthy().is_err());
 
@@ -487,7 +487,7 @@ fn test_open_propagates_decrypt_struct_error() {
 
     assert!(cb.maybe_initialize().is_ok());
 
-    let result = cb.open(|_| {});
+    let result = cb.open::<_, _, CipherBoxError>(|_| Ok(()));
 
     assert!(result.is_err());
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
@@ -501,11 +501,53 @@ fn test_open_propagates_encrypt_struct_error() {
 
     assert!(cb.maybe_initialize().is_ok());
 
-    let result = cb.open(|_| {});
+    let result = cb.open::<_, _, CipherBoxError>(|_| Ok(()));
 
     assert!(result.is_err());
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
     assert!(cb.assert_healthy().is_err());
+}
+
+#[test]
+fn test_open_infers_result_type() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    let result = cb.open::<_, _, CipherBoxError>(|test_breaker_box| {
+        Ok(test_breaker_box.f0.usize.data + test_breaker_box.f1.usize.data)
+    });
+
+    assert!(result.is_ok());
+    assert!(matches!(result, Ok(3)));
+}
+
+#[test]
+fn test_open_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    // Callback returns error
+    let result: Result<(), CipherBoxError> =
+        cb.open(|_| Err(CipherBoxError::IntentionalCipherBoxError));
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(CipherBoxError::IntentionalCipherBoxError)
+    ));
+
+    // CipherBox should NOT be poisoned
+    assert!(cb.assert_healthy().is_ok());
+
+    // Should be able to use CipherBox again
+    let current_f0_value = cb.open::<_, _, CipherBoxError>(|tb| Ok(tb.f0.usize.data));
+
+    assert!(current_f0_value.is_ok());
+    assert!(matches!(current_f0_value, Ok(1)));
 }
 
 // =============================================================================
@@ -522,8 +564,8 @@ fn test_open_mut_propagates_poison_error() {
     assert!(cb.encrypt_struct(&aead_key, &mut value).is_err());
     assert!(cb.assert_healthy().is_err());
 
-    let result_1 = cb.open_mut(|_| {});
-    let result_2 = cb.open_mut(|_| {});
+    let result_1 = cb.open_mut::<_, _, CipherBoxError>(|_| Ok(()));
+    let result_2 = cb.open_mut::<_, _, CipherBoxError>(|_| Ok(()));
 
     assert!(result_1.is_err());
     assert!(result_2.is_err());
@@ -536,8 +578,8 @@ fn test_open_mut_propagates_initialization_error() {
     let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
     let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
 
-    let result_1 = cb.open_mut(|_| {});
-    let result_2 = cb.open_mut(|_| {});
+    let result_1 = cb.open_mut::<_, _, CipherBoxError>(|_| Ok(()));
+    let result_2 = cb.open_mut::<_, _, CipherBoxError>(|_| Ok(()));
 
     assert!(cb.assert_healthy().is_err());
 
@@ -556,8 +598,8 @@ fn test_open_mut_propagates_leak_master_key_error() {
 
     cb.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
 
-    let result_1 = cb.open_mut(|_| {});
-    let result_2 = cb.open_mut(|_| {});
+    let result_1 = cb.open_mut::<_, _, CipherBoxError>(|_| Ok(()));
+    let result_2 = cb.open_mut::<_, _, CipherBoxError>(|_| Ok(()));
 
     assert!(cb.assert_healthy().is_err());
 
@@ -574,7 +616,7 @@ fn test_open_mut_propagates_decrypt_struct_error() {
 
     assert!(cb.maybe_initialize().is_ok());
 
-    let result = cb.open_mut(|_| {});
+    let result = cb.open_mut::<_, _, CipherBoxError>(|_| Ok(()));
 
     assert!(result.is_err());
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
@@ -588,11 +630,57 @@ fn test_open_mut_propagates_encrypt_struct_error() {
 
     assert!(cb.maybe_initialize().is_ok());
 
-    let result = cb.open_mut(|_| {});
+    let result = cb.open_mut::<_, _, CipherBoxError>(|_| Ok(()));
 
     assert!(result.is_err());
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
     assert!(cb.assert_healthy().is_err());
+}
+
+#[test]
+fn test_open_mut_infers_result_type() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    let result = cb.open_mut::<_, _, CipherBoxError>(|test_breaker_box| {
+        test_breaker_box.f0.usize.data += 10;
+        Ok(test_breaker_box.f0.usize.data)
+    });
+
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), 11);
+}
+
+#[test]
+fn test_open_mut_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    assert!(cb.maybe_initialize().is_ok());
+
+    // Callback returns error after modifying data
+    let result: Result<(), CipherBoxError> =
+        cb.open_mut::<_, _, CipherBoxError>(|test_breaker_box| {
+            test_breaker_box.f0.usize.data = 999;
+            Err(CipherBoxError::IntentionalCipherBoxError)
+        });
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result,
+        Err(CipherBoxError::IntentionalCipherBoxError)
+    ));
+
+    // CipherBox should NOT be poisoned
+    assert!(cb.assert_healthy().is_ok());
+
+    // Should be able to use CipherBox again and data should be unchanged (rollback)
+    let current_f0_value = cb.open::<_, _, CipherBoxError>(|tb| Ok(tb.f0.usize.data));
+
+    assert!(current_f0_value.is_ok());
+    assert!(matches!(current_f0_value, Ok(1)));
 }
 
 // =============================================================================
@@ -848,33 +936,36 @@ fn test_cipherbox_happy_path_test() {
     let aead = AeadMock::new(AeadMockBehaviour::None);
     let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
 
-    cb.open(|tb_box| {
+    cb.open::<_, _, CipherBoxError>(|tb_box| {
         assert_eq!(tb_box.f0.usize.data, 1);
         assert_eq!(tb_box.f1.usize.data, 2);
         assert_eq!(tb_box.f2.usize.data, 4);
         assert_eq!(tb_box.f3.usize.data, 8);
         assert_eq!(tb_box.f4.usize.data, 16);
         assert_eq!(tb_box.f5.usize.data, 32);
+        Ok(())
     })
     .expect("Failed to open(..)");
 
-    cb.open_mut(|tb_box| {
+    cb.open_mut::<_, _, CipherBoxError>(|tb_box| {
         tb_box.f0.usize.data <<= 2;
         tb_box.f1.usize.data <<= 2;
         tb_box.f2.usize.data <<= 2;
         tb_box.f3.usize.data <<= 2;
         tb_box.f4.usize.data <<= 2;
         tb_box.f5.usize.data <<= 2;
+        Ok(())
     })
     .expect("Failed to open_mut(..)");
 
-    cb.open(|tb_box| {
+    cb.open::<_, _, CipherBoxError>(|tb_box| {
         assert_eq!(tb_box.f0.usize.data, 4);
         assert_eq!(tb_box.f1.usize.data, 8);
         assert_eq!(tb_box.f2.usize.data, 16);
         assert_eq!(tb_box.f3.usize.data, 32);
         assert_eq!(tb_box.f4.usize.data, 64);
         assert_eq!(tb_box.f5.usize.data, 128);
+        Ok(())
     })
     .expect("Failed to open(..)");
 
@@ -978,9 +1069,10 @@ fn stress_test_redoubt_vec_grow_shrink_cycles(size: usize) {
     let mut accumulated: Vec<RedoubtCodecTestBreaker> = Vec::new();
 
     for i in 0..=size {
-        cb.open_mut(|vault| {
+        cb.open_mut::<_, _, CipherBoxError>(|vault| {
             let mut src = original[0..i].to_vec();
             vault.vec.extend_from_mut_slice(&mut src);
+            Ok(())
         })
         .expect("Failed open_mut during grow phase");
 
@@ -988,7 +1080,7 @@ fn stress_test_redoubt_vec_grow_shrink_cycles(size: usize) {
         accumulated.extend_from_slice(&original[0..i]);
         let expected_len = (i * (i + 1)) / 2;
 
-        cb.open(|vault| {
+        cb.open::<_, _, CipherBoxError>(|vault| {
             assert_eq!(
                 vault.vec.as_slice().len(),
                 expected_len,
@@ -1001,18 +1093,21 @@ fn stress_test_redoubt_vec_grow_shrink_cycles(size: usize) {
                 "Grow phase content mismatch at i={}",
                 i
             );
+            Ok(())
         })
         .expect("Failed open during grow verify");
     }
 
     // Clear after grow phase
-    cb.open_mut(|vault| {
+    cb.open_mut::<_, _, CipherBoxError>(|vault| {
         vault.vec.clear();
+        Ok(())
     })
     .expect("Failed to open_mut(..)");
 
-    cb.open(|vault| {
+    cb.open::<_, _, CipherBoxError>(|vault| {
         assert_eq!(vault.vec.len(), 0);
+        Ok(())
     })
     .expect("Failed to open(..)");
 
@@ -1020,9 +1115,10 @@ fn stress_test_redoubt_vec_grow_shrink_cycles(size: usize) {
     let mut accumulated: Vec<RedoubtCodecTestBreaker> = Vec::new();
 
     for i in (0..=size).rev() {
-        cb.open_mut(|vault| {
+        cb.open_mut::<_, _, CipherBoxError>(|vault| {
             let mut src = original[0..i].to_vec();
             vault.vec.extend_from_mut_slice(&mut src);
+            Ok(())
         })
         .expect("Failed open_mut during shrink phase");
 
@@ -1030,7 +1126,7 @@ fn stress_test_redoubt_vec_grow_shrink_cycles(size: usize) {
         accumulated.extend_from_slice(&original[0..i]);
         let expected_len = (size - i + 1) * (size + i) / 2;
 
-        cb.open(|vault| {
+        cb.open::<_, _, CipherBoxError>(|vault| {
             assert_eq!(
                 vault.vec.as_slice().len(),
                 expected_len,
@@ -1043,6 +1139,7 @@ fn stress_test_redoubt_vec_grow_shrink_cycles(size: usize) {
                 "Shrink phase content mismatch at i={}",
                 i
             );
+            Ok(())
         })
         .expect("Failed open during shrink verify");
     }
