@@ -235,3 +235,29 @@ impl<T: ZeroizationProbe> ZeroizationProbe for alloc::boxed::Box<T> {
         (**self).is_zeroized()
     }
 }
+
+// Blanket impls for Option<T>
+// Option has discriminant/tag that requires proper handling, cannot bulk zeroize
+impl<T: ZeroizeMetadata + FastZeroizable> ZeroizeMetadata for Option<T> {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+
+impl<T: FastZeroizable> FastZeroizable for Option<T> {
+    #[inline(always)]
+    fn fast_zeroize(&mut self) {
+        if let Some(val) = self {
+            val.fast_zeroize();
+        }
+        // Zeroize the discriminant by setting to None
+        *self = None;
+    }
+}
+
+impl<T: ZeroizationProbe> ZeroizationProbe for Option<T> {
+    fn is_zeroized(&self) -> bool {
+        match self {
+            Some(val) => val.is_zeroized(),
+            None => true, // None is considered zeroized
+        }
+    }
+}
