@@ -62,7 +62,7 @@ fn test_redoubt_option_take_some() {
     opt.replace(&mut value);
 
     let taken = opt.take();
-    assert!(taken.is_some());
+    assert!(taken.is_ok());
     assert_eq!(taken.expect("Failed to take"), 42);
     assert!(opt.is_none());
 }
@@ -71,7 +71,8 @@ fn test_redoubt_option_take_some() {
 fn test_redoubt_option_take_none() {
     let mut opt = RedoubtOption::<u64>::default();
     let taken = opt.take();
-    assert!(taken.is_none());
+    assert!(taken.is_err());
+    assert!(matches!(taken, Err(RedoubtOptionError::Empty)));
     assert!(opt.is_none());
 }
 

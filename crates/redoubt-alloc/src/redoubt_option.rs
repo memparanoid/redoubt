@@ -55,8 +55,8 @@ where
     }
 
     /// Takes the value out of the option, leaving `None` in its place.
-    pub fn take(&mut self) -> Option<T> {
-        self.inner.take()
+    pub fn take(&mut self) -> Result<T, RedoubtOptionError> {
+        self.inner.take().ok_or(RedoubtOptionError::Empty)
     }
 
     /// Returns `true` if the option contains a value.
