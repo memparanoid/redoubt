@@ -79,6 +79,16 @@ where
         }
     }
 
+    /// Creates a new `RedoubtArray` from a mutable array, zeroizing the source.
+    pub fn from_mut_array(src: &mut [T; N]) -> Self
+    where
+        T: Default,
+    {
+        let mut arr = Self::new();
+        arr.replace_from_mut_array(src);
+        arr
+    }
+
     /// Returns the number of elements in the array (always N).
     #[inline]
     pub const fn len(&self) -> usize {

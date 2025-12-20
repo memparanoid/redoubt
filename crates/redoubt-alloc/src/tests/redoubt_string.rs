@@ -31,6 +31,25 @@ fn test_with_capacity() {
 }
 
 // =============================================================================
+// from_mut_string() / from_str()
+// =============================================================================
+
+#[test]
+fn test_from_mut_string() {
+    let mut data = String::from("hello");
+    let s = RedoubtString::from_mut_string(&mut data);
+
+    assert_eq!(s.as_str(), "hello");
+    assert!(data.is_zeroized());
+}
+
+#[test]
+fn test_from_str() {
+    let s = RedoubtString::from_str("world");
+    assert_eq!(s.as_str(), "world");
+}
+
+// =============================================================================
 // len(), is_empty(), capacity()
 // =============================================================================
 
@@ -319,31 +338,6 @@ fn test_deref() {
     str_mut.make_ascii_uppercase();
 
     assert_eq!(s.as_str(), "TEST");
-}
-
-// =============================================================================
-// From<String>
-// =============================================================================
-
-#[test]
-fn test_from_string() {
-    let original = String::from("secret");
-    let redoubt = RedoubtString::from(original.clone());
-
-    assert_eq!(redoubt.as_str(), "secret");
-
-    // Note: from() clones, so original is unchanged
-    // Use drain_string for zeroization
-}
-
-// =============================================================================
-// From<&str>
-// =============================================================================
-
-#[test]
-fn test_from_str() {
-    let redoubt = RedoubtString::from("hello");
-    assert_eq!(redoubt.as_str(), "hello");
 }
 
 // =============================================================================

@@ -75,6 +75,20 @@ impl RedoubtString {
         }
     }
 
+    /// Creates a new `RedoubtString` from a mutable String, zeroizing the source.
+    pub fn from_mut_string(src: &mut String) -> Self {
+        let mut s = Self::new();
+        s.extend_from_mut_string(src);
+        s
+    }
+
+    /// Creates a new `RedoubtString` from a string slice.
+    pub fn from_str(src: &str) -> Self {
+        let mut s = Self::new();
+        s.extend_from_str(src);
+        s
+    }
+
     /// Returns the length of the string in bytes.
     #[inline]
     pub fn len(&self) -> usize {
@@ -203,21 +217,5 @@ impl Deref for RedoubtString {
 impl DerefMut for RedoubtString {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
-    }
-}
-
-impl From<String> for RedoubtString {
-    fn from(mut s: String) -> Self {
-        let mut redoubt = Self::with_capacity(s.len());
-        redoubt.extend_from_mut_string(&mut s);
-        redoubt
-    }
-}
-
-impl From<&str> for RedoubtString {
-    fn from(s: &str) -> Self {
-        let mut redoubt = Self::with_capacity(s.len());
-        redoubt.extend_from_str(s);
-        redoubt
     }
 }

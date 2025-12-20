@@ -88,6 +88,16 @@ where
         }
     }
 
+    /// Creates a new `RedoubtVec` from a mutable slice, zeroizing the source.
+    pub fn from_mut_slice(src: &mut [T]) -> Self
+    where
+        T: Default,
+    {
+        let mut vec = Self::new();
+        vec.extend_from_mut_slice(src);
+        vec
+    }
+
     /// Returns the number of elements in the vector.
     #[inline]
     pub fn len(&self) -> usize {
