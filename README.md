@@ -39,14 +39,16 @@ redoubt = "0.1"
 
 ## Quick Start
 ```rust
-use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, Secret};
+use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtArray, RedoubtString, Secret};
 
 #[cipherbox(WalletBox)]
 #[derive(Default, RedoubtCodec, RedoubtZero)]
 struct Wallet {
-    master_seed: Secret<[u8; 64]>,
-    signing_key: Secret<[u8; 32]>,
-    pin_hash: Secret<[u8; 32]>,
+    master_seed: RedoubtArray<u8, 64>,
+    signing_key: RedoubtArray<u8, 32>,
+    pin_hash: RedoubtArray<u8, 32>,
+    mnemonic: RedoubtString,
+    derivation_index: Secret<u64>,
 }
 
 fn main() {
@@ -54,59 +56,39 @@ fn main() {
 
     // Store your secrets
     wallet.open_mut(|w| {
-        w.master_seed = Secret::new(derive_seed_from_mnemonic("abandon abandon ..."));
-        w.signing_key = Secret::new(derive_signing_key(&w.master_seed));
-        w.pin_hash = Secret::new(hash_pin("1234"));
-    }).unwrap();
+        let mut seed = derive_seed_from_mnemonic("abandon abandon ...");
+        w.master_seed.replace_from_mut_array(&mut seed);
 
-    // Use them when needed
-    wallet.open_signing_key(|key| {
-        sign_transaction(key, &transaction);
-    }).unwrap();
-    
-}   // Everything zeroized, encryption keys gone
+        let mut key = derive_signing_key(&w.master_seed);
+        w.signing_key.replace_from_mut_array(&mut key);
+
+        let mut hash = hash_pin("1234");
+        w.pin_hash.replace_from_mut_array(&mut hash);
+
+        w.mnemonic.extend_from_str("abandon abandon ...");
+
+        let mut index = 0u64;
+        w.derivation_index = Secret::from(&mut index);
+    }).expect("Failed to initialize wallet");
+    // `w` is encoded -> reencrypted
+
+    // Leak secrets when needed outside closure scope
+    {
+        let seed: ZeroizingGuard<RedoubtArray<u8, 64>> = wallet
+            .leak_master_seed()
+            .expect("Failed to decrypt master seed");
+        derive_child_keys(&seed);
+    } // seed is zeroized on drop
+}
 ```
 
 ## API
 
-### Reading secrets
-
-Use `open` to read your secrets. The closure receives an immutable reference:
-```rust
-wallet.open(|w| {
-    verify_pin(&w.pin_hash, user_input);
-}).unwrap();
-```
-
-### Modifying secrets
-
-Use `open_mut` to modify secrets. Changes are re-encrypted when the closure returns:
-```rust
-wallet.open_mut(|w| {
-    w.pin_hash = Secret::new(hash_pin(new_pin));
-}).unwrap();
-```
-
-### Field-level access
-
-Access individual fields without decrypting the entire struct. Method names are generated from your field names:
-```rust
-// Read only the signing key (other fields stay encrypted)
-wallet.open_signing_key(|key| {
-    sign_transaction(key, &tx);
-}).unwrap();
-
-// Modify only the pin hash
-wallet.open_pin_hash_mut(|hash| {
-    *hash = Secret::new(hash_pin(new_pin));
-}).unwrap();
-```
-
-### Leaking secrets
+### Use `leak` methods to read your secrets
 
 Use `leak_*` when you need the value outside the closure. Returns a `ZeroizingGuard` that wipes memory on drop:
 ```rust
-let signing_key = wallet.leak_signing_key().unwrap();
+let signing_key = wallet.leak_signing_key().expect("Failed to decrypt");
 
 // Use signing_key normally
 let signature = sign(&signing_key, message);
@@ -114,127 +96,103 @@ let signature = sign(&signing_key, message);
 // signing_key is zeroized when it goes out of scope
 ```
 
-## A realistic example
+### Modifying secrets
+
+Use `open_mut` to modify secrets. Changes are re-encrypted when the closure returns:
 ```rust
-use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, Secret, RedoubtVec, RedoubtString};
+wallet.open_mut(|w| {
+    let mut new_hash = hash_pin(new_pin);
+    w.pin_hash.replace_from_mut_array(&mut new_hash);
+}).expect("Failed to decrypt wallet");
+// `w` is encoded -> reencrypted
+```
 
-#[cipherbox(WalletSecretsBox)]
-#[derive(Default, RedoubtCodec, RedoubtZero)]
-struct WalletSecrets {
-    /// BIP-39 seed (64 bytes from mnemonic)
-    master_seed: Secret<[u8; 64]>,
-    
-    /// Ed25519 private key for signing transactions
-    signing_key: Secret<[u8; 32]>,
-    
-    /// ChaCha20-Poly1305 key for encrypting local data
-    encryption_key: Secret<[u8; 32]>,
-    
-    /// Argon2 hash of user's PIN
-    pin_hash: Secret<[u8; 32]>,
-    
-    /// Recovery phrase (variable length)
-    mnemonic: Secret<RedoubtString>,
-    
-    /// Additional key material
-    key_material: Secret<RedoubtVec<u8>>,
-}
+### Field-level access
 
-struct Wallet {
-    secrets: WalletSecretsBox,
-    address: String,
-}
-
-impl Wallet {
-    pub fn create(mnemonic: &str, pin: &str) -> Self {
-        let mut secrets = WalletSecretsBox::new();
-        
-        secrets.open_mut(|s| {
-            s.mnemonic = Secret::new(RedoubtString::from(mnemonic));
-            s.master_seed = Secret::new(bip39::seed_from_mnemonic(mnemonic));
-            s.signing_key = Secret::new(derive_signing_key(&s.master_seed));
-            s.encryption_key = Secret::new(derive_encryption_key(&s.master_seed));
-            s.pin_hash = Secret::new(argon2::hash(pin));
-        }).expect("Failed to initialize wallet");
-        
-        let address = secrets.open_signing_key(|key| {
-            derive_address(key)
-        }).expect("Failed to derive address");
-        
-        Self { secrets, address }
-    }
-    
-    pub fn sign_transaction(&mut self, tx: &Transaction, pin: &str) -> Result<Signature, Error> {
-        // Verify PIN first (only decrypts pin_hash)
-        self.secrets.open_pin_hash(|hash| {
-            if !argon2::verify(pin, hash) {
-                return Err(Error::InvalidPin);
-            }
-            Ok(())
-        })??;
-        
-        // Sign transaction (only decrypts signing_key)
-        self.secrets.open_signing_key(|key| {
-            Ok(ed25519::sign(key, &tx.to_bytes()))
-        })?
-    }
-    
-    pub fn change_pin(&mut self, old_pin: &str, new_pin: &str) -> Result<(), Error> {
-        self.secrets.open_pin_hash_mut(|hash| {
-            if !argon2::verify(old_pin, hash) {
-                return Err(Error::InvalidPin);
-            }
-            *hash = Secret::new(argon2::hash(new_pin));
-            Ok(())
-        })?
-    }
-    
-    pub fn export_encrypted_backup(&mut self) -> Result<Vec<u8>, Error> {
-        // Leak encryption key for use with external crypto
-        let key = self.secrets.leak_encryption_key()?;
-        
-        let backup_data = self.secrets.open(|s| {
-            serialize_for_backup(s)
-        })?;
-        
-        Ok(chacha20poly1305::encrypt(&key, &backup_data))
-        // key is zeroized here
-    }
-}
+Access individual fields without decrypting the entire struct. Method names are generated from your field names:
+```rust
+// Modify only the pin hash
+wallet.open_pin_hash_mut(|hash| {
+    let mut new_hash = hash_pin(new_pin);
+    hash.replace_from_mut_array(&mut new_hash);
+}).expect("Failed to decrypt pin_hash");
 ```
 
 ## Types
 
-Redoubt provides secure containers for common types:
+Redoubt provides secure containers for different use cases:
+
 ```rust
-use redoubt::{Secret, RedoubtVec, RedoubtString};
+use redoubt::{Secret, RedoubtArray, RedoubtVec, RedoubtString};
 
-// Fixed-size secrets
-let api_key: Secret<[u8; 32]> = Secret::new([0u8; 32]);
+// Fixed-size arrays (automatically zeroized on drop)
+let mut api_key = RedoubtArray::<u8, 32>::new();
+let mut signing_key = RedoubtArray::<u8, 64>::new();
 
-// Dynamic secrets (zeroized on realloc and drop)
-let mut tokens: Secret<RedoubtVec<u8>> = Secret::new(RedoubtVec::new());
-let mut password: Secret<RedoubtString> = Secret::new(RedoubtString::new());
+// Dynamic collections (zeroized on realloc and drop)
+let mut tokens = RedoubtVec::<u8>::new();
+let mut password = RedoubtString::new();
+
+// Primitives wrapped in Secret
+let mut counter = Secret::from(&mut 0u64);
+let mut timestamp = Secret::from(&mut 0i64);
 ```
 
-`RedoubtVec` and `RedoubtString` automatically zeroize old memory when they grow, preventing secret fragments from being left behind after reallocation.
+### When to use each type:
+
+- **`RedoubtArray<T, N>`**: Fixed-size arrays of bytes or primitives
+- **`RedoubtVec<T>`**: Variable-length collections that may grow
+- **`RedoubtString`**: Variable-length UTF-8 strings
+- **`Secret<T>`**: Primitive types (u64, i32, etc.) that need protection
+
+### How they prevent leaks:
+
+- **`RedoubtVec` / `RedoubtString`**: Pre-zeroize old allocation before reallocation. Safe methods: `extend_from_mut_slice`, `extend_from_mut_string`. **~40% performance penalty** for guaranteed security.
+- **`RedoubtArray`**: Redeclaring arrays can leave copies in memory. Use `replace_from_mut_array` to drain the source safely.
+
+### Protections:
+
+- All types implement `Debug` with **REDACTED** output (no accidental leaks in logs)
+- **No `Copy` or `Clone`** traits (prevents unintended copies of sensitive data)
+- Automatic zeroization on drop
 
 ## Security
 
-- Sensitive data uses AEAD encryption at rest
-- Memory is zeroized using barriers that prevent compiler optimization
-- On Linux, Redoubt stores the master key in a memory page protected by `prctl` and `mlock`, inaccessible to non-root memory dumps
-- Field-level encryption minimizes secret exposure time
+- **Encryption at rest**: Sensitive data uses AEAD encryption (AEGIS-128L)
+- **Guaranteed zeroization**: Memory is wiped using compiler barriers that prevent optimization
+- **OS-level protections**: On Linux, the master key lives in a memory page protected by `prctl` and `mlock`, inaccessible to non-root memory dumps
+- **Field-level encryption**: Decrypt only what you need, minimizing exposure time
+
+### Forensic validation
+
+Redoubt's zeroization guarantees are validated through memory dump analysis. We test that sensitive data from `RedoubtVec`, `RedoubtString`, `RedoubtArray`, and AEAD keys leave no traces in core dumps after being dropped or reallocated.
+
+See [forensics/README.md](forensics/README.md) for detailed analysis results and testing methodology.
 
 ## Platform support
 
 | Platform | Protection level |
 |----------|------------------|
-| Linux | Full (`prctl`, `mlock`, `mprotect`) |
+| Linux | Full (`prctl`, `rlimit`, `mlock`, `mprotect`) |
 | macOS | Partial (`mlock`, `mprotect`) |
 | Windows | Encryption only |
 | WASI | Encryption only |
 | `no_std` | Encryption only |
+
+## Project Insights
+
+For detailed information about testing methodology and other interesting technical details, see [INSIGHTS.md](INSIGHTS.md).
+
+## Benchmarks
+
+To run benchmarks:
+
+```bash
+cargo bench -p benchmarks --bench aegis128l
+cargo bench -p benchmarks --bench alloc
+cargo bench -p benchmarks --bench cipherbox
+cargo bench -p benchmarks --bench codec
+```
 
 ## License
 

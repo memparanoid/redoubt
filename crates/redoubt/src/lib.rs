@@ -30,14 +30,15 @@
 //! # Quick Start
 //!
 //! ```rust
-//! use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, Secret};
+//! use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtArray, RedoubtString};
 //!
 //! #[cipherbox(WalletBox)]
 //! #[derive(Default, RedoubtCodec, RedoubtZero)]
 //! struct Wallet {
-//!     master_seed: Secret<[u8; 64]>,
-//!     signing_key: Secret<[u8; 32]>,
-//!     pin_hash: Secret<[u8; 32]>,
+//!     master_seed: RedoubtArray<u8, 64>,
+//!     signing_key: RedoubtArray<u8, 32>,
+//!     pin_hash: RedoubtArray<u8, 32>,
+//!     mnemonic: RedoubtString,
 //! }
 //!
 //! fn main() {
@@ -45,9 +46,16 @@
 //!
 //!     // Store your secrets
 //!     wallet.open_mut(|w| {
-//!         w.master_seed = Secret::new(derive_seed_from_mnemonic("abandon abandon ..."));
-//!         w.signing_key = Secret::new(derive_signing_key(&w.master_seed));
-//!         w.pin_hash = Secret::new(hash_pin("1234"));
+//!         let mut seed = derive_seed_from_mnemonic("abandon abandon ...");
+//!         w.master_seed.replace_from_mut_array(&mut seed);
+//!
+//!         let mut key = derive_signing_key(&w.master_seed);
+//!         w.signing_key.replace_from_mut_array(&mut key);
+//!
+//!         let mut hash = hash_pin("1234");
+//!         w.pin_hash.replace_from_mut_array(&mut hash);
+//!
+//!         w.mnemonic.extend_from_str("abandon abandon ...");
 //!     }).unwrap();
 //!
 //!     // Use them when needed
@@ -57,9 +65,9 @@
 //!
 //! }   // Everything zeroized, encryption keys gone
 //! # fn derive_seed_from_mnemonic(_: &str) -> [u8; 64] { [0u8; 64] }
-//! # fn derive_signing_key(_: &Secret<[u8; 64]>) -> [u8; 32] { [0u8; 32] }
+//! # fn derive_signing_key(_: &RedoubtArray<u8, 64>) -> [u8; 32] { [0u8; 32] }
 //! # fn hash_pin(_: &str) -> [u8; 32] { [0u8; 32] }
-//! # fn sign_transaction(_: &Secret<[u8; 32]>, _: &()) {}
+//! # fn sign_transaction(_: &RedoubtArray<u8, 32>, _: &()) {}
 //! # let transaction = ();
 //! ```
 //!
@@ -70,15 +78,15 @@
 //! Use `open` to read your secrets. The closure receives an immutable reference:
 //!
 //! ```rust
-//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, Secret};
+//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtArray};
 //! # #[cipherbox(WalletBox)]
 //! # #[derive(Default, RedoubtCodec, RedoubtZero)]
-//! # struct Wallet { pin_hash: Secret<[u8; 32]> }
+//! # struct Wallet { pin_hash: RedoubtArray<u8, 32> }
 //! # let mut wallet = WalletBox::new();
 //! wallet.open(|w| {
 //!     verify_pin(&w.pin_hash, user_input);
 //! }).unwrap();
-//! # fn verify_pin(_: &Secret<[u8; 32]>, _: &str) {}
+//! # fn verify_pin(_: &RedoubtArray<u8, 32>, _: &str) {}
 //! # let user_input = "";
 //! ```
 //!
@@ -87,13 +95,14 @@
 //! Use `open_mut` to modify secrets. Changes are re-encrypted when the closure returns:
 //!
 //! ```rust
-//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, Secret};
+//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtArray};
 //! # #[cipherbox(WalletBox)]
 //! # #[derive(Default, RedoubtCodec, RedoubtZero)]
-//! # struct Wallet { pin_hash: Secret<[u8; 32]> }
+//! # struct Wallet { pin_hash: RedoubtArray<u8, 32> }
 //! # let mut wallet = WalletBox::new();
 //! wallet.open_mut(|w| {
-//!     w.pin_hash = Secret::new(hash_pin(new_pin));
+//!     let mut new_hash = hash_pin(new_pin);
+//!     w.pin_hash.replace_from_mut_array(&mut new_hash);
 //! }).unwrap();
 //! # fn hash_pin(_: &str) -> [u8; 32] { [0u8; 32] }
 //! # let new_pin = "";
@@ -187,5 +196,6 @@ pub mod support;
 pub use redoubt_aead::*;
 pub use redoubt_alloc::*;
 pub use redoubt_codec::*;
+pub use redoubt_secret::*;
 pub use redoubt_vault::*;
 pub use redoubt_zero::*;
