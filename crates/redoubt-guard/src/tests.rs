@@ -143,6 +143,9 @@ mod non_linux {
         let status = crate::guard_status();
 
         assert!(!status.prctl_succeeded, "prctl not available on non-Linux");
-        assert!(!status.rlimit_succeeded, "rlimit not available on non-Linux");
+        assert!(
+            !status.rlimit_succeeded,
+            "rlimit not available on non-Linux"
+        );
     }
 }

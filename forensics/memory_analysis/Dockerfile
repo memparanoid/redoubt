@@ -14,8 +14,9 @@ WORKDIR /workspace
 # Copy entire workspace
 COPY . .
 
-# Build the binary in release mode (build.rs handles architecture-specific crypto flags)
-RUN cargo build --release --bin test_redoubt_leaks -p redoubt-forensics
+# Build the binary in release mode with forensics feature enabled
+# This disables memory protections (prctl, rlimit) to allow core dump analysis
+RUN cargo build --release --features __internal__forensics --bin test_redoubt_leaks -p redoubt-forensics
 
 # Make scripts executable
 RUN chmod +x forensics/memory_analysis/entrypoints/analyze_core_dump.sh && \

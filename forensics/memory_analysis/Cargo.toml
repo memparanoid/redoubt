@@ -9,6 +9,10 @@ name = "test_redoubt_leaks"
 path = "src/bin/test_redoubt_leaks.rs"
 
 
+[features]
+default = []
+__internal__forensics = ["redoubt/__internal__forensics"]
+
 [dependencies]
-redoubt = { path = "../../crates/redoubt", features = ["__internal__forensics"] }
+redoubt = { path = "../../crates/redoubt" }
 libc.workspace = true

@@ -66,9 +66,6 @@ static RLIMIT_SUCCEEDED: AtomicU8 = AtomicU8::new(0);
 /// if status.rlimit_succeeded {
 ///     println!("rlimit protection active");
 /// }
-/// if status.is_protected() {
-///     println!("At least one protection is active");
-/// }
 /// ```
 #[inline]
 pub fn guard_status() -> GuardStatus {
@@ -116,6 +113,7 @@ fn init_slow() {
                 // completes too fast and threads skip init_slow() entirely.
                 #[cfg(test)]
                 std::thread::sleep(std::time::Duration::from_millis(100));
+
                 INIT_STATE.store(STATE_DONE, Ordering::Release);
             }
         }
