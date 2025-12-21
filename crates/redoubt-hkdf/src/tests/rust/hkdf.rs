@@ -6,9 +6,9 @@
 
 use redoubt_zero::AssertZeroizeOnDrop;
 
-use crate::consts::{BLOCK_LEN, HASH_LEN};
 use crate::error::HkdfError;
-use crate::hkdf::{HkdfState, hkdf};
+use crate::rust::consts::{BLOCK_LEN, HASH_LEN};
+use crate::rust::hkdf::{HkdfState, hkdf};
 
 #[test]
 fn test_hkdf_state_zeroization() {

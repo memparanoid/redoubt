@@ -66,7 +66,9 @@ RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/s
     echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
     echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
     echo "fn main() {}" > benchmarks/benches/alloc.rs && \
-    mkdir -p forensics/memory_analysis/src/bin && echo "fn main() {}" > forensics/memory_analysis/src/bin/test_redoubt_leaks.rs
+    echo "fn main() {}" > benchmarks/benches/hkdf_sha256.rs && \
+    mkdir -p forensics/memory_analysis/src/bin && echo "fn main() {}" > forensics/memory_analysis/src/bin/test_redoubt_leaks.rs && \
+    echo "fn main() {}" > forensics/memory_analysis/src/bin/redoubt_leaks_report.rs
 
 # Pre-fetch dependencies
 RUN cargo fetch
@@ -74,6 +76,7 @@ RUN cargo fetch
 # Copy actual source code
 COPY crates ./crates
 COPY examples ./examples
+COPY forensics ./forensics
 
 # Print architecture info
 RUN echo "=== Architecture Info ===" && \

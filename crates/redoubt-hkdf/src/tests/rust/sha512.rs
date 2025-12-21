@@ -4,7 +4,7 @@
 
 use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
-use crate::sha512::Sha512State;
+use crate::rust::sha512::Sha512State;
 
 #[test]
 fn test_sha512_state_zeroization() {

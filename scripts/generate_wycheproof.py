@@ -20,7 +20,7 @@ TEST_CONFIGS = [
             os.path.dirname(__file__),
             "..",
             "crates",
-            "memaead",
+            "redoubt-aead",
             "src",
             "xchacha20poly1305",
             "tests",
@@ -35,25 +35,40 @@ TEST_CONFIGS = [
             os.path.dirname(__file__),
             "..",
             "crates",
-            "memaead",
+            "redoubt-aead",
             "src",
-            "aegis",
-            "aegis128l",
+            "aegis_asm",
             "tests",
             "wycheproof_vectors.rs",
         ),
     },
     {
-        "name": "HKDF-SHA-512",
+        "name": "HKDF-SHA-256",
         "type": "hkdf",
-        "url": "https://raw.githubusercontent.com/C2SP/wycheproof/main/testvectors_v1/hkdf_sha512_test.json",
+        "url": "https://raw.githubusercontent.com/C2SP/wycheproof/refs/heads/main/testvectors_v1/hkdf_sha256_test.json",
         "output": os.path.join(
             os.path.dirname(__file__),
             "..",
             "crates",
-            "memhkdf",
+            "redoubt-hkdf",
             "src",
             "tests",
+            "wycheproof_vectors.rs",
+        ),
+    },
+    {
+        "name": "HMAC-SHA-256",
+        "type": "mac",
+        "url": "https://raw.githubusercontent.com/C2SP/wycheproof/refs/heads/main/testvectors_v1/hmac_sha256_test.json",
+        "output": os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "crates",
+            "redoubt-hkdf",
+            "src",
+            "tests",
+            "asm",
+            "sha",
             "wycheproof_vectors.rs",
         ),
     },
@@ -84,6 +99,12 @@ HKDF_FLAG_MAP = {
     "MaximalOutputSize": "Flag::MaximalOutputSize",
     "SizeTooLarge": "Flag::SizeTooLarge",
     "OutputCollision": "Flag::OutputCollision",
+}
+
+# MAC flags
+MAC_FLAG_MAP = {
+    "ModifiedTag": "Flag::ModifiedTag",
+    "Pseudorandom": "Flag::Pseudorandom",
 }
 
 RESULT_MAP = {
@@ -235,26 +256,78 @@ def generate_hkdf_rust(data, source_url):
     return "\n".join(lines)
 
 
+def generate_mac_rust(data, source_url):
+    """Generate Rust source code from Wycheproof MAC JSON."""
+    lines = []
+
+    # Header
+    lines.append("// Auto-generated from Wycheproof test vectors")
+    lines.append("// DO NOT EDIT - run `python3 scripts/generate_wycheproof.py`")
+    lines.append(f"// Source: {source_url}")
+    lines.append("//")
+    lines.append(f"// Algorithm: {data.get('algorithm', 'unknown')}")
+    lines.append(f"// Number of tests: {data.get('numberOfTests', 'unknown')}")
+    lines.append("")
+    lines.append("use super::wycheproof::{Flag, TestCase, TestResult};")
+    lines.append("")
+    lines.append("pub(crate) fn test_vectors() -> Vec<TestCase> {")
+    lines.append("    vec![")
+
+    # Iterate test groups
+    for group in data.get("testGroups", []):
+        key_size = group.get("keySize", 0)
+        tag_size = group.get("tagSize", 0)
+
+        lines.append(f"        // keySize: {key_size}, tagSize: {tag_size}")
+
+        for test in group.get("tests", []):
+            tc_id = test.get("tcId", 0)
+            comment = escape_string(test.get("comment", ""))
+            flags = map_flags(test.get("flags", []), MAC_FLAG_MAP)
+            key = test.get("key", "")
+            msg = test.get("msg", "")
+            tag = test.get("tag", "")
+            result = map_result(test.get("result", ""))
+
+            lines.append("        TestCase {")
+            lines.append(f"            tc_id: {tc_id},")
+            lines.append(f'            comment: "{comment}".into(),')
+            lines.append(f"            flags: {flags},")
+            lines.append(f'            key: "{key}".into(),')
+            lines.append(f'            msg: "{msg}".into(),')
+            lines.append(f'            tag: "{tag}".into(),')
+            lines.append(f"            result: {result},")
+            lines.append("        },")
+
+    lines.append("    ]")
+    lines.append("}")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
 def main():
     for config in TEST_CONFIGS:
         print(f"\n=== Processing {config['name']} ===")
         print(f"Fetching from {config['url']}...")
 
         try:
-            data = fetch_json(config['url'])
+            data = fetch_json(config["url"])
         except Exception as e:
             print(f"ERROR: Failed to fetch {config['name']}: {e}")
             continue
 
         print(f"Generating Rust code...")
 
-        if config['type'] == 'hkdf':
-            rust_code = generate_hkdf_rust(data, config['url'])
+        if config["type"] == "hkdf":
+            rust_code = generate_hkdf_rust(data, config["url"])
+        elif config["type"] == "mac":
+            rust_code = generate_mac_rust(data, config["url"])
         else:
-            rust_code = generate_aead_rust(data, config['url'])
+            rust_code = generate_aead_rust(data, config["url"])
 
         # Ensure output directory exists
-        output_path = config['output']
+        output_path = config["output"]
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
         with open(output_path, "w") as f:

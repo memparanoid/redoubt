@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-mod asm;
-mod rust;
+mod compress_test;
+mod hash_test;
 mod wycheproof;
 mod wycheproof_vectors;

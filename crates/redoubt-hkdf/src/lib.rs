@@ -13,17 +13,16 @@
 //! - RFC 6234: US Secure Hash Algorithms (SHA and SHA-based HMAC and HKDF)
 //!   <https://datatracker.ietf.org/doc/html/rfc6234>
 
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
 
 #[cfg(test)]
 mod tests;
 
-mod consts;
+mod asm;
 mod error;
 mod hkdf;
-mod sha512;
-mod word;
+mod rust;
 
 pub use error::HkdfError;
 pub use hkdf::hkdf;

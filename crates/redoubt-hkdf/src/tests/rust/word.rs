@@ -4,7 +4,7 @@
 
 use redoubt_zero::{FastZeroizable, ZeroizationProbe};
 
-use crate::word::Word64;
+use crate::rust::word::Word64;
 
 const TEST_VALUES: [u64; 5] = [
     0x0000_0000_0000_0000,

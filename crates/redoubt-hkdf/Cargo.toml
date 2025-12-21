@@ -19,4 +19,7 @@ redoubt-zero.workspace = true
 redoubt-util.workspace = true
 thiserror.workspace = true
 
+[build-dependencies]
+cc.workspace = true
+
 [dev-dependencies]

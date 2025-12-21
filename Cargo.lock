@@ -38,6 +38,7 @@ dependencies = [
  "redoubt-alloc",
  "redoubt-buffer",
  "redoubt-codec",
+ "redoubt-hkdf",
  "redoubt-util",
  "redoubt-vault",
  "redoubt-zero",
@@ -926,6 +927,7 @@ dependencies = [
 name = "redoubt-hkdf"
 version = "0.0.1"
 dependencies = [
+ "cc",
  "redoubt-util",
  "redoubt-zero",
  "thiserror",

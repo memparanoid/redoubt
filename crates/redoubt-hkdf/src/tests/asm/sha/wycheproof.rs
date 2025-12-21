@@ -6,26 +6,17 @@ extern crate alloc;
 
 use alloc::format;
 use alloc::string::String;
-use alloc::vec;
 use alloc::vec::Vec;
 
 use redoubt_util::hex_to_bytes;
 
-use crate::hkdf::hkdf;
-
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Flag {
-    /// Standard valid test cases
-    Normal,
-    /// Tests with empty salt values
-    EmptySalt,
-    /// Edge cases with maximum permitted output (255 * 64 = 16320 bytes)
-    MaximalOutputSize,
-    /// Invalid requests exceeding 255 * hash digest size
-    SizeTooLarge,
-    /// Cases where distinct inputs produce identical outputs
-    OutputCollision,
+    /// Modified MAC tag
+    ModifiedTag,
+    /// Pseudorandomly generated inputs
+    Pseudorandom,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,7 +27,7 @@ pub(crate) enum TestResult {
     Acceptable,
 }
 
-/// A single Wycheproof test case for HKDF-SHA-512
+/// A single Wycheproof test case for HMAC-SHA-256
 pub(crate) struct TestCase {
     /// Unique test case identifier
     pub tc_id: usize,
@@ -44,59 +35,57 @@ pub(crate) struct TestCase {
     pub comment: String,
     /// Flags indicating what this test targets
     pub flags: Vec<Flag>,
-    /// Input keying material (hex)
-    pub ikm: String,
-    /// Salt (hex)
-    pub salt: String,
-    /// Info/context (hex)
-    pub info: String,
-    /// Expected output size in bytes
-    pub size: usize,
-    /// Expected output keying material (hex)
-    pub okm: String,
+    /// Key (hex)
+    pub key: String,
+    /// Message (hex)
+    pub msg: String,
+    /// Expected MAC tag (hex)
+    pub tag: String,
     /// Expected result
     pub result: TestResult,
 }
 
 fn run_test_case(tc: &TestCase) -> Result<(), String> {
-    let ikm = hex_to_bytes(&tc.ikm);
-    let salt = hex_to_bytes(&tc.salt);
-    let info = hex_to_bytes(&tc.info);
-    let expected_okm = hex_to_bytes(&tc.okm);
+    let key = hex_to_bytes(&tc.key);
+    let msg = hex_to_bytes(&tc.msg);
+    let expected_tag = hex_to_bytes(&tc.tag);
 
-    let mut out = vec![0u8; tc.size];
-    let result = hkdf(&salt, &ikm, &info, &mut out);
+    let mut computed_tag = [0u8; 32];
 
-    match (&tc.result, &result) {
-        (TestResult::Valid, Ok(())) | (TestResult::Acceptable, Ok(())) => {
-            if out == expected_okm {
-                Ok(())
-            } else {
-                Err(format!(
-                    "tc_id {} ({}): output mismatch\n  expected: {}\n  got:      {}",
-                    tc.tc_id,
-                    tc.comment,
-                    tc.okm,
-                    hex::encode(&out)
-                ))
-            }
-        }
-        (TestResult::Valid, Err(e)) | (TestResult::Acceptable, Err(e)) => Err(format!(
-            "tc_id {} ({}): expected valid but got error: {:?}",
-            tc.tc_id, tc.comment, e
+    unsafe {
+        crate::asm::hmac_sha256(
+            key.as_ptr(),
+            key.len(),
+            msg.as_ptr(),
+            msg.len(),
+            computed_tag.as_mut_ptr(),
+        );
+    }
+
+    // Compare only the first expected_tag.len() bytes (for truncated MACs)
+    let matches = &computed_tag[..expected_tag.len()] == expected_tag.as_slice();
+
+    match (&tc.result, matches) {
+        (TestResult::Valid, true) | (TestResult::Acceptable, true) => Ok(()),
+        (TestResult::Valid, false) | (TestResult::Acceptable, false) => Err(format!(
+            "tc_id {} ({}): MAC mismatch\n  expected: {}\n  got:      {}",
+            tc.tc_id,
+            tc.comment,
+            tc.tag,
+            hex::encode(&computed_tag[..expected_tag.len()])
         )),
-        (TestResult::Invalid, Ok(())) => Err(format!(
-            "tc_id {} ({}): expected invalid but derivation succeeded",
+        (TestResult::Invalid, true) => Err(format!(
+            "tc_id {} ({}): expected invalid but MAC matched",
             tc.tc_id, tc.comment
         )),
-        (TestResult::Invalid, Err(_)) => Ok(()), // Expected to fail
+        (TestResult::Invalid, false) => Ok(()), // Expected to fail
     }
 }
 
 // Minimal hex encoder for test output (avoid adding hex crate as dependency)
 mod hex {
-    use super::String;
     use super::format;
+    use super::String;
 
     pub fn encode(data: &[u8]) -> String {
         data.iter().map(|b| format!("{:02x}", b)).collect()
@@ -144,37 +133,16 @@ fn test_wycheproof_all() {
     }
 }
 
-/// Test that SizeTooLarge vectors are properly rejected
+/// Test that ModifiedTag vectors are properly rejected
 #[test]
-fn test_wycheproof_size_too_large() {
-    use super::wycheproof_vectors::test_vectors;
-
-    let vectors = test_vectors();
-
-    for tc in vectors.iter() {
-        if !tc.flags.contains(&Flag::SizeTooLarge) {
-            continue;
-        }
-
-        assert_eq!(
-            tc.result,
-            TestResult::Invalid,
-            "tc_id {}: SizeTooLarge should be Invalid",
-            tc.tc_id
-        );
-    }
-}
-
-/// Test empty salt handling (RFC 5869: empty salt = HashLen zeros)
-#[test]
-fn test_wycheproof_empty_salt() {
+fn test_wycheproof_modified_tag() {
     use super::wycheproof_vectors::test_vectors;
 
     let vectors = test_vectors();
     let mut failures = Vec::new();
 
     for tc in vectors.iter() {
-        if !tc.flags.contains(&Flag::EmptySalt) {
+        if !tc.flags.contains(&Flag::ModifiedTag) {
             continue;
         }
 
@@ -185,7 +153,34 @@ fn test_wycheproof_empty_salt() {
 
     if !failures.is_empty() {
         panic!(
-            "Empty salt test failures ({}):\n{}",
+            "Modified tag test failures ({}):\n{}",
+            failures.len(),
+            failures.join("\n")
+        );
+    }
+}
+
+/// Test pseudorandom vectors
+#[test]
+fn test_wycheproof_pseudorandom() {
+    use super::wycheproof_vectors::test_vectors;
+
+    let vectors = test_vectors();
+    let mut failures = Vec::new();
+
+    for tc in vectors.iter() {
+        if !tc.flags.contains(&Flag::Pseudorandom) {
+            continue;
+        }
+
+        if let Err(msg) = run_test_case(tc) {
+            failures.push(msg);
+        }
+    }
+
+    if !failures.is_empty() {
+        panic!(
+            "Pseudorandom test failures ({}):\n{}",
             failures.len(),
             failures.join("\n")
         );

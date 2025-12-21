@@ -1,0 +1,302 @@
+# HKDF-SHA256 Register Allocation Analysis
+
+## Overview
+
+This document analyzes register usage across all HKDF-SHA256 assembly functions
+to ensure consistency, verify x86_64 portability, and document the allocation strategy.
+
+---
+
+## Function: sha256_compress_block
+
+**Signature:** `void sha256_compress_block(uint32_t H[8], const uint8_t block[64])`
+
+**Call Convention:** Uses ONLY caller-saved registers (no prologue/epilogue)
+
+**Stack Usage:** 64 bytes for W[0..15] message schedule
+
+### Register Allocation
+
+#### GPR (General Purpose Registers)
+| Register | Purpose                          | Lifetime        | Notes                    |
+|----------|----------------------------------|-----------------|--------------------------|
+| x0       | H_ptr (input/output)             | Entry → Exit    | NEVER MODIFIED (preserved for caller) |
+| x1       | block_ptr (input)                | Entry → Exit    | NEVER MODIFIED (preserved for caller) |
+| x2       | Loop counter t (0-63)            | Round loops     | Caller-saved temp        |
+| x3       | K_ptr (K256 constants)           | Round loops     | Caller-saved temp        |
+| w4       | W[t] / T1 temp                   | Per-round       | Caller-saved temp        |
+| w5       | K[t] / temp                      | Per-round       | Caller-saved temp        |
+| w6       | h / Σ temp                       | Per-round       | Caller-saved temp        |
+| w7       | e / temp                         | Per-round       | Caller-saved temp        |
+| w8       | f / temp                         | Per-round       | Caller-saved temp        |
+| w9       | g / Σ temp                       | Per-round       | Caller-saved temp        |
+| w10      | T1 accumulator                   | Per-round       | Caller-saved temp        |
+| w17      | Inline scratch                   | Per-round       | Caller-saved temp        |
+
+**Total GPR:** 12 registers
+
+#### SIMD Registers
+| Register | Purpose                          | Lifetime        | Notes                    |
+|----------|----------------------------------|-----------------|--------------------------|
+| v16      | H[0..3]                          | Entry → Exit    | State, modified in-place |
+| v17      | H[4..7]                          | Entry → Exit    | State, modified in-place |
+| v18      | {a,b,c,d} working vars           | Rounds          | Working state            |
+| v19      | {e,f,g,h} working vars           | Rounds          | Working state            |
+| v20      | W[t-16..t-13]                    | Rounds 16-63    | Sliding window           |
+| v21      | W[t-12..t-9]                     | Rounds 16-63    | Sliding window           |
+| v22      | W[t-8..t-5]                      | Rounds 16-63    | Sliding window           |
+| v23      | W[t-4..t-1]                      | Rounds 16-63    | Sliding window           |
+| v24      | W[t] temporary                   | Rounds 16-63    | Window update temp       |
+
+**Total SIMD:** 9 registers
+
+**Peak Simultaneous Usage:** 12 GPR + 9 SIMD = **21 registers**
+
+### Stack Zeroization
+✅ **VERIFIED:** Lines 329-332 zeroize W[0..15] (64 bytes) before deallocation
+
+---
+
+## Function: sha256_hash
+
+**Signature:** `void sha256_hash(const uint8_t *msg, size_t msg_len, uint8_t digest[32])`
+
+**Call Convention:** Saves x29, x30 (frame pointer + link register for `bl` calls)
+
+**Stack Usage:** 160 bytes (32 H state + 64 block1 + 64 block2)
+
+### Register Allocation
+
+#### GPR
+| Register | Purpose                          | Lifetime        | Notes                    |
+|----------|----------------------------------|-----------------|--------------------------|
+| x12      | msg_ptr_current                  | Entry → Finish  | Advances through message |
+| x13      | msg_remaining                    | Entry → Finish  | Decrements as blocks processed |
+| x14      | original_msg_len (constant)      | Entry → Finish  | For padding bit count    |
+| x15      | digest_ptr                       | Entry → Finish  | Output pointer           |
+| x16-x17  | Temporaries                      | Local ops       | Loop/copy temps          |
+| x29      | Frame pointer                    | Entry → Exit    | Required for bl          |
+| x30      | Link register                    | Entry → Exit    | Required for bl          |
+| x0-x2    | Temps (reused for bl params)     | Per-call        | Setup for compress_block |
+
+**Total GPR:** ~11 registers (not all simultaneous)
+
+#### SIMD
+| Register | Purpose                          | Lifetime        | Notes                    |
+|----------|----------------------------------|-----------------|--------------------------|
+| v0-v1    | H state load/store               | Transient       | For initialization/output|
+
+**Total SIMD:** 2 registers (transient)
+
+**Peak Simultaneous Usage:** 11 GPR + 2 SIMD = **13 registers**
+
+### Stack Zeroization
+✅ **VERIFIED:** Lines 493-503 zeroize entire 160-byte stack before deallocation
+
+### Critical Invariant
+**Lines 402:** `sha256_compress_block` preserves x12-x15, allowing `sha256_hash` to rely on them across `bl` calls without save/restore.
+
+---
+
+## Function: hmac_sha256
+
+**Signature:** `void hmac_sha256(const uint8_t *key, size_t key_len, const uint8_t *msg, size_t msg_len, uint8_t mac[32])`
+
+**Call Convention:** Saves x29, x30, x19-x27 (9 callee-saved registers)
+
+**Stack Usage:** 256 bytes (64 K_padded + 64 ipad + 64 opad + 32 inner_hash + 32 temp)
+
+### Register Allocation
+
+#### GPR (Callee-Saved Strategy)
+| Register | Purpose                          | Lifetime        | Notes                    |
+|----------|----------------------------------|-----------------|--------------------------|
+| x19      | key_ptr                          | Entry → Exit    | Preserved across bl calls|
+| x20      | key_len                          | Entry → Exit    | Preserved across bl calls|
+| x21      | msg_ptr                          | Entry → Exit    | Preserved across bl calls|
+| x22      | msg_len                          | Entry → Exit    | Preserved across bl calls|
+| x23      | mac_ptr                          | Entry → Exit    | Preserved across bl calls|
+| x24-x27  | Scratch/pointers                 | Local scopes    | For address calculation  |
+| x0-x7    | Temps (bl call params)           | Per-call        | Caller-saved scratch     |
+| x16-x17  | Temporaries                      | Local ops       | Caller-saved scratch     |
+| x29      | Frame pointer                    | Entry → Exit    | Required for bl          |
+| x30      | Link register                    | Entry → Exit    | Required for bl          |
+
+**Total GPR:** ~20 registers (not all simultaneous)
+
+#### SIMD
+| Register | Purpose                          | Lifetime        | Notes                    |
+|----------|----------------------------------|-----------------|--------------------------|
+| v0-v1    | Transient data movement          | Per-operation   | Copy/init operations     |
+
+**Total SIMD:** 2 registers (transient)
+
+**Peak Simultaneous Usage:** ~15 GPR + 2 SIMD = **17 registers**
+
+### Prologue/Epilogue Match
+✅ **VERIFIED:**
+- **Prologue (726-737):** Saves x29, x30, x19, x20, x21, x22, x23, x24, x25, x26, x27
+- **Epilogue (932-939):** Restores in reverse order: x27, x25, x26, x23, x24, x21, x22, x19, x20, x29, x30
+
+### Stack Zeroization
+✅ **VERIFIED:** Lines 900-916 zeroize entire 256-byte stack before deallocation
+
+### Register Zeroization
+✅ **VERIFIED:** Lines 921-930 zeroize caller-saved temps (x0-x7, x16-x17) that may have held SECRET bytes
+
+---
+
+## Function: hkdf_sha256
+
+**Signature:** `void hkdf_sha256(const uint8_t *salt, size_t salt_len, const uint8_t *ikm, size_t ikm_len, const uint8_t *info, size_t info_len, uint8_t *okm, size_t okm_len)`
+
+**Call Convention:** Saves x29, x30, x19-x28 (10 callee-saved registers)
+
+**Stack Usage:** Variable (64 + align16(32 + info_len + 1)) for PRK + T(i) + msg buffer
+
+### Register Allocation
+
+#### GPR (Callee-Saved Strategy)
+| Register | Purpose                          | Lifetime        | Notes                    |
+|----------|----------------------------------|-----------------|--------------------------|
+| x19      | info_ptr                         | Entry → Exit    | Preserved across expand loop |
+| x20      | info_len                         | Entry → Exit    | Preserved across expand loop |
+| x21      | okm_ptr (cursor)                 | Entry → Exit    | Advances as OKM written  |
+| x22      | okm_len (remaining)              | Entry → Exit    | Decrements as OKM written|
+| x23      | Counter (1..255)                 | Expand loop     | HKDF iteration counter   |
+| x24      | T_len (0 first, then 32)         | Expand loop     | Length of T(i-1)         |
+| x25      | Temp pointer (msg_base)          | Per-iteration   | Points to msg buffer     |
+| x26      | Loop index                       | Copy loops      | Byte copy counter        |
+| x27      | msg_cap_aligned                  | Entry → Finish  | Message buffer capacity  |
+| x28      | locals_size                      | Entry → Finish  | Total stack allocation   |
+| x0-x7    | Temps (bl call params)           | Per-call        | Caller-saved scratch     |
+| x15-x17  | Temporaries                      | Local ops       | Caller-saved scratch     |
+| x29      | Frame pointer                    | Entry → Exit    | Required for bl          |
+| x30      | Link register                    | Entry → Exit    | Required for bl          |
+
+**Total GPR:** ~22 registers (not all simultaneous)
+
+#### SIMD
+None used directly (all via called functions)
+
+**Peak Simultaneous Usage:** ~16 GPR
+
+### Prologue/Epilogue Match
+✅ **VERIFIED:**
+- **Prologue (980-986):** Saves x29, x30, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28
+- **Epilogue (1122-1128):** Restores in reverse order: x27, x28, x25, x26, x23, x24, x21, x22, x19, x20, x29, x30
+
+### Stack Zeroization
+✅ **VERIFIED:** Lines 1099-1107 zeroize entire variable-sized stack (PRK + T + msg buffer) before deallocation
+
+### Register Zeroization
+✅ **VERIFIED:** Lines 1110-1120 zeroize caller-saved temps (x0-x7, x15-x17) that may have held SECRET bytes
+
+---
+
+## x86_64 Portability Analysis
+
+### x86_64 Register Budget
+- **GPR available:** rax, rbx, rcx, rdx, rsi, rdi, r8-r15 = **16 registers**
+- **SIMD available:** xmm0-xmm15 = **16 registers**
+- **Callee-saved GPR:** rbx, r12-r15, rbp = **6 registers**
+- **Caller-saved GPR:** rax, rcx, rdx, rsi, rdi, r8-r11 = **10 registers**
+
+### Portability Status
+
+#### ✅ sha256_hash, hmac_sha256, hkdf_sha256
+**Status:** PORTABLE
+- Peak GPR usage: 11-16 (fits in 16 x86_64 GPRs)
+- Peak SIMD usage: 2 (fits in 16 XMMs)
+- Strategy: Use callee-saved for long-lived values, caller-saved for temps
+
+#### ⚠️ sha256_compress_block
+**Status:** NEEDS OPTIMIZATION
+- Peak GPR usage: **12 registers** (tight but feasible)
+- Peak SIMD usage: **9 registers** (fits in 16 XMMs ✅)
+- **Issue:** AArch64 uses separate W and X views (w4-w10 are 32-bit), but x86_64 must use full 64-bit registers
+- **Recommendation:** Verify that x86_64 can achieve same performance with 12 GPRs
+
+### x86_64 Mapping Strategy
+
+#### sha256_compress_block (proposed)
+```
+AArch64        x86_64         Purpose
+-------        ------         -------
+x0             rdi            H_ptr (preserved)
+x1             rsi            block_ptr (preserved)
+x2             rdx            Loop counter t
+x3             rcx            K_ptr
+w4-w10         r8d-r14d       Temporaries (32-bit views)
+w17            r15d           Inline scratch
+v16-v24        xmm0-xmm8      SIMD state/data
+```
+
+**Feasibility:** ✅ Fits within x86_64 budget (uses 12 GPR + 9 XMM)
+
+---
+
+## Consistency Analysis
+
+### ❌ INCONSISTENCY FOUND: Temporary Register Usage
+
+Different functions use different conventions for temporaries:
+
+| Function                  | Temp Registers Used       | Strategy              |
+|---------------------------|---------------------------|-----------------------|
+| sha256_compress_block     | w4-w10, w17               | Caller-saved, 32-bit  |
+| sha256_hash               | x0-x2, x16-x17            | Caller-saved, 64-bit  |
+| hmac_sha256               | x0-x7, x16-x17, x24-x27   | Mixed caller/callee   |
+| hkdf_sha256               | x0-x7, x15-x17, x25-x26   | Mixed caller/callee   |
+
+### Recommendation: Standardize Temporary Allocation
+
+**Proposed Standard:**
+- **x0-x7:** Caller-saved temps for function call parameters and local scratch
+- **x16-x17:** Caller-saved temps for inline operations (CANNOT be used across `bl` calls)
+- **w4-w10:** 32-bit view temps for word-level operations (compression rounds)
+- **x12-x15:** Caller-saved temps that ARE preserved by `sha256_compress_block` (special contract)
+- **x19-x28:** Callee-saved temps for long-lived values across `bl` calls
+
+**Action Item:** Document this convention at top of .S file
+
+---
+
+## Zeroization Verification
+
+### ✅ All Functions Verified
+
+| Function                  | Stack Zeroized | Registers Zeroized | Notes                    |
+|---------------------------|----------------|--------------------|--------------------------|
+| sha256_compress_block     | ✅ (64 bytes)  | N/A                | Caller-saved only        |
+| sha256_hash               | ✅ (160 bytes) | N/A                | Only saves FP/LR         |
+| sha256_update_finalize    | ✅ (160 bytes) | N/A                | Only saves FP/LR + x19   |
+| hmac_sha256               | ✅ (256 bytes) | ✅ x0-x7, x16-x17  | Top-level responsibility |
+| hkdf_sha256               | ✅ (variable)  | ✅ x0-x7, x15-x17  | Top-level responsibility |
+
+**Contract:**
+- **Leaf/mid-level functions:** Zeroize own stack only
+- **Top-level functions (hmac, hkdf):** Zeroize own stack + caller-saved registers
+
+---
+
+## Summary and Action Items
+
+### ✅ Strengths
+1. All functions properly zeroize their stack allocations
+2. Prologue/epilogue pairs match correctly
+3. Peak register usage fits within x86_64 budget
+4. Clear separation of caller-saved vs callee-saved strategies
+
+### ⚠️ Issues to Address
+1. **Inconsistent temporary register allocation** across functions
+2. **Missing macro:** No `SHA256_ZEROIZE_ALL` for catastrophic cleanup
+3. **Documentation:** Prologue/epilogue/BL sections need visual boxing
+4. **Register allocation tables:** Should appear at top of each function
+
+### 📋 Recommended Changes
+1. Create `SHA256_ZEROIZE_ALL` macro (similar to AEGIS `AEGIS_ZEROIZE_ALL`)
+2. Standardize temporary register conventions (document at file top)
+3. Add visual boxing to prologue/epilogue/BL call sections
+4. Add register allocation comment block at start of each function
+5. Verify x86_64 implementation can follow same allocation strategy
