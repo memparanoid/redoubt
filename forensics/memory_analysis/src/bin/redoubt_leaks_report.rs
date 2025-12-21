@@ -5,7 +5,8 @@
 #[cfg(feature = "__internal__forensics")]
 use redoubt::{FastZeroizable, ZeroizeOnDropSentinel, reset_master_key};
 use redoubt::{
-    RedoubtArray, RedoubtCodec, RedoubtOption, RedoubtString, RedoubtVec, RedoubtZero, cipherbox,
+    RedoubtArray, RedoubtCodec, RedoubtOption, RedoubtSecret, RedoubtString, RedoubtVec,
+    RedoubtZero, cipherbox,
 };
 
 #[cfg(feature = "__internal__forensics")]
@@ -39,6 +40,7 @@ struct TestData {
     option_redoubt_vec: RedoubtOption<RedoubtVec<u8>>,
     option_redoubt_string: RedoubtOption<RedoubtString>,
     option_redoubt_array: RedoubtOption<RedoubtArray<u8, 1024>>,
+    secret_u64: RedoubtSecret<u64>,
 }
 
 #[cfg(feature = "__internal__forensics")]
@@ -78,6 +80,21 @@ impl Patterns {
         self.pattern_4 = core::array::from_fn(|_| 0xDD); // option_redoubt_vec
         self.pattern_5 = core::array::from_fn(|_| 0x45); // option_redoubt_string - 'E'
         self.pattern_6 = core::array::from_fn(|_| 0xFF); // option_redoubt_array
+    }
+}
+
+#[cfg(feature = "__internal__forensics")]
+#[derive(Clone, Default, RedoubtZero)]
+#[fast_zeroize(drop)]
+struct Values {
+    value_1: u64, // secret_u64
+    __sentinel: ZeroizeOnDropSentinel,
+}
+
+#[cfg(feature = "__internal__forensics")]
+impl Values {
+    fn fill(&mut self) {
+        self.value_1 = 0xDEADBEEFCAFEBABE; // secret_u64
     }
 }
 
@@ -126,12 +143,15 @@ fn main() {
         }
         println!();
 
-        // Generate test patterns
-        println!("[*] Creating hardcoded test patterns...");
+        // Generate test patterns and values
+        println!("[*] Creating hardcoded test patterns and values...");
         println!();
 
         let mut patterns = Patterns::default();
         patterns.fill();
+
+        let mut values = Values::default();
+        values.fill();
 
         println!("[+] Pattern 1 (redoubt_vec): 1024 bytes of 0xAA");
         println!("[+] Pattern 2 (redoubt_string): 1024 bytes of 0x42 'B'");
@@ -139,6 +159,8 @@ fn main() {
         println!("[+] Pattern 4 (option_redoubt_vec): 1024 bytes of 0xDD");
         println!("[+] Pattern 5 (option_redoubt_string): 1024 bytes of 0x45 'E'");
         println!("[+] Pattern 6 (option_redoubt_array): 1024 bytes of 0xFF");
+        println!();
+        println!("[+] Value 1 (secret_u64): 0xDEADBEEFCAFEBABE");
         println!();
 
         // Run iterations to test for leaks
@@ -153,6 +175,9 @@ fn main() {
                 .open_mut(|data| {
                     let mut temp_patterns = Patterns::default();
                     temp_patterns.fill();
+
+                    let mut temp_values = Values::default();
+                    temp_values.fill();
 
                     // Populate `redoubt_vec` field
                     data.redoubt_vec = RedoubtVec::from_mut_slice(&mut temp_patterns.pattern_1);
@@ -183,8 +208,12 @@ fn main() {
                             &mut temp_patterns.pattern_6,
                         ));
 
-                    // Zeroize temporary clone
+                    // Populate `secret_u64` field
+                    data.secret_u64.replace(&mut temp_values.value_1);
+
+                    // Zeroize temporary clones
                     temp_patterns.fast_zeroize();
+                    temp_values.fast_zeroize();
 
                     Ok(())
                 })
@@ -217,9 +246,14 @@ fn main() {
         println!("Pattern #6: ff"); // `option_redoubt_array` field pattern (1024 bytes of 0xFF)
         println!();
 
-        // Zeroize all patterns
+        // Print secret values
+        println!("Value #1: deadbeefcafebabe"); // `secret_u64` field value
+        println!();
+
+        // Zeroize all patterns and values
         master_key.fast_zeroize();
         patterns.fast_zeroize();
+        values.fast_zeroize();
 
         // Verify zeroization worked
         let sum1: u32 = patterns.pattern_1.iter().map(|&b| b as u32).sum();
@@ -228,6 +262,7 @@ fn main() {
         let sum4: u32 = patterns.pattern_4.iter().map(|&b| b as u32).sum();
         let sum5: u32 = patterns.pattern_5.iter().map(|&b| b as u32).sum();
         let sum6: u32 = patterns.pattern_6.iter().map(|&b| b as u32).sum();
+        let val1: u64 = values.value_1;
         println!("[*] Post-zeroize verification:");
         println!("    pattern_1 sum: {} (should be 0)", sum1);
         println!("    pattern_2 sum: {} (should be 0)", sum2);
@@ -235,6 +270,7 @@ fn main() {
         println!("    pattern_4 sum: {} (should be 0)", sum4);
         println!("    pattern_5 sum: {} (should be 0)", sum5);
         println!("    pattern_6 sum: {} (should be 0)", sum6);
+        println!("    value_1: {} (should be 0)", val1);
         println!();
 
         // Signal to script that we're ready for dump

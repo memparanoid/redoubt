@@ -4,9 +4,9 @@ set -euo pipefail
 echo "[*] Core Dump Analysis - Progressive Key Search"
 echo ""
 
-# Launch the test binary in background, capturing stdout to file
-echo "[*] Launching test binary..."
-./target/release/test_redoubt_leaks > /tmp/rust_output.txt 2>&1 &
+# Launch the report binary in background, capturing stdout to file
+echo "[*] Launching forensics report binary..."
+./target/release/redoubt_leaks_report > /tmp/rust_output.txt 2>&1 &
 RUST_PID=$!
 echo "[+] Process started with PID: $RUST_PID"
 
@@ -48,7 +48,19 @@ while IFS= read -r line; do
     fi
 done < <(grep "^Pattern #" /tmp/rust_output.txt)
 
-echo "[+] Total patterns: $PATTERN_COUNT hardcoded + 1 master key"
+# Extract secret values
+VALUE_COUNT=0
+declare -a VALUES
+while IFS= read -r line; do
+    if [[ $line =~ ^Value\ #[0-9]+:\ ([a-fA-F0-9]+)$ ]]; then
+        VALUE_HEX="${BASH_REMATCH[1]}"
+        VALUES[$VALUE_COUNT]="$VALUE_HEX"
+        echo "[+] Value #$((VALUE_COUNT + 1)) captured: 0x${VALUE_HEX}"
+        VALUE_COUNT=$((VALUE_COUNT + 1))
+    fi
+done < <(grep "^Value #" /tmp/rust_output.txt)
+
+echo "[+] Total: $PATTERN_COUNT patterns + $VALUE_COUNT values + 1 master key"
 echo ""
 
 # Give it a moment to settle
@@ -95,7 +107,7 @@ LEAK_DETECTED=0
 # Analyze master key (progressive search)
 if [ -f /tmp/master_key.hex ]; then
     echo "[*] Analyzing master key (progressive prefix search)..."
-    python3 forensics/memory_analysis/scripts/analyze_key.py "$CORE_FILE" /tmp/master_key.hex
+    python3 forensics/memory_analysis/scripts/analyze_value.py "$CORE_FILE" /tmp/master_key.hex
     RESULT=$?
     if [ $RESULT -eq 1 ]; then
         LEAK_DETECTED=1
@@ -104,11 +116,26 @@ if [ -f /tmp/master_key.hex ]; then
     echo ""
 fi
 
+# Analyze secret values (progressive search)
+for i in $(seq 0 $((VALUE_COUNT - 1))); do
+    VALUE_HEX="${VALUES[$i]}"
+    echo "$VALUE_HEX" > /tmp/value_${i}.hex
+    echo "[*] Analyzing Value #$((i + 1)): 0x${VALUE_HEX} (progressive prefix search)..."
+    python3 forensics/memory_analysis/scripts/analyze_value.py "$CORE_FILE" /tmp/value_${i}.hex
+    RESULT=$?
+    if [ $RESULT -eq 1 ]; then
+        LEAK_DETECTED=1
+        echo "[!] LEAK DETECTED in Value #$((i + 1))"
+    fi
+    rm -f /tmp/value_${i}.hex
+    echo ""
+done
+
 # Analyze hardcoded patterns (block search)
 for i in $(seq 0 $((PATTERN_COUNT - 1))); do
     PATTERN_HEX="${PATTERNS[$i]}"
     echo "[*] Analyzing Pattern #$((i + 1)): 0x${PATTERN_HEX} (contiguous block search)..."
-    python3 forensics/memory_analysis/scripts/analyze_blocks.py "$CORE_FILE" "$PATTERN_HEX"
+    python3 forensics/memory_analysis/scripts/analyze_pattern.py "$CORE_FILE" "$PATTERN_HEX"
     RESULT=$?
     if [ $RESULT -eq 1 ]; then
         LEAK_DETECTED=1

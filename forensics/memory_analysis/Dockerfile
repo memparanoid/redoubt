@@ -16,12 +16,12 @@ COPY . .
 
 # Build the binary in release mode with forensics feature enabled
 # This disables memory protections (prctl, rlimit) to allow core dump analysis
-RUN cargo build --release --features __internal__forensics --bin test_redoubt_leaks -p redoubt-forensics
+RUN cargo build --release --features __internal__forensics --bin redoubt_leaks_report -p redoubt-forensics
 
 # Make scripts executable
 RUN chmod +x forensics/memory_analysis/entrypoints/analyze_core_dump.sh && \
-    chmod +x forensics/memory_analysis/scripts/analyze_key.py && \
-    chmod +x forensics/memory_analysis/scripts/analyze_blocks.py
+    chmod +x forensics/memory_analysis/scripts/analyze_value.py && \
+    chmod +x forensics/memory_analysis/scripts/analyze_pattern.py
 
 # Enable core dumps (disabled by default in containers)
 RUN echo 'ulimit -c unlimited' >> /root/.bashrc
