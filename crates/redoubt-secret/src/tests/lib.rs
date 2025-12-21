@@ -2,59 +2,73 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::Secret;
 use redoubt_zero::ZeroizationProbe;
+
+use crate::RedoubtSecret;
 
 #[test]
 fn test_secret_assert_zeroization_probe_trait() {
     let mut data = vec![1u8, 2, 3, 4];
-    let secret = Secret::from(&mut data);
+    let secret = RedoubtSecret::from(&mut data);
 
     assert!(!secret.is_zeroized());
 }
 
 #[test]
-fn test_secret_expose_methods() {
+fn test_secret_as_ref_as_mut() {
     let mut data = vec![1u8, 2, 3, 4];
-    let mut secret = Secret::from(&mut data);
+    let mut secret = RedoubtSecret::from(&mut data);
 
-    // Test expose
-    assert_eq!(secret.expose(), &vec![1u8, 2, 3, 4]);
+    // Test as_ref
+    assert_eq!(secret.as_ref(), &vec![1u8, 2, 3, 4]);
 
-    // Test expose_mut
-    secret.expose_mut().push(5);
-    assert_eq!(secret.expose(), &vec![1u8, 2, 3, 4, 5]);
+    // Test as_mut
+    secret.as_mut().push(5);
+    assert_eq!(secret.as_ref(), &vec![1u8, 2, 3, 4, 5]);
 
-    secret.expose_mut()[0] = 42;
-    assert_eq!(secret.expose()[0], 42);
+    secret.as_mut()[0] = 42;
+    assert_eq!(secret.as_ref()[0], 42);
 }
 
 #[test]
 fn test_secret_debug() {
     let mut data = vec![1u8, 2, 3, 4];
-    let secret = Secret::from(&mut data);
+    let secret = RedoubtSecret::from(&mut data);
 
     let debug_output = format!("{:?}", secret);
-    assert_eq!(debug_output, "[REDACTED Secret]");
+    assert_eq!(debug_output, "[REDACTED RedoubtSecret]");
 }
 
 #[test]
 fn test_secret_from_zeroizes_source() {
     // Test with Vec
     let mut vec_data = vec![1u8, 2, 3, 4, 5];
-    let secret_vec = Secret::from(&mut vec_data);
+    let secret_vec = RedoubtSecret::from(&mut vec_data);
 
     // Source must be zeroized
     assert!(vec_data.iter().all(|&b| b == 0));
     // Secret must contain the data
-    assert_eq!(secret_vec.expose(), &vec![1u8, 2, 3, 4, 5]);
+    assert_eq!(secret_vec.as_ref(), &vec![1u8, 2, 3, 4, 5]);
 
     // Test with array
     let mut array_data = [0xFFu8; 32];
-    let secret_array = Secret::from(&mut array_data);
+    let secret_array = RedoubtSecret::from(&mut array_data);
 
     // Source must be zeroized
     assert!(array_data.iter().all(|&b| b == 0));
     // Secret must contain the data
-    assert!(secret_array.expose().iter().all(|&b| b == 0xFF));
+    assert!(secret_array.as_ref().iter().all(|&b| b == 0xFF));
+}
+
+#[test]
+fn test_secret_replace() {
+    let mut original_data = vec![1u8, 2, 3, 4, 5];
+    let mut secret = RedoubtSecret::from(&mut original_data);
+    assert_eq!(secret.as_ref(), &vec![1u8, 2, 3, 4, 5]);
+
+    let mut new_data = vec![10u8, 20, 30];
+    secret.replace(&mut new_data);
+
+    assert!(new_data.iter().all(|&b| b == 0));
+    assert_eq!(secret.as_ref(), &vec![10u8, 20, 30]);
 }

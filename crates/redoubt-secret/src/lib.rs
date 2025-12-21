@@ -12,11 +12,6 @@ extern crate alloc;
 #[cfg(test)]
 mod tests;
 
-mod collections;
-mod traits;
-
-pub use traits::MemMove;
-
 use core::fmt;
 
 use redoubt_codec::{BytesRequired, Decode, Encode, RedoubtCodec};
@@ -24,38 +19,60 @@ use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropS
 
 /// Wrapper that prevents accidental exposure of sensitive data.
 ///
-/// `Secret<T>` wraps a value `T` and prevents direct access to it, forcing
-/// controlled access via [`expose()`](Secret::expose) and [`expose_mut()`](Secret::expose_mut).
-/// This prevents accidental copies, leaks via `Debug`, and other unintended exposures.
+/// `RedoubtSecret<T>` wraps a value `T` and provides controlled access via
+/// [`as_ref()`](RedoubtSecret::as_ref) and [`as_mut()`](RedoubtSecret::as_mut).
+/// This prevents accidental copies and leaks via `Debug`.
 ///
 /// # Design Principles
 ///
-/// - **No `Deref`/`DerefMut`**: Cannot accidentally access inner value via `*secret`
+/// - **No `Deref`/`DerefMut`**: Prevents accidental copies of `Copy` types via `*secret`
 /// - **No `Clone`**: Prevents unintended copies of sensitive data
-/// - **Redacted `Debug`**: Prints `[REDACTED Secret]` instead of inner value
-/// - **Caller must zeroize**: Caller is responsible for zeroizing the exposed value when done
+/// - **Redacted `Debug`**: Prints `[REDACTED RedoubtSecret]` instead of inner value
 /// - **Drop verification**: Contains [`ZeroizeOnDropSentinel`] to verify zeroization happened
 ///
 /// # Usage
 ///
 /// ```rust
-/// use redoubt_secret::Secret;
+/// use redoubt_secret::RedoubtSecret;
 ///
-/// let mut sensitive_data = [197u8; 32];
-/// let mut secret = Secret::from(&mut sensitive_data);
+/// // Create from sensitive data (when you don't have an instance yet)
+/// let mut pin_code = 1234u64;
+/// let secret = RedoubtSecret::from(&mut pin_code);
 ///
-/// // sensitive_data is guaranteed to be zeroized
-/// assert!(sensitive_data.iter().all(|&b| b == 0));
+/// // pin_code is guaranteed to be zeroized
+/// assert_eq!(pin_code, 0);
+/// assert_eq!(secret.as_ref(), &1234);
 ///
-/// // Access immutably
-/// assert!(secret.expose().iter().all(|&b| b == 197));
+/// // Replace when you already have an instance
+/// let mut secret2 = RedoubtSecret::<u32>::default();
+/// let mut session_id = 0xDEADBEEF;
+/// secret2.replace(&mut session_id);
 ///
-/// // Access mutably
-/// secret.expose_mut().iter_mut().for_each(|b| *b = 0xFF);
-/// assert!(secret.expose().iter().all(|&b| b == 0xFF));
+/// // session_id is guaranteed to be zeroized
+/// assert_eq!(session_id, 0);
+/// assert_eq!(secret2.as_ref(), &0xDEADBEEF);
+/// ```
+///
+/// # ⚠️ Warning: Dereferencing with Copy types
+///
+/// **NEVER** dereference `as_ref()` or `as_mut()` when `T` implements `Copy`.
+/// This will create a copy of the sensitive data, defeating the purpose of `RedoubtSecret`:
+///
+/// ```rust,no_run
+/// use redoubt_secret::RedoubtSecret;
+///
+/// let mut secret = RedoubtSecret::<u64>::default();
+/// let mut token = 0xDEADBEEF;
+/// secret.replace(&mut token);
+///
+/// // ❌ DANGEROUS: Creates a copy of the secret value!
+/// let leaked_copy = *secret.as_ref();  // This leaks sensitive data!
+///
+/// // ✅ SAFE: Only uses a reference
+/// assert_eq!(secret.as_ref(), &0xDEADBEEF);
 /// ```
 #[derive(Default, PartialEq, Eq, RedoubtZero, RedoubtCodec)]
-pub struct Secret<T>
+pub struct RedoubtSecret<T>
 where
     T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
 {
@@ -64,95 +81,88 @@ where
     __sentinel: ZeroizeOnDropSentinel,
 }
 
-impl<T> fmt::Debug for Secret<T>
+impl<T> fmt::Debug for RedoubtSecret<T>
 where
     T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[REDACTED Secret]")
+        write!(f, "[REDACTED RedoubtSecret]")
     }
 }
 
-impl<T> Secret<T>
+impl<T> RedoubtSecret<T>
 where
     T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
 {
-    /// Creates a new `Secret` by moving data from `sensitive_data`, zeroizing the source.
+    /// Creates a new `RedoubtSecret` by moving data from `sensitive_data`, zeroizing the source.
     ///
-    /// This method uses [`MemMove`](crate::MemMove) to transfer data without creating
+    /// This method uses [`core::mem::swap`] to transfer data without creating
     /// unzeroized copies. The source `sensitive_data` is guaranteed to be zeroized after this call.
-    ///
-    /// The value is stored securely and can only be accessed via
-    /// [`expose()`](Secret::expose) and [`expose_mut()`](Secret::expose_mut).
     ///
     /// # Example
     ///
     /// ```rust
-    /// use redoubt_secret::Secret;
+    /// use redoubt_secret::RedoubtSecret;
     ///
-    /// let mut sensitive_data = [197u8; 32];
-    /// let secret = Secret::from(&mut sensitive_data);
+    /// let mut api_key = 0xDEADBEEFCAFEBABEu64;
+    /// let secret = RedoubtSecret::from(&mut api_key);
     ///
-    /// // sensitive_data is guaranteed to be zeroized
-    /// assert!(sensitive_data.iter().all(|&b| b == 0));
+    /// // api_key is guaranteed to be zeroized
+    /// assert_eq!(api_key, 0);
     ///
-    /// assert!(secret.expose().iter().all(|&b| b == 197));
+    /// assert_eq!(secret.as_ref(), &0xDEADBEEFCAFEBABE);
     /// ```
     pub fn from(sensitive_data: &mut T) -> Self
     where
-        T: MemMove + Default,
+        T: Default,
     {
-        let mut inner = T::default();
-        T::mem_move(sensitive_data, &mut inner);
-
-        Self {
-            inner,
-            __sentinel: ZeroizeOnDropSentinel::default(),
-        }
+        let mut secret = Self::default();
+        secret.replace(sensitive_data);
+        secret
     }
 
-    /// Exposes an immutable reference to the inner value.
+    /// Replaces the inner value with a new one, zeroizing both the old value and the source.
     ///
-    /// This is the **only** way to read the inner value. The reference
-    /// cannot outlive the `Secret`.
+    /// This method:
+    /// 1. Zeroizes the current inner value
+    /// 2. Swaps the new value from `value` into `self`
+    /// 3. Zeroizes the source (which now contains the old value)
     ///
     /// # Example
     ///
     /// ```rust
-    /// use redoubt_secret::Secret;
+    /// use redoubt_secret::RedoubtSecret;
     ///
-    /// let mut sensitive_data = [197u8; 32];
-    /// let secret = Secret::from(&mut sensitive_data);
+    /// let mut secret = RedoubtSecret::<u64>::default();
+    /// let mut token = 0xCAFEBABE;
+    /// secret.replace(&mut token);
     ///
-    /// // sensitive_data is guaranteed to be zeroized
-    /// assert!(sensitive_data.iter().all(|&b| b == 0));
+    /// // token is guaranteed to be zeroized
+    /// assert_eq!(token, 0);
     ///
-    /// assert!(secret.expose().iter().all(|&b| b == 197));
+    /// // secret now contains the value
+    /// assert_eq!(*secret.as_ref(), 0xCAFEBABE);
     /// ```
-    pub fn expose(&self) -> &T {
+    pub fn replace(&mut self, value: &mut T) {
+        // Zeroize old value
+        self.inner.fast_zeroize();
+
+        // Swap values (moves value into self, moves old self into value)
+        core::mem::swap(&mut self.inner, value);
+
+        // Zeroize source (which now contains the old zeroized value)
+        value.fast_zeroize();
+    }
+
+    /// Returns an immutable reference to the inner value.
+    #[inline]
+    pub fn as_ref(&self) -> &T {
         &self.inner
     }
 
-    /// Exposes a mutable reference to the inner value.
-    ///
-    /// This is the **only** way to modify the inner value. The reference
-    /// cannot outlive the `Secret`.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use redoubt_secret::Secret;
-    ///
-    /// let mut sensitive_data = [197u8; 32];
-    /// let mut secret = Secret::from(&mut sensitive_data);
-    ///
-    /// // sensitive_data is guaranteed to be zeroized
-    /// assert!(sensitive_data.iter().all(|&b| b == 0));
-    ///
-    /// secret.expose_mut().iter_mut().for_each(|b| *b = 0xFF);
-    /// assert!(secret.expose().iter().all(|&b| b == 0xFF));
-    /// ```
-    pub fn expose_mut(&mut self) -> &mut T {
+    /// Returns a mutable reference to the inner value.
+    #[inline]
+    pub fn as_mut(&mut self) -> &mut T {
         &mut self.inner
     }
 }
