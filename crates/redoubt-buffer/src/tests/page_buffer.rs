@@ -34,6 +34,7 @@ fn test_new_mem_non_protected() {
 
 #[test]
 #[serial(page_buffer)]
+#[cfg(target_os = "linux")]
 fn test_new_returns_creation_failed() {
     use crate::error::PageError;
 

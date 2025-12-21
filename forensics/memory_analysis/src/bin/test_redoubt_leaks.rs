@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+#[cfg(feature = "__internal__forensics")]
+use redoubt::{FastZeroizable, ZeroizeOnDropSentinel, reset_master_key};
 use redoubt::{
-    FastZeroizable, RedoubtArray, RedoubtCodec, RedoubtOption, RedoubtString, RedoubtVec,
-    RedoubtZero, ZeroizeOnDropSentinel, cipherbox, reset_master_key,
+    RedoubtArray, RedoubtCodec, RedoubtOption, RedoubtString, RedoubtVec, RedoubtZero, cipherbox,
 };
 
+#[cfg(feature = "__internal__forensics")]
 /// Calculate Shannon entropy in bits per byte
 fn shannon_entropy(data: &[u8]) -> f64 {
     let mut freq = [0u32; 256];
@@ -39,6 +41,7 @@ struct TestData {
     option_redoubt_array: RedoubtOption<RedoubtArray<u8, 1024>>,
 }
 
+#[cfg(feature = "__internal__forensics")]
 #[derive(Clone, RedoubtZero)]
 #[fast_zeroize(drop)]
 struct Patterns {
@@ -51,6 +54,7 @@ struct Patterns {
     __sentinel: ZeroizeOnDropSentinel,
 }
 
+#[cfg(feature = "__internal__forensics")]
 impl Default for Patterns {
     fn default() -> Self {
         Self {
@@ -65,6 +69,7 @@ impl Default for Patterns {
     }
 }
 
+#[cfg(feature = "__internal__forensics")]
 impl Patterns {
     fn fill(&mut self) {
         self.pattern_1 = core::array::from_fn(|_| 0xAA); // redoubt_vec
@@ -76,6 +81,10 @@ impl Patterns {
     }
 }
 
+#[cfg(not(feature = "__internal__forensics"))]
+fn main() {}
+
+#[cfg(feature = "__internal__forensics")]
 fn main() {
     {
         println!("[*] Redoubt Forensic Analysis - Sensitive Data Pattern Detection");

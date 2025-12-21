@@ -1,0 +1,4 @@
+[snapshot]
+# Ensure snapshots have metadata headers consistently across platforms
+prepend_module_to_snapshot = false
+snapshot_suffix = ""

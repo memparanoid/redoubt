@@ -8,6 +8,7 @@ use serial_test::serial;
 
 use redoubt_zero::ZeroizationProbe;
 
+#[cfg(target_os = "linux")]
 use crate::error::PageError;
 use crate::page::Page;
 
@@ -36,6 +37,7 @@ fn test_slice_len_matches_page_size() {
 
 #[test]
 #[serial(page)]
+#[cfg(target_os = "linux")]
 fn test_new_fails_when_address_space_exhausted() {
     let mut original = libc::rlimit {
         rlim_cur: 0,
