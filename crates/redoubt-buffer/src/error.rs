@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 //! Error types for redoubt-buffer.
+use alloc::boxed::Box;
 use thiserror::Error;
 
 /// Errors from page syscalls.
