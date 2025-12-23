@@ -53,7 +53,7 @@ TEST_CONFIGS = [
             "redoubt-hkdf",
             "src",
             "tests",
-            "wycheproof_vectors.rs",
+            "hkdf_sha256_wycheproof_vectors.rs",
         ),
     },
     {
@@ -67,9 +67,7 @@ TEST_CONFIGS = [
             "redoubt-hkdf",
             "src",
             "tests",
-            "asm",
-            "sha",
-            "wycheproof_vectors.rs",
+            "hmac_sha256_wycheproof_vectors.rs",
         ),
     },
 ]
