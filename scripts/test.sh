@@ -177,7 +177,7 @@ else
             -v "redoubt-cargo-cache-$TARGET_ARCH:/usr/local/cargo/registry" \
             -v "redoubt-target-cache-$TARGET_ARCH:/workspace/target" \
             "redoubt-test-$TARGET_ARCH" \
-            cargo test "${CARGO_ARGS[@]}" -- --nocapture
+            cargo test --color always "${CARGO_ARGS[@]}" -- --nocapture
     else
         # Use default CMD from Dockerfile
         docker run --rm \

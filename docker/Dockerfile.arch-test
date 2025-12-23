@@ -84,9 +84,9 @@ RUN echo "=== Architecture Info ===" && \
     rustc --print cfg | grep -E "(target_arch|target_endian)"
 
 # Run tests for the target crates
-CMD ["sh", "-c", "echo '=== Testing redoubt-util ===' && cargo test -p redoubt-util --release && \
-     echo '=== Testing redoubt-codec-core ===' && cargo test -p redoubt-codec-core --release && \
-     echo '=== Testing redoubt-aead ===' && cargo test -p redoubt-aead --release && \
-     echo '=== Testing redoubt-buffer ===' && cargo test -p redoubt-buffer --release && \
-     echo '=== Testing redoubt-rand (including ignored) ===' && cargo test --lib -p redoubt-rand --release -- --include-ignored --nocapture && \
+CMD ["sh", "-c", "echo '=== Testing redoubt-util ===' && cargo test --color always -p redoubt-util --release && \
+     echo '=== Testing redoubt-codec-core ===' && cargo test --color always -p redoubt-codec-core --release && \
+     echo '=== Testing redoubt-aead ===' && cargo test --color always -p redoubt-aead --release && \
+     echo '=== Testing redoubt-buffer ===' && cargo test --color always -p redoubt-buffer --release && \
+     echo '=== Testing redoubt-rand (including ignored) ===' && cargo test --color always --lib -p redoubt-rand --release -- --include-ignored --nocapture && \
      echo '=== ALL ARCH TESTS PASSED ==='"]
