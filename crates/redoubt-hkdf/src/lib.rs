@@ -16,6 +16,8 @@
 #![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
 
+extern crate alloc;
+
 #[cfg(test)]
 mod tests;
 

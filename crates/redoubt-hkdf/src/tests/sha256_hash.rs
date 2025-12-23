@@ -15,7 +15,7 @@
 // [4] NIST CAVP (Cryptographic Algorithm Validation Program)
 //     https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/secure-hashing
 
-use crate::asm::sha256_hash;
+use super::proxies::sha256::sha256_hash;
 
 #[cfg(target_arch = "aarch64")]
 #[test]
@@ -24,9 +24,7 @@ fn test_sha256_hash_abc() {
     let msg = b"abc";
     let mut digest = [0u8; 32];
 
-    unsafe {
-        sha256_hash(msg.as_ptr(), msg.len(), digest.as_mut_ptr());
-    }
+    sha256_hash(msg, &mut digest);
 
     // Expected: ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
     let expected = [
@@ -49,9 +47,7 @@ fn test_sha256_hash_empty() {
     let msg = b"";
     let mut digest = [0u8; 32];
 
-    unsafe {
-        sha256_hash(msg.as_ptr(), msg.len(), digest.as_mut_ptr());
-    }
+    sha256_hash(msg, &mut digest);
 
     // Expected: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
     let expected = [
@@ -78,9 +74,7 @@ fn test_sha256_hash_56_bytes() {
 
     let mut digest = [0u8; 32];
 
-    unsafe {
-        sha256_hash(msg.as_ptr(), msg.len(), digest.as_mut_ptr());
-    }
+    sha256_hash(msg, &mut digest);
 
     // Expected: 248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1
     let expected = [
@@ -112,9 +106,7 @@ fn test_sha256_hash_112_bytes() {
 
     let mut digest = [0u8; 32];
 
-    unsafe {
-        sha256_hash(msg.as_ptr(), msg.len(), digest.as_mut_ptr());
-    }
+    sha256_hash(msg, &mut digest);
 
     // Expected: cf5b16a778af8380036ce59e7b0492370b249b11e8f07a51afac45037afee9d1
     let expected = [

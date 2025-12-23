@@ -36,7 +36,7 @@ pub(crate) enum TestResult {
     Acceptable,
 }
 
-/// A single Wycheproof test case for HKDF-SHA-512
+/// A single Wycheproof test case for HKDF-SHA-256
 pub(crate) struct TestCase {
     /// Unique test case identifier
     pub tc_id: usize,
@@ -104,8 +104,8 @@ mod hex {
 }
 
 #[test]
-fn test_wycheproof_first_10() {
-    use super::wycheproof_vectors::test_vectors;
+fn test_hkdf_sha256_wycheproof_first_10() {
+    use super::hkdf_sha256_wycheproof_vectors::test_vectors;
 
     let vectors = test_vectors();
     let mut failures = Vec::new();
@@ -117,13 +117,13 @@ fn test_wycheproof_first_10() {
     }
 
     if !failures.is_empty() {
-        panic!("Wycheproof test failures:\n{}", failures.join("\n"));
+        panic!("HKDF-SHA256 Wycheproof test failures:\n{}", failures.join("\n"));
     }
 }
 
 #[test]
-fn test_wycheproof_all() {
-    use super::wycheproof_vectors::test_vectors;
+fn test_hkdf_sha256_wycheproof_all() {
+    use super::hkdf_sha256_wycheproof_vectors::test_vectors;
 
     let vectors = test_vectors();
     let mut failures = Vec::new();
@@ -136,7 +136,7 @@ fn test_wycheproof_all() {
 
     if !failures.is_empty() {
         panic!(
-            "Wycheproof test failures ({}/{}):\n{}",
+            "HKDF-SHA256 Wycheproof test failures ({}/{}):\n{}",
             failures.len(),
             vectors.len(),
             failures.join("\n")
@@ -146,8 +146,8 @@ fn test_wycheproof_all() {
 
 /// Test that SizeTooLarge vectors are properly rejected
 #[test]
-fn test_wycheproof_size_too_large() {
-    use super::wycheproof_vectors::test_vectors;
+fn test_hkdf_sha256_wycheproof_size_too_large() {
+    use super::hkdf_sha256_wycheproof_vectors::test_vectors;
 
     let vectors = test_vectors();
 
@@ -167,8 +167,8 @@ fn test_wycheproof_size_too_large() {
 
 /// Test empty salt handling (RFC 5869: empty salt = HashLen zeros)
 #[test]
-fn test_wycheproof_empty_salt() {
-    use super::wycheproof_vectors::test_vectors;
+fn test_hkdf_sha256_wycheproof_empty_salt() {
+    use super::hkdf_sha256_wycheproof_vectors::test_vectors;
 
     let vectors = test_vectors();
     let mut failures = Vec::new();
@@ -185,7 +185,7 @@ fn test_wycheproof_empty_salt() {
 
     if !failures.is_empty() {
         panic!(
-            "Empty salt test failures ({}):\n{}",
+            "HKDF-SHA256 empty salt test failures ({}):\n{}",
             failures.len(),
             failures.join("\n")
         );

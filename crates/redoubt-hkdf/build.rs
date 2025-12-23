@@ -5,6 +5,11 @@
 // Build script for HKDF-SHA256 assembly implementations
 
 fn main() {
+    // Skip assembly compilation if pure-rust feature is enabled
+    if std::env::var("CARGO_FEATURE_PURE_RUST").is_ok() {
+        return;
+    }
+
     // ARM64/AArch64 assembly implementation (Linux, macOS, Windows ARM64)
     // Uses base ARMv8-A without crypto extensions for maximum compatibility
     #[cfg(target_arch = "aarch64")]

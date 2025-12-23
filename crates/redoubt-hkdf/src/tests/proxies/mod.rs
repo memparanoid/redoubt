@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-mod hkdf;
-mod sha512;
-mod word;
+//! Test proxies that route to either ASM or Rust implementations
+//! based on feature flags and platform support
+
+pub mod hmac;
+pub mod sha256;

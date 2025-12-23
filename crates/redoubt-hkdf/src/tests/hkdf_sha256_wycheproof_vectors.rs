@@ -14,7 +14,7 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use super::wycheproof::{Flag, TestCase, TestResult};
+use super::hkdf_sha256_wycheproof::{Flag, TestCase, TestResult};
 
 pub(crate) fn test_vectors() -> Vec<TestCase> {
     vec![

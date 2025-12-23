@@ -10,6 +10,9 @@ use alloc::vec::Vec;
 
 use redoubt_util::hex_to_bytes;
 
+use super::hmac_sha256_wycheproof_vectors::test_vectors;
+use super::proxies::hmac::hmac_sha256;
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Flag {
@@ -52,15 +55,7 @@ fn run_test_case(tc: &TestCase) -> Result<(), String> {
 
     let mut computed_tag = [0u8; 32];
 
-    unsafe {
-        crate::asm::hmac_sha256(
-            key.as_ptr(),
-            key.len(),
-            msg.as_ptr(),
-            msg.len(),
-            computed_tag.as_mut_ptr(),
-        );
-    }
+    hmac_sha256(&key, &msg, &mut computed_tag);
 
     // Compare only the first expected_tag.len() bytes (for truncated MACs)
     let matches = &computed_tag[..expected_tag.len()] == expected_tag.as_slice();
@@ -84,8 +79,8 @@ fn run_test_case(tc: &TestCase) -> Result<(), String> {
 
 // Minimal hex encoder for test output (avoid adding hex crate as dependency)
 mod hex {
-    use super::format;
     use super::String;
+    use super::format;
 
     pub fn encode(data: &[u8]) -> String {
         data.iter().map(|b| format!("{:02x}", b)).collect()
@@ -93,9 +88,7 @@ mod hex {
 }
 
 #[test]
-fn test_wycheproof_first_10() {
-    use super::wycheproof_vectors::test_vectors;
-
+fn test_hmac_sha256_wycheproof_first_10() {
     let vectors = test_vectors();
     let mut failures = Vec::new();
 
@@ -106,14 +99,12 @@ fn test_wycheproof_first_10() {
     }
 
     if !failures.is_empty() {
-        panic!("Wycheproof test failures:\n{}", failures.join("\n"));
+        panic!("HMAC-SHA256 Wycheproof test failures:\n{}", failures.join("\n"));
     }
 }
 
 #[test]
-fn test_wycheproof_all() {
-    use super::wycheproof_vectors::test_vectors;
-
+fn test_hmac_sha256_wycheproof_all() {
     let vectors = test_vectors();
     let mut failures = Vec::new();
 
@@ -125,7 +116,7 @@ fn test_wycheproof_all() {
 
     if !failures.is_empty() {
         panic!(
-            "Wycheproof test failures ({}/{}):\n{}",
+            "HMAC-SHA256 Wycheproof test failures ({}/{}):\n{}",
             failures.len(),
             vectors.len(),
             failures.join("\n")
@@ -135,9 +126,7 @@ fn test_wycheproof_all() {
 
 /// Test that ModifiedTag vectors are properly rejected
 #[test]
-fn test_wycheproof_modified_tag() {
-    use super::wycheproof_vectors::test_vectors;
-
+fn test_hmac_sha256_wycheproof_modified_tag() {
     let vectors = test_vectors();
     let mut failures = Vec::new();
 
@@ -153,7 +142,7 @@ fn test_wycheproof_modified_tag() {
 
     if !failures.is_empty() {
         panic!(
-            "Modified tag test failures ({}):\n{}",
+            "HMAC-SHA256 modified tag test failures ({}):\n{}",
             failures.len(),
             failures.join("\n")
         );
@@ -162,9 +151,7 @@ fn test_wycheproof_modified_tag() {
 
 /// Test pseudorandom vectors
 #[test]
-fn test_wycheproof_pseudorandom() {
-    use super::wycheproof_vectors::test_vectors;
-
+fn test_hmac_sha256_wycheproof_pseudorandom() {
     let vectors = test_vectors();
     let mut failures = Vec::new();
 
@@ -180,7 +167,7 @@ fn test_wycheproof_pseudorandom() {
 
     if !failures.is_empty() {
         panic!(
-            "Pseudorandom test failures ({}):\n{}",
+            "HMAC-SHA256 pseudorandom test failures ({}):\n{}",
             failures.len(),
             failures.join("\n")
         );

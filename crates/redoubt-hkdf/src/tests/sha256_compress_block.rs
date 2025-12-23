@@ -14,7 +14,7 @@
 // [2] Crypto Stack Exchange: SHA-256 compression without padding
 //     https://crypto.stackexchange.com/questions/99152/sha-256-compression-functions-without-padding
 
-use crate::asm::sha256_compress_block;
+use super::proxies::sha256::sha256_compress_block;
 
 #[test]
 fn test_sha256_compress_abc() {
@@ -41,9 +41,7 @@ fn test_sha256_compress_abc() {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18,
     ];
 
-    unsafe {
-        sha256_compress_block(h.as_mut_ptr(), block.as_ptr());
-    }
+    sha256_compress_block(&mut h, &block);
 
     let expected: [u32; 8] = [
         0xba7816bf, 0x8f01cfea, 0x414140de, 0x5dae2223, 0xb00361a3, 0x96177a9c, 0xb410ff61,
@@ -81,9 +79,7 @@ fn test_sha256_compress_empty() {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     ];
 
-    unsafe {
-        sha256_compress_block(h.as_mut_ptr(), block.as_ptr());
-    }
+    sha256_compress_block(&mut h, &block);
 
     let expected: [u32; 8] = [
         0xe3b0c442, 0x98fc1c14, 0x9afbf4c8, 0x996fb924, 0x27ae41e4, 0x649b934c, 0xa495991b,
@@ -113,9 +109,7 @@ fn test_sha256_compress_zero_block() {
 
     let block: [u8; 64] = [0u8; 64];
 
-    unsafe {
-        sha256_compress_block(h.as_mut_ptr(), block.as_ptr());
-    }
+    sha256_compress_block(&mut h, &block);
 
     let expected: [u32; 8] = [
         0xda5698be, 0x17b9b469, 0x62335799, 0x779fbeca, 0x8ce5d491, 0xc0d26243, 0xbafef9ea,

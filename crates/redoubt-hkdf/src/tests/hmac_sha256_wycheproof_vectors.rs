@@ -9,7 +9,7 @@
 // Algorithm: HMACSHA256
 // Number of tests: 174
 
-use super::wycheproof::{Flag, TestCase, TestResult};
+use super::hmac_sha256_wycheproof::{Flag, TestCase, TestResult};
 
 pub(crate) fn test_vectors() -> Vec<TestCase> {
     vec![

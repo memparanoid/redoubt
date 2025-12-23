@@ -4,6 +4,17 @@
 
 //! FFI bindings for SHA-256 assembly implementations
 
+#[cfg(all(
+    not(feature = "pure-rust"),
+    any(
+        all(target_arch = "aarch64", not(target_family = "wasm")),
+        all(
+            target_arch = "x86_64",
+            any(target_os = "linux", target_os = "macos"),
+            not(target_family = "wasm")
+        )
+    )
+))]
 unsafe extern "C" {
     /// SHA-256 compression function (single block)
     ///
@@ -18,7 +29,7 @@ unsafe extern "C" {
     ///
     /// - `h_ptr`: Pointer to H state (input/output, 32 bytes)
     /// - `block_ptr`: Pointer to message block (input, 64 bytes)
-    pub unsafe fn sha256_compress_block(h_ptr: *mut u32, block_ptr: *const u8);
+    pub(crate) unsafe fn sha256_compress_block(h_ptr: *mut u32, block_ptr: *const u8);
 
     /// SHA-256 hash function (arbitrary-length message)
     ///
@@ -34,7 +45,7 @@ unsafe extern "C" {
     /// - `msg_ptr`: Pointer to message (input, arbitrary length)
     /// - `msg_len`: Length of message in bytes
     /// - `digest_ptr`: Pointer to digest output (output, 32 bytes)
-    pub unsafe fn sha256_hash(msg_ptr: *const u8, msg_len: usize, digest_ptr: *mut u8);
+    pub(crate) unsafe fn sha256_hash(msg_ptr: *const u8, msg_len: usize, digest_ptr: *mut u8);
 
     /// HMAC-SHA256 (RFC 2104)
     ///
@@ -53,7 +64,7 @@ unsafe extern "C" {
     /// - `msg_ptr`: Pointer to message (input, arbitrary length)
     /// - `msg_len`: Length of message in bytes
     /// - `mac_ptr`: Pointer to MAC output (output, 32 bytes)
-    pub unsafe fn hmac_sha256(
+    pub(crate) unsafe fn hmac_sha256(
         key_ptr: *const u8,
         key_len: usize,
         msg_ptr: *const u8,
@@ -82,7 +93,7 @@ unsafe extern "C" {
     /// - `info_len`: Length of info in bytes
     /// - `okm_ptr`: Pointer to output keying material (output, okm_len bytes)
     /// - `okm_len`: Length of OKM in bytes
-    pub unsafe fn hkdf_sha256(
+    pub(crate) unsafe fn hkdf_sha256(
         salt_ptr: *const u8,
         salt_len: usize,
         ikm_ptr: *const u8,
