@@ -29,6 +29,7 @@ unsafe extern "C" {
     ///
     /// - `h_ptr`: Pointer to H state (input/output, 32 bytes)
     /// - `block_ptr`: Pointer to message block (input, 64 bytes)
+    #[cfg(test)]
     pub(crate) unsafe fn sha256_compress_block(h_ptr: *mut u32, block_ptr: *const u8);
 
     /// SHA-256 hash function (arbitrary-length message)
@@ -45,6 +46,7 @@ unsafe extern "C" {
     /// - `msg_ptr`: Pointer to message (input, arbitrary length)
     /// - `msg_len`: Length of message in bytes
     /// - `digest_ptr`: Pointer to digest output (output, 32 bytes)
+    #[cfg(test)]
     pub(crate) unsafe fn sha256_hash(msg_ptr: *const u8, msg_len: usize, digest_ptr: *mut u8);
 
     /// HMAC-SHA256 (RFC 2104)
@@ -64,6 +66,7 @@ unsafe extern "C" {
     /// - `msg_ptr`: Pointer to message (input, arbitrary length)
     /// - `msg_len`: Length of message in bytes
     /// - `mac_ptr`: Pointer to MAC output (output, 32 bytes)
+    #[cfg(test)]
     pub(crate) unsafe fn hmac_sha256(
         key_ptr: *const u8,
         key_len: usize,

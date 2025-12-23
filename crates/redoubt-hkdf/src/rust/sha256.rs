@@ -115,6 +115,9 @@ impl Sha256State {
         self.compress();
 
         // H = H + working variables (take zeroizes wv automatically)
+        // Note: indexed loop is intentional - iterator version would deref &mut u32
+        // creating unnecessary copy when calling wrapping_add(self)
+        #[allow(clippy::needless_range_loop)]
         for i in 0..8 {
             h[i] = h[i].wrapping_add(core::mem::take(self.wv[i].as_mut_u32()));
         }
