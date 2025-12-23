@@ -153,16 +153,24 @@ where
         // Zeroize source (which now contains the old zeroized value)
         value.fast_zeroize();
     }
+}
 
-    /// Returns an immutable reference to the inner value.
+impl<T> AsRef<T> for RedoubtSecret<T>
+where
+    T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
+{
     #[inline]
-    pub fn as_ref(&self) -> &T {
+    fn as_ref(&self) -> &T {
         &self.inner
     }
+}
 
-    /// Returns a mutable reference to the inner value.
+impl<T> AsMut<T> for RedoubtSecret<T>
+where
+    T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
+{
     #[inline]
-    pub fn as_mut(&mut self) -> &mut T {
+    fn as_mut(&mut self) -> &mut T {
         &mut self.inner
     }
 }
