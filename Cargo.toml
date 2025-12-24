@@ -55,7 +55,6 @@ resolver = "2"
   redoubt-test-utils = { path = "crates/redoubt-test-utils" }
 
   # External dependencies
-  cpufeatures      = "0.2.17"
   smallvec         = "1.15.1"
   getrandom        = "0.3.4"
   libc             = "0.2.177"
@@ -75,7 +74,6 @@ resolver = "2"
 
   # Dev dependencies (used via [dev-dependencies] in individual crates)
   criterion    = "0.5"
-  insta        = { version = "1.43.2", features = ["redactions"] }
   libseccomp   = "0.4.0"
   prettyplease = "0.2.37"
   proptest     = "1.9.0"
