@@ -261,7 +261,7 @@ fn expand(
             #[inline(always)]
             pub fn #open_name<F, R>(&mut self, f: F) -> Result<R, #error_type>
             where
-                F: Fn(&#field_type) -> Result<R, #error_type>,
+                F: FnMut(&#field_type) -> Result<R, #error_type>,
             {
                 self.inner.open_field::<#field_type, #idx_lit, F, R, #error_type>(f)
             }
@@ -271,7 +271,7 @@ fn expand(
             #[inline(always)]
             pub fn #open_mut_name<F, R>(&mut self, f: F) -> Result<R, #error_type>
             where
-                F: Fn(&mut #field_type) -> Result<R, #error_type>,
+                F: FnMut(&mut #field_type) -> Result<R, #error_type>,
             {
                 self.inner.open_field_mut::<#field_type, #idx_lit, F, R, #error_type>(f)
             }
@@ -356,7 +356,7 @@ fn expand(
             #[inline(always)]
             pub fn open<F, R>(&mut self, f: F) -> Result<R, #error_type>
             where
-                F: Fn(&#struct_name) -> Result<R, #error_type>,
+                F: FnMut(&#struct_name) -> Result<R, #error_type>,
             {
                 self.inner.open(f)
             }
@@ -364,7 +364,7 @@ fn expand(
             #[inline(always)]
             pub fn open_mut<F, R>(&mut self, f: F) -> Result<R, #error_type>
             where
-                F: Fn(&mut #struct_name) -> Result<R, #error_type>,
+                F: FnMut(&mut #struct_name) -> Result<R, #error_type>,
             {
                 self.inner.open_mut(f)
             }

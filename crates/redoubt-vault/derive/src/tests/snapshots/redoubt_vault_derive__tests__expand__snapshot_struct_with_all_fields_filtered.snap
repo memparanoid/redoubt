@@ -72,7 +72,7 @@ impl OnlyDefaultsBox {
     #[inline(always)]
     pub fn open<F, R>(&mut self, f: F) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&OnlyDefaults) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        F: FnMut(&OnlyDefaults) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner.open(f)
     }
@@ -82,7 +82,7 @@ impl OnlyDefaultsBox {
         f: F,
     ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&mut OnlyDefaults) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        F: FnMut(&mut OnlyDefaults) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner.open_mut(f)
     }

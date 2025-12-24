@@ -69,7 +69,7 @@ impl EmptyBox {
     #[inline(always)]
     pub fn open<F, R>(&mut self, f: F) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&Empty) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        F: FnMut(&Empty) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner.open(f)
     }
@@ -79,7 +79,7 @@ impl EmptyBox {
         f: F,
     ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&mut Empty) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        F: FnMut(&mut Empty) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner.open_mut(f)
     }

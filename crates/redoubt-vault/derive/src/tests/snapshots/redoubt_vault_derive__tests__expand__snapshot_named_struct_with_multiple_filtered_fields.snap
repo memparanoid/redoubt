@@ -74,7 +74,7 @@ impl ZetaBox {
     #[inline(always)]
     pub fn open<F, R>(&mut self, f: F) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&Zeta) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        F: FnMut(&Zeta) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner.open(f)
     }
@@ -84,7 +84,7 @@ impl ZetaBox {
         f: F,
     ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&mut Zeta) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        F: FnMut(&mut Zeta) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner.open_mut(f)
     }
@@ -109,7 +109,7 @@ impl ZetaBox {
         f: F,
     ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        F: FnMut(&Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner.open_field::<Vec<u8>, 0, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
@@ -119,7 +119,7 @@ impl ZetaBox {
         f: F,
     ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        F: FnMut(&u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner.open_field::<u64, 1, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
@@ -129,7 +129,7 @@ impl ZetaBox {
         f: F,
     ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&mut Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        F: FnMut(&mut Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner
             .open_field_mut::<Vec<u8>, 0, F, R, redoubt_vault_core::CipherBoxError>(f)
@@ -140,7 +140,7 @@ impl ZetaBox {
         f: F,
     ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&mut u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        F: FnMut(&mut u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner.open_field_mut::<u64, 1, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
