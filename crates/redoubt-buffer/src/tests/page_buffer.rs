@@ -67,7 +67,7 @@ fn test_new_returns_creation_failed() {
 mod seccomp_new {
     use super::*;
     use crate::error::PageError;
-    use crate::tests::utils::{block_madvise, block_mlock, block_mprotect, run_test_as_subprocess};
+    use crate::tests::utils::{block_madvise, block_mlock, block_mprotect, is_seccomp_available, run_test_as_subprocess};
 
     #[test]
     #[ignore]
@@ -82,6 +82,11 @@ mod seccomp_new {
     #[test]
     #[serial(page_buffer)]
     fn test_new_returns_lock_failed() {
+        if !is_seccomp_available() {
+            eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
+            return;
+        }
+
         let exit_code = run_test_as_subprocess(
             "tests::page_buffer::seccomp_new::subprocess_test_new_returns_lock_failed",
         );
@@ -105,6 +110,11 @@ mod seccomp_new {
     #[test]
     #[serial(page_buffer)]
     fn test_new_returns_protection_failed() {
+        if !is_seccomp_available() {
+            eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
+            return;
+        }
+
         let exit_code = run_test_as_subprocess(
             "tests::page_buffer::seccomp_new::subprocess_test_new_returns_protection_failed",
         );
@@ -128,6 +138,11 @@ mod seccomp_new {
     #[test]
     #[serial(page_buffer)]
     fn test_new_returns_madvise_failed() {
+        if !is_seccomp_available() {
+            eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
+            return;
+        }
+
         let exit_code = run_test_as_subprocess(
             "tests::page_buffer::seccomp_new::subprocess_test_new_returns_madvise_failed",
         );
@@ -202,7 +217,7 @@ fn test_open_propagates_callback_error() {
 #[cfg(target_os = "linux")]
 mod seccomp_open {
     use super::*;
-    use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
+    use crate::tests::utils::{block_mprotect, is_seccomp_available, run_test_as_subprocess};
 
     #[test]
     #[ignore]
@@ -217,6 +232,11 @@ mod seccomp_open {
     #[test]
     #[serial(page_buffer)]
     fn test_open_aborts_on_unprotect_failure() {
+        if !is_seccomp_available() {
+            eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
+            return;
+        }
+
         let exit_code = run_test_as_subprocess(
             "tests::page_buffer::seccomp_open::subprocess_test_open_aborts_on_unprotect_failure",
         );
@@ -238,6 +258,11 @@ mod seccomp_open {
     #[test]
     #[serial(page_buffer)]
     fn test_open_aborts_on_protect_failure() {
+        if !is_seccomp_available() {
+            eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
+            return;
+        }
+
         let exit_code = run_test_as_subprocess(
             "tests::page_buffer::seccomp_open::subprocess_test_open_aborts_on_protect_failure",
         );
@@ -315,7 +340,7 @@ fn test_open_mut_propagates_callback_error() {
 #[cfg(target_os = "linux")]
 mod seccomp_open_mut {
     use super::*;
-    use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
+    use crate::tests::utils::{block_mprotect, is_seccomp_available, run_test_as_subprocess};
 
     #[test]
     #[ignore]
@@ -330,6 +355,11 @@ mod seccomp_open_mut {
     #[test]
     #[serial(page_buffer)]
     fn test_open_mut_aborts_on_unprotect_failure() {
+        if !is_seccomp_available() {
+            eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
+            return;
+        }
+
         let exit_code = run_test_as_subprocess(
             "tests::page_buffer::seccomp_open_mut::subprocess_test_open_mut_aborts_on_unprotect_failure",
         );
@@ -351,6 +381,11 @@ mod seccomp_open_mut {
     #[test]
     #[serial(page_buffer)]
     fn test_open_mut_aborts_on_protect_failure() {
+        if !is_seccomp_available() {
+            eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
+            return;
+        }
+
         let exit_code = run_test_as_subprocess(
             "tests::page_buffer::seccomp_open_mut::subprocess_test_open_mut_aborts_on_protect_failure",
         );
