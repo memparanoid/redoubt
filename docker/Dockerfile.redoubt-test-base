@@ -1,0 +1,81 @@
+# Redoubt Test Base - Common setup for all test Dockerfiles
+# Provides: workspace structure, cargo-make, dependencies, stub files
+#
+# Usage: Use as base image in multi-stage builds
+#   FROM redoubt-test-base:latest
+
+ARG RUST_IMAGE=rust:alpine
+FROM ${RUST_IMAGE}
+
+# Install system dependencies required for tests
+RUN apk add --no-cache \
+  musl-dev \
+  linux-headers \
+  build-base \
+  bash \
+  libseccomp-dev \
+  libseccomp-static
+
+# Install cargo-make for linting and task running
+RUN cargo install cargo-make
+
+WORKDIR /workspace
+
+# Copy workspace metadata files
+COPY Cargo.toml Cargo.lock Makefile.toml ./
+
+# Copy all crate Cargo.toml files
+COPY crates/redoubt-guard/Cargo.toml ./crates/redoubt-guard/
+COPY crates/redoubt-alloc/Cargo.toml ./crates/redoubt-alloc/
+COPY crates/redoubt-buffer/Cargo.toml ./crates/redoubt-buffer/
+COPY crates/redoubt-zero/Cargo.toml ./crates/redoubt-zero/
+COPY crates/redoubt-zero/core/Cargo.toml ./crates/redoubt-zero/core/
+COPY crates/redoubt-zero/derive/Cargo.toml ./crates/redoubt-zero/derive/
+COPY crates/redoubt-rand/Cargo.toml ./crates/redoubt-rand/
+COPY crates/redoubt-hkdf/Cargo.toml ./crates/redoubt-hkdf/
+COPY crates/redoubt-util/Cargo.toml ./crates/redoubt-util/
+COPY crates/redoubt-aead/Cargo.toml ./crates/redoubt-aead/
+COPY crates/redoubt-codec/Cargo.toml ./crates/redoubt-codec/
+COPY crates/redoubt-codec/core/Cargo.toml ./crates/redoubt-codec/core/
+COPY crates/redoubt-codec/derive/Cargo.toml ./crates/redoubt-codec/derive/
+COPY crates/redoubt-secret/Cargo.toml ./crates/redoubt-secret/
+COPY crates/redoubt-vault/Cargo.toml ./crates/redoubt-vault/
+COPY crates/redoubt-vault/core/Cargo.toml ./crates/redoubt-vault/core/
+COPY crates/redoubt-vault/derive/Cargo.toml ./crates/redoubt-vault/derive/
+COPY crates/redoubt/Cargo.toml ./crates/redoubt/
+COPY crates/redoubt-test-utils/Cargo.toml ./crates/redoubt-test-utils/
+COPY benchmarks/Cargo.toml ./benchmarks/
+COPY examples/wasm-demo/rust/Cargo.toml ./examples/wasm-demo/rust/
+COPY forensics/memory_analysis/Cargo.toml ./forensics/memory_analysis/
+
+# Create stub lib.rs files to satisfy initial cargo build
+# This allows Docker to cache dependency compilation separately from source code
+RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/src/lib.rs && \
+    mkdir -p crates/redoubt-alloc/src && echo "// stub" > crates/redoubt-alloc/src/lib.rs && \
+    mkdir -p crates/redoubt-buffer/src && echo "// stub" > crates/redoubt-buffer/src/lib.rs && \
+    mkdir -p crates/redoubt-zero/src && echo "// stub" > crates/redoubt-zero/src/lib.rs && \
+    mkdir -p crates/redoubt-zero/core/src && echo "// stub" > crates/redoubt-zero/core/src/lib.rs && \
+    mkdir -p crates/redoubt-zero/derive/src && echo "// stub" > crates/redoubt-zero/derive/src/lib.rs && \
+    mkdir -p crates/redoubt-rand/src && echo "// stub" > crates/redoubt-rand/src/lib.rs && \
+    mkdir -p crates/redoubt-hkdf/src && echo "// stub" > crates/redoubt-hkdf/src/lib.rs && \
+    mkdir -p crates/redoubt-util/src && echo "// stub" > crates/redoubt-util/src/lib.rs && \
+    mkdir -p crates/redoubt-aead/src && echo "// stub" > crates/redoubt-aead/src/lib.rs && \
+    mkdir -p crates/redoubt-codec/src && echo "// stub" > crates/redoubt-codec/src/lib.rs && \
+    mkdir -p crates/redoubt-codec/core/src && echo "// stub" > crates/redoubt-codec/core/src/lib.rs && \
+    mkdir -p crates/redoubt-codec/derive/src && echo "// stub" > crates/redoubt-codec/derive/src/lib.rs && \
+    mkdir -p crates/redoubt-secret/src && echo "// stub" > crates/redoubt-secret/src/lib.rs && \
+    mkdir -p crates/redoubt-vault/src && echo "// stub" > crates/redoubt-vault/src/lib.rs && \
+    mkdir -p crates/redoubt-vault/core/src && echo "// stub" > crates/redoubt-vault/core/src/lib.rs && \
+    mkdir -p crates/redoubt-vault/derive/src && echo "// stub" > crates/redoubt-vault/derive/src/lib.rs && \
+    mkdir -p crates/redoubt/src && echo "// stub" > crates/redoubt/src/lib.rs && \
+    mkdir -p crates/redoubt-test-utils/src && echo "// stub" > crates/redoubt-test-utils/src/lib.rs && \
+    mkdir -p examples/wasm-demo/rust/src && echo "// stub" > examples/wasm-demo/rust/src/lib.rs && \
+    mkdir -p benchmarks/benches && echo "fn main() {}" > benchmarks/benches/aegis128l.rs && \
+    echo "fn main() {}" > benchmarks/benches/xchacha20poly1305.rs && \
+    echo "fn main() {}" > benchmarks/benches/codec.rs && \
+    echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
+    echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
+    echo "fn main() {}" > benchmarks/benches/alloc.rs && \
+    echo "fn main() {}" > benchmarks/benches/hkdf_sha256.rs && \
+    mkdir -p forensics/memory_analysis/src/bin && echo "fn main() {}" > forensics/memory_analysis/src/bin/test_redoubt_leaks.rs && \
+    echo "fn main() {}" > forensics/memory_analysis/src/bin/redoubt_leaks_report.rs

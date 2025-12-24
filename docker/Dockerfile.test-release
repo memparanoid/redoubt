@@ -1,9 +1,9 @@
 FROM redoubt-test-base:latest
 
-# Build workspace and dependencies with cache mount
+# Build workspace and dependencies in release mode with cache mount
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/workspace/target \
-    cargo test --workspace --all-targets --no-run
+    cargo test --release --workspace --all-features --no-run
 
 # Copy actual source code
 COPY crates ./crates
@@ -13,8 +13,5 @@ COPY forensics ./forensics
 # Update timestamps to force workspace re-compilation but keep dep artifacts
 RUN find crates examples forensics -type f -name "*.rs" -exec touch {} \;
 
-# Entrypoint script
-COPY docker/test-entrypoint.sh /usr/local/bin/test-entrypoint.sh
-RUN chmod +x /usr/local/bin/test-entrypoint.sh
-
-ENTRYPOINT ["/usr/local/bin/test-entrypoint.sh"]
+# Run release tests
+CMD ["cargo", "test", "--release", "--workspace", "--all-features", "--", "--nocapture"]

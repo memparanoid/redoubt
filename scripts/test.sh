@@ -7,8 +7,6 @@
 # ARCH (optional):
 #   x86      - x86_64/amd64 architecture
 #   arm      - ARM64/AArch64 architecture
-#   s390x    - s390x Big Endian architecture
-#   riscv64  - RISC-V 64-bit architecture
 #   (empty)  - Use native architecture (default)
 #
 # Flags:
@@ -19,7 +17,6 @@
 #   ./scripts/test.sh -p redoubt-aead                      # Native arch, specific crate
 #   ./scripts/test.sh x86 -p redoubt-aead                  # x86_64, specific crate
 #   ./scripts/test.sh arm -p redoubt-codec --features test_utils
-#   ./scripts/test.sh s390x -p redoubt-util                # Big-endian testing
 #   ./scripts/test.sh x86 -p redoubt-aead --no-cache       # Force rebuild, no cache
 
 set -euo pipefail
@@ -28,7 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Supported architectures
-SUPPORTED_ARCHS=("x86" "arm" "s390x" "riscv64")
+SUPPORTED_ARCHS=("x86" "arm")
 
 # Detect native architecture
 detect_native_arch() {
@@ -39,12 +36,6 @@ detect_native_arch() {
             ;;
         aarch64|arm64)
             echo "arm"
-            ;;
-        s390x)
-            echo "s390x"
-            ;;
-        riscv64)
-            echo "riscv64"
             ;;
         *)
             echo "unknown"
@@ -60,12 +51,6 @@ arch_to_platform() {
             ;;
         arm)
             echo "linux/arm64"
-            ;;
-        s390x)
-            echo "linux/s390x"
-            ;;
-        riscv64)
-            echo "linux/riscv64"
             ;;
         *)
             echo ""
@@ -159,31 +144,22 @@ if [[ "$TARGET_ARCH" == "$NATIVE_ARCH" ]]; then
         -v redoubt-target-cache:/workspace/target \
         redoubt-test "${CARGO_ARGS[@]}"
 else
-    # Cross-architecture build: use Dockerfile.arch-test (no capabilities)
+    # Cross-architecture build: use Dockerfile.test with specified platform
     echo "Building cross-architecture test image for $TARGET_ARCH..."
     DOCKER_BUILDKIT=1 docker build \
         $NO_CACHE \
         --platform "$PLATFORM" \
-        -f "$PROJECT_ROOT/docker/Dockerfile.arch-test" \
+        -f "$PROJECT_ROOT/docker/Dockerfile.test" \
         -t "redoubt-test-$TARGET_ARCH" \
         "$PROJECT_ROOT"
 
     echo "Running cross-architecture tests on $TARGET_ARCH..."
 
-    # If user provided custom args, override the default CMD
-    if [[ ${#CARGO_ARGS[@]} -gt 0 ]]; then
-        docker run --rm \
-            --platform "$PLATFORM" \
-            -v "redoubt-cargo-cache-$TARGET_ARCH:/usr/local/cargo/registry" \
-            -v "redoubt-target-cache-$TARGET_ARCH:/workspace/target" \
-            "redoubt-test-$TARGET_ARCH" \
-            cargo test --color always "${CARGO_ARGS[@]}" -- --nocapture
-    else
-        # Use default CMD from Dockerfile
-        docker run --rm \
-            --platform "$PLATFORM" \
-            -v "redoubt-cargo-cache-$TARGET_ARCH:/usr/local/cargo/registry" \
-            -v "redoubt-target-cache-$TARGET_ARCH:/workspace/target" \
-            "redoubt-test-$TARGET_ARCH"
-    fi
+    # If user provided custom args, pass them to the container
+    docker run --rm \
+        --platform "$PLATFORM" \
+        -v "redoubt-cargo-cache-$TARGET_ARCH:/usr/local/cargo/registry" \
+        -v "redoubt-target-cache-$TARGET_ARCH:/workspace/target" \
+        "redoubt-test-$TARGET_ARCH" \
+        "${CARGO_ARGS[@]}"
 fi
