@@ -21,17 +21,7 @@ extern crate alloc;
 #[cfg(test)]
 mod tests;
 
-#[cfg(all(
-    not(feature = "pure-rust"),
-    any(
-        all(target_arch = "aarch64", not(target_family = "wasm")),
-        all(
-            target_arch = "x86_64",
-            any(target_os = "linux", target_os = "macos"),
-            not(target_family = "wasm")
-        )
-    )
-))]
+#[cfg(all(not(feature = "pure-rust"), is_asm_eligible))]
 mod asm;
 
 mod error;

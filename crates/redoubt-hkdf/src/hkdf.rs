@@ -11,17 +11,7 @@ use crate::error::HkdfError;
 const MAX_OUTPUT_LEN: usize = 255 * 32;
 
 /// HKDF-SHA256 key derivation (assembly implementation)
-#[cfg(all(
-    not(feature = "pure-rust"),
-    any(
-        all(target_arch = "aarch64", not(target_family = "wasm")),
-        all(
-            target_arch = "x86_64",
-            any(target_os = "linux", target_os = "macos"),
-            not(target_family = "wasm")
-        )
-    )
-))]
+#[cfg(all(not(feature = "pure-rust"), is_asm_eligible))]
 pub fn hkdf(salt: &[u8], ikm: &[u8], info: &[u8], okm: &mut [u8]) -> Result<(), HkdfError> {
     if okm.len() > MAX_OUTPUT_LEN {
         return Err(HkdfError::OutputTooLong);
