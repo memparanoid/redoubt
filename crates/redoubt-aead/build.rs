@@ -20,5 +20,26 @@ fn main() {
 
     if is_aegis_asm_eligible {
         println!("cargo:rustc-cfg=is_aegis_asm_eligible");
+
+        // Compile assembly implementation
+        match target_arch.as_str() {
+            "aarch64" => {
+                cc::Build::new()
+                    .file("src/aegis_asm/asm/aegis_128l_aarch64.S")
+                    .flag("-march=armv8-a+crypto")
+                    .compile("aegis_asm");
+
+                println!("cargo:rerun-if-changed=src/aegis_asm/asm/aegis_128l_aarch64.S");
+            }
+            "x86_64" => {
+                cc::Build::new()
+                    .file("src/aegis_asm/asm/aegis_128l_x86_64.S")
+                    .flag("-maes")
+                    .compile("aegis_asm");
+
+                println!("cargo:rerun-if-changed=src/aegis_asm/asm/aegis_128l_x86_64.S");
+            }
+            _ => {}
+        }
     }
 }
