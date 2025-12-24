@@ -86,21 +86,25 @@ mod tests {
         // Read individual fields
         cb.open_master_seed(|seed| {
             assert_eq!(*seed, [0x42; 32]);
+            Ok(())
         })
         .expect("Failed to open_master_seed(..)");
 
         cb.open_encryption_key(|key| {
             assert_eq!(*key, [0xAB; 32]);
+            Ok(())
         })
         .expect("Failed to open_encryption_key(..)");
 
         cb.open_signing_key(|key| {
             assert_eq!(*key, [0xCD; 32]);
+            Ok(())
         })
         .expect("Failed to open_signing_key(..)");
 
         cb.open_pin_hash(|hash| {
             assert_eq!(*hash, [0xEF; 32]);
+            Ok(())
         })
         .expect("Failed to open_pin_hash(..)");
     }
@@ -112,21 +116,25 @@ mod tests {
         // Modify individual fields
         cb.open_master_seed_mut(|seed| {
             *seed = [0x42; 32];
+            Ok(())
         })
         .expect("Failed to open_master_seed_mut(..)");
 
         cb.open_encryption_key_mut(|key| {
             *key = [0xAB; 32];
+            Ok(())
         })
         .expect("Failed to open_encryption_key_mut(..)");
 
         cb.open_signing_key_mut(|key| {
             *key = [0xCD; 32];
+            Ok(())
         })
         .expect("Failed to open_signing_key_mut(..)");
 
         cb.open_pin_hash_mut(|hash| {
             *hash = [0xEF; 32];
+            Ok(())
         })
         .expect("Failed to open_pin_hash_mut(..)");
 

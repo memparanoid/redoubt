@@ -351,8 +351,7 @@ where
             value.fast_zeroize();
         })?;
 
-        self.encrypt_struct(&master_key, &mut value)
-            .map_err(E::from)?;
+        self.encrypt_struct(&master_key, &mut value)?;
 
         Ok(result)
     }
@@ -399,17 +398,16 @@ where
             value.fast_zeroize();
         })?;
 
-        self.encrypt_struct(&master_key, &mut value)
-            .map_err(E::from)?;
+        self.encrypt_struct(&master_key, &mut value)?;
 
         Ok(result)
     }
 
     #[inline(always)]
-    pub fn open_field_dyn<Field, const M: usize, E>(
+    pub fn open_field_dyn<Field, const M: usize, R, E>(
         &mut self,
-        f: &mut dyn Fn(&Field),
-    ) -> Result<(), E>
+        f: &mut dyn Fn(&Field) -> Result<R, E>,
+    ) -> Result<R, E>
     where
         Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
         E: From<CipherBoxError>,
@@ -424,16 +422,20 @@ where
         let mut field = ZeroizingGuard::new(Field::default());
 
         self.decrypt_field::<Field, M>(&master_key, &mut field)?;
-        f(&field);
 
-        Ok(())
+        let result = f(&field).inspect_err(|_| {
+            // wipe asap
+            field.fast_zeroize();
+        })?;
+
+        Ok(result)
     }
 
     #[inline(always)]
-    pub fn open_field_mut_dyn<Field, const M: usize, E>(
+    pub fn open_field_mut_dyn<Field, const M: usize, R, E>(
         &mut self,
-        f: &mut dyn Fn(&mut Field),
-    ) -> Result<(), E>
+        f: &mut dyn Fn(&mut Field) -> Result<R, E>,
+    ) -> Result<R, E>
     where
         Field: Default + FastZeroizable + Encryptable + Decryptable + ZeroizationProbe,
         E: From<CipherBoxError>,
@@ -448,10 +450,15 @@ where
         let mut field = ZeroizingGuard::new(Field::default());
 
         self.decrypt_field::<Field, M>(&master_key, &mut field)?;
-        f(&mut field);
+
+        let result = f(&mut field).inspect_err(|_| {
+            // wipe asap
+            field.fast_zeroize();
+        })?;
+
         self.encrypt_field::<Field, M>(&master_key, &mut field)?;
 
-        Ok(())
+        Ok(result)
     }
 
     #[inline(always)]
@@ -473,26 +480,23 @@ where
     }
 
     #[inline(always)]
-    pub fn open_field<Field, const M: usize, F, E>(&mut self, mut f: F) -> Result<(), E>
+    pub fn open_field<Field, const M: usize, F, R, E>(&mut self, mut f: F) -> Result<R, E>
     where
         Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
-        F: Fn(&Field),
+        F: Fn(&Field) -> Result<R, E>,
         E: From<CipherBoxError>,
     {
-        self.open_field_dyn::<Field, M, E>(&mut f)
+        self.open_field_dyn::<Field, M, R, E>(&mut f)
     }
 
     #[inline(always)]
-    pub fn open_field_mut<Field, const M: usize, F, E>(
-        &mut self,
-        mut f: F,
-    ) -> Result<(), E>
+    pub fn open_field_mut<Field, const M: usize, F, R, E>(&mut self, mut f: F) -> Result<R, E>
     where
         Field: Default + FastZeroizable + Encryptable + Decryptable + ZeroizationProbe,
-        F: Fn(&mut Field),
+        F: Fn(&mut Field) -> Result<R, E>,
         E: From<CipherBoxError>,
     {
-        self.open_field_mut_dyn::<Field, M, E>(&mut f)
+        self.open_field_mut_dyn::<Field, M, R, E>(&mut f)
     }
 
     /// Leaks a single field by returning ownership (no re-encryption needed).
@@ -522,9 +526,7 @@ where
     /// - Use the field data across multiple statements
     /// - Implement the leak-operate-commit pattern for fallible operations
     #[inline(always)]
-    pub fn leak_field<Field, const M: usize, E>(
-        &mut self,
-    ) -> Result<ZeroizingGuard<Field>, E>
+    pub fn leak_field<Field, const M: usize, E>(&mut self) -> Result<ZeroizingGuard<Field>, E>
     where
         Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
         E: From<CipherBoxError>,

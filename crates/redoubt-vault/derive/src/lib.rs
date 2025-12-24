@@ -259,21 +259,21 @@ fn expand(
 
         open_methods.push(quote! {
             #[inline(always)]
-            pub fn #open_name<F>(&mut self, f: F) -> Result<(), #error_type>
+            pub fn #open_name<F, R>(&mut self, f: F) -> Result<R, #error_type>
             where
-                F: Fn(&#field_type),
+                F: Fn(&#field_type) -> Result<R, #error_type>,
             {
-                self.inner.open_field::<#field_type, #idx_lit, F, #error_type>(f)
+                self.inner.open_field::<#field_type, #idx_lit, F, R, #error_type>(f)
             }
         });
 
         open_mut_methods.push(quote! {
             #[inline(always)]
-            pub fn #open_mut_name<F>(&mut self, f: F) -> Result<(), #error_type>
+            pub fn #open_mut_name<F, R>(&mut self, f: F) -> Result<R, #error_type>
             where
-                F: Fn(&mut #field_type),
+                F: Fn(&mut #field_type) -> Result<R, #error_type>,
             {
-                self.inner.open_field_mut::<#field_type, #idx_lit, F, #error_type>(f)
+                self.inner.open_field_mut::<#field_type, #idx_lit, F, R, #error_type>(f)
             }
         });
     }

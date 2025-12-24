@@ -106,45 +106,46 @@ impl DeltaBox {
         self.inner.leak_field::<[u8; 32], 1, redoubt_vault_core::CipherBoxError>()
     }
     #[inline(always)]
-    pub fn open_alpha<F>(
+    pub fn open_alpha<F, R>(
         &mut self,
         f: F,
-    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&Vec<u8>),
+        F: Fn(&Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        self.inner.open_field::<Vec<u8>, 0, F, redoubt_vault_core::CipherBoxError>(f)
+        self.inner.open_field::<Vec<u8>, 0, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
     #[inline(always)]
-    pub fn open_beta<F>(
+    pub fn open_beta<F, R>(
         &mut self,
         f: F,
-    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&[u8; 32]),
+        F: Fn(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        self.inner.open_field::<[u8; 32], 1, F, redoubt_vault_core::CipherBoxError>(f)
+        self.inner.open_field::<[u8; 32], 1, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
     #[inline(always)]
-    pub fn open_alpha_mut<F>(
+    pub fn open_alpha_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&mut Vec<u8>),
-    {
-        self.inner.open_field_mut::<Vec<u8>, 0, F, redoubt_vault_core::CipherBoxError>(f)
-    }
-    #[inline(always)]
-    pub fn open_beta_mut<F>(
-        &mut self,
-        f: F,
-    ) -> Result<(), redoubt_vault_core::CipherBoxError>
-    where
-        F: Fn(&mut [u8; 32]),
+        F: Fn(&mut Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner
-            .open_field_mut::<[u8; 32], 1, F, redoubt_vault_core::CipherBoxError>(f)
+            .open_field_mut::<Vec<u8>, 0, F, R, redoubt_vault_core::CipherBoxError>(f)
+    }
+    #[inline(always)]
+    pub fn open_beta_mut<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    where
+        F: Fn(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
+    {
+        self.inner
+            .open_field_mut::<[u8; 32], 1, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
 }
 impl Default for DeltaBox {

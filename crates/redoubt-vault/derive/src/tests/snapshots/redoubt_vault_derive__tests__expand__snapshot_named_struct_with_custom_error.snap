@@ -97,32 +97,32 @@ impl WithCustomErrorBox {
         self.inner.leak_field::<u64, 1, MyCustomError>()
     }
     #[inline(always)]
-    pub fn open_field1<F>(&mut self, f: F) -> Result<(), MyCustomError>
+    pub fn open_field1<F, R>(&mut self, f: F) -> Result<R, MyCustomError>
     where
-        F: Fn(&Vec<u8>),
+        F: Fn(&Vec<u8>) -> Result<R, MyCustomError>,
     {
-        self.inner.open_field::<Vec<u8>, 0, F, MyCustomError>(f)
+        self.inner.open_field::<Vec<u8>, 0, F, R, MyCustomError>(f)
     }
     #[inline(always)]
-    pub fn open_field2<F>(&mut self, f: F) -> Result<(), MyCustomError>
+    pub fn open_field2<F, R>(&mut self, f: F) -> Result<R, MyCustomError>
     where
-        F: Fn(&u64),
+        F: Fn(&u64) -> Result<R, MyCustomError>,
     {
-        self.inner.open_field::<u64, 1, F, MyCustomError>(f)
+        self.inner.open_field::<u64, 1, F, R, MyCustomError>(f)
     }
     #[inline(always)]
-    pub fn open_field1_mut<F>(&mut self, f: F) -> Result<(), MyCustomError>
+    pub fn open_field1_mut<F, R>(&mut self, f: F) -> Result<R, MyCustomError>
     where
-        F: Fn(&mut Vec<u8>),
+        F: Fn(&mut Vec<u8>) -> Result<R, MyCustomError>,
     {
-        self.inner.open_field_mut::<Vec<u8>, 0, F, MyCustomError>(f)
+        self.inner.open_field_mut::<Vec<u8>, 0, F, R, MyCustomError>(f)
     }
     #[inline(always)]
-    pub fn open_field2_mut<F>(&mut self, f: F) -> Result<(), MyCustomError>
+    pub fn open_field2_mut<F, R>(&mut self, f: F) -> Result<R, MyCustomError>
     where
-        F: Fn(&mut u64),
+        F: Fn(&mut u64) -> Result<R, MyCustomError>,
     {
-        self.inner.open_field_mut::<u64, 1, F, MyCustomError>(f)
+        self.inner.open_field_mut::<u64, 1, F, R, MyCustomError>(f)
     }
 }
 impl Default for WithCustomErrorBox {

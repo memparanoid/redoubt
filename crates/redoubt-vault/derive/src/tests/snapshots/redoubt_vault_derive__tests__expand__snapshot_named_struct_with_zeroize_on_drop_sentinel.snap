@@ -105,46 +105,46 @@ impl EpsilonBox {
         self.inner.leak_field::<[u8; 32], 1, redoubt_vault_core::CipherBoxError>()
     }
     #[inline(always)]
-    pub fn open_master_seed<F>(
+    pub fn open_master_seed<F, R>(
         &mut self,
         f: F,
-    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&[u8; 32]),
+        F: Fn(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        self.inner.open_field::<[u8; 32], 0, F, redoubt_vault_core::CipherBoxError>(f)
+        self.inner.open_field::<[u8; 32], 0, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
     #[inline(always)]
-    pub fn open_encryption_key<F>(
+    pub fn open_encryption_key<F, R>(
         &mut self,
         f: F,
-    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&[u8; 32]),
+        F: Fn(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        self.inner.open_field::<[u8; 32], 1, F, redoubt_vault_core::CipherBoxError>(f)
+        self.inner.open_field::<[u8; 32], 1, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
     #[inline(always)]
-    pub fn open_master_seed_mut<F>(
+    pub fn open_master_seed_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&mut [u8; 32]),
+        F: Fn(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner
-            .open_field_mut::<[u8; 32], 0, F, redoubt_vault_core::CipherBoxError>(f)
+            .open_field_mut::<[u8; 32], 0, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
     #[inline(always)]
-    pub fn open_encryption_key_mut<F>(
+    pub fn open_encryption_key_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<(), redoubt_vault_core::CipherBoxError>
+    ) -> Result<R, redoubt_vault_core::CipherBoxError>
     where
-        F: Fn(&mut [u8; 32]),
+        F: Fn(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
         self.inner
-            .open_field_mut::<[u8; 32], 1, F, redoubt_vault_core::CipherBoxError>(f)
+            .open_field_mut::<[u8; 32], 1, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
 }
 impl Default for EpsilonBox {
