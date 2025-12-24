@@ -851,7 +851,6 @@ dependencies = [
 name = "redoubt-alloc"
 version = "0.0.1"
 dependencies = [
- "insta",
  "redoubt-util",
  "redoubt-zero",
  "thiserror",
@@ -861,7 +860,6 @@ dependencies = [
 name = "redoubt-buffer"
 version = "0.0.1"
 dependencies = [
- "insta",
  "libc",
  "libseccomp",
  "redoubt-rand",
@@ -883,7 +881,6 @@ dependencies = [
 name = "redoubt-codec-core"
 version = "0.0.1"
 dependencies = [
- "insta",
  "redoubt-alloc",
  "redoubt-test-utils",
  "redoubt-util",
