@@ -21,6 +21,9 @@ quote.workspace            = true
 syn.workspace              = true
 
 [dev-dependencies]
-insta.workspace        = true
 prettyplease.workspace = true
 trybuild.workspace     = true
+
+# Only include insta on architectures where it compiles (cpufeatures constraint)
+[target.'cfg(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", target_arch = "loongarch64"))'.dev-dependencies]
+insta.workspace = true

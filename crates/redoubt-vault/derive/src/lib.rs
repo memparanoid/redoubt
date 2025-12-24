@@ -4,7 +4,8 @@
 
 //! Procedural macros for redoubt-vault.
 
-#[cfg(test)]
+// Only run unit tests on architectures where insta (-> sha2 -> cpufeatures) compiles
+#[cfg(all(test, any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", target_arch = "loongarch64")))]
 mod tests;
 
 use proc_macro::TokenStream;
