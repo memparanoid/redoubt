@@ -15,6 +15,14 @@ fn test_secret_assert_zeroization_probe_trait() {
 }
 
 #[test]
+fn test_secret_default() {
+    let mut secret = RedoubtSecret::<Vec<u8>>::default();
+    secret.replace(&mut vec![1, 2, 3, 4]);
+
+    assert_eq!(secret.as_ref(), &vec![1, 2, 3, 4]);
+}
+
+#[test]
 fn test_secret_as_ref_as_mut() {
     let mut data = vec![1u8, 2, 3, 4];
     let mut secret = RedoubtSecret::from(&mut data);

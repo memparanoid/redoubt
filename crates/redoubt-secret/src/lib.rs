@@ -9,6 +9,8 @@
 
 extern crate alloc;
 
+use alloc::boxed::Box;
+
 #[cfg(test)]
 mod tests;
 
@@ -71,14 +73,26 @@ use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropS
 /// // ✅ SAFE: Only uses a reference
 /// assert_eq!(secret.as_ref(), &0xDEADBEEF);
 /// ```
-#[derive(Default, PartialEq, Eq, RedoubtZero, RedoubtCodec)]
+#[derive(PartialEq, Eq, RedoubtZero, RedoubtCodec)]
 pub struct RedoubtSecret<T>
 where
     T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
 {
-    inner: T,
+    inner: Box<T>,
     #[codec(default)]
     __sentinel: ZeroizeOnDropSentinel,
+}
+
+impl<T> Default for RedoubtSecret<T>
+where
+    T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired + Default,
+{
+    fn default() -> Self {
+        Self {
+            inner: Box::new(T::default()),
+            __sentinel: ZeroizeOnDropSentinel::default(),
+        }
+    }
 }
 
 impl<T> fmt::Debug for RedoubtSecret<T>
@@ -96,8 +110,10 @@ where
 {
     /// Creates a new `RedoubtSecret` by moving data from `sensitive_data`, zeroizing the source.
     ///
-    /// This method uses [`core::mem::swap`] to transfer data without creating
+    /// This method uses [`core::mem::take`] to transfer data without creating
     /// unzeroized copies. The source `sensitive_data` is guaranteed to be zeroized after this call.
+    ///
+    /// The data is stored on the heap to prevent stack-based leaks when returning.
     ///
     /// # Example
     ///
@@ -112,21 +128,26 @@ where
     ///
     /// assert_eq!(secret.as_ref(), &0xDEADBEEFCAFEBABE);
     /// ```
+    #[inline(never)]
     pub fn from(sensitive_data: &mut T) -> Self
     where
         T: Default,
     {
-        let mut secret = Self::default();
-        secret.replace(sensitive_data);
-        secret
+        // Take value from source, leaving it zeroized (Default replaces with zeros)
+        let value = core::mem::take(sensitive_data);
+
+        Self {
+            inner: Box::new(value),
+            __sentinel: ZeroizeOnDropSentinel::default(),
+        }
     }
 
     /// Replaces the inner value with a new one, zeroizing both the old value and the source.
     ///
     /// This method:
     /// 1. Zeroizes the current inner value
-    /// 2. Swaps the new value from `value` into `self`
-    /// 3. Zeroizes the source (which now contains the old value)
+    /// 2. Takes the new value from `value` into heap
+    /// 3. Zeroizes the source (which is replaced with Default)
     ///
     /// # Example
     ///
@@ -143,15 +164,18 @@ where
     /// // secret now contains the value
     /// assert_eq!(*secret.as_ref(), 0xCAFEBABE);
     /// ```
-    pub fn replace(&mut self, value: &mut T) {
+    pub fn replace(&mut self, value: &mut T)
+    where
+        T: Default,
+    {
         // Zeroize old value
         self.inner.fast_zeroize();
 
-        // Swap values (moves value into self, moves old self into value)
-        core::mem::swap(&mut self.inner, value);
+        // Take new value from source (leaving it with Default/zeros)
+        let new_value = core::mem::take(value);
 
-        // Zeroize source (which now contains the old zeroized value)
-        value.fast_zeroize();
+        // Replace Box content
+        *self.inner = new_value;
     }
 }
 

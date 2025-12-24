@@ -3,11 +3,21 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(feature = "__internal__forensics")]
+use std::hint::black_box;
+
+#[cfg(feature = "__internal__forensics")]
 use redoubt::{FastZeroizable, ZeroizeOnDropSentinel, reset_master_key};
+#[cfg(feature = "__internal__forensics")]
 use redoubt::{
     RedoubtArray, RedoubtCodec, RedoubtOption, RedoubtSecret, RedoubtString, RedoubtVec,
     RedoubtZero, cipherbox,
 };
+
+#[cfg(feature = "__internal__forensics")]
+#[inline(never)]
+fn use_u64_ref(val: &u64) {
+    black_box(val);
+}
 
 #[cfg(feature = "__internal__forensics")]
 /// Calculate Shannon entropy in bits per byte
@@ -30,6 +40,7 @@ fn shannon_entropy(data: &[u8]) -> f64 {
     entropy
 }
 
+#[cfg(feature = "__internal__forensics")]
 #[cipherbox(TestBox)]
 #[derive(Default, RedoubtZero, RedoubtCodec)]
 #[fast_zeroize(drop)]
@@ -40,7 +51,9 @@ struct TestData {
     option_redoubt_vec: RedoubtOption<RedoubtVec<u8>>,
     option_redoubt_string: RedoubtOption<RedoubtString>,
     option_redoubt_array: RedoubtOption<RedoubtArray<u8, 1024>>,
-    secret_u64: RedoubtSecret<u64>,
+    option_option_redoubt_string: RedoubtOption<RedoubtOption<RedoubtString>>,
+    option_redoubt_secret_u64: RedoubtOption<RedoubtSecret<u64>>,
+    redoubt_secret_u64: RedoubtSecret<u64>,
 }
 
 #[cfg(feature = "__internal__forensics")]
@@ -53,6 +66,7 @@ struct Patterns {
     pattern_4: [u8; 1024], // option_redoubt_vec
     pattern_5: [u8; 1024], // option_redoubt_string
     pattern_6: [u8; 1024], // option_redoubt_array
+    pattern_7: [u8; 1024], // option_option_redoubt_string
     __sentinel: ZeroizeOnDropSentinel,
 }
 
@@ -66,6 +80,7 @@ impl Default for Patterns {
             pattern_4: [0u8; 1024],
             pattern_5: [0u8; 1024],
             pattern_6: [0u8; 1024],
+            pattern_7: [0u8; 1024],
             __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
@@ -80,6 +95,7 @@ impl Patterns {
         self.pattern_4 = core::array::from_fn(|_| 0xDD); // option_redoubt_vec
         self.pattern_5 = core::array::from_fn(|_| 0x45); // option_redoubt_string - 'E'
         self.pattern_6 = core::array::from_fn(|_| 0xFF); // option_redoubt_array
+        self.pattern_7 = core::array::from_fn(|_| 0x47); // option_option_redoubt_string - 'G'
     }
 }
 
@@ -87,14 +103,16 @@ impl Patterns {
 #[derive(Clone, Default, RedoubtZero)]
 #[fast_zeroize(drop)]
 struct Values {
-    value_1: u64, // secret_u64
+    value_1: u64, // redoubt_secret_u64
+    value_2: u64, // option_redoubt_secret_u64 (RedoubtOption<RedoubtSecret<u64>>)
     __sentinel: ZeroizeOnDropSentinel,
 }
 
 #[cfg(feature = "__internal__forensics")]
 impl Values {
     fn fill(&mut self) {
-        self.value_1 = 0xDEADBEEFCAFEBABE; // secret_u64
+        self.value_1 = 0xDEADBEEFCAFEBABE; // redoubt_secret_u64
+        self.value_2 = 0xCAFEBABEDEADBEEF; // option_redoubt_secret_u64
     }
 }
 
@@ -159,8 +177,10 @@ fn main() {
         println!("[+] Pattern 4 (option_redoubt_vec): 1024 bytes of 0xDD");
         println!("[+] Pattern 5 (option_redoubt_string): 1024 bytes of 0x45 'E'");
         println!("[+] Pattern 6 (option_redoubt_array): 1024 bytes of 0xFF");
+        println!("[+] Pattern 7 (option_option_redoubt_string): 1024 bytes of 0x47 'G'");
         println!();
-        println!("[+] Value 1 (secret_u64): 0xDEADBEEFCAFEBABE");
+        println!("[+] Value 1 (redoubt_secret_u64): 0xDEADBEEFCAFEBABE");
+        println!("[+] Value 2 (option_redoubt_secret_u64): 0xCAFEBABEDEADBEEF");
         println!();
 
         // Run iterations to test for leaks
@@ -208,8 +228,28 @@ fn main() {
                             &mut temp_patterns.pattern_6,
                         ));
 
-                    // Populate `secret_u64` field
-                    data.secret_u64.replace(&mut temp_values.value_1);
+                    // Populate `option_option_redoubt_string` field
+                    let not_leaked_str_pattern = std::str::from_utf8(&temp_patterns.pattern_7)
+                        .expect("Pattern 7 should be valid UTF-8");
+                    let mut not_leaked_string = RedoubtString::from_str(not_leaked_str_pattern);
+                    let mut not_leaked_option = RedoubtOption::default();
+                    not_leaked_option.replace(&mut not_leaked_string);
+                    data.option_option_redoubt_string
+                        .replace(&mut not_leaked_option);
+
+                    // Populate `option_redoubt_secret_u64` field
+                    let mut leaked = RedoubtSecret::from(&mut temp_values.value_2);
+
+                    // Force deref through as_ref() with black_box to prevent optimization
+                    use_u64_ref(leaked.as_ref());
+
+                    data.option_redoubt_secret_u64.replace(&mut leaked);
+
+                    // Populate `redoubt_secret_u64` field
+                    data.redoubt_secret_u64.replace(&mut temp_values.value_1);
+
+                    // Force deref through as_ref() with black_box
+                    use_u64_ref(data.redoubt_secret_u64.as_ref());
 
                     // Zeroize temporary clones
                     temp_patterns.fast_zeroize();
@@ -244,10 +284,12 @@ fn main() {
         println!("Pattern #4: dd"); // `option_redoubt_vec` field pattern (1024 bytes of 0xDD)
         println!("Pattern #5: 45"); // `option_redoubt_string` field pattern (1024 bytes of 0x45 'E')
         println!("Pattern #6: ff"); // `option_redoubt_array` field pattern (1024 bytes of 0xFF)
+        println!("Pattern #7: 47"); // `option_option_redoubt_string` field pattern (1024 bytes of 0x47 'G')
         println!();
 
         // Print secret values
-        println!("Value #1: deadbeefcafebabe"); // `secret_u64` field value
+        println!("Value #1: deadbeefcafebabe"); // `redoubt_secret_u64` field value
+        println!("Value #2: cafebabedeadbeef"); // `option_redoubt_secret_u64` field value
         println!();
 
         // Zeroize all patterns and values
@@ -262,7 +304,9 @@ fn main() {
         let sum4: u32 = patterns.pattern_4.iter().map(|&b| b as u32).sum();
         let sum5: u32 = patterns.pattern_5.iter().map(|&b| b as u32).sum();
         let sum6: u32 = patterns.pattern_6.iter().map(|&b| b as u32).sum();
+        let sum7: u32 = patterns.pattern_7.iter().map(|&b| b as u32).sum();
         let val1: u64 = values.value_1;
+        let val2: u64 = values.value_2;
         println!("[*] Post-zeroize verification:");
         println!("    pattern_1 sum: {} (should be 0)", sum1);
         println!("    pattern_2 sum: {} (should be 0)", sum2);
@@ -270,7 +314,9 @@ fn main() {
         println!("    pattern_4 sum: {} (should be 0)", sum4);
         println!("    pattern_5 sum: {} (should be 0)", sum5);
         println!("    pattern_6 sum: {} (should be 0)", sum6);
+        println!("    pattern_7 sum: {} (should be 0)", sum7);
         println!("    value_1: {} (should be 0)", val1);
+        println!("    value_2: {} (should be 0)", val2);
         println!();
 
         // Signal to script that we're ready for dump
