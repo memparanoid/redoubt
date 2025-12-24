@@ -120,7 +120,7 @@ fn run_test_case(tc: &TestCase) -> Result<(), String> {
 }
 
 #[test]
-fn test_wycheproof_first_10() {
+fn test_aegis128l_wycheproof_first_10() {
     use super::wycheproof_vectors::test_vectors;
 
     let vectors = test_vectors();
@@ -138,7 +138,7 @@ fn test_wycheproof_first_10() {
 }
 
 #[test]
-fn test_wycheproof_all() {
+fn test_aegis128l_wycheproof_all() {
     #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
     {
         eprintln!("Skipping: AEGIS-128L requires AES hardware support");
@@ -167,7 +167,7 @@ fn test_wycheproof_all() {
 }
 
 #[test]
-fn test_wycheproof_valid_with_flipped_tag() {
+fn test_aegis128l_wycheproof_valid_with_flipped_tag() {
     use super::wycheproof_vectors::test_vectors;
 
     let vectors = test_vectors();
@@ -220,7 +220,7 @@ fn test_wycheproof_valid_with_flipped_tag() {
 }
 
 #[test]
-fn test_wycheproof_roundtrip() {
+fn test_aegis128l_wycheproof_roundtrip() {
     use super::wycheproof_vectors::test_vectors;
 
     let vectors = test_vectors();

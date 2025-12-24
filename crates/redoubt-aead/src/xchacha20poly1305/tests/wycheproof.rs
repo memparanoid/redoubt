@@ -177,7 +177,7 @@ fn run_test_case(tc: &TestCase) -> Result<(), String> {
 }
 
 #[test]
-fn test_wycheproof_first_10() {
+fn test_xchacha20poly1305_wycheproof_first_10() {
     use super::wycheproof_vectors::test_vectors;
 
     let vectors = test_vectors();
@@ -195,7 +195,7 @@ fn test_wycheproof_first_10() {
 }
 
 #[test]
-fn test_wycheproof_all() {
+fn test_xchacha20poly1305_wycheproof_all() {
     use super::wycheproof_vectors::test_vectors;
 
     let vectors = test_vectors();
@@ -219,7 +219,7 @@ fn test_wycheproof_all() {
 
 /// For every valid test case, flip a bit in the tag and verify authentication fails
 #[test]
-fn test_wycheproof_valid_with_flipped_tag() {
+fn test_xchacha20poly1305_wycheproof_valid_with_flipped_tag() {
     use super::wycheproof_vectors::test_vectors;
     use crate::AeadError;
 
@@ -275,7 +275,7 @@ fn test_wycheproof_valid_with_flipped_tag() {
 
 /// For every valid test case, decrypt then re-encrypt and verify we get the same ciphertext+tag
 #[test]
-fn test_wycheproof_roundtrip() {
+fn test_xchacha20poly1305_wycheproof_roundtrip() {
     use super::wycheproof_vectors::test_vectors;
 
     let vectors = test_vectors();
