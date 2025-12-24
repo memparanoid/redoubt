@@ -56,9 +56,12 @@
 //!         w.pin_hash.replace_from_mut_array(&mut hash);
 //!
 //!         w.mnemonic.extend_from_str("abandon abandon ...");
+//!
+//!         Ok(())
 //!     }).unwrap();
 //!
 //!     // Use them when needed
+//!     let transaction = ();
 //!     wallet.open_signing_key(|key| {
 //!         sign_transaction(key, &transaction);
 //!     }).unwrap();
@@ -68,7 +71,6 @@
 //! # fn derive_signing_key(_: &RedoubtArray<u8, 64>) -> [u8; 32] { [0u8; 32] }
 //! # fn hash_pin(_: &str) -> [u8; 32] { [0u8; 32] }
 //! # fn sign_transaction(_: &RedoubtArray<u8, 32>, _: &()) {}
-//! # let transaction = ();
 //! ```
 //!
 //! # API Overview
@@ -83,11 +85,12 @@
 //! # #[derive(Default, RedoubtCodec, RedoubtZero)]
 //! # struct Wallet { pin_hash: RedoubtArray<u8, 32> }
 //! # let mut wallet = WalletBox::new();
+//! # let user_input = "";
 //! wallet.open(|w| {
 //!     verify_pin(&w.pin_hash, user_input);
+//!     Ok(())
 //! }).unwrap();
 //! # fn verify_pin(_: &RedoubtArray<u8, 32>, _: &str) {}
-//! # let user_input = "";
 //! ```
 //!
 //! ## Modifying secrets
@@ -100,12 +103,13 @@
 //! # #[derive(Default, RedoubtCodec, RedoubtZero)]
 //! # struct Wallet { pin_hash: RedoubtArray<u8, 32> }
 //! # let mut wallet = WalletBox::new();
+//! # let new_pin = "";
 //! wallet.open_mut(|w| {
 //!     let mut new_hash = hash_pin(new_pin);
 //!     w.pin_hash.replace_from_mut_array(&mut new_hash);
+//!     Ok(())
 //! }).unwrap();
 //! # fn hash_pin(_: &str) -> [u8; 32] { [0u8; 32] }
-//! # let new_pin = "";
 //! ```
 //!
 //! ## Field-level access
@@ -113,11 +117,13 @@
 //! Access individual fields without decrypting the entire struct:
 //!
 //! ```rust
-//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, Secret};
+//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtSecret};
 //! # #[cipherbox(WalletBox)]
 //! # #[derive(Default, RedoubtCodec, RedoubtZero)]
-//! # struct Wallet { signing_key: Secret<[u8; 32]>, pin_hash: Secret<[u8; 32]> }
+//! # struct Wallet { signing_key: RedoubtSecret<[u8; 32]>, pin_hash: RedoubtSecret<[u8; 32]> }
 //! # let mut wallet = WalletBox::new();
+//! # let tx = ();
+//! # let new_pin = "";
 //! // Read only the signing key (other fields stay encrypted)
 //! wallet.open_signing_key(|key| {
 //!     sign_transaction(key, &tx);
@@ -125,12 +131,10 @@
 //!
 //! // Modify only the pin hash
 //! wallet.open_pin_hash_mut(|hash| {
-//!     *hash = Secret::new(hash_pin(new_pin));
+//!     hash.replace(&mut hash_pin(new_pin));
 //! }).unwrap();
-//! # fn sign_transaction(_: &Secret<[u8; 32]>, _: &()) {}
+//! # fn sign_transaction(_: &RedoubtSecret<[u8; 32]>, _: &()) {}
 //! # fn hash_pin(_: &str) -> [u8; 32] { [0u8; 32] }
-//! # let tx = ();
-//! # let new_pin = "";
 //! ```
 //!
 //! ## Leaking secrets
@@ -138,19 +142,19 @@
 //! Use `leak_*` when you need the value outside the closure. Returns a `ZeroizingGuard` that wipes memory on drop:
 //!
 //! ```rust
-//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, Secret};
+//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtSecret};
 //! # #[cipherbox(WalletBox)]
 //! # #[derive(Default, RedoubtCodec, RedoubtZero)]
-//! # struct Wallet { signing_key: Secret<[u8; 32]> }
+//! # struct Wallet { signing_key: RedoubtSecret<[u8; 32]> }
 //! # let mut wallet = WalletBox::new();
+//! # let message = b"";
 //! let signing_key = wallet.leak_signing_key().unwrap();
 //!
 //! // Use signing_key normally
 //! let signature = sign(&signing_key, message);
 //!
 //! // signing_key is zeroized when it goes out of scope
-//! # fn sign(_: &Secret<[u8; 32]>, _: &[u8]) -> [u8; 64] { [0u8; 64] }
-//! # let message = b"";
+//! # fn sign(_: &RedoubtSecret<[u8; 32]>, _: &[u8]) -> [u8; 64] { [0u8; 64] }
 //! ```
 //!
 //! # Types
@@ -158,14 +162,14 @@
 //! Redoubt provides secure containers for common types:
 //!
 //! ```rust
-//! use redoubt::{Secret, RedoubtVec, RedoubtString};
+//! use redoubt::{RedoubtSecret, RedoubtVec, RedoubtString};
 //!
 //! // Fixed-size secrets
-//! let api_key: Secret<[u8; 32]> = Secret::new([0u8; 32]);
+//! let api_key: RedoubtSecret<[u8; 32]> = RedoubtSecret::from(&mut [0u8; 32]);
 //!
 //! // Dynamic secrets (zeroized on realloc and drop)
-//! let mut tokens: Secret<RedoubtVec<u8>> = Secret::new(RedoubtVec::new());
-//! let mut password: Secret<RedoubtString> = Secret::new(RedoubtString::new());
+//! let mut tokens: RedoubtSecret<RedoubtVec<u8>> = RedoubtSecret::from(&mut RedoubtVec::new());
+//! let mut password: RedoubtSecret<RedoubtString> = RedoubtSecret::from(&mut RedoubtString::new());
 //! ```
 //!
 //! `RedoubtVec` and `RedoubtString` automatically zeroize old memory when they grow,

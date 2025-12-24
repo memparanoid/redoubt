@@ -17,6 +17,10 @@ redoubt-vault = { workspace = true }
 redoubt-aead = { workspace = true }
 redoubt-secret = { workspace = true }
 
+[dev-dependencies]
+redoubt-aead = { workspace = true, features = ["test_utils"] }
+redoubt-codec = { workspace = true, features = ["test_utils"] }
+
 [features]
 default = []
 no_std = ["redoubt-vault/no_std"]
