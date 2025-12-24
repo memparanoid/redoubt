@@ -35,6 +35,14 @@ where
         redoubt_zero_core::collections::collection_zeroed(&mut fields.into_iter())
     }
 }
+impl<'a, T> Drop for Tau<'a, T>
+where
+    T: Clone,
+{
+    fn drop(&mut self) {
+        redoubt_zero_core::FastZeroizable::fast_zeroize(self);
+    }
+}
 impl<'a, T> redoubt_zero_core::AssertZeroizeOnDrop for Tau<'a, T>
 where
     T: Clone,
@@ -44,13 +52,5 @@ where
     }
     fn assert_zeroize_on_drop(self) {
         redoubt_zero_core::assert::assert_zeroize_on_drop(self);
-    }
-}
-impl<'a, T> Drop for Tau<'a, T>
-where
-    T: Clone,
-{
-    fn drop(&mut self) {
-        redoubt_zero_core::FastZeroizable::fast_zeroize(self);
     }
 }

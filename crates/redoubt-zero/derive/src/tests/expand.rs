@@ -317,7 +317,8 @@ fn snapshot_tuple_struct_with_multiple_memzer_attrs() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_named_struct_without_sentinel_fails() {
+fn snapshot_named_struct_without_sentinel_no_assert_zeroize_on_drop_impl() {
+    // Without sentinel: should NOT implement AssertZeroizeOnDrop
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         struct Eta {
@@ -325,30 +326,32 @@ fn snapshot_named_struct_without_sentinel_fails() {
         }
     };
 
-    let result = expand(derive_input);
-    assert!(result.is_err());
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
 }
 
 #[test]
-fn snapshot_tuple_struct_without_sentinel_fails() {
+fn snapshot_tuple_struct_without_sentinel_no_assert_zeroize_on_drop_impl() {
+    // Without sentinel: should NOT implement AssertZeroizeOnDrop
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         struct Theta(u8, u16, u32);
     };
 
-    let result = expand(derive_input);
-    assert!(result.is_err());
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
 }
 
 #[test]
-fn snapshot_unit_struct_fails() {
+fn snapshot_unit_struct_no_assert_zeroize_on_drop_impl() {
+    // Unit struct without sentinel: should NOT implement AssertZeroizeOnDrop
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         struct Iota;
     };
 
-    let result = expand(derive_input);
-    assert!(result.is_err());
+    let token_stream = expand(derive_input).expect("expand failed");
+    insta::assert_snapshot!(pretty(token_stream));
 }
 
 #[test]

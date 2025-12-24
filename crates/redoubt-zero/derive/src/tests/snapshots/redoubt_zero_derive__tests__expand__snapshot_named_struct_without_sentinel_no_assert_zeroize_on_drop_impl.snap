@@ -1,0 +1,23 @@
+---
+source: crates/redoubt-zero/derive/src/tests/expand.rs
+expression: pretty(token_stream)
+---
+impl redoubt_zero_core::ZeroizeMetadata for Eta {
+    const CAN_BE_BULK_ZEROIZED: bool = false;
+}
+impl redoubt_zero_core::FastZeroizable for Eta {
+    fn fast_zeroize(&mut self) {
+        let fields: [&mut dyn redoubt_zero_core::FastZeroizable; 1] = [
+            redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(&mut self.alpha),
+        ];
+        redoubt_zero_core::collections::zeroize_collection(&mut fields.into_iter())
+    }
+}
+impl redoubt_zero_core::ZeroizationProbe for Eta {
+    fn is_zeroized(&self) -> bool {
+        let fields: [&dyn redoubt_zero_core::ZeroizationProbe; 1] = [
+            redoubt_zero_core::collections::to_zeroization_probe_dyn_ref(&self.alpha),
+        ];
+        redoubt_zero_core::collections::collection_zeroed(&mut fields.into_iter())
+    }
+}

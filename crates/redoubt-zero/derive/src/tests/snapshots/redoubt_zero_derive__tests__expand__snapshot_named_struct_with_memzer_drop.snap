@@ -26,16 +26,16 @@ impl redoubt_zero_core::ZeroizationProbe for Rho {
         redoubt_zero_core::collections::collection_zeroed(&mut fields.into_iter())
     }
 }
+impl Drop for Rho {
+    fn drop(&mut self) {
+        redoubt_zero_core::FastZeroizable::fast_zeroize(self);
+    }
+}
 impl redoubt_zero_core::AssertZeroizeOnDrop for Rho {
     fn clone_sentinel(&self) -> redoubt_zero_core::ZeroizeOnDropSentinel {
         self.__sentinel.clone()
     }
     fn assert_zeroize_on_drop(self) {
         redoubt_zero_core::assert::assert_zeroize_on_drop(self);
-    }
-}
-impl Drop for Rho {
-    fn drop(&mut self) {
-        redoubt_zero_core::FastZeroizable::fast_zeroize(self);
     }
 }

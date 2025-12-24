@@ -9,7 +9,15 @@
 #![warn(missing_docs)]
 
 // Only run unit tests on architectures where insta (-> sha2 -> cpufeatures) compiles
-#[cfg(all(test, any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", target_arch = "loongarch64")))]
+#[cfg(all(
+    test,
+    any(
+        target_arch = "x86_64",
+        target_arch = "x86",
+        target_arch = "aarch64",
+        target_arch = "loongarch64"
+    )
+))]
 mod tests;
 
 use proc_macro::TokenStream;
@@ -20,28 +28,34 @@ use syn::{
     Attribute, Data, DeriveInput, Fields, Ident, Index, LitStr, Meta, Type, parse_macro_input,
 };
 
-/// Derives `FastZeroizable`, `ZeroizeMetadata`, `ZeroizationProbe`, and `AssertZeroizeOnDrop` for a struct.
+/// Derives `FastZeroizable`, `ZeroizeMetadata`, `ZeroizationProbe`, and optionally `AssertZeroizeOnDrop` for a struct.
 ///
-/// This macro automatically generates trait implementations for structs that contain
-/// a `ZeroizeOnDropSentinel` field.
+/// This macro automatically generates trait implementations for structs.
 ///
 /// # Requirements
 ///
-/// - Named structs must have a field named `__sentinel: ZeroizeOnDropSentinel`
-/// - Tuple structs must have a field of type `ZeroizeOnDropSentinel`
-/// - All other fields must implement `FastZeroizable`
+/// - All fields must implement `FastZeroizable` (except fields with `#[fast_zeroize(skip)]`)
+///
+/// # Optional Sentinel Field
+///
+/// - Named structs can include a field named `__sentinel: ZeroizeOnDropSentinel`
+/// - Tuple structs can include a field of type `ZeroizeOnDropSentinel`
+/// - If present, `AssertZeroizeOnDrop` will be implemented for testing drop behavior
 ///
 /// # Attributes
 ///
 /// - `#[fast_zeroize(drop)]`: Also generates a `Drop` implementation that calls `fast_zeroize()`
+/// - `#[fast_zeroize(skip)]`: Skip a field from zeroization (e.g., immutable references)
 ///
 /// # Generated Implementations
 ///
 /// Always generated:
-/// - `FastZeroizable`: Zeroizes all fields including `__sentinel`
+/// - `FastZeroizable`: Zeroizes all fields (except skipped)
 /// - `ZeroizeMetadata`: Sets `CAN_BE_BULK_ZEROIZED = false`
-/// - `ZeroizationProbe`: Checks if all non-sentinel fields are zeroized
-/// - `AssertZeroizeOnDrop`: Provides test helpers for verifying zeroization
+/// - `ZeroizationProbe`: Checks if all fields are zeroized (except skipped and sentinel)
+///
+/// If `ZeroizeOnDropSentinel` field is present:
+/// - `AssertZeroizeOnDrop`: Provides test helpers for verifying zeroization on drop
 ///
 /// With `#[fast_zeroize(drop)]`:
 /// - `Drop`: Calls `fast_zeroize()` on drop
@@ -163,6 +177,12 @@ fn has_fast_zeroize_drop(attrs: &[Attribute]) -> bool {
     })
 }
 
+/// Sentinel field information.
+struct SentinelState {
+    index: usize,
+    access: TokenStream2,
+}
+
 /// Expands the DeriveInput into the necessary implementation of `RedoubtZero`.
 fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     let struct_name = &input.ident;
@@ -187,17 +207,18 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         }
     };
 
-    // 3) Identify the __sentinel field
+    // 3) Identify the __sentinel field (optional)
     let sentinel_ident = format_ident!("__sentinel");
-    let mut sentinel_inddex: Option<usize> = None;
-    let mut sentinel_access: Option<TokenStream2> = None;
+    let mut maybe_sentinel_state: Option<SentinelState> = None;
 
     for (i, f) in &all_fields {
         let is_sentinel = if let Some(ident) = &f.ident {
             // Named field: check if name is __sentinel
             if *ident == sentinel_ident {
-                sentinel_inddex = Some(*i);
-                sentinel_access = Some(quote! { self.#sentinel_ident });
+                maybe_sentinel_state = Some(SentinelState {
+                    index: *i,
+                    access: quote! { self.#sentinel_ident },
+                });
                 true
             } else {
                 false
@@ -206,8 +227,10 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
             // Unnamed field: check if type is ZeroizeOnDropSentinel
             if is_zeroize_on_drop_sentinel_type(&f.ty) {
                 let idx = Index::from(*i);
-                sentinel_inddex = Some(*i);
-                sentinel_access = Some(quote! { self.#idx });
+                maybe_sentinel_state = Some(SentinelState {
+                    index: *i,
+                    access: quote! { self.#idx },
+                });
                 true
             } else {
                 false
@@ -219,23 +242,14 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
         }
     }
 
-    if sentinel_inddex.is_none() {
-        return Err(syn::Error::new_spanned(
-            struct_name,
-            "RedoubtZero: missing field `__sentinel` (named structs) or field of type `ZeroizeOnDropSentinel` (tuple structs)",
-        )
-        .to_compile_error());
-    }
-
-    let sentinel_access = sentinel_access.unwrap();
-    let sentinel_idx = sentinel_inddex.unwrap();
-
     // 4) Validate and filter fields
     // - Check for immutable references without #[fast_zeroize(skip)]
     // - Filter out fields with #[fast_zeroize(skip)]
-    // - Filter out sentinel
+    // - Filter out sentinel (if present)
+    let sentinel_idx = maybe_sentinel_state.as_ref().map(|s| s.index);
+
     for (i, f) in &all_fields {
-        if *i == sentinel_idx {
+        if Some(*i) == sentinel_idx {
             continue;
         }
 
@@ -266,7 +280,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     // Special handling: if field is already &mut T, pass self.field directly (not &self.field)
     let (immut_refs_without_sentinel, _): (Vec<TokenStream2>, Vec<TokenStream2>) = all_fields
         .iter()
-        .filter(|(i, f)| *i != sentinel_idx && !has_fast_zeroize_skip(&f.attrs))
+        .filter(|(i, f)| Some(*i) != sentinel_idx && !has_fast_zeroize_skip(&f.attrs))
         .map(|(i, f)| {
             let is_mut_ref = is_mut_reference_type(&f.ty);
 
@@ -363,18 +377,31 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
             }
         }
 
-        impl #impl_generics #root::AssertZeroizeOnDrop for #struct_name #ty_generics #where_clause {
-            fn clone_sentinel(&self) -> #root::ZeroizeOnDropSentinel {
-                #sentinel_access.clone()
-            }
-
-            fn assert_zeroize_on_drop(self) {
-                #root::assert::assert_zeroize_on_drop(self);
-            }
-        }
-
         #drop_impl
     };
 
-    Ok(output)
+    // Conditionally implement AssertZeroizeOnDrop if sentinel is present
+    let assert_impl = if let Some(sentinel_state) = maybe_sentinel_state {
+        let sentinel_access = sentinel_state.access;
+        quote! {
+            impl #impl_generics #root::AssertZeroizeOnDrop for #struct_name #ty_generics #where_clause {
+                fn clone_sentinel(&self) -> #root::ZeroizeOnDropSentinel {
+                    #sentinel_access.clone()
+                }
+
+                fn assert_zeroize_on_drop(self) {
+                    #root::assert::assert_zeroize_on_drop(self);
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    let full_output = quote! {
+        #output
+        #assert_impl
+    };
+
+    Ok(full_output)
 }

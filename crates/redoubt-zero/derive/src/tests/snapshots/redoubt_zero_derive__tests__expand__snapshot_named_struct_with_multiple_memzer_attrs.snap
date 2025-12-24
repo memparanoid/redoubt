@@ -32,16 +32,16 @@ impl<'a> redoubt_zero_core::ZeroizationProbe for Chi<'a> {
         redoubt_zero_core::collections::collection_zeroed(&mut fields.into_iter())
     }
 }
+impl<'a> Drop for Chi<'a> {
+    fn drop(&mut self) {
+        redoubt_zero_core::FastZeroizable::fast_zeroize(self);
+    }
+}
 impl<'a> redoubt_zero_core::AssertZeroizeOnDrop for Chi<'a> {
     fn clone_sentinel(&self) -> redoubt_zero_core::ZeroizeOnDropSentinel {
         self.__sentinel.clone()
     }
     fn assert_zeroize_on_drop(self) {
         redoubt_zero_core::assert::assert_zeroize_on_drop(self);
-    }
-}
-impl<'a> Drop for Chi<'a> {
-    fn drop(&mut self) {
-        redoubt_zero_core::FastZeroizable::fast_zeroize(self);
     }
 }

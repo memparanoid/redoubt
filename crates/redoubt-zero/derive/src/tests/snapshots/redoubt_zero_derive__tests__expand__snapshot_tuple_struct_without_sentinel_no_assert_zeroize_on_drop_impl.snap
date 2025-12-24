@@ -2,10 +2,10 @@
 source: crates/redoubt-zero/derive/src/tests/expand.rs
 expression: pretty(token_stream)
 ---
-impl redoubt_zero_core::ZeroizeMetadata for Sigma {
+impl redoubt_zero_core::ZeroizeMetadata for Theta {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
-impl redoubt_zero_core::FastZeroizable for Sigma {
+impl redoubt_zero_core::FastZeroizable for Theta {
     fn fast_zeroize(&mut self) {
         let fields: [&mut dyn redoubt_zero_core::FastZeroizable; 3] = [
             redoubt_zero_core::collections::to_fast_zeroizable_dyn_mut(&mut self.0),
@@ -15,25 +15,13 @@ impl redoubt_zero_core::FastZeroizable for Sigma {
         redoubt_zero_core::collections::zeroize_collection(&mut fields.into_iter())
     }
 }
-impl redoubt_zero_core::ZeroizationProbe for Sigma {
+impl redoubt_zero_core::ZeroizationProbe for Theta {
     fn is_zeroized(&self) -> bool {
-        let fields: [&dyn redoubt_zero_core::ZeroizationProbe; 2] = [
+        let fields: [&dyn redoubt_zero_core::ZeroizationProbe; 3] = [
             redoubt_zero_core::collections::to_zeroization_probe_dyn_ref(&self.0),
             redoubt_zero_core::collections::to_zeroization_probe_dyn_ref(&self.1),
+            redoubt_zero_core::collections::to_zeroization_probe_dyn_ref(&self.2),
         ];
         redoubt_zero_core::collections::collection_zeroed(&mut fields.into_iter())
-    }
-}
-impl Drop for Sigma {
-    fn drop(&mut self) {
-        redoubt_zero_core::FastZeroizable::fast_zeroize(self);
-    }
-}
-impl redoubt_zero_core::AssertZeroizeOnDrop for Sigma {
-    fn clone_sentinel(&self) -> redoubt_zero_core::ZeroizeOnDropSentinel {
-        self.2.clone()
-    }
-    fn assert_zeroize_on_drop(self) {
-        redoubt_zero_core::assert::assert_zeroize_on_drop(self);
     }
 }
