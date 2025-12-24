@@ -31,4 +31,3 @@ features  = ["unsafe"]
 [dev-dependencies]
 redoubt-alloc = { workspace = true, features = ["test_utils"] }
 redoubt-test-utils.workspace = true
-insta.workspace = true

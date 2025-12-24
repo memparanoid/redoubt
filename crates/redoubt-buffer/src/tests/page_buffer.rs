@@ -32,7 +32,12 @@ fn test_new_mem_non_protected() {
     assert!(debug_output.contains("MemNonProtected"));
 }
 
+// TODO: Run this test in a subprocess to safely cover the MAP_FAILED branch
+// without causing stack allocation failures in the main test process.
+// This would allow including it in coverage reports without flakiness.
+// See: Page::new() line 47 - branch coverage for ptr == libc::MAP_FAILED
 #[test]
+#[ignore] // Exhausts address space, run explicitly with --ignored
 #[serial(page_buffer)]
 #[cfg(target_os = "linux")]
 fn test_new_returns_creation_failed() {

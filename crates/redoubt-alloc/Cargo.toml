@@ -20,4 +20,3 @@ redoubt-util.workspace   = true
 thiserror.workspace = true
 
 [dev-dependencies]
-insta.workspace = true

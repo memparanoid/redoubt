@@ -859,6 +859,7 @@ fn test_allocked_vec_debug_snapshot() {
     vec.push(1u8).expect("Failed to vec.push(1)");
     vec.push(2u8).expect("Failed to vec.push(2)");
 
-    let snapshot = format!("{:?}", vec);
-    insta::assert_snapshot!(snapshot);
+    let debug_output = format!("{:?}", vec);
+
+    assert_eq!(debug_output, "AllockedVec { data: \"REDACTED\", len: 2, capacity: 5 }");
 }

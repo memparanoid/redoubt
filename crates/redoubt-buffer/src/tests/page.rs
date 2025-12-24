@@ -35,7 +35,12 @@ fn test_slice_len_matches_page_size() {
     assert_eq!(slice.len(), system_page_size);
 }
 
+// TODO: Run this test in a subprocess to safely cover the MAP_FAILED branch
+// without causing stack allocation failures in the main test process.
+// This would allow including it in coverage reports without flakiness.
+// See: Page::new() line 47 - branch coverage for ptr == libc::MAP_FAILED
 #[test]
+#[ignore] // Exhausts address space, run explicitly with --ignored
 #[serial(page)]
 #[cfg(target_os = "linux")]
 fn test_new_fails_when_address_space_exhausted() {

@@ -1,5 +1,0 @@
----
-source: crates/redoubt_alloc/src/tests/vec/allocked_vec.rs
-expression: snapshot
----
-AllockedVec { inner: [1, 2], has_been_sealed: true, behaviour: None, __sentinel: ZeroizeOnDropSentinel(true) }
