@@ -70,7 +70,10 @@ resolver = "2"
   syn              = "2.0.108"
   thiserror        = "2.0.16"
 
-  # Dev dependencies
+  # Build dependencies
+  cc = "1.2.49"
+
+  # Dev dependencies (used via [dev-dependencies] in individual crates)
   criterion    = "0.5"
   insta        = { version = "1.43.2", features = ["redactions"] }
   libseccomp   = "0.4.0"
@@ -78,9 +81,6 @@ resolver = "2"
   proptest     = "1.9.0"
   serial_test  = "3.2.0"
   trybuild     = "1.0"
-
-  # Build dependencies
-  cc = "1.2.49"
 
 [profile.release]
 codegen-units = 1
