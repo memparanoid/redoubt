@@ -6,7 +6,7 @@
 use alloc::boxed::Box;
 
 use redoubt_buffer::{Buffer, BufferError, PortableBuffer};
-use redoubt_rand::{EntropySource, SystemEntropySource};
+use redoubt_rand::generate_random_key;
 
 #[cfg(all(unix, not(target_os = "wasi")))]
 use redoubt_buffer::{PageBuffer, ProtectionStrategy};
@@ -81,12 +81,11 @@ pub fn create_initialized_buffer_with(status: redoubt_guard::GuardStatus) -> Box
 
     buffer
         .open_mut(&mut |bytes| {
-            SystemEntropySource {}
-                .fill_bytes(bytes)
+            generate_random_key(b"redoubt.master_key.v1", bytes)
                 .map_err(BufferError::callback_error)?;
             Ok(())
         })
-        .expect("CRITICAL: EntropySource not available");
+        .expect("CRITICAL: Key generation failed");
 
     buffer
 }
