@@ -18,8 +18,9 @@ redoubt-util.workspace     = true
 redoubt-zero.workspace      = true
 thiserror.workspace   = true
 
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
-cpufeatures.workspace = true
+# Only include cpufeatures on architectures it supports
+[target.'cfg(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", target_arch = "loongarch64"))'.dependencies]
+cpufeatures = "0.2.17"
 
 [build-dependencies]
 cc.workspace = true

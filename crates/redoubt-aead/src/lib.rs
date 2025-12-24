@@ -17,14 +17,8 @@ pub use aead::Aead;
 pub use error::AeadError;
 pub use traits::{AeadApi, AeadBackend};
 
-#[cfg(all(
-    any(target_arch = "x86_64", target_arch = "aarch64"),
-    not(target_os = "wasi")
-))]
+#[cfg(is_aegis_asm_eligible)]
 pub mod aegis_asm;
 
-#[cfg(all(
-    any(target_arch = "x86_64", target_arch = "aarch64"),
-    not(target_os = "wasi")
-))]
+#[cfg(is_aegis_asm_eligible)]
 pub use aegis_asm::Aegis128L;

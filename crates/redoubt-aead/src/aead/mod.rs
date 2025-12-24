@@ -20,37 +20,17 @@ mod tests;
 
 use redoubt_rand::{EntropyError, SystemEntropySource};
 
-#[cfg(all(
-    any(
-        target_arch = "aarch64",
-        all(target_arch = "x86_64", not(target_os = "windows"))
-    ),
-    not(target_os = "wasi")
-))]
+#[cfg(is_aegis_asm_eligible)]
 use crate::aegis_asm::Aegis128L;
 use crate::error::AeadError;
 use crate::feature_detector::FeatureDetector;
 use crate::traits::{AeadApi, AeadBackend};
 
-#[cfg(all(
-    any(
-        target_arch = "aarch64",
-        all(target_arch = "x86_64", not(target_os = "windows"))
-    ),
-    not(target_os = "wasi")
-))]
+#[cfg(is_aegis_asm_eligible)]
 use crate::aegis_asm::consts::{
     KEY_SIZE as AEGIS_KEY_SIZE, NONCE_SIZE as AEGIS_NONCE_SIZE, TAG_SIZE as AEGIS_TAG_SIZE,
 };
 
-#[cfg(all(
-    any(
-        target_arch = "aarch64",
-        all(target_arch = "x86_64", not(target_os = "windows"))
-    ),
-    not(target_os = "wasi")
-))]
-// use crate::aegis::Aegis128L;
 use crate::xchacha20poly1305::XChacha20Poly1305;
 use crate::xchacha20poly1305::consts::{
     KEY_SIZE as XCHACHA_KEY_SIZE, TAG_SIZE as XCHACHA_TAG_SIZE, XNONCE_SIZE as XCHACHA_NONCE_SIZE,
@@ -58,13 +38,7 @@ use crate::xchacha20poly1305::consts::{
 
 /// Internal enum representing the selected backend implementation.
 enum AeadBackendImpl {
-    #[cfg(all(
-        any(
-            target_arch = "aarch64",
-            all(target_arch = "x86_64", not(target_os = "windows"))
-        ),
-        not(target_os = "wasi")
-    ))]
+    #[cfg(is_aegis_asm_eligible)]
     Aegis128L(Aegis128L<SystemEntropySource>),
     // Box keeps enum size small (XChacha20Poly1305 is ~800 bytes vs Aegis128L few bytes)
     XChacha20Poly1305(Box<XChacha20Poly1305<SystemEntropySource>>),
@@ -87,41 +61,16 @@ impl Default for Aead {
 impl Aead {
     #[inline(always)]
     pub(crate) fn new_with_feature_detector(feature_detector: FeatureDetector) -> Self {
-        #[cfg(target_os = "wasi")]
-        {
-            let _ = feature_detector;
-            Self {
-                backend: AeadBackendImpl::XChacha20Poly1305(Box::default()),
-            }
+        #[cfg(is_aegis_asm_eligible)]
+        if feature_detector.has_aes() {
+            return Self {
+                backend: AeadBackendImpl::Aegis128L(Aegis128L::default()),
+            };
         }
 
-        #[cfg(not(target_os = "wasi"))]
-        #[cfg(any(
-            target_arch = "aarch64",
-            all(target_arch = "x86_64", not(target_os = "windows"))
-        ))]
-        {
-            if feature_detector.has_aes() {
-                Self {
-                    backend: AeadBackendImpl::Aegis128L(Aegis128L::default()),
-                }
-            } else {
-                Self {
-                    backend: AeadBackendImpl::XChacha20Poly1305(Box::default()),
-                }
-            }
-        }
-
-        #[cfg(not(target_os = "wasi"))]
-        #[cfg(not(any(
-            target_arch = "aarch64",
-            all(target_arch = "x86_64", not(target_os = "windows"))
-        )))]
-        {
-            let _ = feature_detector;
-            Self {
-                backend: AeadBackendImpl::XChacha20Poly1305(Box::default()),
-            }
+        // Fallback: XChaCha20-Poly1305 for all other cases
+        Self {
+            backend: AeadBackendImpl::XChacha20Poly1305(Box::default()),
         }
     }
 
@@ -140,13 +89,7 @@ impl Aead {
 
     pub(crate) fn backend_name(&self) -> &'static str {
         match &self.backend {
-            #[cfg(all(
-                any(
-                    target_arch = "aarch64",
-                    all(target_arch = "x86_64", not(target_os = "windows"))
-                ),
-                not(target_os = "wasi")
-            ))]
+            #[cfg(is_aegis_asm_eligible)]
             AeadBackendImpl::Aegis128L(_) => "AEGIS-128L",
             AeadBackendImpl::XChacha20Poly1305(_) => "XChaCha20-Poly1305",
         }
@@ -176,13 +119,7 @@ impl Aead {
         tag: &mut [u8],
     ) -> Result<(), AeadError> {
         match &mut self.backend {
-            #[cfg(all(
-                any(
-                    target_arch = "aarch64",
-                    all(target_arch = "x86_64", not(target_os = "windows"))
-                ),
-                not(target_os = "wasi")
-            ))]
+            #[cfg(is_aegis_asm_eligible)]
             AeadBackendImpl::Aegis128L(backend) => {
                 let key: &[u8; AEGIS_KEY_SIZE] =
                     key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
@@ -231,13 +168,7 @@ impl Aead {
         tag: &[u8],
     ) -> Result<(), AeadError> {
         match &mut self.backend {
-            #[cfg(all(
-                any(
-                    target_arch = "aarch64",
-                    all(target_arch = "x86_64", not(target_os = "windows"))
-                ),
-                not(target_os = "wasi")
-            ))]
+            #[cfg(is_aegis_asm_eligible)]
             AeadBackendImpl::Aegis128L(backend) => {
                 let key: &[u8; AEGIS_KEY_SIZE] =
                     key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
@@ -271,13 +202,7 @@ impl Aead {
     #[inline]
     pub fn generate_nonce(&mut self) -> Result<Vec<u8>, EntropyError> {
         match &mut self.backend {
-            #[cfg(all(
-                any(
-                    target_arch = "aarch64",
-                    all(target_arch = "x86_64", not(target_os = "windows"))
-                ),
-                not(target_os = "wasi")
-            ))]
+            #[cfg(is_aegis_asm_eligible)]
             AeadBackendImpl::Aegis128L(backend) => backend.generate_nonce().map(|n| n.to_vec()),
             AeadBackendImpl::XChacha20Poly1305(backend) => {
                 backend.generate_nonce().map(|n| n.to_vec())
@@ -289,13 +214,7 @@ impl Aead {
     #[inline]
     pub fn key_size(&self) -> usize {
         match &self.backend {
-            #[cfg(all(
-                any(
-                    target_arch = "aarch64",
-                    all(target_arch = "x86_64", not(target_os = "windows"))
-                ),
-                not(target_os = "wasi")
-            ))]
+            #[cfg(is_aegis_asm_eligible)]
             AeadBackendImpl::Aegis128L(_) => AEGIS_KEY_SIZE,
             AeadBackendImpl::XChacha20Poly1305(_) => XCHACHA_KEY_SIZE,
         }
@@ -305,13 +224,7 @@ impl Aead {
     #[inline]
     pub fn nonce_size(&self) -> usize {
         match &self.backend {
-            #[cfg(all(
-                any(
-                    target_arch = "aarch64",
-                    all(target_arch = "x86_64", not(target_os = "windows"))
-                ),
-                not(target_os = "wasi")
-            ))]
+            #[cfg(is_aegis_asm_eligible)]
             AeadBackendImpl::Aegis128L(_) => AEGIS_NONCE_SIZE,
             AeadBackendImpl::XChacha20Poly1305(_) => XCHACHA_NONCE_SIZE,
         }
@@ -321,13 +234,7 @@ impl Aead {
     #[inline]
     pub fn tag_size(&self) -> usize {
         match &self.backend {
-            #[cfg(all(
-                any(
-                    target_arch = "aarch64",
-                    all(target_arch = "x86_64", not(target_os = "windows"))
-                ),
-                not(target_os = "wasi")
-            ))]
+            #[cfg(is_aegis_asm_eligible)]
             AeadBackendImpl::Aegis128L(_) => AEGIS_TAG_SIZE,
             AeadBackendImpl::XChacha20Poly1305(_) => XCHACHA_TAG_SIZE,
         }
@@ -341,13 +248,7 @@ impl Aead {
     }
 
     #[cfg(test)]
-    #[cfg(all(
-        any(
-            target_arch = "aarch64",
-            all(target_arch = "x86_64", not(target_os = "windows"))
-        ),
-        not(target_os = "wasi")
-    ))]
+    #[cfg(is_aegis_asm_eligible)]
     pub(crate) fn with_aegis128l() -> Self {
         Self {
             backend: AeadBackendImpl::Aegis128L(Aegis128L::default()),
