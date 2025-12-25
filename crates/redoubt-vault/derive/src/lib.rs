@@ -98,7 +98,11 @@ pub fn cipherbox(attr: TokenStream, item: TokenStream) -> TokenStream {
 //   - "WrapperName, global = true, storage = \"std\""  (test-only)
 // Returns (wrapper_name, custom_error_type, is_global, storage_strategy)
 fn parse_cipherbox_attr(attr: TokenStream) -> (Ident, Option<Type>, bool, Option<StorageStrategy>) {
-    let attr_str = attr.to_string();
+    parse_cipherbox_attr_inner(attr.to_string())
+}
+
+// Internal parsing function that takes a string for testability
+pub(crate) fn parse_cipherbox_attr_inner(attr_str: String) -> (Ident, Option<Type>, bool, Option<StorageStrategy>) {
     let parts: Vec<&str> = attr_str.split(',').map(|s| s.trim()).collect();
 
     let wrapper_name =

@@ -255,3 +255,9 @@ fn snapshot_union_fails() {
     let result = expand(syn::parse_quote!(MyUnionBox), None, false, None, derive_input);
     assert!(result.is_err());
 }
+
+#[test]
+#[should_panic(expected = "cipherbox: unknown attribute parameter")]
+fn test_unknown_attribute_panics() {
+    let _ = crate::parse_cipherbox_attr_inner("DataBox, foo = \"bar\"".to_string());
+}
