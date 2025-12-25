@@ -39,7 +39,7 @@ redoubt = "0.1"
 
 ## Quick Start
 ```rust
-use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtArray, RedoubtString, Secret};
+use redoubt::{cipherbox, RedoubtArray, RedoubtCodec, RedoubtSecret, RedoubtString, RedoubtZero};
 
 #[cipherbox(WalletBox)]
 #[derive(Default, RedoubtCodec, RedoubtZero)]
@@ -48,10 +48,25 @@ struct Wallet {
     signing_key: RedoubtArray<u8, 32>,
     pin_hash: RedoubtArray<u8, 32>,
     mnemonic: RedoubtString,
-    derivation_index: Secret<u64>,
+    derivation_index: RedoubtSecret<u64>,
 }
 
-fn main() {
+// Helper functions (stubs for example purposes)
+use redoubt_zero::FastZeroizable;
+
+fn derive_seed_from_mnemonic(_phrase: &str) -> [u8; 64] { [0u8; 64] }
+fn derive_signing_key(_seed: &RedoubtArray<u8, 64>) -> [u8; 32] { [0u8; 32] }
+fn hash_pin(pin: &mut [u8; 32]) -> [u8; 32] {
+    let hash = *pin; // Compute hash (stub)
+    pin.fast_zeroize(); // Don't forget to zeroize sensitive data
+    hash
+}
+fn derive_account_key(_seed: &RedoubtArray<u8, 64>, _index: u32) -> Result<[u8; 32], Box<dyn std::error::Error>> {
+    Ok([0u8; 32])
+}
+fn publish_account(_key: &[u8; 32]) -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut wallet = WalletBox::new();
 
     // Store your secrets
@@ -62,23 +77,29 @@ fn main() {
         let mut key = derive_signing_key(&w.master_seed);
         w.signing_key.replace_from_mut_array(&mut key);
 
-        let mut hash = hash_pin("1234");
+        let mut pin = [1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let mut hash = hash_pin(&mut pin);
         w.pin_hash.replace_from_mut_array(&mut hash);
 
         w.mnemonic.extend_from_str("abandon abandon ...");
 
         let mut index = 0u64;
-        w.derivation_index = Secret::from(&mut index);
-    }).expect("Failed to initialize wallet");
+        w.derivation_index = RedoubtSecret::from(&mut index);
+
+        Ok(())
+    })?;
     // `w` is encoded -> reencrypted
 
     // Leak secrets when needed outside closure scope
     {
-        let seed: ZeroizingGuard<RedoubtArray<u8, 64>> = wallet
-            .leak_master_seed()
-            .expect("Failed to decrypt master seed");
-        derive_child_keys(&seed);
+        let seed = wallet.leak_master_seed()?;
+        // Derive the next account key using the master seed
+        let account_key = derive_account_key(&seed, 0)?;
+        publish_account(&account_key)?;
     } // seed is zeroized on drop
+
+    Ok(())
 }
 ```
 
@@ -88,9 +109,12 @@ fn main() {
 
 Use `leak_*` when you need the value outside the closure. Returns a `ZeroizingGuard` that wipes memory on drop:
 ```rust
+fn sign(_key: &RedoubtArray<u8, 32>, _message: &[u8]) -> [u8; 64] { [0u8; 64] }
+
 let signing_key = wallet.leak_signing_key().expect("Failed to decrypt");
 
 // Use signing_key normally
+let message = b"transaction data";
 let signature = sign(&signing_key, message);
 
 // signing_key is zeroized when it goes out of scope
@@ -101,29 +125,62 @@ let signature = sign(&signing_key, message);
 Use `open_mut` to modify secrets. Changes are re-encrypted when the closure returns:
 ```rust
 wallet.open_mut(|w| {
-    let mut new_hash = hash_pin(new_pin);
+    let mut new_pin = [5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let mut new_hash = hash_pin(&mut new_pin);
     w.pin_hash.replace_from_mut_array(&mut new_hash);
+
+    Ok(())
 }).expect("Failed to decrypt wallet");
 // `w` is encoded -> reencrypted
+```
+
+### Returning values from callbacks
+
+Use callbacks to compute and return values while the data is decrypted:
+```rust
+// Return a value after modifying the wallet
+let new_index = wallet.open_mut(|w| {
+    let mut next = *w.derivation_index.as_ref() + 1;
+    w.derivation_index.replace(&mut next);
+
+    Ok(next)
+})?; // Returns Result<u64, CipherBoxError>
 ```
 
 ### Field-level access
 
 Access individual fields without decrypting the entire struct. Method names are generated from your field names:
 ```rust
-// Modify only the pin hash
+// Modify only the pin hash (no return value)
 wallet.open_pin_hash_mut(|hash| {
-    let mut new_hash = hash_pin(new_pin);
+    let mut new_pin = [5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let mut new_hash = hash_pin(&mut new_pin);
     hash.replace_from_mut_array(&mut new_hash);
-}).expect("Failed to decrypt pin_hash");
+
+    Ok(())
+})?;
+
+// Return a value from field access
+let is_valid = wallet.open_pin_hash(|hash| {
+    let mut user_input = [5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let mut entered = hash_pin(&mut user_input);
+    let valid = hash.as_slice() == entered.as_slice();
+    entered.fast_zeroize();
+
+    Ok(valid)
+})?; // Returns Result<bool, CipherBoxError>
 ```
+
 
 ## Types
 
 Redoubt provides secure containers for different use cases:
 
 ```rust
-use redoubt::{Secret, RedoubtArray, RedoubtVec, RedoubtString};
+use redoubt::{RedoubtArray, RedoubtSecret, RedoubtString, RedoubtVec};
 
 // Fixed-size arrays (automatically zeroized on drop)
 let mut api_key = RedoubtArray::<u8, 32>::new();
@@ -134,21 +191,42 @@ let mut tokens = RedoubtVec::<u8>::new();
 let mut password = RedoubtString::new();
 
 // Primitives wrapped in Secret
-let mut counter = Secret::from(&mut 0u64);
-let mut timestamp = Secret::from(&mut 0i64);
+let mut counter = RedoubtSecret::from(&mut 0u64);
+let mut timestamp = RedoubtSecret::from(&mut 0i64);
 ```
 
-### When to use each type:
+### When to use each type
 
-- **`RedoubtArray<T, N>`**: Fixed-size arrays of bytes or primitives
-- **`RedoubtVec<T>`**: Variable-length collections that may grow
-- **`RedoubtString`**: Variable-length UTF-8 strings
-- **`Secret<T>`**: Primitive types (u64, i32, etc.) that need protection
+- **`RedoubtArray<T, N>`**: Fixed-size sensitive data (keys, hashes, seeds). Size known at compile time.
+- **`RedoubtVec<T>`**: Variable-length byte arrays that may grow (encrypted tokens, variable-size keys).
+- **`RedoubtString`**: Variable-length UTF-8 strings (passwords, mnemonics, API keys).
+- **`RedoubtSecret<T>`**: Primitive types (u64, i32, bool) that need protection. Prevents accidental copies via controlled access.
 
-### How they prevent leaks:
+### ⚠️ Critical: CipherBox fields MUST come from these types
 
-- **`RedoubtVec` / `RedoubtString`**: Pre-zeroize old allocation before reallocation. Safe methods: `extend_from_mut_slice`, `extend_from_mut_string`. **~40% performance penalty** for guaranteed security.
-- **`RedoubtArray`**: Redeclaring arrays can leave copies in memory. Use `replace_from_mut_array` to drain the source safely.
+**All sensitive data in `#[cipherbox]` structs MUST ultimately come from: `RedoubtArray`, `RedoubtVec`, `RedoubtString`, or `RedoubtSecret`.**
+
+These types were forensically validated (see [forensics/README.md](forensics/README.md)) to leave no traces during the encryption-at-rest workflow. You can compose them into nested structures, but the leaf values containing sensitive data must be these types. Using standard types (`Vec<u8>`, `String`, `[u8; 32]`, `u64`) would leave unzeroized copies during encoding/decoding, defeating the security guarantees.
+
+### How they prevent traces
+
+**`RedoubtVec` / `RedoubtString`**: Pre-zeroize old allocation before reallocation
+- When capacity is exceeded, performs a safe 3-step reallocation:
+  1. Copy data to temporary buffer
+  2. Zeroize old allocation completely
+  3. Allocate new buffer with 2x capacity and copy from temp (zeroizing temp)
+- Safe methods: `extend_from_mut_slice`, `extend_from_mut_string` (zeroize source)
+- **~40% performance penalty** for guaranteed security (double allocation during growth)
+- Without this, standard `Vec`/`String` leave copies in abandoned allocations
+
+**`RedoubtArray`**: Prevents copies during assignment
+- Simply redeclaring arrays (`let arr2 = arr1;`) can leave copies on stack
+- `replace_from_mut_array` uses `ptr::swap_nonoverlapping` to exchange contents without intermediate copies
+- Zeroizes the source after swap, ensuring no plaintext remains
+
+**`RedoubtSecret`**: Prevents accidental dereferencing of Copy types
+- Forces explicit `as_ref()`/`as_mut()` calls to access the inner value
+- Critical for primitives like `u64` which implement `Copy` and could silently duplicate if accessed directly
 
 ### Protections:
 

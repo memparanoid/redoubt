@@ -30,7 +30,8 @@
 //! # Quick Start
 //!
 //! ```rust
-//! use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtArray, RedoubtString};
+//! use redoubt::{cipherbox, RedoubtArray, RedoubtCodec, RedoubtSecret, RedoubtString, RedoubtZero};
+//! use redoubt_zero::FastZeroizable;
 //!
 //! #[cipherbox(WalletBox)]
 //! #[derive(Default, RedoubtCodec, RedoubtZero)]
@@ -39,9 +40,10 @@
 //!     signing_key: RedoubtArray<u8, 32>,
 //!     pin_hash: RedoubtArray<u8, 32>,
 //!     mnemonic: RedoubtString,
+//!     derivation_index: RedoubtSecret<u64>,
 //! }
 //!
-//! fn main() {
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut wallet = WalletBox::new();
 //!
 //!     // Store your secrets
@@ -52,25 +54,41 @@
 //!         let mut key = derive_signing_key(&w.master_seed);
 //!         w.signing_key.replace_from_mut_array(&mut key);
 //!
-//!         let mut hash = hash_pin("1234");
+//!         let mut pin = [1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//!                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+//!         let mut hash = hash_pin(&mut pin);
 //!         w.pin_hash.replace_from_mut_array(&mut hash);
 //!
 //!         w.mnemonic.extend_from_str("abandon abandon ...");
 //!
+//!         let mut index = 0u64;
+//!         w.derivation_index = RedoubtSecret::from(&mut index);
+//!
 //!         Ok(())
-//!     }).unwrap();
+//!     })?;
+//!     // `w` is encoded -> reencrypted
 //!
-//!     // Use them when needed
-//!     let transaction = ();
-//!     wallet.open_signing_key(|key| {
-//!         sign_transaction(key, &transaction);
-//!     }).unwrap();
+//!     // Leak secrets when needed outside closure scope
+//!     {
+//!         let seed = wallet.leak_master_seed()?;
+//!         // Derive the next account key using the master seed
+//!         let account_key = derive_account_key(&seed, 0)?;
+//!         publish_account(&account_key)?;
+//!     } // seed is zeroized on drop
 //!
-//! }   // Everything zeroized, encryption keys gone
+//!     Ok(())
+//! }
 //! # fn derive_seed_from_mnemonic(_: &str) -> [u8; 64] { [0u8; 64] }
 //! # fn derive_signing_key(_: &RedoubtArray<u8, 64>) -> [u8; 32] { [0u8; 32] }
-//! # fn hash_pin(_: &str) -> [u8; 32] { [0u8; 32] }
-//! # fn sign_transaction(_: &RedoubtArray<u8, 32>, _: &()) {}
+//! # fn hash_pin(pin: &mut [u8; 32]) -> [u8; 32] {
+//! #     let hash = *pin;
+//! #     pin.fast_zeroize();
+//! #     hash
+//! # }
+//! # fn derive_account_key(_: &RedoubtArray<u8, 64>, _: u32) -> Result<[u8; 32], Box<dyn std::error::Error>> {
+//! #     Ok([0u8; 32])
+//! # }
+//! # fn publish_account(_: &[u8; 32]) -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
 //! ```
 //!
 //! # API Overview
@@ -88,8 +106,9 @@
 //! # let user_input = "";
 //! wallet.open(|w| {
 //!     verify_pin(&w.pin_hash, user_input);
+//!
 //!     Ok(())
-//! }).unwrap();
+//! }).expect("Failed to decrypt");
 //! # fn verify_pin(_: &RedoubtArray<u8, 32>, _: &str) {}
 //! ```
 //!
@@ -99,42 +118,84 @@
 //!
 //! ```rust
 //! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtArray};
+//! # use redoubt_zero::FastZeroizable;
 //! # #[cipherbox(WalletBox)]
 //! # #[derive(Default, RedoubtCodec, RedoubtZero)]
 //! # struct Wallet { pin_hash: RedoubtArray<u8, 32> }
 //! # let mut wallet = WalletBox::new();
-//! # let new_pin = "";
+//! # fn hash_pin(pin: &mut [u8; 32]) -> [u8; 32] {
+//! #     let hash = *pin;
+//! #     pin.fast_zeroize();
+//! #     hash
+//! # }
 //! wallet.open_mut(|w| {
-//!     let mut new_hash = hash_pin(new_pin);
+//!     let mut new_pin = [5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//!                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+//!     let mut new_hash = hash_pin(&mut new_pin);
 //!     w.pin_hash.replace_from_mut_array(&mut new_hash);
+//!
 //!     Ok(())
-//! }).unwrap();
-//! # fn hash_pin(_: &str) -> [u8; 32] { [0u8; 32] }
+//! }).expect("Failed to decrypt wallet");
+//! // `w` is encoded -> reencrypted
+//! ```
+//!
+//! ## Returning values from callbacks
+//!
+//! Use callbacks to compute and return values while the data is decrypted:
+//!
+//! ```rust
+//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtSecret, RedoubtZero};
+//! # #[cipherbox(WalletBox)]
+//! # #[derive(Default, RedoubtCodec, RedoubtZero)]
+//! # struct Wallet { derivation_index: RedoubtSecret<u64> }
+//! # let mut wallet = WalletBox::new();
+//! // Return a value after modifying the wallet
+//! let new_index = wallet.open_mut(|w| {
+//!     let mut next = *w.derivation_index.as_ref() + 1;
+//!     w.derivation_index.replace(&mut next);
+//!
+//!     Ok(next)
+//! })?; // Returns Result<u64, CipherBoxError>
+//! # Ok::<(), redoubt::CipherBoxError>(())
 //! ```
 //!
 //! ## Field-level access
 //!
-//! Access individual fields without decrypting the entire struct:
+//! Access individual fields without decrypting the entire struct. Method names are generated from your field names:
 //!
 //! ```rust
-//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtSecret};
+//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtArray};
+//! # use redoubt_zero::FastZeroizable;
 //! # #[cipherbox(WalletBox)]
 //! # #[derive(Default, RedoubtCodec, RedoubtZero)]
-//! # struct Wallet { signing_key: RedoubtSecret<[u8; 32]>, pin_hash: RedoubtSecret<[u8; 32]> }
+//! # struct Wallet { pin_hash: RedoubtArray<u8, 32> }
 //! # let mut wallet = WalletBox::new();
-//! # let tx = ();
-//! # let new_pin = "";
-//! // Read only the signing key (other fields stay encrypted)
-//! wallet.open_signing_key(|key| {
-//!     sign_transaction(key, &tx);
-//! }).unwrap();
-//!
-//! // Modify only the pin hash
+//! # fn hash_pin(pin: &mut [u8; 32]) -> [u8; 32] {
+//! #     let hash = *pin;
+//! #     pin.fast_zeroize();
+//! #     hash
+//! # }
+//! // Modify only the pin hash (no return value)
 //! wallet.open_pin_hash_mut(|hash| {
-//!     hash.replace(&mut hash_pin(new_pin));
-//! }).unwrap();
-//! # fn sign_transaction(_: &RedoubtSecret<[u8; 32]>, _: &()) {}
-//! # fn hash_pin(_: &str) -> [u8; 32] { [0u8; 32] }
+//!     let mut new_pin = [5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//!                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+//!     let mut new_hash = hash_pin(&mut new_pin);
+//!     hash.replace_from_mut_array(&mut new_hash);
+//!
+//!     Ok(())
+//! })?;
+//!
+//! // Return a value from field access
+//! let is_valid = wallet.open_pin_hash(|hash| {
+//!     let mut user_input = [5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//!                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+//!     let mut entered = hash_pin(&mut user_input);
+//!     let valid = hash.as_slice() == entered.as_slice();
+//!     entered.fast_zeroize();
+//!
+//!     Ok(valid)
+//! })?; // Returns Result<bool, CipherBoxError>
+//! # Ok::<(), redoubt::CipherBoxError>(())
 //! ```
 //!
 //! ## Leaking secrets
@@ -147,10 +208,10 @@
 //! # #[derive(Default, RedoubtCodec, RedoubtZero)]
 //! # struct Wallet { signing_key: RedoubtSecret<[u8; 32]> }
 //! # let mut wallet = WalletBox::new();
-//! # let message = b"";
-//! let signing_key = wallet.leak_signing_key().unwrap();
+//! let signing_key = wallet.leak_signing_key().expect("Failed to decrypt");
 //!
 //! // Use signing_key normally
+//! let message = b"transaction data";
 //! let signature = sign(&signing_key, message);
 //!
 //! // signing_key is zeroized when it goes out of scope
