@@ -8,17 +8,14 @@ use alloc::vec::Vec;
 use redoubt_alloc::AllockedVec;
 
 #[cfg(feature = "zeroize")]
-use redoubt_zero::{
-    AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,
-    assert::assert_zeroize_on_drop,
-};
+use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
 
 use crate::error::RedoubtCodecBufferError;
 
+#[cfg_attr(feature = "zeroize", derive(RedoubtZero))]
 pub struct RedoubtCodecBuffer {
-    pub ptr: *mut u8,
-    pub end: *mut u8,
-    pub cursor: *mut u8,
+    cursor: usize,
+    capacity: usize,
     allocked_vec: AllockedVec<u8>,
     #[cfg(feature = "zeroize")]
     __sentinel: ZeroizeOnDropSentinel,
@@ -28,41 +25,6 @@ pub struct RedoubtCodecBuffer {
 impl Drop for RedoubtCodecBuffer {
     fn drop(&mut self) {
         self.fast_zeroize();
-    }
-}
-
-#[cfg(feature = "zeroize")]
-impl AssertZeroizeOnDrop for RedoubtCodecBuffer {
-    fn clone_sentinel(&self) -> ZeroizeOnDropSentinel {
-        self.__sentinel.clone()
-    }
-
-    fn assert_zeroize_on_drop(self) {
-        assert_zeroize_on_drop(self);
-    }
-}
-
-#[cfg(feature = "zeroize")]
-impl ZeroizationProbe for RedoubtCodecBuffer {
-    fn is_zeroized(&self) -> bool {
-        self.ptr.is_null() & self.cursor.is_null() & self.allocked_vec.is_zeroized()
-    }
-}
-
-#[cfg(feature = "zeroize")]
-impl ZeroizeMetadata for RedoubtCodecBuffer {
-    const CAN_BE_BULK_ZEROIZED: bool = false;
-}
-
-#[cfg(feature = "zeroize")]
-impl FastZeroizable for RedoubtCodecBuffer {
-    fn fast_zeroize(&mut self) {
-        unsafe {
-            core::ptr::write_volatile(&mut self.ptr, core::ptr::null_mut());
-            core::ptr::write_volatile(&mut self.cursor, core::ptr::null_mut());
-        }
-        self.allocked_vec.fast_zeroize();
-        self.__sentinel.fast_zeroize();
     }
 }
 
@@ -76,26 +38,20 @@ impl RedoubtCodecBuffer {
     #[inline(always)]
     fn debug_assert_invariant(&self) {
         debug_assert!(
-            (self.ptr <= self.cursor) & (self.cursor <= self.end),
-            "Invariant violated: ptr ({:p}) <= cursor ({:p}) <= end ({:p})",
-            self.ptr,
+            self.cursor <= self.capacity,
+            "Invariant violated: cursor ({}) <= capacity ({})",
             self.cursor,
-            self.end
+            self.capacity
         );
     }
 
     #[inline(always)]
     pub fn with_capacity(capacity: usize) -> Self {
-        let mut allocked_vec = AllockedVec::<u8>::with_capacity(capacity);
-
-        let ptr = allocked_vec.as_mut_ptr();
-        let end = unsafe { ptr.add(capacity) };
-        let cursor = ptr;
+        let allocked_vec = AllockedVec::<u8>::with_capacity(capacity);
 
         Self {
-            ptr,
-            end,
-            cursor,
+            cursor: 0,
+            capacity,
             allocked_vec,
             #[cfg(feature = "zeroize")]
             __sentinel: ZeroizeOnDropSentinel::default(),
@@ -107,14 +63,13 @@ impl RedoubtCodecBuffer {
         self.allocked_vec.realloc_with_capacity(capacity);
         self.allocked_vec.fill_with_default();
 
-        self.ptr = self.allocked_vec.as_mut_ptr();
-        self.end = unsafe { self.ptr.add(capacity) };
-        self.cursor = self.ptr;
+        self.capacity = capacity;
+        self.cursor = 0;
     }
 
     #[inline(always)]
     pub fn clear(&mut self) {
-        self.cursor = self.ptr;
+        self.cursor = 0;
         #[cfg(feature = "zeroize")]
         self.allocked_vec.fast_zeroize();
     }
@@ -143,14 +98,15 @@ impl RedoubtCodecBuffer {
     pub fn write<T>(&mut self, src: &mut T) -> Result<(), RedoubtCodecBufferError> {
         let len = core::mem::size_of::<T>();
 
-        unsafe {
-            if self.cursor.add(len) > self.end {
-                return Err(RedoubtCodecBufferError::CapacityExceeded);
-            }
-
-            core::ptr::copy_nonoverlapping(src as *const T as *const u8, self.cursor, len);
-            self.cursor = self.cursor.add(len);
+        if self.cursor + len > self.capacity {
+            return Err(RedoubtCodecBufferError::CapacityExceeded);
         }
+
+        unsafe {
+            let ptr = self.allocked_vec.as_mut_ptr().add(self.cursor);
+            core::ptr::copy_nonoverlapping(src as *const T as *const u8, ptr, len);
+        }
+        self.cursor += len;
 
         // Invariant must be preserved before returning.
         self.debug_assert_invariant();
@@ -162,14 +118,15 @@ impl RedoubtCodecBuffer {
     pub fn write_slice<T>(&mut self, src: &mut [T]) -> Result<(), RedoubtCodecBufferError> {
         let byte_len = core::mem::size_of_val(src);
 
-        unsafe {
-            if self.cursor.add(byte_len) > self.end {
-                return Err(RedoubtCodecBufferError::CapacityExceeded);
-            }
-
-            core::ptr::copy_nonoverlapping(src.as_ptr() as *const u8, self.cursor, byte_len);
-            self.cursor = self.cursor.add(byte_len);
+        if self.cursor + byte_len > self.capacity {
+            return Err(RedoubtCodecBufferError::CapacityExceeded);
         }
+
+        unsafe {
+            let ptr = self.allocked_vec.as_mut_ptr().add(self.cursor);
+            core::ptr::copy_nonoverlapping(src.as_ptr() as *const u8, ptr, byte_len);
+        }
+        self.cursor += byte_len;
 
         // Invariant must be preserved before returning.
         self.debug_assert_invariant();
