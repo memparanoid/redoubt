@@ -84,7 +84,7 @@ impl OnlyDefaultsBox {
     where
         F: FnMut(&OnlyDefaults) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -106,7 +106,7 @@ impl OnlyDefaultsBox {
     where
         F: FnMut(&mut OnlyDefaults) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;

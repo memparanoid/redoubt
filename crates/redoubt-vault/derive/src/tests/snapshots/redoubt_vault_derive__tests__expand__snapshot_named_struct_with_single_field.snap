@@ -81,7 +81,7 @@ impl GammaBox {
     where
         F: FnMut(&Gamma) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -103,7 +103,7 @@ impl GammaBox {
     where
         F: FnMut(&mut Gamma) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -135,7 +135,7 @@ impl GammaBox {
         redoubt_zero::ZeroizingGuard<[u8; 32]>,
         redoubt_vault_core::CipherBoxError,
     > {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -157,7 +157,7 @@ impl GammaBox {
     where
         F: FnMut(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -179,7 +179,7 @@ impl GammaBox {
     where
         F: FnMut(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;

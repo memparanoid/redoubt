@@ -86,7 +86,7 @@ impl ZetaBox {
     where
         F: FnMut(&Zeta) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -108,7 +108,7 @@ impl ZetaBox {
     where
         F: FnMut(&mut Zeta) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -140,7 +140,7 @@ impl ZetaBox {
         redoubt_zero::ZeroizingGuard<Vec<u8>>,
         redoubt_vault_core::CipherBoxError,
     > {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -158,7 +158,7 @@ impl ZetaBox {
     pub fn leak_field3(
         &mut self,
     ) -> Result<redoubt_zero::ZeroizingGuard<u64>, redoubt_vault_core::CipherBoxError> {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -180,7 +180,7 @@ impl ZetaBox {
     where
         F: FnMut(&Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -202,7 +202,7 @@ impl ZetaBox {
     where
         F: FnMut(&u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -224,7 +224,7 @@ impl ZetaBox {
     where
         F: FnMut(&mut Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -247,7 +247,7 @@ impl ZetaBox {
     where
         F: FnMut(&mut u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;

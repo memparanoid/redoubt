@@ -94,7 +94,7 @@ impl ContainerBox {
     where
         F: FnMut(&Container) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -116,7 +116,7 @@ impl ContainerBox {
     where
         F: FnMut(&mut Container) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -145,7 +145,7 @@ impl ContainerBox {
     pub fn leak_value(
         &mut self,
     ) -> Result<redoubt_zero::ZeroizingGuard<T>, redoubt_vault_core::CipherBoxError> {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -163,7 +163,7 @@ impl ContainerBox {
     pub fn leak_count(
         &mut self,
     ) -> Result<redoubt_zero::ZeroizingGuard<u64>, redoubt_vault_core::CipherBoxError> {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -185,7 +185,7 @@ impl ContainerBox {
     where
         F: FnMut(&T) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -207,7 +207,7 @@ impl ContainerBox {
     where
         F: FnMut(&u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -229,7 +229,7 @@ impl ContainerBox {
     where
         F: FnMut(&mut T) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -251,7 +251,7 @@ impl ContainerBox {
     where
         F: FnMut(&mut u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;

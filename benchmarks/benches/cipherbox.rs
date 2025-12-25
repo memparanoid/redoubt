@@ -197,6 +197,7 @@ fn bench_open_field(c: &mut Criterion) {
             b.iter(|| {
                 cb.open_field_512kb(|f| {
                     black_box(f);
+                    Ok(())
                 })
                 .expect("failed to open_field_512kb");
             });
@@ -219,6 +220,7 @@ fn bench_open_field(c: &mut Criterion) {
             b.iter(|| {
                 cb.open_field_1mb(|f| {
                     black_box(f);
+                    Ok(())
                 })
                 .expect("failed to open_field_1mb");
             });
@@ -241,6 +243,7 @@ fn bench_open_field(c: &mut Criterion) {
             b.iter(|| {
                 cb.open_field_2mb(|f| {
                     black_box(f);
+                    Ok(())
                 })
                 .expect("failed to open_field_2mb");
             });
@@ -263,6 +266,7 @@ fn bench_open_field(c: &mut Criterion) {
             b.iter(|| {
                 cb.open_field_4mb(|f| {
                     black_box(f);
+                    Ok(())
                 })
                 .expect("failed to open_field_4mb");
             });
@@ -285,6 +289,7 @@ fn bench_open_field(c: &mut Criterion) {
             b.iter(|| {
                 cb.open_field_8mb(|f| {
                     black_box(f);
+                    Ok(())
                 })
                 .expect("failed to open_field_8mb");
             });
@@ -307,6 +312,7 @@ fn bench_open_field(c: &mut Criterion) {
             b.iter(|| {
                 cb.open_field_16mb(|f| {
                     black_box(f);
+                    Ok(())
                 })
                 .expect("failed to open_field_16mb");
             });
@@ -329,6 +335,7 @@ fn bench_open_field(c: &mut Criterion) {
             b.iter(|| {
                 cb.open_field_32mb(|f| {
                     black_box(f);
+                    Ok(())
                 })
                 .expect("failed to open_field_32mb");
             });
@@ -359,6 +366,7 @@ fn bench_open_field_mut(c: &mut Criterion) {
                 cb.open_field_512kb_mut(|f| {
                     f[0] = f[0].wrapping_add(1);
                     black_box(f);
+                    Ok(())
                 })
                 .expect("failed to open_field_512kb_mut");
             });
@@ -382,6 +390,7 @@ fn bench_open_field_mut(c: &mut Criterion) {
                 cb.open_field_1mb_mut(|f| {
                     f[0] = f[0].wrapping_add(1);
                     black_box(f);
+                    Ok(())
                 })
                 .expect("failed to open_field_1mb_mut");
             });
@@ -405,6 +414,7 @@ fn bench_open_field_mut(c: &mut Criterion) {
                 cb.open_field_2mb_mut(|f| {
                     f[0] = f[0].wrapping_add(1);
                     black_box(f);
+                    Ok(())
                 })
                 .expect("failed to open_field_2mb_mut");
             });
@@ -428,6 +438,7 @@ fn bench_open_field_mut(c: &mut Criterion) {
                 cb.open_field_4mb_mut(|f| {
                     f[0] = f[0].wrapping_add(1);
                     black_box(f);
+                    Ok(())
                 })
                 .expect("failed to open_field_4mb_mut");
             });
@@ -451,6 +462,7 @@ fn bench_open_field_mut(c: &mut Criterion) {
                 cb.open_field_8mb_mut(|f| {
                     f[0] = f[0].wrapping_add(1);
                     black_box(f);
+                    Ok(())
                 })
                 .expect("failed to open_field_8mb_mut");
             });
@@ -474,6 +486,7 @@ fn bench_open_field_mut(c: &mut Criterion) {
                 cb.open_field_16mb_mut(|f| {
                     f[0] = f[0].wrapping_add(1);
                     black_box(f);
+                    Ok(())
                 })
                 .expect("failed to open_field_16mb_mut");
             });
@@ -497,6 +510,7 @@ fn bench_open_field_mut(c: &mut Criterion) {
                 cb.open_field_32mb_mut(|f| {
                     f[0] = f[0].wrapping_add(1);
                     black_box(f);
+                    Ok(())
                 })
                 .expect("failed to open_field_32mb_mut");
             });

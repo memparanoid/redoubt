@@ -85,7 +85,7 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&WithCustomError) -> Result<R, MyCustomError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -104,7 +104,7 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&mut WithCustomError) -> Result<R, MyCustomError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -133,7 +133,7 @@ impl WithCustomErrorBox {
     pub fn leak_field1(
         &mut self,
     ) -> Result<redoubt_zero::ZeroizingGuard<Vec<u8>>, MyCustomError> {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -151,7 +151,7 @@ impl WithCustomErrorBox {
     pub fn leak_field2(
         &mut self,
     ) -> Result<redoubt_zero::ZeroizingGuard<u64>, MyCustomError> {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -170,7 +170,7 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&Vec<u8>) -> Result<R, MyCustomError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -189,7 +189,7 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&u64) -> Result<R, MyCustomError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -208,7 +208,7 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&mut Vec<u8>) -> Result<R, MyCustomError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -227,7 +227,7 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&mut u64) -> Result<R, MyCustomError>,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(feature = "test_utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
