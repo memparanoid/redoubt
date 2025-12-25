@@ -5,7 +5,15 @@
 //! Procedural macros for redoubt-vault.
 
 // Only run unit tests on architectures where insta (-> sha2 -> cpufeatures) compiles
-#[cfg(all(test, any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", target_arch = "loongarch64")))]
+#[cfg(all(
+    test,
+    any(
+        target_arch = "x86_64",
+        target_arch = "x86",
+        target_arch = "aarch64",
+        target_arch = "loongarch64"
+    )
+))]
 mod tests;
 
 use proc_macro::TokenStream;
@@ -63,35 +71,52 @@ use syn::{
 /// - Global `open` and `open_mut` methods
 #[proc_macro_attribute]
 pub fn cipherbox(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let (wrapper_name, custom_error) = parse_cipherbox_attr(attr);
+    let (wrapper_name, custom_error, is_global) = parse_cipherbox_attr(attr);
     let input = parse_macro_input!(item as DeriveInput);
-    expand(wrapper_name, custom_error, input)
+    expand(wrapper_name, custom_error, is_global, input)
         .unwrap_or_else(|e| e)
         .into()
 }
 
-// Extract custom error type from attribute tokens.
-// Parses "WrapperName" or "WrapperName, error = ErrorType"
-// Returns (wrapper_name, custom_error_type)
-fn parse_cipherbox_attr(attr: TokenStream) -> (Ident, Option<Type>) {
+// Extract custom error type and global flag from attribute tokens.
+// Parses:
+//   - "WrapperName"
+//   - "WrapperName, error = ErrorType"
+//   - "WrapperName, global = true"
+//   - "WrapperName, error = ErrorType, global = true"
+// Returns (wrapper_name, custom_error_type, is_global)
+fn parse_cipherbox_attr(attr: TokenStream) -> (Ident, Option<Type>, bool) {
     let attr_str = attr.to_string();
     let parts: Vec<&str> = attr_str.split(',').map(|s| s.trim()).collect();
 
     let wrapper_name =
         syn::parse_str::<Ident>(parts[0]).expect("cipherbox: first argument must be wrapper name");
 
-    let custom_error = (parts.len() > 1).then(|| {
-        let error_part = parts[1];
-        let error_type_str = error_part
+    let mut custom_error: Option<Type> = None;
+    let mut is_global = false;
+
+    // Parse remaining parts
+    for part in &parts[1..] {
+        if let Some(value) = part
             .strip_prefix("error")
             .and_then(|s| s.trim().strip_prefix('='))
-            .map(|s| s.trim())
-            .expect("cipherbox: expected 'error = ErrorType' after comma");
+        {
+            let error_type_str = value.trim();
+            custom_error = Some(
+                syn::parse_str::<Type>(error_type_str).expect("cipherbox: invalid error type"),
+            );
+        } else if let Some(value) = part
+            .strip_prefix("global")
+            .and_then(|s| s.trim().strip_prefix('='))
+        {
+            let global_str = value.trim();
+            is_global = global_str == "true";
+        } else {
+            panic!("cipherbox: unknown attribute parameter: {}", part);
+        }
+    }
 
-        syn::parse_str::<Type>(error_type_str).expect("cipherbox: invalid error type")
-    });
-
-    (wrapper_name, custom_error)
+    (wrapper_name, custom_error, is_global)
 }
 /// Find the root crate path from a list of candidates.
 pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStream2 {
@@ -176,6 +201,7 @@ fn inject_zeroize_on_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
 fn expand(
     wrapper_name: Ident,
     custom_error: Option<Type>,
+    _is_global: bool,
     input: DeriveInput,
 ) -> Result<TokenStream2, TokenStream2> {
     // Inject __sentinel field if it doesn't exist
@@ -236,6 +262,32 @@ fn expand(
         .map(|ty| quote! { #ty })
         .unwrap_or_else(|| quote! { #root::CipherBoxError });
 
+    // Generate failure mode enum name
+    let failure_mode_enum_name = format_ident!("{}FailureMode", wrapper_name);
+
+    // Generate failure mode enum (test_utils only)
+    let failure_mode_enum = quote! {
+        #[cfg(any(test, feature = "test_utils"))]
+        #[derive(Debug, Clone, Copy)]
+        pub enum #failure_mode_enum_name {
+            None,
+            FailOnNthOperation(usize),
+        }
+    };
+
+    // Helper to generate failure check code
+    let failure_check = quote! {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(#root::CipherBoxError::IntentionalCipherBoxError.into());
+                }
+            }
+        }
+    };
+
     // Generate per-field methods
     let mut leak_methods = Vec::new();
     let mut open_methods = Vec::new();
@@ -253,6 +305,7 @@ fn expand(
         leak_methods.push(quote! {
             #[inline(always)]
             pub fn #leak_name(&mut self) -> Result<#redoubt_zero_root::ZeroizingGuard<#field_type>, #error_type> {
+                #failure_check
                 self.inner.leak_field::<#field_type, #idx_lit, #error_type>()
             }
         });
@@ -263,6 +316,7 @@ fn expand(
             where
                 F: FnMut(&#field_type) -> Result<R, #error_type>,
             {
+                #failure_check
                 self.inner.open_field::<#field_type, #idx_lit, F, R, #error_type>(f)
             }
         });
@@ -273,6 +327,7 @@ fn expand(
             where
                 F: FnMut(&mut #field_type) -> Result<R, #error_type>,
             {
+                #failure_check
                 self.inner.open_field_mut::<#field_type, #idx_lit, F, R, #error_type>(f)
             }
         });
@@ -340,9 +395,14 @@ fn expand(
             }
         }
 
+        // Generate failure mode enum (test_utils only)
+        #failure_mode_enum
+
         // Generate wrapper struct
         pub struct #wrapper_name {
             inner: #root::CipherBox<#struct_name, #redoubt_aead_root::Aead, #num_fields_lit>,
+            #[cfg(any(test, feature = "test_utils"))]
+            failure_counter: usize,
         }
 
         impl #wrapper_name {
@@ -350,6 +410,8 @@ fn expand(
             pub fn new() -> Self {
                 Self {
                     inner: #root::CipherBox::new(#redoubt_aead_root::Aead::new()),
+                    #[cfg(any(test, feature = "test_utils"))]
+                    failure_counter: 0,
                 }
             }
 
@@ -358,6 +420,7 @@ fn expand(
             where
                 F: FnMut(&#struct_name) -> Result<R, #error_type>,
             {
+                #failure_check
                 self.inner.open(f)
             }
 
@@ -366,7 +429,20 @@ fn expand(
             where
                 F: FnMut(&mut #struct_name) -> Result<R, #error_type>,
             {
+                #failure_check
                 self.inner.open_mut(f)
+            }
+
+            #[cfg(any(test, feature = "test_utils"))]
+            pub fn set_failure_mode(&mut self, mode: #failure_mode_enum_name) {
+                match mode {
+                    #failure_mode_enum_name::None => {
+                        self.failure_counter = 0;
+                    }
+                    #failure_mode_enum_name::FailOnNthOperation(n) => {
+                        self.failure_counter = n;
+                    }
+                }
             }
 
             #( #leak_methods )*

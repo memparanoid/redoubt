@@ -60,14 +60,24 @@ for WithCustomError {
         )
     }
 }
+#[cfg(any(test, feature = "test_utils"))]
+#[derive(Debug, Clone, Copy)]
+pub enum WithCustomErrorBoxFailureMode {
+    None,
+    FailOnNthOperation(usize),
+}
 pub struct WithCustomErrorBox {
     inner: redoubt_vault_core::CipherBox<WithCustomError, redoubt_aead::Aead, 2>,
+    #[cfg(any(test, feature = "test_utils"))]
+    failure_counter: usize,
 }
 impl WithCustomErrorBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
             inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+            #[cfg(any(test, feature = "test_utils"))]
+            failure_counter: 0,
         }
     }
     #[inline(always)]
@@ -75,6 +85,18 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&WithCustomError) -> Result<R, MyCustomError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open(f)
     }
     #[inline(always)]
@@ -82,18 +104,65 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&mut WithCustomError) -> Result<R, MyCustomError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open_mut(f)
+    }
+    #[cfg(any(test, feature = "test_utils"))]
+    pub fn set_failure_mode(&mut self, mode: WithCustomErrorBoxFailureMode) {
+        match mode {
+            WithCustomErrorBoxFailureMode::None => {
+                self.failure_counter = 0;
+            }
+            WithCustomErrorBoxFailureMode::FailOnNthOperation(n) => {
+                self.failure_counter = n;
+            }
+        }
     }
     #[inline(always)]
     pub fn leak_field1(
         &mut self,
     ) -> Result<redoubt_zero::ZeroizingGuard<Vec<u8>>, MyCustomError> {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.leak_field::<Vec<u8>, 0, MyCustomError>()
     }
     #[inline(always)]
     pub fn leak_field2(
         &mut self,
     ) -> Result<redoubt_zero::ZeroizingGuard<u64>, MyCustomError> {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.leak_field::<u64, 1, MyCustomError>()
     }
     #[inline(always)]
@@ -101,6 +170,18 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&Vec<u8>) -> Result<R, MyCustomError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open_field::<Vec<u8>, 0, F, R, MyCustomError>(f)
     }
     #[inline(always)]
@@ -108,6 +189,18 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&u64) -> Result<R, MyCustomError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open_field::<u64, 1, F, R, MyCustomError>(f)
     }
     #[inline(always)]
@@ -115,6 +208,18 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&mut Vec<u8>) -> Result<R, MyCustomError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open_field_mut::<Vec<u8>, 0, F, R, MyCustomError>(f)
     }
     #[inline(always)]
@@ -122,6 +227,18 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&mut u64) -> Result<R, MyCustomError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open_field_mut::<u64, 1, F, R, MyCustomError>(f)
     }
 }

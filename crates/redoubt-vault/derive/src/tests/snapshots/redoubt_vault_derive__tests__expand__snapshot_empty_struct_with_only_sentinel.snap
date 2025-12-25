@@ -56,14 +56,24 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 0> for Empty
         )
     }
 }
+#[cfg(any(test, feature = "test_utils"))]
+#[derive(Debug, Clone, Copy)]
+pub enum EmptyBoxFailureMode {
+    None,
+    FailOnNthOperation(usize),
+}
 pub struct EmptyBox {
     inner: redoubt_vault_core::CipherBox<Empty, redoubt_aead::Aead, 0>,
+    #[cfg(any(test, feature = "test_utils"))]
+    failure_counter: usize,
 }
 impl EmptyBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
             inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+            #[cfg(any(test, feature = "test_utils"))]
+            failure_counter: 0,
         }
     }
     #[inline(always)]
@@ -71,6 +81,18 @@ impl EmptyBox {
     where
         F: FnMut(&Empty) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open(f)
     }
     #[inline(always)]
@@ -81,7 +103,30 @@ impl EmptyBox {
     where
         F: FnMut(&mut Empty) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open_mut(f)
+    }
+    #[cfg(any(test, feature = "test_utils"))]
+    pub fn set_failure_mode(&mut self, mode: EmptyBoxFailureMode) {
+        match mode {
+            EmptyBoxFailureMode::None => {
+                self.failure_counter = 0;
+            }
+            EmptyBoxFailureMode::FailOnNthOperation(n) => {
+                self.failure_counter = n;
+            }
+        }
     }
 }
 impl Default for EmptyBox {

@@ -69,14 +69,24 @@ where
         )
     }
 }
+#[cfg(any(test, feature = "test_utils"))]
+#[derive(Debug, Clone, Copy)]
+pub enum ContainerBoxFailureMode {
+    None,
+    FailOnNthOperation(usize),
+}
 pub struct ContainerBox {
     inner: redoubt_vault_core::CipherBox<Container, redoubt_aead::Aead, 2>,
+    #[cfg(any(test, feature = "test_utils"))]
+    failure_counter: usize,
 }
 impl ContainerBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
             inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+            #[cfg(any(test, feature = "test_utils"))]
+            failure_counter: 0,
         }
     }
     #[inline(always)]
@@ -84,6 +94,18 @@ impl ContainerBox {
     where
         F: FnMut(&Container) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open(f)
     }
     #[inline(always)]
@@ -94,18 +116,65 @@ impl ContainerBox {
     where
         F: FnMut(&mut Container) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open_mut(f)
+    }
+    #[cfg(any(test, feature = "test_utils"))]
+    pub fn set_failure_mode(&mut self, mode: ContainerBoxFailureMode) {
+        match mode {
+            ContainerBoxFailureMode::None => {
+                self.failure_counter = 0;
+            }
+            ContainerBoxFailureMode::FailOnNthOperation(n) => {
+                self.failure_counter = n;
+            }
+        }
     }
     #[inline(always)]
     pub fn leak_value(
         &mut self,
     ) -> Result<redoubt_zero::ZeroizingGuard<T>, redoubt_vault_core::CipherBoxError> {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.leak_field::<T, 0, redoubt_vault_core::CipherBoxError>()
     }
     #[inline(always)]
     pub fn leak_count(
         &mut self,
     ) -> Result<redoubt_zero::ZeroizingGuard<u64>, redoubt_vault_core::CipherBoxError> {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.leak_field::<u64, 1, redoubt_vault_core::CipherBoxError>()
     }
     #[inline(always)]
@@ -116,6 +185,18 @@ impl ContainerBox {
     where
         F: FnMut(&T) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open_field::<T, 0, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
     #[inline(always)]
@@ -126,6 +207,18 @@ impl ContainerBox {
     where
         F: FnMut(&u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open_field::<u64, 1, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
     #[inline(always)]
@@ -136,6 +229,18 @@ impl ContainerBox {
     where
         F: FnMut(&mut T) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open_field_mut::<T, 0, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
     #[inline(always)]
@@ -146,6 +251,18 @@ impl ContainerBox {
     where
         F: FnMut(&mut u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open_field_mut::<u64, 1, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
 }

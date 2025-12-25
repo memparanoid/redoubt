@@ -54,7 +54,7 @@ fn snapshot_named_struct_ok() {
         }
     };
 
-    let token_stream = expand(syn::parse_quote!(DataBox), None, derive_input).expect("expand failed");
+    let token_stream = expand(syn::parse_quote!(DataBox), None, false, derive_input).expect("expand failed");
     insta::assert_snapshot!(pretty(token_stream));
 }
 
@@ -66,7 +66,7 @@ fn snapshot_named_struct_with_single_field() {
         }
     };
 
-    let token_stream = expand(syn::parse_quote!(GammaBox), None, derive_input).expect("expand failed");
+    let token_stream = expand(syn::parse_quote!(GammaBox), None, false, derive_input).expect("expand failed");
     insta::assert_snapshot!(pretty(token_stream));
 }
 
@@ -80,7 +80,7 @@ fn snapshot_named_struct_with_generics() {
     };
 
     let token_stream =
-        expand(syn::parse_quote!(ContainerBox), None, derive_input).expect("expand failed");
+        expand(syn::parse_quote!(ContainerBox), None, false, derive_input).expect("expand failed");
     insta::assert_snapshot!(pretty(token_stream));
 }
 
@@ -98,6 +98,7 @@ fn snapshot_named_struct_with_custom_error() {
     let token_stream = expand(
         syn::parse_quote!(WithCustomErrorBox),
         Some(custom_error),
+        false,
         derive_input
     ).expect("expand failed");
     insta::assert_snapshot!(pretty(token_stream));
@@ -119,7 +120,7 @@ fn snapshot_named_struct_with_codec_default_field() {
         }
     };
 
-    let token_stream = expand(syn::parse_quote!(DeltaBox), None, derive_input).expect("expand failed");
+    let token_stream = expand(syn::parse_quote!(DeltaBox), None, false, derive_input).expect("expand failed");
     insta::assert_snapshot!(pretty(token_stream));
 }
 
@@ -136,7 +137,7 @@ fn snapshot_named_struct_with_zeroize_on_drop_sentinel() {
         }
     };
 
-    let token_stream = expand(syn::parse_quote!(EpsilonBox), None, derive_input).expect("expand failed");
+    let token_stream = expand(syn::parse_quote!(EpsilonBox), None, false, derive_input).expect("expand failed");
     insta::assert_snapshot!(pretty(token_stream));
 }
 
@@ -155,7 +156,7 @@ fn snapshot_named_struct_with_multiple_filtered_fields() {
         }
     };
 
-    let token_stream = expand(syn::parse_quote!(ZetaBox), None, derive_input).expect("expand failed");
+    let token_stream = expand(syn::parse_quote!(ZetaBox), None, false, derive_input).expect("expand failed");
     insta::assert_snapshot!(pretty(token_stream));
 }
 
@@ -173,7 +174,7 @@ fn snapshot_empty_struct_with_only_sentinel() {
         }
     };
 
-    let token_stream = expand(syn::parse_quote!(EmptyBox), None, derive_input).expect("expand failed");
+    let token_stream = expand(syn::parse_quote!(EmptyBox), None, false, derive_input).expect("expand failed");
     insta::assert_snapshot!(pretty(token_stream));
 }
 
@@ -189,7 +190,7 @@ fn snapshot_struct_with_all_fields_filtered() {
     };
 
     let token_stream =
-        expand(syn::parse_quote!(OnlyDefaultsBox), None, derive_input).expect("expand failed");
+        expand(syn::parse_quote!(OnlyDefaultsBox), None, false, derive_input).expect("expand failed");
     insta::assert_snapshot!(pretty(token_stream));
 }
 
@@ -203,7 +204,7 @@ fn snapshot_unit_struct_ok() {
         struct Unit;
     };
 
-    let token_stream = expand(syn::parse_quote!(UnitBox), None, derive_input).expect("expand failed");
+    let token_stream = expand(syn::parse_quote!(UnitBox), None, false, derive_input).expect("expand failed");
     insta::assert_snapshot!(pretty(token_stream));
 }
 
@@ -218,7 +219,7 @@ fn snapshot_tuple_struct_fails() {
         struct Data(Vec<u8>, u64, u32);
     };
 
-    let result = expand(syn::parse_quote!(DataBox), None, derive_input);
+    let result = expand(syn::parse_quote!(DataBox), None, false, derive_input);
     assert!(result.is_err());
 
     let err_str = format!("{}", result.unwrap_err());
@@ -234,7 +235,7 @@ fn snapshot_enum_fails() {
         }
     };
 
-    let result = expand(syn::parse_quote!(ChoiceBox), None, derive_input);
+    let result = expand(syn::parse_quote!(ChoiceBox), None, false, derive_input);
     assert!(result.is_err());
 
     let err_str = format!("{}", result.unwrap_err());
@@ -250,6 +251,6 @@ fn snapshot_union_fails() {
         }
     };
 
-    let result = expand(syn::parse_quote!(MyUnionBox), None, derive_input);
+    let result = expand(syn::parse_quote!(MyUnionBox), None, false, derive_input);
     assert!(result.is_err());
 }

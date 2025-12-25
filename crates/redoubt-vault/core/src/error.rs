@@ -52,7 +52,7 @@ pub enum CipherBoxError {
     /// - The CipherBox is not poisoned when callback errors occur
     /// - Rollback mechanism preserves original state on callback failure
     /// - Error propagation works correctly through the API
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test_utils"))]
     #[error("IntentionalCipherBoxError")]
     IntentionalCipherBoxError,
 }

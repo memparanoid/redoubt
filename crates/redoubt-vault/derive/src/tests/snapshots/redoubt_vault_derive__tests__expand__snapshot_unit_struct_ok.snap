@@ -52,14 +52,24 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 0> for Unit 
         )
     }
 }
+#[cfg(any(test, feature = "test_utils"))]
+#[derive(Debug, Clone, Copy)]
+pub enum UnitBoxFailureMode {
+    None,
+    FailOnNthOperation(usize),
+}
 pub struct UnitBox {
     inner: redoubt_vault_core::CipherBox<Unit, redoubt_aead::Aead, 0>,
+    #[cfg(any(test, feature = "test_utils"))]
+    failure_counter: usize,
 }
 impl UnitBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
             inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+            #[cfg(any(test, feature = "test_utils"))]
+            failure_counter: 0,
         }
     }
     #[inline(always)]
@@ -67,6 +77,18 @@ impl UnitBox {
     where
         F: FnMut(&Unit) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open(f)
     }
     #[inline(always)]
@@ -77,7 +99,30 @@ impl UnitBox {
     where
         F: FnMut(&mut Unit) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open_mut(f)
+    }
+    #[cfg(any(test, feature = "test_utils"))]
+    pub fn set_failure_mode(&mut self, mode: UnitBoxFailureMode) {
+        match mode {
+            UnitBoxFailureMode::None => {
+                self.failure_counter = 0;
+            }
+            UnitBoxFailureMode::FailOnNthOperation(n) => {
+                self.failure_counter = n;
+            }
+        }
     }
 }
 impl Default for UnitBox {

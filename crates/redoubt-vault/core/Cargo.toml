@@ -15,6 +15,7 @@ path = "src/lib.rs"
 [features]
 default = []
 no_std = []
+test_utils = []
 __internal__forensics = ["redoubt-guard/__internal__forensics"]
 
 [dependencies]

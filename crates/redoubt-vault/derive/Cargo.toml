@@ -13,7 +13,12 @@ version.workspace = true
 proc-macro = true
 path = "src/lib.rs"
 
+[features]
+no_std = []
+test_utils = []
+
 [dependencies]
+heck.workspace = true
 proc-macro2.workspace = true
 proc-macro-crate.workspace = true
 quote.workspace = true
@@ -23,8 +28,10 @@ syn = { workspace = true, features = ["full", "parsing"] }
 prettyplease.workspace  = true
 trybuild.workspace      = true
 redoubt-aead.workspace = true
+redoubt-secret.workspace = true
+redoubt-alloc.workspace = true
 redoubt-codec.workspace = true
-redoubt-vault-core.workspace = true
+redoubt-vault-core = { workspace = true, features = ["test_utils"] }
 redoubt-zero.workspace = true
 
 # Only include insta on architectures where it compiles (cpufeatures constraint)

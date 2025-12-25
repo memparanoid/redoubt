@@ -56,14 +56,24 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 1> for Gamma
         )
     }
 }
+#[cfg(any(test, feature = "test_utils"))]
+#[derive(Debug, Clone, Copy)]
+pub enum GammaBoxFailureMode {
+    None,
+    FailOnNthOperation(usize),
+}
 pub struct GammaBox {
     inner: redoubt_vault_core::CipherBox<Gamma, redoubt_aead::Aead, 1>,
+    #[cfg(any(test, feature = "test_utils"))]
+    failure_counter: usize,
 }
 impl GammaBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
             inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+            #[cfg(any(test, feature = "test_utils"))]
+            failure_counter: 0,
         }
     }
     #[inline(always)]
@@ -71,6 +81,18 @@ impl GammaBox {
     where
         F: FnMut(&Gamma) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open(f)
     }
     #[inline(always)]
@@ -81,7 +103,30 @@ impl GammaBox {
     where
         F: FnMut(&mut Gamma) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open_mut(f)
+    }
+    #[cfg(any(test, feature = "test_utils"))]
+    pub fn set_failure_mode(&mut self, mode: GammaBoxFailureMode) {
+        match mode {
+            GammaBoxFailureMode::None => {
+                self.failure_counter = 0;
+            }
+            GammaBoxFailureMode::FailOnNthOperation(n) => {
+                self.failure_counter = n;
+            }
+        }
     }
     #[inline(always)]
     pub fn leak_value(
@@ -90,6 +135,18 @@ impl GammaBox {
         redoubt_zero::ZeroizingGuard<[u8; 32]>,
         redoubt_vault_core::CipherBoxError,
     > {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.leak_field::<[u8; 32], 0, redoubt_vault_core::CipherBoxError>()
     }
     #[inline(always)]
@@ -100,6 +157,18 @@ impl GammaBox {
     where
         F: FnMut(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner.open_field::<[u8; 32], 0, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
     #[inline(always)]
@@ -110,6 +179,18 @@ impl GammaBox {
     where
         F: FnMut(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
+        #[cfg(any(test, feature = "test_utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
         self.inner
             .open_field_mut::<[u8; 32], 0, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
