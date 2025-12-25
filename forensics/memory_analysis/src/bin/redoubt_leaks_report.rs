@@ -54,6 +54,7 @@ struct TestData {
     option_option_redoubt_string: RedoubtOption<RedoubtOption<RedoubtString>>,
     option_redoubt_secret_u64: RedoubtOption<RedoubtSecret<u64>>,
     redoubt_secret_u64: RedoubtSecret<u64>,
+    read_write_secret: RedoubtSecret<u64>,
 }
 
 #[cfg(feature = "__internal__forensics")]
@@ -105,6 +106,7 @@ impl Patterns {
 struct Values {
     value_1: u64, // redoubt_secret_u64
     value_2: u64, // option_redoubt_secret_u64 (RedoubtOption<RedoubtSecret<u64>>)
+    value_3: u64, // read_write_secret
     __sentinel: ZeroizeOnDropSentinel,
 }
 
@@ -113,6 +115,7 @@ impl Values {
     fn fill(&mut self) {
         self.value_1 = 0xDEADBEEFCAFEBABE; // redoubt_secret_u64
         self.value_2 = 0xCAFEBABEDEADBEEF; // option_redoubt_secret_u64
+        self.value_3 = 0xABCDEF0123456789; // read_write_secret
     }
 }
 
@@ -181,6 +184,17 @@ fn main() {
         println!();
         println!("[+] Value 1 (redoubt_secret_u64): 0xDEADBEEFCAFEBABE");
         println!("[+] Value 2 (option_redoubt_secret_u64): 0xCAFEBABEDEADBEEF");
+        println!("[+] Value 3 (read_write_secret): 0xABCDEF0123456789");
+        println!();
+
+        // Initialize read_write_secret before the loop
+        println!("[*] Initializing read_write_secret field...");
+        test_box
+            .open_read_write_secret_mut(|secret| {
+                secret.replace(&mut values.value_3);
+                Ok(())
+            })
+            .expect("Failed to initialize read_write_secret");
         println!();
 
         // Run iterations to test for leaks
@@ -251,6 +265,12 @@ fn main() {
                     // Force deref through as_ref() with black_box
                     use_u64_ref(data.redoubt_secret_u64.as_ref());
 
+                    // Test read-write pattern on read_write_secret (simulates README example)
+                    // Pattern: read with deref -> compute -> replace
+                    // Using XOR with 0 to simulate computation without changing the value
+                    let mut next = *data.read_write_secret.as_ref() ^ 0; // Deref makes 1 copy
+                    data.read_write_secret.replace(&mut next); // Drains the copy
+
                     // Zeroize temporary clones
                     temp_patterns.fast_zeroize();
                     temp_values.fast_zeroize();
@@ -290,6 +310,7 @@ fn main() {
         // Print secret values
         println!("Value #1: deadbeefcafebabe"); // `redoubt_secret_u64` field value
         println!("Value #2: cafebabedeadbeef"); // `option_redoubt_secret_u64` field value
+        println!("Value #3: abcdef0123456789"); // `read_write_secret` field value
         println!();
 
         // Zeroize all patterns and values
@@ -307,6 +328,7 @@ fn main() {
         let sum7: u32 = patterns.pattern_7.iter().map(|&b| b as u32).sum();
         let val1: u64 = values.value_1;
         let val2: u64 = values.value_2;
+        let val3: u64 = values.value_3;
         println!("[*] Post-zeroize verification:");
         println!("    pattern_1 sum: {} (should be 0)", sum1);
         println!("    pattern_2 sum: {} (should be 0)", sum2);
@@ -317,6 +339,7 @@ fn main() {
         println!("    pattern_7 sum: {} (should be 0)", sum7);
         println!("    value_1: {} (should be 0)", val1);
         println!("    value_2: {} (should be 0)", val2);
+        println!("    value_3: {} (should be 0)", val3);
         println!();
 
         // Signal to script that we're ready for dump
