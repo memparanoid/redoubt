@@ -1,0 +1,77 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+//! Tests for global storage with std strategy
+
+#[cfg(feature = "test_utils")]
+mod storage_std {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    use redoubt_codec::RedoubtCodec;
+    use redoubt_secret::RedoubtSecret;
+    use redoubt_vault_core::CipherBoxError;
+    use redoubt_vault_derive::cipherbox;
+    use redoubt_zero::RedoubtZero;
+
+    #[cipherbox(TestBox, global = true, storage = "std")]
+    #[derive(Default, RedoubtCodec, RedoubtZero)]
+    struct TestData {
+        counter: RedoubtSecret<u64>,
+    }
+
+    static ACCESS_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    #[test]
+    fn test_concurrent_global_access() {
+        const NUM_THREADS: u64 = 2;
+
+        let handles: Vec<_> = (0..NUM_THREADS)
+            .map(|_| {
+                std::thread::spawn(|| {
+                    // Read and increment access counter atomically
+                    let value = ACCESS_COUNTER.fetch_add(1, Ordering::SeqCst);
+
+                    // Sum using open_mut (whole struct access)
+                    TEST_BOX::open_mut(|data| {
+                        let current = *data.counter.as_ref();
+                        data.counter.replace(&mut (current + value));
+                        Ok::<(), CipherBoxError>(())
+                    })
+                    .expect("open_mut should succeed");
+
+                    // Sum using open_counter_mut (field-specific access)
+                    TEST_BOX::open_counter_mut(|counter| {
+                        let current = *counter.as_ref();
+                        counter.replace(&mut (current + value));
+                        Ok::<(), CipherBoxError>(())
+                    })
+                    .expect("open_counter_mut should succeed");
+                })
+            })
+            .collect();
+
+        // Wait for all threads to complete
+        for handle in handles {
+            handle.join().expect("thread should not panic");
+        }
+
+        // Verify final value
+        // Each thread adds its access_counter value twice:
+        //   1. Via open_mut on the whole struct
+        //   2. Via open_counter_mut on the specific field
+        // Sum of 0..1 = (2 * 1) / 2 = 1
+        // Multiplied by 2 (two additions per thread) = 2
+        let expected = ((NUM_THREADS * (NUM_THREADS - 1)) / 2) * 2;
+
+        TEST_BOX::open_counter(|counter| {
+            assert_eq!(
+                *counter.as_ref(),
+                expected,
+                "Final counter value should match expected sum"
+            );
+            Ok::<(), CipherBoxError>(())
+        })
+        .expect("final verification should succeed");
+    }
+}

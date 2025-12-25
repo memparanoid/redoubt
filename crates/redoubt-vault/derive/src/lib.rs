@@ -379,43 +379,78 @@ fn expand(
             }
         });
 
-        // Generate global methods if needed (only for portable for now)
-        if is_global && use_portable_storage {
-            // Global leak method
-            global_leak_methods.push(quote! {
-                pub fn #leak_name() -> Result<#redoubt_zero_root::ZeroizingGuard<#field_type>, #error_type> {
-                    lock();
-                    let _guard = PanicGuard;
-                    let instance = get_or_init();
-                    instance.#leak_name()
-                }
-            });
+        // Generate global methods if needed
+        if is_global {
+            if use_portable_storage {
+                // Portable: Global leak method
+                global_leak_methods.push(quote! {
+                    pub fn #leak_name() -> Result<#redoubt_zero_root::ZeroizingGuard<#field_type>, #error_type> {
+                        lock();
+                        let _guard = PanicGuard;
+                        let instance = get_or_init();
+                        instance.#leak_name()
+                    }
+                });
 
-            // Global open method
-            global_open_methods.push(quote! {
-                pub fn #open_name<F, R>(f: F) -> Result<R, #error_type>
-                where
-                    F: FnMut(&#field_type) -> Result<R, #error_type>,
-                {
-                    lock();
-                    let _guard = PanicGuard;
-                    let instance = get_or_init();
-                    instance.#open_name(f)
-                }
-            });
+                // Portable: Global open method
+                global_open_methods.push(quote! {
+                    pub fn #open_name<F, R>(f: F) -> Result<R, #error_type>
+                    where
+                        F: FnMut(&#field_type) -> Result<R, #error_type>,
+                    {
+                        lock();
+                        let _guard = PanicGuard;
+                        let instance = get_or_init();
+                        instance.#open_name(f)
+                    }
+                });
 
-            // Global open_mut method
-            global_open_mut_methods.push(quote! {
-                pub fn #open_mut_name<F, R>(f: F) -> Result<R, #error_type>
-                where
-                    F: FnMut(&mut #field_type) -> Result<R, #error_type>,
-                {
-                    lock();
-                    let _guard = PanicGuard;
-                    let instance = get_or_init();
-                    instance.#open_mut_name(f)
-                }
-            });
+                // Portable: Global open_mut method
+                global_open_mut_methods.push(quote! {
+                    pub fn #open_mut_name<F, R>(f: F) -> Result<R, #error_type>
+                    where
+                        F: FnMut(&mut #field_type) -> Result<R, #error_type>,
+                    {
+                        lock();
+                        let _guard = PanicGuard;
+                        let instance = get_or_init();
+                        instance.#open_mut_name(f)
+                    }
+                });
+            } else {
+                // std: Global leak method
+                global_leak_methods.push(quote! {
+                    pub fn #leak_name() -> Result<#redoubt_zero_root::ZeroizingGuard<#field_type>, #error_type> {
+                        let mutex = get_or_init();
+                        let mut guard = mutex.lock().expect("Mutex poisoned");
+                        guard.#leak_name()
+                    }
+                });
+
+                // std: Global open method
+                global_open_methods.push(quote! {
+                    pub fn #open_name<F, R>(f: F) -> Result<R, #error_type>
+                    where
+                        F: FnMut(&#field_type) -> Result<R, #error_type>,
+                    {
+                        let mutex = get_or_init();
+                        let mut guard = mutex.lock().expect("Mutex poisoned");
+                        guard.#open_name(f)
+                    }
+                });
+
+                // std: Global open_mut method
+                global_open_mut_methods.push(quote! {
+                    pub fn #open_mut_name<F, R>(f: F) -> Result<R, #error_type>
+                    where
+                        F: FnMut(&mut #field_type) -> Result<R, #error_type>,
+                    {
+                        let mutex = get_or_init();
+                        let mut guard = mutex.lock().expect("Mutex poisoned");
+                        guard.#open_mut_name(f)
+                    }
+                });
+            }
         }
     }
 
@@ -572,9 +607,29 @@ fn expand(
                         #static_name.get_or_init(|| std::sync::Mutex::new(#wrapper_name::new()))
                     }
 
-                    // TODO: Add global methods here
-                    // #( #global_open_methods )*
-                    // #( #global_leak_methods )*
+                    // Global open and open_mut methods
+                    pub fn open<F, R>(f: F) -> Result<R, #error_type>
+                    where
+                        F: FnMut(&#struct_name) -> Result<R, #error_type>,
+                    {
+                        let mutex = get_or_init();
+                        let mut guard = mutex.lock().expect("Mutex poisoned");
+                        guard.open(f)
+                    }
+
+                    pub fn open_mut<F, R>(f: F) -> Result<R, #error_type>
+                    where
+                        F: FnMut(&mut #struct_name) -> Result<R, #error_type>,
+                    {
+                        let mutex = get_or_init();
+                        let mut guard = mutex.lock().expect("Mutex poisoned");
+                        guard.open_mut(f)
+                    }
+
+                    // Per-field methods
+                    #( #global_leak_methods )*
+                    #( #global_open_methods )*
+                    #( #global_open_mut_methods )*
                 }
             }
         }
