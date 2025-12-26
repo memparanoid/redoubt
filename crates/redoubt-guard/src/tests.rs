@@ -4,7 +4,15 @@
 
 //! Tests for redoubt_guard
 
-#[cfg(target_os = "linux")]
+#[test]
+fn test_guard_status_is_idempotent() {
+    // Multiple calls should not panic or deadlock
+    let _ = crate::guard_status();
+    let _ = crate::guard_status();
+    let _ = crate::guard_status();
+}
+
+#[cfg(all(target_os = "linux", feature = "guard"))]
 mod linux {
     use serial_test::serial;
 
@@ -29,14 +37,6 @@ mod linux {
             .status()
             .expect("Failed to run subprocess");
         status.code()
-    }
-
-    #[test]
-    fn test_guard_status_is_idempotent() {
-        // Multiple calls should not panic or deadlock
-        let _ = crate::guard_status();
-        let _ = crate::guard_status();
-        let _ = crate::guard_status();
     }
 
     // Subprocess test: prctl blocked by seccomp
