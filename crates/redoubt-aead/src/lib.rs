@@ -10,10 +10,14 @@ mod aead;
 mod aegis_asm;
 mod error;
 mod feature_detector;
-mod support;
 mod traits;
 mod xchacha20poly1305;
+
+pub mod support;
 
 pub use aead::Aead;
 pub use error::AeadError;
 pub use traits::{AeadApi, AeadBackend};
+
+#[cfg(feature = "test_utils")]
+pub use support::test_utils;

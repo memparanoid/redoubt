@@ -15,8 +15,12 @@ echo "Building base image..."
 
 # Run tests locally
 echo ""
-echo "Running release tests locally..."
-cargo test --release --workspace --all-features
+echo "Running release tests locally with all features..."
+cargo test --release --workspace --all-features -- --nocapture
+
+echo ""
+echo "Running release tests locally without features..."
+cargo test --release --workspace -- --nocapture
 
 # Build test-release image for both architectures
 echo ""

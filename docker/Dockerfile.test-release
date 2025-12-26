@@ -3,7 +3,8 @@ FROM redoubt-test-base:latest
 # Build workspace and dependencies in release mode with cache mount
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/workspace/target \
-    cargo test --release --workspace --all-features --no-run
+    cargo test --release --workspace --all-features --no-run && \
+    cargo test --release --workspace --no-run
 
 # Copy actual source code
 COPY crates ./crates
@@ -13,5 +14,5 @@ COPY forensics ./forensics
 # Update timestamps to force workspace re-compilation but keep dep artifacts
 RUN find crates examples forensics -type f -name "*.rs" -exec touch {} \;
 
-# Run release tests
-CMD ["cargo", "test", "--release", "--workspace", "--all-features", "--", "--nocapture"]
+# Run release tests with and without features
+CMD ["sh", "-c", "cargo test --release --workspace --all-features -- --nocapture && cargo test --release --workspace -- --nocapture"]
