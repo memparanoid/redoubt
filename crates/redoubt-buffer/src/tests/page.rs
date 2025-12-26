@@ -4,532 +4,536 @@
 
 //! Exhaustive tests for Page.
 
-use serial_test::serial;
+#[cfg(all(test, unix))]
+mod page_tests {
+    use serial_test::serial;
 
-use redoubt_zero::ZeroizationProbe;
+    use redoubt_zero::ZeroizationProbe;
 
-#[cfg(target_os = "linux")]
-use crate::error::PageError;
-use crate::page::Page;
+    #[cfg(target_os = "linux")]
+    use crate::error::PageError;
+    use crate::page::Page;
 
-// =============================================================================
-// new()
-// =============================================================================
-
-#[test]
-#[serial(page)]
-fn test_new_page_is_zeroized() {
-    let page = Page::new().expect("Failed to new()");
-    let slice = unsafe { page.as_slice() };
-
-    assert!(slice.is_zeroized());
-}
-
-#[test]
-#[serial(page)]
-fn test_slice_len_matches_page_size() {
-    let page = Page::new().expect("Failed to new()");
-    let system_page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
-    let slice = unsafe { page.as_slice() };
-
-    assert_eq!(slice.len(), system_page_size);
-}
-
-// TODO: Run this test in a subprocess to safely cover the MAP_FAILED branch
-// without causing stack allocation failures in the main test process.
-// This would allow including it in coverage reports without flakiness.
-// See: Page::new() line 47 - branch coverage for ptr == libc::MAP_FAILED
-#[test]
-#[ignore] // Exhausts address space, run explicitly with --ignored
-#[serial(page)]
-#[cfg(target_os = "linux")]
-fn test_new_fails_when_address_space_exhausted() {
-    let mut original = libc::rlimit {
-        rlim_cur: 0,
-        rlim_max: 0,
-    };
-    unsafe { libc::getrlimit(libc::RLIMIT_AS, &mut original) };
-
-    let tiny = libc::rlimit {
-        rlim_cur: 0,
-        rlim_max: original.rlim_max,
-    };
-    unsafe { libc::setrlimit(libc::RLIMIT_AS, &tiny) };
-
-    let result = Page::new();
-
-    assert!(result.is_err());
-    assert!(matches!(result, Err(PageError::Create)));
-
-    unsafe { libc::setrlimit(libc::RLIMIT_AS, &original) };
-}
-
-// =============================================================================
-// lock()
-// =============================================================================
-
-#[test]
-#[serial(page)]
-fn test_lock_succeeds() {
-    let page = Page::new().expect("Failed to new()");
-    page.lock().expect("Failed to lock()");
-}
-
-#[test]
-#[serial(page)]
-fn test_lock_then_munlock() {
-    let page = Page::new().expect("Failed to new()");
-
-    page.lock().expect("Failed to lock()");
-    page.munlock();
-}
-
-#[test]
-#[serial(page)]
-fn test_lock_multiple_times_succeeds() {
-    let page = Page::new().expect("Failed to new()");
-
-    page.lock().expect("Failed to lock()");
-    page.lock().expect("Failed to lock()");
-}
-
-#[test]
-#[serial(page)]
-fn test_munlock_without_lock_succeeds() {
-    let page = Page::new().expect("Failed to new()");
-
-    page.munlock();
-}
-
-#[cfg(target_os = "linux")]
-mod seccomp_lock {
-    use super::*;
-    use crate::tests::utils::{block_mlock, run_test_as_subprocess};
+    // =============================================================================
+    // new()
+    // =============================================================================
 
     #[test]
-    #[ignore]
-    fn subprocess_test_lock_fails_when_mlock_blocked() {
+    #[serial(page)]
+    fn test_new_page_is_zeroized() {
         let page = Page::new().expect("Failed to new()");
+        let slice = unsafe { page.as_slice() };
 
-        block_mlock();
-
-        let result = page.lock();
-
-        assert!(result.is_err());
-        assert!(matches!(result, Err(PageError::Lock)));
+        assert!(slice.is_zeroized());
     }
 
     #[test]
     #[serial(page)]
-    fn test_lock_fails_when_mlock_blocked() {
-        let exit_code = run_test_as_subprocess(
-            "tests::page::seccomp_lock::subprocess_test_lock_fails_when_mlock_blocked",
-        );
-
-        assert_eq!(
-            exit_code,
-            Some(0),
-            "Subprocess should exit cleanly after assertion"
-        );
-    }
-}
-
-// =============================================================================
-// mark_dontdump()
-// =============================================================================
-
-#[cfg(target_os = "linux")]
-#[test]
-#[serial(page)]
-fn test_mark_dontdump_succeeds() {
-    let page = Page::new().expect("Failed to new()");
-
-    page.mark_dontdump().expect("Failed to mark_dontdump()");
-}
-
-#[cfg(target_os = "linux")]
-#[test]
-#[serial(page)]
-fn test_mark_dontdump_multiple_times_succeeds() {
-    let page = Page::new().expect("Failed to new()");
-
-    page.mark_dontdump().expect("Failed to mark_dontdump()");
-    page.mark_dontdump().expect("Failed to mark_dontdump()");
-}
-
-#[cfg(target_os = "linux")]
-mod seccomp_mark_dontdump {
-    use super::*;
-    use crate::tests::utils::{block_madvise, run_test_as_subprocess};
-
-    #[test]
-    #[ignore]
-    fn subprocess_test_mark_dontdump_fails_when_madvise_blocked() {
+    #[cfg(unix)]
+    fn test_slice_len_matches_page_size() {
         let page = Page::new().expect("Failed to new()");
+        let system_page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
+        let slice = unsafe { page.as_slice() };
 
-        block_madvise();
+        assert_eq!(slice.len(), system_page_size);
+    }
 
-        let result = page.mark_dontdump();
+    // TODO: Run this test in a subprocess to safely cover the MAP_FAILED branch
+    // without causing stack allocation failures in the main test process.
+    // This would allow including it in coverage reports without flakiness.
+    // See: Page::new() line 47 - branch coverage for ptr == libc::MAP_FAILED
+    #[test]
+    #[ignore] // Exhausts address space, run explicitly with --ignored
+    #[serial(page)]
+    #[cfg(target_os = "linux")]
+    fn test_new_fails_when_address_space_exhausted() {
+        let mut original = libc::rlimit {
+            rlim_cur: 0,
+            rlim_max: 0,
+        };
+        unsafe { libc::getrlimit(libc::RLIMIT_AS, &mut original) };
+
+        let tiny = libc::rlimit {
+            rlim_cur: 0,
+            rlim_max: original.rlim_max,
+        };
+        unsafe { libc::setrlimit(libc::RLIMIT_AS, &tiny) };
+
+        let result = Page::new();
 
         assert!(result.is_err());
-        assert!(matches!(result, Err(PageError::Madvise)));
+        assert!(matches!(result, Err(PageError::Create)));
+
+        unsafe { libc::setrlimit(libc::RLIMIT_AS, &original) };
+    }
+
+    // =============================================================================
+    // lock()
+    // =============================================================================
+
+    #[test]
+    #[serial(page)]
+    fn test_lock_succeeds() {
+        let page = Page::new().expect("Failed to new()");
+        page.lock().expect("Failed to lock()");
     }
 
     #[test]
     #[serial(page)]
-    fn test_mark_dontdump_fails_when_madvise_blocked() {
-        let exit_code = run_test_as_subprocess(
-            "tests::page::seccomp_mark_dontdump::subprocess_test_mark_dontdump_fails_when_madvise_blocked",
-        );
+    fn test_lock_then_munlock() {
+        let page = Page::new().expect("Failed to new()");
 
-        assert_eq!(
-            exit_code,
-            Some(0),
-            "Subprocess should exit cleanly after assertion"
-        );
+        page.lock().expect("Failed to lock()");
+        page.munlock();
     }
-}
 
-// =============================================================================
-// protect()
-// =============================================================================
+    #[test]
+    #[serial(page)]
+    fn test_lock_multiple_times_succeeds() {
+        let page = Page::new().expect("Failed to new()");
 
-#[test]
-#[serial(page)]
-fn test_protect_succeeds() {
-    let page = Page::new().expect("Failed to new()");
+        page.lock().expect("Failed to lock()");
+        page.lock().expect("Failed to lock()");
+    }
 
-    page.protect().expect("Failed to protect()");
-}
+    #[test]
+    #[serial(page)]
+    fn test_munlock_without_lock_succeeds() {
+        let page = Page::new().expect("Failed to new()");
 
-#[test]
-#[serial(page)]
-fn test_protect_then_unprotect() {
-    let page = Page::new().expect("Failed to new()");
+        page.munlock();
+    }
 
-    page.protect().expect("Failed to protect()");
-    page.unprotect().expect("Failed to unprotect()");
-}
+    #[cfg(target_os = "linux")]
+    mod seccomp_lock {
+        use super::*;
+        use crate::tests::utils::{block_mlock, run_test_as_subprocess};
 
-#[test]
-#[serial(page)]
-fn test_protect_unprotect_roundtrip_preserves_data() {
-    let mut page = Page::new().expect("Failed to new()");
+        #[test]
+        #[ignore]
+        fn subprocess_test_lock_fails_when_mlock_blocked() {
+            let page = Page::new().expect("Failed to new()");
 
-    unsafe { page.as_mut_slice()[0] = 0xFF };
+            block_mlock();
 
-    page.protect().expect("Failed to protect()");
-    page.unprotect().expect("Failed to unprotect()");
+            let result = page.lock();
 
-    let value = unsafe { page.as_slice()[0] };
-    assert_eq!(value, 0xFF);
-}
+            assert!(result.is_err());
+            assert!(matches!(result, Err(PageError::Lock)));
+        }
 
-#[test]
-#[serial(page)]
-fn test_multiple_protect_unprotect_cycles() {
-    let mut page = Page::new().expect("Failed to new()");
+        #[test]
+        #[serial(page)]
+        fn test_lock_fails_when_mlock_blocked() {
+            let exit_code = run_test_as_subprocess(
+                "tests::page::page_tests::seccomp_lock::subprocess_test_lock_fails_when_mlock_blocked",
+            );
 
-    for i in 0..5u8 {
-        unsafe { page.as_mut_slice()[0] = i };
+            assert_eq!(
+                exit_code,
+                Some(0),
+                "Subprocess should exit cleanly after assertion"
+            );
+        }
+    }
+
+    // =============================================================================
+    // mark_dontdump()
+    // =============================================================================
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[serial(page)]
+    fn test_mark_dontdump_succeeds() {
+        let page = Page::new().expect("Failed to new()");
+
+        page.mark_dontdump().expect("Failed to mark_dontdump()");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[serial(page)]
+    fn test_mark_dontdump_multiple_times_succeeds() {
+        let page = Page::new().expect("Failed to new()");
+
+        page.mark_dontdump().expect("Failed to mark_dontdump()");
+        page.mark_dontdump().expect("Failed to mark_dontdump()");
+    }
+
+    #[cfg(target_os = "linux")]
+    mod seccomp_mark_dontdump {
+        use super::*;
+        use crate::tests::utils::{block_madvise, run_test_as_subprocess};
+
+        #[test]
+        #[ignore]
+        fn subprocess_test_mark_dontdump_fails_when_madvise_blocked() {
+            let page = Page::new().expect("Failed to new()");
+
+            block_madvise();
+
+            let result = page.mark_dontdump();
+
+            assert!(result.is_err());
+            assert!(matches!(result, Err(PageError::Madvise)));
+        }
+
+        #[test]
+        #[serial(page)]
+        fn test_mark_dontdump_fails_when_madvise_blocked() {
+            let exit_code = run_test_as_subprocess(
+                "tests::page::page_tests::seccomp_mark_dontdump::subprocess_test_mark_dontdump_fails_when_madvise_blocked",
+            );
+
+            assert_eq!(
+                exit_code,
+                Some(0),
+                "Subprocess should exit cleanly after assertion"
+            );
+        }
+    }
+
+    // =============================================================================
+    // protect()
+    // =============================================================================
+
+    #[test]
+    #[serial(page)]
+    fn test_protect_succeeds() {
+        let page = Page::new().expect("Failed to new()");
+
+        page.protect().expect("Failed to protect()");
+    }
+
+    #[test]
+    #[serial(page)]
+    fn test_protect_then_unprotect() {
+        let page = Page::new().expect("Failed to new()");
+
+        page.protect().expect("Failed to protect()");
+        page.unprotect().expect("Failed to unprotect()");
+    }
+
+    #[test]
+    #[serial(page)]
+    fn test_protect_unprotect_roundtrip_preserves_data() {
+        let mut page = Page::new().expect("Failed to new()");
+
+        unsafe { page.as_mut_slice()[0] = 0xFF };
 
         page.protect().expect("Failed to protect()");
         page.unprotect().expect("Failed to unprotect()");
 
         let value = unsafe { page.as_slice()[0] };
-
-        assert_eq!(value, i);
-    }
-}
-
-#[cfg(target_os = "linux")]
-mod seccomp_protect {
-    use super::*;
-    use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
-
-    #[test]
-    #[ignore]
-    fn subprocess_test_protect_fails_when_mprotect_blocked() {
-        let page = Page::new().expect("Failed to new()");
-
-        block_mprotect();
-
-        let result = page.protect();
-
-        assert!(result.is_err());
-        assert!(matches!(result, Err(PageError::Protect)));
+        assert_eq!(value, 0xFF);
     }
 
     #[test]
     #[serial(page)]
-    fn test_protect_fails_when_mprotect_blocked() {
-        let exit_code = run_test_as_subprocess(
-            "tests::page::seccomp_protect::subprocess_test_protect_fails_when_mprotect_blocked",
-        );
+    fn test_multiple_protect_unprotect_cycles() {
+        let mut page = Page::new().expect("Failed to new()");
 
-        assert_eq!(
-            exit_code,
-            Some(0),
-            "Subprocess should exit cleanly after assertion"
-        );
+        for i in 0..5u8 {
+            unsafe { page.as_mut_slice()[0] = i };
+
+            page.protect().expect("Failed to protect()");
+            page.unprotect().expect("Failed to unprotect()");
+
+            let value = unsafe { page.as_slice()[0] };
+
+            assert_eq!(value, i);
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    mod seccomp_protect {
+        use super::*;
+        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
+
+        #[test]
+        #[ignore]
+        fn subprocess_test_protect_fails_when_mprotect_blocked() {
+            let page = Page::new().expect("Failed to new()");
+
+            block_mprotect();
+
+            let result = page.protect();
+
+            assert!(result.is_err());
+            assert!(matches!(result, Err(PageError::Protect)));
+        }
+
+        #[test]
+        #[serial(page)]
+        fn test_protect_fails_when_mprotect_blocked() {
+            let exit_code = run_test_as_subprocess(
+                "tests::page::page_tests::seccomp_protect::subprocess_test_protect_fails_when_mprotect_blocked",
+            );
+
+            assert_eq!(
+                exit_code,
+                Some(0),
+                "Subprocess should exit cleanly after assertion"
+            );
+        }
+
+        #[test]
+        #[ignore]
+        fn subprocess_test_protect_failure_zeroizes_page() {
+            let mut page = Page::new().expect("Failed to new()");
+
+            // Write sensitive data
+            unsafe { page.as_mut_slice().fill(0xFF) };
+            assert!(!unsafe { page.as_slice() }.is_zeroized());
+
+            // Block mprotect, protect() will fail and call dispose()
+            block_mprotect();
+
+            let result = page.protect();
+
+            assert!(result.is_err());
+            assert!(matches!(result, Err(PageError::Protect)));
+
+            // Page should be zeroized by dispose()
+            // Note: dispose() also unmaps, so we can't check directly
+            // But we verified the error path calls dispose()
+        }
+
+        #[test]
+        #[serial(page)]
+        fn test_protect_failure_zeroizes_page() {
+            let exit_code = run_test_as_subprocess(
+                "tests::page::page_tests::seccomp_protect::subprocess_test_protect_failure_zeroizes_page",
+            );
+
+            assert_eq!(
+                exit_code,
+                Some(0),
+                "Subprocess should exit cleanly after assertion"
+            );
+        }
+    }
+
+    // =============================================================================
+    // unprotect()
+    // =============================================================================
+
+    #[test]
+    #[serial(page)]
+    fn test_unprotect_on_unprotected_page_succeeds() {
+        let page = Page::new().expect("Failed to new()");
+
+        page.unprotect().expect("Failed to unprotect()");
     }
 
     #[test]
-    #[ignore]
-    fn subprocess_test_protect_failure_zeroizes_page() {
+    #[serial(page)]
+    fn test_unprotect_allows_write() {
         let mut page = Page::new().expect("Failed to new()");
 
-        // Write sensitive data
+        page.protect().expect("Failed to protect()");
+        page.unprotect().expect("Failed to unprotect()");
+
+        unsafe { page.as_mut_slice()[0] = 0x42 };
+        assert_eq!(unsafe { page.as_slice()[0] }, 0x42);
+    }
+
+    #[cfg(target_os = "linux")]
+    mod seccomp_unprotect {
+        use super::*;
+        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
+
+        #[test]
+        #[ignore]
+        fn subprocess_test_unprotect_fails_when_mprotect_blocked() {
+            let page = Page::new().expect("Failed to new()");
+
+            page.protect().expect("Failed to protect()");
+            block_mprotect();
+
+            let result = page.unprotect();
+
+            assert!(result.is_err());
+            assert!(matches!(result, Err(PageError::Unprotect)));
+        }
+
+        #[test]
+        #[serial(page)]
+        fn test_unprotect_fails_when_mprotect_blocked() {
+            let exit_code = run_test_as_subprocess(
+                "tests::page::page_tests::seccomp_unprotect::subprocess_test_unprotect_fails_when_mprotect_blocked",
+            );
+
+            assert_eq!(
+                exit_code,
+                Some(0),
+                "Subprocess should exit cleanly after assertion"
+            );
+        }
+    }
+
+    // =============================================================================
+    // as_slice() / as_mut_slice()
+    // =============================================================================
+
+    #[test]
+    #[serial(page)]
+    fn test_as_mut_slice_allows_writes() {
+        let mut page = Page::new().expect("Failed to new()");
+
+        unsafe {
+            let slice = page.as_mut_slice();
+            slice[0] = 0xAB;
+            slice[1] = 0xCD;
+        }
+
+        let slice = unsafe { page.as_slice() };
+
+        assert_eq!(slice[0], 0xAB);
+        assert_eq!(slice[1], 0xCD);
+    }
+
+    #[test]
+    #[serial(page)]
+    fn test_write_read_full_page() {
+        let mut page = Page::new().expect("Failed to new()");
+
+        unsafe { page.as_mut_slice().fill(0x55) };
+        let slice = unsafe { page.as_slice() };
+
+        assert!(slice.iter().all(|&b| b == 0x55));
+    }
+
+    // =============================================================================
+    // zeroize()
+    // =============================================================================
+
+    #[test]
+    #[serial(page)]
+    fn test_zeroize_clears_all_data() {
+        let mut page = Page::new().expect("Failed to new()");
+
         unsafe { page.as_mut_slice().fill(0xFF) };
         assert!(!unsafe { page.as_slice() }.is_zeroized());
 
-        // Block mprotect, protect() will fail and call dispose()
-        block_mprotect();
-
-        let result = page.protect();
-
-        assert!(result.is_err());
-        assert!(matches!(result, Err(PageError::Protect)));
-
-        // Page should be zeroized by dispose()
-        // Note: dispose() also unmaps, so we can't check directly
-        // But we verified the error path calls dispose()
+        unsafe { page.zeroize() };
+        assert!(unsafe { page.as_slice() }.is_zeroized());
     }
 
     #[test]
     #[serial(page)]
-    fn test_protect_failure_zeroizes_page() {
-        let exit_code = run_test_as_subprocess(
-            "tests::page::seccomp_protect::subprocess_test_protect_failure_zeroizes_page",
-        );
-
-        assert_eq!(
-            exit_code,
-            Some(0),
-            "Subprocess should exit cleanly after assertion"
-        );
-    }
-}
-
-// =============================================================================
-// unprotect()
-// =============================================================================
-
-#[test]
-#[serial(page)]
-fn test_unprotect_on_unprotected_page_succeeds() {
-    let page = Page::new().expect("Failed to new()");
-
-    page.unprotect().expect("Failed to unprotect()");
-}
-
-#[test]
-#[serial(page)]
-fn test_unprotect_allows_write() {
-    let mut page = Page::new().expect("Failed to new()");
-
-    page.protect().expect("Failed to protect()");
-    page.unprotect().expect("Failed to unprotect()");
-
-    unsafe { page.as_mut_slice()[0] = 0x42 };
-    assert_eq!(unsafe { page.as_slice()[0] }, 0x42);
-}
-
-#[cfg(target_os = "linux")]
-mod seccomp_unprotect {
-    use super::*;
-    use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
-
-    #[test]
-    #[ignore]
-    fn subprocess_test_unprotect_fails_when_mprotect_blocked() {
-        let page = Page::new().expect("Failed to new()");
-
-        page.protect().expect("Failed to protect()");
-        block_mprotect();
-
-        let result = page.unprotect();
-
-        assert!(result.is_err());
-        assert!(matches!(result, Err(PageError::Unprotect)));
-    }
-
-    #[test]
-    #[serial(page)]
-    fn test_unprotect_fails_when_mprotect_blocked() {
-        let exit_code = run_test_as_subprocess(
-            "tests::page::seccomp_unprotect::subprocess_test_unprotect_fails_when_mprotect_blocked",
-        );
-
-        assert_eq!(
-            exit_code,
-            Some(0),
-            "Subprocess should exit cleanly after assertion"
-        );
-    }
-}
-
-// =============================================================================
-// as_slice() / as_mut_slice()
-// =============================================================================
-
-#[test]
-#[serial(page)]
-fn test_as_mut_slice_allows_writes() {
-    let mut page = Page::new().expect("Failed to new()");
-
-    unsafe {
-        let slice = page.as_mut_slice();
-        slice[0] = 0xAB;
-        slice[1] = 0xCD;
-    }
-
-    let slice = unsafe { page.as_slice() };
-
-    assert_eq!(slice[0], 0xAB);
-    assert_eq!(slice[1], 0xCD);
-}
-
-#[test]
-#[serial(page)]
-fn test_write_read_full_page() {
-    let mut page = Page::new().expect("Failed to new()");
-
-    unsafe { page.as_mut_slice().fill(0x55) };
-    let slice = unsafe { page.as_slice() };
-
-    assert!(slice.iter().all(|&b| b == 0x55));
-}
-
-// =============================================================================
-// zeroize()
-// =============================================================================
-
-#[test]
-#[serial(page)]
-fn test_zeroize_clears_all_data() {
-    let mut page = Page::new().expect("Failed to new()");
-
-    unsafe { page.as_mut_slice().fill(0xFF) };
-    assert!(!unsafe { page.as_slice() }.is_zeroized());
-
-    unsafe { page.zeroize() };
-    assert!(unsafe { page.as_slice() }.is_zeroized());
-}
-
-#[test]
-#[serial(page)]
-fn test_zeroize_after_partial_write() {
-    let mut page = Page::new().expect("Failed to new()");
-
-    unsafe {
-        page.as_mut_slice()[0] = 0x42;
-        page.as_mut_slice()[100] = 0x42;
-    }
-
-    assert!(!unsafe { page.as_slice() }.is_zeroized());
-
-    unsafe { page.zeroize() };
-
-    assert!(unsafe { page.as_slice() }.is_zeroized());
-}
-
-// =============================================================================
-// dispose()
-// =============================================================================
-
-#[test]
-#[serial(page)]
-fn test_dispose_on_unprotected_page() {
-    let mut page = Page::new().expect("Failed to new()");
-
-    unsafe { page.as_mut_slice().fill(0xFF) };
-
-    page.dispose();
-}
-
-#[test]
-#[serial(page)]
-fn test_dispose_on_protected_page() {
-    let mut page = Page::new().expect("Failed to new()");
-
-    unsafe { page.as_mut_slice().fill(0xFF) };
-
-    page.protect().expect("Failed to protect()");
-    page.dispose();
-}
-
-#[cfg(target_os = "linux")]
-mod seccomp_dispose {
-    use super::*;
-    use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
-
-    #[test]
-    #[ignore]
-    fn subprocess_test_dispose_when_unprotect_fails() {
+    fn test_zeroize_after_partial_write() {
         let mut page = Page::new().expect("Failed to new()");
 
-        page.protect().expect("Failed to protect()");
+        unsafe {
+            page.as_mut_slice()[0] = 0x42;
+            page.as_mut_slice()[100] = 0x42;
+        }
 
-        // Block mprotect, so unprotect() in dispose() will fail
-        // Page stays protected = safe (can't be read)
-        block_mprotect();
+        assert!(!unsafe { page.as_slice() }.is_zeroized());
+
+        unsafe { page.zeroize() };
+
+        assert!(unsafe { page.as_slice() }.is_zeroized());
+    }
+
+    // =============================================================================
+    // dispose()
+    // =============================================================================
+
+    #[test]
+    #[serial(page)]
+    fn test_dispose_on_unprotected_page() {
+        let mut page = Page::new().expect("Failed to new()");
+
+        unsafe { page.as_mut_slice().fill(0xFF) };
 
         page.dispose();
     }
 
     #[test]
     #[serial(page)]
-    fn test_dispose_when_unprotect_fails() {
-        let exit_code = run_test_as_subprocess(
-            "tests::page::seccomp_dispose::subprocess_test_dispose_when_unprotect_fails",
-        );
+    fn test_dispose_on_protected_page() {
+        let mut page = Page::new().expect("Failed to new()");
 
-        assert_eq!(
-            exit_code,
-            Some(0),
-            "Subprocess should exit cleanly after assertion"
-        );
+        unsafe { page.as_mut_slice().fill(0xFF) };
+
+        page.protect().expect("Failed to protect()");
+        page.dispose();
     }
-}
 
-// =============================================================================
-// Full lifecycle
-// =============================================================================
+    #[cfg(target_os = "linux")]
+    mod seccomp_dispose {
+        use super::*;
+        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
 
-#[test]
-#[serial(page)]
-fn test_full_lifecycle() {
-    let mut page = Page::new().expect("Failed to new()");
+        #[test]
+        #[ignore]
+        fn subprocess_test_dispose_when_unprotect_fails() {
+            let mut page = Page::new().expect("Failed to new()");
 
-    // Lock in RAM
-    page.lock().expect("Failed to lock()");
+            page.protect().expect("Failed to protect()");
 
-    // Write sensitive data
-    unsafe { page.as_mut_slice().fill(0xDE) };
+            // Block mprotect, so unprotect() in dispose() will fail
+            // Page stays protected = safe (can't be read)
+            block_mprotect();
 
-    // Protect
-    page.protect().expect("Failed to protect()");
+            page.dispose();
+        }
 
-    // Unprotect, read, protect again
-    page.unprotect().expect("Failed to unprotect()");
-    assert_eq!(unsafe { page.as_slice()[0] }, 0xDE);
-    page.protect().expect("Failed to protect()");
+        #[test]
+        #[serial(page)]
+        fn test_dispose_when_unprotect_fails() {
+            let exit_code = run_test_as_subprocess(
+                "tests::page::page_tests::seccomp_dispose::subprocess_test_dispose_when_unprotect_fails",
+            );
 
-    // Cleanup
-    page.dispose();
-}
+            assert_eq!(
+                exit_code,
+                Some(0),
+                "Subprocess should exit cleanly after assertion"
+            );
+        }
+    }
 
-#[test]
-#[serial(page)]
-fn test_new_write_zeroize_verify() {
-    let mut page = Page::new().expect("Failed to new()");
+    // =============================================================================
+    // Full lifecycle
+    // =============================================================================
 
-    assert!(unsafe { page.as_slice() }.is_zeroized());
+    #[test]
+    #[serial(page)]
+    fn test_full_lifecycle() {
+        let mut page = Page::new().expect("Failed to new()");
 
-    unsafe { page.as_mut_slice().fill(0xAB) };
-    assert!(!unsafe { page.as_slice() }.is_zeroized());
+        // Lock in RAM
+        page.lock().expect("Failed to lock()");
 
-    unsafe { page.zeroize() };
-    assert!(unsafe { page.as_slice() }.is_zeroized());
+        // Write sensitive data
+        unsafe { page.as_mut_slice().fill(0xDE) };
+
+        // Protect
+        page.protect().expect("Failed to protect()");
+
+        // Unprotect, read, protect again
+        page.unprotect().expect("Failed to unprotect()");
+        assert_eq!(unsafe { page.as_slice()[0] }, 0xDE);
+        page.protect().expect("Failed to protect()");
+
+        // Cleanup
+        page.dispose();
+    }
+
+    #[test]
+    #[serial(page)]
+    fn test_new_write_zeroize_verify() {
+        let mut page = Page::new().expect("Failed to new()");
+
+        assert!(unsafe { page.as_slice() }.is_zeroized());
+
+        unsafe { page.as_mut_slice().fill(0xAB) };
+        assert!(!unsafe { page.as_slice() }.is_zeroized());
+
+        unsafe { page.zeroize() };
+        assert!(unsafe { page.as_slice() }.is_zeroized());
+    }
 }
