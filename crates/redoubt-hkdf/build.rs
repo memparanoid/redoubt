@@ -47,6 +47,10 @@ fn main() {
         "x86_64" => {
             cc::Build::new()
                 .file("src/asm/hkdf_sha256_x86_64.S")
+                .flag("-msse4.1")
+                .flag("-mno-avx")
+                .flag("-mno-avx2")
+                .flag("-fPIC")
                 .compile("hkdf_sha256_asm");
 
             println!("cargo:rerun-if-changed=src/asm/hkdf_sha256_x86_64.S");
