@@ -113,15 +113,15 @@ fn try_rdseed(dst: *mut u64) -> bool {
 
     unsafe {
         core::arch::asm!(
-            "rdseed {tmp}",
-            "setc {success}",
-            "test {success}, {success}",
+            "rdseed rax",
+            "setc cl",
+            "test cl, cl",
             "jz 2f",
-            "mov [{dst}], {tmp}",
+            "mov [{dst}], rax",
             "2:",
             dst = in(reg) dst,
-            tmp = lateout(reg) _,
-            success = lateout(reg_byte) success,
+            out("rax") _,
+            lateout("cl") success,
             options(nostack)
         );
     }
@@ -141,15 +141,15 @@ fn try_rdrand(dst: *mut u64) -> bool {
 
     unsafe {
         core::arch::asm!(
-            "rdrand {tmp}",
-            "setc {success}",
-            "test {success}, {success}",
+            "rdrand rax",
+            "setc cl",
+            "test cl, cl",
             "jz 2f",
-            "mov [{dst}], {tmp}",
+            "mov [{dst}], rax",
             "2:",
             dst = in(reg) dst,
-            tmp = lateout(reg) _,
-            success = lateout(reg_byte) success,
+            out("rax") _,
+            lateout("cl") success,
             options(nostack)
         );
     }
