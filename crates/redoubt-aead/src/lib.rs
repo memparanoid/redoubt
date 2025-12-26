@@ -19,5 +19,5 @@ pub use aead::Aead;
 pub use error::AeadError;
 pub use traits::{AeadApi, AeadBackend};
 
-#[cfg(feature = "test_utils")]
+#[cfg(feature = "test-utils")]
 pub use support::test_utils;

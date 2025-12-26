@@ -482,7 +482,7 @@ fn test_allocked_vec_fill_with_default_full_vec() {
 }
 
 // =============================================================================
-// change_behaviour() (test_utils feature)
+// change_behaviour() (test-utils feature)
 // =============================================================================
 
 #[test]

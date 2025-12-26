@@ -16,7 +16,7 @@
 #   ./scripts/test.sh                                      # Native arch, all tests
 #   ./scripts/test.sh -p redoubt-aead                      # Native arch, specific crate
 #   ./scripts/test.sh x86 -p redoubt-aead                  # x86_64, specific crate
-#   ./scripts/test.sh arm -p redoubt-codec --features test_utils
+#   ./scripts/test.sh arm -p redoubt-codec --features test-utils
 #   ./scripts/test.sh x86 -p redoubt-aead --no-cache       # Force rebuild, no cache
 
 set -euo pipefail

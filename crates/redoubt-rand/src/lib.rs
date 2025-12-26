@@ -74,5 +74,5 @@ pub use session::NonceSessionGenerator;
 pub use system::SystemEntropySource;
 pub use traits::{EntropySource, NonceGenerator};
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 pub use support::test_utils;

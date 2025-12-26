@@ -36,7 +36,7 @@ where
     __sentinel: ZeroizeOnDropSentinel,
 }
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 impl<T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe + PartialEq, const N: usize> PartialEq
     for RedoubtArray<T, N>
 {
@@ -46,7 +46,7 @@ impl<T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe + PartialEq, const N
     }
 }
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 impl<T: FastZeroizable + ZeroizeMetadata + Eq + ZeroizationProbe, const N: usize> Eq
     for RedoubtArray<T, N>
 {

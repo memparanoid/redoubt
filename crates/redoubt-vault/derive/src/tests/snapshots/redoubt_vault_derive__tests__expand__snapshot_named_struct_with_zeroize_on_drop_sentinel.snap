@@ -59,7 +59,7 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 2> for Epsil
         )
     }
 }
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 #[derive(Debug, Clone, Copy)]
 pub enum EpsilonBoxFailureMode {
     None,
@@ -67,7 +67,7 @@ pub enum EpsilonBoxFailureMode {
 }
 pub struct EpsilonBox {
     inner: redoubt_vault_core::CipherBox<Epsilon, redoubt_aead::Aead, 2>,
-    #[cfg(any(test, feature = "test_utils"))]
+    #[cfg(any(test, feature = "test-utils"))]
     failure_counter: usize,
 }
 impl EpsilonBox {
@@ -75,7 +75,7 @@ impl EpsilonBox {
     pub fn new() -> Self {
         Self {
             inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
-            #[cfg(any(test, feature = "test_utils"))]
+            #[cfg(any(test, feature = "test-utils"))]
             failure_counter: 0,
         }
     }
@@ -84,7 +84,7 @@ impl EpsilonBox {
     where
         F: FnMut(&Epsilon) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -106,7 +106,7 @@ impl EpsilonBox {
     where
         F: FnMut(&mut Epsilon) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -120,7 +120,7 @@ impl EpsilonBox {
         }
         self.inner.open_mut(f)
     }
-    #[cfg(any(test, feature = "test_utils"))]
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn set_failure_mode(&mut self, mode: EpsilonBoxFailureMode) {
         match mode {
             EpsilonBoxFailureMode::None => {
@@ -138,7 +138,7 @@ impl EpsilonBox {
         redoubt_zero::ZeroizingGuard<[u8; 32]>,
         redoubt_vault_core::CipherBoxError,
     > {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -159,7 +159,7 @@ impl EpsilonBox {
         redoubt_zero::ZeroizingGuard<[u8; 32]>,
         redoubt_vault_core::CipherBoxError,
     > {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -181,7 +181,7 @@ impl EpsilonBox {
     where
         F: FnMut(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -203,7 +203,7 @@ impl EpsilonBox {
     where
         F: FnMut(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -225,7 +225,7 @@ impl EpsilonBox {
     where
         F: FnMut(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -248,7 +248,7 @@ impl EpsilonBox {
     where
         F: FnMut(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;

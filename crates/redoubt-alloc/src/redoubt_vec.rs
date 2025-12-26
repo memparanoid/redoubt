@@ -42,7 +42,7 @@ where
     __sentinel: ZeroizeOnDropSentinel,
 }
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 impl<T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe + PartialEq> PartialEq
     for RedoubtVec<T>
 {
@@ -52,7 +52,7 @@ impl<T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe + PartialEq> Partial
     }
 }
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 impl<T: FastZeroizable + ZeroizeMetadata + Eq + ZeroizationProbe> Eq for RedoubtVec<T> {}
 
 impl<T> core::fmt::Debug for RedoubtVec<T>

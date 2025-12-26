@@ -33,5 +33,5 @@ getrandom = { workspace = true, features = ["wasm_js"] }
 proptest.workspace = true
 
 [features]
-test_utils = []
+test-utils = []
 asm = ["redoubt-hkdf/asm"]

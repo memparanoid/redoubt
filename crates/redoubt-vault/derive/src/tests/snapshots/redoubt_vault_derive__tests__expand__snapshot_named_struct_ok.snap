@@ -58,7 +58,7 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 2> for Data 
         )
     }
 }
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 #[derive(Debug, Clone, Copy)]
 pub enum DataBoxFailureMode {
     None,
@@ -66,7 +66,7 @@ pub enum DataBoxFailureMode {
 }
 pub struct DataBox {
     inner: redoubt_vault_core::CipherBox<Data, redoubt_aead::Aead, 2>,
-    #[cfg(any(test, feature = "test_utils"))]
+    #[cfg(any(test, feature = "test-utils"))]
     failure_counter: usize,
 }
 impl DataBox {
@@ -74,7 +74,7 @@ impl DataBox {
     pub fn new() -> Self {
         Self {
             inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
-            #[cfg(any(test, feature = "test_utils"))]
+            #[cfg(any(test, feature = "test-utils"))]
             failure_counter: 0,
         }
     }
@@ -83,7 +83,7 @@ impl DataBox {
     where
         F: FnMut(&Data) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -105,7 +105,7 @@ impl DataBox {
     where
         F: FnMut(&mut Data) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -119,7 +119,7 @@ impl DataBox {
         }
         self.inner.open_mut(f)
     }
-    #[cfg(any(test, feature = "test_utils"))]
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn set_failure_mode(&mut self, mode: DataBoxFailureMode) {
         match mode {
             DataBoxFailureMode::None => {
@@ -137,7 +137,7 @@ impl DataBox {
         redoubt_zero::ZeroizingGuard<Vec<u8>>,
         redoubt_vault_core::CipherBoxError,
     > {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -155,7 +155,7 @@ impl DataBox {
     pub fn leak_beta(
         &mut self,
     ) -> Result<redoubt_zero::ZeroizingGuard<u64>, redoubt_vault_core::CipherBoxError> {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -177,7 +177,7 @@ impl DataBox {
     where
         F: FnMut(&Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -199,7 +199,7 @@ impl DataBox {
     where
         F: FnMut(&u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -221,7 +221,7 @@ impl DataBox {
     where
         F: FnMut(&mut Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -244,7 +244,7 @@ impl DataBox {
     where
         F: FnMut(&mut u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;

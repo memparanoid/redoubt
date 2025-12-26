@@ -37,7 +37,7 @@ pub struct RedoubtString {
     __sentinel: ZeroizeOnDropSentinel,
 }
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 impl PartialEq for RedoubtString {
     fn eq(&self, other: &Self) -> bool {
         // Skip __sentinel (metadata that changes during zeroization)
@@ -45,7 +45,7 @@ impl PartialEq for RedoubtString {
     }
 }
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 impl Eq for RedoubtString {}
 
 impl core::fmt::Debug for RedoubtString {

@@ -11,7 +11,7 @@ use redoubt_zero::{
 
 /// Test behaviour for injecting failures in `AllockedVec` operations.
 ///
-/// This is only available with the `test_utils` feature and allows users
+/// This is only available with the `test-utils` feature and allows users
 /// to test error handling paths in their code by injecting failures.
 ///
 /// The behaviour is sticky - once set, it remains active until changed.
@@ -19,7 +19,7 @@ use redoubt_zero::{
 /// # Example
 ///
 /// ```rust
-/// // test_utils feature required in dev-dependencies
+/// // test-utils feature required in dev-dependencies
 /// use redoubt_alloc::{AllockedVec, AllockedVecBehaviour, AllockedVecError};
 ///
 /// #[cfg(test)]
@@ -46,7 +46,7 @@ use redoubt_zero::{
 ///     }
 /// }
 /// ```
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AllockedVecBehaviour {
     /// Normal behaviour - no injected failures.
@@ -57,26 +57,26 @@ pub enum AllockedVecBehaviour {
     FailAtDrainFrom,
 }
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 impl Default for AllockedVecBehaviour {
     fn default() -> Self {
         Self::None
     }
 }
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 impl ZeroizationProbe for AllockedVecBehaviour {
     fn is_zeroized(&self) -> bool {
         matches!(self, Self::None)
     }
 }
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 impl ZeroizeMetadata for AllockedVecBehaviour {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 impl FastZeroizable for AllockedVecBehaviour {
     fn fast_zeroize(&mut self) {
         *self = AllockedVecBehaviour::None;
@@ -112,14 +112,14 @@ impl FastZeroizable for AllockedVecBehaviour {
 /// ```
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
-#[cfg_attr(any(test, feature = "test_utils"), derive(Clone))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Clone))]
 pub struct AllockedVec<T>
 where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
 {
     inner: Vec<T>,
     has_been_sealed: bool,
-    #[cfg(any(test, feature = "test_utils"))]
+    #[cfg(any(test, feature = "test-utils"))]
     behaviour: AllockedVecBehaviour,
     __sentinel: ZeroizeOnDropSentinel,
 }
@@ -137,7 +137,7 @@ where
     }
 }
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 impl<T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe + PartialEq> PartialEq
     for AllockedVec<T>
 {
@@ -150,7 +150,7 @@ impl<T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe + PartialEq> Partial
     }
 }
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 impl<T: FastZeroizable + ZeroizeMetadata + Eq + ZeroizationProbe> Eq for AllockedVec<T> {}
 
 impl<T> AllockedVec<T>
@@ -208,7 +208,7 @@ where
         Self {
             inner: Vec::new(),
             has_been_sealed: false,
-            #[cfg(any(test, feature = "test_utils"))]
+            #[cfg(any(test, feature = "test-utils"))]
             behaviour: AllockedVecBehaviour::default(),
             __sentinel: ZeroizeOnDropSentinel::default(),
         }
@@ -303,7 +303,7 @@ where
     /// # example().unwrap();
     /// ```
     pub fn push(&mut self, value: T) -> Result<(), AllockedVecError> {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(test, feature = "test-utils"))]
         if matches!(self.behaviour, AllockedVecBehaviour::FailAtPush) {
             return Err(AllockedVecError::CapacityExceeded);
         }
@@ -482,7 +482,7 @@ where
     where
         T: Default,
     {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(test, feature = "test-utils"))]
         if matches!(self.behaviour, AllockedVecBehaviour::FailAtDrainFrom) {
             return Err(AllockedVecError::CapacityExceeded);
         }
@@ -585,13 +585,13 @@ where
 
     /// Changes the test behaviour for this vector.
     ///
-    /// This is only available with the `test_utils` feature and allows injecting
+    /// This is only available with the `test-utils` feature and allows injecting
     /// failures for testing error handling paths.
     ///
     /// # Example
     ///
     /// ```rust
-    /// // test_utils feature required in dev-dependencies
+    /// // test-utils feature required in dev-dependencies
     /// #[cfg(test)]
     /// mod tests {
     ///     use redoubt_alloc::{AllockedVec, AllockedVecBehaviour};
@@ -606,7 +606,7 @@ where
     ///     }
     /// }
     /// ```
-    #[cfg(any(test, feature = "test_utils"))]
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn change_behaviour(&mut self, behaviour: AllockedVecBehaviour) {
         self.behaviour = behaviour;
     }

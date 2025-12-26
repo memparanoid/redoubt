@@ -31,8 +31,8 @@ pub enum EncodeError {
 
     /// Test-only error for simulating encode failures.
     ///
-    /// Available only with `test_utils` feature enabled.
-    #[cfg(any(test, feature = "test_utils"))]
+    /// Available only with `test-utils` feature enabled.
+    #[cfg(any(test, feature = "test-utils"))]
     #[error("IntentionalEncodeError")]
     IntentionalEncodeError,
 }
@@ -47,8 +47,8 @@ pub enum DecodeError {
 
     /// Test-only error for simulating decode failures.
     ///
-    /// Available only with `test_utils` feature enabled.
-    #[cfg(any(test, feature = "test_utils"))]
+    /// Available only with `test-utils` feature enabled.
+    #[cfg(any(test, feature = "test-utils"))]
     #[error("IntentionalDecodeError")]
     IntentionalDecodeError,
 }

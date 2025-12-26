@@ -16,7 +16,7 @@
 # Usage examples:
 #   docker run redoubt-coverage                                    # All crates
 #   docker run redoubt-coverage redoubt-codec-core                 # Single crate
-#   docker run redoubt-coverage redoubt-codec-core "test_utils"    # Crate with features
+#   docker run redoubt-coverage redoubt-codec-core "test-utils"    # Crate with features
 # -----------------------------------------------------------------------------
 
 set -e
@@ -26,7 +26,7 @@ OUT="/.coverage"
 
 mk() {
   crate_name="$1"       # e.g., redoubt-codec-core
-  features_csv="${2:-}" # e.g., "test_utils" (optional; may be empty)
+  features_csv="${2:-}" # e.g., "test-utils" (optional; may be empty)
 
   cd "$REPO_ROOT"
   echo "[DEBUG] PWD: $(pwd)" >&2

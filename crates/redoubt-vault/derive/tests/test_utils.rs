@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Tests for test_utils feature (failure injection)
+//! Tests for test-utils feature (failure injection)
 
-#[cfg(feature = "test_utils")]
+#[cfg(feature = "test-utils")]
 mod test_utils {
     use redoubt_alloc::{RedoubtArray, RedoubtOption, RedoubtString};
     use redoubt_codec::RedoubtCodec;

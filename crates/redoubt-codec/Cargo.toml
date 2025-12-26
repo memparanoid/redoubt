@@ -15,7 +15,7 @@ path = "src/lib.rs"
 [features]
 default = ["zeroize"]
 zeroize = ["redoubt-codec-core/zeroize", "redoubt-codec-derive/zeroize"]
-test_utils = ["redoubt-codec-core/test_utils"]
+test-utils = ["redoubt-codec-core/test-utils"]
 
 [dependencies]
 redoubt-codec-core.workspace   = true

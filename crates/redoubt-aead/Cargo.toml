@@ -10,7 +10,7 @@ repository.workspace = true
 version.workspace = true
 
 [features]
-test_utils = []
+test-utils = []
 asm = []
 
 [dependencies]

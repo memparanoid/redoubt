@@ -16,7 +16,7 @@ path = "src/lib.rs"
 default = ["zeroize"]
 zeroize = ["dep:smallvec"]
 benchmark = []
-test_utils = ["zeroize"]
+test-utils = ["zeroize"]
 
 [dependencies]
 redoubt-util.workspace   = true
@@ -29,5 +29,5 @@ workspace = true
 features  = ["unsafe"]
 
 [dev-dependencies]
-redoubt-alloc = { workspace = true, features = ["test_utils"] }
+redoubt-alloc = { workspace = true, features = ["test-utils"] }
 redoubt-test-utils.workspace = true

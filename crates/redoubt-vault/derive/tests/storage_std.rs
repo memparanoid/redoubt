@@ -4,7 +4,7 @@
 
 //! Tests for global storage with std strategy
 
-#[cfg(feature = "test_utils")]
+#[cfg(feature = "test-utils")]
 mod storage_std {
     use std::sync::atomic::{AtomicU64, Ordering};
 

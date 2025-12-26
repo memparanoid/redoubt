@@ -132,7 +132,7 @@ pub(crate) fn parse_cipherbox_attr_inner(attr_str: String) -> (Ident, Option<Typ
             .strip_prefix("storage")
             .and_then(|s| s.trim().strip_prefix('='))
         {
-            #[cfg(any(test, feature = "test_utils"))]
+            #[cfg(any(test, feature = "test-utils"))]
             {
                 let storage_str = _value.trim().trim_matches('"');
                 storage_strategy = Some(if storage_str == "std" {
@@ -141,7 +141,7 @@ pub(crate) fn parse_cipherbox_attr_inner(attr_str: String) -> (Ident, Option<Typ
                     StorageStrategy::Portable
                 });
             }
-            #[cfg(not(any(test, feature = "test_utils")))]
+            #[cfg(not(any(test, feature = "test-utils")))]
             {
                 let _ = _value;
                 panic!("cipherbox: unknown attribute parameter 'storage'");
@@ -301,9 +301,9 @@ fn expand(
     // Generate failure mode enum name
     let failure_mode_enum_name = format_ident!("{}FailureMode", wrapper_name);
 
-    // Generate failure mode enum (test_utils only)
+    // Generate failure mode enum (test-utils only)
     let failure_mode_enum = quote! {
-        #[cfg(any(test, feature = "test_utils"))]
+        #[cfg(any(test, feature = "test-utils"))]
         #[derive(Debug, Clone, Copy)]
         pub enum #failure_mode_enum_name {
             None,
@@ -313,7 +313,7 @@ fn expand(
 
     // Helper to generate failure check code
     let failure_check = quote! {
-        #[cfg(any(feature = "test_utils"))]
+        #[cfg(any(feature = "test-utils"))]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -703,13 +703,13 @@ fn expand(
             }
         }
 
-        // Generate failure mode enum (test_utils only)
+        // Generate failure mode enum (test-utils only)
         #failure_mode_enum
 
         // Generate wrapper struct
         pub struct #wrapper_name {
             inner: #root::CipherBox<#struct_name, #redoubt_aead_root::Aead, #num_fields_lit>,
-            #[cfg(any(test, feature = "test_utils"))]
+            #[cfg(any(test, feature = "test-utils"))]
             failure_counter: usize,
         }
 
@@ -718,7 +718,7 @@ fn expand(
             pub fn new() -> Self {
                 Self {
                     inner: #root::CipherBox::new(#redoubt_aead_root::Aead::new()),
-                    #[cfg(any(test, feature = "test_utils"))]
+                    #[cfg(any(test, feature = "test-utils"))]
                     failure_counter: 0,
                 }
             }
@@ -741,7 +741,7 @@ fn expand(
                 self.inner.open_mut(f)
             }
 
-            #[cfg(any(test, feature = "test_utils"))]
+            #[cfg(any(test, feature = "test-utils"))]
             pub fn set_failure_mode(&mut self, mode: #failure_mode_enum_name) {
                 match mode {
                     #failure_mode_enum_name::None => {

@@ -71,17 +71,17 @@
 //!
 //! # Test Utilities
 //!
-//! Enable the `test_utils` feature to inject failures for testing error handling paths:
+//! Enable the `test-utils` feature to inject failures for testing error handling paths:
 //!
 //! ```toml
 //! [dev-dependencies]
-//! redoubt-alloc = { version = "*", features = ["test_utils"] }
+//! redoubt-alloc = { version = "*", features = ["test-utils"] }
 //! ```
 //!
 //! Then use [`AllockedVecBehaviour`] to test error scenarios:
 //!
 //! ```rust
-//! // test_utils feature required in dev-dependencies
+//! // test-utils feature required in dev-dependencies
 //! #[cfg(test)]
 //! mod tests {
 //!     use redoubt_alloc::{AllockedVec, AllockedVecBehaviour};
@@ -120,5 +120,5 @@ pub use redoubt_option::RedoubtOption;
 pub use redoubt_string::RedoubtString;
 pub use redoubt_vec::RedoubtVec;
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 pub use allocked_vec::AllockedVecBehaviour;

@@ -5,7 +5,7 @@
 mod test_breaker;
 mod utils;
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 pub use test_breaker::*;
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 pub use utils::*;

@@ -20,7 +20,7 @@ mod zeroizing;
 
 pub mod collections;
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 pub mod support;
 
 pub use codec_buffer::RedoubtCodecBuffer;

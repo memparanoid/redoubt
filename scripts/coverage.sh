@@ -5,7 +5,7 @@
 #   ./scripts/coverage.sh                        # All crates (aggregated report)
 #   ./scripts/coverage.sh redoubt-codec-core     # Single crate only
 #   ./scripts/coverage.sh redoubt-zero-core      # Another crate
-#   ./scripts/coverage.sh redoubt-aead test_utils # Crate with features
+#   ./scripts/coverage.sh redoubt-aead test-utils # Crate with features
 #
 # Note: Single-crate mode uses selective instrumentation to avoid
 # monomorphization pollution from workspace dependencies.

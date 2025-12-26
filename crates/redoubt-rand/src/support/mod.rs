@@ -4,6 +4,6 @@
 
 /// Test utilities for mocking entropy sources and nonce generators.
 ///
-///Available only when the `test_utils` feature is enabled or during tests.
-#[cfg(any(test, feature = "test_utils"))]
+///Available only when the `test-utils` feature is enabled or during tests.
+#[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;

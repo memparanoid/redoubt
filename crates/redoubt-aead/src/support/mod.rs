@@ -4,5 +4,5 @@
 
 //! Support modules.
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;

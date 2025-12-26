@@ -15,7 +15,7 @@ path = "src/lib.rs"
 
 [features]
 no_std = []
-test_utils = []
+test-utils = []
 
 [dependencies]
 heck.workspace = true
@@ -31,7 +31,7 @@ redoubt-aead.workspace = true
 redoubt-secret.workspace = true
 redoubt-alloc.workspace = true
 redoubt-codec.workspace = true
-redoubt-vault-core = { workspace = true, features = ["test_utils"] }
+redoubt-vault-core = { workspace = true, features = ["test-utils"] }
 redoubt-zero.workspace = true
 
 # Only include insta on architectures where it compiles (cpufeatures constraint)
