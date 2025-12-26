@@ -268,7 +268,7 @@ unsafe fn get_entropy_u64_fallback(dst: *mut u64) -> Result<(), EntropyError> {
     {
         // getrandom crate requires a slice
         let slice = unsafe { core::slice::from_raw_parts_mut(dst as *mut u8, 8) };
-        getrandom::getrandom(slice).map_err(|_| EntropyError::EntropyNotAvailable)?;
+        getrandom::fill(slice).map_err(|_| EntropyError::EntropyNotAvailable)?;
 
         Ok(())
     }
