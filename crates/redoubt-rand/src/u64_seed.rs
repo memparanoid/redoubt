@@ -109,21 +109,21 @@ cpufeatures::new!(x86_64_rdrand_cpuid, "rdrand");
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 fn try_rdseed(dst: *mut u64) -> bool {
+    let mut value: u64 = 0;
     let success: u8;
 
     unsafe {
         core::arch::asm!(
-            "rdseed rax",
-            "setc cl",
-            "test cl, cl",
-            "jz 2f",
-            "mov [{dst}], rax",
-            "2:",
-            dst = in(reg) dst,
-            out("rax") _,
-            lateout("cl") success,
-            options(nostack)
+            "rdseed {value}",
+            "setc {success}",
+            value = out(reg) value,
+            success = out(reg_byte) success,
+            options(nostack, nomem)
         );
+
+        if success != 0 {
+            core::mem::swap(&mut value, &mut *dst);
+        }
     }
 
     success != 0
@@ -137,21 +137,21 @@ fn try_rdseed(dst: *mut u64) -> bool {
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 fn try_rdrand(dst: *mut u64) -> bool {
+    let mut value: u64 = 0;
     let success: u8;
 
     unsafe {
         core::arch::asm!(
-            "rdrand rax",
-            "setc cl",
-            "test cl, cl",
-            "jz 2f",
-            "mov [{dst}], rax",
-            "2:",
-            dst = in(reg) dst,
-            out("rax") _,
-            lateout("cl") success,
-            options(nostack)
+            "rdrand {value}",
+            "setc {success}",
+            value = out(reg) value,
+            success = out(reg_byte) success,
+            options(nostack, nomem)
         );
+
+        if success != 0 {
+            core::mem::swap(&mut value, &mut *dst);
+        }
     }
 
     success != 0
