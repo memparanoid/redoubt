@@ -144,7 +144,16 @@ if [[ "$TARGET_ARCH" == "$NATIVE_ARCH" ]]; then
         -v redoubt-target-cache:/workspace/target \
         redoubt-test "${CARGO_ARGS[@]}"
 else
-    # Cross-architecture build: use Dockerfile.test with specified platform
+    # Cross-architecture build: build base image first, then test image
+    echo "Building cross-architecture test base for $TARGET_ARCH..."
+    DOCKER_BUILDKIT=1 docker buildx build \
+        $NO_CACHE \
+        --platform "$PLATFORM" \
+        -f "$PROJECT_ROOT/docker/Dockerfile.redoubt-test-base" \
+        -t redoubt-test-base:latest \
+        --load \
+        "$PROJECT_ROOT"
+
     echo "Building cross-architecture test image for $TARGET_ARCH..."
     DOCKER_BUILDKIT=1 docker build \
         $NO_CACHE \
