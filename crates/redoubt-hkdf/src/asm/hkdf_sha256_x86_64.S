@@ -1236,7 +1236,7 @@ FUNC(hkdf_sha256):
     push r15
 
     // Reserve space for T_len and locals_size
-    sub rsp, 16
+    sub rsp, 24
 
     // Save stable params to callee-saved regs
     mov rbx, r8             // info_ptr
@@ -1372,10 +1372,10 @@ FUNC(hkdf_sha256):
 
     // Deallocate locals
     mov rsp, rbp
-    sub rsp, 56             // back to after push r15 + 16 bytes reserved
+    sub rsp, 64             // back to after push r15 + 24 bytes reserved
 
     // Epilogue
-    add rsp, 16             // free T_len/locals_size space
+    add rsp, 24             // free T_len/locals_size space
     pop r15
     pop r14
     pop r13
