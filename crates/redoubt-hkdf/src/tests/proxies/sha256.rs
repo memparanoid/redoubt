@@ -11,17 +11,7 @@
 /// # Arguments
 /// * `h` - Hash state (8 × u32, input/output)
 /// * `block` - Message block (64 bytes)
-#[cfg(all(
-    not(feature = "pure-rust"),
-    any(
-        all(target_arch = "aarch64", not(target_family = "wasm")),
-        all(
-            target_arch = "x86_64",
-            any(target_os = "linux", target_os = "macos"),
-            not(target_family = "wasm")
-        )
-    )
-))]
+#[cfg(all(feature = "asm", is_asm_eligible))]
 pub(crate) fn sha256_compress_block(h: &mut [u32; 8], block: &[u8; 64]) {
     unsafe {
         crate::asm::sha256_compress_block(h.as_mut_ptr(), block.as_ptr());
@@ -29,17 +19,7 @@ pub(crate) fn sha256_compress_block(h: &mut [u32; 8], block: &[u8; 64]) {
 }
 
 /// SHA-256 compression function (Rust fallback)
-#[cfg(any(
-    feature = "pure-rust",
-    not(any(
-        all(target_arch = "aarch64", not(target_family = "wasm")),
-        all(
-            target_arch = "x86_64",
-            any(target_os = "linux", target_os = "macos"),
-            not(target_family = "wasm")
-        )
-    ))
-))]
+#[cfg(not(all(feature = "asm", is_asm_eligible)))]
 pub(crate) fn sha256_compress_block(h: &mut [u32; 8], block: &[u8; 64]) {
     use crate::rust::sha256::Sha256State;
 
@@ -54,17 +34,7 @@ pub(crate) fn sha256_compress_block(h: &mut [u32; 8], block: &[u8; 64]) {
 /// # Arguments
 /// * `data` - Input message (arbitrary length)
 /// * `out` - Output digest (32 bytes)
-#[cfg(all(
-    not(feature = "pure-rust"),
-    any(
-        all(target_arch = "aarch64", not(target_family = "wasm")),
-        all(
-            target_arch = "x86_64",
-            any(target_os = "linux", target_os = "macos"),
-            not(target_family = "wasm")
-        )
-    )
-))]
+#[cfg(all(feature = "asm", is_asm_eligible))]
 pub(crate) fn sha256_hash(data: &[u8], out: &mut [u8; 32]) {
     unsafe {
         crate::asm::sha256_hash(data.as_ptr(), data.len(), out.as_mut_ptr());
@@ -72,17 +42,7 @@ pub(crate) fn sha256_hash(data: &[u8], out: &mut [u8; 32]) {
 }
 
 /// SHA-256 hash function (Rust fallback)
-#[cfg(any(
-    feature = "pure-rust",
-    not(any(
-        all(target_arch = "aarch64", not(target_family = "wasm")),
-        all(
-            target_arch = "x86_64",
-            any(target_os = "linux", target_os = "macos"),
-            not(target_family = "wasm")
-        )
-    ))
-))]
+#[cfg(not(all(feature = "asm", is_asm_eligible)))]
 pub(crate) fn sha256_hash(data: &[u8], out: &mut [u8; 32]) {
     use crate::rust::sha256::Sha256State;
 

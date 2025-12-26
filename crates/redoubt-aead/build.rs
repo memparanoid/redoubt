@@ -6,6 +6,11 @@ fn main() {
     // Declare custom cfg to suppress unexpected_cfgs warnings
     println!("cargo:rustc-check-cfg=cfg(is_aegis_asm_eligible)");
 
+    // Skip assembly compilation if asm feature is not enabled
+    if std::env::var("CARGO_FEATURE_ASM").is_err() {
+        return;
+    }
+
     let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
 

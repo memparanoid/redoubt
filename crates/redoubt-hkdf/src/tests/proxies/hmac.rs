@@ -10,17 +10,7 @@
 /// * `key` - HMAC key (arbitrary length)
 /// * `data` - Input message (arbitrary length)
 /// * `out` - Output MAC (32 bytes)
-#[cfg(all(
-    not(feature = "pure-rust"),
-    any(
-        all(target_arch = "aarch64", not(target_family = "wasm")),
-        all(
-            target_arch = "x86_64",
-            any(target_os = "linux", target_os = "macos"),
-            not(target_family = "wasm")
-        )
-    )
-))]
+#[cfg(all(feature = "asm", is_asm_eligible))]
 pub fn hmac_sha256(key: &[u8], data: &[u8], out: &mut [u8; 32]) {
     unsafe {
         crate::asm::hmac_sha256(
@@ -34,17 +24,7 @@ pub fn hmac_sha256(key: &[u8], data: &[u8], out: &mut [u8; 32]) {
 }
 
 /// HMAC-SHA256 (Rust fallback)
-#[cfg(any(
-    feature = "pure-rust",
-    not(any(
-        all(target_arch = "aarch64", not(target_family = "wasm")),
-        all(
-            target_arch = "x86_64",
-            any(target_os = "linux", target_os = "macos"),
-            not(target_family = "wasm")
-        )
-    ))
-))]
+#[cfg(not(all(feature = "asm", is_asm_eligible)))]
 pub fn hmac_sha256(key: &[u8], data: &[u8], out: &mut [u8; 32]) {
     use crate::rust::hmac::HmacSha256State;
 

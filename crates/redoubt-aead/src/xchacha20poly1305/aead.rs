@@ -35,6 +35,13 @@ pub struct XChacha20Poly1305<E: EntropySource> {
 }
 
 impl<E: EntropySource> XChacha20Poly1305<E> {
+    /// Key size in bytes
+    pub const KEY_SIZE: usize = KEY_SIZE;
+    /// Nonce size in bytes
+    pub const NONCE_SIZE: usize = XNONCE_SIZE;
+    /// Authentication tag size in bytes
+    pub const TAG_SIZE: usize = TAG_SIZE;
+
     /// Creates a new XChaCha20-Poly1305 instance with the provided entropy source.
     pub fn new(entropy: E) -> Self {
         Self {

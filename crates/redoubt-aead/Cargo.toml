@@ -11,6 +11,7 @@ version.workspace = true
 
 [features]
 test_utils = []
+asm = []
 
 [dependencies]
 redoubt-rand.workspace     = true

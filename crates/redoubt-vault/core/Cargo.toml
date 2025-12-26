@@ -18,6 +18,7 @@ no_std = []
 test_utils = []
 guard = ["redoubt-guard/guard"]
 internal-forensics = []
+asm = ["redoubt-rand/asm", "redoubt-aead/asm"]
 
 [dependencies]
 redoubt-codec = { workspace = true, features = ["zeroize"]}

@@ -34,3 +34,4 @@ proptest.workspace = true
 
 [features]
 test_utils = []
+asm = ["redoubt-hkdf/asm"]

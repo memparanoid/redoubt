@@ -9,7 +9,7 @@ use redoubt_rand::{
 use crate::error::AeadError;
 use crate::traits::AeadBackend;
 
-use super::consts::{Aegis128LKey, Aegis128LNonce, Aegis128LTag, NONCE_SIZE};
+use super::consts::{Aegis128LKey, Aegis128LNonce, Aegis128LTag, NONCE_SIZE, KEY_SIZE, TAG_SIZE};
 
 unsafe extern "C" {
     /// Performs one AEGIS-128L state update round with message absorption.
@@ -22,6 +22,7 @@ unsafe extern "C" {
     /// - `state` must point to 128 bytes (8 blocks of 16 bytes each) and be 16-byte aligned
     /// - `m0` must point to 16 bytes (first message block)
     /// - `m1` must point to 16 bytes (second message block)
+    #[cfg(all(test, feature = "asm", is_aegis_asm_eligible))]
     pub unsafe fn aegis128l_update(state: *mut [u8; 128], m0: *const [u8; 16], m1: *const [u8; 16]);
 
     /// Performs complete AEGIS-128L encryption (in-place).
@@ -64,6 +65,13 @@ pub struct Aegis128L<E: EntropySource> {
 }
 
 impl<E: EntropySource> Aegis128L<E> {
+    /// Key size in bytes
+    pub const KEY_SIZE: usize = KEY_SIZE;
+    /// Nonce size in bytes
+    pub const NONCE_SIZE: usize = NONCE_SIZE;
+    /// Authentication tag size in bytes
+    pub const TAG_SIZE: usize = TAG_SIZE;
+
     /// Creates a new AEGIS-128L instance with the provided entropy source.
     pub fn new(entropy: E) -> Self {
         Self {

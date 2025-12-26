@@ -10,7 +10,8 @@ use redoubt_rand::{EntropyError, SystemEntropySource};
 use crate::error::AeadError;
 use crate::traits::{AeadApi, AeadBackend};
 use crate::xchacha20poly1305::XChacha20Poly1305;
-use crate::xchacha20poly1305::{KEY_SIZE, TAG_SIZE, XNONCE_SIZE};
+
+type XChacha = XChacha20Poly1305<SystemEntropySource>;
 
 /// Mock failure behaviour.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,9 +36,9 @@ pub struct AeadMock {
 }
 
 impl AeadMock {
-    pub const KEY_SIZE: usize = KEY_SIZE;
-    pub const NONCE_SIZE: usize = XNONCE_SIZE;
-    pub const TAG_SIZE: usize = TAG_SIZE;
+    pub const KEY_SIZE: usize = XChacha::KEY_SIZE;
+    pub const NONCE_SIZE: usize = XChacha::NONCE_SIZE;
+    pub const TAG_SIZE: usize = XChacha::TAG_SIZE;
 
     pub fn new(behaviour: AeadMockBehaviour) -> Self {
         Self {

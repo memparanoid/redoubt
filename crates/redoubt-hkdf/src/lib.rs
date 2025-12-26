@@ -21,23 +21,13 @@ extern crate alloc;
 #[cfg(test)]
 mod tests;
 
-#[cfg(all(not(feature = "pure-rust"), is_asm_eligible))]
+#[cfg(all(feature = "asm", is_asm_eligible))]
 mod asm;
 
 mod error;
 mod hkdf;
 
-#[cfg(any(
-    feature = "pure-rust",
-    not(any(
-        all(target_arch = "aarch64", not(target_family = "wasm")),
-        all(
-            target_arch = "x86_64",
-            any(target_os = "linux", target_os = "macos"),
-            not(target_family = "wasm")
-        )
-    ))
-))]
+#[cfg(not(all(feature = "asm", is_asm_eligible)))]
 mod rust;
 
 pub use error::HkdfError;

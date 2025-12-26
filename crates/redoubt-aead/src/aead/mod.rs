@@ -20,25 +20,22 @@ mod tests;
 
 use redoubt_rand::{EntropyError, SystemEntropySource};
 
-#[cfg(is_aegis_asm_eligible)]
+#[cfg(all(feature = "asm", is_aegis_asm_eligible))]
 use crate::aegis_asm::Aegis128L;
 use crate::error::AeadError;
 use crate::feature_detector::FeatureDetector;
 use crate::traits::{AeadApi, AeadBackend};
 
-#[cfg(is_aegis_asm_eligible)]
-use crate::aegis_asm::consts::{
-    KEY_SIZE as AEGIS_KEY_SIZE, NONCE_SIZE as AEGIS_NONCE_SIZE, TAG_SIZE as AEGIS_TAG_SIZE,
-};
-
 use crate::xchacha20poly1305::XChacha20Poly1305;
-use crate::xchacha20poly1305::consts::{
-    KEY_SIZE as XCHACHA_KEY_SIZE, TAG_SIZE as XCHACHA_TAG_SIZE, XNONCE_SIZE as XCHACHA_NONCE_SIZE,
-};
+
+// Type aliases for constant access
+type XChacha = XChacha20Poly1305<SystemEntropySource>;
+#[cfg(all(feature = "asm", is_aegis_asm_eligible))]
+type Aegis = Aegis128L<SystemEntropySource>;
 
 /// Internal enum representing the selected backend implementation.
 enum AeadBackendImpl {
-    #[cfg(is_aegis_asm_eligible)]
+    #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
     Aegis128L(Aegis128L<SystemEntropySource>),
     // Box keeps enum size small (XChacha20Poly1305 is ~800 bytes vs Aegis128L few bytes)
     XChacha20Poly1305(Box<XChacha20Poly1305<SystemEntropySource>>),
@@ -60,14 +57,23 @@ impl Default for Aead {
 
 impl Aead {
     #[inline(always)]
+    #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
     pub(crate) fn new_with_feature_detector(feature_detector: FeatureDetector) -> Self {
-        #[cfg(is_aegis_asm_eligible)]
         if feature_detector.has_aes() {
             return Self {
                 backend: AeadBackendImpl::Aegis128L(Aegis128L::default()),
             };
         }
 
+        // Fallback: XChaCha20-Poly1305 for all other cases
+        Self {
+            backend: AeadBackendImpl::XChacha20Poly1305(Box::default()),
+        }
+    }
+
+    #[inline(always)]
+    #[cfg(not(all(feature = "asm", is_aegis_asm_eligible)))]
+    pub(crate) fn new_with_feature_detector(_feature_detector: FeatureDetector) -> Self {
         // Fallback: XChaCha20-Poly1305 for all other cases
         Self {
             backend: AeadBackendImpl::XChacha20Poly1305(Box::default()),
@@ -87,9 +93,9 @@ impl Aead {
         Aead::new_with_feature_detector(feature_detector)
     }
 
-    pub(crate) fn backend_name(&self) -> &'static str {
+    pub fn backend_name(&self) -> &'static str {
         match &self.backend {
-            #[cfg(is_aegis_asm_eligible)]
+            #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
             AeadBackendImpl::Aegis128L(_) => "AEGIS-128L",
             AeadBackendImpl::XChacha20Poly1305(_) => "XChaCha20-Poly1305",
         }
@@ -119,23 +125,23 @@ impl Aead {
         tag: &mut [u8],
     ) -> Result<(), AeadError> {
         match &mut self.backend {
-            #[cfg(is_aegis_asm_eligible)]
+            #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
             AeadBackendImpl::Aegis128L(backend) => {
-                let key: &[u8; AEGIS_KEY_SIZE] =
+                let key: &[u8; Aegis::KEY_SIZE] =
                     key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
-                let nonce: &[u8; AEGIS_NONCE_SIZE] =
+                let nonce: &[u8; Aegis::NONCE_SIZE] =
                     nonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
-                let tag_out: &mut [u8; AEGIS_TAG_SIZE] =
+                let tag_out: &mut [u8; Aegis::TAG_SIZE] =
                     tag.try_into().map_err(|_| AeadError::InvalidTagSize)?;
                 backend.encrypt(key, nonce, aad, data, tag_out);
                 Ok(())
             }
             AeadBackendImpl::XChacha20Poly1305(backend) => {
-                let key: &[u8; XCHACHA_KEY_SIZE] =
+                let key: &[u8; XChacha::KEY_SIZE] =
                     key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
-                let nonce: &[u8; XCHACHA_NONCE_SIZE] =
+                let nonce: &[u8; XChacha::NONCE_SIZE] =
                     nonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
-                let tag_out: &mut [u8; XCHACHA_TAG_SIZE] =
+                let tag_out: &mut [u8; XChacha::TAG_SIZE] =
                     tag.try_into().map_err(|_| AeadError::InvalidTagSize)?;
                 backend.encrypt(key, nonce, aad, data, tag_out);
                 Ok(())
@@ -168,22 +174,22 @@ impl Aead {
         tag: &[u8],
     ) -> Result<(), AeadError> {
         match &mut self.backend {
-            #[cfg(is_aegis_asm_eligible)]
+            #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
             AeadBackendImpl::Aegis128L(backend) => {
-                let key: &[u8; AEGIS_KEY_SIZE] =
+                let key: &[u8; Aegis::KEY_SIZE] =
                     key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
-                let nonce: &[u8; AEGIS_NONCE_SIZE] =
+                let nonce: &[u8; Aegis::NONCE_SIZE] =
                     nonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
-                let tag_ref: &[u8; AEGIS_TAG_SIZE] =
+                let tag_ref: &[u8; Aegis::TAG_SIZE] =
                     tag.try_into().map_err(|_| AeadError::InvalidTagSize)?;
                 backend.decrypt(key, nonce, aad, data, tag_ref)
             }
             AeadBackendImpl::XChacha20Poly1305(backend) => {
-                let key: &[u8; XCHACHA_KEY_SIZE] =
+                let key: &[u8; XChacha::KEY_SIZE] =
                     key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
-                let nonce: &[u8; XCHACHA_NONCE_SIZE] =
+                let nonce: &[u8; XChacha::NONCE_SIZE] =
                     nonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
-                let tag_ref: &[u8; XCHACHA_TAG_SIZE] =
+                let tag_ref: &[u8; XChacha::TAG_SIZE] =
                     tag.try_into().map_err(|_| AeadError::InvalidTagSize)?;
                 backend.decrypt(key, nonce, aad, data, tag_ref)
             }
@@ -202,7 +208,7 @@ impl Aead {
     #[inline]
     pub fn generate_nonce(&mut self) -> Result<Vec<u8>, EntropyError> {
         match &mut self.backend {
-            #[cfg(is_aegis_asm_eligible)]
+            #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
             AeadBackendImpl::Aegis128L(backend) => backend.generate_nonce().map(|n| n.to_vec()),
             AeadBackendImpl::XChacha20Poly1305(backend) => {
                 backend.generate_nonce().map(|n| n.to_vec())
@@ -214,9 +220,9 @@ impl Aead {
     #[inline]
     pub fn key_size(&self) -> usize {
         match &self.backend {
-            #[cfg(is_aegis_asm_eligible)]
-            AeadBackendImpl::Aegis128L(_) => AEGIS_KEY_SIZE,
-            AeadBackendImpl::XChacha20Poly1305(_) => XCHACHA_KEY_SIZE,
+            #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
+            AeadBackendImpl::Aegis128L(_) => Aegis::KEY_SIZE,
+            AeadBackendImpl::XChacha20Poly1305(_) => XChacha::KEY_SIZE,
         }
     }
 
@@ -224,9 +230,9 @@ impl Aead {
     #[inline]
     pub fn nonce_size(&self) -> usize {
         match &self.backend {
-            #[cfg(is_aegis_asm_eligible)]
-            AeadBackendImpl::Aegis128L(_) => AEGIS_NONCE_SIZE,
-            AeadBackendImpl::XChacha20Poly1305(_) => XCHACHA_NONCE_SIZE,
+            #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
+            AeadBackendImpl::Aegis128L(_) => Aegis::NONCE_SIZE,
+            AeadBackendImpl::XChacha20Poly1305(_) => XChacha::NONCE_SIZE,
         }
     }
 
@@ -234,9 +240,9 @@ impl Aead {
     #[inline]
     pub fn tag_size(&self) -> usize {
         match &self.backend {
-            #[cfg(is_aegis_asm_eligible)]
-            AeadBackendImpl::Aegis128L(_) => AEGIS_TAG_SIZE,
-            AeadBackendImpl::XChacha20Poly1305(_) => XCHACHA_TAG_SIZE,
+            #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
+            AeadBackendImpl::Aegis128L(_) => Aegis::TAG_SIZE,
+            AeadBackendImpl::XChacha20Poly1305(_) => XChacha::TAG_SIZE,
         }
     }
 
@@ -248,7 +254,7 @@ impl Aead {
     }
 
     #[cfg(test)]
-    #[cfg(is_aegis_asm_eligible)]
+    #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
     pub(crate) fn with_aegis128l() -> Self {
         Self {
             backend: AeadBackendImpl::Aegis128L(Aegis128L::default()),

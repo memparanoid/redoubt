@@ -5,6 +5,7 @@
 #[cfg(test)]
 pub enum FeatureDetectorBehaviour {
     None,
+    #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
     ForceAesTrue,
     ForceAesFalse,
 }
@@ -25,6 +26,7 @@ impl FeatureDetector {
 
     // Platform-level AES detection (no test override)
     #[inline(always)]
+    #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
     pub fn platform_has_aes(&self) -> bool {
         #[cfg(any(
             target_arch = "x86_64",
@@ -47,11 +49,13 @@ impl FeatureDetector {
     }
 
     #[inline(always)]
+    #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
     pub fn has_aes(&self) -> bool {
         #[cfg(test)]
         {
             match self.behaviour {
                 FeatureDetectorBehaviour::None => self.platform_has_aes(),
+                #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
                 FeatureDetectorBehaviour::ForceAesTrue => true,
                 FeatureDetectorBehaviour::ForceAesFalse => false,
             }

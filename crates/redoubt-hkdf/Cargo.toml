@@ -13,7 +13,7 @@ path = "src/lib.rs"
 
 [features]
 default = []
-pure-rust = []
+asm = []
 
 [dependencies]
 redoubt-zero.workspace = true

@@ -8,10 +8,7 @@ use crate::{
 };
 
 #[test]
-#[cfg(all(
-    any(target_arch = "x86_64", target_arch = "aarch64"),
-    not(target_os = "wasi")
-))]
+#[cfg(all(feature = "asm", is_aegis_asm_eligible))]
 fn test_aegis128l_backend_detection() {
     let mut feature_detector = FeatureDetector::new();
     feature_detector.change_behaviour(FeatureDetectorBehaviour::ForceAesTrue);
@@ -60,10 +57,7 @@ fn test_xchacha20poly1305_roundtrip() {
 }
 
 #[test]
-#[cfg(all(
-    any(target_arch = "x86_64", target_arch = "aarch64"),
-    not(target_os = "wasi")
-))]
+#[cfg(all(feature = "asm", is_aegis_asm_eligible))]
 fn test_aegis128l_roundtrip() {
     let mut aead = Aead::with_aegis128l();
 
@@ -117,10 +111,7 @@ fn test_xchacha20poly1305_wrong_tag_fails() {
 }
 
 #[test]
-#[cfg(all(
-    any(target_arch = "x86_64", target_arch = "aarch64"),
-    not(target_os = "wasi")
-))]
+#[cfg(all(feature = "asm", is_aegis_asm_eligible))]
 fn test_aegis128l_wrong_tag_fails() {
     let mut aead = Aead::with_aegis128l();
 
@@ -162,10 +153,7 @@ fn test_size_methods() {
     assert_eq!(aead.nonce_size(), 24);
     assert_eq!(aead.tag_size(), 16);
 
-    #[cfg(all(
-        any(target_arch = "x86_64", target_arch = "aarch64"),
-        not(target_os = "wasi")
-    ))]
+    #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
     {
         let aead = Aead::with_aegis128l();
 
@@ -182,10 +170,7 @@ fn test_debug_impl() {
 
     assert_eq!(debug_str, "Aead { backend: XChaCha20-Poly1305 }");
 
-    #[cfg(all(
-        any(target_arch = "x86_64", target_arch = "aarch64"),
-        not(target_os = "wasi")
-    ))]
+    #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
     {
         let aead = Aead::with_aegis128l();
         let debug_str = format!("{:?}", aead);

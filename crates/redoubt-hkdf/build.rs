@@ -8,8 +8,8 @@ fn main() {
     // Declare custom cfg to suppress unexpected_cfgs warnings
     println!("cargo:rustc-check-cfg=cfg(is_asm_eligible)");
 
-    // Skip assembly compilation if pure-rust feature is enabled
-    if std::env::var("CARGO_FEATURE_PURE_RUST").is_ok() {
+    // Skip assembly compilation if asm feature is not enabled
+    if std::env::var("CARGO_FEATURE_ASM").is_err() {
         return;
     }
 
@@ -30,7 +30,7 @@ fn main() {
     if is_asm_eligible {
         println!("cargo:rustc-cfg=is_asm_eligible");
     } else {
-        println!("cargo:warning=Using pure-rust fallback for target: {}-{}", target_arch, target_os);
+        println!("cargo:warning=Using Rust fallback (no assembly) for target: {}-{}", target_arch, target_os);
         return;
     }
 

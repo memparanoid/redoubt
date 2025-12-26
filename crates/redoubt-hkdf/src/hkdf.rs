@@ -11,7 +11,7 @@ use crate::error::HkdfError;
 const MAX_OUTPUT_LEN: usize = 255 * 32;
 
 /// HKDF-SHA256 key derivation (assembly implementation)
-#[cfg(all(not(feature = "pure-rust"), is_asm_eligible))]
+#[cfg(all(feature = "asm", is_asm_eligible))]
 pub fn hkdf(salt: &[u8], ikm: &[u8], info: &[u8], okm: &mut [u8]) -> Result<(), HkdfError> {
     if okm.len() > MAX_OUTPUT_LEN {
         return Err(HkdfError::OutputTooLong);
@@ -36,18 +36,8 @@ pub fn hkdf(salt: &[u8], ikm: &[u8], info: &[u8], okm: &mut [u8]) -> Result<(), 
     Ok(())
 }
 
-/// HKDF-SHA512 key derivation (Rust fallback)
-#[cfg(any(
-    feature = "pure-rust",
-    not(any(
-        all(target_arch = "aarch64", not(target_family = "wasm")),
-        all(
-            target_arch = "x86_64",
-            any(target_os = "linux", target_os = "macos"),
-            not(target_family = "wasm")
-        )
-    ))
-))]
+/// HKDF-SHA256 key derivation (Rust fallback)
+#[cfg(not(all(feature = "asm", is_asm_eligible)))]
 pub fn hkdf(salt: &[u8], ikm: &[u8], info: &[u8], okm: &mut [u8]) -> Result<(), HkdfError> {
     if okm.len() > MAX_OUTPUT_LEN {
         return Err(HkdfError::OutputTooLong);

@@ -5,7 +5,7 @@
 //! FFI bindings for SHA-256 assembly implementations
 
 #[cfg(all(
-    not(feature = "pure-rust"),
+    feature = "asm",
     any(
         all(target_arch = "aarch64", not(target_family = "wasm")),
         all(

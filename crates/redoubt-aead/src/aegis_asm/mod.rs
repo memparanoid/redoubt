@@ -4,13 +4,7 @@
 
 // AEGIS-128L assembly implementations
 
-#[cfg(all(
-    test,
-    any(
-        target_arch = "aarch64",
-        all(target_arch = "x86_64", not(target_os = "windows"))
-    )
-))]
+#[cfg(all(test, is_aegis_asm_eligible))]
 mod tests;
 
 pub mod aead;

@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 publish = false
 
+[features]
+asm = ["redoubt-aead/asm", "redoubt-hkdf/asm"]
+
 [dependencies]
 redoubt-alloc = { path = "../crates/redoubt-alloc" }
 redoubt-aead = { path = "../crates/redoubt-aead" }
@@ -18,11 +21,7 @@ redoubt-hkdf = { path = "../crates/redoubt-hkdf" }
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [[bench]]
-name = "aegis128l"
-harness = false
-
-[[bench]]
-name = "xchacha20poly1305"
+name = "aead"
 harness = false
 
 [[bench]]

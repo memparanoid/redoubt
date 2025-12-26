@@ -5,20 +5,15 @@
 #[cfg(test)]
 mod tests;
 
-pub mod support;
-pub mod xchacha20poly1305;
-
 mod aead;
+#[cfg(all(feature = "asm", is_aegis_asm_eligible))]
+mod aegis_asm;
 mod error;
 mod feature_detector;
+mod support;
 mod traits;
+mod xchacha20poly1305;
 
 pub use aead::Aead;
 pub use error::AeadError;
 pub use traits::{AeadApi, AeadBackend};
-
-#[cfg(is_aegis_asm_eligible)]
-pub mod aegis_asm;
-
-#[cfg(is_aegis_asm_eligible)]
-pub use aegis_asm::Aegis128L;
