@@ -104,7 +104,7 @@ fn test_munlock_without_lock_succeeds() {
 #[cfg(target_os = "linux")]
 mod seccomp_lock {
     use super::*;
-    use crate::tests::utils::{block_mlock, is_seccomp_available, run_test_as_subprocess};
+    use crate::tests::utils::{block_mlock, run_test_as_subprocess};
 
     #[test]
     #[ignore]
@@ -122,11 +122,6 @@ mod seccomp_lock {
     #[test]
     #[serial(page)]
     fn test_lock_fails_when_mlock_blocked() {
-        if !is_seccomp_available() {
-            eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
-            return;
-        }
-
         let exit_code = run_test_as_subprocess(
             "tests::page::seccomp_lock::subprocess_test_lock_fails_when_mlock_blocked",
         );
@@ -165,7 +160,7 @@ fn test_mark_dontdump_multiple_times_succeeds() {
 #[cfg(target_os = "linux")]
 mod seccomp_mark_dontdump {
     use super::*;
-    use crate::tests::utils::{block_madvise, is_seccomp_available, run_test_as_subprocess};
+    use crate::tests::utils::{block_madvise, run_test_as_subprocess};
 
     #[test]
     #[ignore]
@@ -183,11 +178,6 @@ mod seccomp_mark_dontdump {
     #[test]
     #[serial(page)]
     fn test_mark_dontdump_fails_when_madvise_blocked() {
-        if !is_seccomp_available() {
-            eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
-            return;
-        }
-
         let exit_code = run_test_as_subprocess(
             "tests::page::seccomp_mark_dontdump::subprocess_test_mark_dontdump_fails_when_madvise_blocked",
         );
@@ -255,7 +245,7 @@ fn test_multiple_protect_unprotect_cycles() {
 #[cfg(target_os = "linux")]
 mod seccomp_protect {
     use super::*;
-    use crate::tests::utils::{block_mprotect, is_seccomp_available, run_test_as_subprocess};
+    use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
 
     #[test]
     #[ignore]
@@ -273,11 +263,6 @@ mod seccomp_protect {
     #[test]
     #[serial(page)]
     fn test_protect_fails_when_mprotect_blocked() {
-        if !is_seccomp_available() {
-            eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
-            return;
-        }
-
         let exit_code = run_test_as_subprocess(
             "tests::page::seccomp_protect::subprocess_test_protect_fails_when_mprotect_blocked",
         );
@@ -314,11 +299,6 @@ mod seccomp_protect {
     #[test]
     #[serial(page)]
     fn test_protect_failure_zeroizes_page() {
-        if !is_seccomp_available() {
-            eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
-            return;
-        }
-
         let exit_code = run_test_as_subprocess(
             "tests::page::seccomp_protect::subprocess_test_protect_failure_zeroizes_page",
         );
@@ -358,7 +338,7 @@ fn test_unprotect_allows_write() {
 #[cfg(target_os = "linux")]
 mod seccomp_unprotect {
     use super::*;
-    use crate::tests::utils::{block_mprotect, is_seccomp_available, run_test_as_subprocess};
+    use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
 
     #[test]
     #[ignore]
@@ -377,11 +357,6 @@ mod seccomp_unprotect {
     #[test]
     #[serial(page)]
     fn test_unprotect_fails_when_mprotect_blocked() {
-        if !is_seccomp_available() {
-            eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
-            return;
-        }
-
         let exit_code = run_test_as_subprocess(
             "tests::page::seccomp_unprotect::subprocess_test_unprotect_fails_when_mprotect_blocked",
         );
@@ -487,7 +462,7 @@ fn test_dispose_on_protected_page() {
 #[cfg(target_os = "linux")]
 mod seccomp_dispose {
     use super::*;
-    use crate::tests::utils::{block_mprotect, is_seccomp_available, run_test_as_subprocess};
+    use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
 
     #[test]
     #[ignore]
@@ -506,11 +481,6 @@ mod seccomp_dispose {
     #[test]
     #[serial(page)]
     fn test_dispose_when_unprotect_fails() {
-        if !is_seccomp_available() {
-            eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
-            return;
-        }
-
         let exit_code = run_test_as_subprocess(
             "tests::page::seccomp_dispose::subprocess_test_dispose_when_unprotect_fails",
         );
