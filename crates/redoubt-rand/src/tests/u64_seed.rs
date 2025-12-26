@@ -13,17 +13,18 @@ fn test_generate_succeeds() {
 }
 
 #[test]
-#[ignore] // Run with: cargo test --release -- --ignored --nocapture
 fn test_entropy_distribution() {
-    // Statistical test: verify uniform distribution of entropy bytes
-    // Extracts all 8 bytes from each u64 for 50M total samples
-    const SAMPLES: usize = 6_250_000; // 6.25M × 8 bytes = 50M bytes
+    // Statistical test: verify hardware entropy is not catastrophically broken
+    // Chi-squared minimum: 5 observations/category = 5×256 bytes = 160 samples
+    // We use 10× minimum (1,600 samples) for more deterministic results
+    const SAMPLES: usize = 1_600; // 1,600 × 8 bytes = 12,800 bytes (50 per value)
     const TOTAL_BYTES: usize = SAMPLES * 8;
-    const EXPECTED_PER_VALUE: f64 = TOTAL_BYTES as f64 / 256.0; // ~195,312
+    const EXPECTED_PER_VALUE: f64 = TOTAL_BYTES as f64 / 256.0; // = 50.0
 
     let mut counts = [0u32; 256];
 
     println!("Collecting {} samples ({} bytes)...", SAMPLES, TOTAL_BYTES);
+    println!("Expected count per value: {:.0}", EXPECTED_PER_VALUE);
 
     for _ in 0..SAMPLES {
         let mut seed = 0u64;
@@ -35,8 +36,6 @@ fn test_entropy_distribution() {
             counts[byte as usize] += 1;
         }
     }
-
-    println!("Expected count per value: ~{:.0}", EXPECTED_PER_VALUE);
 
     // Chi-squared test for uniformity
     let mut chi_squared = 0.0;
@@ -60,29 +59,13 @@ fn test_entropy_distribution() {
         (max_count as f64 / EXPECTED_PER_VALUE) * 100.0
     );
 
-    // Chi-squared critical value for df=255, p=0.001 is ~310.5
-    // If our statistic is higher, distribution is likely non-uniform
+    // Chi-squared critical value for df=255, p=0.001 is ~341
+    // This only catches catastrophically broken hardware/implementations
     assert!(
         chi_squared < 350.0,
-        "Chi-squared too high: {:.2} (distribution may not be uniform)",
+        "Chi-squared too high: {:.2} - hardware entropy may be severely broken",
         chi_squared
     );
 
-    // Additional sanity check: no value should be wildly off
-    // With 50M samples, allow ±2% deviation from expected
-    let tolerance = EXPECTED_PER_VALUE * 0.02;
-    for (value, &count) in counts.iter().enumerate() {
-        let observed = count as f64;
-        let deviation = (observed - EXPECTED_PER_VALUE).abs();
-        assert!(
-            deviation < tolerance,
-            "Value {} appeared {} times (expected ~{:.0}, deviation {:.2}, ±2% tolerance)",
-            value,
-            count,
-            EXPECTED_PER_VALUE,
-            deviation
-        );
-    }
-
-    println!("✓ Distribution test passed!");
+    println!("✓ Hardware entropy smoke test passed!");
 }

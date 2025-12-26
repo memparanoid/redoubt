@@ -273,22 +273,3 @@ unsafe fn get_entropy_u64_fallback(dst: *mut u64) -> Result<(), EntropyError> {
         Ok(())
     }
 }
-
-#[test]
-fn debug_entropy_windows() {
-    let mut seed = 0u64;
-
-    #[cfg(target_arch = "x86_64")]
-    {
-        use crate::u64_seed::{x86_64_rdrand_cpuid, x86_64_rdseed_cpuid};
-        println!("RDSEED available: {}", x86_64_rdseed_cpuid::get());
-        println!("RDRAND available: {}", x86_64_rdrand_cpuid::get());
-    }
-
-    let result = unsafe { generate(&mut seed as *mut u64) };
-    println!("Result: {:?}", result);
-    println!("Seed value: 0x{:016x}", seed);
-
-    assert!(result.is_ok());
-    assert_ne!(seed, 0);
-}
