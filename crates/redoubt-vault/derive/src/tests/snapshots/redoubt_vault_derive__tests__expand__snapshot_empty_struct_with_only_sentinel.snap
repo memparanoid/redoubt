@@ -56,7 +56,7 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 0> for Empty
         )
     }
 }
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 #[derive(Debug, Clone, Copy)]
 pub enum EmptyBoxFailureMode {
     None,
@@ -64,7 +64,7 @@ pub enum EmptyBoxFailureMode {
 }
 pub struct EmptyBox {
     inner: redoubt_vault_core::CipherBox<Empty, redoubt_aead::Aead, 0>,
-    #[cfg(any(test, feature = "test-utils"))]
+    #[cfg(test)]
     failure_counter: usize,
 }
 impl EmptyBox {
@@ -72,7 +72,7 @@ impl EmptyBox {
     pub fn new() -> Self {
         Self {
             inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
-            #[cfg(any(test, feature = "test-utils"))]
+            #[cfg(test)]
             failure_counter: 0,
         }
     }
@@ -81,7 +81,7 @@ impl EmptyBox {
     where
         F: FnMut(&Empty) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -103,7 +103,7 @@ impl EmptyBox {
     where
         F: FnMut(&mut Empty) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -117,7 +117,7 @@ impl EmptyBox {
         }
         self.inner.open_mut(f)
     }
-    #[cfg(any(test, feature = "test-utils"))]
+    #[cfg(test)]
     pub fn set_failure_mode(&mut self, mode: EmptyBoxFailureMode) {
         match mode {
             EmptyBoxFailureMode::None => {

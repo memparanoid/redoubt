@@ -56,7 +56,7 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 1> for Gamma
         )
     }
 }
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 #[derive(Debug, Clone, Copy)]
 pub enum GammaBoxFailureMode {
     None,
@@ -64,7 +64,7 @@ pub enum GammaBoxFailureMode {
 }
 pub struct GammaBox {
     inner: redoubt_vault_core::CipherBox<Gamma, redoubt_aead::Aead, 1>,
-    #[cfg(any(test, feature = "test-utils"))]
+    #[cfg(test)]
     failure_counter: usize,
 }
 impl GammaBox {
@@ -72,7 +72,7 @@ impl GammaBox {
     pub fn new() -> Self {
         Self {
             inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
-            #[cfg(any(test, feature = "test-utils"))]
+            #[cfg(test)]
             failure_counter: 0,
         }
     }
@@ -81,7 +81,7 @@ impl GammaBox {
     where
         F: FnMut(&Gamma) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -103,7 +103,7 @@ impl GammaBox {
     where
         F: FnMut(&mut Gamma) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -117,7 +117,7 @@ impl GammaBox {
         }
         self.inner.open_mut(f)
     }
-    #[cfg(any(test, feature = "test-utils"))]
+    #[cfg(test)]
     pub fn set_failure_mode(&mut self, mode: GammaBoxFailureMode) {
         match mode {
             GammaBoxFailureMode::None => {
@@ -135,7 +135,7 @@ impl GammaBox {
         redoubt_zero::ZeroizingGuard<[u8; 32]>,
         redoubt_vault_core::CipherBoxError,
     > {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -157,7 +157,7 @@ impl GammaBox {
     where
         F: FnMut(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -179,7 +179,7 @@ impl GammaBox {
     where
         F: FnMut(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
     {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;

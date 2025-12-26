@@ -18,13 +18,13 @@ redoubt-aead = { workspace = true }
 redoubt-secret = { workspace = true }
 
 [dev-dependencies]
-redoubt-aead = { workspace = true, features = ["test-utils"] }
-redoubt-codec = { workspace = true, features = ["test-utils"] }
+redoubt-aead.workspace = true
+redoubt-codec.workspace = true
 
 [features]
 default = []
 no_std = ["redoubt-vault/no_std"]
-test-utils = ["redoubt-aead/test-utils", "redoubt-codec/test-utils"]
 guard = ["redoubt-vault/guard"]
 internal-forensics = ["redoubt-vault/internal-forensics"]
 asm = ["redoubt-vault/asm"]
+test-utils = ["redoubt-codec/test-utils", "redoubt-aead/test-utils"]

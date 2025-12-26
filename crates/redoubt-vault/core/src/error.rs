@@ -46,7 +46,7 @@ pub enum CipherBoxError {
     #[error("poisoned: box is in an irrecoverable state, exposed plaintext was zeroized")]
     Poisoned,
 
-    /// Test-only error indicating an intentional failure (requires `test-utils` feature).
+    /// Test-only error indicating an intentional failure.
     ///
     /// This error is used in test environments to signal that a failure was deliberate,
     /// allowing test assertions to verify that the error was intentional rather than
@@ -55,7 +55,6 @@ pub enum CipherBoxError {
     /// One use case is failure injection testing, where operations are made to fail
     /// at specific points to verify error handling and state consistency under adverse
     /// conditions.
-    #[cfg(any(test, feature = "test-utils"))]
     #[error("IntentionalCipherBoxError")]
     IntentionalCipherBoxError,
 }

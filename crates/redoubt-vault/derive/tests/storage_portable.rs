@@ -4,7 +4,7 @@
 
 //! Tests for global storage with portable (no_std) strategy
 
-#[cfg(feature = "test-utils")]
+#[cfg(test)]
 mod storage_portable {
     use std::sync::atomic::{AtomicU64, Ordering};
 

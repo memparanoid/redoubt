@@ -60,7 +60,7 @@ for WithCustomError {
         )
     }
 }
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 #[derive(Debug, Clone, Copy)]
 pub enum WithCustomErrorBoxFailureMode {
     None,
@@ -68,7 +68,7 @@ pub enum WithCustomErrorBoxFailureMode {
 }
 pub struct WithCustomErrorBox {
     inner: redoubt_vault_core::CipherBox<WithCustomError, redoubt_aead::Aead, 2>,
-    #[cfg(any(test, feature = "test-utils"))]
+    #[cfg(test)]
     failure_counter: usize,
 }
 impl WithCustomErrorBox {
@@ -76,7 +76,7 @@ impl WithCustomErrorBox {
     pub fn new() -> Self {
         Self {
             inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
-            #[cfg(any(test, feature = "test-utils"))]
+            #[cfg(test)]
             failure_counter: 0,
         }
     }
@@ -85,7 +85,7 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&WithCustomError) -> Result<R, MyCustomError>,
     {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -104,7 +104,7 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&mut WithCustomError) -> Result<R, MyCustomError>,
     {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -118,7 +118,7 @@ impl WithCustomErrorBox {
         }
         self.inner.open_mut(f)
     }
-    #[cfg(any(test, feature = "test-utils"))]
+    #[cfg(test)]
     pub fn set_failure_mode(&mut self, mode: WithCustomErrorBoxFailureMode) {
         match mode {
             WithCustomErrorBoxFailureMode::None => {
@@ -133,7 +133,7 @@ impl WithCustomErrorBox {
     pub fn leak_field1(
         &mut self,
     ) -> Result<redoubt_zero::ZeroizingGuard<Vec<u8>>, MyCustomError> {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -151,7 +151,7 @@ impl WithCustomErrorBox {
     pub fn leak_field2(
         &mut self,
     ) -> Result<redoubt_zero::ZeroizingGuard<u64>, MyCustomError> {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -170,7 +170,7 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&Vec<u8>) -> Result<R, MyCustomError>,
     {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -189,7 +189,7 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&u64) -> Result<R, MyCustomError>,
     {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -208,7 +208,7 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&mut Vec<u8>) -> Result<R, MyCustomError>,
     {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -227,7 +227,7 @@ impl WithCustomErrorBox {
     where
         F: FnMut(&mut u64) -> Result<R, MyCustomError>,
     {
-        #[cfg(any(feature = "test-utils"))]
+        #[cfg(test)]
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;

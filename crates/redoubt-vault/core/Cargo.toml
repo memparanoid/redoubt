@@ -15,7 +15,6 @@ path = "src/lib.rs"
 [features]
 default = []
 no_std = []
-test-utils = []
 guard = ["redoubt-guard/guard"]
 internal-forensics = []
 asm = ["redoubt-rand/asm", "redoubt-aead/asm"]
@@ -32,8 +31,8 @@ redoubt-aead.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-redoubt-aead = { workspace = true, features = ["test-utils"] }
-redoubt-codec = { workspace = true, features = ["test-utils"] }
+redoubt-aead.workspace = true
+redoubt-codec.workspace = true
 redoubt-test-utils.workspace = true
 redoubt-util.workspace = true
 

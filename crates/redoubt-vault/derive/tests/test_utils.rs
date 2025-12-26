@@ -4,7 +4,7 @@
 
 //! Tests for test-utils feature (failure injection)
 
-#[cfg(feature = "test-utils")]
+#[cfg(test)]
 mod test_utils {
     use redoubt_alloc::{RedoubtArray, RedoubtOption, RedoubtString};
     use redoubt_codec::RedoubtCodec;
