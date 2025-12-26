@@ -176,7 +176,7 @@ FUNC(sha256_compress_block):
     push r15
 
     // Allocate stack for W[0..15] (64 bytes) + alignment
-    sub rsp, 72
+    sub rsp, 80
 
     // Save pointers in callee-saved registers
     mov r13, rdi                // r13 = H_ptr
@@ -502,7 +502,7 @@ FUNC(sha256_compress_block):
     movdqa [rsp + 48], xmm0
 
     // Restore
-    add rsp, 72
+    add rsp, 80
     pop r15
     pop r14
     pop r13
