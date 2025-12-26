@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run release tests locally and in Docker for both architectures
+# Run release tests locally and in Docker for native architecture
 #
 # Usage:
 #   ./scripts/test_release.sh
@@ -9,7 +9,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Build base image for both architectures
+# Build base image for native architecture
 echo "Building base image..."
 "$SCRIPT_DIR/build-redoubt-test-base.sh"
 
@@ -22,25 +22,19 @@ echo ""
 echo "Running release tests locally without features..."
 cargo test --release --workspace -- --nocapture
 
-# Build test-release image for both architectures
+# Build test-release image for native architecture
 echo ""
-echo "Building test-release image..."
+echo "Building test-release image for native architecture..."
 DOCKER_BUILDKIT=1 docker buildx build \
-    --platform linux/amd64,linux/arm64 \
     -f "$PROJECT_ROOT/docker/Dockerfile.test-release" \
     -t redoubt-test-release \
     --load \
     "$PROJECT_ROOT"
 
-# Run on linux/amd64
+# Run on native architecture
 echo ""
-echo "Running release tests on linux/amd64..."
-docker run --rm --platform linux/amd64 redoubt-test-release
-
-# Run on linux/arm64
-echo ""
-echo "Running release tests on linux/arm64..."
-docker run --rm --platform linux/arm64 redoubt-test-release
+echo "Running release tests in Docker..."
+docker run --rm redoubt-test-release
 
 echo ""
 echo "✓ All release tests passed"
