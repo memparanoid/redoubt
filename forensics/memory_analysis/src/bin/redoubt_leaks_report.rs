@@ -2,24 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(feature = "__internal__forensics")]
 use std::hint::black_box;
 
-#[cfg(feature = "__internal__forensics")]
-use redoubt::{FastZeroizable, ZeroizeOnDropSentinel, reset_master_key};
-#[cfg(feature = "__internal__forensics")]
+#[cfg(feature = "internal-forensics")]
+use redoubt::reset_master_key;
+use redoubt::{FastZeroizable, ZeroizeOnDropSentinel};
 use redoubt::{
     RedoubtArray, RedoubtCodec, RedoubtOption, RedoubtSecret, RedoubtString, RedoubtVec,
     RedoubtZero, cipherbox,
 };
 
-#[cfg(feature = "__internal__forensics")]
 #[inline(never)]
 fn use_u64_ref(val: &u64) {
     black_box(val);
 }
 
-#[cfg(feature = "__internal__forensics")]
+#[cfg(feature = "internal-forensics")]
 /// Calculate Shannon entropy in bits per byte
 fn shannon_entropy(data: &[u8]) -> f64 {
     let mut freq = [0u32; 256];
@@ -40,7 +38,6 @@ fn shannon_entropy(data: &[u8]) -> f64 {
     entropy
 }
 
-#[cfg(feature = "__internal__forensics")]
 #[cipherbox(TestBox)]
 #[derive(Default, RedoubtZero, RedoubtCodec)]
 #[fast_zeroize(drop)]
@@ -57,7 +54,6 @@ struct TestData {
     read_write_secret: RedoubtSecret<u64>,
 }
 
-#[cfg(feature = "__internal__forensics")]
 #[derive(Clone, RedoubtZero)]
 #[fast_zeroize(drop)]
 struct Patterns {
@@ -71,7 +67,6 @@ struct Patterns {
     __sentinel: ZeroizeOnDropSentinel,
 }
 
-#[cfg(feature = "__internal__forensics")]
 impl Default for Patterns {
     fn default() -> Self {
         Self {
@@ -87,7 +82,6 @@ impl Default for Patterns {
     }
 }
 
-#[cfg(feature = "__internal__forensics")]
 impl Patterns {
     fn fill(&mut self) {
         self.pattern_1 = core::array::from_fn(|_| 0xAA); // redoubt_vec
@@ -100,7 +94,6 @@ impl Patterns {
     }
 }
 
-#[cfg(feature = "__internal__forensics")]
 #[derive(Clone, Default, RedoubtZero)]
 #[fast_zeroize(drop)]
 struct Values {
@@ -110,7 +103,6 @@ struct Values {
     __sentinel: ZeroizeOnDropSentinel,
 }
 
-#[cfg(feature = "__internal__forensics")]
 impl Values {
     fn fill(&mut self) {
         self.value_1 = 0xDEADBEEFCAFEBABE; // redoubt_secret_u64
@@ -119,10 +111,6 @@ impl Values {
     }
 }
 
-#[cfg(not(feature = "__internal__forensics"))]
-fn main() {}
-
-#[cfg(feature = "__internal__forensics")]
 fn main() {
     {
         println!("[*] Redoubt Forensic Analysis - Sensitive Data Pattern Detection");
@@ -137,32 +125,35 @@ fn main() {
             .open_mut(|_| Ok(()))
             .expect("Failed to initialize TestBox");
 
-        // Reset master key until it has sufficient entropy
-        println!("[*] Searching for high-entropy master key...");
-        const MIN_ENTROPY: f64 = 4.5;
-        let mut attempts = 0;
-        loop {
-            attempts += 1;
-            let mut key = redoubt::leak_master_key(32).expect("Failed to leak master key");
-            let entropy = shannon_entropy(&key);
+        #[cfg(feature = "internal-forensics")]
+        {
+            // Reset master key until it has sufficient entropy
+            println!("[*] Searching for high-entropy master key...");
+            const MIN_ENTROPY: f64 = 4.5;
+            let mut attempts = 0;
+            loop {
+                attempts += 1;
+                let mut key = redoubt::leak_master_key(32).expect("Failed to leak master key");
+                let entropy = shannon_entropy(&key);
 
-            println!("  Attempt {}: entropy = {:.3} bits/byte", attempts, entropy);
+                println!("  Attempt {}: entropy = {:.3} bits/byte", attempts, entropy);
 
-            if entropy >= MIN_ENTROPY {
-                println!();
-                println!(
-                    "[+] Found high-entropy master key after {} attempts",
-                    attempts
-                );
-                println!("[+] Master key entropy: {:.3} bits/byte", entropy);
+                if entropy >= MIN_ENTROPY {
+                    println!();
+                    println!(
+                        "[+] Found high-entropy master key after {} attempts",
+                        attempts
+                    );
+                    println!("[+] Master key entropy: {:.3} bits/byte", entropy);
+                    key.fast_zeroize();
+                    break;
+                }
+
                 key.fast_zeroize();
-                break;
+                reset_master_key();
             }
-
-            key.fast_zeroize();
-            reset_master_key();
+            println!();
         }
-        println!();
 
         // Generate test patterns and values
         println!("[*] Creating hardcoded test patterns and values...");

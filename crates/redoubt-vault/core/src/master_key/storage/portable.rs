@@ -104,14 +104,14 @@ pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), B
 ///
 /// # Safety
 ///
-/// This function is only available with the `__internal__forensics` feature.
+/// This function is only available with the `internal-forensics` feature.
 /// It reinitializes the master key buffer, discarding the previous key material.
 /// This should only be used for memory leak detection in controlled testing environments.
 ///
 /// # Panics
 ///
 /// Panics if the buffer has not been initialized yet.
-#[cfg(feature = "__internal__forensics")]
+#[cfg(feature = "internal-forensics")]
 pub fn reset() {
     assert_eq!(
         INIT_STATE.load(Ordering::Acquire),

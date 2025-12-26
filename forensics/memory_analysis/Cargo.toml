@@ -11,7 +11,7 @@ path = "src/bin/redoubt_leaks_report.rs"
 
 [features]
 default = []
-__internal__forensics = ["redoubt/__internal__forensics"]
+internal-forensics = ["redoubt/internal-forensics"]
 
 [dependencies]
 redoubt = { path = "../../crates/redoubt" }

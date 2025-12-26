@@ -16,7 +16,8 @@ path = "src/lib.rs"
 default = []
 no_std = ["redoubt-vault-core/no_std", "redoubt-vault-derive/no_std"]
 test_utils = ["redoubt-vault-core/test_utils", "redoubt-vault-derive/test_utils"]
-__internal__forensics = ["redoubt-vault-core/__internal__forensics"]
+guard = ["redoubt-vault-core/guard"]
+internal-forensics = ["redoubt-vault-core/internal-forensics"]
 
 [dependencies]
 redoubt-vault-core.workspace = true

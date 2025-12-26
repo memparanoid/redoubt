@@ -22,14 +22,14 @@ pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), B
 ///
 /// # Safety
 ///
-/// This function is only available with the `__internal__forensics` feature.
+/// This function is only available with the `internal-forensics` feature.
 /// It reinitializes the master key buffer, discarding the previous key material.
 /// This should only be used for memory leak detection in controlled testing environments.
 ///
 /// # Panics
 ///
 /// Panics if the buffer has not been initialized yet or if the mutex is poisoned.
-#[cfg(all(feature = "__internal__forensics", not(feature = "no_std")))]
+#[cfg(all(feature = "internal-forensics", not(feature = "no_std")))]
 pub fn reset() {
     let mutex = BUFFER
         .get()

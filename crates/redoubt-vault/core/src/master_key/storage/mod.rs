@@ -16,8 +16,8 @@ pub use std::open;
 #[cfg(feature = "no_std")]
 pub use portable::open;
 
-#[cfg(all(feature = "__internal__forensics", not(feature = "no_std")))]
+#[cfg(all(feature = "internal-forensics", not(feature = "no_std")))]
 pub use std::reset;
 
-#[cfg(all(feature = "__internal__forensics", feature = "no_std"))]
+#[cfg(all(feature = "internal-forensics", feature = "no_std"))]
 pub use portable::reset;

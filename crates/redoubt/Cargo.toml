@@ -25,4 +25,5 @@ redoubt-codec = { workspace = true, features = ["test_utils"] }
 default = []
 no_std = ["redoubt-vault/no_std"]
 test_utils = ["redoubt-aead/test_utils", "redoubt-codec/test_utils"]
-__internal__forensics = ["redoubt-vault/__internal__forensics"]
+guard = ["redoubt-vault/guard"]
+internal-forensics = ["redoubt-vault/internal-forensics"]

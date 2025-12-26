@@ -92,15 +92,7 @@ fn init_slow() {
         Ordering::Relaxed,
     ) {
         Ok(_) => {
-            #[cfg(feature = "__internal__forensics")]
-            {
-                PRCTL_SUCCEEDED.store(0, Ordering::Relaxed);
-                RLIMIT_SUCCEEDED.store(0, Ordering::Relaxed);
-
-                INIT_STATE.store(STATE_DONE, Ordering::Release);
-            }
-
-            #[cfg(not(feature = "__internal__forensics"))]
+            #[cfg(feature = "guard")]
             {
                 let prctl_ok = prctl_set_not_dumpable();
                 let rlimit_ok = setrlimit_core_zero();
@@ -116,6 +108,14 @@ fn init_slow() {
 
                 INIT_STATE.store(STATE_DONE, Ordering::Release);
             }
+
+            #[cfg(not(feature = "guard"))]
+            {
+                PRCTL_SUCCEEDED.store(0, Ordering::Relaxed);
+                RLIMIT_SUCCEEDED.store(0, Ordering::Relaxed);
+
+                INIT_STATE.store(STATE_DONE, Ordering::Release);
+            }
         }
         Err(_) => {
             // Another thread is initializing or already done, spin until done
@@ -126,19 +126,19 @@ fn init_slow() {
     }
 }
 
-#[cfg(all(target_os = "linux", not(feature = "__internal__forensics")))]
+#[cfg(all(target_os = "linux", feature = "guard"))]
 fn prctl_set_not_dumpable() -> bool {
     // PR_SET_DUMPABLE = 4, 0 = not dumpable
     unsafe { libc::prctl(libc::PR_SET_DUMPABLE, 0, 0, 0, 0) == 0 }
 }
 
-#[cfg(all(not(target_os = "linux"), not(feature = "__internal__forensics")))]
+#[cfg(all(not(target_os = "linux"), feature = "guard"))]
 fn prctl_set_not_dumpable() -> bool {
-    // prctl is Linux-only, or disabled for forensic analysis
+    // prctl is Linux-only
     false
 }
 
-#[cfg(all(target_os = "linux", not(feature = "__internal__forensics")))]
+#[cfg(all(target_os = "linux", feature = "guard"))]
 fn setrlimit_core_zero() -> bool {
     let limit = libc::rlimit {
         rlim_cur: 0,
@@ -147,8 +147,8 @@ fn setrlimit_core_zero() -> bool {
     unsafe { libc::setrlimit(libc::RLIMIT_CORE, &limit) == 0 }
 }
 
-#[cfg(all(not(target_os = "linux"), not(feature = "__internal__forensics")))]
+#[cfg(all(not(target_os = "linux"), feature = "guard"))]
 fn setrlimit_core_zero() -> bool {
-    // setrlimit RLIMIT_CORE is Linux-specific, or disabled for forensic analysis
+    // setrlimit RLIMIT_CORE is Linux-specific
     false
 }
