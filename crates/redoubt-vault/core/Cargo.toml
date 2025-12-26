@@ -31,10 +31,11 @@ redoubt-aead.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-redoubt-aead.workspace = true
-redoubt-codec.workspace = true
+redoubt-codec = { workspace = true, features = ["test-utils"] }
 redoubt-test-utils.workspace = true
 redoubt-util.workspace = true
+redoubt-aead = { workspace = true, features = ["test-utils"] }
+
 
 [target.'cfg(unix)'.dev-dependencies]
 libc.workspace = true

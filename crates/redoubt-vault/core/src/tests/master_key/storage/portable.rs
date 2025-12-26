@@ -9,7 +9,7 @@ use crate::master_key::storage::portable::open;
 use crate::tests::utils::run_test_as_subprocess;
 
 #[test]
-fn test_open_returns_correct_length() {
+fn test_portable_storage_open_returns_correct_length() {
     open(&mut |bytes| {
         assert_eq!(bytes.len(), MASTER_KEY_LEN);
         Ok(())
@@ -18,7 +18,7 @@ fn test_open_returns_correct_length() {
 }
 
 #[test]
-fn test_open_returns_same_bytes_on_subsequent_calls() {
+fn test_portable_storage_open_returns_same_bytes_on_subsequent_calls() {
     let mut first_bytes = [0u8; MASTER_KEY_LEN];
 
     open(&mut |bytes| {
@@ -35,15 +35,15 @@ fn test_open_returns_same_bytes_on_subsequent_calls() {
 }
 
 #[test]
-fn test_concurrent_access() {
+fn test_portable_storage_concurrent_access() {
     let exit_code = run_test_as_subprocess(
-        "tests::master_key::storage::portable::subprocess_concurrent_access",
+        "tests::master_key::storage::portable::portable_storage_subprocess_concurrent_access",
     );
     assert_eq!(exit_code, Some(0), "subprocess test failed");
 }
 
 #[test]
-fn test_open_propagates_callback_error() {
+fn test_portable_storage_open_propagates_callback_error() {
     #[derive(Debug)]
     struct CustomCallbackError {}
 
@@ -57,7 +57,7 @@ fn test_open_propagates_callback_error() {
 
 #[test]
 #[ignore]
-fn subprocess_concurrent_access() {
+fn portable_storage_subprocess_concurrent_access() {
     use std::sync::{Arc, Mutex};
     use std::thread;
 

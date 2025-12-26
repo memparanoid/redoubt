@@ -816,9 +816,8 @@ fn test_open_field_when_callback_error_is_propagated_cipherbox_is_not_poisoned()
     assert!(cb.assert_healthy().is_ok());
 
     // Should be able to use CipherBox again
-    let current_f0_value = cb.open_field::<RedoubtCodecTestBreaker, 0, _, _, CipherBoxError>(|tb| {
-        Ok(tb.usize.data)
-    });
+    let current_f0_value =
+        cb.open_field::<RedoubtCodecTestBreaker, 0, _, _, CipherBoxError>(|tb| Ok(tb.usize.data));
 
     assert!(current_f0_value.is_ok());
     assert_eq!(current_f0_value.unwrap(), 1);
@@ -838,8 +837,10 @@ fn test_open_field_mut_propagates_poison_error() {
     assert!(cb.encrypt_struct(&aead_key, &mut value).is_err());
     assert!(cb.assert_healthy().is_err());
 
-    let result_1 = cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
-    let result_2 = cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
+    let result_1 =
+        cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
+    let result_2 =
+        cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
 
     assert!(result_1.is_err());
     assert!(result_2.is_err());
@@ -852,8 +853,10 @@ fn test_open_field_mut_propagates_initialization_error() {
     let aead = AeadMock::new(AeadMockBehaviour::FailEncryptAt(0));
     let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
 
-    let result_1 = cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
-    let result_2 = cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
+    let result_1 =
+        cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
+    let result_2 =
+        cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
 
     assert!(cb.assert_healthy().is_err());
 
@@ -872,8 +875,10 @@ fn test_open_field_mut_propagates_leak_master_key_error() {
 
     cb.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
 
-    let result_1 = cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
-    let result_2 = cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
+    let result_1 =
+        cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
+    let result_2 =
+        cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
 
     assert!(cb.assert_healthy().is_err());
 
@@ -890,8 +895,10 @@ fn test_open_field_mut_propagates_decrypt_error() {
 
     assert!(cb.maybe_initialize().is_ok());
 
-    let result_1 = cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
-    let result_2 = cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
+    let result_1 =
+        cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
+    let result_2 =
+        cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
 
     assert!(cb.assert_healthy().is_err());
 
@@ -939,8 +946,8 @@ fn test_open_field_mut_when_callback_error_is_propagated_cipherbox_is_not_poison
     assert!(cb.maybe_initialize().is_ok());
 
     // Callback returns error after modifying data
-    let result: Result<(), CipherBoxError> =
-        cb.open_field_mut::<RedoubtCodecTestBreaker, 0, _, _, _>(|tb| {
+    let result: Result<(), CipherBoxError> = cb
+        .open_field_mut::<RedoubtCodecTestBreaker, 0, _, _, _>(|tb| {
             tb.usize.data = 999;
             Err(CipherBoxError::IntentionalCipherBoxError)
         });
@@ -955,9 +962,8 @@ fn test_open_field_mut_when_callback_error_is_propagated_cipherbox_is_not_poison
     assert!(cb.assert_healthy().is_ok());
 
     // Should be able to use CipherBox again and data should be unchanged (rollback)
-    let current_f0_value = cb.open_field::<RedoubtCodecTestBreaker, 0, _, _, CipherBoxError>(|tb| {
-        Ok(tb.usize.data)
-    });
+    let current_f0_value =
+        cb.open_field::<RedoubtCodecTestBreaker, 0, _, _, CipherBoxError>(|tb| Ok(tb.usize.data));
 
     assert!(current_f0_value.is_ok());
     assert_eq!(current_f0_value.unwrap(), 1);
