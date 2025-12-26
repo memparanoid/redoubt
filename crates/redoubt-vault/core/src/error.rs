@@ -46,12 +46,15 @@ pub enum CipherBoxError {
     #[error("poisoned: box is in an irrecoverable state, exposed plaintext was zeroized")]
     Poisoned,
 
-    /// Test-only error used to verify callback error handling and rollback behavior.
+    /// Test-only error indicating an intentional failure (requires `test_utils` feature).
     ///
-    /// This error is intentionally returned from test callbacks to verify that:
-    /// - The CipherBox is not poisoned when callback errors occur
-    /// - Rollback mechanism preserves original state on callback failure
-    /// - Error propagation works correctly through the API
+    /// This error is used in test environments to signal that a failure was deliberate,
+    /// allowing test assertions to verify that the error was intentional rather than
+    /// a bug or unexpected condition.
+    ///
+    /// One use case is failure injection testing, where operations are made to fail
+    /// at specific points to verify error handling and state consistency under adverse
+    /// conditions.
     #[cfg(any(test, feature = "test_utils"))]
     #[error("IntentionalCipherBoxError")]
     IntentionalCipherBoxError,
