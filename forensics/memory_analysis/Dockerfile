@@ -16,7 +16,7 @@ COPY . .
 
 # Build the binary in release mode with forensics feature enabled
 # This disables memory protections (prctl, rlimit) to allow core dump analysis
-RUN cargo build --release --features __internal__forensics --bin redoubt_leaks_report -p redoubt-forensics
+RUN cargo build --release --features internal-forensics --bin redoubt_trace_report -p redoubt-forensics
 
 # Make scripts executable
 RUN chmod +x forensics/memory_analysis/entrypoints/analyze_core_dump.sh && \

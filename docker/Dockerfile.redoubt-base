@@ -79,5 +79,4 @@ RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/s
     echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
     echo "fn main() {}" > benchmarks/benches/alloc.rs && \
     echo "fn main() {}" > benchmarks/benches/hkdf_sha256.rs && \
-    mkdir -p forensics/memory_analysis/src/bin && echo "fn main() {}" > forensics/memory_analysis/src/bin/test_redoubt_leaks.rs && \
-    echo "fn main() {}" > forensics/memory_analysis/src/bin/redoubt_leaks_report.rs
+    mkdir -p forensics/memory_analysis/src/bin && echo "fn main() {}" > forensics/memory_analysis/src/bin/redoubt_trace_report.rs

@@ -234,21 +234,22 @@ fn main() {
                         ));
 
                     // Populate `option_option_redoubt_string` field
-                    let not_leaked_str_pattern = std::str::from_utf8(&temp_patterns.pattern_7)
+                    // This pattern should leave no traces in memory after zeroization
+                    let test_str_pattern = std::str::from_utf8(&temp_patterns.pattern_7)
                         .expect("Pattern 7 should be valid UTF-8");
-                    let mut not_leaked_string = RedoubtString::from_str(not_leaked_str_pattern);
-                    let mut not_leaked_option = RedoubtOption::default();
-                    not_leaked_option.replace(&mut not_leaked_string);
+                    let mut test_string = RedoubtString::from_str(test_str_pattern);
+                    let mut test_option = RedoubtOption::default();
+                    test_option.replace(&mut test_string);
                     data.option_option_redoubt_string
-                        .replace(&mut not_leaked_option);
+                        .replace(&mut test_option);
 
                     // Populate `option_redoubt_secret_u64` field
-                    let mut leaked = RedoubtSecret::from(&mut temp_values.value_2);
+                    let mut test_secret = RedoubtSecret::from(&mut temp_values.value_2);
 
                     // Force deref through as_ref() with black_box to prevent optimization
-                    use_u64_ref(leaked.as_ref());
+                    use_u64_ref(test_secret.as_ref());
 
-                    data.option_redoubt_secret_u64.replace(&mut leaked);
+                    data.option_redoubt_secret_u64.replace(&mut test_secret);
 
                     // Populate `redoubt_secret_u64` field
                     data.redoubt_secret_u64.replace(&mut temp_values.value_1);

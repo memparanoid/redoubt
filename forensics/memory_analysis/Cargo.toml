@@ -5,8 +5,8 @@ edition = "2024"
 publish = false
 
 [[bin]]
-name = "redoubt_leaks_report"
-path = "src/bin/redoubt_leaks_report.rs"
+name = "redoubt_trace_report"
+path = "src/bin/redoubt_trace_report.rs"
 
 
 [features]

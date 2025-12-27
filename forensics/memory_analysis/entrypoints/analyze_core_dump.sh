@@ -6,7 +6,7 @@ echo ""
 
 # Launch the report binary in background, capturing stdout to file
 echo "[*] Launching forensics report binary..."
-./target/release/redoubt_leaks_report > /tmp/rust_output.txt 2>&1 &
+./target/release/redoubt_trace_report > /tmp/rust_output.txt 2>&1 &
 RUST_PID=$!
 echo "[+] Process started with PID: $RUST_PID"
 
