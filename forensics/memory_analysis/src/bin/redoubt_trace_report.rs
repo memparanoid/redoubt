@@ -188,7 +188,7 @@ fn main() {
             .expect("Failed to initialize read_write_secret");
         println!();
 
-        // Run iterations to test for leaks
+        // Run iterations to test for traces
         const ITERATIONS: usize = 50;
         println!(
             "[*] Running {:?} iterations with pattern copies...",
@@ -278,7 +278,7 @@ fn main() {
         println!("[+] Completed {} iterations", ITERATIONS);
         println!();
 
-        // Leak master key
+        // Extract master key for analysis
         let mut master_key = redoubt::leak_master_key(32).expect("Failed to leak master key");
 
         // Print master key and patterns for script to capture

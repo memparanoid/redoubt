@@ -102,7 +102,7 @@ fi
 echo "[*] Starting forensic analysis..."
 echo ""
 
-LEAK_DETECTED=0
+TRACE_DETECTED=0
 
 # Analyze master key (progressive search)
 if [ -f /tmp/master_key.hex ]; then
@@ -110,22 +110,22 @@ if [ -f /tmp/master_key.hex ]; then
     python3 forensics/memory_analysis/scripts/analyze_value.py "$CORE_FILE" /tmp/master_key.hex
     RESULT=$?
     if [ $RESULT -eq 1 ]; then
-        LEAK_DETECTED=1
-        echo "[!] LEAK DETECTED in master key"
+        TRACE_DETECTED=1
+        echo "[!] TRACE FOUND in master key"
     fi
     echo ""
 fi
 
-# Analyze secret values (progressive search)
+# Analyze secret values (progressive search, both endiannesses)
 for i in $(seq 0 $((VALUE_COUNT - 1))); do
     VALUE_HEX="${VALUES[$i]}"
     echo "$VALUE_HEX" > /tmp/value_${i}.hex
-    echo "[*] Analyzing Value #$((i + 1)): 0x${VALUE_HEX} (progressive prefix search)..."
+    echo "[*] Analyzing Value #$((i + 1)): 0x${VALUE_HEX} (progressive prefix search, both endiannesses)..."
     python3 forensics/memory_analysis/scripts/analyze_value.py "$CORE_FILE" /tmp/value_${i}.hex
     RESULT=$?
     if [ $RESULT -eq 1 ]; then
-        LEAK_DETECTED=1
-        echo "[!] LEAK DETECTED in Value #$((i + 1))"
+        TRACE_DETECTED=1
+        echo "[!] TRACE FOUND in Value #$((i + 1))"
     fi
     rm -f /tmp/value_${i}.hex
     echo ""
@@ -138,8 +138,8 @@ for i in $(seq 0 $((PATTERN_COUNT - 1))); do
     python3 forensics/memory_analysis/scripts/analyze_pattern.py "$CORE_FILE" "$PATTERN_HEX"
     RESULT=$?
     if [ $RESULT -eq 1 ]; then
-        LEAK_DETECTED=1
-        echo "[!] LEAK DETECTED in Pattern #$((i + 1))"
+        TRACE_DETECTED=1
+        echo "[!] TRACE FOUND in Pattern #$((i + 1))"
     fi
     echo ""
 done
@@ -148,10 +148,10 @@ done
 rm -f /tmp/master_key.hex
 rm -f "$CORE_FILE"
 
-if [ $LEAK_DETECTED -eq 1 ]; then
-    echo "[!] LEAK CONFIRMED: Sensitive data found in core dump"
+if [ $TRACE_DETECTED -eq 1 ]; then
+    echo "[!] TRACE CONFIRMED: Sensitive data found in core dump"
     exit 1
 else
-    echo "[+] Analysis complete - no leaks detected"
+    echo "[+] Analysis complete - no traces detected"
     exit 0
 fi

@@ -4,6 +4,9 @@ Progressive pattern detection in core dumps.
 
 Searches for progressively longer prefixes of sensitive data patterns to determine
 at what point the pattern is no longer present in memory.
+
+For multi-byte values (u16, u32, u64), searches both big-endian and little-endian
+byte orders since the value may be stored differently depending on architecture.
 """
 
 import sys
@@ -12,6 +15,9 @@ import re
 CHUNK = 1024 * 1024 * 16  # 16 MiB
 MAX_LINES = 200           # avoid spam; adjust if needed
 REPORT_EVERY = 1          # 1 = report every prefix; can increase (e.g., 2, 4, 8)
+
+# Standard integer sizes in bytes
+INT_SIZES = {1: "u8", 2: "u16", 4: "u32", 8: "u64"}
 
 def read_pattern_hex(path: str) -> bytes:
     """Read hex pattern from file and convert to bytes."""
@@ -31,6 +37,10 @@ def read_pattern_hex(path: str) -> bytes:
         raise SystemExit(f"Invalid hex characters in {path}")
 
     return bytes.fromhex(s)
+
+def detect_type(size: int) -> str:
+    """Detect integer type from byte size."""
+    return INT_SIZES.get(size, f"{size}-byte value")
 
 def count_occurrences(path: str, needle: bytes, chunk: int) -> int:
     """Count occurrences of needle in file, handling chunk overlaps."""
@@ -61,25 +71,14 @@ def count_occurrences(path: str, needle: bytes, chunk: int) -> int:
 
     return count
 
-def main():
-    if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} <core_dump_path> <pattern_hex_path>", file=sys.stderr)
-        sys.exit(1)
-
-    core_path = sys.argv[1]
-    pattern_hex_path = sys.argv[2]
-
-    print(f"[*] Reading pattern from: {pattern_hex_path}")
-    pattern = read_pattern_hex(pattern_hex_path)
-
-    print(f"[*] Pattern size: {len(pattern)} bytes")
-    print(f"[*] Pattern hex:  {pattern.hex()}")
-    print(f"[*] Searching core dump: {core_path}")
+def search_pattern(core_path: str, pattern: bytes, label: str) -> bool:
+    """Search for pattern with progressive prefix detection. Returns True if trace found."""
+    print(f"[*] Searching {label}: {pattern.hex()}")
     print()
 
     lines = 0
     prev = None
-    leak_detected = False
+    trace_found = False
 
     for n in range(1, len(pattern) + 1):
         if (n % REPORT_EVERY) != 0 and n != len(pattern):
@@ -97,7 +96,7 @@ def main():
 
         # Check if full pattern is found
         if n == len(pattern) and c > 0:
-            leak_detected = True
+            trace_found = True
 
         prev = c
 
@@ -108,14 +107,49 @@ def main():
             break
 
     print()
-    if leak_detected:
+    return trace_found
+
+def main():
+    if len(sys.argv) != 3:
+        print(f"Usage: {sys.argv[0]} <core_dump_path> <pattern_hex_path>", file=sys.stderr)
+        sys.exit(1)
+
+    core_path = sys.argv[1]
+    pattern_hex_path = sys.argv[2]
+
+    print(f"[*] Reading pattern from: {pattern_hex_path}")
+    pattern_be = read_pattern_hex(pattern_hex_path)  # big-endian (as written)
+    pattern_le = pattern_be[::-1]  # little-endian (reversed)
+
+    value_type = detect_type(len(pattern_be))
+    print(f"[*] Detected type: {value_type} ({len(pattern_be)} bytes)")
+    print(f"[*] Big-endian:    {pattern_be.hex()}")
+    print(f"[*] Little-endian: {pattern_le.hex()}")
+    print(f"[*] Searching core dump: {core_path}")
+    print()
+
+    trace_be = False
+    trace_le = False
+
+    # Search big-endian
+    trace_be = search_pattern(core_path, pattern_be, "big-endian")
+
+    # Search little-endian (skip if same as big-endian, e.g., single byte)
+    if pattern_be != pattern_le:
+        trace_le = search_pattern(core_path, pattern_le, "little-endian")
+
+    # Report results
+    if trace_be or trace_le:
         print("[!] ============================================")
-        print("[!] PATTERN LEAK DETECTED!")
-        print(f"[!] Full {len(pattern)}-byte pattern found {prev} time(s) in core dump")
+        print("[!] TRACE DETECTED!")
+        if trace_be:
+            print(f"[!] Full {len(pattern_be)}-byte value found (big-endian)")
+        if trace_le:
+            print(f"[!] Full {len(pattern_le)}-byte value found (little-endian)")
         print("[!] ============================================")
         sys.exit(1)
     else:
-        print("[+] No full pattern found in core dump (pattern protected)")
+        print("[+] No full value found in core dump (value protected)")
         sys.exit(0)
 
 if __name__ == "__main__":

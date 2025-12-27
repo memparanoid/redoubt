@@ -63,7 +63,7 @@ def main():
         for i, (offset, length) in enumerate(blocks, 1):
             print(f"  Block {i}: offset=0x{offset:08x}, size={length:4d} bytes")
 
-    # Exit code: 0 if no leaks, 1 if leaks found
+    # Exit code: 0 if no traces, 1 if traces found
     sys.exit(1 if blocks else 0)
 
 
