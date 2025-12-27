@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 cargo depgraph \
     --workspace-only \
-    --exclude wasm-demo \
+    --exclude wasm-example \
     --exclude benchmarks \
     | dot -Tpng > deps_graph.png
 

@@ -5,7 +5,7 @@ Demo showcasing Redoubt's `CipherBox` running in WebAssembly.
 ## Structure
 
 ```
-wasm-demo/
+wasm-example/
 ├── rust/           # Rust WASM library
 │   ├── src/
 │   │   └── lib.rs  # WASM bindings with wasm-bindgen

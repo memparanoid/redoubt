@@ -1,5 +1,5 @@
 [package]
-name = "wasm-demo"
+name = "wasm-example"
 version.workspace = true
 edition.workspace = true
 publish = false
