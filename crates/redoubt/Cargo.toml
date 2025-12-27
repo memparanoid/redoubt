@@ -23,8 +23,9 @@ redoubt-codec.workspace = true
 
 [features]
 default = []
-no_std = ["redoubt-vault/no_std"]
+std = ["redoubt-vault/std"]
 guard = ["redoubt-vault/guard"]
 internal-forensics = ["redoubt-vault/internal-forensics"]
 asm = ["redoubt-vault/asm"]
+full = ["std", "guard", "asm"]
 test-utils = ["redoubt-codec/test-utils", "redoubt-aead/test-utils"]

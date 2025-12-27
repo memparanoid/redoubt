@@ -29,7 +29,7 @@ pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), B
 /// # Panics
 ///
 /// Panics if the buffer has not been initialized yet or if the mutex is poisoned.
-#[cfg(all(feature = "internal-forensics", not(feature = "no_std")))]
+#[cfg(all(feature = "internal-forensics", feature = "std"))]
 pub fn reset() {
     let mutex = BUFFER
         .get()

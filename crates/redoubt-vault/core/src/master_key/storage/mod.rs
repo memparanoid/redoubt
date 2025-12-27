@@ -4,20 +4,20 @@
 
 //! Storage backend implementations
 
-#[cfg(any(test, not(feature = "no_std")))]
+#[cfg(any(test, feature = "std"))]
 pub mod std;
 
-#[cfg(any(test, feature = "no_std"))]
+#[cfg(any(test, not(feature = "std")))]
 pub mod portable;
 
-#[cfg(not(feature = "no_std"))]
+#[cfg(feature = "std")]
 pub use std::open;
 
-#[cfg(feature = "no_std")]
+#[cfg(not(feature = "std"))]
 pub use portable::open;
 
-#[cfg(all(feature = "internal-forensics", not(feature = "no_std")))]
+#[cfg(all(feature = "internal-forensics", feature = "std"))]
 pub use std::reset;
 
-#[cfg(all(feature = "internal-forensics", feature = "no_std"))]
+#[cfg(all(feature = "internal-forensics", not(feature = "std")))]
 pub use portable::reset;

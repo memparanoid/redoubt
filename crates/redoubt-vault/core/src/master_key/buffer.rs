@@ -25,7 +25,7 @@ pub fn create_buffer() -> Box<dyn Buffer> {
     match PageBuffer::new(ProtectionStrategy::MemProtected, MASTER_KEY_LEN) {
         Ok(buffer) => Box::new(buffer),
         Err(e) => {
-            #[cfg(not(feature = "no_std"))]
+            #[cfg(feature = "std")]
             {
                 eprintln!(
                     "\x1b[33m⚠️  SECURITY: Failed to create protected memory page: {:?}\x1b[0m",
@@ -33,7 +33,7 @@ pub fn create_buffer() -> Box<dyn Buffer> {
                 );
                 eprintln!("\x1b[33m   Falling back to heap (no mlock/mprotect/madvise).\x1b[0m");
             }
-            #[cfg(feature = "no_std")]
+            #[cfg(not(feature = "std"))]
             {
                 let _ = e;
             }
@@ -48,11 +48,11 @@ pub fn create_initialized_buffer() -> Box<dyn Buffer> {
 }
 
 pub fn create_initialized_buffer_with(status: redoubt_guard::GuardStatus) -> Box<dyn Buffer> {
-    #[cfg(not(all(target_os = "linux", not(feature = "no_std"))))]
+    #[cfg(not(all(target_os = "linux", feature = "std")))]
     let _ = status;
 
     // Forensic analysis warning (applies to all platforms when internal-forensics feature is active)
-    #[cfg(all(feature = "internal-forensics", not(feature = "no_std")))]
+    #[cfg(all(feature = "internal-forensics", feature = "std"))]
     {
         eprintln!(
             "\x1b[31m⚠️  WARNING: Forensic analysis mode enabled - memory protections DISABLED\x1b[0m"
@@ -64,7 +64,7 @@ pub fn create_initialized_buffer_with(status: redoubt_guard::GuardStatus) -> Box
     }
 
     // Check OS-level protections (Linux only)
-    #[cfg(all(target_os = "linux", not(feature = "no_std")))]
+    #[cfg(all(target_os = "linux", feature = "std"))]
     {
         if !status.prctl_succeeded {
             eprintln!("\x1b[33m⚠️  SECURITY: prctl(PR_SET_DUMPABLE) failed\x1b[0m");

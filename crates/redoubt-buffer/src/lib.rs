@@ -87,7 +87,7 @@
 //! # example().unwrap();
 //! ```
 
-#![cfg_attr(all(feature = "no_std", not(test)), no_std)]
+#![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
 
 extern crate alloc;

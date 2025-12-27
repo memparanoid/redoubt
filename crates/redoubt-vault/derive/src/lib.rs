@@ -332,7 +332,7 @@ fn expand(
     let use_portable_storage = if let Some(strategy) = storage_strategy {
         matches!(strategy, StorageStrategy::Portable)
     } else {
-        cfg!(feature = "no_std")
+        !cfg!(feature = "std")
     };
 
     for (idx, (_, field)) in encryptable_fields.iter().enumerate() {

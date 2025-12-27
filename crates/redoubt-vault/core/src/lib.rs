@@ -6,7 +6,7 @@
 //!
 //! Core functionality for redoubt-vault.
 
-#![cfg_attr(all(feature = "no_std", not(test)), no_std)]
+#![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
 
 extern crate alloc;
 

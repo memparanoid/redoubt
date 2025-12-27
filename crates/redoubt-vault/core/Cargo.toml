@@ -14,9 +14,9 @@ path = "src/lib.rs"
 
 [features]
 default = []
-no_std = []
-guard = ["redoubt-guard/guard"]
+std = []
 internal-forensics = []
+guard = ["redoubt-guard/guard"]
 asm = ["redoubt-rand/asm", "redoubt-aead/asm"]
 
 [dependencies]

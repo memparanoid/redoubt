@@ -12,10 +12,6 @@ version.workspace = true
 [lib]
 path = "src/lib.rs"
 
-[features]
-default = []
-no_std = []
-
 [dependencies]
 libc = { workspace = true, optional = true }
 redoubt-util.workspace = true

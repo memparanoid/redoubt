@@ -14,7 +14,7 @@ proc-macro = true
 path = "src/lib.rs"
 
 [features]
-no_std = []
+std = []
 
 [dependencies]
 heck.workspace = true
