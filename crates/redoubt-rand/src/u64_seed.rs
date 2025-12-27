@@ -217,13 +217,8 @@ unsafe fn get_entropy_u64_aarch64(dst: *mut u64) -> Result<(), EntropyError> {
 #[cfg(target_arch = "wasm32")]
 #[inline(always)]
 unsafe fn get_entropy_u64_wasm32(dst: *mut u64) -> Result<(), EntropyError> {
-    unsafe {
-        getrandom::getrandom(core::slice::from_raw_parts_mut(
-            dst as *mut u8,
-            core::mem::size_of::<u64>(),
-        ))
-        .map_err(|_| EntropyError::EntropyNotAvailable)
-    }
+    let slice = unsafe { core::slice::from_raw_parts_mut(dst as *mut u8, 8) };
+    getrandom::fill(slice).map_err(|_| EntropyError::EntropyNotAvailable)
 }
 
 // =============================================================================
