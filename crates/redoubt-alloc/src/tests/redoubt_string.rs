@@ -130,6 +130,26 @@ fn test_extend_from_mut_string_with_sufficient_capacity() {
 }
 
 // =============================================================================
+// replace_from_mut_string()
+// =============================================================================
+
+#[test]
+fn test_replace_from_mut_string() {
+    let mut dest = RedoubtString::new();
+    dest.extend_from_str("old content");
+
+    let mut src = String::from("new content");
+    dest.replace_from_mut_string(&mut src);
+
+    // Destination replaced (not appended)
+    assert_eq!(dest.as_str(), "new content");
+
+    // Source zeroized
+    assert!(src.is_zeroized());
+    assert!(src.is_empty());
+}
+
+// =============================================================================
 // extend_from_str()
 // =============================================================================
 

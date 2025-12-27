@@ -162,6 +162,14 @@ impl RedoubtString {
         src.clear();
     }
 
+    /// Replaces contents from a mutable String, zeroizing the source.
+    ///
+    /// Equivalent to `clear()` followed by `extend_from_mut_string()`.
+    pub fn replace_from_mut_string(&mut self, src: &mut String) {
+        self.clear();
+        self.extend_from_mut_string(src);
+    }
+
     /// Extends from str (no zeroization, src is immutable).
     pub fn extend_from_str(&mut self, src: &str) {
         self.maybe_grow_to(self.len() + src.len());
