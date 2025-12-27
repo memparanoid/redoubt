@@ -517,7 +517,7 @@ FUNC(sha256_compress_block):
 //============================================================================
 // sha256_hash
 //============================================================================
-// Computes SHA-256 hash of arbitrary-length message with RFC 5869 padding
+// Computes SHA-256 hash of arbitrary-length message with SHA-256 padding (FIPS 180-4)
 //
 // C signature:
 //   void sha256_hash(const uint8_t *msg, size_t msg_len, uint8_t digest[32]);
@@ -1200,9 +1200,10 @@ FUNC(hmac_sha256):
 //   r14 = okm_len (remaining bytes, decremented each iteration)
 //   r15 = counter (1..255, iteration index)
 //
-// Stack-based values:
-//   [rbp-8]  = T_len (0 for i=1, 32 for i>1)
-//   [rbp-16] = locals_size (for cleanup)
+// Stack-based values (after 5 pushes + sub rsp,24):
+//   [rbp-8]...[rbp-40]   = saved callee-saved regs (rbx, r12-r15)
+//   [rbp-48] = T_len (0 for i=1, 32 for i>1)
+//   [rbp-56] = locals_size (for cleanup)
 //
 // Temporary registers (caller-saved):
 //   rdi, rsi, rdx, rcx, r8 = params to hmac_sha256
@@ -1250,13 +1251,11 @@ FUNC(hkdf_sha256):
     add rax, 15
     and rax, -16            // msg_cap_aligned
     lea r10, [rax + 64]     // locals_size
-    mov [rbp - 16], r10     // save locals_size
+    mov [rbp - 56], r10     // save locals_size
 
     // Allocate locals (variable size)
+    // rsp is already 16-byte aligned (prologue=80, locals_size=16n)
     sub rsp, r10
-
-    // Align rsp to 16 bytes (may already be, but ensure)
-    and rsp, -16
 
     // ------------------------------------------------------------------------
     // Step 1: Extract - PRK = HMAC-SHA256(salt, IKM)
@@ -1271,7 +1270,7 @@ FUNC(hkdf_sha256):
     // Step 2: Expand
     // ------------------------------------------------------------------------
     mov r15, 1              // counter = 1
-    mov qword ptr [rbp - 8], 0   // T_len = 0 for i=1
+    mov qword ptr [rbp - 48], 0   // T_len = 0 for i=1
 
 .Lhkdf_expand_loop:
     test r14, r14           // okm_len == 0?
@@ -1282,11 +1281,11 @@ FUNC(hkdf_sha256):
 
     // Copy T(i-1) from [rsp+32] length T_len into msg_base
     lea r11, [rsp + 32]     // T(i-1) location
-    mov rcx, [rbp - 8]      // T_len
+    mov rcx, [rbp - 48]      // T_len
     xor rax, rax
 .Lhkdf_copy_t:
     cmp rax, rcx
-    jge .Lhkdf_t_copied
+    jae .Lhkdf_t_copied
     movzx edx, byte ptr [r11 + rax]
     mov byte ptr [r10 + rax], dl
     inc rax
@@ -1298,7 +1297,7 @@ FUNC(hkdf_sha256):
     xor rax, rax
 .Lhkdf_copy_info:
     cmp rax, r12
-    jge .Lhkdf_info_copied
+    jae .Lhkdf_info_copied
     movzx edx, byte ptr [rbx + rax]
     mov byte ptr [r10 + rax], dl
     inc rax
@@ -1310,7 +1309,7 @@ FUNC(hkdf_sha256):
     mov byte ptr [r10], r15b
 
     // msg_len = T_len + info_len + 1
-    mov rax, [rbp - 8]      // T_len
+    mov rax, [rbp - 48]      // T_len
     add rax, r12            // + info_len
     inc rax                 // + 1
 
@@ -1331,7 +1330,7 @@ FUNC(hkdf_sha256):
     xor rcx, rcx
 .Lhkdf_copy_okm:
     cmp rcx, rax
-    jge .Lhkdf_okm_copied
+    jae .Lhkdf_okm_copied
     movzx edx, byte ptr [r10 + rcx]
     mov byte ptr [r13 + rcx], dl
     inc rcx
@@ -1344,7 +1343,7 @@ FUNC(hkdf_sha256):
 
     // Next iteration state
     inc r15                 // counter++
-    mov qword ptr [rbp - 8], 32  // T_len = 32 from now on
+    mov qword ptr [rbp - 48], 32  // T_len = 32 from now on
 
     // Wipe first 32 bytes of msg buffer (contains T(i-1))
     pxor xmm0, xmm0
@@ -1357,7 +1356,7 @@ FUNC(hkdf_sha256):
     // ------------------------------------------------------------------------
     // Strong zeroization of locals
     // ------------------------------------------------------------------------
-    mov rcx, [rbp - 16]     // locals_size
+    mov rcx, [rbp - 56]     // locals_size
     shr rcx, 4              // 16-byte chunks
     mov rdi, rsp
     pxor xmm0, xmm0
