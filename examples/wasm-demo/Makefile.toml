@@ -14,31 +14,9 @@ args = [
   "../../target/wasm32-unknown-unknown/release/wasm_demo.wasm"
 ]
 
-[tasks.build]
-description = "Build WASM module and generate JS bindings (release)"
+[tasks.patch-bun-release]
+description = "Patch wasm-bindgen JS to fix Bun instantiateStreaming bug (release)"
 dependencies = ["bindgen"]
-script_runner = "@shell"
-script = "echo ✅ WASM build complete! Output in pkg/"
-
-[tasks.build-dev-wasm]
-description = "Build WASM module in dev mode"
-cwd = "rust"
-command = "cargo"
-args = ["build", "--target", "wasm32-unknown-unknown"]
-
-[tasks.bindgen-dev]
-description = "Run wasm-bindgen on dev build"
-dependencies = ["build-dev-wasm"]
-command = "wasm-bindgen"
-args = [
-  "--target", "web",
-  "--out-dir", "pkg",
-  "../../target/wasm32-unknown-unknown/debug/wasm_demo.wasm"
-]
-
-[tasks.patch-bun]
-description = "Patch wasm-bindgen JS to fix Bun instantiateStreaming bug"
-dependencies = ["bindgen-dev"]
 script_runner = "@rust"
 script = '''
 use std::fs;
@@ -63,15 +41,13 @@ fn main() {
 }
 '''
 
-[tasks.dev]
-description = "Build WASM in dev mode with bindings"
-dependencies = ["patch-bun"]
-script_runner = "@shell"
-script = "echo ✅ WASM dev build complete! Output in pkg/"
+[tasks.build]
+description = "Build WASM module and generate JS bindings (release)"
+dependencies = ["patch-bun-release"]
 
 [tasks.run]
 description = "Build and run WASM demo with Bun"
-dependencies = ["dev"]
+dependencies = ["build"]
 script_runner = "@shell"
 script = "bun run bun/main.js"
 
