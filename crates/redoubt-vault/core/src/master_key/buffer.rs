@@ -25,7 +25,7 @@ pub fn create_buffer() -> Box<dyn Buffer> {
     match PageBuffer::new(ProtectionStrategy::MemProtected, MASTER_KEY_LEN) {
         Ok(buffer) => Box::new(buffer),
         Err(e) => {
-            #[cfg(feature = "std")]
+            #[cfg(all(feature = "std", feature = "guard"))]
             {
                 eprintln!(
                     "\x1b[33m⚠️  SECURITY: Failed to create protected memory page: {:?}\x1b[0m",
@@ -33,7 +33,7 @@ pub fn create_buffer() -> Box<dyn Buffer> {
                 );
                 eprintln!("\x1b[33m   Falling back to heap (no mlock/mprotect/madvise).\x1b[0m");
             }
-            #[cfg(not(feature = "std"))]
+            #[cfg(not(all(feature = "std", feature = "guard")))]
             {
                 let _ = e;
             }
@@ -64,7 +64,7 @@ pub fn create_initialized_buffer_with(status: redoubt_guard::GuardStatus) -> Box
     }
 
     // Check OS-level protections (Linux only)
-    #[cfg(all(target_os = "linux", feature = "std"))]
+    #[cfg(all(target_os = "linux", feature = "std", feature = "guard"))]
     {
         if !status.prctl_succeeded {
             eprintln!("\x1b[33m⚠️  SECURITY: prctl(PR_SET_DUMPABLE) failed\x1b[0m");
