@@ -5,6 +5,10 @@
 //! Redoubt Vault
 //!
 //! Proxy crate that re-exports redoubt-vault-core and redoubt-vault-derive.
+//!
+//! ## License
+//!
+//! GPL-3.0-only
 
 #![cfg_attr(all(feature = "no_std", not(test)), no_std)]
 

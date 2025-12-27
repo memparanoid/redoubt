@@ -6,6 +6,10 @@
 //!
 //! All conversion functions zeroize source data after reading to prevent
 //! sensitive data from lingering on the stack.
+//!
+//! ## License
+//!
+//! GPL-3.0-only
 
 #![cfg_attr(not(test), no_std)]
 

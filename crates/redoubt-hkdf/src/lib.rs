@@ -12,6 +12,10 @@
 //!   <https://datatracker.ietf.org/doc/html/rfc5869>
 //! - RFC 6234: US Secure Hash Algorithms (SHA and SHA-based HMAC and HKDF)
 //!   <https://datatracker.ietf.org/doc/html/rfc6234>
+//!
+//! ## License
+//!
+//! GPL-3.0-only
 
 #![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]

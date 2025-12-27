@@ -7,6 +7,10 @@
 //! Provides a one-time initialization of `PR_SET_DUMPABLE` and `RLIMIT_CORE`
 //! to prevent core dumps and ptrace attachment. Uses a spin lock to ensure
 //! only one thread performs the initialization.
+//!
+//! ## License
+//!
+//! GPL-3.0-only
 
 #![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]

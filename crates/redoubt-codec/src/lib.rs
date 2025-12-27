@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! ## License
+//!
+//! GPL-3.0-only
+
 #![cfg_attr(not(test), no_std)]
 
 pub use redoubt_codec_core::*;

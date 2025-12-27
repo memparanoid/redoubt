@@ -101,8 +101,6 @@
 //!
 //! GPL-3.0-only
 //!
-//! [`zeroize`]: https://docs.rs/zeroize
-//!
 #![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
 #![warn(unsafe_op_in_unsafe_fn)]

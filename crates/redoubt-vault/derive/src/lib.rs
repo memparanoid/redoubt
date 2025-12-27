@@ -3,6 +3,10 @@
 // See LICENSE in the repository root for full license text.
 
 //! Procedural macros for redoubt-vault.
+//!
+//! ## License
+//!
+//! GPL-3.0-only
 
 // Only run unit tests on architectures where insta (-> sha2 -> cpufeatures) compiles
 #[cfg(all(

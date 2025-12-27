@@ -3,6 +3,10 @@
 // See LICENSE in the repository root for full license text.
 
 //! Test utilities for Redoubt crates.
+//!
+//! ## License
+//!
+//! GPL-3.0-only
 
 mod permutations;
 

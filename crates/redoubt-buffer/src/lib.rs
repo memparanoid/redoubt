@@ -86,6 +86,10 @@
 //! # #[cfg(unix)]
 //! # example().unwrap();
 //! ```
+//!
+//! ## License
+//!
+//! GPL-3.0-only
 
 #![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]

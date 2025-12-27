@@ -5,6 +5,10 @@
 //! Procedural macros for the `redoubt_zero` crate.
 //!
 //! Provides the `#[derive(RedoubtZero)]` macro for automatic trait implementations.
+//!
+//! ## License
+//!
+//! GPL-3.0-only
 
 #![warn(missing_docs)]
 

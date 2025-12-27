@@ -5,6 +5,10 @@
 //! Redoubt Vault Core
 //!
 //! Core functionality for redoubt-vault.
+//!
+//! ## License
+//!
+//! GPL-3.0-only
 
 #![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
 

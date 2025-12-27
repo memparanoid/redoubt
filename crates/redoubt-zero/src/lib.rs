@@ -149,6 +149,10 @@
 //! [`AssertZeroizeOnDrop`]: redoubt_zero_core::AssertZeroizeOnDrop
 //! [`ZeroizeMetadata`]: redoubt_zero_core::ZeroizeMetadata
 //! [`AssertZeroizeOnDrop::assert_zeroize_on_drop()`]: redoubt_zero_core::AssertZeroizeOnDrop::assert_zeroize_on_drop
+//!
+//! ## License
+//!
+//! GPL-3.0-only
 
 #![cfg_attr(not(test), no_std)]
 

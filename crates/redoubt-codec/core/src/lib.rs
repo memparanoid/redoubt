@@ -3,6 +3,11 @@
 // See LICENSE in the repository root for full license text.
 
 //! High-performance secure codec with memory zeroization.
+//!
+//! ## License
+//!
+//! GPL-3.0-only
+
 #![cfg_attr(not(test), no_std)]
 
 extern crate alloc;
