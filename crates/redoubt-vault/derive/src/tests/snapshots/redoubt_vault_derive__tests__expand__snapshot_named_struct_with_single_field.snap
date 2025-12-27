@@ -77,9 +77,13 @@ impl GammaBox {
         }
     }
     #[inline(always)]
-    pub fn open<F, R>(&mut self, f: F) -> Result<R, redoubt_vault_core::CipherBoxError>
+    pub fn open<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&Gamma) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -99,9 +103,10 @@ impl GammaBox {
     pub fn open_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut Gamma) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -153,9 +158,10 @@ impl GammaBox {
     pub fn open_value<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -175,9 +181,10 @@ impl GammaBox {
     pub fn open_value_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {

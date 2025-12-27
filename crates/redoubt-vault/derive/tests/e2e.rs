@@ -6,7 +6,7 @@
 mod tests {
     use redoubt_codec::RedoubtCodec;
     use redoubt_vault_derive::cipherbox;
-    use redoubt_zero::{RedoubtZero, ZeroizationProbe};
+    use redoubt_zero::{RedoubtZero, ZeroizationProbe, ZeroizingGuard};
 
     #[cipherbox(WalletSecretsCipherBox)]
     #[derive(Default, RedoubtZero, RedoubtCodec)]
@@ -205,8 +205,8 @@ mod tests {
             .open(|ws| Ok(ws.encryption_key[0]))
             .expect("Failed to open(..)");
 
-        assert_eq!(first_master_seed_byte, 0x42);
-        assert_eq!(first_encryption_key_byte, 0xAB);
+        assert_eq!(*first_master_seed_byte, 0x42);
+        assert_eq!(*first_encryption_key_byte, 0xAB);
     }
 
     // Custom error type for testing
@@ -234,7 +234,8 @@ mod tests {
     #[test]
     fn test_custom_error_intentional_failure() {
         let mut cb = CustomErrorBox::new();
-        let result: Result<(), CustomError> = cb.open(|_| Err(CustomError::IntentionalCustomError));
+        let result: Result<ZeroizingGuard<()>, CustomError> =
+            cb.open(|_| Err(CustomError::IntentionalCustomError));
 
         assert!(matches!(result, Err(CustomError::IntentionalCustomError)));
     }

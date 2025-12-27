@@ -80,9 +80,13 @@ impl EpsilonBox {
         }
     }
     #[inline(always)]
-    pub fn open<F, R>(&mut self, f: F) -> Result<R, redoubt_vault_core::CipherBoxError>
+    pub fn open<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&Epsilon) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -102,9 +106,10 @@ impl EpsilonBox {
     pub fn open_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut Epsilon) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -177,9 +182,10 @@ impl EpsilonBox {
     pub fn open_master_seed<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -199,9 +205,10 @@ impl EpsilonBox {
     pub fn open_encryption_key<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -221,9 +228,10 @@ impl EpsilonBox {
     pub fn open_master_seed_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -244,9 +252,10 @@ impl EpsilonBox {
     pub fn open_encryption_key_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {

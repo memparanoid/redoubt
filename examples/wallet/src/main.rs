@@ -65,8 +65,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(*index.as_ref())
     })?;
 
-    assert_eq!(new_index, 1);
-    println!("New account index: {}", new_index);
+    assert_eq!(*new_index, 1);
+    println!("New account index: {}", *new_index);
 
     // Leak seed for external use (e.g., key derivation)
     {

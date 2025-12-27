@@ -82,9 +82,13 @@ impl ZetaBox {
         }
     }
     #[inline(always)]
-    pub fn open<F, R>(&mut self, f: F) -> Result<R, redoubt_vault_core::CipherBoxError>
+    pub fn open<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&Zeta) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -104,9 +108,10 @@ impl ZetaBox {
     pub fn open_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut Zeta) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -176,9 +181,10 @@ impl ZetaBox {
     pub fn open_field1<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -198,9 +204,10 @@ impl ZetaBox {
     pub fn open_field3<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -220,9 +227,10 @@ impl ZetaBox {
     pub fn open_field1_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -243,9 +251,10 @@ impl ZetaBox {
     pub fn open_field3_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {

@@ -81,9 +81,13 @@ impl DeltaBox {
         }
     }
     #[inline(always)]
-    pub fn open<F, R>(&mut self, f: F) -> Result<R, redoubt_vault_core::CipherBoxError>
+    pub fn open<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&Delta) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -103,9 +107,10 @@ impl DeltaBox {
     pub fn open_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut Delta) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -178,9 +183,10 @@ impl DeltaBox {
     pub fn open_alpha<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -200,9 +206,10 @@ impl DeltaBox {
     pub fn open_beta<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -222,9 +229,10 @@ impl DeltaBox {
     pub fn open_alpha_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -245,9 +253,10 @@ impl DeltaBox {
     pub fn open_beta_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {

@@ -77,9 +77,13 @@ impl EmptyBox {
         }
     }
     #[inline(always)]
-    pub fn open<F, R>(&mut self, f: F) -> Result<R, redoubt_vault_core::CipherBoxError>
+    pub fn open<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&Empty) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -99,9 +103,10 @@ impl EmptyBox {
     pub fn open_mut<F, R>(
         &mut self,
         f: F,
-    ) -> Result<R, redoubt_vault_core::CipherBoxError>
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut Empty) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {

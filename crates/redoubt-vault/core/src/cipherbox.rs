@@ -333,8 +333,9 @@ where
     /// For better performance when reading a single field, prefer `leak_field` which
     /// avoids the full struct decrypt-encrypt cycle by cloning only the field's ciphertext.
     #[inline(always)]
-    fn open_dyn<R, E>(&mut self, f: &mut dyn FnMut(&T) -> Result<R, E>) -> Result<R, E>
+    fn open_dyn<R, E>(&mut self, f: &mut dyn FnMut(&T) -> Result<R, E>) -> Result<ZeroizingGuard<R>, E>
     where
+        R: FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.assert_healthy().map_err(E::from)?;
@@ -353,7 +354,7 @@ where
 
         self.encrypt_struct(&master_key, &mut value)?;
 
-        Ok(result)
+        Ok(ZeroizingGuard::new(result))
     }
 
     /// Provides mutable access to the entire struct via a callback.
@@ -380,8 +381,9 @@ where
     /// - CipherBox internal errors (decrypt/encrypt failures)
     /// - User callback errors
     #[inline(always)]
-    fn open_mut_dyn<R, E>(&mut self, f: &mut dyn FnMut(&mut T) -> Result<R, E>) -> Result<R, E>
+    fn open_mut_dyn<R, E>(&mut self, f: &mut dyn FnMut(&mut T) -> Result<R, E>) -> Result<ZeroizingGuard<R>, E>
     where
+        R: FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.assert_healthy().map_err(E::from)?;
@@ -400,16 +402,17 @@ where
 
         self.encrypt_struct(&master_key, &mut value)?;
 
-        Ok(result)
+        Ok(ZeroizingGuard::new(result))
     }
 
     #[inline(always)]
     pub fn open_field_dyn<Field, const M: usize, R, E>(
         &mut self,
         f: &mut dyn FnMut(&Field) -> Result<R, E>,
-    ) -> Result<R, E>
+    ) -> Result<ZeroizingGuard<R>, E>
     where
         Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
+        R: FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.assert_healthy()?;
@@ -428,16 +431,17 @@ where
             field.fast_zeroize();
         })?;
 
-        Ok(result)
+        Ok(ZeroizingGuard::new(result))
     }
 
     #[inline(always)]
     pub fn open_field_mut_dyn<Field, const M: usize, R, E>(
         &mut self,
         f: &mut dyn FnMut(&mut Field) -> Result<R, E>,
-    ) -> Result<R, E>
+    ) -> Result<ZeroizingGuard<R>, E>
     where
         Field: Default + FastZeroizable + Encryptable + Decryptable + ZeroizationProbe,
+        R: FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.assert_healthy()?;
@@ -458,42 +462,46 @@ where
 
         self.encrypt_field::<Field, M>(&master_key, &mut field)?;
 
-        Ok(result)
+        Ok(ZeroizingGuard::new(result))
     }
 
     #[inline(always)]
-    pub fn open<F, R, E>(&mut self, mut f: F) -> Result<R, E>
+    pub fn open<F, R, E>(&mut self, mut f: F) -> Result<ZeroizingGuard<R>, E>
     where
         F: FnMut(&T) -> Result<R, E>,
+        R: FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.open_dyn(&mut f)
     }
 
     #[inline(always)]
-    pub fn open_mut<F, R, E>(&mut self, mut f: F) -> Result<R, E>
+    pub fn open_mut<F, R, E>(&mut self, mut f: F) -> Result<ZeroizingGuard<R>, E>
     where
         F: FnMut(&mut T) -> Result<R, E>,
+        R: FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.open_mut_dyn(&mut f)
     }
 
     #[inline(always)]
-    pub fn open_field<Field, const M: usize, F, R, E>(&mut self, mut f: F) -> Result<R, E>
+    pub fn open_field<Field, const M: usize, F, R, E>(&mut self, mut f: F) -> Result<ZeroizingGuard<R>, E>
     where
         Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
         F: FnMut(&Field) -> Result<R, E>,
+        R: FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.open_field_dyn::<Field, M, R, E>(&mut f)
     }
 
     #[inline(always)]
-    pub fn open_field_mut<Field, const M: usize, F, R, E>(&mut self, mut f: F) -> Result<R, E>
+    pub fn open_field_mut<Field, const M: usize, F, R, E>(&mut self, mut f: F) -> Result<ZeroizingGuard<R>, E>
     where
         Field: Default + FastZeroizable + Encryptable + Decryptable + ZeroizationProbe,
         F: FnMut(&mut Field) -> Result<R, E>,
+        R: FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.open_field_mut_dyn::<Field, M, R, E>(&mut f)

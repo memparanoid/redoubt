@@ -11,7 +11,7 @@ use redoubt_codec::support::test_utils::{
 };
 use redoubt_rand::EntropyError;
 use redoubt_util::is_vec_fully_zeroized;
-use redoubt_zero::{RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel};
+use redoubt_zero::{RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel, ZeroizingGuard};
 
 use crate::cipherbox::CipherBox;
 use crate::error::CipherBoxError;
@@ -520,7 +520,7 @@ fn test_open_infers_result_type() {
     });
 
     assert!(result.is_ok());
-    assert!(matches!(result, Ok(3)));
+    assert_eq!(*result.unwrap(), 3);
 }
 
 #[test]
@@ -531,7 +531,7 @@ fn test_open_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
     assert!(cb.maybe_initialize().is_ok());
 
     // Callback returns error
-    let result: Result<(), CipherBoxError> =
+    let result: Result<ZeroizingGuard<()>, CipherBoxError> =
         cb.open(|_| Err(CipherBoxError::IntentionalCipherBoxError));
 
     assert!(result.is_err());
@@ -547,7 +547,7 @@ fn test_open_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
     let current_f0_value = cb.open::<_, _, CipherBoxError>(|tb| Ok(tb.f0.usize.data));
 
     assert!(current_f0_value.is_ok());
-    assert!(matches!(current_f0_value, Ok(1)));
+    assert_eq!(*current_f0_value.unwrap(), 1);
 }
 
 // =============================================================================
@@ -650,7 +650,7 @@ fn test_open_mut_infers_result_type() {
     });
 
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 11);
+    assert_eq!(*result.unwrap(), 11);
 }
 
 #[test]
@@ -661,8 +661,8 @@ fn test_open_mut_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
     assert!(cb.maybe_initialize().is_ok());
 
     // Callback returns error after modifying data
-    let result: Result<(), CipherBoxError> =
-        cb.open_mut::<_, _, CipherBoxError>(|test_breaker_box| {
+    let result: Result<ZeroizingGuard<()>, CipherBoxError> =
+        cb.open_mut(|test_breaker_box| {
             test_breaker_box.f0.usize.data = 999;
             Err(CipherBoxError::IntentionalCipherBoxError)
         });
@@ -680,7 +680,7 @@ fn test_open_mut_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
     let current_f0_value = cb.open::<_, _, CipherBoxError>(|tb| Ok(tb.f0.usize.data));
 
     assert!(current_f0_value.is_ok());
-    assert!(matches!(current_f0_value, Ok(1)));
+    assert_eq!(*current_f0_value.unwrap(), 1);
 }
 
 #[test]
@@ -691,8 +691,8 @@ fn test_open_mut_zeroizes_tmp_ciphertexts_on_callback_failure() {
     assert!(cb.maybe_initialize().is_ok());
 
     // Callback fails
-    let result: Result<(), CipherBoxError> =
-        cb.open_mut::<_, _, CipherBoxError>(|_| Err(CipherBoxError::IntentionalCipherBoxError));
+    let result: Result<ZeroizingGuard<()>, CipherBoxError> =
+        cb.open_mut(|_| Err(CipherBoxError::IntentionalCipherBoxError));
 
     assert!(result.is_err());
 
@@ -790,7 +790,7 @@ fn test_open_field_infers_result_type() {
     });
 
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 11);
+    assert_eq!(*result.unwrap(), 11);
 }
 
 #[test]
@@ -801,7 +801,7 @@ fn test_open_field_when_callback_error_is_propagated_cipherbox_is_not_poisoned()
     assert!(cb.maybe_initialize().is_ok());
 
     // Callback returns error
-    let result: Result<(), CipherBoxError> =
+    let result: Result<ZeroizingGuard<()>, CipherBoxError> =
         cb.open_field::<RedoubtCodecTestBreaker, 0, _, _, _>(|_| {
             Err(CipherBoxError::IntentionalCipherBoxError)
         });
@@ -820,7 +820,7 @@ fn test_open_field_when_callback_error_is_propagated_cipherbox_is_not_poisoned()
         cb.open_field::<RedoubtCodecTestBreaker, 0, _, _, CipherBoxError>(|tb| Ok(tb.usize.data));
 
     assert!(current_f0_value.is_ok());
-    assert_eq!(current_f0_value.unwrap(), 1);
+    assert_eq!(*current_f0_value.unwrap(), 1);
 }
 
 // =============================================================================
@@ -935,7 +935,7 @@ fn test_open_field_mut_infers_result_type() {
     });
 
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 11);
+    assert_eq!(*result.unwrap(), 11);
 }
 
 #[test]
@@ -946,7 +946,7 @@ fn test_open_field_mut_when_callback_error_is_propagated_cipherbox_is_not_poison
     assert!(cb.maybe_initialize().is_ok());
 
     // Callback returns error after modifying data
-    let result: Result<(), CipherBoxError> = cb
+    let result: Result<ZeroizingGuard<()>, CipherBoxError> = cb
         .open_field_mut::<RedoubtCodecTestBreaker, 0, _, _, _>(|tb| {
             tb.usize.data = 999;
             Err(CipherBoxError::IntentionalCipherBoxError)
@@ -966,7 +966,7 @@ fn test_open_field_mut_when_callback_error_is_propagated_cipherbox_is_not_poison
         cb.open_field::<RedoubtCodecTestBreaker, 0, _, _, CipherBoxError>(|tb| Ok(tb.usize.data));
 
     assert!(current_f0_value.is_ok());
-    assert_eq!(current_f0_value.unwrap(), 1);
+    assert_eq!(*current_f0_value.unwrap(), 1);
 }
 
 // =============================================================================

@@ -81,9 +81,13 @@ impl WithCustomErrorBox {
         }
     }
     #[inline(always)]
-    pub fn open<F, R>(&mut self, f: F) -> Result<R, MyCustomError>
+    pub fn open<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, MyCustomError>
     where
         F: FnMut(&WithCustomError) -> Result<R, MyCustomError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -100,9 +104,13 @@ impl WithCustomErrorBox {
         self.inner.open(f)
     }
     #[inline(always)]
-    pub fn open_mut<F, R>(&mut self, f: F) -> Result<R, MyCustomError>
+    pub fn open_mut<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, MyCustomError>
     where
         F: FnMut(&mut WithCustomError) -> Result<R, MyCustomError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -166,9 +174,13 @@ impl WithCustomErrorBox {
         self.inner.leak_field::<u64, 1, MyCustomError>()
     }
     #[inline(always)]
-    pub fn open_field1<F, R>(&mut self, f: F) -> Result<R, MyCustomError>
+    pub fn open_field1<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, MyCustomError>
     where
         F: FnMut(&Vec<u8>) -> Result<R, MyCustomError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -185,9 +197,13 @@ impl WithCustomErrorBox {
         self.inner.open_field::<Vec<u8>, 0, F, R, MyCustomError>(f)
     }
     #[inline(always)]
-    pub fn open_field2<F, R>(&mut self, f: F) -> Result<R, MyCustomError>
+    pub fn open_field2<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, MyCustomError>
     where
         F: FnMut(&u64) -> Result<R, MyCustomError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -204,9 +220,13 @@ impl WithCustomErrorBox {
         self.inner.open_field::<u64, 1, F, R, MyCustomError>(f)
     }
     #[inline(always)]
-    pub fn open_field1_mut<F, R>(&mut self, f: F) -> Result<R, MyCustomError>
+    pub fn open_field1_mut<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, MyCustomError>
     where
         F: FnMut(&mut Vec<u8>) -> Result<R, MyCustomError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -223,9 +243,13 @@ impl WithCustomErrorBox {
         self.inner.open_field_mut::<Vec<u8>, 0, F, R, MyCustomError>(f)
     }
     #[inline(always)]
-    pub fn open_field2_mut<F, R>(&mut self, f: F) -> Result<R, MyCustomError>
+    pub fn open_field2_mut<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, MyCustomError>
     where
         F: FnMut(&mut u64) -> Result<R, MyCustomError>,
+        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
