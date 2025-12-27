@@ -117,3 +117,18 @@ fn test_char_zeroization() {
     );
     assert_eq!(value, '\0');
 }
+
+#[test]
+fn test_unit_zeroization() {
+    use crate::traits::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
+
+    let mut value = ();
+    assert!(value.is_zeroized(), "unit type should always be zeroized");
+    assert!(<()>::CAN_BE_BULK_ZEROIZED, "unit type should be bulk zeroizable");
+
+    value.fast_zeroize();
+    assert!(
+        value.is_zeroized(),
+        "unit type should still be zeroized after fast_zeroize"
+    );
+}

@@ -62,3 +62,20 @@ macro_rules! impl_fast_zeroize_primitive {
 impl_fast_zeroize_primitive!(
     u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64, bool, char,
 );
+
+/// Unit type is trivially zeroized (no data to zeroize).
+impl crate::traits::ZeroizationProbe for () {
+    #[inline(always)]
+    fn is_zeroized(&self) -> bool {
+        true
+    }
+}
+
+impl crate::traits::ZeroizeMetadata for () {
+    const CAN_BE_BULK_ZEROIZED: bool = true;
+}
+
+impl crate::traits::FastZeroizable for () {
+    #[inline(always)]
+    fn fast_zeroize(&mut self) {}
+}
