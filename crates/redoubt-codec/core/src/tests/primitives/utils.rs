@@ -61,7 +61,7 @@ where
         (1i128 << (core::mem::size_of::<T>() * 8 - 1)) - 1
     };
 
-    let range = (t_max as i128).wrapping_sub(t_min as i128) as u128;
+    let range = t_max.wrapping_sub(t_min) as u128;
     let step = range / (n as u128 - 1);
     let mut result = Vec::with_capacity(n);
 
@@ -69,7 +69,7 @@ where
         let val = if i == n - 1 {
             t_max // Force last element to be MAX
         } else {
-            (t_min as i128).wrapping_add((i as u128 * step) as i128)
+            t_min.wrapping_add((i as u128 * step) as i128)
         };
         if let Ok(v) = T::try_from(val) {
             result.push(v);
@@ -373,7 +373,7 @@ mod tests {
 
         assert_eq!(i128::from(set[n - 1]), t_max, "last element must be MAX");
 
-        let range = (t_max as i128).wrapping_sub(t_min as i128) as u128;
+        let range = t_max.wrapping_sub(t_min) as u128;
         let expected_step = range / (n as u128 - 1);
         // Check all pairs except the last (which jumps to forced MAX)
         for i in 1..(n - 1) {

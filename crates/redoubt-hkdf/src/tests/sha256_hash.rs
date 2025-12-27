@@ -17,7 +17,6 @@
 
 use super::proxies::sha256::sha256_hash;
 
-#[cfg(is_asm_eligible)]
 #[test]
 fn test_sha256_hash_abc() {
     // Test Vector: SHA-256("abc") from FIPS 180-4
@@ -40,7 +39,6 @@ fn test_sha256_hash_abc() {
     assert_eq!(digest, expected, "SHA-256 hash mismatch for 'abc'");
 }
 
-#[cfg(is_asm_eligible)]
 #[test]
 fn test_sha256_hash_empty() {
     // Test Vector: SHA-256("") from FIPS 180-4
@@ -63,7 +61,6 @@ fn test_sha256_hash_empty() {
     assert_eq!(digest, expected, "SHA-256 hash mismatch for empty message");
 }
 
-#[cfg(is_asm_eligible)]
 #[test]
 fn test_sha256_hash_56_bytes() {
     // Test Vector 3: 56-byte message (RFC 6234, Section 5.3 - TEST2_1)
@@ -93,7 +90,6 @@ fn test_sha256_hash_56_bytes() {
     );
 }
 
-#[cfg(is_asm_eligible)]
 #[test]
 fn test_sha256_hash_112_bytes() {
     // Test Vector 4: 112-byte message (RFC 4634/6234 - multi-block test)

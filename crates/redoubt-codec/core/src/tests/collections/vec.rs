@@ -419,7 +419,7 @@ fn test_vec_with_varying_capacities() {
 
     test_collection_varying_capacities(
         &set,
-        |cap| Vec::with_capacity(cap),
+        Vec::with_capacity,
         |vec, slice| {
             vec.clear();
             vec.extend_from_slice(slice);

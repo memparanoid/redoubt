@@ -19,6 +19,9 @@ RUN apk add --no-cache \
 # Install cargo-make for linting and task running
 RUN cargo install cargo-make
 
+# Install clippy for linting
+RUN rustup component add clippy
+
 WORKDIR /workspace
 
 # Copy workspace metadata files

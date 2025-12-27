@@ -10,7 +10,7 @@
 //!
 //! GPL-3.0-only
 
-#![cfg_attr(all(feature = "no_std", not(test)), no_std)]
+#![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
 
 pub use redoubt_vault_core::*;
 pub use redoubt_vault_derive::*;

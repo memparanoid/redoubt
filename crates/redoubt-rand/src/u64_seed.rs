@@ -122,7 +122,7 @@ fn try_rdseed(dst: *mut u64) -> bool {
         );
 
         if success != 0 {
-            core::mem::swap(&mut value, &mut *dst);
+            core::ptr::swap(&mut value, dst);
         }
     }
 
@@ -150,7 +150,7 @@ fn try_rdrand(dst: *mut u64) -> bool {
         );
 
         if success != 0 {
-            core::mem::swap(&mut value, &mut *dst);
+            core::ptr::swap(&mut value, dst);
         }
     }
 
@@ -237,9 +237,9 @@ unsafe fn get_entropy_u64_fallback(dst: *mut u64) -> Result<(), EntropyError> {
         let ret = unsafe { libc::getrandom(dst as *mut libc::c_void, 8, 0) };
 
         if ret == 8 {
-            return Ok(());
+            Ok(())
         } else {
-            return Err(EntropyError::EntropyNotAvailable);
+            Err(EntropyError::EntropyNotAvailable)
         }
     }
 

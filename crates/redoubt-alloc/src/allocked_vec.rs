@@ -47,21 +47,15 @@ use redoubt_zero::{
 /// }
 /// ```
 #[cfg(any(test, feature = "test-utils"))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AllockedVecBehaviour {
     /// Normal behaviour - no injected failures.
+    #[default]
     None,
     /// Next `push()` call will fail with `CapacityExceeded`.
     FailAtPush,
     /// Next `drain_from()` call will fail with `CapacityExceeded`.
     FailAtDrainFrom,
-}
-
-#[cfg(any(test, feature = "test-utils"))]
-impl Default for AllockedVecBehaviour {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 #[cfg(any(test, feature = "test-utils"))]

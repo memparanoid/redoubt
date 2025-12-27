@@ -258,8 +258,7 @@ fn main() {
 
                     // Test read-write pattern on read_write_secret (simulates README example)
                     // Pattern: read with deref -> compute -> replace
-                    // Using XOR with 0 to simulate computation without changing the value
-                    let mut next = *data.read_write_secret.as_ref() ^ 0; // Deref makes 1 copy
+                    let mut next = std::hint::black_box(*data.read_write_secret.as_ref());
                     data.read_write_secret.replace(&mut next); // Drains the copy
 
                     // Zeroize temporary clones

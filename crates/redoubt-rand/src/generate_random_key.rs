@@ -89,7 +89,7 @@ pub fn generate_random_key(info: &[u8], output_key: &mut [u8]) -> Result<(), Ent
 
     // 2. Generate hardware/OS seed entropy (Salt)
     // Salt size: next multiple of 64 bytes = 8 u64s per 64 bytes
-    let salt_len_u64 = ((key_len + 63) / 64) * 8;
+    let salt_len_u64 = key_len.div_ceil(64) * 8;
     let mut salt = ZeroizingGuard::new(vec![0u64; salt_len_u64]);
     // Generate u64 seeds directly into salt Vec (guaranteed 8-byte alignment)
     for i in 0..salt_len_u64 {
@@ -104,7 +104,5 @@ pub fn generate_random_key(info: &[u8], output_key: &mut [u8]) -> Result<(), Ent
     let salt_bytes = unsafe {
         core::slice::from_raw_parts(salt.as_ptr() as *const u8, salt_len_u64 * 8)
     };
-    let result = hkdf(&ikm, salt_bytes, info, output_key).map_err(|_| EntropyError::EntropyNotAvailable);
-
-    result
+    hkdf(&ikm, salt_bytes, info, output_key).map_err(|_| EntropyError::EntropyNotAvailable)
 }

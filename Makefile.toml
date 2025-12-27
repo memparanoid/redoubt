@@ -44,11 +44,11 @@ command = "cargo"
 # Usage: cargo make lint
 script = '''
 echo "=== Running clippy without features ==="
-cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy --color=always --workspace --all-targets -- -D warnings
 
 echo ""
 echo "=== Running clippy with all features ==="
-cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo clippy --color=always --workspace --all-targets --all-features -- -D warnings
 '''
 
 [tasks.check]

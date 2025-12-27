@@ -19,7 +19,6 @@ mod consts;
 mod error;
 mod helpers;
 mod master_key;
-mod storage;
 mod traits;
 
 pub use cipherbox::CipherBox;

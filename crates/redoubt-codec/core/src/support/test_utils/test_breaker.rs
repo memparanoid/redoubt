@@ -18,9 +18,10 @@ use crate::traits::{
 const MAGIC: usize = 0xDEADBEEF;
 
 /// Behavior control for error injection testing in redoubt-codec.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum RedoubtCodecTestBreakerBehaviour {
     /// Normal behavior (no error injection).
+    #[default]
     None,
     /// Force `encode_bytes_required()` to return `usize::MAX`.
     BytesRequiredReturnMax,
@@ -32,12 +33,6 @@ pub enum RedoubtCodecTestBreakerBehaviour {
     ForceEncodeError,
     /// Force `decode_from()` to return an error.
     ForceDecodeError,
-}
-
-impl Default for RedoubtCodecTestBreakerBehaviour {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]

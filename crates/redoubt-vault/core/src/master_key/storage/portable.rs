@@ -111,7 +111,7 @@ pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), B
 /// # Panics
 ///
 /// Panics if the buffer has not been initialized yet.
-#[cfg(feature = "internal-forensics")]
+#[cfg(all(feature = "internal-forensics", not(feature = "std")))]
 pub fn reset() {
     assert_eq!(
         INIT_STATE.load(Ordering::Acquire),

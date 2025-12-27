@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(target_arch = "aarch64")]
 use crate::aegis_asm::aead::{aegis128l_decrypt, aegis128l_encrypt, aegis128l_update};
 
 #[test]
-#[cfg(target_arch = "aarch64")]
 fn test_aegis128l_update_rfc_vectors() {
     // Test vectors from AEGIS RFC: (Section A.2.1)
 
@@ -98,7 +96,6 @@ fn test_aegis128l_update_rfc_vectors() {
 }
 
 #[test]
-#[cfg(target_arch = "aarch64")]
 fn test_aegis128l_encrypt_16byte_msg() {
     // AEGIS-128L RFC Test Vector A.2.2 - Test Vector 1
     // key:   10010000000000000000000000000000
@@ -154,7 +151,6 @@ fn test_aegis128l_encrypt_16byte_msg() {
 }
 
 #[test]
-#[cfg(target_arch = "aarch64")]
 fn test_aegis128l_roundtrip_vector2_empty() {
     // AEGIS-128L RFC Test Vector A.2.3 - Test Vector 2
     // key:   10010000000000000000000000000000
@@ -223,7 +219,6 @@ fn test_aegis128l_roundtrip_vector2_empty() {
 }
 
 #[test]
-#[cfg(target_arch = "aarch64")]
 fn test_aegis128l_encrypt_decrypt_roundtrip() {
     // AEGIS-128L RFC Test Vector A.2.4 - Test Vector 3
     // key:   10010000000000000000000000000000
@@ -320,7 +315,6 @@ fn test_aegis128l_encrypt_decrypt_roundtrip() {
 }
 
 #[test]
-#[cfg(target_arch = "aarch64")]
 fn test_aegis128l_roundtrip_vector4_partial() {
     // AEGIS-128L RFC Test Vector A.2.5 - Test Vector 4
     // key:   10010000000000000000000000000000
@@ -413,7 +407,6 @@ fn test_aegis128l_roundtrip_vector4_partial() {
 }
 
 #[test]
-#[cfg(target_arch = "aarch64")]
 fn test_aegis128l_roundtrip_vector5_long() {
     // AEGIS-128L RFC Test Vector A.2.6 - Test Vector 5
     // key:   10010000000000000000000000000000
@@ -514,7 +507,6 @@ fn test_aegis128l_roundtrip_vector5_long() {
 }
 
 #[test]
-#[cfg(target_arch = "aarch64")]
 fn test_aegis128l_negative_vector6_wrong_key() {
     // AEGIS-128L RFC Test Vector A.2.7 - Test Vector 6
     // This test MUST return a "verification failed" error.
@@ -565,7 +557,6 @@ fn test_aegis128l_negative_vector6_wrong_key() {
 }
 
 #[test]
-#[cfg(target_arch = "aarch64")]
 fn test_aegis128l_negative_vector7_wrong_ct() {
     // AEGIS-128L RFC Test Vector A.2.8 - Test Vector 7
     // This test MUST return a "verification failed" error.
@@ -617,7 +608,6 @@ fn test_aegis128l_negative_vector7_wrong_ct() {
 }
 
 #[test]
-#[cfg(target_arch = "aarch64")]
 fn test_aegis128l_negative_vector8_wrong_aad() {
     // AEGIS-128L RFC Test Vector A.2.9 - Test Vector 8
     // This test MUST return a "verification failed" error.
@@ -668,7 +658,6 @@ fn test_aegis128l_negative_vector8_wrong_aad() {
 }
 
 #[test]
-#[cfg(target_arch = "aarch64")]
 fn test_aegis128l_negative_vector9_wrong_tag() {
     // AEGIS-128L RFC Test Vector A.2.10 - Test Vector 9
     // This test MUST return a "verification failed" error.
@@ -719,7 +708,6 @@ fn test_aegis128l_negative_vector9_wrong_tag() {
 }
 
 #[test]
-#[cfg(target_arch = "aarch64")]
 #[ignore] // Test after 16-byte works
 fn test_aegis128l_encrypt_aligned() {
     // Test with 16-byte aligned buffers to isolate alignment issue
