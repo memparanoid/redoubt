@@ -20,7 +20,8 @@ members = [
   "crates/redoubt-codec/derive",
   "crates/redoubt-buffer",
   "crates/redoubt-test-utils",
-  "examples/wasm-demo/rust",
+  "examples/wasm/rust",
+  "examples/wallet",
   "benchmarks",
   "forensics/memory_analysis",
 ]

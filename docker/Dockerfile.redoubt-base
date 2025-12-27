@@ -48,7 +48,8 @@ COPY crates/redoubt-vault/derive/Cargo.toml ./crates/redoubt-vault/derive/
 COPY crates/redoubt/Cargo.toml ./crates/redoubt/
 COPY crates/redoubt-test-utils/Cargo.toml ./crates/redoubt-test-utils/
 COPY benchmarks/Cargo.toml ./benchmarks/
-COPY examples/wasm-demo/rust/Cargo.toml ./examples/wasm-demo/rust/
+COPY examples/wasm/rust/Cargo.toml ./examples/wasm/rust/
+COPY examples/wallet/Cargo.toml ./examples/wallet/
 COPY forensics/memory_analysis/Cargo.toml ./forensics/memory_analysis/
 
 # Create stub lib.rs files to satisfy initial cargo build
@@ -72,7 +73,8 @@ RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/s
     mkdir -p crates/redoubt-vault/derive/src && echo "// stub" > crates/redoubt-vault/derive/src/lib.rs && \
     mkdir -p crates/redoubt/src && echo "// stub" > crates/redoubt/src/lib.rs && \
     mkdir -p crates/redoubt-test-utils/src && echo "// stub" > crates/redoubt-test-utils/src/lib.rs && \
-    mkdir -p examples/wasm-demo/rust/src && echo "// stub" > examples/wasm-demo/rust/src/lib.rs && \
+    mkdir -p examples/wasm/rust/src && echo "// stub" > examples/wasm/rust/src/lib.rs && \
+    mkdir -p examples/wallet/src && echo "fn main() {}" > examples/wallet/src/main.rs && \
     mkdir -p benchmarks/benches && echo "fn main() {}" > benchmarks/benches/aead.rs && \
     echo "fn main() {}" > benchmarks/benches/codec.rs && \
     echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
