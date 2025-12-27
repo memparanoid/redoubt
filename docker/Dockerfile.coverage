@@ -1,4 +1,4 @@
-FROM redoubt-test-base:latest
+FROM redoubt-base:latest
 
 # Install additional dependencies for coverage
 RUN apk add --no-cache lcov

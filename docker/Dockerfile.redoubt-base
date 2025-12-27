@@ -1,8 +1,8 @@
-# Redoubt Test Base - Common setup for all test Dockerfiles
+# Redoubt Base - Common setup for all Dockerfiles (test, lint, coverage)
 # Provides: workspace structure, cargo-make, dependencies, stub files
 #
 # Usage: Use as base image in multi-stage builds
-#   FROM redoubt-test-base:latest
+#   FROM redoubt-base:latest
 
 ARG RUST_IMAGE=rust:alpine
 FROM ${RUST_IMAGE}

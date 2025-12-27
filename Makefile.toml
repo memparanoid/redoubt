@@ -39,15 +39,16 @@ args    = ["fmt", "--", "--check"]
 command = "cargo"
 
 [tasks.lint]
-# Strict linting: show all warnings including rustc warnings
-# Usage: cargo make lint                    (runs on workspace)
-#        cargo make lint -- -p membuffer     (runs on specific package)
-script  = '''
-if [ -z "$1" ]; then
-  cargo clippy --workspace --all-targets --all-features -- -D warnings
-else
-  cargo clippy "$@" --all-targets --all-features -- -D warnings
-fi
+# Strict linting: runs clippy without features and with all features
+# This catches issues behind feature gates
+# Usage: cargo make lint
+script = '''
+echo "=== Running clippy without features ==="
+cargo clippy --workspace --all-targets -- -D warnings
+
+echo ""
+echo "=== Running clippy with all features ==="
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 '''
 
 [tasks.check]

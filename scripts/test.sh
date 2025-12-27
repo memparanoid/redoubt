@@ -149,8 +149,8 @@ else
     DOCKER_BUILDKIT=1 docker buildx build \
         $NO_CACHE \
         --platform "$PLATFORM" \
-        -f "$PROJECT_ROOT/docker/Dockerfile.redoubt-test-base" \
-        -t redoubt-test-base:latest \
+        -f "$PROJECT_ROOT/docker/Dockerfile.redoubt-base" \
+        -t redoubt-base:latest \
         --load \
         "$PROJECT_ROOT"
 

@@ -11,7 +11,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Build base image for native architecture
 echo "Building base image..."
-"$SCRIPT_DIR/build-redoubt-test-base.sh"
+"$SCRIPT_DIR/build-redoubt-base.sh"
 
 # Run tests locally
 echo ""

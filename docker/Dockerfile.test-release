@@ -1,4 +1,4 @@
-FROM redoubt-test-base:latest
+FROM redoubt-base:latest
 
 # Build workspace and dependencies in release mode with cache mount
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
