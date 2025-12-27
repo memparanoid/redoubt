@@ -38,65 +38,48 @@ redoubt = "0.1"
 ```
 
 ## Quick Start
+
 ```rust
 use redoubt::{cipherbox, RedoubtArray, RedoubtCodec, RedoubtSecret, RedoubtString, RedoubtZero};
 
-#[cipherbox(WalletBox)]
+#[cipherbox(Wallet)]
 #[derive(Default, RedoubtCodec, RedoubtZero)]
-struct Wallet {
-    master_seed: RedoubtArray<u8, 64>,
-    signing_key: RedoubtArray<u8, 32>,
-    pin_hash: RedoubtArray<u8, 32>,
+struct WalletData {
+    seed: RedoubtArray<u8, 32>,
     mnemonic: RedoubtString,
-    derivation_index: RedoubtSecret<u64>,
+    counter: RedoubtSecret<u64>,
 }
-
-// Helper functions (stubs for example purposes)
-use redoubt_zero::FastZeroizable;
-
-fn derive_seed_from_mnemonic(_phrase: &str) -> [u8; 64] { [0u8; 64] }
-fn derive_signing_key(_seed: &RedoubtArray<u8, 64>) -> [u8; 32] { [0u8; 32] }
-fn hash_pin(pin: &mut [u8; 32]) -> [u8; 32] {
-    let hash = *pin; // Compute hash (stub)
-    pin.fast_zeroize(); // Don't forget to zeroize sensitive data
-    hash
-}
-fn derive_account_key(_seed: &RedoubtArray<u8, 64>, _index: u32) -> Result<[u8; 32], Box<dyn std::error::Error>> {
-    Ok([0u8; 32])
-}
-fn publish_account(_key: &[u8; 32]) -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut wallet = WalletBox::new();
+    let mut wallet = Wallet::new();
 
-    // Store your secrets
+    // Open the box and modify secrets
     wallet.open_mut(|w| {
-        let mut seed = derive_seed_from_mnemonic("abandon abandon ...");
-        w.master_seed.replace_from_mut_array(&mut seed);
-
-        let mut key = derive_signing_key(&w.master_seed);
-        w.signing_key.replace_from_mut_array(&mut key);
-
-        let mut pin = [1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        let mut hash = hash_pin(&mut pin);
-        w.pin_hash.replace_from_mut_array(&mut hash);
-
-        w.mnemonic.extend_from_str("abandon abandon ...");
-
-        let mut index = 0u64;
-        w.derivation_index = RedoubtSecret::from(&mut index);
-
+        w.seed.replace_from_mut_array(&mut [0u8; 32]);
+        let mut mnemonic = String::from("abandon abandon ...");
+        w.mnemonic.replace_from_mut_string(&mut mnemonic);
+        w.counter.replace(&mut 0u64);
         Ok(())
     })?;
-    // `w` is encoded -> reencrypted
+    // Box is re-encrypted here
 
-    // Leak secrets when needed outside closure scope
+    // Read-only access
+    wallet.open(|w| {
+        let _ = w.counter.as_ref();
+        Ok(())
+    })?;
+
+    // Field-level access (decrypts only that field)
+    wallet.open_counter_mut(|counter| {
+        let mut next = *counter.as_ref() + 1;
+        counter.replace(&mut next);
+        Ok(())
+    })?;
+
+    // Leak to use outside closure scope
     {
-        let seed = wallet.leak_master_seed()?;
-        // Derive the next account key using the master seed
-        let account_key = derive_account_key(&seed, 0)?;
-        publish_account(&account_key)?;
+        let seed = wallet.leak_seed()?;
+        // use seed...
     } // seed is zeroized on drop
 
     Ok(())
@@ -105,73 +88,58 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## API
 
-### Use `leak` methods to read your secrets
+### `open` / `open_mut`
 
-Use `leak_*` when you need the value outside the closure. Returns a `ZeroizingGuard` that wipes memory on drop:
+Access the entire decrypted struct. Re-encrypts when the closure returns:
+
 ```rust
-fn sign(_key: &RedoubtArray<u8, 32>, _message: &[u8]) -> [u8; 64] { [0u8; 64] }
-
-let signing_key = wallet.leak_signing_key().expect("Failed to decrypt");
-
-// Use signing_key normally
-let message = b"transaction data";
-let signature = sign(&signing_key, message);
-
-// signing_key is zeroized when it goes out of scope
-```
-
-### Modifying secrets
-
-Use `open_mut` to modify secrets. Changes are re-encrypted when the closure returns:
-```rust
-wallet.open_mut(|w| {
-    let mut new_pin = [5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let mut new_hash = hash_pin(&mut new_pin);
-    w.pin_hash.replace_from_mut_array(&mut new_hash);
-
-    Ok(())
-}).expect("Failed to decrypt wallet");
-// `w` is encoded -> reencrypted
-```
-
-### Returning values from callbacks
-
-Use callbacks to compute and return values while the data is decrypted:
-```rust
-// Return a value after modifying the wallet
-let new_index = wallet.open_mut(|w| {
-    let mut next = *w.derivation_index.as_ref() + 1;
-    w.derivation_index.replace(&mut next);
-
-    Ok(next)
-})?; // Returns Result<u64, CipherBoxError>
-```
-
-### Field-level access
-
-Access individual fields without decrypting the entire struct. Method names are generated from your field names:
-```rust
-// Modify only the pin hash (no return value)
-wallet.open_pin_hash_mut(|hash| {
-    let mut new_pin = [5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let mut new_hash = hash_pin(&mut new_pin);
-    hash.replace_from_mut_array(&mut new_hash);
-
+wallet.open(|w| {
+    // read-only access to all fields
     Ok(())
 })?;
 
-// Return a value from field access
-let is_valid = wallet.open_pin_hash(|hash| {
-    let mut user_input = [5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let mut entered = hash_pin(&mut user_input);
-    let valid = hash.as_slice() == entered.as_slice();
-    entered.fast_zeroize();
+wallet.open_mut(|w| {
+    // read-write access to all fields
+    Ok(())
+})?;
+```
 
-    Ok(valid)
-})?; // Returns Result<bool, CipherBoxError>
+### `open_<field>` / `open_<field>_mut`
+
+Access individual fields without decrypting the entire struct:
+
+```rust
+wallet.open_seed(|seed| {
+    // read-only access to seed
+    Ok(())
+})?;
+
+wallet.open_seed_mut(|seed| {
+    // read-write access to seed
+    Ok(())
+})?;
+```
+
+### `leak_<field>`
+
+Get a field value outside the closure. Returns a `ZeroizingGuard` that wipes memory on drop:
+
+```rust
+let seed = wallet.leak_seed()?;
+// use seed...
+// seed is zeroized when dropped
+```
+
+### Returning values
+
+Closures can return values:
+
+```rust
+let counter = wallet.open_counter_mut(|c| {
+    let mut next = *c.as_ref() + 1;
+    c.replace(&mut next);
+    Ok(next)
+})?; // Returns Result<u64, CipherBoxError>
 ```
 
 
@@ -240,12 +208,6 @@ These types were forensically validated (see [forensics/README.md](forensics/REA
 - **Guaranteed zeroization**: Memory is wiped using compiler barriers that prevent optimization
 - **OS-level protections**: On Linux, the master key lives in a memory page protected by `prctl` and `mlock`, inaccessible to non-root memory dumps
 - **Field-level encryption**: Decrypt only what you need, minimizing exposure time
-
-### Forensic validation
-
-Redoubt's zeroization guarantees are validated through memory dump analysis. We test that sensitive data from `RedoubtVec`, `RedoubtString`, `RedoubtArray`, and AEAD keys leave no traces in core dumps after being dropped or reallocated.
-
-See [forensics/README.md](forensics/README.md) for detailed analysis results and testing methodology.
 
 ## Platform support
 
