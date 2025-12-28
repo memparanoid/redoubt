@@ -132,14 +132,15 @@ let seed = wallet.leak_seed()?;
 
 ### Returning values
 
-Closures can return values:
+Closures can return values. The return value is wrapped in a `ZeroizingGuard` that wipes memory on drop:
 
 ```rust
 let counter = wallet.open_counter_mut(|c| {
     let mut next = *c.as_ref() + 1;
     c.replace(&mut next);
     Ok(next)
-})?; // Returns Result<u64, CipherBoxError>
+})?; // Returns Result<ZeroizingGuard<u64>, CipherBoxError>
+// counter is zeroized when dropped
 ```
 
 
@@ -196,7 +197,7 @@ These types were forensically validated (see [forensics/README.md](forensics/REA
 - Forces explicit `as_ref()`/`as_mut()` calls to access the inner value
 - Critical for primitives like `u64` which implement `Copy` and could silently duplicate if accessed directly
 
-### Protections:
+### Protections
 
 - All types implement `Debug` with **REDACTED** output (no accidental leaks in logs)
 - **No `Copy` or `Clone`** traits (prevents unintended copies of sensitive data)
