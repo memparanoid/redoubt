@@ -96,7 +96,7 @@ impl ContainerBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&Container) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -119,7 +119,7 @@ impl ContainerBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut Container) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -189,7 +189,7 @@ impl ContainerBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&T) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -212,7 +212,7 @@ impl ContainerBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -235,7 +235,7 @@ impl ContainerBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut T) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -258,7 +258,7 @@ impl ContainerBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {

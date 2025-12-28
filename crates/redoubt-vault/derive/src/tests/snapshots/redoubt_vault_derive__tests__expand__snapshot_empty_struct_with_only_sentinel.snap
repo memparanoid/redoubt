@@ -83,7 +83,7 @@ impl EmptyBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&Empty) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -106,7 +106,7 @@ impl EmptyBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut Empty) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {

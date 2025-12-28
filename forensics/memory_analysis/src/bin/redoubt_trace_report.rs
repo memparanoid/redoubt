@@ -6,11 +6,51 @@ use std::hint::black_box;
 
 #[cfg(feature = "internal-forensics")]
 use redoubt::reset_master_key;
-use redoubt::{FastZeroizable, ZeroizeOnDropSentinel};
+use redoubt::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel};
 use redoubt::{
     RedoubtArray, RedoubtCodec, RedoubtOption, RedoubtSecret, RedoubtString, RedoubtVec,
-    RedoubtZero, cipherbox,
+    RedoubtZero, ZeroizingGuard, cipherbox,
 };
+
+/// Wrapper for large arrays that implements Default (std only goes up to 32).
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+struct BigArray<T, const N: usize>([T; N]);
+
+impl<T: Default, const N: usize> Default for BigArray<T, N> {
+    fn default() -> Self {
+        Self(core::array::from_fn(|_| T::default()))
+    }
+}
+
+impl<T: ZeroizeMetadata, const N: usize> ZeroizeMetadata for BigArray<T, N> {
+    const CAN_BE_BULK_ZEROIZED: bool = T::CAN_BE_BULK_ZEROIZED;
+}
+
+impl<T: ZeroizeMetadata + FastZeroizable, const N: usize> FastZeroizable for BigArray<T, N> {
+    fn fast_zeroize(&mut self) {
+        self.0.fast_zeroize();
+    }
+}
+
+impl<T: ZeroizationProbe, const N: usize> ZeroizationProbe for BigArray<T, N> {
+    fn is_zeroized(&self) -> bool {
+        self.0.is_zeroized()
+    }
+}
+
+impl<T, const N: usize> std::ops::Deref for BigArray<T, N> {
+    type Target = [T; N];
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T, const N: usize> std::ops::DerefMut for BigArray<T, N> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 #[inline(never)]
 fn use_u64_ref(val: &u64) {
@@ -64,6 +104,7 @@ struct Patterns {
     pattern_5: [u8; 1024], // option_redoubt_string
     pattern_6: [u8; 1024], // option_redoubt_array
     pattern_7: [u8; 1024], // option_option_redoubt_string
+    pattern_8: BigArray<u8, 1024>, // zeroizing_guard array test
     __sentinel: ZeroizeOnDropSentinel,
 }
 
@@ -77,6 +118,7 @@ impl Default for Patterns {
             pattern_5: [0u8; 1024],
             pattern_6: [0u8; 1024],
             pattern_7: [0u8; 1024],
+            pattern_8: BigArray::default(),
             __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
@@ -91,6 +133,7 @@ impl Patterns {
         self.pattern_5 = core::array::from_fn(|_| 0x45); // option_redoubt_string - 'E'
         self.pattern_6 = core::array::from_fn(|_| 0xFF); // option_redoubt_array
         self.pattern_7 = core::array::from_fn(|_| 0x47); // option_option_redoubt_string - 'G'
+        self.pattern_8 = BigArray(core::array::from_fn(|_| 0x88)); // zeroizing_guard array test
     }
 }
 
@@ -100,6 +143,7 @@ struct Values {
     value_1: u64, // redoubt_secret_u64
     value_2: u64, // option_redoubt_secret_u64 (RedoubtOption<RedoubtSecret<u64>>)
     value_3: u64, // read_write_secret
+    value_4: u64, // zeroizing_guard test
     __sentinel: ZeroizeOnDropSentinel,
 }
 
@@ -108,6 +152,7 @@ impl Values {
         self.value_1 = 0xDEADBEEFCAFEBABE; // redoubt_secret_u64
         self.value_2 = 0xCAFEBABEDEADBEEF; // option_redoubt_secret_u64
         self.value_3 = 0xABCDEF0123456789; // read_write_secret
+        self.value_4 = 0x1234567890ABCDEF; // zeroizing_guard test
     }
 }
 
@@ -172,10 +217,12 @@ fn main() {
         println!("[+] Pattern 5 (option_redoubt_string): 1024 bytes of 0x45 'E'");
         println!("[+] Pattern 6 (option_redoubt_array): 1024 bytes of 0xFF");
         println!("[+] Pattern 7 (option_option_redoubt_string): 1024 bytes of 0x47 'G'");
+        println!("[+] Pattern 8 (zeroizing_guard array): 1024 bytes of 0x88");
         println!();
         println!("[+] Value 1 (redoubt_secret_u64): 0xDEADBEEFCAFEBABE");
         println!("[+] Value 2 (option_redoubt_secret_u64): 0xCAFEBABEDEADBEEF");
         println!("[+] Value 3 (read_write_secret): 0xABCDEF0123456789");
+        println!("[+] Value 4 (zeroizing_guard): 0x1234567890ABCDEF");
         println!();
 
         // Initialize read_write_secret before the loop
@@ -278,6 +325,24 @@ fn main() {
         println!("[+] Completed {} iterations", ITERATIONS);
         println!();
 
+        // Test ZeroizingGuard for traces (u64)
+        println!("[*] Testing ZeroizingGuard::from_mut() with u64 for traces...");
+        for _ in 0..ITERATIONS {
+            let guard = ZeroizingGuard::from_mut(&mut values.value_4);
+            black_box(&guard);
+        }
+        println!("[+] Completed {} ZeroizingGuard u64 iterations", ITERATIONS);
+        println!();
+
+        // Test ZeroizingGuard for traces (array)
+        println!("[*] Testing ZeroizingGuard::from_mut() with [u8; 1024] for traces...");
+        for _ in 0..ITERATIONS {
+            let guard = ZeroizingGuard::from_mut(&mut patterns.pattern_8);
+            black_box(&guard);
+        }
+        println!("[+] Completed {} ZeroizingGuard array iterations", ITERATIONS);
+        println!();
+
         // Extract master key for analysis
         let mut master_key = redoubt::leak_master_key(32).expect("Failed to leak master key");
 
@@ -296,12 +361,14 @@ fn main() {
         println!("Pattern #5: 45"); // `option_redoubt_string` field pattern (1024 bytes of 0x45 'E')
         println!("Pattern #6: ff"); // `option_redoubt_array` field pattern (1024 bytes of 0xFF)
         println!("Pattern #7: 47"); // `option_option_redoubt_string` field pattern (1024 bytes of 0x47 'G')
+        println!("Pattern #8: 88"); // `zeroizing_guard` array test pattern (1024 bytes of 0x88)
         println!();
 
         // Print secret values
         println!("Value #1: deadbeefcafebabe"); // `redoubt_secret_u64` field value
         println!("Value #2: cafebabedeadbeef"); // `option_redoubt_secret_u64` field value
         println!("Value #3: abcdef0123456789"); // `read_write_secret` field value
+        println!("Value #4: 1234567890abcdef"); // `zeroizing_guard` test value
         println!();
 
         // Zeroize all patterns and values
@@ -317,9 +384,11 @@ fn main() {
         let sum5: u32 = patterns.pattern_5.iter().map(|&b| b as u32).sum();
         let sum6: u32 = patterns.pattern_6.iter().map(|&b| b as u32).sum();
         let sum7: u32 = patterns.pattern_7.iter().map(|&b| b as u32).sum();
+        let sum8: u32 = patterns.pattern_8.iter().map(|&b| b as u32).sum();
         let val1: u64 = values.value_1;
         let val2: u64 = values.value_2;
         let val3: u64 = values.value_3;
+        let val4: u64 = values.value_4;
         println!("[*] Post-zeroize verification:");
         println!("    pattern_1 sum: {} (should be 0)", sum1);
         println!("    pattern_2 sum: {} (should be 0)", sum2);
@@ -328,9 +397,11 @@ fn main() {
         println!("    pattern_5 sum: {} (should be 0)", sum5);
         println!("    pattern_6 sum: {} (should be 0)", sum6);
         println!("    pattern_7 sum: {} (should be 0)", sum7);
+        println!("    pattern_8 sum: {} (should be 0)", sum8);
         println!("    value_1: {} (should be 0)", val1);
         println!("    value_2: {} (should be 0)", val2);
         println!("    value_3: {} (should be 0)", val3);
+        println!("    value_4: {} (should be 0)", val4);
         println!();
 
         // Signal to script that we're ready for dump

@@ -88,7 +88,7 @@ impl ZetaBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&Zeta) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -111,7 +111,7 @@ impl ZetaBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut Zeta) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -184,7 +184,7 @@ impl ZetaBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -207,7 +207,7 @@ impl ZetaBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -230,7 +230,7 @@ impl ZetaBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -254,7 +254,7 @@ impl ZetaBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {

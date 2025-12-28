@@ -83,7 +83,7 @@ impl GammaBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&Gamma) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -106,7 +106,7 @@ impl GammaBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut Gamma) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -161,7 +161,7 @@ impl GammaBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -184,7 +184,7 @@ impl GammaBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
         F: FnMut(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {

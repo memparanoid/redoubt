@@ -361,7 +361,7 @@ fn expand(
             pub fn #open_name<F, R>(&mut self, f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
             where
                 F: FnMut(&#field_type) -> Result<R, #error_type>,
-                R: #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
+                R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
             {
                 #failure_check
                 self.inner.open_field::<#field_type, #idx_lit, F, R, #error_type>(f)
@@ -373,7 +373,7 @@ fn expand(
             pub fn #open_mut_name<F, R>(&mut self, f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
             where
                 F: FnMut(&mut #field_type) -> Result<R, #error_type>,
-                R: #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
+                R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
             {
                 #failure_check
                 self.inner.open_field_mut::<#field_type, #idx_lit, F, R, #error_type>(f)
@@ -398,7 +398,7 @@ fn expand(
                     pub fn #open_name<F, R>(f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
                     where
                         F: FnMut(&#field_type) -> Result<R, #error_type>,
-                        R: #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
+                        R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
                         lock();
                         let _guard = PanicGuard;
@@ -412,7 +412,7 @@ fn expand(
                     pub fn #open_mut_name<F, R>(f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
                     where
                         F: FnMut(&mut #field_type) -> Result<R, #error_type>,
-                        R: #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
+                        R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
                         lock();
                         let _guard = PanicGuard;
@@ -435,7 +435,7 @@ fn expand(
                     pub fn #open_name<F, R>(f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
                     where
                         F: FnMut(&#field_type) -> Result<R, #error_type>,
-                        R: #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
+                        R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
                         let mutex = get_or_init();
                         let mut guard = mutex.lock().expect("Mutex poisoned");
@@ -448,7 +448,7 @@ fn expand(
                     pub fn #open_mut_name<F, R>(f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
                     where
                         F: FnMut(&mut #field_type) -> Result<R, #error_type>,
-                        R: #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
+                        R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
                         let mutex = get_or_init();
                         let mut guard = mutex.lock().expect("Mutex poisoned");
@@ -576,7 +576,7 @@ fn expand(
                     pub fn open<F, R>(f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
                     where
                         F: FnMut(&#struct_name) -> Result<R, #error_type>,
-                        R: #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
+                        R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
                         lock();
                         let _guard = PanicGuard;
@@ -587,7 +587,7 @@ fn expand(
                     pub fn open_mut<F, R>(f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
                     where
                         F: FnMut(&mut #struct_name) -> Result<R, #error_type>,
-                        R: #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
+                        R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
                         lock();
                         let _guard = PanicGuard;
@@ -618,7 +618,7 @@ fn expand(
                     pub fn open<F, R>(f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
                     where
                         F: FnMut(&#struct_name) -> Result<R, #error_type>,
-                        R: #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
+                        R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
                         let mutex = get_or_init();
                         let mut guard = mutex.lock().expect("Mutex poisoned");
@@ -628,7 +628,7 @@ fn expand(
                     pub fn open_mut<F, R>(f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
                     where
                         F: FnMut(&mut #struct_name) -> Result<R, #error_type>,
-                        R: #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
+                        R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
                         let mutex = get_or_init();
                         let mut guard = mutex.lock().expect("Mutex poisoned");
@@ -732,7 +732,7 @@ fn expand(
             pub fn open<F, R>(&mut self, f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
             where
                 F: FnMut(&#struct_name) -> Result<R, #error_type>,
-                R: #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
+                R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
             {
                 #failure_check
                 self.inner.open(f)
@@ -742,7 +742,7 @@ fn expand(
             pub fn open_mut<F, R>(&mut self, f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
             where
                 F: FnMut(&mut #struct_name) -> Result<R, #error_type>,
-                R: #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
+                R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
             {
                 #failure_check
                 self.inner.open_mut(f)

@@ -32,5 +32,5 @@ pub fn leak_master_key(truncate_at: usize) -> Result<ZeroizingGuard<Vec<u8>>, Bu
         Ok(())
     })?;
 
-    Ok(ZeroizingGuard::new(master_key))
+    Ok(ZeroizingGuard::from_mut(&mut master_key))
 }

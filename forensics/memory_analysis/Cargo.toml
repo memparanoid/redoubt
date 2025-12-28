@@ -14,5 +14,5 @@ default = []
 internal-forensics = ["redoubt/internal-forensics"]
 
 [dependencies]
-redoubt = { path = "../../crates/redoubt" }
+redoubt = { workspace = true, features = ["asm"] }
 libc.workspace = true

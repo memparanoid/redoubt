@@ -4,7 +4,9 @@
 
 //! RAII guard for owned values that auto-zeroizes on drop.
 
+use alloc::boxed::Box;
 use core::fmt;
+use core::mem;
 use core::ops::{Deref, DerefMut};
 use core::sync::atomic::{Ordering, compiler_fence};
 
@@ -16,13 +18,14 @@ use super::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 
 /// RAII guard for owned values that automatically zeroizes on drop.
 ///
-/// `ZeroizingGuard` wraps an owned value `T` and ensures that it is zeroized
+/// `ZeroizingGuard` wraps an owned value `T` in a `Box` and ensures that it is zeroized
 /// when the guard is dropped. This is useful for returning sensitive data from
 /// functions while guaranteeing automatic cleanup.
 ///
 /// # Design
 ///
-/// - Wraps `T` (owns the value)
+/// - Wraps `Box<T>` (owns the value on the heap, avoiding stack copies)
+/// - Takes `&mut T` in constructor and swaps with `T::default()`, zeroizing the source
 /// - Implements `Deref` and `DerefMut` for convenient access
 /// - Zeroizes `inner` on drop
 /// - Contains [`ZeroizeOnDropSentinel`] to verify zeroization happened
@@ -30,10 +33,11 @@ use super::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 /// # Usage
 ///
 /// ```rust
-/// use redoubt_zero_core::{ZeroizingGuard, ZeroizationProbe};
+/// use redoubt_zero_core::{ZeroizingGuard, ZeroizationProbe, FastZeroizable};
 ///
 /// fn create_sensitive_data() -> ZeroizingGuard<u64> {
-///     ZeroizingGuard::new(12345)
+///     let mut value = 12345u64;
+///     ZeroizingGuard::from_mut(&mut value)
 /// }
 ///
 /// {
@@ -48,15 +52,15 @@ use super::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 /// marked as zeroized. This ensures zeroization invariants are enforced.
 pub struct ZeroizingGuard<T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + Default,
 {
-    inner: T,
+    inner: Box<T>,
     __sentinel: ZeroizeOnDropSentinel,
 }
 
 impl<T> fmt::Debug for ZeroizingGuard<T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + Default,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[REDACTED ZeroizingGuard]")
@@ -65,58 +69,64 @@ where
 
 impl<T> ZeroizingGuard<T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + Default,
 {
-    /// Creates a new guard wrapping an owned value.
+    /// Creates a new guard by swapping the value from the source and zeroizing it.
     ///
-    /// The guard takes ownership of the value and will zeroize it when dropped.
+    /// The source location is swapped with `T::default()` and then zeroized,
+    /// ensuring no copies of the sensitive data remain on the stack.
+    /// The value is stored in a `Box` on the heap.
     ///
     /// # Example
     ///
     /// ```rust
-    /// use redoubt_zero_core::ZeroizingGuard;
+    /// use redoubt_zero_core::{ZeroizingGuard, ZeroizationProbe};
     ///
-    /// let guard = ZeroizingGuard::new(42u32);
+    /// let mut value = 42u32;
+    /// let guard = ZeroizingGuard::from_mut(&mut value);
     /// assert_eq!(*guard, 42);
+    /// assert!(value.is_zeroized()); // source is zeroized
     /// ```
-    pub fn new(inner: T) -> Self {
+    pub fn from_mut(value: &mut T) -> Self {
+        // Allocate box with default value
+        let mut boxed = Box::new(T::default());
+        // Swap value into the box
+        mem::swap(&mut *boxed, value);
+        // Zeroize the source location
+        value.fast_zeroize();
+
         Self {
-            inner,
+            inner: boxed,
             __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
 
-    /// Consumes the guard and returns the inner value WITHOUT zeroizing it.
+    /// Creates a new guard with the default value of `T`.
     ///
-    /// # Safety
-    ///
-    /// This method bypasses the automatic zeroization. The caller is responsible
-    /// for ensuring the value is properly zeroized when no longer needed.
+    /// This is a convenience method equivalent to:
+    /// ```rust,ignore
+    /// let mut value = T::default();
+    /// ZeroizingGuard::from_mut(&mut value)
+    /// ```
     ///
     /// # Example
     ///
     /// ```rust
-    /// use redoubt_zero_core::{ZeroizingGuard, FastZeroizable};
+    /// use redoubt_zero_core::{ZeroizingGuard, ZeroizationProbe};
     ///
-    /// let guard = ZeroizingGuard::new(42u32);
-    /// let mut value = guard.into_inner();
-    ///
-    /// // Value is NOT zeroized yet - caller must do it manually
-    /// value.fast_zeroize();
+    /// let guard: ZeroizingGuard<u64> = ZeroizingGuard::from_default();
+    /// assert!(guard.is_zeroized());
     /// ```
-    pub fn into_inner(mut self) -> T {
-        // Mark sentinel as zeroized to prevent panic on drop
-        self.__sentinel.fast_zeroize();
-        // Move out the inner value
-        // SAFETY: We marked the sentinel as zeroized, so Drop won't panic.
-        // The caller is now responsible for zeroizing the value.
-        unsafe { core::ptr::read(&self.inner) }
+    #[inline(always)]
+    pub fn from_default() -> Self {
+        let mut value = T::default();
+        Self::from_mut(&mut value)
     }
 }
 
 impl<T> Deref for ZeroizingGuard<T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + Default,
 {
     type Target = T;
 
@@ -127,7 +137,7 @@ where
 
 impl<T> DerefMut for ZeroizingGuard<T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + Default,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
@@ -136,7 +146,7 @@ where
 
 impl<T> FastZeroizable for ZeroizingGuard<T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + Default,
 {
     fn fast_zeroize(&mut self) {
         self.inner.fast_zeroize();
@@ -149,7 +159,7 @@ where
 
 impl<T> AssertZeroizeOnDrop for ZeroizingGuard<T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + Default,
 {
     fn clone_sentinel(&self) -> ZeroizeOnDropSentinel {
         self.__sentinel.clone()
@@ -162,17 +172,17 @@ where
 
 impl<T> ZeroizationProbe for ZeroizingGuard<T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + Default,
 {
     fn is_zeroized(&self) -> bool {
-        let fields: [&dyn ZeroizationProbe; 1] = [to_zeroization_probe_dyn_ref(&self.inner)];
+        let fields: [&dyn ZeroizationProbe; 1] = [to_zeroization_probe_dyn_ref(&*self.inner)];
         collection_zeroed(&mut fields.into_iter())
     }
 }
 
 impl<T> Drop for ZeroizingGuard<T>
 where
-    T: FastZeroizable + ZeroizationProbe,
+    T: FastZeroizable + ZeroizationProbe + Default,
 {
     fn drop(&mut self) {
         self.fast_zeroize();

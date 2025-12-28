@@ -155,7 +155,7 @@ where
             self.tmp_ciphertexts[i] = self.ciphertexts[i].clone();
         }
 
-        let mut value = ZeroizingGuard::new(T::default());
+        let mut value = ZeroizingGuard::<T>::from_default();
         let result = value.decrypt_from(
             &mut self.aead,
             aead_key,
@@ -184,7 +184,7 @@ where
             self.healthy = false;
             CipherBoxError::Poisoned
         })?;
-        let mut value = ZeroizingGuard::new(T::default());
+        let mut value = ZeroizingGuard::<T>::from_default();
 
         self.encrypt_struct(&master_key, &mut value)?;
         self.initialized = true;
@@ -333,9 +333,12 @@ where
     /// For better performance when reading a single field, prefer `leak_field` which
     /// avoids the full struct decrypt-encrypt cycle by cloning only the field's ciphertext.
     #[inline(always)]
-    fn open_dyn<R, E>(&mut self, f: &mut dyn FnMut(&T) -> Result<R, E>) -> Result<ZeroizingGuard<R>, E>
+    fn open_dyn<R, E>(
+        &mut self,
+        f: &mut dyn FnMut(&T) -> Result<R, E>,
+    ) -> Result<ZeroizingGuard<R>, E>
     where
-        R: FastZeroizable + ZeroizationProbe,
+        R: Default + FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.assert_healthy().map_err(E::from)?;
@@ -347,14 +350,14 @@ where
         })?;
         let mut value = self.decrypt_struct(&master_key).map_err(E::from)?;
 
-        let result = f(&value).inspect_err(|_| {
+        let mut result = f(&value).inspect_err(|_| {
             // wipe asap
             value.fast_zeroize();
         })?;
 
         self.encrypt_struct(&master_key, &mut value)?;
 
-        Ok(ZeroizingGuard::new(result))
+        Ok(ZeroizingGuard::from_mut(&mut result))
     }
 
     /// Provides mutable access to the entire struct via a callback.
@@ -381,9 +384,12 @@ where
     /// - CipherBox internal errors (decrypt/encrypt failures)
     /// - User callback errors
     #[inline(always)]
-    fn open_mut_dyn<R, E>(&mut self, f: &mut dyn FnMut(&mut T) -> Result<R, E>) -> Result<ZeroizingGuard<R>, E>
+    fn open_mut_dyn<R, E>(
+        &mut self,
+        f: &mut dyn FnMut(&mut T) -> Result<R, E>,
+    ) -> Result<ZeroizingGuard<R>, E>
     where
-        R: FastZeroizable + ZeroizationProbe,
+        R: Default + FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.assert_healthy().map_err(E::from)?;
@@ -395,14 +401,14 @@ where
         })?;
         let mut value = self.decrypt_struct(&master_key).map_err(E::from)?;
 
-        let result = f(&mut value).inspect_err(|_| {
+        let mut result = f(&mut value).inspect_err(|_| {
             // wipe asap
             value.fast_zeroize();
         })?;
 
         self.encrypt_struct(&master_key, &mut value)?;
 
-        Ok(ZeroizingGuard::new(result))
+        Ok(ZeroizingGuard::from_mut(&mut result))
     }
 
     #[inline(always)]
@@ -412,7 +418,7 @@ where
     ) -> Result<ZeroizingGuard<R>, E>
     where
         Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
-        R: FastZeroizable + ZeroizationProbe,
+        R: Default + FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.assert_healthy()?;
@@ -422,16 +428,16 @@ where
             self.healthy = false;
             CipherBoxError::Poisoned
         })?;
-        let mut field = ZeroizingGuard::new(Field::default());
+        let mut field = ZeroizingGuard::<Field>::from_default();
 
         self.decrypt_field::<Field, M>(&master_key, &mut field)?;
 
-        let result = f(&field).inspect_err(|_| {
+        let mut result = f(&field).inspect_err(|_| {
             // wipe asap
             field.fast_zeroize();
         })?;
 
-        Ok(ZeroizingGuard::new(result))
+        Ok(ZeroizingGuard::from_mut(&mut result))
     }
 
     #[inline(always)]
@@ -441,7 +447,7 @@ where
     ) -> Result<ZeroizingGuard<R>, E>
     where
         Field: Default + FastZeroizable + Encryptable + Decryptable + ZeroizationProbe,
-        R: FastZeroizable + ZeroizationProbe,
+        R: Default + FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.assert_healthy()?;
@@ -451,25 +457,25 @@ where
             self.healthy = false;
             CipherBoxError::Poisoned
         })?;
-        let mut field = ZeroizingGuard::new(Field::default());
+        let mut field = ZeroizingGuard::<Field>::from_default();
 
         self.decrypt_field::<Field, M>(&master_key, &mut field)?;
 
-        let result = f(&mut field).inspect_err(|_| {
+        let mut result = f(&mut field).inspect_err(|_| {
             // wipe asap
             field.fast_zeroize();
         })?;
 
         self.encrypt_field::<Field, M>(&master_key, &mut field)?;
 
-        Ok(ZeroizingGuard::new(result))
+        Ok(ZeroizingGuard::from_mut(&mut result))
     }
 
     #[inline(always)]
     pub fn open<F, R, E>(&mut self, mut f: F) -> Result<ZeroizingGuard<R>, E>
     where
         F: FnMut(&T) -> Result<R, E>,
-        R: FastZeroizable + ZeroizationProbe,
+        R: Default + FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.open_dyn(&mut f)
@@ -479,29 +485,35 @@ where
     pub fn open_mut<F, R, E>(&mut self, mut f: F) -> Result<ZeroizingGuard<R>, E>
     where
         F: FnMut(&mut T) -> Result<R, E>,
-        R: FastZeroizable + ZeroizationProbe,
+        R: Default + FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.open_mut_dyn(&mut f)
     }
 
     #[inline(always)]
-    pub fn open_field<Field, const M: usize, F, R, E>(&mut self, mut f: F) -> Result<ZeroizingGuard<R>, E>
+    pub fn open_field<Field, const M: usize, F, R, E>(
+        &mut self,
+        mut f: F,
+    ) -> Result<ZeroizingGuard<R>, E>
     where
         Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
         F: FnMut(&Field) -> Result<R, E>,
-        R: FastZeroizable + ZeroizationProbe,
+        R: Default + FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.open_field_dyn::<Field, M, R, E>(&mut f)
     }
 
     #[inline(always)]
-    pub fn open_field_mut<Field, const M: usize, F, R, E>(&mut self, mut f: F) -> Result<ZeroizingGuard<R>, E>
+    pub fn open_field_mut<Field, const M: usize, F, R, E>(
+        &mut self,
+        mut f: F,
+    ) -> Result<ZeroizingGuard<R>, E>
     where
         Field: Default + FastZeroizable + Encryptable + Decryptable + ZeroizationProbe,
         F: FnMut(&mut Field) -> Result<R, E>,
-        R: FastZeroizable + ZeroizationProbe,
+        R: Default + FastZeroizable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.open_field_mut_dyn::<Field, M, R, E>(&mut f)
@@ -546,7 +558,7 @@ where
             self.healthy = false;
             CipherBoxError::Poisoned
         })?;
-        let mut field = ZeroizingGuard::new(Field::default());
+        let mut field = ZeroizingGuard::<Field>::from_default();
 
         self.decrypt_field::<Field, M>(&master_key, &mut field)?;
 

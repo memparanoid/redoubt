@@ -87,7 +87,7 @@ impl WithCustomErrorBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, MyCustomError>
     where
         F: FnMut(&WithCustomError) -> Result<R, MyCustomError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -110,7 +110,7 @@ impl WithCustomErrorBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, MyCustomError>
     where
         F: FnMut(&mut WithCustomError) -> Result<R, MyCustomError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -180,7 +180,7 @@ impl WithCustomErrorBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, MyCustomError>
     where
         F: FnMut(&Vec<u8>) -> Result<R, MyCustomError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -203,7 +203,7 @@ impl WithCustomErrorBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, MyCustomError>
     where
         F: FnMut(&u64) -> Result<R, MyCustomError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -226,7 +226,7 @@ impl WithCustomErrorBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, MyCustomError>
     where
         F: FnMut(&mut Vec<u8>) -> Result<R, MyCustomError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
@@ -249,7 +249,7 @@ impl WithCustomErrorBox {
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, MyCustomError>
     where
         F: FnMut(&mut u64) -> Result<R, MyCustomError>,
-        R: redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(test)]
         {
