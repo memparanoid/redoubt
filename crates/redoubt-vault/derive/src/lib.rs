@@ -633,6 +633,14 @@ fn expand(
                         instance.open_mut(f)
                     }
 
+                    #test_cfg
+                    pub fn set_failure_mode(mode: #failure_mode_enum_name) {
+                        lock();
+                        let _guard = PanicGuard;
+                        let instance = get_or_init();
+                        instance.set_failure_mode(mode);
+                    }
+
                     // Per-field methods
                     #( #global_leak_methods )*
                     #( #global_open_methods )*
@@ -671,6 +679,13 @@ fn expand(
                         let mutex = get_or_init();
                         let mut guard = mutex.lock().expect("Mutex poisoned");
                         guard.open_mut(f)
+                    }
+
+                    #test_cfg
+                    pub fn set_failure_mode(mode: #failure_mode_enum_name) {
+                        let mutex = get_or_init();
+                        let mut guard = mutex.lock().expect("Mutex poisoned");
+                        guard.set_failure_mode(mode);
                     }
 
                     // Per-field methods
