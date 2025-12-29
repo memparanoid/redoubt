@@ -247,6 +247,7 @@ pub mod support;
 pub use redoubt_aead::*;
 pub use redoubt_alloc::*;
 pub use redoubt_codec::*;
+pub use redoubt_hkdf::*;
 pub use redoubt_rand::*;
 pub use redoubt_secret::*;
 pub use redoubt_vault::*;
