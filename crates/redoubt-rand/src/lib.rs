@@ -80,3 +80,22 @@ pub use traits::{EntropySource, NonceGenerator};
 
 #[cfg(any(test, feature = "test-utils"))]
 pub use support::test_utils;
+
+/// Fills a buffer with cryptographically secure random bytes.
+///
+/// This is a thin wrapper around `getrandom::fill` that returns
+/// [`EntropyError`] on failure.
+///
+/// # Example
+///
+/// ```rust
+/// use redoubt_rand::fill;
+///
+/// let mut key = [0u8; 32];
+/// fill(&mut key).expect("Failed to generate random bytes");
+/// assert!(key.iter().any(|&b| b != 0)); // Very unlikely to be all zeros
+/// ```
+#[inline]
+pub fn fill(dest: &mut [u8]) -> Result<(), EntropyError> {
+    getrandom::fill(dest).map_err(|_| EntropyError::EntropyNotAvailable)
+}
