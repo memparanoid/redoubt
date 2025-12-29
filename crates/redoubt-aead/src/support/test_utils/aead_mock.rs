@@ -18,12 +18,12 @@ type XChacha = XChacha20Poly1305<SystemEntropySource>;
 pub enum AeadMockBehaviour {
     /// No failure.
     None,
-    /// Fail encrypt at call index (0-indexed).
-    FailEncryptAt(usize),
-    /// Fail decrypt at call index (0-indexed).
-    FailDecryptAt(usize),
-    /// Fail nonce generation at call index (0-indexed).
-    FailGenerateNonceAt(usize),
+    /// Fail encrypt on the Nth call (1-indexed: 1 = first call fails).
+    FailAtNthEncrypt(usize),
+    /// Fail decrypt on the Nth call (1-indexed: 1 = first call fails).
+    FailAtNthDecrypt(usize),
+    /// Fail nonce generation on the Nth call (1-indexed: 1 = first call fails).
+    FailAtNthGenerateNonce(usize),
 }
 
 /// Mock AEAD backed by real XChaCha20-Poly1305.
@@ -61,8 +61,8 @@ impl AeadMock {
         let current = self.encrypt_count.get();
         self.encrypt_count.set(current + 1);
 
-        if let AeadMockBehaviour::FailEncryptAt(idx) = self.behaviour
-            && current == idx
+        if let AeadMockBehaviour::FailAtNthEncrypt(n) = self.behaviour
+            && current + 1 == n
         {
             return Err(AeadError::AuthenticationFailed);
         }
@@ -82,8 +82,8 @@ impl AeadMock {
         let current = self.decrypt_count.get();
         self.decrypt_count.set(current + 1);
 
-        if let AeadMockBehaviour::FailDecryptAt(idx) = self.behaviour
-            && current == idx
+        if let AeadMockBehaviour::FailAtNthDecrypt(n) = self.behaviour
+            && current + 1 == n
         {
             return Err(AeadError::AuthenticationFailed);
         }
@@ -95,8 +95,8 @@ impl AeadMock {
         let current = self.generate_nonce_count.get();
         self.generate_nonce_count.set(current + 1);
 
-        if let AeadMockBehaviour::FailGenerateNonceAt(idx) = self.behaviour
-            && current == idx
+        if let AeadMockBehaviour::FailAtNthGenerateNonce(n) = self.behaviour
+            && current + 1 == n
         {
             return Err(EntropyError::EntropyNotAvailable);
         }

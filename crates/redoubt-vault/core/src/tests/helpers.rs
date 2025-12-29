@@ -263,7 +263,7 @@ fn test_encrypt_into_buffers_performs_zeroization_on_generate_nonce_failure() {
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
 
-        let mut aead_mock = AeadMock::new(AeadMockBehaviour::FailGenerateNonceAt(i));
+        let mut aead_mock = AeadMock::new(AeadMockBehaviour::FailAtNthGenerateNonce(i + 1));
         let mut nonces = create_nonces(&aead);
         let mut tags = create_tags(&aead);
 
@@ -320,7 +320,7 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encrypt_failure() {
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
 
-        let mut aead_mock = AeadMock::new(AeadMockBehaviour::FailEncryptAt(i));
+        let mut aead_mock = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(i + 1));
         let mut nonces = create_nonces(&aead);
         let mut tags = create_tags(&aead);
 
@@ -436,7 +436,7 @@ fn test_decrypt_from_zeroizes_on_decrypt_failure() {
 
     // Test failure at each position i.
     for i in 0..NUM_FIELDS {
-        let mut aead_mock = AeadMock::new(AeadMockBehaviour::FailDecryptAt(i));
+        let mut aead_mock = AeadMock::new(AeadMockBehaviour::FailAtNthDecrypt(i + 1));
         let mut ciphertexts_clone = ciphertexts.clone();
         let mut fields = test_breakers
             .each_mut()

@@ -41,20 +41,20 @@ fn test_encrypt_succeeds() {
 }
 
 #[test]
-fn test_encrypt_fails_at_index() {
-    let mut mock = AeadMock::new(AeadMockBehaviour::FailEncryptAt(2));
+fn test_encrypt_fails_at_nth() {
+    let mut mock = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(3));
     let key = [0u8; AeadMock::KEY_SIZE];
     let nonce = [0u8; AeadMock::NONCE_SIZE];
     let mut data = [1, 2, 3, 4];
     let mut tag = [0u8; AeadMock::TAG_SIZE];
 
-    assert!(mock.encrypt(&key, &nonce, &[], &mut data, &mut tag).is_ok());
-    assert!(mock.encrypt(&key, &nonce, &[], &mut data, &mut tag).is_ok());
+    assert!(mock.encrypt(&key, &nonce, &[], &mut data, &mut tag).is_ok()); // 1st
+    assert!(mock.encrypt(&key, &nonce, &[], &mut data, &mut tag).is_ok()); // 2nd
     assert!(
         mock.encrypt(&key, &nonce, &[], &mut data, &mut tag)
-            .is_err()
+            .is_err() // 3rd - fails
     );
-    assert!(mock.encrypt(&key, &nonce, &[], &mut data, &mut tag).is_ok());
+    assert!(mock.encrypt(&key, &nonce, &[], &mut data, &mut tag).is_ok()); // 4th
 }
 
 // =============================================================================
@@ -80,8 +80,8 @@ fn test_decrypt_succeeds() {
 }
 
 #[test]
-fn test_decrypt_fails_at_index() {
-    let mut mock = AeadMock::new(AeadMockBehaviour::FailDecryptAt(1));
+fn test_decrypt_fails_at_nth() {
+    let mut mock = AeadMock::new(AeadMockBehaviour::FailAtNthDecrypt(2));
     let key = [0u8; AeadMock::KEY_SIZE];
     let nonce = [0u8; AeadMock::NONCE_SIZE];
     let data = [1u8, 2, 3, 4];
@@ -94,7 +94,7 @@ fn test_decrypt_fails_at_index() {
     let mut ciphertext = [0u8; 4];
     assert!(ciphertext.is_zeroized());
 
-    // Call 0
+    // 1st decrypt - ok
     ciphertext = original_ciphertext;
     assert!(!ciphertext.is_zeroized());
     assert!(
@@ -102,8 +102,7 @@ fn test_decrypt_fails_at_index() {
             .is_ok()
     );
 
-    // Call 1
-    // Should fail because of FailDecryptAt 1.
+    // 2nd decrypt - fails
     ciphertext = original_ciphertext;
     assert!(!ciphertext.is_zeroized());
     assert!(
@@ -111,7 +110,7 @@ fn test_decrypt_fails_at_index() {
             .is_err()
     );
 
-    // Call 2
+    // 3rd decrypt - ok
     ciphertext = original_ciphertext;
     assert!(!ciphertext.is_zeroized());
     assert!(
@@ -134,11 +133,11 @@ fn test_generate_nonce_succeeds() {
 }
 
 #[test]
-fn test_generate_nonce_fails_at_index() {
-    let mut mock = AeadMock::new(AeadMockBehaviour::FailGenerateNonceAt(0));
+fn test_generate_nonce_fails_at_nth() {
+    let mut mock = AeadMock::new(AeadMockBehaviour::FailAtNthGenerateNonce(1));
 
-    assert!(mock.generate_nonce().is_err());
-    assert!(mock.generate_nonce().is_ok());
+    assert!(mock.generate_nonce().is_err()); // 1st - fails
+    assert!(mock.generate_nonce().is_ok()); // 2nd - ok
 }
 
 // =============================================================================
