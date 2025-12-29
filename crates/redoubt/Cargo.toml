@@ -15,6 +15,7 @@ redoubt-zero = { workspace = true }
 redoubt-codec = { workspace = true }
 redoubt-vault = { workspace = true }
 redoubt-aead = { workspace = true }
+redoubt-rand = { workspace = true }
 redoubt-secret = { workspace = true }
 
 [dev-dependencies]

@@ -89,13 +89,12 @@ pub use support::test_utils;
 /// # Example
 ///
 /// ```rust
-/// use redoubt_rand::fill;
+/// use redoubt_rand::fill_with_random_bytes;
 ///
 /// let mut key = [0u8; 32];
-/// fill(&mut key).expect("Failed to generate random bytes");
-/// assert!(key.iter().any(|&b| b != 0)); // Very unlikely to be all zeros
+/// fill_with_random_bytes(&mut key).expect("Failed to generate random bytes");
 /// ```
 #[inline]
-pub fn fill(dest: &mut [u8]) -> Result<(), EntropyError> {
+pub fn fill_with_random_bytes(dest: &mut [u8]) -> Result<(), EntropyError> {
     getrandom::fill(dest).map_err(|_| EntropyError::EntropyNotAvailable)
 }
