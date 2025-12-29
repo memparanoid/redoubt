@@ -79,33 +79,56 @@ enum StorageStrategy {
 /// - `EncryptStruct<N>` and `DecryptStruct<N>` trait impls
 /// - Per-field `leak_*`, `open_*`, `open_*_mut` methods
 /// - Global `open` and `open_mut` methods
+///
+/// # Testing Utilities
+///
+/// By default, failure injection is gated with `#[cfg(test)]`, which means it's only
+/// available when testing the crate where the cipherbox is defined.
+///
+/// To enable failure injection from dependent crates, use the `testing_feature` attribute:
+///
+/// ```ignore
+/// #[cipherbox(SecretsBox, testing_feature = "test-utils")]
+/// #[derive(RedoubtZero, RedoubtCodec)]
+/// struct Secrets { ... }
+/// ```
+///
+/// This changes the gate to `#[cfg(any(test, feature = "test-utils"))]`, allowing
+/// dependent crates to enable the feature in their `Cargo.toml`:
+///
+/// ```toml
+/// [dev-dependencies]
+/// my-crate = { path = "...", features = ["test-utils"] }
+/// ```
 #[proc_macro_attribute]
 pub fn cipherbox(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let (wrapper_name, custom_error, is_global, storage_strategy) = parse_cipherbox_attr(attr);
+    let (wrapper_name, custom_error, is_global, storage_strategy, testing_feature) = parse_cipherbox_attr(attr);
     let input = parse_macro_input!(item as DeriveInput);
     expand(
         wrapper_name,
         custom_error,
         is_global,
         storage_strategy,
+        testing_feature,
         input,
     )
     .unwrap_or_else(|e| e)
     .into()
 }
 
-// Extract custom error type, global flag, and storage strategy from attribute tokens.
+// Extract custom error type, global flag, storage strategy, and testing_feature from attribute tokens.
 // Parses:
 //   - "WrapperName"
 //   - "WrapperName, error = ErrorType"
 //   - "WrapperName, global = true"
-// Returns (wrapper_name, custom_error_type, is_global, storage_strategy)
-fn parse_cipherbox_attr(attr: TokenStream) -> (Ident, Option<Type>, bool, Option<StorageStrategy>) {
+//   - "WrapperName, testing_feature = \"feature-name\""
+// Returns (wrapper_name, custom_error_type, is_global, storage_strategy, testing_feature)
+fn parse_cipherbox_attr(attr: TokenStream) -> (Ident, Option<Type>, bool, Option<StorageStrategy>, Option<String>) {
     parse_cipherbox_attr_inner(attr.to_string())
 }
 
 // Internal parsing function that takes a string for testability
-pub(crate) fn parse_cipherbox_attr_inner(attr_str: String) -> (Ident, Option<Type>, bool, Option<StorageStrategy>) {
+pub(crate) fn parse_cipherbox_attr_inner(attr_str: String) -> (Ident, Option<Type>, bool, Option<StorageStrategy>, Option<String>) {
     let parts: Vec<&str> = attr_str.split(',').map(|s| s.trim()).collect();
 
     let wrapper_name =
@@ -114,6 +137,7 @@ pub(crate) fn parse_cipherbox_attr_inner(attr_str: String) -> (Ident, Option<Typ
     let mut custom_error: Option<Type> = None;
     let mut is_global = false;
     let mut storage_strategy: Option<StorageStrategy> = None;
+    let mut testing_feature: Option<String> = None;
 
     // Parse remaining parts
     for part in &parts[1..] {
@@ -141,12 +165,18 @@ pub(crate) fn parse_cipherbox_attr_inner(attr_str: String) -> (Ident, Option<Typ
             } else {
                 StorageStrategy::Portable
             });
+        } else if let Some(value) = part
+            .strip_prefix("testing_feature")
+            .and_then(|s| s.trim().strip_prefix('='))
+        {
+            let feature_str = value.trim().trim_matches('"');
+            testing_feature = Some(feature_str.to_string());
         } else {
             panic!("cipherbox: unknown attribute parameter: {}", part);
         }
     }
 
-    (wrapper_name, custom_error, is_global, storage_strategy)
+    (wrapper_name, custom_error, is_global, storage_strategy, testing_feature)
 }
 /// Find the root crate path from a list of candidates.
 pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStream2 {
@@ -233,6 +263,7 @@ fn expand(
     custom_error: Option<Type>,
     is_global: bool,
     storage_strategy: Option<StorageStrategy>,
+    testing_feature: Option<String>,
     input: DeriveInput,
 ) -> Result<TokenStream2, TokenStream2> {
     // Inject __sentinel field if it doesn't exist
@@ -245,6 +276,13 @@ fn expand(
     let redoubt_zero_root =
         find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero", "redoubt"]);
     let redoubt_aead_root = find_root_with_candidates(&["redoubt-aead", "redoubt"]);
+
+    // Generate the test cfg attribute based on testing_feature
+    let test_cfg = if let Some(ref feature) = testing_feature {
+        quote! { #[cfg(any(test, feature = #feature))] }
+    } else {
+        quote! { #[cfg(test)] }
+    };
 
     // Get fields
     let fields: Vec<(usize, &syn::Field)> = match &input.data {
@@ -296,9 +334,9 @@ fn expand(
     // Generate failure mode enum name
     let failure_mode_enum_name = format_ident!("{}FailureMode", wrapper_name);
 
-    // Generate failure mode enum (test-only)
+    // Generate failure mode enum (test-only or with testing_feature)
     let failure_mode_enum = quote! {
-        #[cfg(test)]
+        #test_cfg
         #[derive(Debug, Clone, Copy)]
         pub enum #failure_mode_enum_name {
             None,
@@ -308,7 +346,7 @@ fn expand(
 
     // Helper to generate failure check code
     let failure_check = quote! {
-        #[cfg(test)]
+        #test_cfg
         {
             if self.failure_counter > 0 {
                 self.failure_counter -= 1;
@@ -714,7 +752,7 @@ fn expand(
         // Generate wrapper struct
         pub struct #wrapper_name {
             inner: #root::CipherBox<#struct_name, #redoubt_aead_root::Aead, #num_fields_lit>,
-            #[cfg(test)]
+            #test_cfg
             failure_counter: usize,
         }
 
@@ -723,7 +761,7 @@ fn expand(
             pub fn new() -> Self {
                 Self {
                     inner: #root::CipherBox::new(#redoubt_aead_root::Aead::new()),
-                    #[cfg(test)]
+                    #test_cfg
                     failure_counter: 0,
                 }
             }
@@ -748,7 +786,7 @@ fn expand(
                 self.inner.open_mut(f)
             }
 
-            #[cfg(test)]
+            #test_cfg
             pub fn set_failure_mode(&mut self, mode: #failure_mode_enum_name) {
                 match mode {
                     #failure_mode_enum_name::None => {

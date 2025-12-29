@@ -1,0 +1,212 @@
+---
+source: crates/redoubt-vault/derive/src/tests/expand.rs
+expression: pretty(token_stream)
+---
+#[derive(RedoubtZero, RedoubtCodec)]
+struct TestableSecrets {
+    pub secret_key: [u8; 32],
+    #[codec(default)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
+}
+use redoubt_vault_core::CipherBoxDyns as _;
+impl redoubt_vault_core::CipherBoxDyns<1> for TestableSecrets {
+    fn to_encryptable_dyn_fields(
+        &mut self,
+    ) -> [&mut dyn redoubt_vault_core::Encryptable; 1] {
+        [&mut self.secret_key]
+    }
+    fn to_decryptable_dyn_fields(
+        &mut self,
+    ) -> [&mut dyn redoubt_vault_core::Decryptable; 1] {
+        [&mut self.secret_key]
+    }
+}
+impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 1>
+for TestableSecrets {
+    fn encrypt_into(
+        &mut self,
+        aead: &mut A,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 1],
+        tags: &mut [Vec<u8>; 1],
+    ) -> Result<[Vec<u8>; 1], redoubt_vault_core::CipherBoxError> {
+        redoubt_vault_core::encrypt_into(
+            self.to_encryptable_dyn_fields(),
+            aead,
+            aead_key,
+            nonces,
+            tags,
+        )
+    }
+}
+impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 1>
+for TestableSecrets {
+    fn decrypt_from(
+        &mut self,
+        aead: &mut A,
+        aead_key: &[u8],
+        nonces: &mut [Vec<u8>; 1],
+        tags: &mut [Vec<u8>; 1],
+        ciphertexts: &mut [Vec<u8>; 1],
+    ) -> Result<(), redoubt_vault_core::CipherBoxError> {
+        redoubt_vault_core::decrypt_from(
+            &mut self.to_decryptable_dyn_fields(),
+            aead,
+            aead_key,
+            nonces,
+            tags,
+            ciphertexts,
+        )
+    }
+}
+#[cfg(any(test, feature = "test-utils"))]
+#[derive(Debug, Clone, Copy)]
+pub enum TestableSecretsBoxFailureMode {
+    None,
+    FailOnNthOperation(usize),
+}
+pub struct TestableSecretsBox {
+    inner: redoubt_vault_core::CipherBox<TestableSecrets, redoubt_aead::Aead, 1>,
+    #[cfg(any(test, feature = "test-utils"))]
+    failure_counter: usize,
+}
+impl TestableSecretsBox {
+    #[inline(always)]
+    pub fn new() -> Self {
+        Self {
+            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+            #[cfg(any(test, feature = "test-utils"))]
+            failure_counter: 0,
+        }
+    }
+    #[inline(always)]
+    pub fn open<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
+    where
+        F: FnMut(&TestableSecrets) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+    {
+        #[cfg(any(test, feature = "test-utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
+        self.inner.open(f)
+    }
+    #[inline(always)]
+    pub fn open_mut<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
+    where
+        F: FnMut(&mut TestableSecrets) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+    {
+        #[cfg(any(test, feature = "test-utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
+        self.inner.open_mut(f)
+    }
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn set_failure_mode(&mut self, mode: TestableSecretsBoxFailureMode) {
+        match mode {
+            TestableSecretsBoxFailureMode::None => {
+                self.failure_counter = 0;
+            }
+            TestableSecretsBoxFailureMode::FailOnNthOperation(n) => {
+                self.failure_counter = n;
+            }
+        }
+    }
+    #[inline(always)]
+    pub fn leak_secret_key(
+        &mut self,
+    ) -> Result<
+        redoubt_zero::ZeroizingGuard<[u8; 32]>,
+        redoubt_vault_core::CipherBoxError,
+    > {
+        #[cfg(any(test, feature = "test-utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
+        self.inner.leak_field::<[u8; 32], 0, redoubt_vault_core::CipherBoxError>()
+    }
+    #[inline(always)]
+    pub fn open_secret_key<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
+    where
+        F: FnMut(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+    {
+        #[cfg(any(test, feature = "test-utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
+        self.inner.open_field::<[u8; 32], 0, F, R, redoubt_vault_core::CipherBoxError>(f)
+    }
+    #[inline(always)]
+    pub fn open_secret_key_mut<F, R>(
+        &mut self,
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
+    where
+        F: FnMut(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+    {
+        #[cfg(any(test, feature = "test-utils"))]
+        {
+            if self.failure_counter > 0 {
+                self.failure_counter -= 1;
+                if self.failure_counter == 0 {
+                    return Err(
+                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
+                            .into(),
+                    );
+                }
+            }
+        }
+        self.inner
+            .open_field_mut::<[u8; 32], 0, F, R, redoubt_vault_core::CipherBoxError>(f)
+    }
+}
+impl Default for TestableSecretsBox {
+    fn default() -> Self {
+        Self::new()
+    }
+}
