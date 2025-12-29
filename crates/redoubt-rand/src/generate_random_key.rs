@@ -101,8 +101,7 @@ pub fn generate_random_key(info: &[u8], output_key: &mut [u8]) -> Result<(), Ent
 
     // 3. Derive final key via HKDF-SHA256 directly to output
     // Convert salt to byte slice for HKDF
-    let salt_bytes = unsafe {
-        core::slice::from_raw_parts(salt.as_ptr() as *const u8, salt_len_u64 * 8)
-    };
+    let salt_bytes =
+        unsafe { core::slice::from_raw_parts(salt.as_ptr() as *const u8, salt_len_u64 * 8) };
     hkdf(&ikm, salt_bytes, info, output_key).map_err(|_| EntropyError::EntropyNotAvailable)
 }

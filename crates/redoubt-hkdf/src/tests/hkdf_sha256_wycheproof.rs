@@ -117,7 +117,10 @@ fn test_hkdf_sha256_wycheproof_first_10() {
     }
 
     if !failures.is_empty() {
-        panic!("HKDF-SHA256 Wycheproof test failures:\n{}", failures.join("\n"));
+        panic!(
+            "HKDF-SHA256 Wycheproof test failures:\n{}",
+            failures.join("\n")
+        );
     }
 }
 

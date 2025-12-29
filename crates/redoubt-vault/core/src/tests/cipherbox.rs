@@ -661,11 +661,10 @@ fn test_open_mut_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
     assert!(cb.maybe_initialize().is_ok());
 
     // Callback returns error after modifying data
-    let result: Result<ZeroizingGuard<()>, CipherBoxError> =
-        cb.open_mut(|test_breaker_box| {
-            test_breaker_box.f0.usize.data = 999;
-            Err(CipherBoxError::IntentionalCipherBoxError)
-        });
+    let result: Result<ZeroizingGuard<()>, CipherBoxError> = cb.open_mut(|test_breaker_box| {
+        test_breaker_box.f0.usize.data = 999;
+        Err(CipherBoxError::IntentionalCipherBoxError)
+    });
 
     assert!(result.is_err());
     assert!(matches!(
@@ -801,8 +800,8 @@ fn test_open_field_when_callback_error_is_propagated_cipherbox_is_not_poisoned()
     assert!(cb.maybe_initialize().is_ok());
 
     // Callback returns error
-    let result: Result<ZeroizingGuard<()>, CipherBoxError> =
-        cb.open_field::<RedoubtCodecTestBreaker, 0, _, _, _>(|_| {
+    let result: Result<ZeroizingGuard<()>, CipherBoxError> = cb
+        .open_field::<RedoubtCodecTestBreaker, 0, _, _, _>(|_| {
             Err(CipherBoxError::IntentionalCipherBoxError)
         });
 

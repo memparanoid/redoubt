@@ -9,7 +9,15 @@
 //! GPL-3.0-only
 
 // Only run unit tests on architectures where insta (-> sha2 -> cpufeatures) compiles
-#[cfg(all(test, any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", target_arch = "loongarch64")))]
+#[cfg(all(
+    test,
+    any(
+        target_arch = "x86_64",
+        target_arch = "x86",
+        target_arch = "aarch64",
+        target_arch = "loongarch64"
+    )
+))]
 mod tests;
 
 use proc_macro::TokenStream;

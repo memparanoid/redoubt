@@ -16,8 +16,7 @@ pub fn is_seccomp_available() -> bool {
         }
         0 => {
             // Child process: try to load a dummy seccomp filter
-            let result = ScmpFilterContext::new(ScmpAction::Allow)
-                .and_then(|filter| filter.load());
+            let result = ScmpFilterContext::new(ScmpAction::Allow).and_then(|filter| filter.load());
 
             // Exit with 0 if successful, 1 if failed
             std::process::exit(if result.is_ok() { 0 } else { 1 });

@@ -30,7 +30,10 @@ fn main() {
     if is_asm_eligible {
         println!("cargo:rustc-cfg=is_asm_eligible");
     } else {
-        println!("cargo:warning=Using Rust fallback (no assembly) for target: {}-{}", target_arch, target_os);
+        println!(
+            "cargo:warning=Using Rust fallback (no assembly) for target: {}-{}",
+            target_arch, target_os
+        );
         return;
     }
 

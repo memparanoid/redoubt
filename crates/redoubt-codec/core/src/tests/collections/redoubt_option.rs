@@ -29,10 +29,7 @@ fn test_redoubt_option_codec_roundtrip() {
         .decode_from(&mut decode_buf.as_mut_slice())
         .expect("Failed to decode_from(..)");
 
-    assert_eq!(
-        *recovered.as_ref().expect("Failed to get as_ref"),
-        42
-    );
+    assert_eq!(*recovered.as_ref().expect("Failed to get as_ref"), 42);
 
     #[cfg(feature = "zeroize")]
     // Assert zeroization!

@@ -9,7 +9,7 @@ use redoubt_rand::{
 use crate::error::AeadError;
 use crate::traits::AeadBackend;
 
-use super::consts::{Aegis128LKey, Aegis128LNonce, Aegis128LTag, NONCE_SIZE, KEY_SIZE, TAG_SIZE};
+use super::consts::{Aegis128LKey, Aegis128LNonce, Aegis128LTag, KEY_SIZE, NONCE_SIZE, TAG_SIZE};
 
 unsafe extern "C" {
     /// Performs one AEGIS-128L state update round with message absorption.

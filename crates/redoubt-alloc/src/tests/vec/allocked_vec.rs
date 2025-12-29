@@ -861,5 +861,8 @@ fn test_allocked_vec_debug_snapshot() {
 
     let debug_output = format!("{:?}", vec);
 
-    assert_eq!(debug_output, "AllockedVec { data: \"REDACTED\", len: 2, capacity: 5 }");
+    assert_eq!(
+        debug_output,
+        "AllockedVec { data: \"REDACTED\", len: 2, capacity: 5 }"
+    );
 }

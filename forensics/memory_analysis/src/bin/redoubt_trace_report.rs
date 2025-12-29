@@ -97,13 +97,13 @@ struct TestData {
 #[derive(Clone, RedoubtZero)]
 #[fast_zeroize(drop)]
 struct Patterns {
-    pattern_1: [u8; 1024], // redoubt_vec
-    pattern_2: [u8; 1024], // redoubt_string
-    pattern_3: [u8; 1024], // redoubt_array
-    pattern_4: [u8; 1024], // option_redoubt_vec
-    pattern_5: [u8; 1024], // option_redoubt_string
-    pattern_6: [u8; 1024], // option_redoubt_array
-    pattern_7: [u8; 1024], // option_option_redoubt_string
+    pattern_1: [u8; 1024],         // redoubt_vec
+    pattern_2: [u8; 1024],         // redoubt_string
+    pattern_3: [u8; 1024],         // redoubt_array
+    pattern_4: [u8; 1024],         // option_redoubt_vec
+    pattern_5: [u8; 1024],         // option_redoubt_string
+    pattern_6: [u8; 1024],         // option_redoubt_array
+    pattern_7: [u8; 1024],         // option_option_redoubt_string
     pattern_8: BigArray<u8, 1024>, // zeroizing_guard array test
     __sentinel: ZeroizeOnDropSentinel,
 }
@@ -287,8 +287,7 @@ fn main() {
                     let mut test_string = RedoubtString::from_str(test_str_pattern);
                     let mut test_option = RedoubtOption::default();
                     test_option.replace(&mut test_string);
-                    data.option_option_redoubt_string
-                        .replace(&mut test_option);
+                    data.option_option_redoubt_string.replace(&mut test_option);
 
                     // Populate `option_redoubt_secret_u64` field
                     let mut test_secret = RedoubtSecret::from(&mut temp_values.value_2);
@@ -340,7 +339,10 @@ fn main() {
             let guard = ZeroizingGuard::from_mut(&mut patterns.pattern_8);
             black_box(&guard);
         }
-        println!("[+] Completed {} ZeroizingGuard array iterations", ITERATIONS);
+        println!(
+            "[+] Completed {} ZeroizingGuard array iterations",
+            ITERATIONS
+        );
         println!();
 
         // Extract master key for analysis

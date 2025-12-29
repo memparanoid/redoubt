@@ -99,7 +99,10 @@ fn test_hmac_sha256_wycheproof_first_10() {
     }
 
     if !failures.is_empty() {
-        panic!("HMAC-SHA256 Wycheproof test failures:\n{}", failures.join("\n"));
+        panic!(
+            "HMAC-SHA256 Wycheproof test failures:\n{}",
+            failures.join("\n")
+        );
     }
 }
 

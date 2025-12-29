@@ -20,7 +20,8 @@ mod page_buffer_tests {
     #[test]
     #[serial(page_buffer)]
     fn test_new_mem_protected() {
-        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+        let buffer =
+            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
         let debug_output = format!("{:?}", buffer);
         assert!(debug_output.contains("MemProtected"));
     }
@@ -69,7 +70,9 @@ mod page_buffer_tests {
     mod seccomp_new {
         use super::*;
         use crate::error::PageError;
-        use crate::tests::utils::{block_madvise, block_mlock, block_mprotect, run_test_as_subprocess};
+        use crate::tests::utils::{
+            block_madvise, block_mlock, block_mprotect, run_test_as_subprocess,
+        };
 
         #[test]
         #[ignore]
@@ -367,21 +370,24 @@ mod page_buffer_tests {
     #[test]
     #[serial(page_buffer)]
     fn test_len() {
-        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 64).expect("Failed to new(..)");
+        let buffer =
+            PageBuffer::new(ProtectionStrategy::MemProtected, 64).expect("Failed to new(..)");
         assert_eq!(buffer.len(), 64);
     }
 
     #[test]
     #[serial(page_buffer)]
     fn test_is_empty_false() {
-        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+        let buffer =
+            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
         assert!(!buffer.is_empty());
     }
 
     #[test]
     #[serial(page_buffer)]
     fn test_is_empty_true() {
-        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 0).expect("Failed to new(..)");
+        let buffer =
+            PageBuffer::new(ProtectionStrategy::MemProtected, 0).expect("Failed to new(..)");
         assert!(buffer.is_empty());
     }
 
@@ -412,7 +418,8 @@ mod page_buffer_tests {
     #[test]
     #[serial(page_buffer)]
     fn test_page_buffer_debug_does_not_expose_contents() {
-        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+        let buffer =
+            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
         let debug_output = format!("{:?}", buffer);
 
         // Should contain struct name, length, and strategy

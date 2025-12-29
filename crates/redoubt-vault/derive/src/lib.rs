@@ -102,7 +102,8 @@ enum StorageStrategy {
 /// ```
 #[proc_macro_attribute]
 pub fn cipherbox(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let (wrapper_name, custom_error, is_global, storage_strategy, testing_feature) = parse_cipherbox_attr(attr);
+    let (wrapper_name, custom_error, is_global, storage_strategy, testing_feature) =
+        parse_cipherbox_attr(attr);
     let input = parse_macro_input!(item as DeriveInput);
     expand(
         wrapper_name,
@@ -123,12 +124,28 @@ pub fn cipherbox(attr: TokenStream, item: TokenStream) -> TokenStream {
 //   - "WrapperName, global = true"
 //   - "WrapperName, testing_feature = \"feature-name\""
 // Returns (wrapper_name, custom_error_type, is_global, storage_strategy, testing_feature)
-fn parse_cipherbox_attr(attr: TokenStream) -> (Ident, Option<Type>, bool, Option<StorageStrategy>, Option<String>) {
+fn parse_cipherbox_attr(
+    attr: TokenStream,
+) -> (
+    Ident,
+    Option<Type>,
+    bool,
+    Option<StorageStrategy>,
+    Option<String>,
+) {
     parse_cipherbox_attr_inner(attr.to_string())
 }
 
 // Internal parsing function that takes a string for testability
-pub(crate) fn parse_cipherbox_attr_inner(attr_str: String) -> (Ident, Option<Type>, bool, Option<StorageStrategy>, Option<String>) {
+pub(crate) fn parse_cipherbox_attr_inner(
+    attr_str: String,
+) -> (
+    Ident,
+    Option<Type>,
+    bool,
+    Option<StorageStrategy>,
+    Option<String>,
+) {
     let parts: Vec<&str> = attr_str.split(',').map(|s| s.trim()).collect();
 
     let wrapper_name =
@@ -176,7 +193,13 @@ pub(crate) fn parse_cipherbox_attr_inner(attr_str: String) -> (Ident, Option<Typ
         }
     }
 
-    (wrapper_name, custom_error, is_global, storage_strategy, testing_feature)
+    (
+        wrapper_name,
+        custom_error,
+        is_global,
+        storage_strategy,
+        testing_feature,
+    )
 }
 /// Find the root crate path from a list of candidates.
 pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStream2 {
