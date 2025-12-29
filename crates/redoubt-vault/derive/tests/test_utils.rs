@@ -15,6 +15,13 @@ mod test_utils {
 
     const MAX_ITERATIONS: usize = 100;
 
+    // Global CipherBox for testing global failure injection
+    #[cipherbox(TestGlobalBox, global = true)]
+    #[derive(Default, RedoubtCodec, RedoubtZero)]
+    struct TestGlobalData {
+        field_a: RedoubtArray<u8, 32>,
+    }
+
     #[cipherbox(TestBox)]
     #[derive(Default, RedoubtCodec, RedoubtZero)]
     struct TestData {
@@ -144,6 +151,26 @@ mod test_utils {
     #[test]
     fn test_failure_injection_open_field_d_mut() {
         test_callback_method!(open_field_d_mut);
+    }
+
+    // Global CipherBox tests
+    #[test]
+    fn test_failure_injection_global_set_failure_mode() {
+        // Set failure mode on global
+        TEST_GLOBAL_BOX::set_failure_mode(TestGlobalBoxFailureMode::FailOnNthOperation(1));
+
+        // First call should fail
+        let result = TEST_GLOBAL_BOX::open(|_| Ok(()));
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            CipherBoxError::IntentionalCipherBoxError
+        ));
+
+        // Reset and try again - should succeed
+        TEST_GLOBAL_BOX::set_failure_mode(TestGlobalBoxFailureMode::None);
+        let result = TEST_GLOBAL_BOX::open(|_| Ok(()));
+        assert!(result.is_ok());
     }
 
     // Leak methods
