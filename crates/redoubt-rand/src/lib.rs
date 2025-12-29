@@ -66,10 +66,11 @@ mod tests;
 mod error;
 mod generate_random_key;
 mod session;
-mod support;
 mod system;
 mod traits;
 
+/// Support module including test utilities.
+pub mod support;
 pub mod u64_seed;
 
 pub use error::EntropyError;

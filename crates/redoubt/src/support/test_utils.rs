@@ -4,5 +4,9 @@
 
 //! Test utilities re-exported from redoubt-aead and redoubt-codec
 
+#[cfg(feature = "test-utils")]
 pub use redoubt_aead::support::test_utils::*;
+#[cfg(feature = "test-utils")]
 pub use redoubt_codec::support::test_utils::*;
+#[cfg(feature = "test-utils")]
+pub use redoubt_rand::support::test_utils::*;
