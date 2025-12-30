@@ -788,6 +788,7 @@ fn expand(
         #failure_mode_enum
 
         // Generate wrapper struct
+        #[derive(#redoubt_zero_root::RedoubtZero)]
         pub struct #wrapper_name {
             inner: #root::CipherBox<#struct_name, #redoubt_aead_root::Aead, #num_fields_lit>,
             #test_cfg

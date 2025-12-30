@@ -65,6 +65,7 @@ pub enum OnlyDefaultsBoxFailureMode {
     None,
     FailOnNthOperation(usize),
 }
+#[derive(redoubt_zero::RedoubtZero)]
 pub struct OnlyDefaultsBox {
     inner: redoubt_vault_core::CipherBox<OnlyDefaults, redoubt_aead::Aead, 0>,
     #[cfg(test)]

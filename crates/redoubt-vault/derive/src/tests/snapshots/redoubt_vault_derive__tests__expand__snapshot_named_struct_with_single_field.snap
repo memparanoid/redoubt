@@ -62,6 +62,7 @@ pub enum GammaBoxFailureMode {
     None,
     FailOnNthOperation(usize),
 }
+#[derive(redoubt_zero::RedoubtZero)]
 pub struct GammaBox {
     inner: redoubt_vault_core::CipherBox<Gamma, redoubt_aead::Aead, 1>,
     #[cfg(test)]

@@ -58,6 +58,7 @@ pub enum UnitBoxFailureMode {
     None,
     FailOnNthOperation(usize),
 }
+#[derive(redoubt_zero::RedoubtZero)]
 pub struct UnitBox {
     inner: redoubt_vault_core::CipherBox<Unit, redoubt_aead::Aead, 0>,
     #[cfg(test)]

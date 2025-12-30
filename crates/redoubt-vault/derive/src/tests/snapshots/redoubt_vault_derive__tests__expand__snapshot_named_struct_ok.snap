@@ -64,6 +64,7 @@ pub enum DataBoxFailureMode {
     None,
     FailOnNthOperation(usize),
 }
+#[derive(redoubt_zero::RedoubtZero)]
 pub struct DataBox {
     inner: redoubt_vault_core::CipherBox<Data, redoubt_aead::Aead, 2>,
     #[cfg(test)]

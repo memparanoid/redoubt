@@ -67,6 +67,7 @@ pub enum ZetaBoxFailureMode {
     None,
     FailOnNthOperation(usize),
 }
+#[derive(redoubt_zero::RedoubtZero)]
 pub struct ZetaBox {
     inner: redoubt_vault_core::CipherBox<Zeta, redoubt_aead::Aead, 2>,
     #[cfg(test)]

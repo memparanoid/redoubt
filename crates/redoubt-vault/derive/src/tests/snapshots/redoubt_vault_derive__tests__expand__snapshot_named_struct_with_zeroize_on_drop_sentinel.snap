@@ -65,6 +65,7 @@ pub enum EpsilonBoxFailureMode {
     None,
     FailOnNthOperation(usize),
 }
+#[derive(redoubt_zero::RedoubtZero)]
 pub struct EpsilonBox {
     inner: redoubt_vault_core::CipherBox<Epsilon, redoubt_aead::Aead, 2>,
     #[cfg(test)]

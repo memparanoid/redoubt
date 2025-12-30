@@ -66,6 +66,7 @@ pub enum DeltaBoxFailureMode {
     None,
     FailOnNthOperation(usize),
 }
+#[derive(redoubt_zero::RedoubtZero)]
 pub struct DeltaBox {
     inner: redoubt_vault_core::CipherBox<Delta, redoubt_aead::Aead, 2>,
     #[cfg(test)]
