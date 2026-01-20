@@ -12,7 +12,8 @@ use redoubt_codec::support::test_utils::{
 use redoubt_rand::EntropyError;
 use redoubt_util::is_vec_fully_zeroized;
 use redoubt_zero::{
-    FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel, ZeroizingGuard,
+    AssertZeroizeOnDrop, FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel,
+    ZeroizingGuard,
 };
 
 use crate::cipherbox::CipherBox;
@@ -177,6 +178,16 @@ impl<A: AeadApi> DecryptStruct<A, 1> for RedoubtVecBox {
             ciphertexts,
         )
     }
+}
+
+// =============================================================================
+// assert_zeorize_on_drop()
+// =============================================================================
+#[test]
+fn test_assert_zeroize_on_drop() {
+    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
+    let cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    cb.assert_zeroize_on_drop();
 }
 
 // =============================================================================
