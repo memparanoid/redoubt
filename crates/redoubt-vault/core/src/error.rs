@@ -34,7 +34,7 @@ pub enum CipherBoxError {
     #[error(transparent)]
     Aead(#[from] AeadError),
 
-    /// The CipherBox is in an irrecoverable state.
+    /// The CipherBox is in an irrecoverable state due to operation failure.
     ///
     /// This error occurs when a cryptographic operation fails partway through,
     /// leaving some fields decrypted (plaintext exposed in memory). For security,
@@ -45,6 +45,17 @@ pub enum CipherBoxError {
     /// take precedence over data preservation.
     #[error("poisoned: box is in an irrecoverable state, exposed plaintext was zeroized")]
     Poisoned,
+
+    /// The CipherBox was intentionally zeroized.
+    ///
+    /// This error occurs when `fast_zeroize()` was called on the CipherBox,
+    /// either explicitly or via drop. Unlike `Poisoned`, this is not an error
+    /// condition but an intentional destruction of the encrypted data.
+    ///
+    /// **The data is permanently gone.** The CipherBox cannot be used after
+    /// zeroization.
+    #[error("zeroized: box was intentionally zeroized and cannot be used")]
+    Zeroized,
 
     /// Test-only error indicating an intentional failure.
     ///

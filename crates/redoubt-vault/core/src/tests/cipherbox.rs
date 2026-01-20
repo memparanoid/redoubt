@@ -11,7 +11,9 @@ use redoubt_codec::support::test_utils::{
 };
 use redoubt_rand::EntropyError;
 use redoubt_util::is_vec_fully_zeroized;
-use redoubt_zero::{RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel, ZeroizingGuard};
+use redoubt_zero::{
+    FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel, ZeroizingGuard,
+};
 
 use crate::cipherbox::CipherBox;
 use crate::error::CipherBoxError;
@@ -1179,6 +1181,35 @@ fn test_cipherbox_happy_path_test() {
     assert_eq!(data_3.usize.data, 128);
     assert_eq!(data_4.usize.data, 256);
     assert_eq!(data_5.usize.data, 512);
+}
+
+// =============================================================================
+// fast_zeroize()
+// =============================================================================
+#[test]
+fn test_after_fast_zeroize_operations_return_zeroized_error() {
+    let aead = AeadMock::new(AeadMockBehaviour::None);
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    // Verify CipherBox is usable before zeroize
+    let result_0 = cb.open::<_, _, CipherBoxError>(|_| Ok(()));
+    assert!(result_0.is_ok());
+
+    cb.fast_zeroize();
+
+    // All operations should return Zeroized error
+    let result_1 = cb.open::<_, _, CipherBoxError>(|_| Ok(()));
+    let result_2 = cb.open_mut::<_, _, CipherBoxError>(|_| Ok(()));
+    let result_3 = cb.open_field::<RedoubtCodecTestBreaker, 0, _, _, CipherBoxError>(|_| Ok(()));
+    let result_4 =
+        cb.open_field_mut::<RedoubtCodecTestBreaker, 0, _, _, CipherBoxError>(|_| Ok(()));
+    let result_5 = cb.leak_field::<RedoubtCodecTestBreaker, 0, CipherBoxError>();
+
+    assert!(matches!(result_1, Err(CipherBoxError::Zeroized)));
+    assert!(matches!(result_2, Err(CipherBoxError::Zeroized)));
+    assert!(matches!(result_3, Err(CipherBoxError::Zeroized)));
+    assert!(matches!(result_4, Err(CipherBoxError::Zeroized)));
+    assert!(matches!(result_5, Err(CipherBoxError::Zeroized)));
 }
 
 // =============================================================================

@@ -35,7 +35,11 @@ where
     A: AeadApi,
 {
     initialized: bool,
-    healthy: bool,
+    /// Starts as `true`, becomes `false` after `fast_zeroize()` (since false = 0x00).
+    /// Used to distinguish intentional zeroization from corruption.
+    pristine: bool,
+    /// Starts as `false`, becomes `true` when an operation fails.
+    poisoned: bool,
     key_size: usize,
     ciphertexts: [Vec<u8>; N],
     tmp_ciphertexts: [Vec<u8>; N],
@@ -113,8 +117,9 @@ where
             nonces,
             ciphertexts,
             tmp_ciphertexts,
-            healthy: true,
             initialized: false,
+            pristine: true,
+            poisoned: false,
             tmp_field_cyphertext: Vec::default(),
             tmp_field_codec_buff: RedoubtCodecBuffer::default(),
             __sentinel: ZeroizeOnDropSentinel::default(),
@@ -125,7 +130,11 @@ where
     #[cold]
     #[inline(never)]
     pub(crate) fn assert_healthy(&self) -> Result<(), CipherBoxError> {
-        if !self.healthy {
+        if !self.pristine {
+            return Err(CipherBoxError::Zeroized);
+        }
+
+        if self.poisoned {
             return Err(CipherBoxError::Poisoned);
         }
 
@@ -142,7 +151,7 @@ where
                 Ok(())
             }
             Err(_) => {
-                self.healthy = false;
+                self.poisoned = true;
                 Err(CipherBoxError::Poisoned)
             }
         }
@@ -167,7 +176,7 @@ where
         match result {
             Ok(_) => Ok(value),
             Err(_) => {
-                self.healthy = false;
+                self.poisoned = true;
                 Err(CipherBoxError::Poisoned)
             }
         }
@@ -181,7 +190,7 @@ where
         }
 
         let master_key = leak_master_key(self.key_size).map_err(|_| {
-            self.healthy = false;
+            self.poisoned = true;
             CipherBoxError::Poisoned
         })?;
         let mut value = ZeroizingGuard::<T>::from_default();
@@ -245,7 +254,7 @@ where
         let result = self.try_decrypt_field::<F, M>(aead_key, field);
 
         if result.is_err() {
-            self.healthy = false;
+            self.poisoned = true;
             return Err(CipherBoxError::Poisoned);
         }
 
@@ -307,7 +316,7 @@ where
             Err(CipherBoxError::Overflow(err)) => Err(CipherBoxError::Overflow(err)),
             Err(CipherBoxError::Entropy(err)) => Err(CipherBoxError::Entropy(err)),
             _ => {
-                self.healthy = false;
+                self.poisoned = true;
                 Err(CipherBoxError::Poisoned)
             }
         }
@@ -345,7 +354,7 @@ where
         self.maybe_initialize().map_err(E::from)?;
 
         let master_key = leak_master_key(self.key_size).map_err(|_| {
-            self.healthy = false;
+            self.poisoned = true;
             E::from(CipherBoxError::Poisoned)
         })?;
         let mut value = self.decrypt_struct(&master_key).map_err(E::from)?;
@@ -396,7 +405,7 @@ where
         self.maybe_initialize().map_err(E::from)?;
 
         let master_key = leak_master_key(self.key_size).map_err(|_| {
-            self.healthy = false;
+            self.poisoned = true;
             E::from(CipherBoxError::Poisoned)
         })?;
         let mut value = self.decrypt_struct(&master_key).map_err(E::from)?;
@@ -425,7 +434,7 @@ where
         self.maybe_initialize()?;
 
         let master_key = leak_master_key(self.key_size).map_err(|_| {
-            self.healthy = false;
+            self.poisoned = true;
             CipherBoxError::Poisoned
         })?;
         let mut field = ZeroizingGuard::<Field>::from_default();
@@ -454,7 +463,7 @@ where
         self.maybe_initialize()?;
 
         let master_key = leak_master_key(self.key_size).map_err(|_| {
-            self.healthy = false;
+            self.poisoned = true;
             CipherBoxError::Poisoned
         })?;
         let mut field = ZeroizingGuard::<Field>::from_default();
@@ -555,7 +564,7 @@ where
         self.maybe_initialize()?;
 
         let master_key = leak_master_key(self.key_size).map_err(|_| {
-            self.healthy = false;
+            self.poisoned = true;
             CipherBoxError::Poisoned
         })?;
         let mut field = ZeroizingGuard::<Field>::from_default();
