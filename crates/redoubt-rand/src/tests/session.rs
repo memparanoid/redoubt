@@ -116,7 +116,7 @@ fn test_nonce_session_generator_counter_wraps() {
 
 #[test]
 fn test_nonce_session_generator_propagates_entropy_error() {
-    let mock_entropy = MockEntropySource::new(MockEntropySourceBehaviour::FailAtFillBytes);
+    let mock_entropy = MockEntropySource::new(MockEntropySourceBehaviour::FailAlways);
     let mut session = NonceSessionGenerator::<_, 16>::new(mock_entropy);
 
     let result = session.generate_nonce();

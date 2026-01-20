@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use core::cell::Cell;
+
 use crate::error::EntropyError;
 use crate::system::SystemEntropySource;
 use crate::traits::EntropySource;
@@ -11,8 +13,10 @@ use crate::traits::EntropySource;
 pub enum MockEntropySourceBehaviour {
     /// Normal operation (delegates to real entropy source).
     None,
-    /// Simulates entropy source failure.
-    FailAtFillBytes,
+    /// Always fail fill_bytes.
+    FailAlways,
+    /// Fail fill_bytes on the Nth call (1-indexed: 1 = first call fails).
+    FailAtNthFillBytes(usize),
 }
 
 /// Mock entropy source for testing.
@@ -21,6 +25,7 @@ pub enum MockEntropySourceBehaviour {
 pub struct MockEntropySource {
     inner: SystemEntropySource,
     behaviour: MockEntropySourceBehaviour,
+    fill_bytes_count: Cell<usize>,
 }
 
 impl MockEntropySource {
@@ -29,6 +34,7 @@ impl MockEntropySource {
         Self {
             inner: SystemEntropySource {},
             behaviour,
+            fill_bytes_count: Cell::new(0),
         }
     }
 
@@ -36,13 +42,30 @@ impl MockEntropySource {
     pub fn change_behaviour(&mut self, behaviour: MockEntropySourceBehaviour) {
         self.behaviour = behaviour;
     }
+
+    /// Resets the call counter.
+    pub fn reset_count(&self) {
+        self.fill_bytes_count.set(0);
+    }
+
+    /// Returns the current call count.
+    pub fn call_count(&self) -> usize {
+        self.fill_bytes_count.get()
+    }
 }
 
 impl EntropySource for MockEntropySource {
     fn fill_bytes(&self, dest: &mut [u8]) -> Result<(), EntropyError> {
+        let current = self.fill_bytes_count.get();
+        self.fill_bytes_count.set(current + 1);
+
         match self.behaviour {
             MockEntropySourceBehaviour::None => self.inner.fill_bytes(dest),
-            MockEntropySourceBehaviour::FailAtFillBytes => Err(EntropyError::EntropyNotAvailable),
+            MockEntropySourceBehaviour::FailAlways => Err(EntropyError::EntropyNotAvailable),
+            MockEntropySourceBehaviour::FailAtNthFillBytes(n) if current + 1 == n => {
+                Err(EntropyError::EntropyNotAvailable)
+            }
+            MockEntropySourceBehaviour::FailAtNthFillBytes(_) => self.inner.fill_bytes(dest),
         }
     }
 }

@@ -12,7 +12,7 @@ pub enum MockNonceSessionGeneratorBehaviour {
     /// Normal operation (delegates to real nonce generator).
     None,
     /// Simulates nonce generation failure.
-    FailAtFillBytes,
+    FailAlways,
 }
 
 /// Mock nonce generator for testing.
@@ -44,7 +44,7 @@ impl<E: EntropySource, const NONCE_SIZE: usize> NonceGenerator<NONCE_SIZE>
     fn generate_nonce(&mut self) -> Result<[u8; NONCE_SIZE], EntropyError> {
         match self.behaviour {
             MockNonceSessionGeneratorBehaviour::None => self.inner.generate_nonce(),
-            MockNonceSessionGeneratorBehaviour::FailAtFillBytes => {
+            MockNonceSessionGeneratorBehaviour::FailAlways => {
                 Err(EntropyError::EntropyNotAvailable)
             }
         }

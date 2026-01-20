@@ -25,7 +25,7 @@ fn test_mock_nonce_generator_behaviour_fail_at_fill_bytes() {
     let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
     let mut mock = MockNonceSessionGenerator::<_, 24>::new(
         entropy,
-        MockNonceSessionGeneratorBehaviour::FailAtFillBytes,
+        MockNonceSessionGeneratorBehaviour::FailAlways,
     );
 
     let result = mock.generate_nonce();
@@ -44,7 +44,7 @@ fn test_mock_nonce_generator_change_behaviour() {
     assert!(mock.generate_nonce().is_ok());
 
     // Change behaviour
-    mock.change_behaviour(MockNonceSessionGeneratorBehaviour::FailAtFillBytes);
+    mock.change_behaviour(MockNonceSessionGeneratorBehaviour::FailAlways);
 
     // Now fails
     assert!(mock.generate_nonce().is_err());
