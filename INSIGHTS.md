@@ -8,7 +8,7 @@
 
 <h1 align="center">Project Insights</h1>
 
-<p align="center"><em>Generated on 2025-12-14 14:19</em></p>
+<p align="center"><em>Generated on 2026-01-21 03:17</em></p>
 
 ---
 
@@ -16,44 +16,44 @@
 
 | Metric | Coverage | Covered | Total |
 |--------|----------|---------|-------|
-| **Function** | **99.57%** | 458 | 460 |
-| **Line** | **99.77%** | 3,832 | 3,841 |
-| **Region** | **99.70%** | 5,568 | 5,585 |
-| **Branch** | **99.22%** | 256 | 258 |
+| **Function** | **98.97%** | 577 | 583 |
+| **Line** | **98.40%** | 4,416 | 4,488 |
+| **Region** | **98.35%** | 6,018 | 6,119 |
+| **Branch** | **95.51%** | 298 | 312 |
 
 ## 🔒 Security Audit
 
-✅ **No vulnerabilities found** — scanned 176 crates against 884 advisories
+✅ **No vulnerabilities found** — scanned 0 crates against 0 advisories
 
 ## 📈 Code Statistics
 
 | Metric | Production | Tests | Total |
 |--------|------------|-------|-------|
-| **Code Lines** | 6,440 | 20,266 | 26,706 |
-| **Total Lines** | 8,463 | 24,222 | 32,685 |
-| **Files** | 102 | 112 | 214 |
-| **Comments** | 553 | - | 1,805 |
+| **Code Lines** | 8,301 | 26,183 | 34,484 |
+| **Total Lines** | 10,961 | 31,758 | 42,719 |
+| **Files** | 119 | 140 | 259 |
+| **Comments** | 797 | - | 2,756 |
 
-> **Test/Code Ratio:** `3.15x` — 20,266 test lines / 6,440 production lines
+> **Test/Code Ratio:** `3.15x` — 26,183 test lines / 8,301 production lines
 
 ## 🧪 Tests
 
 | Metric | Count |
 |--------|-------|
-| **Total Tests** | 210 |
-| **Total Assertions** | 1,533 |
-| **Assertions/Test** | 7.3 |
-| **Lines/Test** | 30.7 |
+| **Total Tests** | 721 |
+| **Total Assertions** | 2,026 |
+| **Assertions/Test** | 2.8 |
+| **Lines/Test** | 11.5 |
 
 <details>
 <summary>Assertion Breakdown</summary>
 
 | Macro | Count |
 |-------|-------|
-| `assert!` | 1,042 |
-| `assert_eq!` | 483 |
-| `debug_assert!` | 6 |
-| `debug_assert_eq!` | 2 |
+| `assert!` | 1,336 |
+| `assert_eq!` | 682 |
+| `debug_assert!` | 5 |
+| `debug_assert_eq!` | 3 |
 
 </details>
 
@@ -61,25 +61,26 @@
 
 | Crate | Production Code | Tests |
 |-------|-----------------|-------|
-| `redoubt` | 13 | 0 |
-| `redoubt-aead` | 2,062 | 138 |
-| `redoubt-alloc` | 259 | 31 |
-| `redoubt-buffer` | 323 | 41 |
-| `redoubt-codec` | 1,434 | 0 |
-| `redoubt-codec/core` | 1,337 | 140 |
-| `redoubt-codec/derive` | 94 | 10 |
-| `redoubt-guard` | 149 | 1 |
-| `redoubt-rand` | 152 | 11 |
-| `redoubt-secret` | 96 | 19 |
+| `redoubt` | 27 | 0 |
+| `redoubt-aead` | 1,561 | 84 |
+| `redoubt-alloc` | 763 | 120 |
+| `redoubt-buffer` | 349 | 41 |
+| `redoubt-codec` | 1,692 | 0 |
+| `redoubt-codec/core` | 1,572 | 161 |
+| `redoubt-codec/derive` | 117 | 17 |
+| `redoubt-guard` | 195 | 2 |
+| `redoubt-hkdf` | 673 | 22 |
+| `redoubt-rand` | 339 | 22 |
+| `redoubt-secret` | 80 | 6 |
 | `redoubt-test-utils` | 87 | 5 |
-| `redoubt-util` | 149 | 13 |
-| `redoubt-vault` | 956 | 0 |
-| `redoubt-vault/core` | 716 | 61 |
-| `redoubt-vault/derive` | 237 | 27 |
-| `redoubt-zero` | 760 | 0 |
-| `redoubt-zero/core` | 517 | 38 |
-| `redoubt-zero/derive` | 238 | 33 |
-| **Total** | **9,579** | **568** |
+| `redoubt-util` | 172 | 13 |
+| `redoubt-vault` | 1,513 | 0 |
+| `redoubt-vault/core` | 838 | 74 |
+| `redoubt-vault/derive` | 672 | 38 |
+| `redoubt-zero` | 850 | 0 |
+| `redoubt-zero/core` | 574 | 41 |
+| `redoubt-zero/derive` | 271 | 40 |
+| **Total** | **12,345** | **686** |
 
 ---
 

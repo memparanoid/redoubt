@@ -11,7 +11,7 @@
 <p align="center">
     <a href="https://crates.io/crates/redoubt"><img src="https://img.shields.io/crates/v/redoubt.svg" alt="crates.io"></a>
     <a href="https://docs.rs/redoubt"><img src="https://docs.rs/redoubt/badge.svg" alt="docs.rs"></a>
-    <a href="#"><img src="https://img.shields.io/badge/coverage-99.77%25-0ce500" alt="coverage"></a>
+    <a href="#"><img src="https://img.shields.io/badge/coverage-98.40%25-49e500" alt="coverage"></a>
     <a href="#"><img src="https://img.shields.io/badge/vulnerabilities-0-brightgreen" alt="security"></a>
     <a href="#license"><img src="https://img.shields.io/badge/license-GPL--3.0--only-blue" alt="license"></a>
 </p>
