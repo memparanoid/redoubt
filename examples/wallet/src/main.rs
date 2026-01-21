@@ -14,9 +14,12 @@ use redoubt::{
     RedoubtArray, RedoubtCodec, RedoubtSecret, RedoubtString, RedoubtVec, RedoubtZero, cipherbox,
 };
 
-#[cipherbox(Wallet)]
+// testing_feature enables failure injection (set_failure_mode, WalletBoxFailureMode).
+// In the same crate, test utilities are always available under #[cfg(test)].
+// For external crates, gate with testing_feature to export them conditionally.
+#[cipherbox(WalletBox, testing_feature = "test-utils")]
 #[derive(Default, RedoubtCodec, RedoubtZero)]
-struct WalletData {
+struct Wallet {
     seed: RedoubtArray<u8, 32>,
     mnemonic: RedoubtString,
     backup: RedoubtVec<u8>,
@@ -24,7 +27,7 @@ struct WalletData {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut wallet = Wallet::new();
+    let mut wallet = WalletBox::new();
 
     // Initialize wallet with secrets
     wallet.open_mut(|w| {

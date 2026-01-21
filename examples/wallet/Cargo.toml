@@ -4,5 +4,8 @@ version = "0.1.0"
 edition.workspace = true
 publish = false
 
+[features]
+test-utils = []
+
 [dependencies]
 redoubt = { workspace = true, features = ["full"] }

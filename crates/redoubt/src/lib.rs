@@ -225,6 +225,26 @@
 //! - **OS-level protections**: On Linux, the master key lives in a memory page protected by `prctl` and `mlock`, inaccessible to non-root memory dumps
 //! - **Field-level encryption**: Decrypt only what you need, minimizing exposure time
 //!
+//! # Testing
+//!
+//! CipherBox generates failure injection methods for testing error handling:
+//!
+//! ```rust,ignore
+//! #[cipherbox(WalletBox, testing_feature = "test-utils")]
+//! struct Wallet { /* ... */ }
+//!
+//! // In tests:
+//! let mut wallet = WalletBox::new();
+//! wallet.set_failure_mode(WalletBoxFailureMode::FailOnNthOperation(2));
+//! assert!(wallet.open(|_| Ok(())).is_ok());  // 1st succeeds
+//! assert!(wallet.open(|_| Ok(())).is_err()); // 2nd fails
+//! ```
+//!
+//! - In the same crate, test utilities are always available under `#[cfg(test)]`
+//! - For external crates, use `testing_feature` to export them conditionally
+//!
+//! See [examples/wallet/tests](https://github.com/memparanoid/redoubt/tree/main/examples/wallet/tests) for a complete example.
+//!
 //! # Platform support
 //!
 //! | Platform | Protection level |
