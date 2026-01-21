@@ -1,8 +1,8 @@
 <picture>
     <p align="center">
-    <source media="(prefers-color-scheme: dark)" width="320" srcset="/logo_light.png">
-    <source media="(prefers-color-scheme: light)" width="320" srcset="/logo_light.png">
-    <img alt="Redoubt" width="320" src="/logo_light.png">
+    <source media="(prefers-color-scheme: dark)" width="320" srcset="https://raw.githubusercontent.com/memparanoid/redoubt/main/logo_light.png">
+    <source media="(prefers-color-scheme: light)" width="320" srcset="https://raw.githubusercontent.com/memparanoid/redoubt/main/logo_light.png">
+    <img alt="Redoubt" width="320" src="https://raw.githubusercontent.com/memparanoid/redoubt/main/logo_light.png">
     </p>
 </picture>
 
