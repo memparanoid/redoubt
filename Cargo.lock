@@ -263,6 +263,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dummy-codec"
+version = "0.0.0"
+
+[[package]]
+name = "dummy-vault"
+version = "0.0.0"
+
+[[package]]
+name = "dummy-zero"
+version = "0.0.0"
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -902,6 +914,7 @@ dependencies = [
 name = "redoubt-codec-derive"
 version = "0.0.1"
 dependencies = [
+ "dummy-codec",
  "insta",
  "prettyplease",
  "proc-macro-crate",
@@ -1004,6 +1017,7 @@ dependencies = [
 name = "redoubt-vault-derive"
 version = "0.0.1"
 dependencies = [
+ "dummy-vault",
  "heck",
  "insta",
  "prettyplease",
@@ -1040,6 +1054,7 @@ dependencies = [
 name = "redoubt-zero-derive"
 version = "0.0.1"
 dependencies = [
+ "dummy-zero",
  "insta",
  "prettyplease",
  "proc-macro-crate",

@@ -1,0 +1,7 @@
+---
+source: crates/redoubt-zero/derive/src/tests/expand.rs
+expression: pretty(ts_2)
+---
+compile_error!(
+    "RedoubtZero: could not find redoubt-zero or redoubt-zero-core. Add redoubt-zero to Cargo.toml."
+);

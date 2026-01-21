@@ -1,0 +1,7 @@
+---
+source: crates/redoubt-vault/derive/src/tests/expand.rs
+expression: pretty(ts_1)
+---
+compile_error!(
+    "cipherbox: could not find redoubt-vault or redoubt-vault-core. Add redoubt-vault to Cargo.toml."
+);

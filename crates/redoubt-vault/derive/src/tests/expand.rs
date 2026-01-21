@@ -20,24 +20,70 @@ fn pretty(ts: proc_macro2::TokenStream) -> String {
 // === === === === === === === === === ===
 
 #[test]
-fn test_find_root_with_candidates() {
+fn test_find_root_with_candidates_not_found() {
+    // No candidates found -> compile_error
     let ts_1 = find_root_with_candidates(&["a", "b"]);
     insta::assert_snapshot!(pretty(ts_1));
+
     let ts_2 = find_root_with_candidates(&["a"]);
     insta::assert_snapshot!(pretty(ts_2));
+}
 
-    // Just to cover all branches
-    // Note: proc-macro-crate uses underscores internally, not hyphens
-    let ts_3 = find_root_with_candidates(&["redoubt-vault-derive", "redoubt-vault-core"]);
-    println!("{:?}", ts_3);
-    assert_eq!(format!("{:?}", ts_3), "TokenStream [Ident { sym: crate }]");
+#[test]
+fn test_find_root_with_candidates_itself() {
+    // FoundCrate::Itself (this crate)
+    let ts = find_root_with_candidates(&["redoubt-vault-derive", "redoubt-vault-core"]);
+    assert_eq!(format!("{:?}", ts), "TokenStream [Ident { sym: crate }]");
+}
 
-    let ts_4 = find_root_with_candidates(&["redoubt-vault-core", "redoubt-vault-derive"]);
-    println!("{:?}", ts_4);
+#[test]
+fn test_find_root_with_candidates_name() {
+    // FoundCrate::Name (external crate)
+    let ts = find_root_with_candidates(&["redoubt-vault-core", "redoubt-vault-derive"]);
     assert_eq!(
-        format!("{:?}", ts_4),
+        format!("{:?}", ts),
         "TokenStream [Ident { sym: redoubt_vault_core }]"
     );
+}
+
+#[test]
+fn test_find_root_with_candidates_path_not_found() {
+    // Path syntax with crate not found -> falls through to next candidate
+    let ts = find_root_with_candidates(&["nonexistent::submod", "redoubt-vault-core"]);
+    assert_eq!(
+        format!("{:?}", ts),
+        "TokenStream [Ident { sym: redoubt_vault_core }]"
+    );
+}
+
+#[test]
+fn test_find_root_with_candidates_path_name() {
+    // Path syntax with FoundCrate::Name (external crate + path)
+    let ts = find_root_with_candidates(&["dummy-vault::submod"]);
+    assert!(format!("{:?}", ts).contains("dummy_vault"));
+    assert!(format!("{:?}", ts).contains("submod"));
+}
+
+#[test]
+fn test_find_root_with_candidates_path_itself() {
+    // Path syntax with FoundCrate::Itself (this crate + path)
+    let ts = find_root_with_candidates(&["redoubt-vault-derive::some_path"]);
+    assert!(format!("{:?}", ts).contains("crate"));
+    assert!(format!("{:?}", ts).contains("some_path"));
+}
+
+#[test]
+fn test_find_root_with_candidates_path_name_invalid() {
+    // Path syntax with FoundCrate::Name + unparseable path (triggers unwrap_or_else)
+    let ts = find_root_with_candidates(&["dummy-vault::("]);
+    assert!(format!("{:?}", ts).contains("dummy_vault"));
+}
+
+#[test]
+fn test_find_root_with_candidates_path_itself_invalid() {
+    // Path syntax with FoundCrate::Itself + unparseable path (triggers unwrap_or_else)
+    let ts = find_root_with_candidates(&["redoubt-vault-derive::("]);
+    assert!(format!("{:?}", ts).contains("crate"));
 }
 
 // === === === === === === === === === ===
