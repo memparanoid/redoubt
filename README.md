@@ -56,9 +56,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Open the box and modify secrets
     wallet.open_mut(|w| {
         w.seed.replace_from_mut_array(&mut [0u8; 32]);
+
         let mut mnemonic = String::from("abandon abandon ...");
         w.mnemonic.replace_from_mut_string(&mut mnemonic);
+
         w.counter.replace(&mut 0u64);
+
         Ok(())
     })?;
     // Box is re-encrypted here
@@ -73,6 +76,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     wallet.open_counter_mut(|counter| {
         let mut next = *counter.as_ref() + 1;
         counter.replace(&mut next);
+
         Ok(())
     })?;
 
@@ -138,6 +142,7 @@ Closures can return values. The return value is wrapped in a `ZeroizingGuard` th
 let counter = wallet.open_counter_mut(|c| {
     let mut next = *c.as_ref() + 1;
     c.replace(&mut next);
+
     Ok(next)
 })?; // Returns Result<ZeroizingGuard<u64>, CipherBoxError>
 // counter is zeroized when dropped
@@ -221,6 +226,7 @@ struct Wallet { /* ... */ }
 // In tests:
 let mut wallet = WalletBox::new();
 wallet.set_failure_mode(WalletBoxFailureMode::FailOnNthOperation(2));
+
 assert!(wallet.open(|_| Ok(())).is_ok());  // 1st succeeds
 assert!(wallet.open(|_| Ok(())).is_err()); // 2nd fails
 ```
@@ -260,6 +266,3 @@ cargo bench -p benchmarks --bench codec
 
 
 This project is licensed under the [GNU General Public License v3.0-only](LICENSE).
-
-
-
