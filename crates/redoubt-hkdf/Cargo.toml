@@ -1,12 +1,13 @@
 [package]
 name = "redoubt-hkdf"
-version.workspace = true
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories = ["cryptography", "no-std"]
+description = "HKDF-SHA512 implementation with secure memory handling"
 edition.workspace = true
+keywords = ["hkdf", "sha512", "kdf", "security"]
 license.workspace = true
 repository.workspace = true
-description = "HKDF-SHA512 implementation with secure memory handling"
-categories = ["cryptography", "no-std"]
-keywords = ["hkdf", "sha512", "kdf", "security"]
+version.workspace = true
 
 [lib]
 path = "src/lib.rs"

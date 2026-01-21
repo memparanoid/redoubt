@@ -1,10 +1,13 @@
 [package]
 name = "redoubt-test-utils"
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories = ["development-tools::testing"]
 description = "Test utilities for Redoubt crates"
-version.workspace = true
 edition.workspace = true
+keywords = ["testing", "utilities", "test-utils"]
 license.workspace = true
 repository.workspace = true
+version.workspace = true
 publish = false
 
 [dependencies]
