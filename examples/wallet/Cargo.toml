@@ -1,7 +1,13 @@
 [package]
 name = "wallet-example"
-version = "0.1.0"
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories = ["cryptography", "memory-management"]
+description = "Wallet example for Redoubt"
 edition.workspace = true
+keywords = ["wallet", "example", "redoubt"]
+license.workspace = true
+repository.workspace = true
+version.workspace = true
 publish = false
 
 [features]

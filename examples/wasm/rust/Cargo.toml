@@ -1,7 +1,13 @@
 [package]
 name = "wasm-example"
-version.workspace = true
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories = ["wasm", "cryptography"]
+description = "WASM example for Redoubt"
 edition.workspace = true
+keywords = ["wasm", "example", "redoubt"]
+license.workspace = true
+repository.workspace = true
+version.workspace = true
 publish = false
 
 [lib]
