@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt::{
-    RedoubtArray, RedoubtCodec, RedoubtSecret, RedoubtString, RedoubtVec, RedoubtZero, cipherbox,
-};
+use redoubt::alloc::{RedoubtArray, RedoubtString, RedoubtVec};
+use redoubt::codec::RedoubtCodec;
+use redoubt::secret::RedoubtSecret;
+use redoubt::vault::cipherbox;
+use redoubt::zero::RedoubtZero;
 
 #[cipherbox(WalletBox, testing_feature = "test-utils")]
 #[derive(Default, RedoubtCodec, RedoubtZero)]

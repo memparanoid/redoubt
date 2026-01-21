@@ -4,12 +4,15 @@
 
 use std::hint::black_box;
 
+use redoubt::alloc::{RedoubtArray, RedoubtOption, RedoubtString, RedoubtVec};
+use redoubt::codec::RedoubtCodec;
+use redoubt::secret::RedoubtSecret;
+use redoubt::vault::cipherbox;
 #[cfg(feature = "internal-forensics")]
-use redoubt::reset_master_key;
-use redoubt::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel};
-use redoubt::{
-    RedoubtArray, RedoubtCodec, RedoubtOption, RedoubtSecret, RedoubtString, RedoubtVec,
-    RedoubtZero, ZeroizingGuard, cipherbox,
+use redoubt::vault::reset_master_key;
+use redoubt::zero::{
+    FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,
+    ZeroizingGuard,
 };
 
 /// Wrapper for large arrays that implements Default (std only goes up to 32).
@@ -178,7 +181,7 @@ fn main() {
             let mut attempts = 0;
             loop {
                 attempts += 1;
-                let mut key = redoubt::leak_master_key(32).expect("Failed to leak master key");
+                let mut key = redoubt::vault::leak_master_key(32).expect("Failed to leak master key");
                 let entropy = shannon_entropy(&key);
 
                 println!("  Attempt {}: entropy = {:.3} bits/byte", attempts, entropy);
@@ -346,7 +349,8 @@ fn main() {
         println!();
 
         // Extract master key for analysis
-        let mut master_key = redoubt::leak_master_key(32).expect("Failed to leak master key");
+        let mut master_key =
+            redoubt::vault::leak_master_key(32).expect("Failed to leak master key");
 
         // Print master key and patterns for script to capture
         print!("Master Key: ");

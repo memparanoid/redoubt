@@ -178,8 +178,9 @@ impl<T: ZeroizeMetadata + FastZeroizable> FastZeroize for T {}
 /// # Example
 ///
 /// ```rust,ignore
-/// use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtString};
-/// use redoubt::StaticFastZeroizable;
+/// use redoubt::codec::RedoubtCodec;
+/// use redoubt::vault::cipherbox;
+/// use redoubt::zero::{RedoubtZero, StaticFastZeroizable};
 ///
 /// #[cipherbox(SensitiveDataBox, global = true)]
 /// #[derive(Default, RedoubtCodec, RedoubtZero)]

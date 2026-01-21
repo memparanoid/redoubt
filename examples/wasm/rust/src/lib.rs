@@ -4,7 +4,9 @@
 
 use wasm_bindgen::prelude::*;
 
-use redoubt::{RedoubtCodec, RedoubtZero, cipherbox};
+use redoubt::codec::RedoubtCodec;
+use redoubt::vault::cipherbox;
+use redoubt::zero::RedoubtZero;
 
 #[cipherbox(SecretBox)]
 #[derive(Default, RedoubtZero, RedoubtCodec)]

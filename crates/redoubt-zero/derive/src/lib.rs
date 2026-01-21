@@ -108,15 +108,32 @@ pub fn derive_redoubt_zero(input: TokenStream) -> TokenStream {
 /// Finds the root crate path from a list of candidates.
 ///
 /// Resolves the correct import path for `RedoubtZero` or `RedoubtZero-core` depending on context.
+/// Candidates can be crate names like "redoubt-zero" or paths like "redoubt::zero".
 pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStream2 {
     for &candidate in candidates {
-        match crate_name(candidate) {
-            Ok(FoundCrate::Itself) => return quote!(crate),
-            Ok(FoundCrate::Name(name)) => {
-                let id = Ident::new(&name, Span::call_site());
-                return quote!(#id);
+        // Check if candidate contains "::" (path syntax like "redoubt::zero")
+        if let Some((crate_part, path_part)) = candidate.split_once("::") {
+            match crate_name(crate_part) {
+                Ok(FoundCrate::Itself) => {
+                    let path: TokenStream2 = path_part.parse().unwrap_or_else(|_| quote!());
+                    return quote!(crate::#path);
+                }
+                Ok(FoundCrate::Name(name)) => {
+                    let crate_id = Ident::new(&name, Span::call_site());
+                    let path: TokenStream2 = path_part.parse().unwrap_or_else(|_| quote!());
+                    return quote!(#crate_id::#path);
+                }
+                Err(_) => continue,
             }
-            Err(_) => continue,
+        } else {
+            match crate_name(candidate) {
+                Ok(FoundCrate::Itself) => return quote!(crate),
+                Ok(FoundCrate::Name(name)) => {
+                    let id = Ident::new(&name, Span::call_site());
+                    return quote!(#id);
+                }
+                Err(_) => continue,
+            }
         }
     }
 
@@ -193,7 +210,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     // 1) Resolve the `redoubt_zero_core` or `RedoubtZero` crate (prefer redoubt_zero_core)
-    let root = find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero", "redoubt"]);
+    let root = find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero", "redoubt::zero"]);
 
     // 2) Get all fields as a Vec
     let all_fields: Vec<(usize, &syn::Field)> = match &input.data {

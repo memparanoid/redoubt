@@ -10,9 +10,11 @@
 // - RedoubtVec: Variable-length bytes (encrypted backup)
 // - RedoubtSecret: Protected primitives (account index)
 
-use redoubt::{
-    RedoubtArray, RedoubtCodec, RedoubtSecret, RedoubtString, RedoubtVec, RedoubtZero, cipherbox,
-};
+use redoubt::alloc::{RedoubtArray, RedoubtString, RedoubtVec};
+use redoubt::codec::RedoubtCodec;
+use redoubt::secret::RedoubtSecret;
+use redoubt::vault::cipherbox;
+use redoubt::zero::RedoubtZero;
 
 // testing_feature enables failure injection (set_failure_mode, WalletBoxFailureMode).
 // In the same crate, test utilities are always available under #[cfg(test)].

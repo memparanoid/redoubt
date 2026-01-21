@@ -202,15 +202,34 @@ pub(crate) fn parse_cipherbox_attr_inner(
     )
 }
 /// Find the root crate path from a list of candidates.
+/// Candidates can be crate names like "redoubt-vault" or paths like "redoubt::vault".
 pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStream2 {
     for &candidate in candidates {
-        match crate_name(candidate) {
-            Ok(FoundCrate::Itself) => return quote!(crate),
-            Ok(FoundCrate::Name(name)) => {
-                let id = Ident::new(&name, Span::call_site());
-                return quote!(#id);
+        // Check if candidate contains "::" (path syntax like "redoubt::vault")
+        if let Some((crate_part, path_part)) = candidate.split_once("::") {
+            match crate_name(crate_part) {
+                Ok(FoundCrate::Itself) => {
+                    // This shouldn't happen for "redoubt::*" but handle it
+                    let path: TokenStream2 = path_part.parse().unwrap_or_else(|_| quote!());
+                    return quote!(crate::#path);
+                }
+                Ok(FoundCrate::Name(name)) => {
+                    let crate_id = Ident::new(&name, Span::call_site());
+                    let path: TokenStream2 = path_part.parse().unwrap_or_else(|_| quote!());
+                    return quote!(#crate_id::#path);
+                }
+                Err(_) => continue,
             }
-            Err(_) => continue,
+        } else {
+            // Regular crate name
+            match crate_name(candidate) {
+                Ok(FoundCrate::Itself) => return quote!(crate),
+                Ok(FoundCrate::Name(name)) => {
+                    let id = Ident::new(&name, Span::call_site());
+                    return quote!(#id);
+                }
+                Err(_) => continue,
+            }
         }
     }
 
@@ -241,7 +260,7 @@ fn has_codec_default(attrs: &[Attribute]) -> bool {
 
 /// Injects `__sentinel: ZeroizeOnDropSentinel` field with `#[codec(default)]` attribute.
 fn inject_zeroize_on_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
-    let root = find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero", "redoubt"]);
+    let root = find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero", "redoubt::zero"]);
     let data = match &mut input.data {
         Data::Struct(data) => data,
         _ => {
@@ -295,10 +314,10 @@ fn expand(
     let struct_name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    let root = find_root_with_candidates(&["redoubt-vault-core", "redoubt-vault", "redoubt"]);
+    let root = find_root_with_candidates(&["redoubt-vault-core", "redoubt-vault", "redoubt::vault"]);
     let redoubt_zero_root =
-        find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero", "redoubt"]);
-    let redoubt_aead_root = find_root_with_candidates(&["redoubt-aead", "redoubt"]);
+        find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero", "redoubt::zero"]);
+    let redoubt_aead_root = find_root_with_candidates(&["redoubt-aead", "redoubt::aead"]);
 
     // Generate the test cfg attribute based on testing_feature
     let test_cfg = if let Some(ref feature) = testing_feature {

@@ -30,7 +30,11 @@
 //! # Quick Start
 //!
 //! ```rust
-//! use redoubt::{cipherbox, RedoubtArray, RedoubtCodec, RedoubtSecret, RedoubtString, RedoubtZero};
+//! use redoubt::alloc::{RedoubtArray, RedoubtString};
+//! use redoubt::codec::RedoubtCodec;
+//! use redoubt::secret::RedoubtSecret;
+//! use redoubt::vault::cipherbox;
+//! use redoubt::zero::RedoubtZero;
 //!
 //! #[cipherbox(Wallet)]
 //! #[derive(Default, RedoubtCodec, RedoubtZero)]
@@ -87,7 +91,10 @@
 //! Access the entire decrypted struct. Re-encrypts when the closure returns:
 //!
 //! ```rust
-//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtSecret};
+//! # use redoubt::codec::RedoubtCodec;
+//! # use redoubt::secret::RedoubtSecret;
+//! # use redoubt::vault::cipherbox;
+//! # use redoubt::zero::RedoubtZero;
 //! # #[cipherbox(Wallet)]
 //! # #[derive(Default, RedoubtCodec, RedoubtZero)]
 //! # struct WalletData { counter: RedoubtSecret<u64> }
@@ -101,7 +108,7 @@
 //!     // read-write access to all fields
 //!     Ok(())
 //! })?;
-//! # Ok::<(), redoubt::CipherBoxError>(())
+//! # Ok::<(), redoubt::vault::CipherBoxError>(())
 //! ```
 //!
 //! ## `open_<field>` / `open_<field>_mut`
@@ -109,7 +116,10 @@
 //! Access individual fields without decrypting the entire struct:
 //!
 //! ```rust
-//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtArray};
+//! # use redoubt::alloc::RedoubtArray;
+//! # use redoubt::codec::RedoubtCodec;
+//! # use redoubt::vault::cipherbox;
+//! # use redoubt::zero::RedoubtZero;
 //! # #[cipherbox(Wallet)]
 //! # #[derive(Default, RedoubtCodec, RedoubtZero)]
 //! # struct WalletData { seed: RedoubtArray<u8, 32> }
@@ -123,7 +133,7 @@
 //!     // read-write access to seed
 //!     Ok(())
 //! })?;
-//! # Ok::<(), redoubt::CipherBoxError>(())
+//! # Ok::<(), redoubt::vault::CipherBoxError>(())
 //! ```
 //!
 //! ## `leak_<field>`
@@ -131,7 +141,10 @@
 //! Get a field value outside the closure. Returns a `ZeroizingGuard` that wipes memory on drop:
 //!
 //! ```rust
-//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtArray};
+//! # use redoubt::alloc::RedoubtArray;
+//! # use redoubt::codec::RedoubtCodec;
+//! # use redoubt::vault::cipherbox;
+//! # use redoubt::zero::RedoubtZero;
 //! # #[cipherbox(Wallet)]
 //! # #[derive(Default, RedoubtCodec, RedoubtZero)]
 //! # struct WalletData { seed: RedoubtArray<u8, 32> }
@@ -139,7 +152,7 @@
 //! let seed = wallet.leak_seed()?;
 //! // use seed...
 //! // seed is zeroized when dropped
-//! # Ok::<(), redoubt::CipherBoxError>(())
+//! # Ok::<(), redoubt::vault::CipherBoxError>(())
 //! ```
 //!
 //! ## Returning values
@@ -147,7 +160,10 @@
 //! Closures can return values. The return value is wrapped in a `ZeroizingGuard` that wipes memory on drop:
 //!
 //! ```rust
-//! # use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtSecret};
+//! # use redoubt::codec::RedoubtCodec;
+//! # use redoubt::secret::RedoubtSecret;
+//! # use redoubt::vault::cipherbox;
+//! # use redoubt::zero::RedoubtZero;
 //! # #[cipherbox(Wallet)]
 //! # #[derive(Default, RedoubtCodec, RedoubtZero)]
 //! # struct WalletData { counter: RedoubtSecret<u64> }
@@ -159,7 +175,7 @@
 //!     Ok(next)
 //! })?; // Returns Result<ZeroizingGuard<u64>, CipherBoxError>
 //! // counter is zeroized when dropped
-//! # Ok::<(), redoubt::CipherBoxError>(())
+//! # Ok::<(), redoubt::vault::CipherBoxError>(())
 //! ```
 //!
 //! # Types
@@ -167,7 +183,8 @@
 //! Redoubt provides secure containers for different use cases:
 //!
 //! ```rust
-//! use redoubt::{RedoubtArray, RedoubtSecret, RedoubtString, RedoubtVec};
+//! use redoubt::alloc::{RedoubtArray, RedoubtString, RedoubtVec};
+//! use redoubt::secret::RedoubtSecret;
 //!
 //! // Fixed-size arrays (automatically zeroized on drop)
 //! let mut api_key = RedoubtArray::<u8, 32>::new();
@@ -270,11 +287,11 @@
 pub mod collections;
 pub mod support;
 
-pub use redoubt_aead::*;
-pub use redoubt_alloc::*;
-pub use redoubt_codec::*;
-pub use redoubt_hkdf::*;
-pub use redoubt_rand::*;
-pub use redoubt_secret::*;
-pub use redoubt_vault::*;
-pub use redoubt_zero::*;
+pub use redoubt_aead as aead;
+pub use redoubt_alloc as alloc;
+pub use redoubt_codec as codec;
+pub use redoubt_hkdf as hkdf;
+pub use redoubt_rand as rand;
+pub use redoubt_secret as secret;
+pub use redoubt_vault as vault;
+pub use redoubt_zero as zero;

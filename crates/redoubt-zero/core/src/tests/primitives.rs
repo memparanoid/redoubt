@@ -124,10 +124,7 @@ fn test_unit_zeroization() {
 
     let mut value = ();
     assert!(value.is_zeroized(), "unit type should always be zeroized");
-    assert!(
-        <()>::CAN_BE_BULK_ZEROIZED,
-        "unit type should be bulk zeroizable"
-    );
+    const { assert!(<()>::CAN_BE_BULK_ZEROIZED) };
 
     value.fast_zeroize();
     assert!(

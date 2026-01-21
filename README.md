@@ -40,7 +40,11 @@ redoubt = "0.1"
 ## Quick Start
 
 ```rust
-use redoubt::{cipherbox, RedoubtArray, RedoubtCodec, RedoubtSecret, RedoubtString, RedoubtZero};
+use redoubt::alloc::{RedoubtArray, RedoubtString};
+use redoubt::codec::RedoubtCodec;
+use redoubt::secret::RedoubtSecret;
+use redoubt::vault::cipherbox;
+use redoubt::zero::RedoubtZero;
 
 #[cipherbox(Wallet)]
 #[derive(Default, RedoubtCodec, RedoubtZero)]
@@ -154,7 +158,8 @@ let counter = wallet.open_counter_mut(|c| {
 Redoubt provides secure containers for different use cases:
 
 ```rust
-use redoubt::{RedoubtArray, RedoubtSecret, RedoubtString, RedoubtVec};
+use redoubt::alloc::{RedoubtArray, RedoubtString, RedoubtVec};
+use redoubt::secret::RedoubtSecret;
 
 // Fixed-size arrays (automatically zeroized on drop)
 let mut api_key = RedoubtArray::<u8, 32>::new();
