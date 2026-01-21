@@ -6,6 +6,7 @@ description = "Memory utilities for verification and testing"
 edition.workspace = true
 keywords = ["memory", "utilities", "verification", "testing", "helpers"]
 license.workspace = true
+readme.workspace = true
 repository.workspace = true
 version.workspace = true
 

@@ -5,6 +5,7 @@ description          = "Core zeroization primitives: guards, sentinels, and RAII
 edition.workspace    = true
 keywords             = ["security", "zeroize", "memory"]
 license.workspace    = true
+readme.workspace     = true
 name                 = "redoubt-zero-core"
 repository.workspace = true
 version.workspace    = true

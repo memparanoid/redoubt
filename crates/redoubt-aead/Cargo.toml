@@ -6,6 +6,7 @@ description = "AEGIS-128L and XChaCha20-Poly1305 AEAD with zeroization"
 edition.workspace = true
 keywords = ["aegis128l", "xchacha20", "aead", "encryption", "zeroize"]
 license.workspace = true
+readme.workspace = true
 repository.workspace = true
 version.workspace = true
 

@@ -6,6 +6,7 @@ description = "Process-level memory protection via prctl and mlock"
 edition.workspace = true
 keywords = ["prctl", "mlock", "mprotect", "security", "memory"]
 license.workspace = true
+readme.workspace = true
 repository.workspace = true
 version.workspace = true
 

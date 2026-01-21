@@ -6,6 +6,7 @@ description = "High-level Secret wrapper with automatic zeroization"
 edition.workspace = true
 keywords = ["secret", "zeroize", "security", "wrapper", "sensitive"]
 license.workspace = true
+readme.workspace = true
 repository.workspace = true
 version.workspace = true
 

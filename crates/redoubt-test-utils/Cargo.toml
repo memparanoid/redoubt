@@ -6,6 +6,7 @@ description = "Test utilities for Redoubt crates"
 edition.workspace = true
 keywords = ["testing", "utilities", "test-utils"]
 license.workspace = true
+readme.workspace = true
 repository.workspace = true
 version.workspace = true
 

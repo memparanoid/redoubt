@@ -6,6 +6,7 @@ description = "HKDF-SHA512 implementation with secure memory handling"
 edition.workspace = true
 keywords = ["hkdf", "sha512", "kdf", "security"]
 license.workspace = true
+readme.workspace = true
 repository.workspace = true
 version.workspace = true
 

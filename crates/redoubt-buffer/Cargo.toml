@@ -6,6 +6,7 @@ description = "Page-aligned memory buffers with mlock and mprotect support"
 edition.workspace = true
 keywords = ["mlock", "mprotect", "buffer", "security", "memory"]
 license.workspace = true
+readme.workspace = true
 repository.workspace = true
 version.workspace = true
 

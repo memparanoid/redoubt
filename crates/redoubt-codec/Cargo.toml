@@ -5,6 +5,7 @@ description          = "High-performance secure codec with memory zeroization"
 edition.workspace    = true
 keywords             = ["codec", "zeroize", "security", "encoding"]
 license.workspace    = true
+readme.workspace     = true
 name                 = "redoubt-codec"
 repository.workspace = true
 version.workspace    = true

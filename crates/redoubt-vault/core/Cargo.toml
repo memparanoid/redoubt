@@ -6,6 +6,7 @@ description = "Core implementation for redoubt-vault encrypted storage"
 edition.workspace = true
 keywords = ["vault", "encryption", "secrets", "aead", "zeroize"]
 license.workspace = true
+readme.workspace = true
 repository.workspace = true
 version.workspace = true
 

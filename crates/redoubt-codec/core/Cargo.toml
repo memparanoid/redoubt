@@ -5,6 +5,7 @@ description          = "Core implementation for redoubt-codec"
 edition.workspace    = true
 keywords             = ["codec", "zeroize", "security", "encoding"]
 license.workspace    = true
+readme.workspace     = true
 name                 = "redoubt-codec-core"
 repository.workspace = true
 version.workspace    = true

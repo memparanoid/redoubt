@@ -5,6 +5,7 @@ description          = "Derive macros for RedoubtZero guards and zeroization ver
 edition.workspace    = true
 keywords             = ["security", "zeroize", "derive", "macro"]
 license.workspace    = true
+readme.workspace     = true
 name                 = "redoubt-zero-derive"
 repository.workspace = true
 version.workspace    = true

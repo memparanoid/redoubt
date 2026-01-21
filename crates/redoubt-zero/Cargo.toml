@@ -5,6 +5,7 @@ description          = "Memory guards and zeroization primitives with automatic 
 edition.workspace    = true
 keywords             = ["security", "zeroize", "memory", "guards"]
 license.workspace    = true
+readme.workspace     = true
 name                 = "redoubt-zero"
 repository.workspace = true
 version.workspace    = true

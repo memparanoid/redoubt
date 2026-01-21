@@ -6,6 +6,7 @@ description = "Cross-platform cryptographic random number generation"
 edition.workspace = true
 keywords = ["random", "crypto", "getrandom", "security", "rng"]
 license.workspace = true
+readme.workspace = true
 repository.workspace = true
 version.workspace = true
 

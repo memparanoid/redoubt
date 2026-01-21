@@ -6,6 +6,7 @@ description = "Derive macros for redoubt-vault encrypted storage"
 edition.workspace = true
 keywords = ["vault", "encryption", "derive", "macro", "procedural"]
 license.workspace = true
+readme.workspace = true
 repository.workspace = true
 version.workspace = true
 

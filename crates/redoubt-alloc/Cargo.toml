@@ -6,6 +6,7 @@ description = "Allocation-locked Vec that guarantees no reallocation after seali
 edition.workspace = true
 keywords = ["vec", "zeroize", "security", "sealed", "allocation"]
 license.workspace = true
+readme.workspace = true
 repository.workspace = true
 version.workspace = true
 

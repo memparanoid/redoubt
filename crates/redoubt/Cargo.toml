@@ -6,6 +6,7 @@ description = "Systematic encryption-at-rest for in-memory sensitive data in Rus
 edition.workspace = true
 keywords = ["encryption", "secrets", "zeroize", "aead", "vault"]
 license.workspace = true
+readme.workspace = true
 repository.workspace = true
 version.workspace = true
 
