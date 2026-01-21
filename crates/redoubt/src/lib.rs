@@ -27,6 +27,18 @@
 //! - 🎯 **Field-level access** — Decrypt only the field you need, not the entire struct
 //! - 📦 **`no_std` compatible** — Works in embedded and WASI environments
 //!
+//! # Installation
+//!
+//! ```bash
+//! cargo add redoubt --features full
+//! ```
+//!
+//! Or in your `Cargo.toml`:
+//! ```toml
+//! [dependencies]
+//! redoubt = { version = "0.1.0-rc.2", features = ["full"] }
+//! ```
+//!
 //! # Quick Start
 //!
 //! ```rust

@@ -32,9 +32,14 @@ Redoubt is a Rust library for storing secrets in memory. Encrypted at rest, zero
 - 📦 **`no_std` compatible** — Works in embedded and WASI environments
 
 ## Installation
+```bash
+cargo add redoubt --features full
+```
+
+Or in your `Cargo.toml`:
 ```toml
 [dependencies]
-redoubt = "0.1"
+redoubt = { version = "0.1.0-rc.2", features = ["full"] }
 ```
 
 ## Quick Start
