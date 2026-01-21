@@ -4,6 +4,7 @@
 
 use core::mem::size_of;
 
+use crate::error::EntropyError;
 use crate::traits::{EntropySource, NonceGenerator};
 
 pub(crate) type Counter = u32;
@@ -40,10 +41,14 @@ pub(crate) type Counter = u32;
 pub struct NonceSessionGenerator<E: EntropySource, const NONCE_SIZE: usize> {
     entropy: E,
     counter: Counter,
+    initialized: bool,
 }
 
 impl<E: EntropySource, const NONCE_SIZE: usize> NonceSessionGenerator<E, NONCE_SIZE> {
-    /// Creates a new nonce session generator with counter initialized to 0.
+    /// Creates a new nonce session generator.
+    ///
+    /// The counter is lazily initialized with random bytes on first use
+    /// to avoid predictable patterns in memory dumps.
     ///
     /// # Arguments
     ///
@@ -52,19 +57,36 @@ impl<E: EntropySource, const NONCE_SIZE: usize> NonceSessionGenerator<E, NONCE_S
         Self {
             entropy,
             counter: 0,
+            initialized: false,
         }
+    }
+
+    fn maybe_initialize(&mut self) -> Result<(), EntropyError> {
+        if !self.initialized {
+            let mut counter_bytes = [0u8; size_of::<Counter>()];
+
+            self.entropy.fill_bytes(&mut counter_bytes)?;
+            self.counter = Counter::from_le_bytes(counter_bytes);
+
+            self.initialized = true;
+        }
+
+        Ok(())
     }
 
     #[cfg(test)]
     pub(crate) fn set_counter_for_test(&mut self, counter: Counter) {
         self.counter = counter;
+        self.initialized = true;
     }
 }
 
 impl<E: EntropySource, const NONCE_SIZE: usize> NonceGenerator<NONCE_SIZE>
     for NonceSessionGenerator<E, NONCE_SIZE>
 {
-    fn generate_nonce(&mut self) -> Result<[u8; NONCE_SIZE], crate::EntropyError> {
+    fn generate_nonce(&mut self) -> Result<[u8; NONCE_SIZE], EntropyError> {
+        self.maybe_initialize()?;
+
         let mut nonce = [0u8; NONCE_SIZE];
         // First part: counter
         nonce[..size_of::<Counter>()].copy_from_slice(&self.counter.to_le_bytes());

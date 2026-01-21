@@ -12,7 +12,9 @@ use crate::traits::NonceGenerator;
 #[test]
 fn test_nonce_session_generator_counter_increments() {
     let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
+
     let mut session = NonceSessionGenerator::<_, 16>::new(entropy);
+    session.set_counter_for_test(0);
 
     // Counter at: 0
     {
@@ -115,8 +117,19 @@ fn test_nonce_session_generator_counter_wraps() {
 }
 
 #[test]
+fn test_nonce_session_generator_propagates_maybe_initialize_error() {
+    let mock_entropy = MockEntropySource::new(MockEntropySourceBehaviour::FailAtNthFillBytes(1));
+    let mut session = NonceSessionGenerator::<_, 16>::new(mock_entropy);
+
+    let result = session.generate_nonce();
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(EntropyError::EntropyNotAvailable)));
+}
+
+#[test]
 fn test_nonce_session_generator_propagates_entropy_error() {
-    let mock_entropy = MockEntropySource::new(MockEntropySourceBehaviour::FailAlways);
+    let mock_entropy = MockEntropySource::new(MockEntropySourceBehaviour::FailAtNthFillBytes(2));
     let mut session = NonceSessionGenerator::<_, 16>::new(mock_entropy);
 
     let result = session.generate_nonce();
