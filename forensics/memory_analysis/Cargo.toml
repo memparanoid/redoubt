@@ -1,7 +1,13 @@
 [package]
 name = "redoubt-forensics"
-version = "0.1.0"
-edition = "2024"
+authors = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories = ["development-tools::debugging"]
+description = "Memory forensics tools for Redoubt"
+edition.workspace = true
+keywords = ["forensics", "memory", "analysis", "debugging"]
+license.workspace = true
+repository.workspace = true
+version.workspace = true
 publish = false
 
 [[bin]]
