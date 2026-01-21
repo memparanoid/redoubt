@@ -205,6 +205,16 @@ where
         src.fast_zeroize();
     }
 
+    /// Replaces the vector contents with data from a mutable slice, zeroizing both
+    /// the old contents and the source.
+    pub fn replace_from_mut_slice(&mut self, src: &mut [T])
+    where
+        T: Default,
+    {
+        self.clear();
+        self.extend_from_mut_slice(src);
+    }
+
     /// Drains a single value into the vector, zeroizing the source.
     pub fn drain_value(&mut self, src: &mut T)
     where

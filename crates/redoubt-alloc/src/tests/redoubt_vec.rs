@@ -223,6 +223,36 @@ fn test_maybe_grow_to_single_allocation() {
 }
 
 // =============================================================================
+// replace_from_mut_slice()
+// =============================================================================
+
+#[test]
+fn test_replace_from_mut_slice() {
+    let mut vec = RedoubtVec::new();
+    let mut src1 = [1u8, 2, 3];
+    vec.extend_from_mut_slice(&mut src1);
+
+    let mut src2 = [4u8, 5, 6, 7];
+    vec.replace_from_mut_slice(&mut src2);
+
+    assert_eq!(vec.as_slice(), &[4, 5, 6, 7]);
+    assert!(src2.is_zeroized());
+}
+
+#[test]
+fn test_replace_from_mut_slice_zeroizes_old_content() {
+    let mut vec = RedoubtVec::new();
+    let mut src1 = [0xAAu8; 100];
+    vec.extend_from_mut_slice(&mut src1);
+
+    let mut src2 = [0xBBu8; 10];
+    vec.replace_from_mut_slice(&mut src2);
+
+    assert_eq!(vec.len(), 10);
+    assert_eq!(vec.as_slice(), &[0xBB; 10]);
+}
+
+// =============================================================================
 // drain_value()
 // =============================================================================
 
