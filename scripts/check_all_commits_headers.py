@@ -2,7 +2,11 @@
 """Check for missing license headers in all commits."""
 
 import subprocess
-import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
+
+EXTENSIONS = [".rs", ".S"]
+SKIP_PATTERNS = ["/.private/", "/.git/", "/target/", ".private/", ".git/", "target/"]
 
 
 def get_all_commits():
@@ -12,28 +16,16 @@ def get_all_commits():
     return result.stdout.splitlines()
 
 
-def get_files_in_commit(commit, extensions):
+def get_files_in_commit(commit):
     """Get all .rs and .S files in a specific commit."""
     cmd = ["git", "ls-tree", "-r", "--name-only", commit]
     result = subprocess.run(cmd, capture_output=True, text=True, check=True)
 
     files = []
     for line in result.stdout.splitlines():
-        if any(line.endswith(ext) for ext in extensions):
-            # Skip .private, .git, target
-            if any(
-                x in line
-                for x in [
-                    "/.private/",
-                    "/.git/",
-                    "/target/",
-                    ".private/",
-                    ".git/",
-                    "target/",
-                ]
-            ):
-                continue
-            files.append(line)
+        if any(line.endswith(ext) for ext in EXTENSIONS):
+            if not any(x in line for x in SKIP_PATTERNS):
+                files.append(line)
     return files
 
 
@@ -51,30 +43,44 @@ def check_file_header(commit, filepath):
     return "Copyright" in first_line
 
 
-if __name__ == "__main__":
-    extensions = [".rs", ".S"]
+def process_commit(commit):
+    """Process a single commit and return violations."""
+    violations = []
+    files = get_files_in_commit(commit)
 
+    for filepath in files:
+        has_header = check_file_header(commit, filepath)
+        if has_header is False:
+            violations.append((filepath, commit[:7]))
+
+    return violations
+
+
+if __name__ == "__main__":
     print("Getting all commits...")
     commits = get_all_commits()
-    print(f"Found {len(commits)} commits")
+    total = len(commits)
+    print(f"Found {total} commits")
 
-    # Track violations: {filepath: [(commit, short_hash), ...]}
     violations = {}
+    completed = 0
+    lock = threading.Lock()
 
-    print("\nChecking all files in all commits...")
-    for i, commit in enumerate(commits):
-        if i % 100 == 0:
-            print(f"  Progress: {i}/{len(commits)} commits")
+    print("\nChecking all files in all commits (parallel)...")
 
-        files = get_files_in_commit(commit, extensions)
+    with ThreadPoolExecutor(max_workers=16) as executor:
+        futures = {executor.submit(process_commit, c): c for c in commits}
 
-        for filepath in files:
-            has_header = check_file_header(commit, filepath)
+        for future in as_completed(futures):
+            with lock:
+                completed += 1
+                if completed % 5 == 0:
+                    print(f"  Progress: {completed}/{total} commits")
 
-            if has_header is False:  # Explicitly False, not None
+            for filepath, short_hash in future.result():
                 if filepath not in violations:
                     violations[filepath] = []
-                violations[filepath].append(commit[:7])
+                violations[filepath].append(short_hash)
 
     if violations:
         print(
