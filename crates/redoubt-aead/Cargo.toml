@@ -25,3 +25,6 @@ cpufeatures = "0.2.17"
 
 [build-dependencies]
 cc.workspace = true
+
+[dev-dependencies]
+redoubt-util = { workspace = true, features = ["test-utils"] }

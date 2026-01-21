@@ -969,6 +969,9 @@ version = "0.0.1"
 [[package]]
 name = "redoubt-util"
 version = "0.0.1"
+dependencies = [
+ "redoubt-util",
+]
 
 [[package]]
 name = "redoubt-vault"

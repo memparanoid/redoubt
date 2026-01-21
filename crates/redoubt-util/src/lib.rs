@@ -87,11 +87,13 @@ pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 /// # Example
 ///
 /// ```
+/// // Requires feature = "test-utils"
 /// use redoubt_util::hex_to_bytes;
 ///
 /// let bytes = hex_to_bytes("deadbeef");
 /// assert_eq!(bytes, vec![0xde, 0xad, 0xbe, 0xef]);
 /// ```
+#[cfg(any(test, feature = "test-utils"))]
 #[inline]
 pub fn hex_to_bytes(hex: &str) -> Vec<u8> {
     (0..hex.len())

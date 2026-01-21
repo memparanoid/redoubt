@@ -24,3 +24,4 @@ thiserror.workspace = true
 cc.workspace = true
 
 [dev-dependencies]
+redoubt-util = { workspace = true, features = ["test-utils"] }

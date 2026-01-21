@@ -12,6 +12,11 @@ version.workspace = true
 [lib]
 path = "src/lib.rs"
 
+[features]
+default = []
+test-utils = []
+
 [dependencies]
 
 [dev-dependencies]
+redoubt-util = { path = ".", features = ["test-utils"] }
