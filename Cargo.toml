@@ -35,25 +35,25 @@ resolver = "2"
 
   [workspace.dependencies]
   # Internal crates
-  redoubt            = { path = "crates/redoubt" }
-  redoubt-aead       = { path = "crates/redoubt-aead" }
-  redoubt-alloc      = { path = "crates/redoubt-alloc" }
-  redoubt-buffer     = { path = "crates/redoubt-buffer" }
-  redoubt-codec        = { path = "crates/redoubt-codec" }
-  redoubt-codec-core   = { path = "crates/redoubt-codec/core" }
-  redoubt-codec-derive = { path = "crates/redoubt-codec/derive" }
-  redoubt-guard  = { path = "crates/redoubt-guard" }
-  redoubt-hkdf   = { path = "crates/redoubt-hkdf" }
-  redoubt-rand   = { path = "crates/redoubt-rand" }
-  redoubt-secret     = { path = "crates/redoubt-secret" }
-  redoubt-util   = { path = "crates/redoubt-util" }
-  redoubt-vault       = { path = "crates/redoubt-vault" }
-  redoubt-vault-core  = { path = "crates/redoubt-vault/core" }
-  redoubt-vault-derive = { path = "crates/redoubt-vault/derive" }
-  redoubt-zero        = { path = "crates/redoubt-zero" }
-  redoubt-zero-core   = { path = "crates/redoubt-zero/core" }
-  redoubt-zero-derive = { path = "crates/redoubt-zero/derive" }
-  redoubt-test-utils = { path = "crates/redoubt-test-utils" }
+  redoubt              = { path = "crates/redoubt", version = "0.1.0-rc.1" }
+  redoubt-aead         = { path = "crates/redoubt-aead", version = "0.1.0-rc.1" }
+  redoubt-alloc        = { path = "crates/redoubt-alloc", version = "0.1.0-rc.1" }
+  redoubt-buffer       = { path = "crates/redoubt-buffer", version = "0.1.0-rc.1" }
+  redoubt-codec        = { path = "crates/redoubt-codec", version = "0.1.0-rc.1" }
+  redoubt-codec-core   = { path = "crates/redoubt-codec/core", version = "0.1.0-rc.1" }
+  redoubt-codec-derive = { path = "crates/redoubt-codec/derive", version = "0.1.0-rc.1" }
+  redoubt-guard        = { path = "crates/redoubt-guard", version = "0.1.0-rc.1" }
+  redoubt-hkdf         = { path = "crates/redoubt-hkdf", version = "0.1.0-rc.1" }
+  redoubt-rand         = { path = "crates/redoubt-rand", version = "0.1.0-rc.1" }
+  redoubt-secret       = { path = "crates/redoubt-secret", version = "0.1.0-rc.1" }
+  redoubt-test-utils   = { path = "crates/redoubt-test-utils", version = "0.1.0-rc.1" }
+  redoubt-util         = { path = "crates/redoubt-util", version = "0.1.0-rc.1" }
+  redoubt-vault        = { path = "crates/redoubt-vault", version = "0.1.0-rc.1" }
+  redoubt-vault-core   = { path = "crates/redoubt-vault/core", version = "0.1.0-rc.1" }
+  redoubt-vault-derive = { path = "crates/redoubt-vault/derive", version = "0.1.0-rc.1" }
+  redoubt-zero         = { path = "crates/redoubt-zero", version = "0.1.0-rc.1" }
+  redoubt-zero-core    = { path = "crates/redoubt-zero/core", version = "0.1.0-rc.1" }
+  redoubt-zero-derive  = { path = "crates/redoubt-zero/derive", version = "0.1.0-rc.1" }
 
   # External dependencies
   smallvec         = "1.15.1"
