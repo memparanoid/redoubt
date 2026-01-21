@@ -36,7 +36,7 @@
 //! Or in your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! redoubt = { version = "0.1.0-rc.2", features = ["full"] }
+//! redoubt = { version = "0.1.0-rc.3", features = ["full"] }
 //! ```
 //!
 //! # Quick Start
