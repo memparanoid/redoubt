@@ -20,6 +20,12 @@ mod storage_std {
         secret: RedoubtSecret<u64>,
     }
 
+    #[cipherbox(PoisonedMutexRecoveryBox, global = true, storage = "std")]
+    #[derive(Default, RedoubtCodec, RedoubtZero)]
+    struct PoisonedMutexRecoveryData {
+        secret: RedoubtSecret<u64>,
+    }
+
     #[test]
     fn test_fast_zeroize_then_open_returns_zeroized_error() {
         // First open should succeed
@@ -105,5 +111,39 @@ mod storage_std {
             Ok::<(), CipherBoxError>(())
         })
         .expect("final verification should succeed");
+    }
+
+    #[test]
+    fn test_mutex_poison_recovery() {
+        POISONED_MUTEX_RECOVERY_BOX::open_secret(|v| {
+            assert_eq!(*v.as_ref(), 0);
+            Ok::<(), CipherBoxError>(())
+        })
+        .expect("open should succeed");
+
+        let result = std::panic::catch_unwind(|| {
+            POISONED_MUTEX_RECOVERY_BOX::open_secret_mut(|_| -> Result<(), CipherBoxError> {
+                panic!("poison mutex");
+            })
+        });
+        assert!(result.is_err());
+
+        let result = POISONED_MUTEX_RECOVERY_BOX::open_secret(|v| {
+            assert_eq!(*v.as_ref(), 0);
+            Ok::<(), CipherBoxError>(())
+        });
+        assert!(result.is_ok(), "should recover from poisoned mutex");
+
+        POISONED_MUTEX_RECOVERY_BOX::open_secret_mut(|v| {
+            v.replace(&mut 42);
+            Ok::<(), CipherBoxError>(())
+        })
+        .expect("should modify after recovery");
+
+        POISONED_MUTEX_RECOVERY_BOX::open_secret(|v| {
+            assert_eq!(*v.as_ref(), 42);
+            Ok::<(), CipherBoxError>(())
+        })
+        .expect("modified value should persist");
     }
 }

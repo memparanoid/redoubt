@@ -491,7 +491,7 @@ fn expand(
                 global_leak_methods.push(quote! {
                     pub fn #leak_name() -> Result<#redoubt_zero_root::ZeroizingGuard<#field_type>, #error_type> {
                         let mutex = #internal_module_name::get_or_init();
-                        let mut guard = mutex.lock().expect("Mutex poisoned");
+                        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
                         guard.#leak_name()
                     }
                 });
@@ -504,7 +504,7 @@ fn expand(
                         R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
                         let mutex = #internal_module_name::get_or_init();
-                        let mut guard = mutex.lock().expect("Mutex poisoned");
+                        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
                         guard.#open_name(f)
                     }
                 });
@@ -517,7 +517,7 @@ fn expand(
                         R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
                         let mutex = #internal_module_name::get_or_init();
-                        let mut guard = mutex.lock().expect("Mutex poisoned");
+                        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
                         guard.#open_mut_name(f)
                     }
                 });
@@ -712,7 +712,7 @@ fn expand(
                         R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
                         let mutex = #internal_module_name::get_or_init();
-                        let mut guard = mutex.lock().expect("Mutex poisoned");
+                        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
                         guard.open(f)
                     }
 
@@ -722,14 +722,14 @@ fn expand(
                         R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
                         let mutex = #internal_module_name::get_or_init();
-                        let mut guard = mutex.lock().expect("Mutex poisoned");
+                        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
                         guard.open_mut(f)
                     }
 
                     #test_cfg
                     pub fn set_failure_mode(mode: #failure_mode_enum_name) {
                         let mutex = #internal_module_name::get_or_init();
-                        let mut guard = mutex.lock().expect("Mutex poisoned");
+                        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
                         guard.set_failure_mode(mode);
                     }
 
@@ -742,7 +742,7 @@ fn expand(
                     fn fast_zeroize() {
                         use #redoubt_zero_root::FastZeroizable;
                         let mutex = #internal_module_name::get_or_init();
-                        let mut guard = mutex.lock().expect("Mutex poisoned");
+                        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
                         guard.fast_zeroize();
                     }
                 }
