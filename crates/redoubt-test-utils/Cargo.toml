@@ -8,6 +8,5 @@ keywords = ["testing", "utilities", "test-utils"]
 license.workspace = true
 repository.workspace = true
 version.workspace = true
-publish = false
 
 [dependencies]
