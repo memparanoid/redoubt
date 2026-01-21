@@ -3,7 +3,6 @@
 // See LICENSE in the repository root for full license text.
 
 use alloc::vec;
-use alloc::vec::Vec;
 
 use core::marker::PhantomData;
 
@@ -14,11 +13,11 @@ use redoubt_zero::{
     ZeroizingGuard,
 };
 
+use super::consts::AAD;
 use super::error::CipherBoxError;
 use super::master_key::leak_master_key;
-
-use super::consts::AAD;
 use super::traits::{DecryptStruct, Decryptable, EncryptStruct, Encryptable};
+use super::types::{Ciphertext, Ciphertexts, Nonces, Tags};
 
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
@@ -41,11 +40,11 @@ where
     /// Starts as `false`, becomes `true` when an operation fails.
     poisoned: bool,
     key_size: usize,
-    ciphertexts: [Vec<u8>; N],
-    tmp_ciphertexts: [Vec<u8>; N],
-    nonces: [Vec<u8>; N],
-    tags: [Vec<u8>; N],
-    tmp_field_cyphertext: Vec<u8>,
+    ciphertexts: Ciphertexts<N>,
+    tmp_ciphertexts: Ciphertexts<N>,
+    nonces: Nonces<N>,
+    tags: Tags<N>,
+    tmp_field_cyphertext: Ciphertext,
     tmp_field_codec_buff: RedoubtCodecBuffer,
     __sentinel: ZeroizeOnDropSentinel,
     #[fast_zeroize(skip)]
@@ -73,7 +72,7 @@ where
     }
 
     #[cfg(test)]
-    pub(crate) fn __unsafe_get_tmp_ciphertext(&mut self) -> &Vec<u8> {
+    pub(crate) fn __unsafe_get_tmp_ciphertext(&mut self) -> &Ciphertext {
         &self.tmp_field_cyphertext
     }
 
@@ -83,12 +82,12 @@ where
     }
 
     #[cfg(test)]
-    pub(crate) fn __unsafe_get_tmp_ciphertexts(&self) -> &[Vec<u8>; N] {
+    pub(crate) fn __unsafe_get_tmp_ciphertexts(&self) -> &Ciphertexts<N> {
         &self.tmp_ciphertexts
     }
 
     #[cfg(test)]
-    pub(crate) fn __unsafe_get_field_ciphertext<const M: usize>(&mut self) -> &Vec<u8> {
+    pub(crate) fn __unsafe_get_field_ciphertext<const M: usize>(&mut self) -> &Ciphertext {
         &self.ciphertexts[M]
     }
 
@@ -97,18 +96,18 @@ where
         let nonce_size = aead.api_nonce_size();
         let tag_size = aead.api_tag_size();
 
-        let nonces: [Vec<u8>; N] = core::array::from_fn(|_| {
+        let nonces: Nonces<N> = core::array::from_fn(|_| {
             let nonce = vec![0; nonce_size];
             nonce
         });
 
-        let tags: [Vec<u8>; N] = core::array::from_fn(|_| {
+        let tags: Tags<N> = core::array::from_fn(|_| {
             let tag = vec![0; tag_size];
             tag
         });
 
-        let ciphertexts: [Vec<u8>; N] = core::array::from_fn(|_| vec![]);
-        let tmp_ciphertexts: [Vec<u8>; N] = core::array::from_fn(|_| vec![]);
+        let ciphertexts: Ciphertexts<N> = core::array::from_fn(|_| vec![]);
+        let tmp_ciphertexts: Ciphertexts<N> = core::array::from_fn(|_| vec![]);
 
         Self {
             aead,
@@ -120,7 +119,7 @@ where
             initialized: false,
             pristine: true,
             poisoned: false,
-            tmp_field_cyphertext: Vec::default(),
+            tmp_field_cyphertext: Ciphertext::default(),
             tmp_field_codec_buff: RedoubtCodecBuffer::default(),
             __sentinel: ZeroizeOnDropSentinel::default(),
             _marker: PhantomData,

@@ -27,9 +27,9 @@ for TestableSecrets {
         &mut self,
         aead: &mut A,
         aead_key: &[u8],
-        nonces: &mut [Vec<u8>; 1],
-        tags: &mut [Vec<u8>; 1],
-    ) -> Result<[Vec<u8>; 1], redoubt_vault_core::CipherBoxError> {
+        nonces: &mut redoubt_vault_core::Nonces<1>,
+        tags: &mut redoubt_vault_core::Tags<1>,
+    ) -> Result<redoubt_vault_core::Ciphertexts<1>, redoubt_vault_core::CipherBoxError> {
         redoubt_vault_core::encrypt_into(
             self.to_encryptable_dyn_fields(),
             aead,
@@ -45,9 +45,9 @@ for TestableSecrets {
         &mut self,
         aead: &mut A,
         aead_key: &[u8],
-        nonces: &mut [Vec<u8>; 1],
-        tags: &mut [Vec<u8>; 1],
-        ciphertexts: &mut [Vec<u8>; 1],
+        nonces: &mut redoubt_vault_core::Nonces<1>,
+        tags: &mut redoubt_vault_core::Tags<1>,
+        ciphertexts: &mut redoubt_vault_core::Ciphertexts<1>,
     ) -> Result<(), redoubt_vault_core::CipherBoxError> {
         redoubt_vault_core::decrypt_from(
             &mut self.to_decryptable_dyn_fields(),

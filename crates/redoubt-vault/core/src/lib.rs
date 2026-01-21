@@ -20,12 +20,14 @@ mod error;
 mod helpers;
 mod master_key;
 mod traits;
+mod types;
 
 pub use cipherbox::CipherBox;
 pub use error::CipherBoxError;
 pub use helpers::{decrypt_from, encrypt_into};
 pub use master_key::leak_master_key;
 pub use traits::{CipherBoxDyns, DecryptStruct, Decryptable, EncryptStruct, Encryptable};
+pub use types::{Ciphertext, Ciphertexts, Nonce, Nonces, Tag, Tags};
 
 #[cfg(feature = "internal-forensics")]
 pub use master_key::storage::reset as reset_master_key;

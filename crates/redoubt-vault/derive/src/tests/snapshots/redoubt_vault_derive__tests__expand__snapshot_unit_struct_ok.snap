@@ -21,9 +21,9 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 0> for Unit 
         &mut self,
         aead: &mut A,
         aead_key: &[u8],
-        nonces: &mut [Vec<u8>; 0],
-        tags: &mut [Vec<u8>; 0],
-    ) -> Result<[Vec<u8>; 0], redoubt_vault_core::CipherBoxError> {
+        nonces: &mut redoubt_vault_core::Nonces<0>,
+        tags: &mut redoubt_vault_core::Tags<0>,
+    ) -> Result<redoubt_vault_core::Ciphertexts<0>, redoubt_vault_core::CipherBoxError> {
         redoubt_vault_core::encrypt_into(
             self.to_encryptable_dyn_fields(),
             aead,
@@ -38,9 +38,9 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 0> for Unit 
         &mut self,
         aead: &mut A,
         aead_key: &[u8],
-        nonces: &mut [Vec<u8>; 0],
-        tags: &mut [Vec<u8>; 0],
-        ciphertexts: &mut [Vec<u8>; 0],
+        nonces: &mut redoubt_vault_core::Nonces<0>,
+        tags: &mut redoubt_vault_core::Tags<0>,
+        ciphertexts: &mut redoubt_vault_core::Ciphertexts<0>,
     ) -> Result<(), redoubt_vault_core::CipherBoxError> {
         redoubt_vault_core::decrypt_from(
             &mut self.to_decryptable_dyn_fields(),

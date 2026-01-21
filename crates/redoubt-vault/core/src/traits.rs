@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use alloc::vec::Vec;
-
 use redoubt_aead::AeadApi;
 use redoubt_codec::{BytesRequired, DecodeZeroize, EncodeZeroize};
 
 use crate::error::CipherBoxError;
+use crate::types::{Ciphertexts, Nonces, Tags};
 
 pub trait EncryptStruct<A: AeadApi, const N: usize> {
     fn encrypt_into(
         &mut self,
         aead: &mut A,
         aead_key: &[u8],
-        nonces: &mut [Vec<u8>; N],
-        tags: &mut [Vec<u8>; N],
-    ) -> Result<[Vec<u8>; N], CipherBoxError>;
+        nonces: &mut Nonces<N>,
+        tags: &mut Tags<N>,
+    ) -> Result<Ciphertexts<N>, CipherBoxError>;
 }
 
 pub trait CipherBoxDyns<const N: usize> {
@@ -29,9 +28,9 @@ pub trait DecryptStruct<A: AeadApi, const N: usize> {
         &mut self,
         aead: &mut A,
         aead_key: &[u8],
-        nonces: &mut [Vec<u8>; N],
-        tags: &mut [Vec<u8>; N],
-        ciphertexts: &mut [Vec<u8>; N],
+        nonces: &mut Nonces<N>,
+        tags: &mut Tags<N>,
+        ciphertexts: &mut Ciphertexts<N>,
     ) -> Result<(), CipherBoxError>;
 }
 

@@ -780,9 +780,9 @@ fn expand(
                 &mut self,
                 aead: &mut A,
                 aead_key: &[u8],
-                nonces: &mut [Vec<u8>; #num_fields_lit],
-                tags: &mut [Vec<u8>; #num_fields_lit],
-            ) -> Result<[Vec<u8>; #num_fields_lit], #root::CipherBoxError> {
+                nonces: &mut #root::Nonces<#num_fields_lit>,
+                tags: &mut #root::Tags<#num_fields_lit>,
+            ) -> Result<#root::Ciphertexts<#num_fields_lit>, #root::CipherBoxError> {
                 #root::encrypt_into(
                     self.to_encryptable_dyn_fields(),
                     aead,
@@ -799,9 +799,9 @@ fn expand(
                 &mut self,
                 aead: &mut A,
                 aead_key: &[u8],
-                nonces: &mut [Vec<u8>; #num_fields_lit],
-                tags: &mut [Vec<u8>; #num_fields_lit],
-                ciphertexts: &mut [Vec<u8>; #num_fields_lit],
+                nonces: &mut #root::Nonces<#num_fields_lit>,
+                tags: &mut #root::Tags<#num_fields_lit>,
+                ciphertexts: &mut #root::Ciphertexts<#num_fields_lit>,
             ) -> Result<(), #root::CipherBoxError> {
                 #root::decrypt_from(
                     &mut self.to_decryptable_dyn_fields(),

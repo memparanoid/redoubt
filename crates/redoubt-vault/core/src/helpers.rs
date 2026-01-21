@@ -3,7 +3,6 @@
 // See LICENSE in the repository root for full license text.
 
 use alloc::vec;
-use alloc::vec::Vec;
 
 use redoubt_aead::AeadApi;
 use redoubt_codec::RedoubtCodecBuffer;
@@ -11,6 +10,7 @@ use redoubt_zero::{FastZeroizable, ZeroizationProbe};
 
 use crate::error::CipherBoxError;
 use crate::traits::{Decryptable, Encryptable};
+use crate::types::{Ciphertexts, Nonces, Tags};
 
 use super::consts::AAD;
 
@@ -42,12 +42,12 @@ pub fn encrypt_into<const N: usize>(
     fields: [&mut dyn Encryptable; N],
     aead: &mut dyn AeadApi,
     aead_key: &[u8],
-    nonces: &mut [Vec<u8>; N],
-    tags: &mut [Vec<u8>; N],
-) -> Result<[Vec<u8>; N], CipherBoxError> {
+    nonces: &mut Nonces<N>,
+    tags: &mut Tags<N>,
+) -> Result<Ciphertexts<N>, CipherBoxError> {
     let sizes = get_sizes(&fields)?;
     let mut buffers: [RedoubtCodecBuffer; N] = sizes.map(RedoubtCodecBuffer::with_capacity);
-    let mut ciphertexts: [Vec<u8>; N] = core::array::from_fn(|_| vec![]);
+    let mut ciphertexts: Ciphertexts<N> = core::array::from_fn(|_| vec![]);
 
     encrypt_into_buffers(
         fields,
@@ -67,10 +67,10 @@ fn try_encrypt_into_buffers<const N: usize>(
     mut fields: [&mut dyn Encryptable; N],
     aead: &mut dyn AeadApi,
     aead_key: &[u8],
-    nonces: &mut [Vec<u8>; N],
-    tags: &mut [Vec<u8>; N],
+    nonces: &mut Nonces<N>,
+    tags: &mut Tags<N>,
     buffers: &mut [RedoubtCodecBuffer; N],
-    ciphertexts: &mut [Vec<u8>; N],
+    ciphertexts: &mut Ciphertexts<N>,
 ) -> Result<(), CipherBoxError> {
     for (idx, field) in fields.iter_mut().enumerate() {
         let buf = &mut buffers[idx];
@@ -103,10 +103,10 @@ pub(crate) fn encrypt_into_buffers<const N: usize>(
     fields: [&mut dyn Encryptable; N],
     aead: &mut dyn AeadApi,
     aead_key: &[u8],
-    nonces: &mut [Vec<u8>; N],
-    tags: &mut [Vec<u8>; N],
+    nonces: &mut Nonces<N>,
+    tags: &mut Tags<N>,
     buffers: &mut [RedoubtCodecBuffer; N],
-    ciphertexts: &mut [Vec<u8>; N],
+    ciphertexts: &mut Ciphertexts<N>,
 ) -> Result<(), CipherBoxError> {
     let result =
         try_encrypt_into_buffers(fields, aead, aead_key, nonces, tags, buffers, ciphertexts);
@@ -125,9 +125,9 @@ fn try_decrypt_from<const N: usize>(
     fields: &mut [&mut dyn Decryptable; N],
     aead: &mut dyn AeadApi,
     aead_key: &[u8],
-    nonces: &mut [Vec<u8>; N],
-    tags: &mut [Vec<u8>; N],
-    ciphertexts: &mut [Vec<u8>; N],
+    nonces: &mut Nonces<N>,
+    tags: &mut Tags<N>,
+    ciphertexts: &mut Ciphertexts<N>,
 ) -> Result<(), CipherBoxError> {
     for (idx, field) in fields.iter_mut().enumerate() {
         let nonce = &nonces[idx];
@@ -145,9 +145,9 @@ pub fn decrypt_from<const N: usize>(
     fields: &mut [&mut dyn Decryptable; N],
     aead: &mut dyn AeadApi,
     aead_key: &[u8],
-    nonces: &mut [Vec<u8>; N],
-    tags: &mut [Vec<u8>; N],
-    ciphertexts: &mut [Vec<u8>; N],
+    nonces: &mut Nonces<N>,
+    tags: &mut Tags<N>,
+    ciphertexts: &mut Ciphertexts<N>,
 ) -> Result<(), CipherBoxError> {
     let result = try_decrypt_from(fields, aead, aead_key, nonces, tags, ciphertexts);
 
