@@ -442,14 +442,19 @@ fn expand(
         });
 
         // Generate global methods if needed
+        // Note: These methods reference the internal module which is generated later.
+        // The internal module name follows the pattern: __{wrapper_name}_internal (lowercase)
         if is_global {
+            let internal_module_name =
+                format_ident!("__{}_internal", wrapper_name.to_string().to_shouty_snake_case().to_lowercase());
+
             if use_portable_storage {
                 // Portable: Global leak method
                 global_leak_methods.push(quote! {
                     pub fn #leak_name() -> Result<#redoubt_zero_root::ZeroizingGuard<#field_type>, #error_type> {
-                        lock();
-                        let _guard = PanicGuard;
-                        let instance = get_or_init();
+                        #internal_module_name::lock();
+                        let _guard = #internal_module_name::PanicGuard;
+                        let instance = #internal_module_name::get_or_init();
                         instance.#leak_name()
                     }
                 });
@@ -461,9 +466,9 @@ fn expand(
                         F: FnMut(&#field_type) -> Result<R, #error_type>,
                         R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
-                        lock();
-                        let _guard = PanicGuard;
-                        let instance = get_or_init();
+                        #internal_module_name::lock();
+                        let _guard = #internal_module_name::PanicGuard;
+                        let instance = #internal_module_name::get_or_init();
                         instance.#open_name(f)
                     }
                 });
@@ -475,9 +480,9 @@ fn expand(
                         F: FnMut(&mut #field_type) -> Result<R, #error_type>,
                         R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
-                        lock();
-                        let _guard = PanicGuard;
-                        let instance = get_or_init();
+                        #internal_module_name::lock();
+                        let _guard = #internal_module_name::PanicGuard;
+                        let instance = #internal_module_name::get_or_init();
                         instance.#open_mut_name(f)
                     }
                 });
@@ -485,7 +490,7 @@ fn expand(
                 // std: Global leak method
                 global_leak_methods.push(quote! {
                     pub fn #leak_name() -> Result<#redoubt_zero_root::ZeroizingGuard<#field_type>, #error_type> {
-                        let mutex = get_or_init();
+                        let mutex = #internal_module_name::get_or_init();
                         let mut guard = mutex.lock().expect("Mutex poisoned");
                         guard.#leak_name()
                     }
@@ -498,7 +503,7 @@ fn expand(
                         F: FnMut(&#field_type) -> Result<R, #error_type>,
                         R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
-                        let mutex = get_or_init();
+                        let mutex = #internal_module_name::get_or_init();
                         let mut guard = mutex.lock().expect("Mutex poisoned");
                         guard.#open_name(f)
                     }
@@ -511,7 +516,7 @@ fn expand(
                         F: FnMut(&mut #field_type) -> Result<R, #error_type>,
                         R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
-                        let mutex = get_or_init();
+                        let mutex = #internal_module_name::get_or_init();
                         let mut guard = mutex.lock().expect("Mutex poisoned");
                         guard.#open_mut_name(f)
                     }
@@ -522,8 +527,10 @@ fn expand(
 
     // Generate global storage code if needed (after loop so we can use global_*_methods)
     let global_storage_code = if is_global {
-        let global_module_name =
+        let global_struct_name =
             format_ident!("{}", wrapper_name.to_string().to_shouty_snake_case());
+        let internal_module_name =
+            format_ident!("__{}_internal", wrapper_name.to_string().to_shouty_snake_case().to_lowercase());
         let static_name =
             format_ident!("STATIC_{}", wrapper_name.to_string().to_shouty_snake_case());
 
@@ -538,39 +545,39 @@ fn expand(
                 wrapper_name.to_string().to_shouty_snake_case()
             );
             quote! {
-                pub mod #global_module_name {
+                mod #internal_module_name {
                     use super::*;
 
                     // Wrapper to make UnsafeCell Sync
                     // SAFETY: Access is synchronized via spinlock
-                    struct SyncCell<T>(core::cell::UnsafeCell<T>);
+                    pub(super) struct SyncCell<T>(core::cell::UnsafeCell<T>);
                     unsafe impl<T> Sync for SyncCell<T> {}
 
                     impl<T> SyncCell<T> {
-                        const fn new(value: T) -> Self {
+                        pub(super) const fn new(value: T) -> Self {
                             Self(core::cell::UnsafeCell::new(value))
                         }
 
-                        fn get(&self) -> *mut T {
+                        pub(super) fn get(&self) -> *mut T {
                             self.0.get()
                         }
                     }
 
                     // Initialization states
-                    const STATE_UNINIT: u8 = 0;
-                    const STATE_IN_PROGRESS: u8 = 1;
-                    const STATE_DONE: u8 = 2;
+                    pub(super) const STATE_UNINIT: u8 = 0;
+                    pub(super) const STATE_IN_PROGRESS: u8 = 1;
+                    pub(super) const STATE_DONE: u8 = 2;
 
-                    static #static_name: SyncCell<Option<#wrapper_name>> =
+                    pub(super) static #static_name: SyncCell<Option<#wrapper_name>> =
                         SyncCell::new(None);
-                    static #init_static_name: core::sync::atomic::AtomicU8 =
+                    pub(super) static #init_static_name: core::sync::atomic::AtomicU8 =
                         core::sync::atomic::AtomicU8::new(STATE_UNINIT);
-                    static #lock_static_name: core::sync::atomic::AtomicBool =
+                    pub(super) static #lock_static_name: core::sync::atomic::AtomicBool =
                         core::sync::atomic::AtomicBool::new(false);
 
                     #[cold]
                     #[inline(never)]
-                    fn init_slow() {
+                    pub(super) fn init_slow() {
                         use core::sync::atomic::Ordering;
 
                         match #init_static_name.compare_exchange(
@@ -599,19 +606,19 @@ fn expand(
                         }
                     }
 
-                    fn lock() {
+                    pub(super) fn lock() {
                         use core::sync::atomic::Ordering;
                         while #lock_static_name.swap(true, Ordering::Acquire) {
                             core::hint::spin_loop();
                         }
                     }
 
-                    fn release() {
+                    pub(super) fn release() {
                         use core::sync::atomic::Ordering;
                         #lock_static_name.store(false, Ordering::Release);
                     }
 
-                    struct PanicGuard;
+                    pub(super) struct PanicGuard;
 
                     impl Drop for PanicGuard {
                         fn drop(&mut self) {
@@ -619,7 +626,7 @@ fn expand(
                         }
                     }
 
-                    fn get_or_init() -> &'static mut #wrapper_name {
+                    pub(super) fn get_or_init() -> &'static mut #wrapper_name {
                         use core::sync::atomic::Ordering;
 
                         if #init_static_name.load(Ordering::Acquire) != STATE_DONE {
@@ -632,16 +639,19 @@ fn expand(
                                 .expect(concat!("Infallible: ", stringify!(#static_name), " has already been initialized"))
                         }
                     }
+                }
 
-                    // Global open and open_mut methods
+                pub struct #global_struct_name;
+
+                impl #global_struct_name {
                     pub fn open<F, R>(f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
                     where
                         F: FnMut(&#struct_name) -> Result<R, #error_type>,
                         R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
-                        lock();
-                        let _guard = PanicGuard;
-                        let instance = get_or_init();
+                        #internal_module_name::lock();
+                        let _guard = #internal_module_name::PanicGuard;
+                        let instance = #internal_module_name::get_or_init();
                         instance.open(f)
                     }
 
@@ -650,46 +660,58 @@ fn expand(
                         F: FnMut(&mut #struct_name) -> Result<R, #error_type>,
                         R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
-                        lock();
-                        let _guard = PanicGuard;
-                        let instance = get_or_init();
+                        #internal_module_name::lock();
+                        let _guard = #internal_module_name::PanicGuard;
+                        let instance = #internal_module_name::get_or_init();
                         instance.open_mut(f)
                     }
 
                     #test_cfg
                     pub fn set_failure_mode(mode: #failure_mode_enum_name) {
-                        lock();
-                        let _guard = PanicGuard;
-                        let instance = get_or_init();
+                        #internal_module_name::lock();
+                        let _guard = #internal_module_name::PanicGuard;
+                        let instance = #internal_module_name::get_or_init();
                         instance.set_failure_mode(mode);
                     }
 
-                    // Per-field methods
                     #( #global_leak_methods )*
                     #( #global_open_methods )*
                     #( #global_open_mut_methods )*
+                }
+
+                impl #redoubt_zero_root::StaticFastZeroizable for #global_struct_name {
+                    fn fast_zeroize() {
+                        use #redoubt_zero_root::FastZeroizable;
+                        #internal_module_name::lock();
+                        let _guard = #internal_module_name::PanicGuard;
+                        let instance = #internal_module_name::get_or_init();
+                        instance.fast_zeroize();
+                    }
                 }
             }
         } else {
             // std storage using OnceLock and Mutex
             quote! {
-                pub mod #global_module_name {
+                mod #internal_module_name {
                     use super::*;
 
-                    static #static_name: std::sync::OnceLock<std::sync::Mutex<#wrapper_name>> =
+                    pub(super) static #static_name: std::sync::OnceLock<std::sync::Mutex<#wrapper_name>> =
                         std::sync::OnceLock::new();
 
-                    fn get_or_init() -> &'static std::sync::Mutex<#wrapper_name> {
+                    pub(super) fn get_or_init() -> &'static std::sync::Mutex<#wrapper_name> {
                         #static_name.get_or_init(|| std::sync::Mutex::new(#wrapper_name::new()))
                     }
+                }
 
-                    // Global open and open_mut methods
+                pub struct #global_struct_name;
+
+                impl #global_struct_name {
                     pub fn open<F, R>(f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
                     where
                         F: FnMut(&#struct_name) -> Result<R, #error_type>,
                         R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
-                        let mutex = get_or_init();
+                        let mutex = #internal_module_name::get_or_init();
                         let mut guard = mutex.lock().expect("Mutex poisoned");
                         guard.open(f)
                     }
@@ -699,22 +721,30 @@ fn expand(
                         F: FnMut(&mut #struct_name) -> Result<R, #error_type>,
                         R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
                     {
-                        let mutex = get_or_init();
+                        let mutex = #internal_module_name::get_or_init();
                         let mut guard = mutex.lock().expect("Mutex poisoned");
                         guard.open_mut(f)
                     }
 
                     #test_cfg
                     pub fn set_failure_mode(mode: #failure_mode_enum_name) {
-                        let mutex = get_or_init();
+                        let mutex = #internal_module_name::get_or_init();
                         let mut guard = mutex.lock().expect("Mutex poisoned");
                         guard.set_failure_mode(mode);
                     }
 
-                    // Per-field methods
                     #( #global_leak_methods )*
                     #( #global_open_methods )*
                     #( #global_open_mut_methods )*
+                }
+
+                impl #redoubt_zero_root::StaticFastZeroizable for #global_struct_name {
+                    fn fast_zeroize() {
+                        use #redoubt_zero_root::FastZeroizable;
+                        let mutex = #internal_module_name::get_or_init();
+                        let mut guard = mutex.lock().expect("Mutex poisoned");
+                        guard.fast_zeroize();
+                    }
                 }
             }
         }

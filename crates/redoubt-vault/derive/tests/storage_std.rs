@@ -12,7 +12,39 @@ mod storage_std {
     use redoubt_secret::RedoubtSecret;
     use redoubt_vault_core::CipherBoxError;
     use redoubt_vault_derive::cipherbox;
-    use redoubt_zero::RedoubtZero;
+    use redoubt_zero::{RedoubtZero, StaticFastZeroizable};
+
+    #[cipherbox(ZeroizeTestBox, global = true, storage = "std")]
+    #[derive(Default, RedoubtCodec, RedoubtZero)]
+    struct ZeroizeTestData {
+        secret: RedoubtSecret<u64>,
+    }
+
+    #[test]
+    fn test_fast_zeroize_then_open_returns_zeroized_error() {
+        // First open should succeed
+        ZEROIZE_TEST_BOX::open(|_| Ok::<(), CipherBoxError>(()))
+            .expect("open should succeed before zeroize");
+
+        // Zeroize the global instance
+        ZEROIZE_TEST_BOX::fast_zeroize();
+
+        // After zeroize, open should return Zeroized error
+        let result = ZEROIZE_TEST_BOX::open(|_| Ok::<(), CipherBoxError>(()));
+        assert!(matches!(result, Err(CipherBoxError::Zeroized)));
+
+        let result = ZEROIZE_TEST_BOX::open_mut(|_| Ok::<(), CipherBoxError>(()));
+        assert!(matches!(result, Err(CipherBoxError::Zeroized)));
+
+        let result = ZEROIZE_TEST_BOX::open_secret(|_| Ok::<(), CipherBoxError>(()));
+        assert!(matches!(result, Err(CipherBoxError::Zeroized)));
+
+        let result = ZEROIZE_TEST_BOX::open_secret_mut(|_| Ok::<(), CipherBoxError>(()));
+        assert!(matches!(result, Err(CipherBoxError::Zeroized)));
+
+        let result = ZEROIZE_TEST_BOX::leak_secret();
+        assert!(matches!(result, Err(CipherBoxError::Zeroized)));
+    }
 
     #[cipherbox(TestBox, global = true, storage = "std")]
     #[derive(Default, RedoubtCodec, RedoubtZero)]

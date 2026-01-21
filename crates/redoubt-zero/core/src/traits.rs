@@ -168,3 +168,28 @@ pub trait FastZeroize: ZeroizeMetadata + FastZeroizable {}
 
 // Blanket impl: any type implementing both sub-traits automatically gets FastZeroize
 impl<T: ZeroizeMetadata + FastZeroizable> FastZeroize for T {}
+
+/// Trait for static zeroization of global CipherBox instances.
+///
+/// Used by `#[cipherbox(..., global = true)]` to expose `fast_zeroize()` on
+/// the generated module. Requires trait import for consistency with
+/// [`FastZeroizable`].
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use redoubt::{cipherbox, RedoubtCodec, RedoubtZero, RedoubtString};
+/// use redoubt::StaticFastZeroizable;
+///
+/// #[cipherbox(SensitiveDataBox, global = true)]
+/// #[derive(Default, RedoubtCodec, RedoubtZero)]
+/// struct SensitiveData {
+///     // ...
+/// }
+///
+/// SENSITIVE_DATA_BOX::fast_zeroize();
+/// ```
+pub trait StaticFastZeroizable {
+    /// Zeroizes the global instance.
+    fn fast_zeroize();
+}
