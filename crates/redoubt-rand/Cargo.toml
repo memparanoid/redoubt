@@ -18,9 +18,6 @@ redoubt-hkdf.workspace = true
 redoubt-zero.workspace = true
 thiserror.workspace = true
 
-[target.'cfg(target_arch = "x86_64")'.dependencies]
-cpufeatures = "0.2.17"
-
 [target.'cfg(any(target_os = "linux", target_os = "android", target_os = "macos", target_os = "ios"))'.dependencies]
 libc.workspace = true
 

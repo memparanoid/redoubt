@@ -2,7 +2,38 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::u64_seed::generate;
+use crate::error::EntropyError;
+use crate::u64_seed::{finalize_getentropy, finalize_getrandom, generate};
+
+#[test]
+fn test_finalize_getrandom_ok() {
+    let result = finalize_getrandom(8);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_finalize_getrandom_reports_entropy_error() {
+    let result = finalize_getrandom(0);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(EntropyError::EntropyNotAvailable)));
+}
+
+#[test]
+fn test_finalize_getentropy_ok() {
+    let result = finalize_getentropy(0);
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_finalize_getentropy_reports_entropy_error() {
+    let result = finalize_getentropy(-1);
+
+    assert!(result.is_err());
+    assert!(matches!(result, Err(EntropyError::EntropyNotAvailable)));
+}
 
 #[test]
 fn test_generate_succeeds() {
