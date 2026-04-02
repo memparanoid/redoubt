@@ -1,0 +1,33 @@
+# Crates to include in workspace coverage report.
+# One crate per line. Optional features after space.
+# Lines starting with # are ignored.
+
+# Core
+redoubt-guard
+redoubt-alloc
+redoubt-zero
+redoubt-zero-core
+redoubt-zero-derive
+redoubt-test-utils
+redoubt-secret
+redoubt-rand
+redoubt-util
+
+# Crypto
+redoubt-hkdf
+redoubt-aead
+
+# Buffer
+redoubt-buffer
+
+# Vault
+redoubt-vault
+redoubt-vault-core
+redoubt-vault-derive
+
+# Codec
+redoubt-codec
+redoubt-codec zeroize
+redoubt-codec-core
+redoubt-codec-core zeroize
+redoubt-codec-derive
