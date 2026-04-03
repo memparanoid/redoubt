@@ -15,30 +15,29 @@
 //! - **x86_64 (non-Windows) / aarch64 with AES**: Uses AEGIS-128L (hardware-accelerated)
 //! - **Otherwise**: Falls back to XChaCha20-Poly1305
 
-#[cfg(test)]
-mod tests;
+extern crate alloc;
 
-use redoubt_rand::{EntropyError, SystemEntropySource};
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 
-#[cfg(all(feature = "asm", is_aegis_asm_eligible))]
-use crate::aegis_asm::Aegis128L;
-use crate::error::AeadError;
+use redoubt_aead_core::{AeadApi, AeadBackend, AeadError, EntropyError};
+use redoubt_aead_xchacha::XChacha20Poly1305;
+
 use crate::feature_detector::FeatureDetector;
-use crate::traits::{AeadApi, AeadBackend};
 
-use crate::xchacha20poly1305::XChacha20Poly1305;
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+use redoubt_aead_aegis_x86::Aegis128LX86Backend;
 
-// Type aliases for constant access
-type XChacha = XChacha20Poly1305<SystemEntropySource>;
-#[cfg(all(feature = "asm", is_aegis_asm_eligible))]
-type Aegis = Aegis128L<SystemEntropySource>;
+#[cfg(target_arch = "aarch64")]
+use redoubt_aead_aegis_arm::Aegis128LArmBackend;
 
 /// Internal enum representing the selected backend implementation.
 enum AeadBackendImpl {
-    #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
-    Aegis128L(Aegis128L<SystemEntropySource>),
-    // Box keeps enum size small (XChacha20Poly1305 is ~800 bytes vs Aegis128L few bytes)
-    XChacha20Poly1305(Box<XChacha20Poly1305<SystemEntropySource>>),
+    #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+    Aegis128LX86(Aegis128LX86Backend),
+    #[cfg(target_arch = "aarch64")]
+    Aegis128LArm(Aegis128LArmBackend),
+    XChacha20Poly1305(Box<XChacha20Poly1305<redoubt_rand::SystemEntropySource>>),
 }
 
 /// AEAD with automatic backend selection based on CPU capabilities.
@@ -56,65 +55,46 @@ impl Default for Aead {
 }
 
 impl Aead {
-    #[inline(always)]
-    #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
-    pub(crate) fn new_with_feature_detector(feature_detector: FeatureDetector) -> Self {
-        if feature_detector.has_aes() {
-            return Self {
-                backend: AeadBackendImpl::Aegis128L(Aegis128L::default()),
-            };
-        }
-
-        // Fallback: XChaCha20-Poly1305 for all other cases
-        Self {
-            backend: AeadBackendImpl::XChacha20Poly1305(Box::default()),
-        }
-    }
-
-    #[inline(always)]
-    #[cfg(not(all(feature = "asm", is_aegis_asm_eligible)))]
-    pub(crate) fn new_with_feature_detector(_feature_detector: FeatureDetector) -> Self {
-        // Fallback: XChaCha20-Poly1305 for all other cases
-        Self {
-            backend: AeadBackendImpl::XChacha20Poly1305(Box::default()),
-        }
-    }
-
     /// Creates a new AEAD instance with runtime backend selection.
-    ///
-    /// # Backend Selection Logic
-    ///
-    /// - **WASI**: Always XChaCha20-Poly1305
-    /// - **x86_64 (non-Windows)**: Checks for AES-NI
-    /// - **aarch64**: Checks for ARM Crypto Extensions
-    /// - **Windows x86_64 / Other architectures**: XChaCha20-Poly1305
     pub fn new() -> Self {
         let feature_detector = FeatureDetector::new();
         Aead::new_with_feature_detector(feature_detector)
     }
 
+    pub(crate) fn new_with_feature_detector(feature_detector: FeatureDetector) -> Self {
+        #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+        if feature_detector.has_aes() {
+            return Self {
+                backend: AeadBackendImpl::Aegis128LX86(Aegis128LX86Backend),
+            };
+        }
+
+        #[cfg(target_arch = "aarch64")]
+        if feature_detector.has_aes() {
+            return Self {
+                backend: AeadBackendImpl::Aegis128LArm(Aegis128LArmBackend),
+            };
+        }
+
+        let _ = feature_detector;
+
+        Self {
+            backend: AeadBackendImpl::XChacha20Poly1305(Box::default()),
+        }
+    }
+
+    /// Returns the name of the selected backend.
     pub fn backend_name(&self) -> &'static str {
         match &self.backend {
-            #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
-            AeadBackendImpl::Aegis128L(_) => "AEGIS-128L",
+            #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+            AeadBackendImpl::Aegis128LX86(_) => "AEGIS-128L",
+            #[cfg(target_arch = "aarch64")]
+            AeadBackendImpl::Aegis128LArm(_) => "AEGIS-128L",
             AeadBackendImpl::XChacha20Poly1305(_) => "XChaCha20-Poly1305",
         }
     }
 
     /// Encrypts data in-place and generates an authentication tag.
-    ///
-    /// # Arguments
-    ///
-    /// * `key` - Encryption key (16 bytes for AEGIS-128L, 32 bytes for XChaCha20-Poly1305)
-    /// * `nonce` - Nonce (16 bytes for AEGIS-128L, 24 bytes for XChaCha20-Poly1305)
-    /// * `aad` - Additional authenticated data
-    /// * `data` - Plaintext to encrypt (modified in-place to ciphertext)
-    /// * `tag` - Output authentication tag (16 bytes)
-    ///
-    /// # Errors
-    ///
-    /// Returns [`AeadError::InvalidKeySize`], [`AeadError::InvalidNonceSize`], or
-    /// [`AeadError::InvalidTagSize`] if slice sizes don't match the selected backend's requirements.
     #[inline(always)]
     pub fn encrypt(
         &mut self,
@@ -125,45 +105,24 @@ impl Aead {
         tag: &mut [u8],
     ) -> Result<(), AeadError> {
         match &mut self.backend {
-            #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
-            AeadBackendImpl::Aegis128L(backend) => {
-                let key: &[u8; Aegis::KEY_SIZE] =
+            #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+            AeadBackendImpl::Aegis128LX86(b) => b.api_encrypt(key, nonce, aad, data, tag),
+            #[cfg(target_arch = "aarch64")]
+            AeadBackendImpl::Aegis128LArm(b) => b.api_encrypt(key, nonce, aad, data, tag),
+            AeadBackendImpl::XChacha20Poly1305(b) => {
+                let key: &[u8; redoubt_aead_xchacha::KEY_SIZE] =
                     key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
-                let nonce: &[u8; Aegis::NONCE_SIZE] =
+                let nonce: &[u8; redoubt_aead_xchacha::XNONCE_SIZE] =
                     nonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
-                let tag_out: &mut [u8; Aegis::TAG_SIZE] =
+                let tag: &mut [u8; redoubt_aead_xchacha::TAG_SIZE] =
                     tag.try_into().map_err(|_| AeadError::InvalidTagSize)?;
-                backend.encrypt(key, nonce, aad, data, tag_out);
-                Ok(())
-            }
-            AeadBackendImpl::XChacha20Poly1305(backend) => {
-                let key: &[u8; XChacha::KEY_SIZE] =
-                    key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
-                let nonce: &[u8; XChacha::NONCE_SIZE] =
-                    nonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
-                let tag_out: &mut [u8; XChacha::TAG_SIZE] =
-                    tag.try_into().map_err(|_| AeadError::InvalidTagSize)?;
-                backend.encrypt(key, nonce, aad, data, tag_out);
+                b.encrypt(key, nonce, aad, data, tag);
                 Ok(())
             }
         }
     }
 
     /// Decrypts data in-place and verifies the authentication tag.
-    ///
-    /// # Arguments
-    ///
-    /// * `key` - Decryption key (16 bytes for AEGIS-128L, 32 bytes for XChaCha20-Poly1305)
-    /// * `nonce` - Nonce (16 bytes for AEGIS-128L, 24 bytes for XChaCha20-Poly1305)
-    /// * `aad` - Additional authenticated data
-    /// * `data` - Ciphertext to decrypt (modified in-place to plaintext)
-    /// * `tag` - Authentication tag to verify (16 bytes)
-    ///
-    /// # Errors
-    ///
-    /// Returns [`AeadError::AuthenticationFailed`] if tag verification fails.
-    /// Returns [`AeadError::InvalidKeySize`], [`AeadError::InvalidNonceSize`], or
-    /// [`AeadError::InvalidTagSize`] if slice sizes don't match the selected backend's requirements.
     #[inline(always)]
     pub fn decrypt(
         &mut self,
@@ -174,45 +133,33 @@ impl Aead {
         tag: &[u8],
     ) -> Result<(), AeadError> {
         match &mut self.backend {
-            #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
-            AeadBackendImpl::Aegis128L(backend) => {
-                let key: &[u8; Aegis::KEY_SIZE] =
+            #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+            AeadBackendImpl::Aegis128LX86(b) => b.api_decrypt(key, nonce, aad, data, tag),
+            #[cfg(target_arch = "aarch64")]
+            AeadBackendImpl::Aegis128LArm(b) => b.api_decrypt(key, nonce, aad, data, tag),
+            AeadBackendImpl::XChacha20Poly1305(b) => {
+                let key: &[u8; redoubt_aead_xchacha::KEY_SIZE] =
                     key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
-                let nonce: &[u8; Aegis::NONCE_SIZE] =
+                let nonce: &[u8; redoubt_aead_xchacha::XNONCE_SIZE] =
                     nonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
-                let tag_ref: &[u8; Aegis::TAG_SIZE] =
+                let tag: &[u8; redoubt_aead_xchacha::TAG_SIZE] =
                     tag.try_into().map_err(|_| AeadError::InvalidTagSize)?;
-                backend.decrypt(key, nonce, aad, data, tag_ref)
-            }
-            AeadBackendImpl::XChacha20Poly1305(backend) => {
-                let key: &[u8; XChacha::KEY_SIZE] =
-                    key.try_into().map_err(|_| AeadError::InvalidKeySize)?;
-                let nonce: &[u8; XChacha::NONCE_SIZE] =
-                    nonce.try_into().map_err(|_| AeadError::InvalidNonceSize)?;
-                let tag_ref: &[u8; XChacha::TAG_SIZE] =
-                    tag.try_into().map_err(|_| AeadError::InvalidTagSize)?;
-                backend.decrypt(key, nonce, aad, data, tag_ref)
+                b.decrypt(key, nonce, aad, data, tag)
             }
         }
     }
 
     /// Generates a cryptographically secure random nonce.
-    ///
-    /// Returns a Vec with the appropriate size for the selected backend:
-    /// - AEGIS-128L: 16 bytes
-    /// - XChaCha20-Poly1305: 24 bytes
-    ///
-    /// # Errors
-    ///
-    /// Returns [`EntropyError`] if the entropy source fails.
     #[inline]
     pub fn generate_nonce(&mut self) -> Result<Vec<u8>, EntropyError> {
         match &mut self.backend {
-            #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
-            AeadBackendImpl::Aegis128L(backend) => backend.generate_nonce().map(|n| n.to_vec()),
-            AeadBackendImpl::XChacha20Poly1305(backend) => {
-                backend.generate_nonce().map(|n| n.to_vec())
-            }
+            #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+            AeadBackendImpl::Aegis128LX86(b) => b.api_generate_nonce(),
+            #[cfg(target_arch = "aarch64")]
+            AeadBackendImpl::Aegis128LArm(b) => b.api_generate_nonce(),
+            AeadBackendImpl::XChacha20Poly1305(b) => b
+                .generate_nonce()
+                .map(|n: [u8; redoubt_aead_xchacha::XNONCE_SIZE]| n.to_vec()),
         }
     }
 
@@ -220,9 +167,11 @@ impl Aead {
     #[inline]
     pub fn key_size(&self) -> usize {
         match &self.backend {
-            #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
-            AeadBackendImpl::Aegis128L(_) => Aegis::KEY_SIZE,
-            AeadBackendImpl::XChacha20Poly1305(_) => XChacha::KEY_SIZE,
+            #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+            AeadBackendImpl::Aegis128LX86(b) => b.api_key_size(),
+            #[cfg(target_arch = "aarch64")]
+            AeadBackendImpl::Aegis128LArm(b) => b.api_key_size(),
+            AeadBackendImpl::XChacha20Poly1305(_) => redoubt_aead_xchacha::KEY_SIZE,
         }
     }
 
@@ -230,9 +179,11 @@ impl Aead {
     #[inline]
     pub fn nonce_size(&self) -> usize {
         match &self.backend {
-            #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
-            AeadBackendImpl::Aegis128L(_) => Aegis::NONCE_SIZE,
-            AeadBackendImpl::XChacha20Poly1305(_) => XChacha::NONCE_SIZE,
+            #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+            AeadBackendImpl::Aegis128LX86(b) => b.api_nonce_size(),
+            #[cfg(target_arch = "aarch64")]
+            AeadBackendImpl::Aegis128LArm(b) => b.api_nonce_size(),
+            AeadBackendImpl::XChacha20Poly1305(_) => redoubt_aead_xchacha::XNONCE_SIZE,
         }
     }
 
@@ -240,9 +191,11 @@ impl Aead {
     #[inline]
     pub fn tag_size(&self) -> usize {
         match &self.backend {
-            #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
-            AeadBackendImpl::Aegis128L(_) => Aegis::TAG_SIZE,
-            AeadBackendImpl::XChacha20Poly1305(_) => XChacha::TAG_SIZE,
+            #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+            AeadBackendImpl::Aegis128LX86(b) => b.api_tag_size(),
+            #[cfg(target_arch = "aarch64")]
+            AeadBackendImpl::Aegis128LArm(b) => b.api_tag_size(),
+            AeadBackendImpl::XChacha20Poly1305(_) => redoubt_aead_xchacha::TAG_SIZE,
         }
     }
 
@@ -254,10 +207,18 @@ impl Aead {
     }
 
     #[cfg(test)]
-    #[cfg(all(feature = "asm", is_aegis_asm_eligible))]
+    #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
     pub(crate) fn with_aegis128l() -> Self {
         Self {
-            backend: AeadBackendImpl::Aegis128L(Aegis128L::default()),
+            backend: AeadBackendImpl::Aegis128LX86(Aegis128LX86Backend),
+        }
+    }
+
+    #[cfg(test)]
+    #[cfg(target_arch = "aarch64")]
+    pub(crate) fn with_aegis128l() -> Self {
+        Self {
+            backend: AeadBackendImpl::Aegis128LArm(Aegis128LArmBackend),
         }
     }
 }
@@ -277,7 +238,7 @@ impl AeadApi for Aead {
         aad: &[u8],
         data: &mut [u8],
         tag: &mut [u8],
-    ) -> Result<(), crate::AeadError> {
+    ) -> Result<(), AeadError> {
         self.encrypt(key, nonce, aad, data, tag)
     }
 
@@ -289,12 +250,12 @@ impl AeadApi for Aead {
         aad: &[u8],
         data: &mut [u8],
         tag: &[u8],
-    ) -> Result<(), crate::AeadError> {
+    ) -> Result<(), AeadError> {
         self.decrypt(key, nonce, aad, data, tag)
     }
 
     #[inline(always)]
-    fn api_generate_nonce(&mut self) -> Result<Vec<u8>, redoubt_rand::EntropyError> {
+    fn api_generate_nonce(&mut self) -> Result<Vec<u8>, EntropyError> {
         self.generate_nonce()
     }
 

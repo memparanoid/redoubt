@@ -7,9 +7,8 @@
 use core::cell::Cell;
 use redoubt_rand::{EntropyError, SystemEntropySource};
 
-use crate::error::AeadError;
-use crate::traits::{AeadApi, AeadBackend};
-use crate::xchacha20poly1305::XChacha20Poly1305;
+use redoubt_aead_core::{AeadApi, AeadBackend, AeadError};
+use redoubt_aead_xchacha::XChacha20Poly1305;
 
 type XChacha = XChacha20Poly1305<SystemEntropySource>;
 
@@ -36,10 +35,14 @@ pub struct AeadMock {
 }
 
 impl AeadMock {
+    /// Key size in bytes.
     pub const KEY_SIZE: usize = XChacha::KEY_SIZE;
+    /// Nonce size in bytes.
     pub const NONCE_SIZE: usize = XChacha::NONCE_SIZE;
+    /// Tag size in bytes.
     pub const TAG_SIZE: usize = XChacha::TAG_SIZE;
 
+    /// Creates a new mock with the given failure behaviour.
     pub fn new(behaviour: AeadMockBehaviour) -> Self {
         Self {
             backend: XChacha20Poly1305::default(),
@@ -50,6 +53,7 @@ impl AeadMock {
         }
     }
 
+    /// Encrypt with optional Nth-call failure injection.
     pub fn encrypt(
         &mut self,
         key: &[u8; Self::KEY_SIZE],
@@ -71,6 +75,7 @@ impl AeadMock {
         Ok(())
     }
 
+    /// Decrypt with optional Nth-call failure injection.
     pub fn decrypt(
         &mut self,
         key: &[u8; Self::KEY_SIZE],
@@ -91,6 +96,7 @@ impl AeadMock {
         self.backend.decrypt(key, nonce, aad, data, tag)
     }
 
+    /// Generate nonce with optional Nth-call failure injection.
     pub fn generate_nonce(&mut self) -> Result<[u8; Self::NONCE_SIZE], EntropyError> {
         let current = self.generate_nonce_count.get();
         self.generate_nonce_count.set(current + 1);
@@ -104,16 +110,19 @@ impl AeadMock {
         self.backend.generate_nonce()
     }
 
+    /// Returns the key size in bytes.
     #[inline]
     pub fn key_size(&self) -> usize {
         Self::KEY_SIZE
     }
 
+    /// Returns the nonce size in bytes.
     #[inline]
     pub fn nonce_size(&self) -> usize {
         Self::NONCE_SIZE
     }
 
+    /// Returns the tag size in bytes.
     #[inline]
     pub fn tag_size(&self) -> usize {
         Self::TAG_SIZE

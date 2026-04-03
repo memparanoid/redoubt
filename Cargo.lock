@@ -860,12 +860,13 @@ dependencies = [
 name = "redoubt-aead"
 version = "0.1.0-rc.3"
 dependencies = [
- "cc",
  "cpufeatures",
+ "redoubt-aead-aegis-arm",
+ "redoubt-aead-aegis-x86",
+ "redoubt-aead-core",
+ "redoubt-aead-xchacha",
  "redoubt-rand",
  "redoubt-util",
- "redoubt-zero",
- "thiserror",
 ]
 
 [[package]]

@@ -2,26 +2,26 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! AEGIS-128L and XChaCha20-Poly1305 AEAD with automatic backend selection.
+//!
 //! ## License
 //!
 //! GPL-3.0-only
+
+#![cfg_attr(not(test), no_std)]
+#![warn(missing_docs)]
 
 #[cfg(test)]
 mod tests;
 
 mod aead;
-#[cfg(all(feature = "asm", is_aegis_asm_eligible))]
-mod aegis_asm;
-mod error;
 mod feature_detector;
-mod traits;
-mod xchacha20poly1305;
 
+/// Support module including test utilities.
 pub mod support;
 
 pub use aead::Aead;
-pub use error::AeadError;
-pub use traits::{AeadApi, AeadBackend};
+pub use redoubt_aead_core::{AeadApi, AeadBackend, AeadError};
 
 #[cfg(feature = "test-utils")]
 pub use support::test_utils;
