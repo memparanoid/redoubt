@@ -132,7 +132,9 @@ impl Decode for MixedData {
     }
 }
 
+/// Run manually with: `cargo test -p redoubt-codec-core --release --features benchmark -- benchmark_codec_roundtrip --ignored --nocapture`
 #[test]
+#[ignore]
 fn benchmark_codec_roundtrip() {
     use std::time::Instant;
 
