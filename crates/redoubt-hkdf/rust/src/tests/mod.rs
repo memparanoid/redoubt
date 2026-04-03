@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+mod backend;
 mod sha256_state;
 mod word32;
 mod wycheproof;
