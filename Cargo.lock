@@ -869,11 +869,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "redoubt-aead-aegis-arm"
+version = "0.1.0-rc.3"
+dependencies = [
+ "cc",
+ "redoubt-aead-aegis-wycheproof",
+ "redoubt-aead-core",
+]
+
+[[package]]
+name = "redoubt-aead-aegis-wycheproof"
+version = "0.1.0-rc.3"
+dependencies = [
+ "redoubt-aead-core",
+ "redoubt-util",
+]
+
+[[package]]
+name = "redoubt-aead-aegis-x86"
+version = "0.1.0-rc.3"
+dependencies = [
+ "cc",
+ "redoubt-aead-aegis-wycheproof",
+ "redoubt-aead-core",
+]
+
+[[package]]
 name = "redoubt-aead-core"
 version = "0.1.0-rc.3"
 dependencies = [
  "redoubt-rand",
  "thiserror",
+]
+
+[[package]]
+name = "redoubt-aead-xchacha"
+version = "0.1.0-rc.3"
+dependencies = [
+ "redoubt-aead-core",
 ]
 
 [[package]]

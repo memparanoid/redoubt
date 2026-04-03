@@ -21,8 +21,8 @@ TEST_CONFIGS = [
             "..",
             "crates",
             "redoubt-aead",
+            "xchacha",
             "src",
-            "xchacha20poly1305",
             "tests",
             "wycheproof_vectors.rs",
         ),
@@ -36,9 +36,9 @@ TEST_CONFIGS = [
             "..",
             "crates",
             "redoubt-aead",
+            "aegis",
+            "wycheproof",
             "src",
-            "aegis_asm",
-            "tests",
             "wycheproof_vectors.rs",
         ),
     },
@@ -159,7 +159,8 @@ def generate_aead_rust(data, source_url):
     lines.append("")
     lines.append("use super::wycheproof::{Flag, TestCase, TestResult};")
     lines.append("")
-    lines.append("pub(crate) fn test_vectors() -> Vec<TestCase> {")
+    lines.append("/// Returns all AEAD Wycheproof test vectors.")
+    lines.append("pub fn test_vectors() -> Vec<TestCase> {")
     lines.append("    vec![")
 
     # Iterate test groups

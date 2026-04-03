@@ -1,0 +1,18 @@
+[package]
+name                 = "redoubt-aead-aegis-wycheproof"
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography"]
+description          = "Wycheproof test runners for AEGIS-128L backends"
+edition.workspace    = true
+keywords             = ["aegis", "aead", "testing", "wycheproof"]
+license.workspace    = true
+readme.workspace     = true
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+redoubt-aead-core.workspace = true
+redoubt-util = { workspace = true, features = ["test-utils"] }

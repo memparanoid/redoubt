@@ -8,6 +8,10 @@ members = [
   "crates/redoubt-zero/derive",
   "crates/redoubt-aead",
   "crates/redoubt-aead/core",
+  "crates/redoubt-aead/xchacha",
+  "crates/redoubt-aead/aegis/wycheproof",
+  "crates/redoubt-aead/aegis/x86",
+  "crates/redoubt-aead/aegis/arm",
   "crates/redoubt-secret",
   "crates/redoubt-rand",
   "crates/redoubt-hkdf",
@@ -44,7 +48,11 @@ resolver = "2"
   # Internal crates
   redoubt                 = { path = "crates/redoubt", version = "0.1.0-rc.3" }
   redoubt-aead            = { path = "crates/redoubt-aead", version = "0.1.0-rc.3" }
-  redoubt-aead-core       = { path = "crates/redoubt-aead/core", version = "0.1.0-rc.3" }
+  redoubt-aead-aegis-arm        = { path = "crates/redoubt-aead/aegis/arm", version = "0.1.0-rc.3" }
+  redoubt-aead-aegis-wycheproof = { path = "crates/redoubt-aead/aegis/wycheproof", version = "0.1.0-rc.3" }
+  redoubt-aead-aegis-x86        = { path = "crates/redoubt-aead/aegis/x86", version = "0.1.0-rc.3" }
+  redoubt-aead-core             = { path = "crates/redoubt-aead/core", version = "0.1.0-rc.3" }
+  redoubt-aead-xchacha          = { path = "crates/redoubt-aead/xchacha", version = "0.1.0-rc.3" }
   redoubt-alloc           = { path = "crates/redoubt-alloc", version = "0.1.0-rc.3" }
   redoubt-buffer          = { path = "crates/redoubt-buffer", version = "0.1.0-rc.3" }
   redoubt-codec           = { path = "crates/redoubt-codec", version = "0.1.0-rc.3" }

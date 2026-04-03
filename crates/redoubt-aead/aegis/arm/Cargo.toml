@@ -1,0 +1,23 @@
+[package]
+name                 = "redoubt-aead-aegis-arm"
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography"]
+description          = "aarch64 assembly AEGIS-128L AEAD implementation"
+edition.workspace    = true
+keywords             = ["aegis", "aead", "asm", "aarch64"]
+license.workspace    = true
+readme.workspace     = true
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+redoubt-aead-core.workspace = true
+
+[build-dependencies]
+cc.workspace = true
+
+[dev-dependencies]
+redoubt-aead-aegis-wycheproof.workspace = true
