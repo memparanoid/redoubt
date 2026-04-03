@@ -849,6 +849,7 @@ dependencies = [
  "redoubt-aead",
  "redoubt-alloc",
  "redoubt-codec",
+ "redoubt-guard",
  "redoubt-hkdf",
  "redoubt-rand",
  "redoubt-secret",
