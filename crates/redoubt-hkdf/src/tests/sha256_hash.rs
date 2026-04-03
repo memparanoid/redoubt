@@ -120,3 +120,60 @@ fn test_sha256_hash_112_bytes() {
         "SHA-256 hash mismatch for 112-byte message"
     );
 }
+
+#[test]
+#[cfg(not(all(feature = "asm", is_asm_eligible)))]
+fn test_sha256_hash_streaming_partial_buffer() {
+    // Streaming: two updates where the first leaves a partial buffer (30 < 64)
+    // This exercises the `buffer_len > 0` branch in update()
+    use crate::rust::sha256::Sha256State;
+
+    let part1 = b"abcdbcdecdefdefgefghfghighijhijk"; // 30 bytes
+    let part2 = b"ijkljklmklmnlmnomnopnopq"; // 26 bytes (total = 56)
+
+    let mut streaming_digest = [0u8; 32];
+    let mut state = Sha256State::new();
+    state.update(part1);
+    state.update(part2);
+    state.finalize(&mut streaming_digest);
+
+    // Reference: single-call hash of the same 56-byte message
+    let mut reference_digest = [0u8; 32];
+    sha256_hash(
+        b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+        &mut reference_digest,
+    );
+
+    assert_eq!(
+        streaming_digest, reference_digest,
+        "Streaming SHA-256 with partial buffer should match single-call hash"
+    );
+}
+
+#[test]
+#[cfg(not(all(feature = "asm", is_asm_eligible)))]
+fn test_sha256_hash_streaming_multiple_updates() {
+    // Streaming: many small updates that cross block boundaries multiple times
+    // Exercises partial buffer fill, buffer completion, and full block processing
+    use crate::rust::sha256::Sha256State;
+
+    let msg = b"abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
+    assert_eq!(msg.len(), 112);
+
+    // Feed in chunks of 15 bytes (not aligned to 64-byte blocks)
+    let mut streaming_digest = [0u8; 32];
+    let mut state = Sha256State::new();
+    for chunk in msg.chunks(15) {
+        state.update(chunk);
+    }
+    state.finalize(&mut streaming_digest);
+
+    // Reference: single-call hash
+    let mut reference_digest = [0u8; 32];
+    sha256_hash(msg, &mut reference_digest);
+
+    assert_eq!(
+        streaming_digest, reference_digest,
+        "Streaming SHA-256 with multiple small updates should match single-call hash"
+    );
+}
