@@ -69,6 +69,7 @@ pub struct Poly1305 {
 }
 
 impl Poly1305 {
+    /// Initialize Poly1305 state with a 32-byte one-time key.
     #[inline(always)]
     pub fn init(&mut self, key: &[u8; KEY_SIZE]) {
         self.acc = [0; 5];
@@ -232,6 +233,7 @@ impl Poly1305 {
         self.block.fast_zeroize();
     }
 
+    /// Process input data, buffering partial blocks.
     #[inline(always)]
     pub fn update(&mut self, data: &[u8]) {
         let mut pos = 0;
@@ -273,6 +275,7 @@ impl Poly1305 {
         }
     }
 
+    /// Finalize and output the 16-byte authentication tag.
     #[inline(always)]
     pub fn finalize(&mut self, tag: &mut [u8; TAG_SIZE]) {
         // Process remaining buffered bytes with padding

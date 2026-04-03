@@ -162,6 +162,7 @@ impl ChaCha20 {
         self.initial.fast_zeroize();
     }
 
+    /// Generate a single keystream block.
     #[cfg(test)]
     pub fn block(
         &mut self,
@@ -175,6 +176,7 @@ impl ChaCha20 {
         self.keystream.fast_zeroize();
     }
 
+    /// Encrypt or decrypt data in-place using ChaCha20.
     #[inline(always)]
     pub fn crypt(
         &mut self,
@@ -260,6 +262,7 @@ impl HChaCha20 {
         }
     }
 
+    /// Derive a subkey using HChaCha20.
     #[inline(always)]
     pub fn derive(
         &mut self,
@@ -374,7 +377,7 @@ impl XChaCha20 {
         self.chacha.keystream.fast_zeroize();
     }
 
-    /// Encrypt/decrypt data in-place (counter=1)
+    /// Encrypt or decrypt data in-place using XChaCha20.
     #[inline(always)]
     pub fn crypt(&mut self, key: &AeadKey, xnonce: &XNonce, data: &mut [u8]) {
         self.hchacha.derive(
