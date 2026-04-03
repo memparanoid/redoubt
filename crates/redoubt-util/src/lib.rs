@@ -176,9 +176,7 @@ macro_rules! impl_be_conversions {
     };
 }
 
-impl_be_conversions!(u16, 2, u16_from_be, u16_to_be);
 impl_be_conversions!(u32, 4, u32_from_be, u32_to_be);
-impl_be_conversions!(u64, 8, u64_from_be, u64_to_be);
 
 /// Verifies that a slice is zeroized.
 ///
