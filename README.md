@@ -9,6 +9,7 @@
 <p align="center"><em>Systematic encryption-at-rest for in-memory sensitive data in Rust.</em></p>
 
 <p align="center">
+    <a href="https://github.com/memparanoid/redoubt/actions/workflows/ci.yml"><img src="https://github.com/memparanoid/redoubt/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <a href="https://crates.io/crates/redoubt"><img src="https://img.shields.io/crates/v/redoubt.svg" alt="crates.io"></a>
     <a href="https://docs.rs/redoubt"><img src="https://docs.rs/redoubt/badge.svg" alt="docs.rs"></a>
     <a href="#"><img src="https://img.shields.io/badge/coverage-99.17%25-29e500" alt="coverage"></a>
