@@ -51,10 +51,8 @@ TEST_CONFIGS = [
             "..",
             "crates",
             "redoubt-hkdf",
-            "core",
+            "wycheproof",
             "src",
-            "support",
-            "test_utils",
             "hkdf_sha256_wycheproof_vectors.rs",
         ),
     },
@@ -67,10 +65,8 @@ TEST_CONFIGS = [
             "..",
             "crates",
             "redoubt-hkdf",
-            "core",
+            "wycheproof",
             "src",
-            "support",
-            "test_utils",
             "hmac_sha256_wycheproof_vectors.rs",
         ),
     },
@@ -281,6 +277,7 @@ def generate_mac_rust(data, source_url):
     lines.append("")
     lines.append("use super::hmac_sha256_wycheproof::{Flag, TestCase, TestResult};")
     lines.append("")
+    lines.append("/// Returns all HMAC-SHA256 Wycheproof test vectors.")
     lines.append("pub fn test_vectors() -> Vec<TestCase> {")
     lines.append("    vec![")
 
