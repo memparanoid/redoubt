@@ -51,8 +51,10 @@ TEST_CONFIGS = [
             "..",
             "crates",
             "redoubt-hkdf",
+            "core",
             "src",
-            "tests",
+            "support",
+            "test_utils",
             "hkdf_sha256_wycheproof_vectors.rs",
         ),
     },
@@ -65,8 +67,10 @@ TEST_CONFIGS = [
             "..",
             "crates",
             "redoubt-hkdf",
+            "core",
             "src",
-            "tests",
+            "support",
+            "test_utils",
             "hmac_sha256_wycheproof_vectors.rs",
         ),
     },
@@ -136,9 +140,17 @@ def escape_string(s):
     return s.replace("\\", "\\\\").replace('"', '\\"')
 
 
+COPYRIGHT_HEADER = [
+    "// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>",
+    "// SPDX-License-Identifier: GPL-3.0-only",
+    "// See LICENSE in the repository root for full license text.",
+    "",
+]
+
+
 def generate_aead_rust(data, source_url):
     """Generate Rust source code from Wycheproof AEAD JSON."""
-    lines = []
+    lines = list(COPYRIGHT_HEADER)
 
     # Header
     lines.append("// Auto-generated from Wycheproof test vectors")
@@ -198,7 +210,7 @@ def generate_aead_rust(data, source_url):
 
 def generate_hkdf_rust(data, source_url):
     """Generate Rust source code from Wycheproof HKDF JSON."""
-    lines = []
+    lines = list(COPYRIGHT_HEADER)
 
     # Header
     lines.append("// Auto-generated from Wycheproof test vectors")
@@ -213,9 +225,10 @@ def generate_hkdf_rust(data, source_url):
     lines.append("use alloc::vec;")
     lines.append("use alloc::vec::Vec;")
     lines.append("")
-    lines.append("use super::wycheproof::{Flag, TestCase, TestResult};")
+    lines.append("use super::hkdf_sha256_wycheproof::{Flag, TestCase, TestResult};")
     lines.append("")
-    lines.append("pub(crate) fn test_vectors() -> Vec<TestCase> {")
+    lines.append("/// Returns all HKDF-SHA256 Wycheproof test vectors.")
+    lines.append("pub fn test_vectors() -> Vec<TestCase> {")
     lines.append("    vec![")
 
     # Iterate test groups
@@ -256,7 +269,7 @@ def generate_hkdf_rust(data, source_url):
 
 def generate_mac_rust(data, source_url):
     """Generate Rust source code from Wycheproof MAC JSON."""
-    lines = []
+    lines = list(COPYRIGHT_HEADER)
 
     # Header
     lines.append("// Auto-generated from Wycheproof test vectors")
@@ -266,9 +279,9 @@ def generate_mac_rust(data, source_url):
     lines.append(f"// Algorithm: {data.get('algorithm', 'unknown')}")
     lines.append(f"// Number of tests: {data.get('numberOfTests', 'unknown')}")
     lines.append("")
-    lines.append("use super::wycheproof::{Flag, TestCase, TestResult};")
+    lines.append("use super::hmac_sha256_wycheproof::{Flag, TestCase, TestResult};")
     lines.append("")
-    lines.append("pub(crate) fn test_vectors() -> Vec<TestCase> {")
+    lines.append("pub fn test_vectors() -> Vec<TestCase> {")
     lines.append("    vec![")
 
     # Iterate test groups
