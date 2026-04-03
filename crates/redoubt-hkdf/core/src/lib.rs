@@ -11,7 +11,7 @@
 //!
 //! GPL-3.0-only
 
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
 
 mod error;
@@ -19,3 +19,11 @@ mod traits;
 
 pub use error::HkdfError;
 pub use traits::HkdfApi;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn instrumentation() {
+        let _ = crate::HkdfError::OutputTooLong;
+    }
+}
