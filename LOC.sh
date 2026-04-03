@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Usage: ./loc.sh <hours>
 # Example: ./loc.sh 8
 # This script shows net lines of code changed in the last N hours
