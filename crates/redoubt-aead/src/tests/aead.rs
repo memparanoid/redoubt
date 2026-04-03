@@ -416,3 +416,110 @@ fn test_api_decrypt_aegis_succeeds() {
     assert!(result.is_ok());
     assert_eq!(&data, &[0x00; 16]);
 }
+
+// =============================================================================
+// api_generate_nonce()
+// =============================================================================
+
+#[test]
+fn test_api_generate_nonce_xchacha_succeeds() {
+    let mut aead = Aead::with_xchacha20poly1305();
+
+    let nonce = aead
+        .api_generate_nonce()
+        .expect("Failed to generate nonce");
+
+    assert_eq!(nonce.len(), 24);
+}
+
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+#[test]
+fn test_api_generate_nonce_aegis_succeeds() {
+    let mut aead = Aead::with_aegis128l();
+
+    let nonce = aead
+        .api_generate_nonce()
+        .expect("Failed to generate nonce");
+
+    assert_eq!(nonce.len(), 16);
+}
+
+// =============================================================================
+// api_key_size() / api_nonce_size() / api_tag_size()
+// =============================================================================
+
+#[test]
+fn test_api_sizes_xchacha() {
+    let aead = Aead::with_xchacha20poly1305();
+
+    assert_eq!(aead.api_key_size(), 32);
+    assert_eq!(aead.api_nonce_size(), 24);
+    assert_eq!(aead.api_tag_size(), 16);
+}
+
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+#[test]
+fn test_api_sizes_aegis() {
+    let aead = Aead::with_aegis128l();
+
+    assert_eq!(aead.api_key_size(), 16);
+    assert_eq!(aead.api_nonce_size(), 16);
+    assert_eq!(aead.api_tag_size(), 16);
+}
+
+// =============================================================================
+// new() / backend_name() / Debug
+// =============================================================================
+
+#[test]
+fn test_backend_name_returns_valid_name() {
+    let aead = Aead::new();
+    let name = aead.backend_name();
+
+    assert!(
+        name == "AEGIS-128L" || name == "XChaCha20-Poly1305",
+        "Backend name should be valid"
+    );
+}
+
+#[test]
+fn test_debug_xchacha() {
+    let aead = Aead::with_xchacha20poly1305();
+
+    assert_eq!(format!("{:?}", aead), "Aead { backend: XChaCha20-Poly1305 }");
+}
+
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+#[test]
+fn test_debug_aegis() {
+    let aead = Aead::with_aegis128l();
+
+    assert_eq!(format!("{:?}", aead), "Aead { backend: AEGIS-128L }");
+}
+
+// =============================================================================
+// new_with_feature_detector()
+// =============================================================================
+
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+#[test]
+fn test_backend_detection_selects_aegis_when_aes_available() {
+    use crate::feature_detector::{FeatureDetector, FeatureDetectorBehaviour};
+
+    let mut fd = FeatureDetector::new();
+    fd.change_behaviour(FeatureDetectorBehaviour::ForceAesTrue);
+    let aead = Aead::new_with_feature_detector(fd);
+
+    assert_eq!(aead.backend_name(), "AEGIS-128L");
+}
+
+#[test]
+fn test_backend_detection_falls_back_to_xchacha() {
+    use crate::feature_detector::{FeatureDetector, FeatureDetectorBehaviour};
+
+    let mut fd = FeatureDetector::new();
+    fd.change_behaviour(FeatureDetectorBehaviour::ForceAesFalse);
+    let aead = Aead::new_with_feature_detector(fd);
+
+    assert_eq!(aead.backend_name(), "XChaCha20-Poly1305");
+}
