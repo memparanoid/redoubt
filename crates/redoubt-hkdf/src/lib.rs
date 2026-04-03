@@ -2,37 +2,52 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! HKDF-SHA512 implementation with secure memory handling
+//! HKDF-SHA256 implementation with secure memory handling.
 //!
-//! Implementation per RFC 5869 (HKDF) and RFC 6234 (SHA-512, HMAC).
-//! Zero external dependencies. All intermediate values are zeroized.
-//!
-//! References:
-//! - RFC 5869: HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
-//!   <https://datatracker.ietf.org/doc/html/rfc5869>
-//! - RFC 6234: US Secure Hash Algorithms (SHA and SHA-based HMAC and HKDF)
-//!   <https://datatracker.ietf.org/doc/html/rfc6234>
+//! Selects the best available backend at compile time:
+//! - x86_64 (Linux/macOS) with `asm` feature: assembly implementation
+//! - aarch64 with `asm` feature: assembly implementation
+//! - All other platforms: pure Rust implementation
 //!
 //! ## License
 //!
 //! GPL-3.0-only
 
-#![cfg_attr(not(test), no_std)]
+#![no_std]
 #![warn(missing_docs)]
-
-extern crate alloc;
 
 #[cfg(test)]
 mod tests;
 
-#[cfg(all(feature = "asm", is_asm_eligible))]
-mod asm;
+pub use redoubt_hkdf_core::{HkdfApi, HkdfError};
 
-mod error;
-mod hkdf;
+/// HKDF-SHA256 key derivation (RFC 5869).
+///
+/// Automatically selects the best backend for the current platform.
+pub fn hkdf(salt: &[u8], ikm: &[u8], info: &[u8], okm: &mut [u8]) -> Result<(), HkdfError> {
+    #[cfg(all(
+        feature = "asm",
+        target_arch = "x86_64",
+        any(target_os = "linux", target_os = "macos")
+    ))]
+    {
+        redoubt_hkdf_x86::X86Backend.api_hkdf(salt, ikm, info, okm)
+    }
 
-#[cfg(not(all(feature = "asm", is_asm_eligible)))]
-mod rust;
+    #[cfg(all(feature = "asm", target_arch = "aarch64"))]
+    {
+        redoubt_hkdf_arm::ArmBackend.api_hkdf(salt, ikm, info, okm)
+    }
 
-pub use error::HkdfError;
-pub use hkdf::hkdf;
+    #[cfg(not(any(
+        all(
+            feature = "asm",
+            target_arch = "x86_64",
+            any(target_os = "linux", target_os = "macos")
+        ),
+        all(feature = "asm", target_arch = "aarch64")
+    )))]
+    {
+        redoubt_hkdf_rust::RustBackend.api_hkdf(salt, ikm, info, okm)
+    }
+}

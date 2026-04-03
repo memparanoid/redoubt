@@ -946,10 +946,10 @@ dependencies = [
 name = "redoubt-hkdf"
 version = "0.1.0-rc.3"
 dependencies = [
- "cc",
- "redoubt-util",
- "redoubt-zero",
- "thiserror",
+ "redoubt-hkdf-arm",
+ "redoubt-hkdf-core",
+ "redoubt-hkdf-rust",
+ "redoubt-hkdf-x86",
 ]
 
 [[package]]

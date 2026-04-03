@@ -2,9 +2,9 @@
 name = "redoubt-hkdf"
 authors = ["Federico Hoerth <memparanoid@gmail.com>"]
 categories = ["cryptography", "no-std"]
-description = "HKDF-SHA512 implementation with secure memory handling"
+description = "HKDF-SHA256 implementation with secure memory handling"
 edition.workspace = true
-keywords = ["hkdf", "sha512", "kdf", "security"]
+keywords = ["hkdf", "sha256", "kdf", "security"]
 license.workspace = true
 readme.workspace = true
 repository.workspace = true
@@ -18,12 +18,11 @@ default = []
 asm = []
 
 [dependencies]
-redoubt-zero.workspace = true
-redoubt-util.workspace = true
-thiserror.workspace = true
+redoubt-hkdf-core.workspace = true
+redoubt-hkdf-rust.workspace = true
 
-[build-dependencies]
-cc.workspace = true
+[target.'cfg(all(target_arch = "x86_64", any(target_os = "linux", target_os = "macos")))'.dependencies]
+redoubt-hkdf-x86.workspace = true
 
-[dev-dependencies]
-redoubt-util = { workspace = true, features = ["test-utils"] }
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+redoubt-hkdf-arm.workspace = true
