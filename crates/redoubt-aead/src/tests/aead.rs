@@ -523,3 +523,15 @@ fn test_backend_detection_falls_back_to_xchacha() {
 
     assert_eq!(aead.backend_name(), "XChaCha20-Poly1305");
 }
+
+// =============================================================================
+// Default
+// =============================================================================
+
+#[test]
+fn test_default_creates_valid_instance() {
+    let aead = Aead::default();
+    let name = aead.backend_name();
+
+    assert!(name == "AEGIS-128L" || name == "XChaCha20-Poly1305");
+}
