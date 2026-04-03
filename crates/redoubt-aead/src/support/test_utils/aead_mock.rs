@@ -4,13 +4,14 @@
 
 //! Mock AEAD for testing.
 
+use alloc::vec::Vec;
+
 use core::cell::Cell;
-use redoubt_rand::{EntropyError, SystemEntropySource};
 
 use redoubt_aead_core::{AeadApi, AeadBackend, AeadError};
+use redoubt_aead_xchacha as XChacha;
 use redoubt_aead_xchacha::XChacha20Poly1305;
-
-type XChacha = XChacha20Poly1305<SystemEntropySource>;
+use redoubt_rand::{EntropyError, SystemEntropySource};
 
 /// Mock failure behaviour.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,7 +39,7 @@ impl AeadMock {
     /// Key size in bytes.
     pub const KEY_SIZE: usize = XChacha::KEY_SIZE;
     /// Nonce size in bytes.
-    pub const NONCE_SIZE: usize = XChacha::NONCE_SIZE;
+    pub const NONCE_SIZE: usize = XChacha::XNONCE_SIZE;
     /// Tag size in bytes.
     pub const TAG_SIZE: usize = XChacha::TAG_SIZE;
 

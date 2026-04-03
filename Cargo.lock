@@ -867,6 +867,7 @@ dependencies = [
  "redoubt-aead-xchacha",
  "redoubt-rand",
  "redoubt-util",
+ "redoubt-zero",
 ]
 
 [[package]]
