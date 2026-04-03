@@ -57,7 +57,7 @@ impl core::fmt::Debug for Poly1305Final {
 /// Poly1305 authenticator state.
 #[derive(Default, RedoubtZero)]
 #[fast_zeroize(drop)]
-pub(crate) struct Poly1305 {
+pub struct Poly1305 {
     r: [u32; 5],
     s: [u8; 16],
     acc: [u64; 5],
@@ -429,7 +429,7 @@ impl Poly1305 {
         self.finalize.fast_zeroize();
     }
 
-    #[cfg(test)]
+    /// Compute Poly1305 MAC in one shot.
     pub fn compute(key: &[u8; KEY_SIZE], data: &[u8], tag: &mut [u8; TAG_SIZE]) {
         let mut state = Self::default();
         state.init(key);

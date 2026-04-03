@@ -89,6 +89,32 @@ fn test_single_full_block() {
     assert_eq!(tag.len(), 16);
 }
 
+#[test]
+fn test_partial_buffer_not_completing_block() {
+    // Exercise the branch where update() is called with partial data
+    // that does NOT complete the buffer (buffer_len > 0, buffer_len < BLOCK_SIZE)
+    let key: [u8; 32] = [
+        0x85, 0xd6, 0xbe, 0x78, 0x57, 0x55, 0x6d, 0x33, 0x7f, 0x44, 0x52, 0xfe, 0x42, 0xd5, 0x06,
+        0xa8, 0x01, 0x03, 0x80, 0x8a, 0xfb, 0x0d, 0xb2, 0xfd, 0x4a, 0xbf, 0xf6, 0xaf, 0x41, 0x49,
+        0xf5, 0x1b,
+    ];
+
+    // Two-call: first leaves partial buffer, second doesn't complete it
+    let mut poly = Poly1305::default();
+    poly.init(&key);
+    poly.update(b"abcde");      // 5 bytes, buffer_len = 5
+    poly.update(b"fgh");        // 3 bytes, buffer_len = 8 (< 16, branch false)
+
+    let mut tag_partial = [0u8; 16];
+    poly.finalize(&mut tag_partial);
+
+    // Reference: single call with same data
+    let mut tag_ref = [0u8; 16];
+    Poly1305::compute(&key, b"abcdefgh", &mut tag_ref);
+
+    assert_eq!(tag_partial, tag_ref);
+}
+
 // Debug tests
 
 #[test]

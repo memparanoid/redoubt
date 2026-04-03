@@ -17,7 +17,7 @@ use super::types::{AeadKey, XNonce};
 /// ChaCha20 cipher state with guaranteed zeroization.
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
-pub(crate) struct ChaCha20 {
+pub struct ChaCha20 {
     initial: [u32; 16],
     working: [u32; 16],
     le_bytes_tmp: [u8; 4],
@@ -205,7 +205,7 @@ impl core::fmt::Debug for ChaCha20 {
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
 #[derive(Default)]
-pub(crate) struct HChaCha20 {
+pub struct HChaCha20 {
     state: [u32; 16],
     le_bytes_tmp: [u8; 4],
     // Temporaries for fallback quarter_round (zeroized on drop)
@@ -331,7 +331,7 @@ impl core::fmt::Debug for HChaCha20 {
 /// XChaCha20 cipher state with guaranteed zeroization.
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
-pub(crate) struct XChaCha20 {
+pub struct XChaCha20 {
     subkey: [u8; KEY_SIZE],
     nonce: [u8; CHACHA20_NONCE_SIZE],
     hchacha: HChaCha20,
