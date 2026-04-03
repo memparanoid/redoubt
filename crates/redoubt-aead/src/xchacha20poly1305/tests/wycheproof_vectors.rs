@@ -12,7 +12,8 @@
 
 use super::wycheproof::{Flag, TestCase, TestResult};
 
-pub(crate) fn test_vectors() -> Vec<TestCase> {
+/// Returns all AEAD Wycheproof test vectors.
+pub fn test_vectors() -> Vec<TestCase> {
     vec![
         // ivSize: 192, keySize: 256, tagSize: 128
         TestCase {

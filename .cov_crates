@@ -19,6 +19,10 @@ redoubt-hkdf-arm
 redoubt-hkdf-x86
 redoubt-hkdf-rust
 redoubt-hkdf
+redoubt-aead-core
+redoubt-aead-aegis-x86
+redoubt-aead-aegis-arm
+redoubt-aead-xchacha
 redoubt-aead
 
 # Buffer

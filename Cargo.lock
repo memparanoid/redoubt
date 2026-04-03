@@ -911,6 +911,9 @@ name = "redoubt-aead-xchacha"
 version = "0.1.0-rc.3"
 dependencies = [
  "redoubt-aead-core",
+ "redoubt-rand",
+ "redoubt-util",
+ "redoubt-zero",
 ]
 
 [[package]]
