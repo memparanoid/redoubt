@@ -40,6 +40,15 @@ enum AeadBackendImpl {
     XChacha20Poly1305(Box<XChacha20Poly1305<redoubt_rand::SystemEntropySource>>),
 }
 
+/// Backend variant for [`Aead`] construction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AeadVariant {
+    /// Automatically select the fastest backend based on CPU capabilities.
+    Auto,
+    /// Force XChaCha20-Poly1305 regardless of hardware support.
+    XChachaPoly1305,
+}
+
 /// AEAD with automatic backend selection based on CPU capabilities.
 ///
 /// Provides a unified interface for authenticated encryption with associated data,
@@ -51,6 +60,17 @@ pub struct Aead {
 impl Default for Aead {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl From<AeadVariant> for Aead {
+    fn from(variant: AeadVariant) -> Self {
+        match variant {
+            AeadVariant::Auto => Self::new(),
+            AeadVariant::XChachaPoly1305 => Self {
+                backend: AeadBackendImpl::XChacha20Poly1305(Box::default()),
+            },
+        }
     }
 }
 

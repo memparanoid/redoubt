@@ -22,7 +22,7 @@ mod feature_detector;
 /// Support module including test utilities.
 pub mod support;
 
-pub use aead::Aead;
+pub use aead::{Aead, AeadVariant};
 pub use redoubt_aead_core::{AeadApi, AeadBackend, AeadError};
 
 #[cfg(feature = "test-utils")]

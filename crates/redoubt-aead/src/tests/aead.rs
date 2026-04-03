@@ -11,6 +11,68 @@ use redoubt_aead_core::{AeadApi, AeadError};
 use crate::aead::Aead;
 
 // =============================================================================
+// Default
+// =============================================================================
+
+#[test]
+fn test_default_creates_valid_instance() {
+    let aead = Aead::default();
+    let name = aead.backend_name();
+
+    assert!(name == "AEGIS-128L" || name == "XChaCha20-Poly1305");
+}
+
+// =============================================================================
+// From<AeadVariant>
+// =============================================================================
+
+#[test]
+fn test_from_variant_auto() {
+    use crate::AeadVariant;
+
+    let aead = Aead::from(AeadVariant::Auto);
+    let name = aead.backend_name();
+
+    assert!(name == "AEGIS-128L" || name == "XChaCha20-Poly1305");
+}
+
+#[test]
+fn test_from_variant_xchacha() {
+    use crate::AeadVariant;
+
+    let aead = Aead::from(AeadVariant::XChachaPoly1305);
+
+    assert_eq!(aead.backend_name(), "XChaCha20-Poly1305");
+}
+
+// =============================================================================
+// new_with_feature_detector()
+// =============================================================================
+
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+#[test]
+fn test_backend_detection_selects_aegis_when_aes_available() {
+    use crate::feature_detector::{FeatureDetector, FeatureDetectorBehaviour};
+
+    let mut fd = FeatureDetector::new();
+    fd.change_behaviour(FeatureDetectorBehaviour::ForceAesTrue);
+    let aead = Aead::new_with_feature_detector(fd);
+
+    assert_eq!(aead.backend_name(), "AEGIS-128L");
+}
+
+#[test]
+fn test_backend_detection_falls_back_to_xchacha() {
+    use crate::feature_detector::{FeatureDetector, FeatureDetectorBehaviour};
+
+    let mut fd = FeatureDetector::new();
+    fd.change_behaviour(FeatureDetectorBehaviour::ForceAesFalse);
+    let aead = Aead::new_with_feature_detector(fd);
+
+    assert_eq!(aead.backend_name(), "XChaCha20-Poly1305");
+}
+
+// =============================================================================
 // api_encrypt() (XChaCha20-Poly1305)
 // =============================================================================
 
@@ -495,43 +557,4 @@ fn test_debug_aegis() {
     let aead = Aead::with_aegis128l();
 
     assert_eq!(format!("{:?}", aead), "Aead { backend: AEGIS-128L }");
-}
-
-// =============================================================================
-// new_with_feature_detector()
-// =============================================================================
-
-#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
-#[test]
-fn test_backend_detection_selects_aegis_when_aes_available() {
-    use crate::feature_detector::{FeatureDetector, FeatureDetectorBehaviour};
-
-    let mut fd = FeatureDetector::new();
-    fd.change_behaviour(FeatureDetectorBehaviour::ForceAesTrue);
-    let aead = Aead::new_with_feature_detector(fd);
-
-    assert_eq!(aead.backend_name(), "AEGIS-128L");
-}
-
-#[test]
-fn test_backend_detection_falls_back_to_xchacha() {
-    use crate::feature_detector::{FeatureDetector, FeatureDetectorBehaviour};
-
-    let mut fd = FeatureDetector::new();
-    fd.change_behaviour(FeatureDetectorBehaviour::ForceAesFalse);
-    let aead = Aead::new_with_feature_detector(fd);
-
-    assert_eq!(aead.backend_name(), "XChaCha20-Poly1305");
-}
-
-// =============================================================================
-// Default
-// =============================================================================
-
-#[test]
-fn test_default_creates_valid_instance() {
-    let aead = Aead::default();
-    let name = aead.backend_name();
-
-    assert!(name == "AEGIS-128L" || name == "XChaCha20-Poly1305");
 }
