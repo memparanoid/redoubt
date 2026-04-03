@@ -11,8 +11,10 @@
 #![no_std]
 #![warn(missing_docs)]
 
+#[cfg(target_arch = "aarch64")]
 use redoubt_hkdf_core::{HkdfApi, HkdfError};
 
+#[cfg(target_arch = "aarch64")]
 const MAX_OUTPUT_LEN: usize = 255 * 32;
 
 #[cfg(target_arch = "aarch64")]
@@ -99,15 +101,23 @@ impl HkdfApi for ArmBackend {
     }
 }
 
-#[cfg(all(test, target_arch = "aarch64"))]
+#[cfg(test)]
 mod tests {
+    #[cfg(all(test, target_arch = "aarch64"))]
     use super::ArmBackend;
 
+    #[test]
+    fn instrumentation() {
+        assert!(true);
+    }
+
+    #[cfg(all(test, target_arch = "aarch64"))]
     #[test]
     fn test_sha256_hash() {
         redoubt_hkdf_wycheproof::sha256_hash::run_sha256_hash_tests(&mut ArmBackend);
     }
 
+    #[cfg(all(test, target_arch = "aarch64"))]
     #[test]
     fn test_sha256_compress_block() {
         redoubt_hkdf_wycheproof::sha256_compress_block::run_sha256_compress_block_tests(
@@ -115,20 +125,19 @@ mod tests {
         );
     }
 
+    #[cfg(all(test, target_arch = "aarch64"))]
     #[test]
     fn test_hmac_sha256_wycheproof() {
-        redoubt_hkdf_wycheproof::hmac_sha256_wycheproof::run_hmac_wycheproof_tests(
-            &mut ArmBackend,
-        );
+        redoubt_hkdf_wycheproof::hmac_sha256_wycheproof::run_hmac_wycheproof_tests(&mut ArmBackend);
     }
 
+    #[cfg(all(test, target_arch = "aarch64"))]
     #[test]
     fn test_hkdf_sha256_wycheproof() {
-        redoubt_hkdf_wycheproof::hkdf_sha256_wycheproof::run_hkdf_wycheproof_tests(
-            &mut ArmBackend,
-        );
+        redoubt_hkdf_wycheproof::hkdf_sha256_wycheproof::run_hkdf_wycheproof_tests(&mut ArmBackend);
     }
 
+    #[cfg(all(test, target_arch = "aarch64"))]
     #[test]
     fn test_hkdf_empty_okm() {
         use redoubt_hkdf_core::HkdfApi;
