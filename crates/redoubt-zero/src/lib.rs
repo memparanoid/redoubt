@@ -155,6 +155,7 @@
 //! GPL-3.0-only
 
 #![cfg_attr(not(test), no_std)]
+#![allow(clippy::test_attr_in_doctest)]
 
 #[cfg(test)]
 mod tests;
