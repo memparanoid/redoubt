@@ -2,9 +2,9 @@
 name                 = "redoubt-hkdf-core"
 authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
 categories           = ["cryptography"]
-description          = "Core traits, pure Rust implementation, and test infrastructure for HKDF-SHA256"
+description          = "Core traits and error types for HKDF-SHA256"
 edition.workspace    = true
-keywords             = ["hkdf", "sha256", "crypto", "testing"]
+keywords             = ["hkdf", "sha256", "crypto"]
 license.workspace    = true
 readme.workspace     = true
 repository.workspace = true
@@ -14,13 +14,4 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
-redoubt-zero.workspace = true
-redoubt-util.workspace = true
-thiserror.workspace    = true
-
-[dev-dependencies]
-redoubt-util = { workspace = true, features = ["test-utils"] }
-
-[features]
-default = []
-test-utils = ["redoubt-util/test-utils"]
+thiserror.workspace = true
