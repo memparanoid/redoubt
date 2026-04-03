@@ -15,3 +15,9 @@ path = "src/lib.rs"
 
 [dependencies]
 redoubt-aead-core.workspace = true
+redoubt-rand.workspace      = true
+redoubt-util.workspace      = true
+redoubt-zero.workspace      = true
+
+[dev-dependencies]
+redoubt-util = { workspace = true, features = ["test-utils"] }
