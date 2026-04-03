@@ -108,7 +108,7 @@ mod tests {
 
     #[test]
     fn instrumentation() {
-        assert!(true);
+        let _ = super::ArmBackend;
     }
 
     #[cfg(all(test, target_arch = "aarch64"))]

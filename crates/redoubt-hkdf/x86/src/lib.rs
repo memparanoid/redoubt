@@ -108,7 +108,7 @@ mod tests {
 
     #[test]
     fn instrumentation() {
-        assert!(true);
+        let _ = super::X86Backend;
     }
 
     #[cfg(all(test, target_arch = "x86_64"))]
