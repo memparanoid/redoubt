@@ -953,6 +953,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "redoubt-hkdf-arm"
+version = "0.1.0-rc.3"
+dependencies = [
+ "cc",
+ "redoubt-hkdf-core",
+ "redoubt-hkdf-wycheproof",
+]
+
+[[package]]
 name = "redoubt-hkdf-core"
 version = "0.1.0-rc.3"
 dependencies = [
@@ -975,6 +984,15 @@ version = "0.1.0-rc.3"
 dependencies = [
  "redoubt-hkdf-core",
  "redoubt-util",
+]
+
+[[package]]
+name = "redoubt-hkdf-x86"
+version = "0.1.0-rc.3"
+dependencies = [
+ "cc",
+ "redoubt-hkdf-core",
+ "redoubt-hkdf-wycheproof",
 ]
 
 [[package]]

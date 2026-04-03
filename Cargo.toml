@@ -13,6 +13,8 @@ members = [
   "crates/redoubt-hkdf/core",
   "crates/redoubt-hkdf/wycheproof",
   "crates/redoubt-hkdf/rust",
+  "crates/redoubt-hkdf/x86",
+  "crates/redoubt-hkdf/arm",
   "crates/redoubt-util",
   "crates/redoubt-vault",
   "crates/redoubt-vault/core",
@@ -49,7 +51,9 @@ resolver = "2"
   redoubt-guard        = { path = "crates/redoubt-guard", version = "0.1.0-rc.3" }
   redoubt-hkdf         = { path = "crates/redoubt-hkdf", version = "0.1.0-rc.3" }
   redoubt-hkdf-core       = { path = "crates/redoubt-hkdf/core", version = "0.1.0-rc.3" }
+  redoubt-hkdf-arm        = { path = "crates/redoubt-hkdf/arm", version = "0.1.0-rc.3" }
   redoubt-hkdf-rust       = { path = "crates/redoubt-hkdf/rust", version = "0.1.0-rc.3" }
+  redoubt-hkdf-x86        = { path = "crates/redoubt-hkdf/x86", version = "0.1.0-rc.3" }
   redoubt-hkdf-wycheproof = { path = "crates/redoubt-hkdf/wycheproof", version = "0.1.0-rc.3" }
   redoubt-rand         = { path = "crates/redoubt-rand", version = "0.1.0-rc.3" }
   redoubt-secret       = { path = "crates/redoubt-secret", version = "0.1.0-rc.3" }

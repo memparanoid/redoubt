@@ -1,0 +1,23 @@
+[package]
+name                 = "redoubt-hkdf-x86"
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography"]
+description          = "x86_64 assembly HKDF-SHA256 implementation"
+edition.workspace    = true
+keywords             = ["hkdf", "sha256", "asm", "x86"]
+license.workspace    = true
+readme.workspace     = true
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+redoubt-hkdf-core.workspace = true
+
+[build-dependencies]
+cc.workspace = true
+
+[dev-dependencies]
+redoubt-hkdf-wycheproof.workspace = true
