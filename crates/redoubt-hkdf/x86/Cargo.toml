@@ -1,11 +1,11 @@
 [package]
-name                 = "redoubt-hkdf-x86"
 authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
 categories           = ["cryptography"]
 description          = "x86_64 assembly HKDF-SHA256 implementation"
 edition.workspace    = true
 keywords             = ["hkdf", "sha256", "asm", "x86"]
 license.workspace    = true
+name                 = "redoubt-hkdf-x86"
 readme.workspace     = true
 repository.workspace = true
 version.workspace    = true

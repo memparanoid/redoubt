@@ -5,8 +5,8 @@ description          = "High-performance secure codec with memory zeroization"
 edition.workspace    = true
 keywords             = ["codec", "zeroize", "security", "encoding"]
 license.workspace    = true
-readme.workspace     = true
 name                 = "redoubt-codec"
+readme.workspace     = true
 repository.workspace = true
 version.workspace    = true
 
@@ -14,9 +14,9 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [features]
-default = ["zeroize"]
-zeroize = ["redoubt-codec-core/zeroize", "redoubt-codec-derive/zeroize"]
+default    = ["zeroize"]
 test-utils = ["redoubt-codec-core/test-utils"]
+zeroize    = ["redoubt-codec-core/zeroize", "redoubt-codec-derive/zeroize"]
 
 [dependencies]
 redoubt-codec-core.workspace   = true

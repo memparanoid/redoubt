@@ -1,34 +1,38 @@
 [package]
-name = "redoubt"
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories = ["cryptography", "memory-management", "no-std"]
-description = "Systematic encryption-at-rest for in-memory sensitive data in Rust"
-edition.workspace = true
-keywords = ["encryption", "secrets", "zeroize", "aead", "vault"]
-license.workspace = true
-readme.workspace = true
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "memory-management", "no-std"]
+description          = "Systematic encryption-at-rest for in-memory sensitive data in Rust"
+edition.workspace    = true
+keywords             = ["encryption", "secrets", "zeroize", "aead", "vault"]
+license.workspace    = true
+name                 = "redoubt"
+readme.workspace     = true
 repository.workspace = true
-version.workspace = true
+version.workspace    = true
 
 [dependencies]
-redoubt-alloc = { workspace = true }
-redoubt-zero = { workspace = true }
-redoubt-codec = { workspace = true }
-redoubt-vault = { workspace = true }
-redoubt-aead = { workspace = true }
-redoubt-hkdf = { workspace = true }
-redoubt-rand = { workspace = true }
+redoubt-aead   = { workspace = true }
+redoubt-alloc  = { workspace = true }
+redoubt-codec  = { workspace = true }
+redoubt-hkdf   = { workspace = true }
+redoubt-rand   = { workspace = true }
 redoubt-secret = { workspace = true }
+redoubt-vault  = { workspace = true }
+redoubt-zero   = { workspace = true }
 
 [dev-dependencies]
-redoubt-aead.workspace = true
+redoubt-aead.workspace  = true
 redoubt-codec.workspace = true
 
 [features]
+asm = ["redoubt-vault/asm"]
 default = []
-std = ["redoubt-vault/std"]
+full = ["std", "guard", "asm"]
 guard = ["redoubt-vault/guard"]
 internal-forensics = ["redoubt-vault/internal-forensics"]
-asm = ["redoubt-vault/asm"]
-full = ["std", "guard", "asm"]
-test-utils = ["redoubt-codec/test-utils", "redoubt-aead/test-utils", "redoubt-rand/test-utils"]
+std = ["redoubt-vault/std"]
+test-utils = [
+  "redoubt-codec/test-utils",
+  "redoubt-aead/test-utils",
+  "redoubt-rand/test-utils",
+]

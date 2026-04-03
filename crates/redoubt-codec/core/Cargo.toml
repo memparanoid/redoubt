@@ -5,8 +5,8 @@ description          = "Core implementation for redoubt-codec"
 edition.workspace    = true
 keywords             = ["codec", "zeroize", "security", "encoding"]
 license.workspace    = true
-readme.workspace     = true
 name                 = "redoubt-codec-core"
+readme.workspace     = true
 repository.workspace = true
 version.workspace    = true
 
@@ -14,21 +14,21 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [features]
-default = ["zeroize"]
-zeroize = ["dep:smallvec"]
-benchmark = []
+benchmark  = []
+default    = ["zeroize"]
 test-utils = ["zeroize"]
+zeroize    = ["dep:smallvec"]
 
 [dependencies]
-redoubt-util.workspace   = true
-redoubt-zero.workspace    = true
-smallvec = { workspace = true, optional = true }
-thiserror.workspace = true
+redoubt-util.workspace = true
+redoubt-zero.workspace = true
+smallvec               = { workspace = true, optional = true }
+thiserror.workspace    = true
 
-[dependencies.redoubt-alloc]
-workspace = true
-features  = ["unsafe"]
+  [dependencies.redoubt-alloc]
+  features  = ["unsafe"]
+  workspace = true
 
 [dev-dependencies]
-redoubt-alloc = { workspace = true, features = ["test-utils"] }
+redoubt-alloc                = { workspace = true, features = ["test-utils"] }
 redoubt-test-utils.workspace = true

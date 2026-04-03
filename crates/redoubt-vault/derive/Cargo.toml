@@ -1,39 +1,39 @@
 [package]
-name = "redoubt-vault-derive"
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories = ["cryptography", "memory-management"]
-description = "Derive macros for redoubt-vault encrypted storage"
-edition.workspace = true
-keywords = ["vault", "encryption", "derive", "macro", "procedural"]
-license.workspace = true
-readme.workspace = true
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "memory-management"]
+description          = "Derive macros for redoubt-vault encrypted storage"
+edition.workspace    = true
+keywords             = ["vault", "encryption", "derive", "macro", "procedural"]
+license.workspace    = true
+name                 = "redoubt-vault-derive"
+readme.workspace     = true
 repository.workspace = true
-version.workspace = true
+version.workspace    = true
 
 [lib]
+path       = "src/lib.rs"
 proc-macro = true
-path = "src/lib.rs"
 
 [features]
 std = []
 
 [dependencies]
-heck.workspace = true
-proc-macro2.workspace = true
+heck.workspace             = true
 proc-macro-crate.workspace = true
-quote.workspace = true
-syn = { workspace = true, features = ["full", "parsing"] }
+proc-macro2.workspace      = true
+quote.workspace            = true
+syn                        = { workspace = true, features = ["full", "parsing"] }
 
 [dev-dependencies]
-prettyplease.workspace  = true
-trybuild.workspace      = true
-redoubt-aead.workspace = true
-redoubt-secret.workspace = true
-redoubt-alloc.workspace = true
-redoubt-codec.workspace = true
+dummy-vault                  = { path = "src/tests/test_fixture" }
+prettyplease.workspace       = true
+redoubt-aead.workspace       = true
+redoubt-alloc.workspace      = true
+redoubt-codec.workspace      = true
+redoubt-secret.workspace     = true
 redoubt-vault-core.workspace = true
-redoubt-zero.workspace = true
-dummy-vault = { path = "src/tests/test_fixture" }
+redoubt-zero.workspace       = true
+trybuild.workspace           = true
 
 # Only include insta on architectures where it compiles (cpufeatures constraint)
 [target.'cfg(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", target_arch = "loongarch64"))'.dev-dependencies]

@@ -1,9 +1,9 @@
 [tasks.build]
+args        = ["build", "-p", "wallet-example", "--release"]
+command     = "cargo"
 description = "Build wallet example in release mode"
-command = "cargo"
-args = ["build", "-p", "wallet-example", "--release"]
 
 [tasks.run]
+args        = ["run", "-p", "wallet-example", "--release"]
+command     = "cargo"
 description = "Run wallet example in release mode"
-command = "cargo"
-args = ["run", "-p", "wallet-example", "--release"]

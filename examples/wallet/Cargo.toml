@@ -1,14 +1,14 @@
 [package]
-name = "wallet-example"
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories = ["cryptography", "memory-management"]
-description = "Wallet example for Redoubt"
-edition.workspace = true
-keywords = ["wallet", "example", "redoubt"]
-license.workspace = true
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "memory-management"]
+description          = "Wallet example for Redoubt"
+edition.workspace    = true
+keywords             = ["wallet", "example", "redoubt"]
+license.workspace    = true
+name                 = "wallet-example"
+publish              = false
 repository.workspace = true
-version.workspace = true
-publish = false
+version.workspace    = true
 
 [features]
 test-utils = []

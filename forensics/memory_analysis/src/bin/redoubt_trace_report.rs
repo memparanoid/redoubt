@@ -181,7 +181,8 @@ fn main() {
             let mut attempts = 0;
             loop {
                 attempts += 1;
-                let mut key = redoubt::vault::leak_master_key(32).expect("Failed to leak master key");
+                let mut key =
+                    redoubt::vault::leak_master_key(32).expect("Failed to leak master key");
                 let entropy = shannon_entropy(&key);
 
                 println!("  Attempt {}: entropy = {:.3} bits/byte", attempts, entropy);

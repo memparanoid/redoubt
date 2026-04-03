@@ -1,18 +1,18 @@
 [package]
-name = "wasm-example"
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories = ["wasm", "cryptography"]
-description = "WASM example for Redoubt"
-edition.workspace = true
-keywords = ["wasm", "example", "redoubt"]
-license.workspace = true
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["wasm", "cryptography"]
+description          = "WASM example for Redoubt"
+edition.workspace    = true
+keywords             = ["wasm", "example", "redoubt"]
+license.workspace    = true
+name                 = "wasm-example"
+publish              = false
 repository.workspace = true
-version.workspace = true
-publish = false
+version.workspace    = true
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-wasm-bindgen = "=0.2.106"
 redoubt.workspace = true
+wasm-bindgen      = "=0.2.106"

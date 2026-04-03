@@ -56,13 +56,13 @@ dependencies = ["fmt-check", "lint", "test"]
 description  = "Run fmt, lint, and tests"
 
 [tasks.wallet-example]
+args        = ["make", "run"]
+command     = "cargo"
+cwd         = "examples/wallet"
 description = "Run wallet example"
-cwd = "examples/wallet"
-command = "cargo"
-args = ["make", "run"]
 
 [tasks.wasm-example]
+args        = ["make", "run"]
+command     = "cargo"
+cwd         = "examples/wasm"
 description = "Run wasm example"
-cwd = "examples/wasm"
-command = "cargo"
-args = ["make", "run"]

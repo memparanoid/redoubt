@@ -1,14 +1,14 @@
 [package]
-name = "redoubt-forensics"
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories = ["development-tools::debugging"]
-description = "Memory forensics tools for Redoubt"
-edition.workspace = true
-keywords = ["forensics", "memory", "analysis", "debugging"]
-license.workspace = true
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["development-tools::debugging"]
+description          = "Memory forensics tools for Redoubt"
+edition.workspace    = true
+keywords             = ["forensics", "memory", "analysis", "debugging"]
+license.workspace    = true
+name                 = "redoubt-forensics"
+publish              = false
 repository.workspace = true
-version.workspace = true
-publish = false
+version.workspace    = true
 
 [[bin]]
 name = "redoubt_trace_report"
@@ -16,9 +16,9 @@ path = "src/bin/redoubt_trace_report.rs"
 
 
 [features]
-default = []
+default            = []
 internal-forensics = ["redoubt/internal-forensics"]
 
 [dependencies]
-redoubt = { workspace = true, features = ["asm"] }
 libc.workspace = true
+redoubt        = { workspace = true, features = ["asm"] }

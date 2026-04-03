@@ -1,41 +1,41 @@
 [package]
-name = "redoubt-vault-core"
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories = ["cryptography", "memory-management"]
-description = "Core implementation for redoubt-vault encrypted storage"
-edition.workspace = true
-keywords = ["vault", "encryption", "secrets", "aead", "zeroize"]
-license.workspace = true
-readme.workspace = true
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "memory-management"]
+description          = "Core implementation for redoubt-vault encrypted storage"
+edition.workspace    = true
+keywords             = ["vault", "encryption", "secrets", "aead", "zeroize"]
+license.workspace    = true
+name                 = "redoubt-vault-core"
+readme.workspace     = true
 repository.workspace = true
-version.workspace = true
+version.workspace    = true
 
 [lib]
 path = "src/lib.rs"
 
 [features]
-default = []
-std = []
+asm                = ["redoubt-rand/asm", "redoubt-aead/asm"]
+default            = []
+guard              = ["redoubt-guard/guard"]
 internal-forensics = []
-guard = ["redoubt-guard/guard"]
-asm = ["redoubt-rand/asm", "redoubt-aead/asm"]
+std                = []
 
 [dependencies]
-redoubt-codec = { workspace = true, features = ["zeroize"]}
-redoubt-alloc.workspace = true
-redoubt-secret.workspace = true
+redoubt-aead.workspace   = true
+redoubt-alloc.workspace  = true
 redoubt-buffer.workspace = true
-redoubt-guard.workspace = true
-redoubt-rand.workspace = true
-redoubt-zero.workspace = true
-redoubt-aead.workspace = true
-thiserror.workspace = true
+redoubt-codec            = { workspace = true, features = ["zeroize"] }
+redoubt-guard.workspace  = true
+redoubt-rand.workspace   = true
+redoubt-secret.workspace = true
+redoubt-zero.workspace   = true
+thiserror.workspace      = true
 
 [dev-dependencies]
-redoubt-codec = { workspace = true, features = ["test-utils"] }
+redoubt-aead                 = { workspace = true, features = ["test-utils"] }
+redoubt-codec                = { workspace = true, features = ["test-utils"] }
 redoubt-test-utils.workspace = true
-redoubt-util.workspace = true
-redoubt-aead = { workspace = true, features = ["test-utils"] }
+redoubt-util.workspace       = true
 
 
 [target.'cfg(unix)'.dev-dependencies]

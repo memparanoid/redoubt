@@ -1,14 +1,14 @@
 [package]
-name = "redoubt-rand"
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories = ["cryptography", "no-std"]
-description = "Cross-platform cryptographic random number generation"
-edition.workspace = true
-keywords = ["random", "crypto", "getrandom", "security", "rng"]
-license.workspace = true
-readme.workspace = true
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "no-std"]
+description          = "Cross-platform cryptographic random number generation"
+edition.workspace    = true
+keywords             = ["random", "crypto", "getrandom", "security", "rng"]
+license.workspace    = true
+name                 = "redoubt-rand"
+readme.workspace     = true
 repository.workspace = true
-version.workspace = true
+version.workspace    = true
 
 [lib]
 path = "src/lib.rs"
@@ -16,7 +16,7 @@ path = "src/lib.rs"
 [dependencies]
 redoubt-hkdf.workspace = true
 redoubt-zero.workspace = true
-thiserror.workspace = true
+thiserror.workspace    = true
 
 [target.'cfg(any(target_os = "linux", target_os = "android", target_os = "macos", target_os = "ios"))'.dependencies]
 libc.workspace = true
@@ -31,5 +31,5 @@ getrandom = { workspace = true, features = ["wasm_js"] }
 proptest.workspace = true
 
 [features]
+asm        = ["redoubt-hkdf/asm"]
 test-utils = []
-asm = ["redoubt-hkdf/asm"]

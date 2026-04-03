@@ -1,11 +1,11 @@
 [package]
-name                 = "redoubt-hkdf-rust"
 authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
 categories           = ["cryptography"]
 description          = "Pure Rust HKDF-SHA256 implementation"
 edition.workspace    = true
 keywords             = ["hkdf", "sha256", "crypto", "security"]
 license.workspace    = true
+name                 = "redoubt-hkdf-rust"
 readme.workspace     = true
 repository.workspace = true
 version.workspace    = true
@@ -15,8 +15,8 @@ path = "src/lib.rs"
 
 [dependencies]
 redoubt-hkdf-core.workspace = true
-redoubt-zero.workspace      = true
 redoubt-util.workspace      = true
+redoubt-zero.workspace      = true
 
 [dev-dependencies]
 redoubt-hkdf-wycheproof.workspace = true

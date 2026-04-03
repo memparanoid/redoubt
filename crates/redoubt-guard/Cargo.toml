@@ -1,25 +1,25 @@
 [package]
-name = "redoubt-guard"
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories = ["memory-management", "os"]
-description = "Process-level memory protection via prctl and mlock"
-edition.workspace = true
-keywords = ["prctl", "mlock", "mprotect", "security", "memory"]
-license.workspace = true
-readme.workspace = true
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["memory-management", "os"]
+description          = "Process-level memory protection via prctl and mlock"
+edition.workspace    = true
+keywords             = ["prctl", "mlock", "mprotect", "security", "memory"]
+license.workspace    = true
+name                 = "redoubt-guard"
+readme.workspace     = true
 repository.workspace = true
-version.workspace = true
+version.workspace    = true
 
 [lib]
 path = "src/lib.rs"
 
 [features]
 default = []
-guard = []
+guard   = []
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc.workspace = true
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
-libseccomp.workspace = true
+libseccomp.workspace  = true
 serial_test.workspace = true

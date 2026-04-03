@@ -1,45 +1,45 @@
 [package]
-name = "benchmarks"
-version.workspace = true
 edition.workspace = true
-publish = false
+name              = "benchmarks"
+publish           = false
+version.workspace = true
 
 [features]
 asm = ["redoubt-aead/asm", "redoubt-hkdf/asm"]
 
 [dependencies]
-redoubt-alloc = { path = "../crates/redoubt-alloc" }
-redoubt-aead = { path = "../crates/redoubt-aead" }
-redoubt-codec = { path = "../crates/redoubt-codec" }
-redoubt-vault = { path = "../crates/redoubt-vault" }
+redoubt-aead   = { path = "../crates/redoubt-aead" }
+redoubt-alloc  = { path = "../crates/redoubt-alloc" }
 redoubt-buffer = { path = "../crates/redoubt-buffer" }
-redoubt-zero = { path = "../crates/redoubt-zero" }
-redoubt-util = { path = "../crates/redoubt-util" }
-redoubt-hkdf = { path = "../crates/redoubt-hkdf" }
+redoubt-codec  = { path = "../crates/redoubt-codec" }
+redoubt-hkdf   = { path = "../crates/redoubt-hkdf" }
+redoubt-util   = { path = "../crates/redoubt-util" }
+redoubt-vault  = { path = "../crates/redoubt-vault" }
+redoubt-zero   = { path = "../crates/redoubt-zero" }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [[bench]]
-name = "aead"
 harness = false
+name    = "aead"
 
 [[bench]]
-name = "codec"
 harness = false
+name    = "codec"
 
 [[bench]]
-name = "cipherbox"
 harness = false
+name    = "cipherbox"
 
 [[bench]]
-name = "page_buffer"
 harness = false
+name    = "page_buffer"
 
 [[bench]]
-name = "alloc"
 harness = false
+name    = "alloc"
 
 [[bench]]
-name = "hkdf_sha256"
 harness = false
+name    = "hkdf_sha256"

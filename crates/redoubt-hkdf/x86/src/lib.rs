@@ -128,17 +128,13 @@ mod tests {
     #[cfg(all(test, target_arch = "x86_64"))]
     #[test]
     fn test_hmac_sha256_wycheproof() {
-        redoubt_hkdf_wycheproof::hmac_sha256_wycheproof::run_hmac_wycheproof_tests(
-            &mut X86Backend,
-        );
+        redoubt_hkdf_wycheproof::hmac_sha256_wycheproof::run_hmac_wycheproof_tests(&mut X86Backend);
     }
 
     #[cfg(all(test, target_arch = "x86_64"))]
     #[test]
     fn test_hkdf_sha256_wycheproof() {
-        redoubt_hkdf_wycheproof::hkdf_sha256_wycheproof::run_hkdf_wycheproof_tests(
-            &mut X86Backend,
-        );
+        redoubt_hkdf_wycheproof::hkdf_sha256_wycheproof::run_hkdf_wycheproof_tests(&mut X86Backend);
     }
 
     #[cfg(all(test, target_arch = "x86_64"))]

@@ -314,7 +314,8 @@ fn expand(
     let struct_name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    let root = find_root_with_candidates(&["redoubt-vault-core", "redoubt-vault", "redoubt::vault"]);
+    let root =
+        find_root_with_candidates(&["redoubt-vault-core", "redoubt-vault", "redoubt::vault"]);
     let redoubt_zero_root =
         find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero", "redoubt::zero"]);
     let redoubt_aead_root = find_root_with_candidates(&["redoubt-aead", "redoubt::aead"]);
@@ -464,8 +465,13 @@ fn expand(
         // Note: These methods reference the internal module which is generated later.
         // The internal module name follows the pattern: __{wrapper_name}_internal (lowercase)
         if is_global {
-            let internal_module_name =
-                format_ident!("__{}_internal", wrapper_name.to_string().to_shouty_snake_case().to_lowercase());
+            let internal_module_name = format_ident!(
+                "__{}_internal",
+                wrapper_name
+                    .to_string()
+                    .to_shouty_snake_case()
+                    .to_lowercase()
+            );
 
             if use_portable_storage {
                 // Portable: Global leak method
@@ -548,8 +554,13 @@ fn expand(
     let global_storage_code = if is_global {
         let global_struct_name =
             format_ident!("{}", wrapper_name.to_string().to_shouty_snake_case());
-        let internal_module_name =
-            format_ident!("__{}_internal", wrapper_name.to_string().to_shouty_snake_case().to_lowercase());
+        let internal_module_name = format_ident!(
+            "__{}_internal",
+            wrapper_name
+                .to_string()
+                .to_shouty_snake_case()
+                .to_lowercase()
+        );
         let static_name =
             format_ident!("STATIC_{}", wrapper_name.to_string().to_shouty_snake_case());
 

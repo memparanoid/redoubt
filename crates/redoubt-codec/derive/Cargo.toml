@@ -1,18 +1,18 @@
 [package]
-name = "redoubt-codec-derive"
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories = ["encoding"]
-description = "Derive macros for redoubt-codec serialization"
-edition.workspace = true
-keywords = ["codec", "derive", "macro", "serialization", "procedural"]
-license.workspace = true
-readme.workspace = true
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["encoding"]
+description          = "Derive macros for redoubt-codec serialization"
+edition.workspace    = true
+keywords             = ["codec", "derive", "macro", "serialization", "procedural"]
+license.workspace    = true
+name                 = "redoubt-codec-derive"
+readme.workspace     = true
 repository.workspace = true
-version.workspace = true
+version.workspace    = true
 
 [lib]
+path       = "src/lib.rs"
 proc-macro = true
-path = "src/lib.rs"
 
 [features]
 default = ["zeroize"]
@@ -25,10 +25,10 @@ quote.workspace            = true
 syn.workspace              = true
 
 [dev-dependencies]
-redoubt-zero.workspace = true
+dummy-codec                  = { path = "src/tests/test_fixture" }
+prettyplease.workspace       = true
 redoubt-codec-core.workspace = true
-prettyplease.workspace  = true
-dummy-codec = { path = "src/tests/test_fixture" }
+redoubt-zero.workspace       = true
 
 # Only include insta on architectures where it compiles (cpufeatures constraint)
 [target.'cfg(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", target_arch = "loongarch64"))'.dev-dependencies]

@@ -1,23 +1,23 @@
 [package]
-name = "redoubt-alloc"
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories = ["data-structures", "memory-management"]
-description = "Allocation-locked Vec that guarantees no reallocation after sealing"
-edition.workspace = true
-keywords = ["vec", "zeroize", "security", "sealed", "allocation"]
-license.workspace = true
-readme.workspace = true
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["data-structures", "memory-management"]
+description          = "Allocation-locked Vec that guarantees no reallocation after sealing"
+edition.workspace    = true
+keywords             = ["vec", "zeroize", "security", "sealed", "allocation"]
+license.workspace    = true
+name                 = "redoubt-alloc"
+readme.workspace     = true
 repository.workspace = true
-version.workspace = true
+version.workspace    = true
 
 [features]
-test-utils = []
-unsafe = []
 default_init = []
+test-utils   = []
+unsafe       = []
 
 [dependencies]
-redoubt-zero.workspace    = true
-redoubt-util.workspace   = true
-thiserror.workspace = true
+redoubt-util.workspace = true
+redoubt-zero.workspace = true
+thiserror.workspace    = true
 
 [dev-dependencies]

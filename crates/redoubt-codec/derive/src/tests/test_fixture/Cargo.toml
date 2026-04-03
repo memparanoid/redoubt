@@ -1,8 +1,8 @@
 [package]
-name = "dummy-codec"
-version = "0.0.0"
 edition = "2024"
+name    = "dummy-codec"
 publish = false
+version = "0.0.0"
 
 [lib]
 path = "lib.rs"

@@ -1,27 +1,27 @@
 [package]
-name = "redoubt-vault"
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories = ["cryptography", "memory-management"]
-description = "Encrypted vault with field-level access and automatic zeroization"
-edition.workspace = true
-keywords = ["vault", "encryption", "secrets", "aead", "zeroize"]
-license.workspace = true
-readme.workspace = true
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "memory-management"]
+description          = "Encrypted vault with field-level access and automatic zeroization"
+edition.workspace    = true
+keywords             = ["vault", "encryption", "secrets", "aead", "zeroize"]
+license.workspace    = true
+name                 = "redoubt-vault"
+readme.workspace     = true
 repository.workspace = true
-version.workspace = true
+version.workspace    = true
 
 [lib]
 path = "src/lib.rs"
 
 [features]
-default = []
-std = ["redoubt-vault-core/std", "redoubt-vault-derive/std"]
-guard = ["redoubt-vault-core/guard"]
+asm                = ["redoubt-vault-core/asm"]
+default            = []
+guard              = ["redoubt-vault-core/guard"]
 internal-forensics = ["redoubt-vault-core/internal-forensics"]
-asm = ["redoubt-vault-core/asm"]
+std                = ["redoubt-vault-core/std", "redoubt-vault-derive/std"]
 
 [dependencies]
-redoubt-vault-core.workspace = true
+redoubt-vault-core.workspace   = true
 redoubt-vault-derive.workspace = true
 
 [dev-dependencies]

@@ -1,21 +1,21 @@
 [package]
-name = "redoubt-hkdf"
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories = ["cryptography", "no-std"]
-description = "HKDF-SHA256 implementation with secure memory handling"
-edition.workspace = true
-keywords = ["hkdf", "sha256", "kdf", "security"]
-license.workspace = true
-readme.workspace = true
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "no-std"]
+description          = "HKDF-SHA256 implementation with secure memory handling"
+edition.workspace    = true
+keywords             = ["hkdf", "sha256", "kdf", "security"]
+license.workspace    = true
+name                 = "redoubt-hkdf"
+readme.workspace     = true
 repository.workspace = true
-version.workspace = true
+version.workspace    = true
 
 [lib]
 path = "src/lib.rs"
 
 [features]
+asm     = []
 default = []
-asm = []
 
 [dependencies]
 redoubt-hkdf-core.workspace = true

@@ -1,24 +1,24 @@
 [package]
-name = "redoubt-aead"
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories = ["cryptography", "no-std"]
-description = "AEGIS-128L and XChaCha20-Poly1305 AEAD with zeroization"
-edition.workspace = true
-keywords = ["aegis128l", "xchacha20", "aead", "encryption", "zeroize"]
-license.workspace = true
-readme.workspace = true
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "no-std"]
+description          = "AEGIS-128L and XChaCha20-Poly1305 AEAD with zeroization"
+edition.workspace    = true
+keywords             = ["aegis128l", "xchacha20", "aead", "encryption", "zeroize"]
+license.workspace    = true
+name                 = "redoubt-aead"
+readme.workspace     = true
 repository.workspace = true
-version.workspace = true
+version.workspace    = true
 
 [features]
+asm        = []
 test-utils = []
-asm = []
 
 [dependencies]
-redoubt-rand.workspace     = true
-redoubt-util.workspace     = true
-redoubt-zero.workspace      = true
-thiserror.workspace   = true
+redoubt-rand.workspace = true
+redoubt-util.workspace = true
+redoubt-zero.workspace = true
+thiserror.workspace    = true
 
 # Only include cpufeatures on architectures it supports
 [target.'cfg(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", target_arch = "loongarch64"))'.dependencies]

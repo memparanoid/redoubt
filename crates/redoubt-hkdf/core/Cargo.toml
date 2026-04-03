@@ -1,11 +1,11 @@
 [package]
-name                 = "redoubt-hkdf-core"
 authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
 categories           = ["cryptography"]
 description          = "Core traits and error types for HKDF-SHA256"
 edition.workspace    = true
 keywords             = ["hkdf", "sha256", "crypto"]
 license.workspace    = true
+name                 = "redoubt-hkdf-core"
 readme.workspace     = true
 repository.workspace = true
 version.workspace    = true

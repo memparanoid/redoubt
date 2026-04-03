@@ -1,20 +1,20 @@
 [package]
-name = "redoubt-util"
-authors = ["Federico Hoerth <memparanoid@gmail.com>"]
-categories = ["memory-management", "development-tools"]
-description = "Memory utilities for verification and testing"
-edition.workspace = true
-keywords = ["memory", "utilities", "verification", "testing", "helpers"]
-license.workspace = true
-readme.workspace = true
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["memory-management", "development-tools"]
+description          = "Memory utilities for verification and testing"
+edition.workspace    = true
+keywords             = ["memory", "utilities", "verification", "testing", "helpers"]
+license.workspace    = true
+name                 = "redoubt-util"
+readme.workspace     = true
 repository.workspace = true
-version.workspace = true
+version.workspace    = true
 
 [lib]
 path = "src/lib.rs"
 
 [features]
-default = []
+default    = []
 test-utils = []
 
 [dependencies]

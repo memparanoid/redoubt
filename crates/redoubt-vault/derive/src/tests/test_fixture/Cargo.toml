@@ -1,8 +1,8 @@
 [package]
-name = "dummy-vault"
-version = "0.0.0"
 edition = "2024"
+name    = "dummy-vault"
 publish = false
+version = "0.0.0"
 
 [lib]
 path = "lib.rs"

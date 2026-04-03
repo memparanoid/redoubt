@@ -1,11 +1,11 @@
 [package]
-name                 = "redoubt-hkdf-wycheproof"
 authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
 categories           = ["cryptography"]
 description          = "Wycheproof test runners and FIPS vectors for HKDF-SHA256 backends"
 edition.workspace    = true
 keywords             = ["hkdf", "sha256", "testing", "wycheproof"]
 license.workspace    = true
+name                 = "redoubt-hkdf-wycheproof"
 readme.workspace     = true
 repository.workspace = true
 version.workspace    = true
@@ -15,4 +15,4 @@ path = "src/lib.rs"
 
 [dependencies]
 redoubt-hkdf-core.workspace = true
-redoubt-util = { workspace = true, features = ["test-utils"] }
+redoubt-util                = { workspace = true, features = ["test-utils"] }
