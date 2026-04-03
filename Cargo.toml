@@ -10,6 +10,7 @@ members = [
   "crates/redoubt-secret",
   "crates/redoubt-rand",
   "crates/redoubt-hkdf",
+  "crates/redoubt-hkdf/core",
   "crates/redoubt-util",
   "crates/redoubt-vault",
   "crates/redoubt-vault/core",
@@ -45,6 +46,7 @@ resolver = "2"
   redoubt-codec-derive = { path = "crates/redoubt-codec/derive", version = "0.1.0-rc.3" }
   redoubt-guard        = { path = "crates/redoubt-guard", version = "0.1.0-rc.3" }
   redoubt-hkdf         = { path = "crates/redoubt-hkdf", version = "0.1.0-rc.3" }
+  redoubt-hkdf-core    = { path = "crates/redoubt-hkdf/core", version = "0.1.0-rc.3" }
   redoubt-rand         = { path = "crates/redoubt-rand", version = "0.1.0-rc.3" }
   redoubt-secret       = { path = "crates/redoubt-secret", version = "0.1.0-rc.3" }
   redoubt-test-utils   = { path = "crates/redoubt-test-utils", version = "0.1.0-rc.3" }
