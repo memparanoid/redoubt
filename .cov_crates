@@ -15,6 +15,7 @@ redoubt-util
 
 # Crypto
 redoubt-hkdf-core
+redoubt-hkdf-rust
 redoubt-hkdf
 redoubt-aead
 

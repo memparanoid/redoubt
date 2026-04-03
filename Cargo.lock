@@ -956,9 +956,25 @@ dependencies = [
 name = "redoubt-hkdf-core"
 version = "0.1.0-rc.3"
 dependencies = [
+ "thiserror",
+]
+
+[[package]]
+name = "redoubt-hkdf-rust"
+version = "0.1.0-rc.3"
+dependencies = [
+ "redoubt-hkdf-core",
+ "redoubt-hkdf-wycheproof",
  "redoubt-util",
  "redoubt-zero",
- "thiserror",
+]
+
+[[package]]
+name = "redoubt-hkdf-wycheproof"
+version = "0.1.0-rc.3"
+dependencies = [
+ "redoubt-hkdf-core",
+ "redoubt-util",
 ]
 
 [[package]]
