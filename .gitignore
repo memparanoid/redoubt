@@ -1,7 +1,6 @@
 .DS_Store
 .private
 .claude
-.github
 .passphrase.sh
 .tools
 node_modules
