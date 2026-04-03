@@ -869,6 +869,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "redoubt-aead-core"
+version = "0.1.0-rc.3"
+dependencies = [
+ "redoubt-rand",
+ "thiserror",
+]
+
+[[package]]
 name = "redoubt-alloc"
 version = "0.1.0-rc.3"
 dependencies = [
