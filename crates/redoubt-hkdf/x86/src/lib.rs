@@ -11,13 +11,13 @@
 #![no_std]
 #![warn(missing_docs)]
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 use redoubt_hkdf_core::{HkdfApi, HkdfError};
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 const MAX_OUTPUT_LEN: usize = 255 * 32;
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 unsafe extern "C" {
     fn sha256_compress_block(h_ptr: *mut u32, block_ptr: *const u8);
     fn sha256_hash(msg_ptr: *const u8, msg_len: usize, digest_ptr: *mut u8);
@@ -43,7 +43,7 @@ unsafe extern "C" {
 /// x86_64 assembly HKDF-SHA256 backend.
 pub struct X86Backend;
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 impl HkdfApi for X86Backend {
     fn api_hkdf(
         &mut self,
@@ -103,7 +103,7 @@ impl HkdfApi for X86Backend {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(all(test, target_arch = "x86_64"))]
+    #[cfg(all(test, target_arch = "x86_64", not(target_os = "windows")))]
     use super::X86Backend;
 
     #[test]
@@ -111,13 +111,13 @@ mod tests {
         let _ = super::X86Backend;
     }
 
-    #[cfg(all(test, target_arch = "x86_64"))]
+    #[cfg(all(test, target_arch = "x86_64", not(target_os = "windows")))]
     #[test]
     fn test_sha256_hash() {
         redoubt_hkdf_wycheproof::sha256_hash::run_sha256_hash_tests(&mut X86Backend);
     }
 
-    #[cfg(all(test, target_arch = "x86_64"))]
+    #[cfg(all(test, target_arch = "x86_64", not(target_os = "windows")))]
     #[test]
     fn test_sha256_compress_block() {
         redoubt_hkdf_wycheproof::sha256_compress_block::run_sha256_compress_block_tests(
@@ -125,19 +125,19 @@ mod tests {
         );
     }
 
-    #[cfg(all(test, target_arch = "x86_64"))]
+    #[cfg(all(test, target_arch = "x86_64", not(target_os = "windows")))]
     #[test]
     fn test_hmac_sha256_wycheproof() {
         redoubt_hkdf_wycheproof::hmac_sha256_wycheproof::run_hmac_wycheproof_tests(&mut X86Backend);
     }
 
-    #[cfg(all(test, target_arch = "x86_64"))]
+    #[cfg(all(test, target_arch = "x86_64", not(target_os = "windows")))]
     #[test]
     fn test_hkdf_sha256_wycheproof() {
         redoubt_hkdf_wycheproof::hkdf_sha256_wycheproof::run_hkdf_wycheproof_tests(&mut X86Backend);
     }
 
-    #[cfg(all(test, target_arch = "x86_64"))]
+    #[cfg(all(test, target_arch = "x86_64", not(target_os = "windows")))]
     #[test]
     fn test_hkdf_empty_okm() {
         use redoubt_hkdf_core::HkdfApi;

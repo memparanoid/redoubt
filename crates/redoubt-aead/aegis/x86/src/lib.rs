@@ -11,15 +11,15 @@
 #![no_std]
 #![warn(missing_docs)]
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 extern crate alloc;
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 use alloc::vec;
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 use alloc::vec::Vec;
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 use redoubt_aead_core::{AeadApi, AeadError, EntropyError};
 
 /// Key size: 128 bits (16 bytes).
@@ -29,7 +29,7 @@ pub const NONCE_SIZE: usize = 16;
 /// Tag size: 128 bits (16 bytes).
 pub const TAG_SIZE: usize = 16;
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 unsafe extern "C" {
     fn aegis128l_encrypt(
         key: *const [u8; 16],
@@ -56,7 +56,7 @@ unsafe extern "C" {
 /// x86_64 assembly AEGIS-128L backend.
 pub struct Aegis128LX86Backend;
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 impl AeadApi for Aegis128LX86Backend {
     fn api_encrypt(
         &mut self,
@@ -141,7 +141,7 @@ impl AeadApi for Aegis128LX86Backend {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
     use super::Aegis128LX86Backend;
 
     #[test]
@@ -149,25 +149,25 @@ mod tests {
         let _ = super::Aegis128LX86Backend;
     }
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
     #[test]
     fn test_aegis128l_wycheproof() {
         redoubt_aead_aegis_wycheproof::run_aegis128l_wycheproof_tests(&mut Aegis128LX86Backend);
     }
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
     #[test]
     fn test_aegis128l_roundtrip() {
         redoubt_aead_aegis_wycheproof::run_aegis128l_roundtrip_tests(&mut Aegis128LX86Backend);
     }
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
     #[test]
     fn test_aegis128l_flipped_tag() {
         redoubt_aead_aegis_wycheproof::run_aegis128l_flipped_tag_tests(&mut Aegis128LX86Backend);
     }
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
     #[test]
     fn test_aegis128l_invalid_size_encrypt() {
         redoubt_aead_aegis_wycheproof::run_aegis128l_invalid_size_encrypt_tests(
@@ -175,7 +175,7 @@ mod tests {
         );
     }
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
     #[test]
     fn test_aegis128l_invalid_size_decrypt() {
         redoubt_aead_aegis_wycheproof::run_aegis128l_invalid_size_decrypt_tests(
@@ -183,7 +183,7 @@ mod tests {
         );
     }
 
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
     #[test]
     fn test_aegis128l_generate_nonce() {
         redoubt_aead_aegis_wycheproof::run_aegis128l_generate_nonce_test(&mut Aegis128LX86Backend);
