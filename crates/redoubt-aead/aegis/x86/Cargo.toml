@@ -15,6 +15,8 @@ path = "src/lib.rs"
 
 [dependencies]
 redoubt-aead-core.workspace = true
+redoubt-rand.workspace      = true
+redoubt-util.workspace      = true
 
 [build-dependencies]
 cc.workspace = true
