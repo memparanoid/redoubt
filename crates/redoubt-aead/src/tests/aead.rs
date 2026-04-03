@@ -2,50 +2,55 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+// Tests use api_* methods which delegate to the inherent encrypt/decrypt methods.
+// This covers both the AeadApi impl and the underlying dispatch in a single pass.
+// If api_* methods stop delegating, these tests must be split.
+
+use redoubt_aead_core::{AeadApi, AeadError};
+
 use crate::aead::Aead;
-use redoubt_aead_core::AeadError;
 
 // =============================================================================
-// encrypt() (XChaCha20-Poly1305)
+// api_encrypt() (XChaCha20-Poly1305)
 // =============================================================================
 
 #[test]
-fn test_encrypt_xchacha_reports_invalid_key_size() {
+fn test_api_encrypt_xchacha_reports_invalid_key_size() {
     let mut aead = Aead::with_xchacha20poly1305();
     let bad_key = [0u8; 31]; // 32 expected
     let nonce = [0u8; 24];
     let mut data = [1u8; 8];
     let mut tag = [0u8; 16];
 
-    let result = aead.encrypt(&bad_key, &nonce, &[], &mut data, &mut tag);
+    let result = aead.api_encrypt(&bad_key, &nonce, &[], &mut data, &mut tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::InvalidKeySize)));
 }
 
 #[test]
-fn test_encrypt_xchacha_reports_invalid_nonce_size() {
+fn test_api_encrypt_xchacha_reports_invalid_nonce_size() {
     let mut aead = Aead::with_xchacha20poly1305();
     let key = [0u8; 32];
     let bad_nonce = [0u8; 23]; // 24 expected
     let mut data = [1u8; 8];
     let mut tag = [0u8; 16];
 
-    let result = aead.encrypt(&key, &bad_nonce, &[], &mut data, &mut tag);
+    let result = aead.api_encrypt(&key, &bad_nonce, &[], &mut data, &mut tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::InvalidNonceSize)));
 }
 
 #[test]
-fn test_encrypt_xchacha_reports_invalid_tag_size() {
+fn test_api_encrypt_xchacha_reports_invalid_tag_size() {
     let mut aead = Aead::with_xchacha20poly1305();
     let key = [0u8; 32];
     let nonce = [0u8; 24];
     let mut data = [1u8; 8];
     let mut tag = [0u8; 15]; // 16 expected
 
-    let result = aead.encrypt(&key, &nonce, &[], &mut data, &mut tag);
+    let result = aead.api_encrypt(&key, &nonce, &[], &mut data, &mut tag);
     assert!(result.is_err());
 
     assert!(matches!(result, Err(AeadError::InvalidTagSize)));
@@ -53,7 +58,7 @@ fn test_encrypt_xchacha_reports_invalid_tag_size() {
 
 /// draft-irtf-cfrg-xchacha Appendix A.1
 #[test]
-fn test_encrypt_xchacha_succeeds() {
+fn test_api_encrypt_xchacha_succeeds() {
     let mut aead = Aead::with_xchacha20poly1305();
 
     #[rustfmt::skip]
@@ -79,7 +84,7 @@ fn test_encrypt_xchacha_succeeds() {
 If I could offer you only one tip for the future, sunscreen would be it.";
     let mut tag = [0u8; 16];
 
-    let result = aead.encrypt(&key, &nonce, &aad, &mut data, &mut tag);
+    let result = aead.api_encrypt(&key, &nonce, &aad, &mut data, &mut tag);
 
     assert!(result.is_ok());
 
@@ -112,60 +117,60 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 }
 
 // =============================================================================
-// decrypt() (XChaCha20-Poly1305)
+// api_decrypt() (XChaCha20-Poly1305)
 // =============================================================================
 
 #[test]
-fn test_decrypt_xchacha_reports_invalid_key_size() {
+fn test_api_decrypt_xchacha_reports_invalid_key_size() {
     let mut aead = Aead::with_xchacha20poly1305();
     let bad_key = [0u8; 31];
     let nonce = [0u8; 24];
     let mut data = [1u8; 8];
     let tag = [0u8; 16];
 
-    let result = aead.decrypt(&bad_key, &nonce, &[], &mut data, &tag);
+    let result = aead.api_decrypt(&bad_key, &nonce, &[], &mut data, &tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::InvalidKeySize)));
 }
 
 #[test]
-fn test_decrypt_xchacha_reports_invalid_nonce_size() {
+fn test_api_decrypt_xchacha_reports_invalid_nonce_size() {
     let mut aead = Aead::with_xchacha20poly1305();
     let key = [0u8; 32];
     let bad_nonce = [0u8; 23];
     let mut data = [1u8; 8];
     let tag = [0u8; 16];
 
-    let result = aead.decrypt(&key, &bad_nonce, &[], &mut data, &tag);
+    let result = aead.api_decrypt(&key, &bad_nonce, &[], &mut data, &tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::InvalidNonceSize)));
 }
 
 #[test]
-fn test_decrypt_xchacha_reports_invalid_tag_size() {
+fn test_api_decrypt_xchacha_reports_invalid_tag_size() {
     let mut aead = Aead::with_xchacha20poly1305();
     let key = [0u8; 32];
     let nonce = [0u8; 24];
     let mut data = [1u8; 8];
     let tag = [0u8; 15];
 
-    let result = aead.decrypt(&key, &nonce, &[], &mut data, &tag);
+    let result = aead.api_decrypt(&key, &nonce, &[], &mut data, &tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::InvalidTagSize)));
 }
 
 #[test]
-fn test_decrypt_xchacha_reports_authentication_failed() {
+fn test_api_decrypt_xchacha_reports_authentication_failed() {
     let mut aead = Aead::with_xchacha20poly1305();
     let key = [0u8; 32];
     let nonce = [0u8; 24];
     let mut data = [1u8; 8];
     let tag = [0u8; 16];
 
-    let result = aead.decrypt(&key, &nonce, &[], &mut data, &tag);
+    let result = aead.api_decrypt(&key, &nonce, &[], &mut data, &tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::AuthenticationFailed)));
@@ -173,7 +178,7 @@ fn test_decrypt_xchacha_reports_authentication_failed() {
 
 /// draft-irtf-cfrg-xchacha Appendix A.1
 #[test]
-fn test_decrypt_xchacha_succeeds() {
+fn test_api_decrypt_xchacha_succeeds() {
     let mut aead = Aead::with_xchacha20poly1305();
 
     #[rustfmt::skip]
@@ -218,7 +223,7 @@ fn test_decrypt_xchacha_succeeds() {
         0x47, 0xde, 0xaf, 0xd8, 0x78, 0x0a, 0xcf, 0x49,
     ];
 
-    let result = aead.decrypt(&key, &nonce, &aad, &mut data, &tag);
+    let result = aead.api_decrypt(&key, &nonce, &aad, &mut data, &tag);
 
     assert!(result.is_ok());
 
@@ -229,19 +234,19 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 }
 
 // =============================================================================
-// encrypt() (AEGIS-128L)
+// api_encrypt() (AEGIS-128L)
 // =============================================================================
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-fn test_encrypt_aegis_reports_invalid_key_size() {
+fn test_api_encrypt_aegis_reports_invalid_key_size() {
     let mut aead = Aead::with_aegis128l();
     let bad_key = [0u8; 15]; // 16 expected
     let nonce = [0u8; 16];
     let mut data = [1u8; 8];
     let mut tag = [0u8; 16];
 
-    let result = aead.encrypt(&bad_key, &nonce, &[], &mut data, &mut tag);
+    let result = aead.api_encrypt(&bad_key, &nonce, &[], &mut data, &mut tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::InvalidKeySize)));
@@ -249,14 +254,14 @@ fn test_encrypt_aegis_reports_invalid_key_size() {
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-fn test_encrypt_aegis_reports_invalid_nonce_size() {
+fn test_api_encrypt_aegis_reports_invalid_nonce_size() {
     let mut aead = Aead::with_aegis128l();
     let key = [0u8; 16];
     let bad_nonce = [0u8; 15]; // 16 expected
     let mut data = [1u8; 8];
     let mut tag = [0u8; 16];
 
-    let result = aead.encrypt(&key, &bad_nonce, &[], &mut data, &mut tag);
+    let result = aead.api_encrypt(&key, &bad_nonce, &[], &mut data, &mut tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::InvalidNonceSize)));
@@ -264,14 +269,14 @@ fn test_encrypt_aegis_reports_invalid_nonce_size() {
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-fn test_encrypt_aegis_reports_invalid_tag_size() {
+fn test_api_encrypt_aegis_reports_invalid_tag_size() {
     let mut aead = Aead::with_aegis128l();
     let key = [0u8; 16];
     let nonce = [0u8; 16];
     let mut data = [1u8; 8];
     let mut tag = [0u8; 15]; // 16 expected
 
-    let result = aead.encrypt(&key, &nonce, &[], &mut data, &mut tag);
+    let result = aead.api_encrypt(&key, &nonce, &[], &mut data, &mut tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::InvalidTagSize)));
@@ -280,7 +285,7 @@ fn test_encrypt_aegis_reports_invalid_tag_size() {
 /// AEGIS-128L RFC Test Vector A.2.2 - Test Vector 1
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-fn test_encrypt_aegis_succeeds() {
+fn test_api_encrypt_aegis_succeeds() {
     let mut aead = Aead::with_aegis128l();
 
     #[rustfmt::skip]
@@ -296,7 +301,7 @@ fn test_encrypt_aegis_succeeds() {
     let mut data: [u8; 16] = [0x00; 16];
     let mut tag = [0u8; 16];
 
-    let result = aead.encrypt(&key, &nonce, &[], &mut data, &mut tag);
+    let result = aead.api_encrypt(&key, &nonce, &[], &mut data, &mut tag);
 
     assert!(result.is_ok());
 
@@ -316,19 +321,19 @@ fn test_encrypt_aegis_succeeds() {
 }
 
 // =============================================================================
-// decrypt() (AEGIS-128L)
+// api_decrypt() (AEGIS-128L)
 // =============================================================================
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-fn test_decrypt_aegis_reports_invalid_key_size() {
+fn test_api_decrypt_aegis_reports_invalid_key_size() {
     let mut aead = Aead::with_aegis128l();
     let bad_key = [0u8; 15];
     let nonce = [0u8; 16];
     let mut data = [1u8; 8];
     let tag = [0u8; 16];
 
-    let result = aead.decrypt(&bad_key, &nonce, &[], &mut data, &tag);
+    let result = aead.api_decrypt(&bad_key, &nonce, &[], &mut data, &tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::InvalidKeySize)));
@@ -336,14 +341,14 @@ fn test_decrypt_aegis_reports_invalid_key_size() {
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-fn test_decrypt_aegis_reports_invalid_nonce_size() {
+fn test_api_decrypt_aegis_reports_invalid_nonce_size() {
     let mut aead = Aead::with_aegis128l();
     let key = [0u8; 16];
     let bad_nonce = [0u8; 15];
     let mut data = [1u8; 8];
     let tag = [0u8; 16];
 
-    let result = aead.decrypt(&key, &bad_nonce, &[], &mut data, &tag);
+    let result = aead.api_decrypt(&key, &bad_nonce, &[], &mut data, &tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::InvalidNonceSize)));
@@ -351,14 +356,14 @@ fn test_decrypt_aegis_reports_invalid_nonce_size() {
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-fn test_decrypt_aegis_reports_invalid_tag_size() {
+fn test_api_decrypt_aegis_reports_invalid_tag_size() {
     let mut aead = Aead::with_aegis128l();
     let key = [0u8; 16];
     let nonce = [0u8; 16];
     let mut data = [1u8; 8];
     let tag = [0u8; 15];
 
-    let result = aead.decrypt(&key, &nonce, &[], &mut data, &tag);
+    let result = aead.api_decrypt(&key, &nonce, &[], &mut data, &tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::InvalidTagSize)));
@@ -366,14 +371,14 @@ fn test_decrypt_aegis_reports_invalid_tag_size() {
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-fn test_decrypt_aegis_reports_authentication_failed() {
+fn test_api_decrypt_aegis_reports_authentication_failed() {
     let mut aead = Aead::with_aegis128l();
     let key = [0u8; 16];
     let nonce = [0u8; 16];
     let mut data = [1u8; 8];
     let tag = [0u8; 16];
 
-    let result = aead.decrypt(&key, &nonce, &[], &mut data, &tag);
+    let result = aead.api_decrypt(&key, &nonce, &[], &mut data, &tag);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::AuthenticationFailed)));
@@ -382,7 +387,7 @@ fn test_decrypt_aegis_reports_authentication_failed() {
 /// AEGIS-128L RFC Test Vector A.2.2 - Test Vector 1
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-fn test_decrypt_aegis_succeeds() {
+fn test_api_decrypt_aegis_succeeds() {
     let mut aead = Aead::with_aegis128l();
 
     #[rustfmt::skip]
@@ -406,7 +411,7 @@ fn test_decrypt_aegis_succeeds() {
         0x22, 0x6a, 0x35, 0xd1, 0x6b, 0xda, 0xe3, 0x7a,
     ];
 
-    let result = aead.decrypt(&key, &nonce, &[], &mut data, &tag);
+    let result = aead.api_decrypt(&key, &nonce, &[], &mut data, &tag);
 
     assert!(result.is_ok());
     assert_eq!(&data, &[0x00; 16]);
