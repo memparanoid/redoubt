@@ -40,7 +40,7 @@ cargo add redoubt --features full
 Or in your `Cargo.toml`:
 ```toml
 [dependencies]
-redoubt = { version = "0.1.0-rc.5", features = ["full"] }
+redoubt = { version = "0.1.0-rc.6", features = ["full"] }
 ```
 
 ## Quick Start
