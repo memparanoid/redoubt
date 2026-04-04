@@ -14,6 +14,44 @@ use super::consts::{
 };
 use super::types::{AeadKey, XNonce};
 
+/// Setup counter and nonce in the ChaCha20 state based on nonce length.
+///
+/// - 12-byte nonce (IETF/RFC 8439): state[12] = counter(u32), state[13..16] = nonce
+/// - 8-byte nonce (Bernstein): state[12..14] = counter(u64), state[14..16] = nonce
+#[inline(always)]
+pub(crate) fn setup_counter_and_nonce(
+    initial: &mut [u32; 16],
+    le_bytes_tmp: &mut [u8; 4],
+    nonce: &[u8],
+    counter: u64,
+) {
+    if nonce.len() == 12 {
+        // IETF: state[12] = counter(u32), state[13..16] = nonce(12 bytes)
+        initial[12] = counter as u32;
+
+        for i in 0..3 {
+            le_bytes_tmp[0] = nonce[i * 4];
+            le_bytes_tmp[1] = nonce[i * 4 + 1];
+            le_bytes_tmp[2] = nonce[i * 4 + 2];
+            le_bytes_tmp[3] = nonce[i * 4 + 3];
+            u32_from_le(&mut initial[13 + i], le_bytes_tmp);
+        }
+    } else {
+        // Bernstein: state[12..14] = counter(u64), state[14..16] = nonce(8 bytes)
+        initial[12] = counter as u32;
+        initial[13] = (counter >> 32) as u32;
+
+        let nonce_words = nonce.len() / 4;
+        for i in 0..nonce_words {
+            le_bytes_tmp[0] = nonce[i * 4];
+            le_bytes_tmp[1] = nonce[i * 4 + 1];
+            le_bytes_tmp[2] = nonce[i * 4 + 2];
+            le_bytes_tmp[3] = nonce[i * 4 + 3];
+            u32_from_le(&mut initial[14 + i], le_bytes_tmp);
+        }
+    }
+}
+
 /// ChaCha20 cipher state with guaranteed zeroization.
 ///
 /// The const generic `NONCE_SIZE` selects the variant:
@@ -109,30 +147,12 @@ impl<const NONCE_SIZE: usize> ChaCha20<NONCE_SIZE> {
             u32_from_le(&mut self.initial[4 + i], &mut self.le_bytes_tmp);
         }
 
-        if NONCE_SIZE == 12 {
-            // IETF: state[12] = counter(u32), state[13..16] = nonce(12 bytes)
-            self.initial[12] = counter as u32;
-
-            for i in 0..3 {
-                self.le_bytes_tmp[0] = nonce[i * 4];
-                self.le_bytes_tmp[1] = nonce[i * 4 + 1];
-                self.le_bytes_tmp[2] = nonce[i * 4 + 2];
-                self.le_bytes_tmp[3] = nonce[i * 4 + 3];
-                u32_from_le(&mut self.initial[13 + i], &mut self.le_bytes_tmp);
-            }
-        } else {
-            // Bernstein: state[12..14] = counter(u64), state[14..16] = nonce(8 bytes)
-            self.initial[12] = counter as u32;
-            self.initial[13] = (counter >> 32) as u32;
-
-            for i in 0..2 {
-                self.le_bytes_tmp[0] = nonce[i * 4];
-                self.le_bytes_tmp[1] = nonce[i * 4 + 1];
-                self.le_bytes_tmp[2] = nonce[i * 4 + 2];
-                self.le_bytes_tmp[3] = nonce[i * 4 + 3];
-                u32_from_le(&mut self.initial[14 + i], &mut self.le_bytes_tmp);
-            }
-        }
+        setup_counter_and_nonce(
+            &mut self.initial,
+            &mut self.le_bytes_tmp,
+            nonce,
+            counter,
+        );
     }
 
     #[inline(always)]
