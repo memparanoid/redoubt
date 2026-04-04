@@ -26,5 +26,7 @@ mod types;
 
 pub use aead::XChacha20Poly1305;
 pub use chacha20::{ChaCha20, HChaCha20, XChaCha20};
-pub use consts::{KEY_SIZE, TAG_SIZE, XNONCE_SIZE};
+pub use consts::{
+    CHACHA20_BERNSTEIN_NONCE_SIZE, CHACHA20_NONCE_SIZE, KEY_SIZE, TAG_SIZE, XNONCE_SIZE,
+};
 pub use poly1305::Poly1305;

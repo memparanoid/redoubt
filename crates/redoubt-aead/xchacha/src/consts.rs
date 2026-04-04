@@ -19,8 +19,11 @@ pub const XNONCE_SIZE: usize = 24;
 /// ChaCha20 keystream block size in bytes
 pub const CHACHA20_BLOCK_SIZE: usize = 64;
 
-/// ChaCha20 nonce size in bytes
+/// ChaCha20 IETF nonce size in bytes (RFC 8439)
 pub const CHACHA20_NONCE_SIZE: usize = 12;
+
+/// ChaCha20 Bernstein nonce size in bytes (original construction)
+pub const CHACHA20_BERNSTEIN_NONCE_SIZE: usize = 8;
 
 /// HChaCha20 nonce size in bytes
 pub const HCHACHA20_NONCE_SIZE: usize = 16;

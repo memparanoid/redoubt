@@ -15,9 +15,13 @@ use super::consts::{
 use super::types::{AeadKey, XNonce};
 
 /// ChaCha20 cipher state with guaranteed zeroization.
+///
+/// The const generic `NONCE_SIZE` selects the variant:
+/// - `12`: IETF (RFC 8439) — 12-byte nonce, 4-byte counter
+/// - `8`: Bernstein (original) — 8-byte nonce, 8-byte counter (OpenSSH)
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
-pub struct ChaCha20 {
+pub struct ChaCha20<const NONCE_SIZE: usize> {
     initial: [u32; 16],
     working: [u32; 16],
     le_bytes_tmp: [u8; 4],
@@ -30,7 +34,7 @@ pub struct ChaCha20 {
     __sentinel: ZeroizeOnDropSentinel,
 }
 
-impl Default for ChaCha20 {
+impl<const NONCE_SIZE: usize> Default for ChaCha20<NONCE_SIZE> {
     fn default() -> Self {
         Self {
             initial: [0; 16],
@@ -46,7 +50,7 @@ impl Default for ChaCha20 {
     }
 }
 
-impl ChaCha20 {
+impl<const NONCE_SIZE: usize> ChaCha20<NONCE_SIZE> {
     #[inline(always)]
     fn quarter_round(&mut self, a: usize, b: usize, c: usize, d: usize) {
         #[cfg(target_arch = "x86_64")]
@@ -91,12 +95,7 @@ impl ChaCha20 {
     }
 
     #[inline(always)]
-    fn init_state(
-        &mut self,
-        key: &[u8; KEY_SIZE],
-        nonce: &[u8; CHACHA20_NONCE_SIZE],
-        counter: u32,
-    ) {
+    fn init_state(&mut self, key: &[u8; KEY_SIZE], nonce: &[u8; NONCE_SIZE], counter: u64) {
         self.initial[0] = 0x61707865;
         self.initial[1] = 0x3320646e;
         self.initial[2] = 0x79622d32;
@@ -110,14 +109,29 @@ impl ChaCha20 {
             u32_from_le(&mut self.initial[4 + i], &mut self.le_bytes_tmp);
         }
 
-        self.initial[12] = counter;
+        if NONCE_SIZE == 12 {
+            // IETF: state[12] = counter(u32), state[13..16] = nonce(12 bytes)
+            self.initial[12] = counter as u32;
 
-        for i in 0..3 {
-            self.le_bytes_tmp[0] = nonce[i * 4];
-            self.le_bytes_tmp[1] = nonce[i * 4 + 1];
-            self.le_bytes_tmp[2] = nonce[i * 4 + 2];
-            self.le_bytes_tmp[3] = nonce[i * 4 + 3];
-            u32_from_le(&mut self.initial[13 + i], &mut self.le_bytes_tmp);
+            for i in 0..3 {
+                self.le_bytes_tmp[0] = nonce[i * 4];
+                self.le_bytes_tmp[1] = nonce[i * 4 + 1];
+                self.le_bytes_tmp[2] = nonce[i * 4 + 2];
+                self.le_bytes_tmp[3] = nonce[i * 4 + 3];
+                u32_from_le(&mut self.initial[13 + i], &mut self.le_bytes_tmp);
+            }
+        } else {
+            // Bernstein: state[12..14] = counter(u64), state[14..16] = nonce(8 bytes)
+            self.initial[12] = counter as u32;
+            self.initial[13] = (counter >> 32) as u32;
+
+            for i in 0..2 {
+                self.le_bytes_tmp[0] = nonce[i * 4];
+                self.le_bytes_tmp[1] = nonce[i * 4 + 1];
+                self.le_bytes_tmp[2] = nonce[i * 4 + 2];
+                self.le_bytes_tmp[3] = nonce[i * 4 + 3];
+                u32_from_le(&mut self.initial[14 + i], &mut self.le_bytes_tmp);
+            }
         }
     }
 
@@ -138,12 +152,7 @@ impl ChaCha20 {
 
     /// Generate keystream block into self.keystream
     #[inline(always)]
-    fn generate_block(
-        &mut self,
-        key: &[u8; KEY_SIZE],
-        nonce: &[u8; CHACHA20_NONCE_SIZE],
-        counter: u32,
-    ) {
+    fn generate_block(&mut self, key: &[u8; KEY_SIZE], nonce: &[u8; NONCE_SIZE], counter: u64) {
         self.init_state(key, nonce, counter);
         self.working.copy_from_slice(&self.initial);
 
@@ -167,8 +176,8 @@ impl ChaCha20 {
     pub fn block(
         &mut self,
         key: &[u8; KEY_SIZE],
-        nonce: &[u8; CHACHA20_NONCE_SIZE],
-        counter: u32,
+        nonce: &[u8; NONCE_SIZE],
+        counter: u64,
         keystream_block: &mut [u8; CHACHA20_BLOCK_SIZE],
     ) {
         self.generate_block(key, nonce, counter);
@@ -181,12 +190,12 @@ impl ChaCha20 {
     pub fn crypt(
         &mut self,
         key: &[u8; KEY_SIZE],
-        nonce: &[u8; CHACHA20_NONCE_SIZE],
-        counter: u32,
+        nonce: &[u8; NONCE_SIZE],
+        counter: u64,
         data: &mut [u8],
     ) {
         for (i, chunk) in data.chunks_mut(CHACHA20_BLOCK_SIZE).enumerate() {
-            self.generate_block(key, nonce, counter.wrapping_add(i as u32));
+            self.generate_block(key, nonce, counter.wrapping_add(i as u64));
 
             for (byte, ks_byte) in chunk.iter_mut().zip(self.keystream.iter()) {
                 *byte ^= ks_byte;
@@ -197,7 +206,7 @@ impl ChaCha20 {
     }
 }
 
-impl core::fmt::Debug for ChaCha20 {
+impl<const NONCE_SIZE: usize> core::fmt::Debug for ChaCha20<NONCE_SIZE> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "ChaCha20 {{ [protected] }}")
     }
@@ -338,7 +347,7 @@ pub struct XChaCha20 {
     subkey: [u8; KEY_SIZE],
     nonce: [u8; CHACHA20_NONCE_SIZE],
     hchacha: HChaCha20,
-    chacha: ChaCha20,
+    chacha: ChaCha20<CHACHA20_NONCE_SIZE>,
     __sentinel: ZeroizeOnDropSentinel,
 }
 
@@ -348,7 +357,7 @@ impl Default for XChaCha20 {
             subkey: [0; KEY_SIZE],
             nonce: [0; CHACHA20_NONCE_SIZE],
             hchacha: HChaCha20::default(),
-            chacha: ChaCha20::default(),
+            chacha: ChaCha20::<CHACHA20_NONCE_SIZE>::default(),
             __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
