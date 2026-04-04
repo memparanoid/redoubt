@@ -42,39 +42,39 @@ resolver = "2"
   license    = "GPL-3.0-only"
   readme     = "README.md"
   repository = "https://github.com/memparanoid/redoubt"
-  version    = "0.1.0-rc.4"
+  version    = "0.1.0-rc.5"
 
   [workspace.dependencies]
   # Internal crates
-  redoubt                 = { path = "crates/redoubt", version = "0.1.0-rc.4" }
-  redoubt-aead            = { path = "crates/redoubt-aead", version = "0.1.0-rc.4" }
-  redoubt-aead-aegis-arm        = { path = "crates/redoubt-aead/aegis/arm", version = "0.1.0-rc.4" }
-  redoubt-aead-aegis-wycheproof = { path = "crates/redoubt-aead/aegis/wycheproof", version = "0.1.0-rc.4" }
-  redoubt-aead-aegis-x86        = { path = "crates/redoubt-aead/aegis/x86", version = "0.1.0-rc.4" }
-  redoubt-aead-core             = { path = "crates/redoubt-aead/core", version = "0.1.0-rc.4" }
-  redoubt-aead-xchacha          = { path = "crates/redoubt-aead/xchacha", version = "0.1.0-rc.4" }
-  redoubt-alloc           = { path = "crates/redoubt-alloc", version = "0.1.0-rc.4" }
-  redoubt-buffer          = { path = "crates/redoubt-buffer", version = "0.1.0-rc.4" }
-  redoubt-codec           = { path = "crates/redoubt-codec", version = "0.1.0-rc.4" }
-  redoubt-codec-core      = { path = "crates/redoubt-codec/core", version = "0.1.0-rc.4" }
-  redoubt-codec-derive    = { path = "crates/redoubt-codec/derive", version = "0.1.0-rc.4" }
-  redoubt-guard           = { path = "crates/redoubt-guard", version = "0.1.0-rc.4" }
-  redoubt-hkdf            = { path = "crates/redoubt-hkdf", version = "0.1.0-rc.4" }
-  redoubt-hkdf-arm        = { path = "crates/redoubt-hkdf/arm", version = "0.1.0-rc.4" }
-  redoubt-hkdf-core       = { path = "crates/redoubt-hkdf/core", version = "0.1.0-rc.4" }
-  redoubt-hkdf-rust       = { path = "crates/redoubt-hkdf/rust", version = "0.1.0-rc.4" }
-  redoubt-hkdf-wycheproof = { path = "crates/redoubt-hkdf/wycheproof", version = "0.1.0-rc.4" }
-  redoubt-hkdf-x86        = { path = "crates/redoubt-hkdf/x86", version = "0.1.0-rc.4" }
-  redoubt-rand            = { path = "crates/redoubt-rand", version = "0.1.0-rc.4" }
-  redoubt-secret          = { path = "crates/redoubt-secret", version = "0.1.0-rc.4" }
-  redoubt-test-utils      = { path = "crates/redoubt-test-utils", version = "0.1.0-rc.4" }
-  redoubt-util            = { path = "crates/redoubt-util", version = "0.1.0-rc.4" }
-  redoubt-vault           = { path = "crates/redoubt-vault", version = "0.1.0-rc.4" }
-  redoubt-vault-core      = { path = "crates/redoubt-vault/core", version = "0.1.0-rc.4" }
-  redoubt-vault-derive    = { path = "crates/redoubt-vault/derive", version = "0.1.0-rc.4" }
-  redoubt-zero            = { path = "crates/redoubt-zero", version = "0.1.0-rc.4" }
-  redoubt-zero-core       = { path = "crates/redoubt-zero/core", version = "0.1.0-rc.4" }
-  redoubt-zero-derive     = { path = "crates/redoubt-zero/derive", version = "0.1.0-rc.4" }
+  redoubt                 = { path = "crates/redoubt", version = "0.1.0-rc.5" }
+  redoubt-aead            = { path = "crates/redoubt-aead", version = "0.1.0-rc.5" }
+  redoubt-aead-aegis-arm        = { path = "crates/redoubt-aead/aegis/arm", version = "0.1.0-rc.5" }
+  redoubt-aead-aegis-wycheproof = { path = "crates/redoubt-aead/aegis/wycheproof", version = "0.1.0-rc.5" }
+  redoubt-aead-aegis-x86        = { path = "crates/redoubt-aead/aegis/x86", version = "0.1.0-rc.5" }
+  redoubt-aead-core             = { path = "crates/redoubt-aead/core", version = "0.1.0-rc.5" }
+  redoubt-aead-xchacha          = { path = "crates/redoubt-aead/xchacha", version = "0.1.0-rc.5" }
+  redoubt-alloc           = { path = "crates/redoubt-alloc", version = "0.1.0-rc.5" }
+  redoubt-buffer          = { path = "crates/redoubt-buffer", version = "0.1.0-rc.5" }
+  redoubt-codec           = { path = "crates/redoubt-codec", version = "0.1.0-rc.5" }
+  redoubt-codec-core      = { path = "crates/redoubt-codec/core", version = "0.1.0-rc.5" }
+  redoubt-codec-derive    = { path = "crates/redoubt-codec/derive", version = "0.1.0-rc.5" }
+  redoubt-guard           = { path = "crates/redoubt-guard", version = "0.1.0-rc.5" }
+  redoubt-hkdf            = { path = "crates/redoubt-hkdf", version = "0.1.0-rc.5" }
+  redoubt-hkdf-arm        = { path = "crates/redoubt-hkdf/arm", version = "0.1.0-rc.5" }
+  redoubt-hkdf-core       = { path = "crates/redoubt-hkdf/core", version = "0.1.0-rc.5" }
+  redoubt-hkdf-rust       = { path = "crates/redoubt-hkdf/rust", version = "0.1.0-rc.5" }
+  redoubt-hkdf-wycheproof = { path = "crates/redoubt-hkdf/wycheproof", version = "0.1.0-rc.5" }
+  redoubt-hkdf-x86        = { path = "crates/redoubt-hkdf/x86", version = "0.1.0-rc.5" }
+  redoubt-rand            = { path = "crates/redoubt-rand", version = "0.1.0-rc.5" }
+  redoubt-secret          = { path = "crates/redoubt-secret", version = "0.1.0-rc.5" }
+  redoubt-test-utils      = { path = "crates/redoubt-test-utils", version = "0.1.0-rc.5" }
+  redoubt-util            = { path = "crates/redoubt-util", version = "0.1.0-rc.5" }
+  redoubt-vault           = { path = "crates/redoubt-vault", version = "0.1.0-rc.5" }
+  redoubt-vault-core      = { path = "crates/redoubt-vault/core", version = "0.1.0-rc.5" }
+  redoubt-vault-derive    = { path = "crates/redoubt-vault/derive", version = "0.1.0-rc.5" }
+  redoubt-zero            = { path = "crates/redoubt-zero", version = "0.1.0-rc.5" }
+  redoubt-zero-core       = { path = "crates/redoubt-zero/core", version = "0.1.0-rc.5" }
+  redoubt-zero-derive     = { path = "crates/redoubt-zero/derive", version = "0.1.0-rc.5" }
 
   # External dependencies
   getrandom        = "0.3.4"

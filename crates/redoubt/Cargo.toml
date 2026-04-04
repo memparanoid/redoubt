@@ -18,6 +18,7 @@ redoubt-codec  = { workspace = true }
 redoubt-hkdf   = { workspace = true }
 redoubt-rand   = { workspace = true }
 redoubt-secret = { workspace = true }
+redoubt-util   = { workspace = true }
 redoubt-vault  = { workspace = true }
 redoubt-zero   = { workspace = true }
 

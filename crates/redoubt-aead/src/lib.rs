@@ -24,6 +24,7 @@ pub mod support;
 
 pub use aead::{Aead, AeadVariant};
 pub use redoubt_aead_core::{AeadApi, AeadBackend, AeadError};
+pub use redoubt_aead_xchacha::{ChaCha20, HChaCha20, Poly1305, XChaCha20};
 
 #[cfg(feature = "test-utils")]
 pub use support::test_utils;

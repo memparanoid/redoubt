@@ -36,7 +36,7 @@
 //! Or in your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! redoubt = { version = "0.1.0-rc.4", features = ["full"] }
+//! redoubt = { version = "0.1.0-rc.5", features = ["full"] }
 //! ```
 //!
 //! # Quick Start
@@ -306,5 +306,6 @@ pub use redoubt_codec as codec;
 pub use redoubt_hkdf as hkdf;
 pub use redoubt_rand as rand;
 pub use redoubt_secret as secret;
+pub use redoubt_util as util;
 pub use redoubt_vault as vault;
 pub use redoubt_zero as zero;
