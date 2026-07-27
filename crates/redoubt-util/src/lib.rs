@@ -69,10 +69,13 @@ pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
         return false;
     }
 
-    a.iter()
-        .zip(b.iter())
-        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
-        == 0
+    let mut acc = 0u8;
+
+    for (x, y) in a.iter().zip(b.iter()) {
+        acc |= x ^ y;
+    }
+
+    core::hint::black_box(acc) == 0
 }
 
 /// Parses a hexadecimal string into bytes.
