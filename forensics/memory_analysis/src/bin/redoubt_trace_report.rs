@@ -4,6 +4,13 @@
 
 use std::hint::black_box;
 
+/// Without this, a clean report means nothing: a value that leaked into a freed
+/// block and was then overwritten by a later allocation looks exactly like a
+/// value that was properly zeroized. See `never_free` for the measurement that
+/// makes the difference concrete.
+#[global_allocator]
+static ALLOC: redoubt_forensics::never_free::NeverFree = redoubt_forensics::never_free::NeverFree;
+
 use redoubt::alloc::{RedoubtArray, RedoubtOption, RedoubtString, RedoubtVec};
 use redoubt::codec::RedoubtCodec;
 use redoubt::secret::RedoubtSecret;
@@ -60,6 +67,35 @@ fn use_u64_ref(val: &u64) {
     black_box(val);
 }
 
+/// A key-sized secret, for the case the byte patterns cannot cover.
+///
+/// The patterns above are bulk data — a thousand identical bytes, found by
+/// searching for long contiguous runs. Key material is neither. Thirty-two
+/// bytes fit **entirely** inside one YMM register, or the low half of a ZMM, so
+/// where a fragment of a 1 KiB payload is noise an attacker cannot reconstruct,
+/// a fragment of a key is the whole key. Not hypothetical: this lab found a
+/// complete 32-byte master key sitting in ZMM17, put there by glibc's
+/// vectorized `memcpy`.
+///
+/// High entropy rather than a repeated byte, because a block search needs 64+
+/// identical bytes to mean anything and would miss 32 outright, while 32 equal
+/// bytes occur by chance. Searched exactly, this has neither problem, and the
+/// search covers heap, stack and registers alike.
+///
+/// A `const` rather than a value randomised per run, and that is the load-
+/// bearing part. A runtime buffer holding the secret would live somewhere
+/// writable for the whole run and be found by every dump — a guaranteed hit
+/// that proves nothing. A constant lives in `.rodata`, which is read-only and
+/// file-backed, and the dumper only takes `rw` regions. The source is therefore
+/// absent from the dump by construction, so any hit is a copy something else
+/// made.
+const KEY_PATTERN: [u8; 32] = [
+    0x8B, 0x6E, 0xD0, 0xF1, 0xED, 0xA5, 0x69, 0xE2, //
+    0xC9, 0xCA, 0xC7, 0xDC, 0x96, 0x93, 0xC1, 0xEB, //
+    0x44, 0xE8, 0xD8, 0x5E, 0x03, 0x09, 0x35, 0x00, //
+    0xC0, 0xDE, 0x67, 0xBE, 0xF6, 0x12, 0x05, 0xBE, //
+];
+
 #[cfg(feature = "internal-forensics")]
 /// Calculate Shannon entropy in bits per byte
 fn shannon_entropy(data: &[u8]) -> f64 {
@@ -88,6 +124,8 @@ struct TestData {
     redoubt_vec: RedoubtVec<u8>,
     redoubt_string: RedoubtString,
     redoubt_array: RedoubtArray<u8, 1024>,
+    /// Key-sized, so it fits whole into a single vector register.
+    redoubt_array_key: RedoubtArray<u8, 32>,
     option_redoubt_vec: RedoubtOption<RedoubtVec<u8>>,
     option_redoubt_string: RedoubtOption<RedoubtString>,
     option_redoubt_array: RedoubtOption<RedoubtArray<u8, 1024>>,
@@ -160,6 +198,33 @@ impl Values {
 }
 
 fn main() {
+    // Built before anything sensitive exists. `dump` cannot allocate — a fresh
+    // allocation at dump time could be served out of a block that still holds a
+    // secret, destroying the evidence before it is read — so the path has to be
+    // ready in advance.
+    let dump_stem = std::env::var("FORENSICS_DUMP_STEM")
+        .unwrap_or_else(|_| format!("/tmp/memdump.{}", std::process::id()));
+
+    // Positive control.
+    //
+    // Sixty-four random bytes that are deliberately never zeroized, and that
+    // the analysis is required to find. Without one, a dumper that silently
+    // failed — a bad `maps` filter, a `pread` returning nothing, `XSAVE` never
+    // running — reports exactly what a genuinely clean run reports. "Found
+    // nothing" and "looked nowhere" have to be distinguishable, and only a
+    // value that must be present can distinguish them.
+    //
+    // Random per run, so it cannot be confused with a stale dump from an
+    // earlier one.
+    let mut canary = [0u8; 64];
+    {
+        use std::io::Read as _;
+        std::fs::File::open("/dev/urandom")
+            .and_then(|mut f| f.read_exact(&mut canary))
+            .expect("Failed to seed canary");
+    }
+
+
     {
         println!("[*] Redoubt Forensic Analysis - Sensitive Data Pattern Detection");
         println!("[*] Testing for sensitive data patterns in core dumps");
@@ -252,19 +317,34 @@ fn main() {
                     let mut temp_patterns = Patterns::default();
                     temp_patterns.fill();
 
+                    assert!(!temp_patterns.is_zeroized());
+
                     let mut temp_values = Values::default();
                     temp_values.fill();
 
                     // Populate `redoubt_vec` field
-                    data.redoubt_vec = RedoubtVec::from_mut_slice(&mut temp_patterns.pattern_1);
+                    data.redoubt_vec
+                        .replace_from_mut_slice(&mut temp_patterns.pattern_1);
 
                     // Populate `redoubt_string` field
                     let string_pattern = std::str::from_utf8(&temp_patterns.pattern_2)
                         .expect("Pattern 2 should be valid UTF-8");
+                    data.redoubt_string.fast_zeroize();
                     data.redoubt_string = RedoubtString::from_str(string_pattern);
 
                     // Populate `redoubt_array` field
-                    data.redoubt_array = RedoubtArray::from_mut_array(&mut temp_patterns.pattern_3);
+                    data.redoubt_array
+                        .replace_from_mut_array(&mut temp_patterns.pattern_3);
+
+                    // Populate the key-sized `redoubt_array_key` field.
+                    //
+                    // A fresh copy each iteration, because `replace_from_mut_array`
+                    // zeroizes what it is handed — the same reason the bulk
+                    // patterns are refilled above. Without it every iteration
+                    // after the first would store zeroes, and a clean report
+                    // would be true and worthless.
+                    let mut temp_key = KEY_PATTERN;
+                    data.redoubt_array_key.replace_from_mut_array(&mut temp_key);
 
                     // Populate o`ption_redoubt_vec` field
                     data.option_redoubt_vec
@@ -376,6 +456,17 @@ fn main() {
         println!("Value #2: cafebabedeadbeef"); // `option_redoubt_secret_u64` field value
         println!("Value #3: abcdef0123456789"); // `read_write_secret` field value
         println!("Value #4: 1234567890abcdef"); // `zeroizing_guard` test value
+
+        // `redoubt_array_key` — key-sized, so it fits whole into one vector
+        // register. Announced under the same `Value #` label as the others so
+        // the entrypoint picks it up with no change, and so it goes through the
+        // exact search rather than the contiguous-block search, which needs 64+
+        // identical bytes and would never see a 32-byte high-entropy value.
+        print!("Value #5: ");
+        for byte in &KEY_PATTERN {
+            print!("{:02x}", byte);
+        }
+        println!();
         println!();
 
         // Zeroize all patterns and values
@@ -411,21 +502,43 @@ fn main() {
         println!("    value_4: {} (should be 0)", val4);
         println!();
 
-        // Signal to script that we're ready for dump
+        // Announce the canary alongside everything else, in hex like the rest.
+        print!("Canary: ");
+        for byte in &canary {
+            print!("{:02x}", byte);
+        }
+        println!();
+        println!();
+
+        // Capture the vector registers before anything else runs.
+        //
+        // This has to be the first thing after the code under test finishes.
+        // `memcpy` and `memset` are vectorized, so a single `println!` between
+        // here and the capture is enough to overwrite the registers being
+        // measured — which shows up as a clean result rather than as an error.
+        redoubt_forensics::dumper::capture_xsave();
+
+        redoubt_forensics::dumper::dump(&dump_stem).expect("Failed to write memory dump");
+
+        // Keeps the canary alive across the dump. Dropping it earlier would let
+        // the optimizer decide the buffer was dead before `dump` ran, which
+        // would make the positive control fail for a reason that has nothing to
+        // do with the dumper.
+        black_box(&canary);
+
+        // Signal to script that the dump is on disk, and where.
+        //
+        // The path is announced rather than agreed by convention: the previous
+        // arrangement had the script hunt for `core.$PID` in the working
+        // directory, which only holds when `kernel.core_pattern` writes there.
+        // That sysctl is global and not namespaced, so the lab broke on any
+        // host routing cores to `systemd-coredump`, container or not.
+        println!("DUMP_WRITTEN: {}.bin", dump_stem);
         println!("DUMP_NOW");
         println!();
 
         println!("[+] Patterns sent to script via stdout");
-        println!("[*] Process is now ready for core dump analysis");
         println!("[*] PID: {}", std::process::id());
-        println!(
-            "[*] Sleeping indefinitely... (script will kill this process to generate core dump)"
-        );
         println!();
     };
-
-    // Sleep forever - script will kill us to generate core dump
-    loop {
-        std::thread::sleep(std::time::Duration::from_secs(3600));
-    }
 }

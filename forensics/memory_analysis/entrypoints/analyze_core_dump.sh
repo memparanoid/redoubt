@@ -1,157 +1,77 @@
 #!/usr/bin/env bash
+# Runs the trace report and analyzes the memory dump it writes.
+#
+# The binary dumps its own memory and vector registers (see `src/dumper.rs`) and
+# prints the path. Nothing here depends on `kernel.core_pattern`, on ptrace
+# capabilities, or on root — that sysctl is global rather than per-container, so
+# a lab built on kernel-written core dumps behaves differently depending on
+# whose kernel the container is running under, which is not a difference this
+# analysis should be sensitive to.
 set -euo pipefail
 
-echo "[*] Core Dump Analysis - Progressive Key Search"
+OUT_DIR="${FORENSICS_OUT_DIR:-/workspace/core_dumps}"
+mkdir -p "$OUT_DIR"
+
+SCRIPTS="forensics/memory_analysis/scripts"
+LOG=$(mktemp)
+trap 'rm -f "$LOG" /tmp/needle_*.hex' EXIT
+
+echo "[*] Running trace report..."
+FORENSICS_DUMP_STEM="${OUT_DIR}/memdump" \
+    ./target/release/redoubt_trace_report | tee "$LOG"
+
+DUMP=$(grep '^DUMP_WRITTEN: ' "$LOG" | sed 's/DUMP_WRITTEN: //')
+[ -f "$DUMP" ] || { echo "[!] ERROR: dump not written"; exit 1; }
+
+SIZE=$(stat -c%s "$DUMP" 2>/dev/null || stat -f%z "$DUMP")
+echo ""
+echo "[+] Dump: $DUMP ($((SIZE / 1024)) KB)"
 echo ""
 
-# Launch the report binary in background, capturing stdout to file
-echo "[*] Launching forensics report binary..."
-./target/release/redoubt_trace_report > /tmp/rust_output.txt 2>&1 &
-RUST_PID=$!
-echo "[+] Process started with PID: $RUST_PID"
+# ── Positive control ─────────────────────────────────────────────────────────
+#
+# The canary is never zeroized, so it has to be in the dump. If it is missing,
+# the dumper looked somewhere other than where the data is, and every "clean"
+# result below means nothing — so this runs first and is fatal.
+CANARY=$(grep '^Canary: ' "$LOG" | sed 's/Canary: //')
+python3 "$SCRIPTS/analyze_regions.py" --expect "$DUMP" "$CANARY" || exit 2
 
-# Show output in real-time
-tail -f /tmp/rust_output.txt &
-TAIL_PID=$!
-echo ""
+# ── The analysis ─────────────────────────────────────────────────────────────
+TRACE=0
 
-# Wait for DUMP_NOW signal
-echo "[*] Waiting for patterns generation..."
-for i in {1..3000}; do
-    if grep -q "DUMP_NOW" /tmp/rust_output.txt 2>/dev/null; then
-        break
-    fi
-    sleep 0.1
-done
+analyze() {  # analyze <label> <hex>
+    echo "[*] $1"
+    echo "$2" > /tmp/needle_current.hex
+    python3 "$SCRIPTS/analyze_value.py"   "$DUMP" /tmp/needle_current.hex || TRACE=1
+    python3 "$SCRIPTS/analyze_regions.py" "$DUMP" /tmp/needle_current.hex || TRACE=1
+    echo ""
+}
 
-# Extract master key and patterns from Rust output
-echo "[*] Extracting master key and patterns..."
+MASTER_KEY=$(grep '^Master Key: ' "$LOG" | sed 's/Master Key: //' || true)
+[ -n "$MASTER_KEY" ] && analyze "Master key" "$MASTER_KEY"
 
-# Extract master key
-MASTER_KEY=$(grep "^Master Key: " /tmp/rust_output.txt | sed 's/Master Key: //')
-if [ -n "$MASTER_KEY" ]; then
-    echo "$MASTER_KEY" > /tmp/master_key.hex
-    echo "[+] Master key captured: ${MASTER_KEY:0:16}...${MASTER_KEY: -16}"
-else
-    echo "[!] WARNING: Master key not found in output"
+while read -r value; do
+    [ -n "$value" ] && analyze "Value 0x$value" "$value"
+done < <(grep '^Value #' "$LOG" | sed 's/^Value #[0-9]*: //' || true)
+
+# Repeated byte patterns need a block search rather than a value search: a
+# single byte occurs constantly by chance, a contiguous run of it does not.
+while read -r pattern; do
+    [ -z "$pattern" ] && continue
+    echo "[*] Pattern 0x$pattern (contiguous block search)"
+    python3 "$SCRIPTS/analyze_pattern.py" "$DUMP" "$pattern" || TRACE=1
+    echo ""
+done < <(grep '^Pattern #' "$LOG" | sed 's/^Pattern #[0-9]*: //' || true)
+
+# The dump holds every secret the run was hunting for. It is created 0600 and
+# removed here; keep it only when explicitly asked for.
+if [ "${FORENSICS_KEEP_DUMP:-0}" != "1" ]; then
+    rm -f "$DUMP" "${DUMP%.bin}.idx"
+    echo "[*] Dump removed (set FORENSICS_KEEP_DUMP=1 to retain it)"
 fi
 
-# Extract hardcoded patterns
-PATTERN_COUNT=0
-declare -a PATTERNS
-while IFS= read -r line; do
-    if [[ $line =~ ^Pattern\ #[0-9]+:\ ([a-fA-F0-9]+)$ ]]; then
-        PATTERN_HEX="${BASH_REMATCH[1]}"
-        PATTERNS[$PATTERN_COUNT]="$PATTERN_HEX"
-        echo "[+] Pattern #$((PATTERN_COUNT + 1)) captured: 0x${PATTERN_HEX}"
-        PATTERN_COUNT=$((PATTERN_COUNT + 1))
-    fi
-done < <(grep "^Pattern #" /tmp/rust_output.txt)
-
-# Extract secret values
-VALUE_COUNT=0
-declare -a VALUES
-while IFS= read -r line; do
-    if [[ $line =~ ^Value\ #[0-9]+:\ ([a-fA-F0-9]+)$ ]]; then
-        VALUE_HEX="${BASH_REMATCH[1]}"
-        VALUES[$VALUE_COUNT]="$VALUE_HEX"
-        echo "[+] Value #$((VALUE_COUNT + 1)) captured: 0x${VALUE_HEX}"
-        VALUE_COUNT=$((VALUE_COUNT + 1))
-    fi
-done < <(grep "^Value #" /tmp/rust_output.txt)
-
-echo "[+] Total: $PATTERN_COUNT patterns + $VALUE_COUNT values + 1 master key"
-echo ""
-
-# Give it a moment to settle
-sleep 1
-
-# Generate core dump
-echo "[*] Generating core dump..."
-kill -ABRT $RUST_PID || true
-wait $RUST_PID 2>/dev/null || true
-
-# Find the core dump
-CORE_FILE=""
-if [ -f "core.$RUST_PID" ]; then
-    CORE_FILE="core.$RUST_PID"
-elif [ -f "core" ]; then
-    CORE_FILE="core"
-else
-    echo "[!] ERROR: Core dump not found"
+if [ "$TRACE" -eq 1 ]; then
+    echo "[!] TRACE CONFIRMED: sensitive data found in the dump"
     exit 1
 fi
-
-echo "[+] Core dump generated: $CORE_FILE"
-CORE_SIZE=$(stat -c%s "$CORE_FILE" 2>/dev/null || stat -f%z "$CORE_FILE")
-if [ $CORE_SIZE -lt 1048576 ]; then
-    echo "[*] Core dump size: $((CORE_SIZE / 1024)) KB"
-else
-    echo "[*] Core dump size: $((CORE_SIZE / 1024 / 1024)) MB"
-fi
-echo ""
-
-# Copy core dump to mounted volume for manual inspection
-if [ -d "/workspace/core_dumps" ]; then
-    cp "$CORE_FILE" "/workspace/core_dumps/core_dump_$(date +%Y%m%d_%H%M%S)"
-    echo "[+] Core dump copied to /workspace/core_dumps/"
-    echo ""
-fi
-
-# Run forensic analysis
-echo "[*] Starting forensic analysis..."
-echo ""
-
-TRACE_DETECTED=0
-
-# Analyze master key (progressive search)
-if [ -f /tmp/master_key.hex ]; then
-    echo "[*] Analyzing master key (progressive prefix search)..."
-    python3 forensics/memory_analysis/scripts/analyze_value.py "$CORE_FILE" /tmp/master_key.hex
-    RESULT=$?
-    if [ $RESULT -eq 1 ]; then
-        TRACE_DETECTED=1
-        echo "[!] TRACE FOUND in master key"
-    fi
-    echo ""
-fi
-
-# Analyze secret values (progressive search, both endiannesses)
-for i in $(seq 0 $((VALUE_COUNT - 1))); do
-    VALUE_HEX="${VALUES[$i]}"
-    echo "$VALUE_HEX" > /tmp/value_${i}.hex
-    echo "[*] Analyzing Value #$((i + 1)): 0x${VALUE_HEX} (progressive prefix search, both endiannesses)..."
-    python3 forensics/memory_analysis/scripts/analyze_value.py "$CORE_FILE" /tmp/value_${i}.hex
-    RESULT=$?
-    if [ $RESULT -eq 1 ]; then
-        TRACE_DETECTED=1
-        echo "[!] TRACE FOUND in Value #$((i + 1))"
-    fi
-    rm -f /tmp/value_${i}.hex
-    echo ""
-done
-
-# Analyze hardcoded patterns (block search)
-for i in $(seq 0 $((PATTERN_COUNT - 1))); do
-    PATTERN_HEX="${PATTERNS[$i]}"
-    echo "[*] Analyzing Pattern #$((i + 1)): 0x${PATTERN_HEX} (contiguous block search)..."
-    python3 forensics/memory_analysis/scripts/analyze_pattern.py "$CORE_FILE" "$PATTERN_HEX"
-    RESULT=$?
-    if [ $RESULT -eq 1 ]; then
-        TRACE_DETECTED=1
-        echo "[!] TRACE FOUND in Pattern #$((i + 1))"
-    fi
-    echo ""
-done
-
-# Cleanup
-rm -f /tmp/master_key.hex
-rm -f "$CORE_FILE"
-
-if [ $TRACE_DETECTED -eq 1 ]; then
-    echo "[!] TRACE CONFIRMED: Sensitive data found in core dump"
-    exit 1
-else
-    echo "[+] Analysis complete - no traces detected"
-    exit 0
-fi
+echo "[+] Analysis complete - no traces detected"
