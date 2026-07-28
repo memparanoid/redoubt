@@ -10,6 +10,7 @@ use crate::error::RedoubtOptionError;
 
 /// An optional value wrapper with automatic zeroization.
 #[derive(RedoubtZero, Default)]
+#[fast_zeroize(drop)]
 pub struct RedoubtOption<T>
 where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,

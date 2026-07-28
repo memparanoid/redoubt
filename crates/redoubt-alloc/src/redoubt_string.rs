@@ -32,6 +32,7 @@ use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
 /// assert!(secret.is_zeroized());
 /// ```
 #[derive(RedoubtZero)]
+#[fast_zeroize(drop)]
 pub struct RedoubtString {
     inner: String,
     __sentinel: ZeroizeOnDropSentinel,

@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut};
 
 use redoubt_zero::{
     FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,
 };
+
+use alloc::boxed::Box;
 
 /// A fixed-size array wrapper with automatic zeroization.
 ///
@@ -28,6 +29,7 @@ use redoubt_zero::{
 /// assert!(data.is_zeroized());
 /// ```
 #[derive(RedoubtZero)]
+#[fast_zeroize(drop)]
 pub struct RedoubtArray<T, const N: usize>
 where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
@@ -108,7 +110,17 @@ where
     /// Uses `ptr::swap_nonoverlapping` to exchange contents with the source
     /// without creating intermediate copies that could spill to stack.
     pub fn replace_from_mut_array(&mut self, src: &mut [T; N]) {
+        // This wipe is an implementation detail (clearing the old contents
+        // before the swap), not end-of-life zeroization — but fast_zeroize()
+        // also marks the sentinel. Without the reset, the flag stays "already
+        // zeroized" on a value that is about to hold live data, and
+        // assert_zeroize_on_drop rejects it on arrival: the drop assertion
+        // becomes impossible to state, since this is the constructor path the
+        // test builds the value through. Other internal fast_zeroize() calls
+        // in the workspace don't need the reset — they either wipe `inner`
+        // only, or never sit on the construction path of a drop assertion.
         self.fast_zeroize();
+        self.__sentinel.reset();
 
         unsafe {
             // SAFETY: Both arrays have exactly N elements and are properly aligned

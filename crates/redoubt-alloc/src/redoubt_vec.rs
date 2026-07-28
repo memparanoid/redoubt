@@ -34,6 +34,7 @@ use redoubt_zero::{
 /// assert!(data.is_zeroized());
 /// ```
 #[derive(RedoubtZero)]
+#[fast_zeroize(drop)]
 pub struct RedoubtVec<T>
 where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,

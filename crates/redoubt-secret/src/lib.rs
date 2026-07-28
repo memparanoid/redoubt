@@ -79,6 +79,7 @@ use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropS
 /// assert_eq!(secret.as_ref(), &0xDEADBEEF);
 /// ```
 #[derive(PartialEq, Eq, RedoubtZero, RedoubtCodec)]
+#[fast_zeroize(drop)]
 pub struct RedoubtSecret<T>
 where
     T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
