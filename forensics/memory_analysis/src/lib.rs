@@ -12,5 +12,9 @@
 //! [`never_free`] decides whether *not finding something there* is evidence of
 //! anything.
 
+/// Linux-only: the dump is taken from `/proc/self/maps` and `/proc/self/mem`,
+/// which have no equivalent elsewhere. The analysis is meant to run on Linux,
+/// natively or through the `Dockerfile` next to this crate.
+#[cfg(target_os = "linux")]
 pub mod dumper;
 pub mod never_free;

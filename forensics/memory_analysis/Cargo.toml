@@ -20,5 +20,10 @@ default            = []
 internal-forensics = ["redoubt/internal-forensics"]
 
 [dependencies]
+redoubt = { workspace = true, features = ["asm"] }
+
+# The dumper reads `/proc/self/{maps,mem}` through raw syscalls, so it only
+# exists on Linux. Keeping `libc` off every other target makes that explicit and
+# keeps `cargo test --workspace` building on Windows and macOS.
+[target.'cfg(target_os = "linux")'.dependencies]
 libc.workspace = true
-redoubt        = { workspace = true, features = ["asm"] }

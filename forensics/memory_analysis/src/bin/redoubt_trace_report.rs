@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+// The report is Linux-only: it ends in a dump taken from `/proc/self/mem`. On
+// every other target the binary still builds — so `cargo test --workspace`
+// stays green on the Windows and macOS CI runners — but everything below `main`
+// is unreachable there, hence the blanket allow.
+#![cfg_attr(not(target_os = "linux"), allow(dead_code, unused_imports))]
+
 use std::hint::black_box;
 
 /// Without this, a clean report means nothing: a value that leaked into a freed
@@ -197,6 +203,16 @@ impl Values {
     }
 }
 
+#[cfg(not(target_os = "linux"))]
+fn main() {
+    eprintln!(
+        "redoubt_trace_report runs on Linux only — natively, or through \
+         forensics/memory_analysis/Dockerfile on any host."
+    );
+    std::process::exit(1);
+}
+
+#[cfg(target_os = "linux")]
 fn main() {
     // Built before anything sensitive exists. `dump` cannot allocate — a fresh
     // allocation at dump time could be served out of a block that still holds a
