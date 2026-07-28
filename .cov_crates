@@ -18,7 +18,6 @@ redoubt-hkdf-arm
 redoubt-hkdf-x86
 redoubt-hkdf-rust
 redoubt-hkdf
-redoubt-aead-core
 redoubt-aead-aegis-x86
 redoubt-aead-aegis-arm
 redoubt-aead-xchacha
@@ -33,5 +32,4 @@ redoubt-vault-derive
 
 # Codec
 redoubt-codec-core
-redoubt-codec-core zeroize
 redoubt-codec-derive
