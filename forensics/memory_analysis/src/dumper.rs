@@ -72,6 +72,10 @@
 //! created `0600`. Keep it on tmpfs, delete it after analysis, and never
 //! publish it as a CI artifact.
 
+// `&mut *(&raw mut STATIC)` is deliberate: the "simplified" `&mut STATIC` that
+// clippy suggests is exactly what `static_mut_refs` forbids.
+#![allow(clippy::deref_addrof)]
+
 use core::arch::asm;
 use core::fmt::Write as _;
 
