@@ -301,7 +301,10 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-#[cfg_attr(miri, ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI")]
+#[cfg_attr(
+    miri,
+    ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI"
+)]
 fn test_api_encrypt_aegis_reports_invalid_key_size() {
     let mut aead = Aead::with_aegis128l();
     let bad_key = [0u8; 15]; // 16 expected
@@ -317,7 +320,10 @@ fn test_api_encrypt_aegis_reports_invalid_key_size() {
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-#[cfg_attr(miri, ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI")]
+#[cfg_attr(
+    miri,
+    ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI"
+)]
 fn test_api_encrypt_aegis_reports_invalid_nonce_size() {
     let mut aead = Aead::with_aegis128l();
     let key = [0u8; 16];
@@ -333,7 +339,10 @@ fn test_api_encrypt_aegis_reports_invalid_nonce_size() {
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-#[cfg_attr(miri, ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI")]
+#[cfg_attr(
+    miri,
+    ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI"
+)]
 fn test_api_encrypt_aegis_reports_invalid_tag_size() {
     let mut aead = Aead::with_aegis128l();
     let key = [0u8; 16];
@@ -350,7 +359,10 @@ fn test_api_encrypt_aegis_reports_invalid_tag_size() {
 /// AEGIS-128L RFC Test Vector A.2.2 - Test Vector 1
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-#[cfg_attr(miri, ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI")]
+#[cfg_attr(
+    miri,
+    ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI"
+)]
 fn test_api_encrypt_aegis_succeeds() {
     let mut aead = Aead::with_aegis128l();
 
@@ -392,7 +404,10 @@ fn test_api_encrypt_aegis_succeeds() {
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-#[cfg_attr(miri, ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI")]
+#[cfg_attr(
+    miri,
+    ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI"
+)]
 fn test_api_decrypt_aegis_reports_invalid_key_size() {
     let mut aead = Aead::with_aegis128l();
     let bad_key = [0u8; 15];
@@ -408,7 +423,10 @@ fn test_api_decrypt_aegis_reports_invalid_key_size() {
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-#[cfg_attr(miri, ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI")]
+#[cfg_attr(
+    miri,
+    ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI"
+)]
 fn test_api_decrypt_aegis_reports_invalid_nonce_size() {
     let mut aead = Aead::with_aegis128l();
     let key = [0u8; 16];
@@ -424,7 +442,10 @@ fn test_api_decrypt_aegis_reports_invalid_nonce_size() {
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-#[cfg_attr(miri, ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI")]
+#[cfg_attr(
+    miri,
+    ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI"
+)]
 fn test_api_decrypt_aegis_reports_invalid_tag_size() {
     let mut aead = Aead::with_aegis128l();
     let key = [0u8; 16];
@@ -440,7 +461,10 @@ fn test_api_decrypt_aegis_reports_invalid_tag_size() {
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-#[cfg_attr(miri, ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI")]
+#[cfg_attr(
+    miri,
+    ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI"
+)]
 fn test_api_decrypt_aegis_reports_authentication_failed() {
     let mut aead = Aead::with_aegis128l();
     let key = [0u8; 16];
@@ -457,7 +481,10 @@ fn test_api_decrypt_aegis_reports_authentication_failed() {
 /// AEGIS-128L RFC Test Vector A.2.2 - Test Vector 1
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-#[cfg_attr(miri, ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI")]
+#[cfg_attr(
+    miri,
+    ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI"
+)]
 fn test_api_decrypt_aegis_succeeds() {
     let mut aead = Aead::with_aegis128l();
 
@@ -496,22 +523,21 @@ fn test_api_decrypt_aegis_succeeds() {
 fn test_api_generate_nonce_xchacha_succeeds() {
     let mut aead = Aead::with_xchacha20poly1305();
 
-    let nonce = aead
-        .api_generate_nonce()
-        .expect("Failed to generate nonce");
+    let nonce = aead.api_generate_nonce().expect("Failed to generate nonce");
 
     assert_eq!(nonce.len(), 24);
 }
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-#[cfg_attr(miri, ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI")]
+#[cfg_attr(
+    miri,
+    ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI"
+)]
 fn test_api_generate_nonce_aegis_succeeds() {
     let mut aead = Aead::with_aegis128l();
 
-    let nonce = aead
-        .api_generate_nonce()
-        .expect("Failed to generate nonce");
+    let nonce = aead.api_generate_nonce().expect("Failed to generate nonce");
 
     assert_eq!(nonce.len(), 16);
 }
@@ -531,7 +557,10 @@ fn test_api_sizes_xchacha() {
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-#[cfg_attr(miri, ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI")]
+#[cfg_attr(
+    miri,
+    ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI"
+)]
 fn test_api_sizes_aegis() {
     let aead = Aead::with_aegis128l();
 
@@ -559,12 +588,18 @@ fn test_backend_name_returns_valid_name() {
 fn test_debug_xchacha() {
     let aead = Aead::with_xchacha20poly1305();
 
-    assert_eq!(format!("{:?}", aead), "Aead { backend: XChaCha20-Poly1305 }");
+    assert_eq!(
+        format!("{:?}", aead),
+        "Aead { backend: XChaCha20-Poly1305 }"
+    );
 }
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 #[test]
-#[cfg_attr(miri, ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI")]
+#[cfg_attr(
+    miri,
+    ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI"
+)]
 fn test_debug_aegis() {
     let aead = Aead::with_aegis128l();
 

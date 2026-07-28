@@ -139,7 +139,10 @@ mod page_tests {
         }
 
         #[test]
-        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(
+            miri,
+            ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither"
+        )]
         #[cfg_attr(not(miri), serial(page))]
         fn test_lock_fails_when_mlock_blocked() {
             let exit_code = run_test_as_subprocess(
@@ -196,7 +199,10 @@ mod page_tests {
         }
 
         #[test]
-        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(
+            miri,
+            ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither"
+        )]
         #[cfg_attr(not(miri), serial(page))]
         fn test_mark_dontdump_fails_when_madvise_blocked() {
             let exit_code = run_test_as_subprocess(
@@ -282,7 +288,10 @@ mod page_tests {
         }
 
         #[test]
-        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(
+            miri,
+            ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither"
+        )]
         #[cfg_attr(not(miri), serial(page))]
         fn test_protect_fails_when_mprotect_blocked() {
             let exit_code = run_test_as_subprocess(
@@ -319,7 +328,10 @@ mod page_tests {
         }
 
         #[test]
-        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(
+            miri,
+            ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither"
+        )]
         #[cfg_attr(not(miri), serial(page))]
         fn test_protect_failure_zeroizes_page() {
             let exit_code = run_test_as_subprocess(
@@ -378,7 +390,10 @@ mod page_tests {
         }
 
         #[test]
-        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(
+            miri,
+            ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither"
+        )]
         #[cfg_attr(not(miri), serial(page))]
         fn test_unprotect_fails_when_mprotect_blocked() {
             let exit_code = run_test_as_subprocess(
@@ -503,7 +518,10 @@ mod page_tests {
         }
 
         #[test]
-        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(
+            miri,
+            ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither"
+        )]
         #[cfg_attr(not(miri), serial(page))]
         fn test_dispose_when_unprotect_fails() {
             let exit_code = run_test_as_subprocess(

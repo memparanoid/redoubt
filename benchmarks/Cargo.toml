@@ -10,13 +10,13 @@ asm = ["redoubt-aead/asm", "redoubt-hkdf/asm"]
 [dependencies]
 redoubt-aead         = { path = "../crates/redoubt-aead" }
 redoubt-aead-xchacha = { path = "../crates/redoubt-aead/xchacha" }
-redoubt-alloc  = { path = "../crates/redoubt-alloc" }
-redoubt-buffer = { path = "../crates/redoubt-buffer" }
-redoubt-codec  = { path = "../crates/redoubt-codec" }
-redoubt-hkdf   = { path = "../crates/redoubt-hkdf" }
-redoubt-util   = { path = "../crates/redoubt-util" }
-redoubt-vault  = { path = "../crates/redoubt-vault" }
-redoubt-zero   = { path = "../crates/redoubt-zero" }
+redoubt-alloc        = { path = "../crates/redoubt-alloc" }
+redoubt-buffer       = { path = "../crates/redoubt-buffer" }
+redoubt-codec        = { path = "../crates/redoubt-codec" }
+redoubt-hkdf         = { path = "../crates/redoubt-hkdf" }
+redoubt-util         = { path = "../crates/redoubt-util" }
+redoubt-vault        = { path = "../crates/redoubt-vault" }
+redoubt-zero         = { path = "../crates/redoubt-zero" }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

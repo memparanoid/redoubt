@@ -15,7 +15,7 @@ asm        = []
 test-utils = []
 
 [dependencies]
-redoubt-aead-core.workspace   = true
+redoubt-aead-core.workspace    = true
 redoubt-aead-xchacha.workspace = true
 redoubt-rand.workspace         = true
 redoubt-zero.workspace         = true

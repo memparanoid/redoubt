@@ -356,13 +356,7 @@ fn read_maps() -> Result<&'static [u8], &'static str> {
         if filled == buf.len() {
             return Err("maps buffer too small");
         }
-        let got = unsafe {
-            libc::read(
-                fd,
-                buf[filled..].as_mut_ptr().cast(),
-                buf.len() - filled,
-            )
-        };
+        let got = unsafe { libc::read(fd, buf[filled..].as_mut_ptr().cast(), buf.len() - filled) };
         if got <= 0 {
             break;
         }

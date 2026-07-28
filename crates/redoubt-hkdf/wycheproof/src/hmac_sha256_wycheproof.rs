@@ -33,7 +33,6 @@ fn corpus<T>(vectors: &[T]) -> impl Iterator<Item = &T> {
     vectors.iter().step_by(step)
 }
 
-
 /// Wycheproof HMAC test case flags.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

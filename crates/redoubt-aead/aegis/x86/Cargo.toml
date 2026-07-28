@@ -1,11 +1,11 @@
 [package]
-name                 = "redoubt-aead-aegis-x86"
 authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
 categories           = ["cryptography"]
 description          = "x86_64 assembly AEGIS-128L AEAD implementation"
 edition.workspace    = true
 keywords             = ["aegis", "aead", "asm", "x86"]
 license.workspace    = true
+name                 = "redoubt-aead-aegis-x86"
 readme.workspace     = true
 repository.workspace = true
 version.workspace    = true

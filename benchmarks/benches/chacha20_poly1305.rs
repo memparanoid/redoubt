@@ -8,7 +8,7 @@
 //! with Poly1305 MAC — the same construction used by chacha20-poly1305@openssh.com.
 
 use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
-use redoubt_aead_xchacha::{ChaCha20, Poly1305, CHACHA20_BERNSTEIN_NONCE_SIZE};
+use redoubt_aead_xchacha::{CHACHA20_BERNSTEIN_NONCE_SIZE, ChaCha20, Poly1305};
 
 const CHUNK_SIZE: usize = 4096;
 const TOTAL_SIZE: usize = 20 * 1024 * 1024; // 20 MB
@@ -84,11 +84,7 @@ fn bench_chacha20_poly1305_encrypt(c: &mut Criterion) {
 
                 // 4. Compute MAC
                 let mut mac = [0u8; 16];
-                Poly1305::compute(
-                    black_box(&poly_key),
-                    black_box(&data),
-                    black_box(&mut mac),
-                );
+                Poly1305::compute(black_box(&poly_key), black_box(&data), black_box(&mut mac));
             }
         });
     });

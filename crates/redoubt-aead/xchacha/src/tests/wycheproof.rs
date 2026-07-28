@@ -4,10 +4,10 @@
 
 use redoubt_util::hex_to_bytes;
 
-use redoubt_aead_core::AeadError;
-use redoubt_aead_core::AeadBackend;
 use crate::aead::XChacha20Poly1305;
 use crate::consts::*;
+use redoubt_aead_core::AeadBackend;
+use redoubt_aead_core::AeadError;
 
 /// Iterates the vector corpus, sampled with a fixed stride under Miri.
 ///
@@ -29,7 +29,6 @@ fn corpus<T>(vectors: &[T]) -> impl Iterator<Item = &T> {
 
     vectors.iter().step_by(step)
 }
-
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

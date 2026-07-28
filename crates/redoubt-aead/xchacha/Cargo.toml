@@ -1,11 +1,11 @@
 [package]
-name                 = "redoubt-aead-xchacha"
 authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
 categories           = ["cryptography"]
 description          = "XChaCha20-Poly1305 AEAD implementation"
 edition.workspace    = true
 keywords             = ["xchacha20", "poly1305", "aead", "crypto"]
 license.workspace    = true
+name                 = "redoubt-aead-xchacha"
 readme.workspace     = true
 repository.workspace = true
 version.workspace    = true

@@ -1,11 +1,11 @@
 [package]
-name                 = "redoubt-aead-core"
 authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
 categories           = ["cryptography"]
 description          = "Core traits and error types for AEAD backends"
 edition.workspace    = true
 keywords             = ["aead", "encryption", "crypto"]
 license.workspace    = true
+name                 = "redoubt-aead-core"
 readme.workspace     = true
 repository.workspace = true
 version.workspace    = true

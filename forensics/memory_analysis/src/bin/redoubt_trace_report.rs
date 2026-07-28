@@ -224,7 +224,6 @@ fn main() {
             .expect("Failed to seed canary");
     }
 
-
     {
         println!("[*] Redoubt Forensic Analysis - Sensitive Data Pattern Detection");
         println!("[*] Testing for sensitive data patterns in core dumps");
