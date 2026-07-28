@@ -31,7 +31,6 @@ fn test_box_codec_roundtrip() {
 
     assert_eq!(*recovered, 42);
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
     {
         assert!(buf.is_zeroized());
@@ -62,7 +61,6 @@ fn test_box_large_array_codec_roundtrip() {
 
     assert_eq!(*recovered, [0xAAu8; 1024]);
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
     {
         assert!(buf.is_zeroized());

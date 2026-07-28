@@ -31,11 +31,8 @@ fn test_redoubt_option_codec_roundtrip() {
 
     assert_eq!(*recovered.as_ref().expect("Failed to get as_ref"), 42);
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(opt.as_option().is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(opt.as_option().is_zeroized());
 }

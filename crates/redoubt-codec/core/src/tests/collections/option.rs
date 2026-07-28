@@ -7,7 +7,6 @@ use crate::error::{DecodeError, EncodeError, OverflowError, RedoubtCodecBufferEr
 use crate::support::test_utils::{RedoubtCodecTestBreaker, RedoubtCodecTestBreakerBehaviour};
 use crate::traits::{BytesRequired, Decode, Encode};
 
-#[cfg(feature = "zeroize")]
 use redoubt_zero::ZeroizationProbe;
 
 // Bytes Required
@@ -80,12 +79,9 @@ fn test_encode_into_propagates_bytes_required_error() {
         Err(EncodeError::OverflowError(OverflowError { .. }))
     ));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert_eq!(opt, None);
-        assert!(buf.is_zeroized());
-    }
+    assert_eq!(opt, None);
+    assert!(buf.is_zeroized());
 }
 
 #[test]
@@ -103,12 +99,9 @@ fn test_encode_propagates_capacity_exceeded_error_none() {
         ))
     ));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert_eq!(opt, None);
-        assert!(buf.is_zeroized());
-    }
+    assert_eq!(opt, None);
+    assert!(buf.is_zeroized());
 }
 
 #[test]
@@ -129,12 +122,9 @@ fn test_encode_propagates_capacity_exceeded_error_some() {
         ))
     ));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert_eq!(opt, None);
-        assert!(buf.is_zeroized());
-    }
+    assert_eq!(opt, None);
+    assert!(buf.is_zeroized());
 }
 
 // Decode
@@ -150,13 +140,10 @@ fn test_option_decode_from_propagates_process_header_err() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert_eq!(opt, None);
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert_eq!(opt, None);
 }
 
 #[test]
@@ -167,6 +154,7 @@ fn test_option_decode_from_propagates_invalid_size_value() {
     let mut buf = RedoubtCodecBuffer::with_capacity(1024);
     let mut size = 2usize;
     let mut bytes_required = 2 * size_of::<usize>();
+
     buf.write(&mut size)
         .expect("Failed to write size to buffer");
     buf.write(&mut bytes_required)
@@ -178,12 +166,9 @@ fn test_option_decode_from_propagates_invalid_size_value() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert_eq!(opt, None);
-        assert!(decode_buf.is_zeroized());
-    }
+    assert_eq!(opt, None);
+    assert!(decode_buf.is_zeroized());
 }
 
 // Note: Unlike Vec, we cannot test `test_option_decode_from_propagates_decode_err` because
@@ -214,12 +199,9 @@ fn test_option_decode_from_truncated_buffer() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert_eq!(decoded, None);
-        assert!(slice.is_zeroized());
-    }
+    assert_eq!(decoded, None);
+    assert!(slice.is_zeroized());
 }
 
 // Roundtrip
@@ -248,20 +230,14 @@ fn test_option_encode_decode_roundtrip_none() {
         assert!(result.is_ok());
         assert_eq!(recovered, None);
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
     }
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert_eq!(opt, None);
-    }
+    assert!(buf.is_zeroized());
+    assert_eq!(opt, None);
 }
 
 #[test]
@@ -294,18 +270,12 @@ fn test_option_encode_decode_roundtrip_some() {
             ))
         );
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
     }
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert_eq!(opt, None);
-    }
+    assert!(buf.is_zeroized());
+    assert_eq!(opt, None);
 }

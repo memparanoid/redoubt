@@ -127,11 +127,8 @@ fn test_force_encode_error() {
     assert!(result.is_err());
     assert!(matches!(result, Err(EncodeError::IntentionalEncodeError)));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
 }
 
 // Decode
@@ -154,12 +151,9 @@ fn test_force_decode_error() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
 }
 
 // Roundtrip (Encode + Decode)
@@ -185,13 +179,10 @@ fn test_roundtrip() {
 
     assert_eq!(decoded.usize, original_usize);
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(original.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(original.is_zeroized());
 }
 
 // EncodeSlice

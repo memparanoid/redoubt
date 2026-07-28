@@ -31,11 +31,8 @@ fn test_redoubt_array_codec_roundtrip() {
 
     assert_eq!(recovered.as_slice(), &[1, 2, 3, 4, 5]);
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(arr.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(arr.is_zeroized());
 }

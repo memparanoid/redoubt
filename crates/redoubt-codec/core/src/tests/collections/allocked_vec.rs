@@ -78,12 +78,9 @@ fn test_encode_into_propagates_bytes_required_error() {
     assert!(result.is_err());
     assert!(matches!(result, Err(EncodeError::OverflowError(_))));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(vec.as_slice().is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(vec.as_slice().is_zeroized());
 }
 
 #[test]
@@ -104,12 +101,9 @@ fn test_encode_propagates_capacity_exceeded_error() {
         ))
     ));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(vec.as_slice().is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(vec.as_slice().is_zeroized());
 }
 
 // Decode
@@ -125,13 +119,10 @@ fn test_allocked_vec_decode_from_propagates_process_header_err() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(vec.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(vec.is_zeroized());
 }
 
 #[test]
@@ -159,14 +150,11 @@ fn test_allocked_vec_decode_propagates_decode_err() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(vec.is_zeroized());
-        assert!(recovered.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(vec.is_zeroized());
+    assert!(recovered.is_zeroized());
 }
 
 // Roundtrip
@@ -204,20 +192,14 @@ fn test_allocked_vec_encode_decode_roundtrip() {
             ]
         );
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
     }
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(vec.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(vec.is_zeroized());
 }
 
 // Perm tests
@@ -271,11 +253,8 @@ fn perm_test_allocked_vec_encode_into_propagates_error_at_any_position() {
         assert!(matches!(result, Err(EncodeError::IntentionalEncodeError)));
 
         // Assert zeroization!
-        #[cfg(feature = "zeroize")]
-        {
-            assert!(buf.is_zeroized());
-            assert!(vec_clone.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(vec_clone.is_zeroized());
     });
 }
 
@@ -345,21 +324,15 @@ fn perm_test_allocked_vec_decode_from_propagates_error_at_any_position() {
             assert!(result.is_err());
             assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
 
-            #[cfg(feature = "zeroize")]
             // Assert zeroization!
-            {
-                assert!(buf.is_zeroized());
-                assert!(decode_buf.is_zeroized());
-                assert!(recovered_vec_clone.is_zeroized());
-            }
+            assert!(buf.is_zeroized());
+            assert!(decode_buf.is_zeroized());
+            assert!(recovered_vec_clone.is_zeroized());
         }
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(vec_clone.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(vec_clone.is_zeroized());
     });
 }
 
@@ -419,13 +392,9 @@ fn perm_test_allocked_vec_encode_decode_roundtrip() {
         assert!(result.is_ok());
         assert_eq!(recovered, expected);
 
-        #[cfg(feature = "zeroize")]
-        // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-            assert!(vec_clone.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
+        assert!(vec_clone.is_zeroized());
     });
 }
 
@@ -448,17 +417,8 @@ fn test_allocked_vec_prealloc_zeroizes_existing_elements() {
 
     assert_eq!(vec.len(), 2);
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(vec.is_zeroized());
-    }
-
-    #[cfg(not(feature = "zeroize"))]
-    {
-        assert_eq!(vec[0].data, 100);
-        assert_eq!(vec[1].data, 200);
-    }
+    assert!(vec.is_zeroized());
 }
 
 #[test]

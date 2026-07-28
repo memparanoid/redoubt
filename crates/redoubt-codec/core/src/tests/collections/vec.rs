@@ -6,6 +6,7 @@ use redoubt_test_utils::{apply_permutation, index_permutations};
 use redoubt_zero::{FastZeroizable, ZeroizationProbe};
 
 use crate::codec_buffer::RedoubtCodecBuffer;
+use crate::collections::vec::vec_prealloc;
 use crate::error::{DecodeError, EncodeError, OverflowError, RedoubtCodecBufferError};
 use crate::support::test_utils::{RedoubtCodecTestBreaker, RedoubtCodecTestBreakerBehaviour};
 use crate::traits::{BytesRequired, Decode, Encode};
@@ -70,12 +71,9 @@ fn test_encode_into_propagates_bytes_required_error() {
     assert!(result.is_err());
     assert!(matches!(result, Err(EncodeError::OverflowError(_))));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(vec.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(vec.is_zeroized());
 }
 
 #[test]
@@ -96,12 +94,9 @@ fn test_encode_propagates_capacity_exceeded_error() {
         ))
     ));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(vec.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(vec.is_zeroized());
 }
 
 // Decode
@@ -117,13 +112,10 @@ fn test_vec_decode_from_propagates_process_header_err() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(vec.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(vec.is_zeroized());
 }
 
 #[test]
@@ -151,14 +143,11 @@ fn test_vec_decode_propagates_decode_err() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(vec.is_zeroized());
-        assert!(recovered.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(vec.is_zeroized());
+    assert!(recovered.is_zeroized());
 }
 
 // Roundtrip
@@ -196,20 +185,14 @@ fn test_vec_encode_decode_roundtrip() {
             ]
         );
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
     }
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(vec.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(vec.is_zeroized());
 }
 
 // Perm tests
@@ -256,12 +239,9 @@ fn perm_test_vec_encode_into_propagates_error_at_any_position() {
         assert!(result.is_err());
         assert!(matches!(result, Err(EncodeError::IntentionalEncodeError)));
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(vec_clone.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(vec_clone.is_zeroized());
     });
 }
 
@@ -322,20 +302,14 @@ fn perm_test_vec_decode_from_propagates_error_at_any_position() {
             assert!(result.is_err());
             assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
 
-            #[cfg(feature = "zeroize")]
             // Assert zeroization!
-            {
-                assert!(decode_buf.is_zeroized());
-                assert!(recovered_vec_clone.is_zeroized());
-            }
+            assert!(decode_buf.is_zeroized());
+            assert!(recovered_vec_clone.is_zeroized());
         }
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(vec_clone.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(vec_clone.is_zeroized());
     });
 }
 
@@ -393,19 +367,13 @@ fn perm_test_encode_decode_roundtrip() {
             assert!(result.is_ok());
             assert_eq!(recovered, expected);
 
-            #[cfg(feature = "zeroize")]
             // Assert zeroization!
-            {
-                assert!(decode_buf.is_zeroized());
-            }
+            assert!(decode_buf.is_zeroized());
         }
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(vec_clone.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(vec_clone.is_zeroized());
     });
 }
 
@@ -442,8 +410,6 @@ fn test_vec_with_varying_capacities() {
 
 #[test]
 fn test_vec_prealloc_zero_init_true() {
-    use crate::collections::vec::vec_prealloc;
-
     let mut vec: Vec<RedoubtCodecTestBreaker> = Vec::new();
     vec_prealloc(&mut vec, 10, true);
 
@@ -454,8 +420,6 @@ fn test_vec_prealloc_zero_init_true() {
 
 #[test]
 fn test_vec_prealloc_zero_init_false() {
-    use crate::collections::vec::vec_prealloc;
-
     let mut vec: Vec<RedoubtCodecTestBreaker> = Vec::new();
     vec_prealloc(&mut vec, 5, false);
 
@@ -472,8 +436,6 @@ fn test_vec_zero_init_is_false() {
 
 #[test]
 fn test_vec_prealloc_zeroizes_existing_elements() {
-    use crate::collections::vec::vec_prealloc;
-
     let mut vec = vec![
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 200),
@@ -488,8 +450,6 @@ fn test_vec_prealloc_zeroizes_existing_elements() {
 
 #[test]
 fn test_vec_prealloc_zeroizes_large_vec() {
-    use crate::collections::vec::vec_prealloc;
-
     // Force multiple reallocations with many elements.
     //
     // A `Vec` grows by doubling, so the number of reallocations is logarithmic:
@@ -516,8 +476,6 @@ fn test_vec_prealloc_zeroizes_large_vec() {
 
 #[test]
 fn test_vec_prealloc_shrinks() {
-    use crate::collections::vec::vec_prealloc;
-
     let mut vec = vec![
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 1),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 2),
@@ -530,8 +488,6 @@ fn test_vec_prealloc_shrinks() {
 
 #[test]
 fn test_vec_prealloc_grows() {
-    use crate::collections::vec::vec_prealloc;
-
     let mut vec = vec![RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         1,
@@ -582,11 +538,8 @@ fn stress_test_vec_clear_push_encode_decode_cycles() {
 
         assert_eq!(recovered, &original[0..i], "Cycle failed at i={}", i);
 
-        #[cfg(feature = "zeroize")]
-        {
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-            assert!(vec.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
+        assert!(vec.is_zeroized());
     }
 }

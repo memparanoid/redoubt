@@ -16,7 +16,6 @@ use crate::zeroizing::Zeroizing;
 use super::helpers::{header_size, process_header, write_header};
 
 /// Cleanup function for encode errors. Marked #[cold] to keep it out of the hot path.
-#[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
 fn cleanup_encode_error<T: FastZeroizable + ZeroizeMetadata>(
@@ -28,7 +27,6 @@ fn cleanup_encode_error<T: FastZeroizable + ZeroizeMetadata>(
 }
 
 /// Cleanup function for decode errors. Marked #[cold] to keep it out of the hot path.
-#[cfg(feature = "zeroize")]
 #[cold]
 #[inline(never)]
 fn cleanup_decode_error<T: FastZeroizable + ZeroizeMetadata>(
@@ -84,7 +82,6 @@ where
     fn encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
         let result = self.try_encode_into(buf);
 
-        #[cfg(feature = "zeroize")]
         if result.is_err() {
             cleanup_encode_error(self, buf);
         } else {
@@ -136,7 +133,6 @@ where
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         let result = self.try_decode_from(buf);
 
-        #[cfg(feature = "zeroize")]
         if result.is_err() {
             cleanup_decode_error(self, buf);
         }

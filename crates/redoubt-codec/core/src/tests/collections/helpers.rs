@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(feature = "zeroize")]
 use redoubt_zero::ZeroizationProbe;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
@@ -191,20 +190,14 @@ fn test_to_decode_dyn_mut() {
         assert!(result.is_ok());
         assert_eq!(decoded.usize.data, 100);
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
     }
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(tb.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(tb.is_zeroized());
 }
 
 // bytes_required_sum
@@ -296,12 +289,9 @@ fn perm_test_encode_fields_propagates_error_at_any_position() {
 
         assert!(result.is_err());
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(fields_clone.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(fields_clone.is_zeroized());
     });
 }
 
@@ -351,21 +341,15 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
 
             assert!(result.is_err());
 
-            #[cfg(feature = "zeroize")]
             // Assert zeroization!
-            {
-                assert!(buf.is_zeroized());
-                assert!(decode_buf.is_zeroized());
-                assert!(recovered_fields_clone.is_zeroized());
-            }
+            assert!(buf.is_zeroized());
+            assert!(decode_buf.is_zeroized());
+            assert!(recovered_fields_clone.is_zeroized());
         }
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(fields_clone.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(fields_clone.is_zeroized());
     });
 }
 
@@ -385,11 +369,8 @@ fn test_fields_roundtrip_ok() {
     encode_fields(encode_refs.into_iter(), &mut buf).expect("Failed to encode");
 
     // Assert src zeroization after encode!
-    #[cfg(feature = "zeroize")]
-    {
-        assert!(tb1.is_zeroized());
-        assert!(tb2.is_zeroized());
-    }
+    assert!(tb1.is_zeroized());
+    assert!(tb2.is_zeroized());
 
     // Decode
     let mut decoded1 = RedoubtCodecTestBreaker::default();
@@ -408,9 +389,6 @@ fn test_fields_roundtrip_ok() {
     assert_eq!(decoded2.usize.data, 200);
 
     // Assert buf zeroization after decode!
-    #[cfg(feature = "zeroize")]
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
 }

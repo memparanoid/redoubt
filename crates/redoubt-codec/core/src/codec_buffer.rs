@@ -6,26 +6,17 @@
 use alloc::vec::Vec;
 
 use redoubt_alloc::AllockedVec;
-
-#[cfg(feature = "zeroize")]
 use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
 
 use crate::error::RedoubtCodecBufferError;
 
-#[cfg_attr(feature = "zeroize", derive(RedoubtZero))]
+#[derive(RedoubtZero)]
+#[fast_zeroize(drop)]
 pub struct RedoubtCodecBuffer {
     cursor: usize,
     capacity: usize,
     allocked_vec: AllockedVec<u8>,
-    #[cfg(feature = "zeroize")]
     __sentinel: ZeroizeOnDropSentinel,
-}
-
-#[cfg(feature = "zeroize")]
-impl Drop for RedoubtCodecBuffer {
-    fn drop(&mut self) {
-        self.fast_zeroize();
-    }
 }
 
 impl Default for RedoubtCodecBuffer {
@@ -53,7 +44,6 @@ impl RedoubtCodecBuffer {
             cursor: 0,
             capacity,
             allocked_vec,
-            #[cfg(feature = "zeroize")]
             __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
@@ -70,7 +60,6 @@ impl RedoubtCodecBuffer {
     #[inline(always)]
     pub fn clear(&mut self) {
         self.cursor = 0;
-        #[cfg(feature = "zeroize")]
         self.allocked_vec.fast_zeroize();
     }
 

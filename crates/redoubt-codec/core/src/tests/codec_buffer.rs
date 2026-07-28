@@ -2,25 +2,31 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+
 use crate::codec_buffer::RedoubtCodecBuffer;
 
-#[cfg(feature = "zeroize")]
-use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
 
-#[cfg(feature = "zeroize")]
 #[test]
-fn test_codec_buffer_assert_zeroization_on_drop() {
-    use redoubt_zero::FastZeroizable;
-
+fn test_codec_buffer_is_zeroizable() {
     let mut buf = RedoubtCodecBuffer::default();
 
     // Buffer should NOT be zeroized: it's initialized with pointers.
     assert!(!buf.is_zeroized());
 
     buf.fast_zeroize();
-
     assert!(buf.is_zeroized());
+}
 
+#[test]
+fn test_codec_buffer_zeroizes_on_drop() {
+    let buf = RedoubtCodecBuffer::default();
+
+    // Buffer should NOT be zeroized: it's initialized with pointers.
+    assert!(!buf.is_zeroized());
     buf.assert_zeroize_on_drop();
 }
 
@@ -47,7 +53,6 @@ fn test_codec_buffer_realloc_with_capacity() {
     let mut buf = RedoubtCodecBuffer::default();
 
     // Buffer should NOT be zeroized: it's initialized with pointers.
-    #[cfg(feature = "zeroize")]
     assert!(!buf.is_zeroized());
 
     buf.realloc_with_capacity(10);
@@ -58,7 +63,6 @@ fn test_codec_buffer_realloc_with_capacity() {
     assert!(buf.as_slice().is_zeroized());
 
     // Buffer should NOT be zeroized: it still have reference to AllockedVec pointers.
-    #[cfg(feature = "zeroize")]
     assert!(!buf.is_zeroized());
 }
 
@@ -78,10 +82,7 @@ fn test_codec_buffer_clear() {
     buf.clear();
 
     // Content should be zeroized
-    #[cfg(feature = "zeroize")]
-    {
-        assert!(buf.as_slice().is_zeroized());
-    }
+    assert!(buf.as_slice().is_zeroized());
 
     // Buffer is still usable - can write again
     buf.as_mut_slice()[0] = 0x42;

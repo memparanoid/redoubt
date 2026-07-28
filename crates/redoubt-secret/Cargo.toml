@@ -15,7 +15,7 @@ path = "src/lib.rs"
 
 [dependencies]
 redoubt-alloc.workspace = true
-redoubt-codec           = { workspace = true, features = ["zeroize"] }
+redoubt-codec.workspace = true
 redoubt-util.workspace  = true
 redoubt-zero.workspace  = true
 

@@ -14,10 +14,6 @@ version.workspace    = true
 path       = "src/lib.rs"
 proc-macro = true
 
-[features]
-default = ["zeroize"]
-zeroize = ["redoubt-codec-core/zeroize"]
-
 [dependencies]
 proc-macro-crate.workspace = true
 proc-macro2.workspace      = true

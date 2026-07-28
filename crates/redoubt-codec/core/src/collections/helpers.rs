@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(feature = "zeroize")]
-use core::sync::atomic::{Ordering, compiler_fence};
-#[cfg(feature = "zeroize")]
-use redoubt_zero::FastZeroizable;
-#[cfg(feature = "zeroize")]
 use smallvec::SmallVec;
+
+use core::sync::atomic::{Ordering, compiler_fence};
+use redoubt_zero::FastZeroizable;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError, RedoubtCodecBufferError};
@@ -128,7 +126,6 @@ pub fn encode_fields<'a>(
     let mut result = Ok(());
 
     for field in fields {
-        #[cfg(feature = "zeroize")]
         if result.is_err() {
             field.fast_zeroize();
             compiler_fence(Ordering::SeqCst);
@@ -137,15 +134,11 @@ pub fn encode_fields<'a>(
 
         if let Err(e) = field.encode_into(buf) {
             result = Err(e);
-            #[cfg(feature = "zeroize")]
             {
                 field.fast_zeroize();
                 compiler_fence(Ordering::SeqCst);
                 buf.fast_zeroize();
             }
-
-            #[cfg(not(feature = "zeroize"))]
-            break;
         }
     }
 
@@ -159,12 +152,10 @@ pub fn decode_fields<'a>(
     fields: impl Iterator<Item = &'a mut dyn DecodeZeroize>,
     buf: &mut &mut [u8],
 ) -> Result<(), DecodeError> {
-    #[cfg(feature = "zeroize")]
     let mut decoded: SmallVec<[&'a mut dyn DecodeZeroize; 32]> = SmallVec::new();
     let mut result = Ok(());
 
     for field in fields {
-        #[cfg(feature = "zeroize")]
         if result.is_err() {
             field.fast_zeroize();
             compiler_fence(Ordering::SeqCst);
@@ -174,7 +165,6 @@ pub fn decode_fields<'a>(
         if let Err(e) = field.decode_from(buf) {
             result = Err(e);
 
-            #[cfg(feature = "zeroize")]
             {
                 field.fast_zeroize();
                 compiler_fence(Ordering::SeqCst);
@@ -187,11 +177,7 @@ pub fn decode_fields<'a>(
 
                 redoubt_util::fast_zeroize_slice(buf);
             }
-
-            #[cfg(not(feature = "zeroize"))]
-            break;
         } else {
-            #[cfg(feature = "zeroize")]
             decoded.push(field);
         }
     }

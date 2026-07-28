@@ -15,14 +15,12 @@ path = "src/lib.rs"
 
 [features]
 benchmark  = []
-default    = ["zeroize"]
-test-utils = ["zeroize"]
-zeroize    = ["dep:smallvec"]
+test-utils = []
 
 [dependencies]
 redoubt-util.workspace = true
 redoubt-zero.workspace = true
-smallvec               = { workspace = true, optional = true }
+smallvec.workspace     = true
 thiserror.workspace    = true
 
   [dependencies.redoubt-alloc]

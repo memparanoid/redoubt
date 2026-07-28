@@ -24,7 +24,7 @@ std                = []
 redoubt-aead.workspace   = true
 redoubt-alloc.workspace  = true
 redoubt-buffer.workspace = true
-redoubt-codec            = { workspace = true, features = ["zeroize"] }
+redoubt-codec.workspace  = true
 redoubt-guard.workspace  = true
 redoubt-rand.workspace   = true
 redoubt-secret.workspace = true

@@ -20,7 +20,6 @@ impl DecodeBuffer for &mut [u8] {
         }
 
         // Zeroize the Buffer
-        #[cfg(feature = "zeroize")]
         redoubt_util::fast_zeroize_slice(&mut self[..size]);
 
         // Shrink the slice - consume the bytes we read
@@ -42,7 +41,6 @@ impl DecodeBuffer for &mut [u8] {
         }
 
         // Zeroize the Buffer
-        #[cfg(feature = "zeroize")]
         redoubt_util::fast_zeroize_slice(&mut self[..len]);
 
         // Shrink the slice - consume the bytes we read
@@ -64,7 +62,6 @@ impl DecodeBuffer for &mut [u8] {
         }
 
         // Zeroize the Buffer
-        #[cfg(feature = "zeroize")]
         redoubt_util::fast_zeroize_slice(&mut self[..byte_len]);
 
         // Shrink the slice - consume the bytes we read

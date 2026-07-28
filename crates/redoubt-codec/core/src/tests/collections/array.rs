@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::codec_buffer::RedoubtCodecBuffer;
 use redoubt_test_utils::{apply_permutation, index_permutations};
-#[cfg(feature = "zeroize")]
 use redoubt_zero::ZeroizationProbe;
 
+use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError, RedoubtCodecBufferError};
 use crate::support::test_utils::{RedoubtCodecTestBreaker, RedoubtCodecTestBreakerBehaviour};
 use crate::traits::{BytesRequired, Decode, Encode, PreAlloc};
@@ -70,12 +69,9 @@ fn test_array_encode_into_propagates_bytes_required_error() {
     assert!(result.is_err());
     assert!(matches!(result, Err(EncodeError::OverflowError(_))));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(arr.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(arr.is_zeroized());
 }
 
 #[test]
@@ -96,12 +92,9 @@ fn test_array_encode_into_propagates_capacity_exceeded_error() {
         ))
     ));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(arr.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(arr.is_zeroized());
 }
 
 // Decode
@@ -120,13 +113,10 @@ fn test_array_decode_from_propagates_process_header_err() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(arr.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(arr.is_zeroized());
 }
 
 #[test]
@@ -151,14 +141,11 @@ fn test_array_decode_from_propagates_size_mismatch_err() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(arr.is_zeroized());
-        assert!(arr_wrong_size.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(arr.is_zeroized());
+    assert!(arr_wrong_size.is_zeroized());
 }
 
 #[test]
@@ -186,14 +173,11 @@ fn test_array_decode_propagates_decode_err() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(arr.is_zeroized());
-        assert!(recovered.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(arr.is_zeroized());
+    assert!(recovered.is_zeroized());
 }
 
 // Roundtrip
@@ -231,20 +215,14 @@ fn test_array_encode_decode_roundtrip() {
             ]
         );
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
     }
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(arr.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(arr.is_zeroized());
 }
 
 // Perm tests
@@ -291,12 +269,9 @@ fn perm_test_array_encode_into_propagates_error_at_any_position() {
         assert!(result.is_err());
         assert!(matches!(result, Err(EncodeError::IntentionalEncodeError)));
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(arr_clone.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(arr_clone.is_zeroized());
     });
 }
 
@@ -357,21 +332,15 @@ fn perm_test_array_decode_from_propagates_error_at_any_position() {
             assert!(result.is_err());
             assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
 
-            #[cfg(feature = "zeroize")]
             // Assert zeroization!
-            {
-                assert!(buf.is_zeroized());
-                assert!(decode_buf.is_zeroized());
-                assert!(recovered_arr_clone.is_zeroized());
-            }
+            assert!(buf.is_zeroized());
+            assert!(decode_buf.is_zeroized());
+            assert!(recovered_arr_clone.is_zeroized());
         }
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(arr_clone.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(arr_clone.is_zeroized());
     });
 }
 
@@ -430,20 +399,14 @@ fn perm_test_array_encode_decode_roundtrip() {
             assert!(result.is_ok());
             assert_eq!(recovered, expected);
 
-            #[cfg(feature = "zeroize")]
             // Assert zeroization!
-            {
-                assert!(buf.is_zeroized());
-                assert!(decode_buf.is_zeroized());
-            }
+            assert!(buf.is_zeroized());
+            assert!(decode_buf.is_zeroized());
         }
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(arr_clone.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(arr_clone.is_zeroized());
     });
 }
 

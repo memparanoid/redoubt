@@ -66,13 +66,10 @@ pub(crate) fn test_collection_varying_capacities<T, C, F, G, H>(
                 "decoded collection must match original"
             );
 
-            #[cfg(feature = "zeroize")]
             // Assert zeroization!
-            {
-                assert!(buf_clone.is_zeroized());
-                assert!(decode_buf.is_zeroized());
-                assert!(original_clone.is_zeroized());
-            }
+            assert!(buf_clone.is_zeroized());
+            assert!(decode_buf.is_zeroized());
+            assert!(original_clone.is_zeroized());
         }
     }
 }

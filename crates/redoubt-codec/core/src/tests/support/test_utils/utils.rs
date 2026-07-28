@@ -32,12 +32,9 @@ fn test_tamper_encoded_bytes_for_tests() {
 
     assert!(result.is_err());
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(vec.is_zeroized());
-        assert!(recovered.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(vec.is_zeroized());
+    assert!(recovered.is_zeroized());
 }

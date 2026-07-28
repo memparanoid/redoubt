@@ -31,13 +31,10 @@ fn test_redoubt_vec_codec_roundtrip() {
 
     assert_eq!(recovered.as_slice(), [1, 2, 3, 4, 5]);
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(vec.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(vec.is_zeroized());
 }
 
 // Stress Tests
@@ -92,12 +89,10 @@ fn stress_test_redoubt_vec_clear_push_encode_decode_cycles() {
             i
         );
 
-        #[cfg(feature = "zeroize")]
-        {
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-            assert!(vec.is_zeroized());
-            assert!(redoubt_vec.is_zeroized());
-        }
+        // Assert zeroization!
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
+        assert!(vec.is_zeroized());
+        assert!(redoubt_vec.is_zeroized());
     }
 }

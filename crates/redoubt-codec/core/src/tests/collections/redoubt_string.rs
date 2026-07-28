@@ -29,13 +29,10 @@ fn test_redoubt_string_codec_roundtrip() {
 
     assert_eq!(recovered.as_str(), "REDOUBT");
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(s.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(s.is_zeroized());
 }
 
 // Stress Tests
@@ -82,12 +79,10 @@ fn stress_test_redoubt_string_clear_push_encode_decode_cycles() {
 
         assert_eq!(recovered.as_str(), &expected, "Cycle failed at i={}", i);
 
-        #[cfg(feature = "zeroize")]
-        {
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-            assert!(src.is_zeroized());
-            assert!(redoubt_string.is_zeroized());
-        }
+        // Assert zeroization!
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
+        assert!(src.is_zeroized());
+        assert!(redoubt_string.is_zeroized());
     }
 }

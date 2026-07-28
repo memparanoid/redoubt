@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::codec_buffer::RedoubtCodecBuffer;
-#[cfg(feature = "zeroize")]
 use redoubt_zero::ZeroizationProbe;
 
+use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::error::{DecodeBufferError, DecodeError, EncodeError, RedoubtCodecBufferError};
 use crate::traits::{BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice};
 
@@ -111,18 +110,15 @@ where
     ));
 
     // Assert zeroization on error
-    #[cfg(feature = "zeroize")]
-    {
-        assert_eq!(
-            *value,
-            T::default(),
-            "value must be zeroized after encode error"
-        );
-        assert!(
-            buf.is_zeroized(),
-            "buffer must be zeroized after encode error"
-        );
-    }
+    assert_eq!(
+        *value,
+        T::default(),
+        "value must be zeroized after encode error"
+    );
+    assert!(
+        buf.is_zeroized(),
+        "buffer must be zeroized after encode error"
+    );
 }
 
 /// Tests that decode_from fails with OutOfBounds when buffer is too small
@@ -146,18 +142,15 @@ where
     ));
 
     // Assert zeroization on error
-    #[cfg(feature = "zeroize")]
-    {
-        assert_eq!(
-            *value,
-            T::default(),
-            "value must be zeroized after decode error"
-        );
-        assert!(
-            buf.is_zeroized(),
-            "buffer must be zeroized after decode error"
-        );
-    }
+    assert_eq!(
+        *value,
+        T::default(),
+        "value must be zeroized after decode error"
+    );
+    assert!(
+        buf.is_zeroized(),
+        "buffer must be zeroized after decode error"
+    );
 }
 
 /// Tests that encode_slice_into fails with CapacityExceeded when buffer is too small
@@ -220,7 +213,6 @@ where
         .expect("Failed to encode_into(..)");
 
     // Verify zeroization after encode
-    #[cfg(feature = "zeroize")]
     assert_eq!(
         original,
         T::default(),
@@ -235,13 +227,10 @@ where
 
     assert!(compare(&recovered, &original_value));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        // SAFETY NOTE: We cannot assert zeroization on `original` since `original` lacks the ZeroizationProbe bound.
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    // SAFETY NOTE: We cannot assert zeroization on `original` since `original` lacks the ZeroizationProbe bound.
 }
 
 /// For each pair (T_0, T_1) from the set, runs the 4 combinations with custom comparator

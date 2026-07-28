@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::codec_buffer::RedoubtCodecBuffer;
-#[cfg(feature = "zeroize")]
 use redoubt_zero::ZeroizationProbe;
 
+use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::collections::helpers::header_size;
 use crate::collections::string::string_bytes_required;
 use crate::error::{OverflowError, RedoubtCodecBufferError};
@@ -54,12 +53,9 @@ fn test_string_encode_propagates_write_header_error() {
         ))
     ));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(s.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(s.is_zeroized());
 }
 
 #[test]
@@ -77,12 +73,9 @@ fn test_string_encode_into_propagates_encode_slice_error() {
         ))
     ));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(s.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(s.is_zeroized());
 }
 
 // Encode
@@ -103,12 +96,9 @@ fn test_string_encode_into_propagates_try_encode_into_error() {
         ))
     ));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(s.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(s.is_zeroized());
 }
 
 #[test]
@@ -123,11 +113,8 @@ fn test_string_encode_ok() {
 
     assert!(result.is_ok());
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(s.is_zeroized());
-    }
+    assert!(s.is_zeroized());
 }
 
 // EncodeSlice
@@ -144,11 +131,8 @@ fn test_string_encode_slice_ok() {
 
     assert!(result.is_ok());
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(s_slice.is_zeroized());
-    }
+    assert!(s_slice.is_zeroized());
 }
 
 #[test]
@@ -180,12 +164,10 @@ fn test_string_decode_from_propagates_process_header_error() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 
-    #[cfg(feature = "zeroize")]
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(s.is_zeroized());
-    }
+    // Assert zeroization!
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(s.is_zeroized());
 }
 
 #[test]
@@ -210,14 +192,12 @@ fn test_string_decode_from_utf8_validation_error() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 
-    #[cfg(feature = "zeroize")]
-    {
-        // Buffer is not zeroized if not exported as vec.
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        println!("DECODED: {:?}", decoded);
-        // assert!(decoded.is_zeroized());
-    }
+    // Assert zeroization!
+    // Buffer is not zeroized if not exported as vec.
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    println!("DECODED: {:?}", decoded);
+    // assert!(decoded.is_zeroized());
 }
 
 // Decode
@@ -234,13 +214,10 @@ fn test_string_decode_from_propagates_error() {
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(s.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(s.is_zeroized());
 }
 
 // DecodeSlice
@@ -265,13 +242,10 @@ fn test_string_slice_roundtrip_ok() {
     assert_eq!(decoded[0], "hello");
     assert_eq!(decoded[1], "world");
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(decode_buf.is_zeroized());
-        assert!(s_slice.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(decode_buf.is_zeroized());
+    assert!(s_slice.is_zeroized());
 }
 
 #[test]
@@ -309,20 +283,14 @@ fn test_string_roundtrip_ok() {
         assert!(result.is_ok());
         assert_eq!(decoded, "hello world");
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
     }
 
-    #[cfg(feature = "zeroize")]
     // Assert zeroization!
-    {
-        assert!(buf.is_zeroized());
-        assert!(s.is_zeroized());
-    }
+    assert!(buf.is_zeroized());
+    assert!(s.is_zeroized());
 }
 
 // Integration test

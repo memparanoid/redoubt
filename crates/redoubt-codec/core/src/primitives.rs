@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(feature = "zeroize")]
 use redoubt_zero::FastZeroizable;
 
 use crate::error::DecodeError;
@@ -33,10 +32,8 @@ macro_rules! impl_traits_for_primitives {
                 fn encode_into(&mut self, buf: &mut $crate::codec_buffer::RedoubtCodecBuffer) -> Result<(), $crate::error::EncodeError> {
                     let result = self.try_encode_into(buf);
 
-                    #[cfg(feature = "zeroize")]
                     self.fast_zeroize();
 
-                    #[cfg(feature = "zeroize")]
                     if result.is_err() {
                         buf.fast_zeroize();
                     }
@@ -67,7 +64,6 @@ macro_rules! impl_traits_for_primitives {
                 fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), $crate::error::DecodeError> {
                     let result = self.try_decode_from(buf);
 
-                    #[cfg(feature = "zeroize")]
                     if result.is_err() {
                         self.fast_zeroize();
                         buf.fast_zeroize();

@@ -43,12 +43,9 @@ mod tests {
 
         assert_eq!(recovered, original);
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
     }
 
     #[test]
@@ -78,12 +75,9 @@ mod tests {
 
         assert_eq!(recovered, original);
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
     }
 
     #[test]
@@ -115,12 +109,9 @@ mod tests {
 
         assert_eq!(recovered, original);
 
-        #[cfg(feature = "zeroize")]
         // Assert zeroization!
-        {
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-        }
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
     }
 
     #[test]
@@ -159,12 +150,10 @@ mod tests {
 
         assert_eq!(recovered, original_none);
 
-        #[cfg(feature = "zeroize")]
-        {
-            assert!(original_none_clone.name.is_zeroized());
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-        }
+        // Assert zeroization before!
+        assert!(original_none_clone.name.is_zeroized());
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
 
         // Test with Some values
         let original_some = OptionalData {
@@ -192,11 +181,9 @@ mod tests {
 
         assert_eq!(recovered, original_some);
 
-        #[cfg(feature = "zeroize")]
-        {
-            assert!(original_some_clone.name.is_zeroized());
-            assert!(buf.is_zeroized());
-            assert!(decode_buf.is_zeroized());
-        }
+        // Assert zeroizatin after!
+        assert!(original_some_clone.name.is_zeroized());
+        assert!(buf.is_zeroized());
+        assert!(decode_buf.is_zeroized());
     }
 }
