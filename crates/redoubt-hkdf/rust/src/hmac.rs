@@ -33,6 +33,13 @@ pub(crate) struct HmacSha256State {
     __sentinel: ZeroizeOnDropSentinel,
 }
 
+#[cfg(test)]
+impl HmacSha256State {
+    pub(crate) fn unzeroize(&mut self) {
+        self.inner_hash.fill(1u8);
+    }
+}
+
 impl HmacSha256State {
     /// Create new HMAC-SHA256 state
     pub fn new() -> Self {

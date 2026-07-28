@@ -24,6 +24,13 @@ pub struct PortableBuffer {
     __sentinel: ZeroizeOnDropSentinel,
 }
 
+#[cfg(test)]
+impl PortableBuffer {
+    pub(crate) fn unzeroize(&mut self) {
+        self.inner.fill(1u8);
+    }
+}
+
 impl PortableBuffer {
     /// Creates a new PortableBuffer with the specified length.
     pub fn create(len: usize) -> Self {

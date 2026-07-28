@@ -2,8 +2,34 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+
 use crate::RedoubtArray;
-use redoubt_zero::ZeroizationProbe;
+
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
+
+#[test]
+fn test_redoubt_array_is_zeroizable() {
+    let mut data = [1u8, 2, 3, 4, 5];
+    let mut arr = RedoubtArray::from_mut_array(&mut data);
+
+    assert!(!arr.is_zeroized());
+
+    arr.fast_zeroize();
+    assert!(arr.is_zeroized());
+}
+
+#[test]
+fn test_redoubt_array_zeroizes_on_drop() {
+    let mut data = [1u8, 2, 3, 4, 5];
+    let arr = RedoubtArray::from_mut_array(&mut data);
+
+    assert!(!arr.is_zeroized());
+
+    arr.assert_zeroize_on_drop();
+}
 
 // =============================================================================
 // new()

@@ -26,6 +26,13 @@ pub(crate) struct Poly1305Block {
     __sentinel: ZeroizeOnDropSentinel,
 }
 
+#[cfg(test)]
+impl Poly1305Block {
+    pub(crate) fn unzeroize(&mut self) {
+        self.t = [1, 2, 3, 4];
+    }
+}
+
 impl core::fmt::Debug for Poly1305Block {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Poly1305Block {{ [protected] }}")
@@ -48,6 +55,13 @@ pub(crate) struct Poly1305Final {
     __sentinel: ZeroizeOnDropSentinel,
 }
 
+#[cfg(test)]
+impl Poly1305Final {
+    pub(crate) fn unzeroize(&mut self) {
+        self.d = [1, 2, 3, 4, 5];
+    }
+}
+
 impl core::fmt::Debug for Poly1305Final {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Poly1305Final {{ [protected] }}")
@@ -66,6 +80,13 @@ pub struct Poly1305 {
     block: Poly1305Block,
     finalize: Poly1305Final,
     __sentinel: ZeroizeOnDropSentinel,
+}
+
+#[cfg(test)]
+impl Poly1305 {
+    pub(crate) fn unzeroize(&mut self) {
+        self.r = [1, 2, 3, 4, 5];
+    }
 }
 
 impl Poly1305 {

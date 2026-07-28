@@ -4,7 +4,30 @@
 
 use crate::RedoubtString;
 use alloc::string::String;
-use redoubt_zero::ZeroizationProbe;
+use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
+
+#[test]
+fn test_redoubt_string_is_zeroizable() {
+    let mut s = RedoubtString::from_str("sensitive");
+
+    assert!(!s.is_zeroized());
+
+    s.fast_zeroize();
+    assert!(s.is_zeroized());
+}
+
+#[test]
+fn test_redoubt_string_zeroizes_on_drop() {
+    let s = RedoubtString::from_str("sensitive");
+
+    assert!(!s.is_zeroized());
+
+    s.assert_zeroize_on_drop();
+}
 
 // =============================================================================
 // new()

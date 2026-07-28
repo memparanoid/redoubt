@@ -33,7 +33,6 @@ pub struct RedoubtCodecTestBreakerBox {
     pub f3: RedoubtCodecTestBreaker,
     pub f4: RedoubtCodecTestBreaker,
     pub f5: RedoubtCodecTestBreaker,
-    #[fast_zeroize(skip)]
     #[codec(default)]
     __sentinel: ZeroizeOnDropSentinel,
 }
@@ -180,13 +179,24 @@ impl<A: AeadApi> DecryptStruct<A, 1> for RedoubtVecBox {
     }
 }
 
-// =============================================================================
-// assert_zeorize_on_drop()
-// =============================================================================
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
+
+// No `is_zeroizable` test here on purpose: at rest a CipherBox holds only
+// ciphertext, nonces and tags, and zeroizing a live box is not a real
+// operation — it just poisons decryption. What matters is that the tmp
+// plaintext buffers are wiped after every operation (asserted per-op below)
+// and that everything is wiped on drop.
+
 #[test]
-fn test_assert_zeroize_on_drop() {
+fn test_cipher_box_zeroizes_on_drop() {
     let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
-    let cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+
+    cb.unzeroize();
+    assert!(!cb.is_zeroized());
+
     cb.assert_zeroize_on_drop();
 }
 

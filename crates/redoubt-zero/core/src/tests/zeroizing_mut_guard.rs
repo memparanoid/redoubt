@@ -7,20 +7,27 @@ use core::fmt::Write;
 use crate::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 use crate::zeroizing_mut_guard::ZeroizingMutGuard;
 
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
+
 #[test]
-fn test_zeroizing_mut_guard_assert_zeroization_probe_trait() {
+fn test_zeroizing_mut_guard_is_zeroizable() {
     let mut vec = vec![1u8, 2, 3, 4, 5];
     let mut guard = ZeroizingMutGuard::from(&mut vec);
 
     assert!(!guard.is_zeroized());
+
     guard.fast_zeroize();
     assert!(guard.is_zeroized());
 }
 
 #[test]
-fn test_zeroizing_mut_guard_assert_zeroed_on_drop_trait() {
+fn test_zeroizing_mut_guard_zeroizes_on_drop() {
     let mut vec = vec![1u8, 2, 3, 4, 5];
     let guard = ZeroizingMutGuard::from(&mut vec);
+
+    assert!(!guard.is_zeroized());
 
     guard.assert_zeroize_on_drop();
 }

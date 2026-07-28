@@ -2,9 +2,34 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_zero::ZeroizationProbe;
+use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 use crate::RedoubtSecret;
+
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
+
+#[test]
+fn test_redoubt_secret_is_zeroizable() {
+    let mut data = vec![1u8, 2, 3, 4];
+    let mut secret = RedoubtSecret::from(&mut data);
+
+    assert!(!secret.is_zeroized());
+
+    secret.fast_zeroize();
+    assert!(secret.is_zeroized());
+}
+
+#[test]
+fn test_redoubt_secret_zeroizes_on_drop() {
+    let mut data = vec![1u8, 2, 3, 4];
+    let secret = RedoubtSecret::from(&mut data);
+
+    assert!(!secret.is_zeroized());
+
+    secret.assert_zeroize_on_drop();
+}
 
 #[test]
 fn test_secret_assert_zeroization_probe_trait() {

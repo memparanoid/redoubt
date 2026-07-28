@@ -7,7 +7,34 @@
 //! These exercise the partial buffer branch (`buffer_len > 0` in update())
 //! which requires multiple update() calls with non-block-aligned data.
 
+use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+
 use crate::sha256::Sha256State;
+
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
+
+#[test]
+fn test_sha256_state_is_zeroizable() {
+    let mut state = Sha256State::new();
+
+    state.unzeroize();
+    assert!(!state.is_zeroized());
+
+    state.fast_zeroize();
+    assert!(state.is_zeroized());
+}
+
+#[test]
+fn test_sha256_state_zeroizes_on_drop() {
+    let mut state = Sha256State::new();
+
+    state.unzeroize();
+    assert!(!state.is_zeroized());
+
+    state.assert_zeroize_on_drop();
+}
 
 #[test]
 fn test_sha256_streaming_partial_buffer() {

@@ -4,18 +4,36 @@
 
 //! AEAD unit tests
 
+use redoubt_zero::FastZeroizable;
 use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
 
-use redoubt_aead_core::AeadError;
-use redoubt_aead_core::AeadBackend;
 use crate::aead::XChacha20Poly1305;
 use crate::consts::TAG_SIZE;
+use redoubt_aead_core::AeadBackend;
+use redoubt_aead_core::AeadError;
+
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
 
 #[test]
-fn test_aead_zeroization_on_drop() {
-    let aead = XChacha20Poly1305::default();
+fn test_aead_is_zeroizable() {
+    let mut aead = XChacha20Poly1305::default();
 
+    aead.unzeroize();
+    assert!(!aead.is_zeroized());
+
+    aead.fast_zeroize();
     assert!(aead.is_zeroized());
+}
+
+#[test]
+fn test_aead_zeroizes_on_drop() {
+    let mut aead = XChacha20Poly1305::default();
+
+    aead.unzeroize();
+    assert!(!aead.is_zeroized());
+
     aead.assert_zeroize_on_drop();
 }
 

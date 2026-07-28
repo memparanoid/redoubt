@@ -36,6 +36,13 @@ pub(crate) struct HkdfSha256State {
     __sentinel: ZeroizeOnDropSentinel,
 }
 
+#[cfg(test)]
+impl HkdfSha256State {
+    pub(crate) fn unzeroize(&mut self) {
+        self.prk.fill(1u8);
+    }
+}
+
 impl HkdfSha256State {
     /// Create new HKDF state
     pub fn new() -> Self {

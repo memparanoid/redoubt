@@ -3,7 +3,32 @@
 // See LICENSE in the repository root for full license text.
 
 use crate::RedoubtVec;
-use redoubt_zero::ZeroizationProbe;
+use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
+
+#[test]
+fn test_redoubt_vec_is_zeroizable() {
+    let mut data = [1u8, 2, 3];
+    let mut vec = RedoubtVec::from_mut_slice(&mut data);
+
+    assert!(!vec.is_zeroized());
+
+    vec.fast_zeroize();
+    assert!(vec.is_zeroized());
+}
+
+#[test]
+fn test_redoubt_vec_zeroizes_on_drop() {
+    let mut data = [1u8, 2, 3];
+    let vec = RedoubtVec::from_mut_slice(&mut data);
+
+    assert!(!vec.is_zeroized());
+
+    vec.assert_zeroize_on_drop();
+}
 
 // =============================================================================
 // new()

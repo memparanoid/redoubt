@@ -3,10 +3,35 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_util::is_vec_fully_zeroized;
-use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
+use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 use crate::allocked_vec::{AllockedVec, AllockedVecBehaviour};
 use crate::error::AllockedVecError;
+
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
+
+#[test]
+fn test_allocked_vec_is_zeroizable() {
+    let mut vec = AllockedVec::with_capacity(5);
+
+    vec.push(1u8).expect("Failed to vec.push(1)");
+    assert!(!vec.is_zeroized());
+
+    vec.fast_zeroize();
+    assert!(vec.is_zeroized());
+}
+
+#[test]
+fn test_allocked_vec_zeroizes_on_drop() {
+    let mut vec = AllockedVec::with_capacity(5);
+
+    vec.push(1u8).expect("Failed to vec.push(1)");
+    assert!(!vec.is_zeroized());
+
+    vec.assert_zeroize_on_drop();
+}
 
 // =============================================================================
 // new()
@@ -725,33 +750,6 @@ fn test_allocked_vec_deref_to_slice() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
-}
-
-// =============================================================================
-// Drop (zeroization)
-// =============================================================================
-
-#[test]
-fn test_allocked_vec_zeroization_on_drop() {
-    let vec = AllockedVec::<u8>::default();
-    vec.assert_zeroize_on_drop();
-}
-
-#[test]
-fn test_allocked_vec_zeroize_on_drop() {
-    let mut vec = AllockedVec::with_capacity(5);
-
-    // Vec is not zeroized since `has_been_sealed` is true.
-    assert!(!vec.is_zeroized());
-
-    vec.push(1u8).expect("Failed to vec.push(1)");
-    vec.push(2u8).expect("Failed to vec.push(2)");
-    vec.push(3u8).expect("Failed to vec.push(3)");
-
-    // Vec is not zeroized since `has_been_sealed` is true and contains data.
-    assert!(!vec.is_zeroized());
-
-    vec.assert_zeroize_on_drop();
 }
 
 // =============================================================================

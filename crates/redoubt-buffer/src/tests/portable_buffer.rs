@@ -5,11 +5,36 @@
 use core::cell::Cell;
 
 use redoubt_util::fill_bytes_with_pattern;
-use redoubt_zero::{FastZeroizable, ZeroizationProbe};
+use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 use crate::error::BufferError;
 use crate::portable_buffer::PortableBuffer;
 use crate::traits::Buffer;
+
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
+
+#[test]
+fn test_portable_buffer_is_zeroizable() {
+    let mut portable_buffer = PortableBuffer::create(10);
+
+    portable_buffer.unzeroize();
+    assert!(!portable_buffer.is_zeroized());
+
+    portable_buffer.fast_zeroize();
+    assert!(portable_buffer.is_zeroized());
+}
+
+#[test]
+fn test_portable_buffer_zeroizes_on_drop() {
+    let mut portable_buffer = PortableBuffer::create(10);
+
+    portable_buffer.unzeroize();
+    assert!(!portable_buffer.is_zeroized());
+
+    portable_buffer.assert_zeroize_on_drop();
+}
 
 // create
 

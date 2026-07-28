@@ -60,6 +60,13 @@ pub(crate) struct Sha256State {
     __sentinel: ZeroizeOnDropSentinel,
 }
 
+#[cfg(test)]
+impl Sha256State {
+    pub(crate) fn unzeroize(&mut self) {
+        self.buffer.fill(1u8);
+    }
+}
+
 impl Sha256State {
     /// Create new SHA-256 state initialized with H(0)
     pub fn new() -> Self {

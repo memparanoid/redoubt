@@ -4,32 +4,75 @@
 
 //! Poly1305 tests using RFC 8439 Section 2.5.2 test vector.
 
-use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
+use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 use crate::poly1305::{Poly1305, Poly1305Block, Poly1305Final};
 
-#[test]
-fn test_poly1305_zeroization_on_drop() {
-    let mac = Poly1305::default();
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
 
-    assert!(mac.is_zeroized());
-    mac.assert_zeroize_on_drop();
+#[test]
+fn test_poly1305_is_zeroizable() {
+    let mut poly1305 = Poly1305::default();
+
+    poly1305.unzeroize();
+    assert!(!poly1305.is_zeroized());
+
+    poly1305.fast_zeroize();
+    assert!(poly1305.is_zeroized());
 }
 
 #[test]
-fn test_poly1305_block_zeroization_on_drop() {
-    let block = Poly1305Block::default();
+fn test_poly1305_zeroizes_on_drop() {
+    let mut poly1305 = Poly1305::default();
 
+    poly1305.unzeroize();
+    assert!(!poly1305.is_zeroized());
+
+    poly1305.assert_zeroize_on_drop();
+}
+
+#[test]
+fn test_poly1305_block_is_zeroizable() {
+    let mut block = Poly1305Block::default();
+
+    block.unzeroize();
+    assert!(!block.is_zeroized());
+
+    block.fast_zeroize();
     assert!(block.is_zeroized());
+}
+
+#[test]
+fn test_poly1305_block_zeroizes_on_drop() {
+    let mut block = Poly1305Block::default();
+
+    block.unzeroize();
+    assert!(!block.is_zeroized());
+
     block.assert_zeroize_on_drop();
 }
 
 #[test]
-fn test_poly1305_final_zeroization_on_drop() {
-    let fin = Poly1305Final::default();
+fn test_poly1305_final_is_zeroizable() {
+    let mut poly1305_final = Poly1305Final::default();
 
-    assert!(fin.is_zeroized());
-    fin.assert_zeroize_on_drop();
+    poly1305_final.unzeroize();
+    assert!(!poly1305_final.is_zeroized());
+
+    poly1305_final.fast_zeroize();
+    assert!(poly1305_final.is_zeroized());
+}
+
+#[test]
+fn test_poly1305_final_zeroizes_on_drop() {
+    let mut poly1305_final = Poly1305Final::default();
+
+    poly1305_final.unzeroize();
+    assert!(!poly1305_final.is_zeroized());
+
+    poly1305_final.assert_zeroize_on_drop();
 }
 
 /// RFC 8439 Section 2.5.2 test vector
@@ -102,8 +145,8 @@ fn test_partial_buffer_not_completing_block() {
     // Two-call: first leaves partial buffer, second doesn't complete it
     let mut poly = Poly1305::default();
     poly.init(&key);
-    poly.update(b"abcde");      // 5 bytes, buffer_len = 5
-    poly.update(b"fgh");        // 3 bytes, buffer_len = 8 (< 16, branch false)
+    poly.update(b"abcde"); // 5 bytes, buffer_len = 5
+    poly.update(b"fgh"); // 3 bytes, buffer_len = 8 (< 16, branch false)
 
     let mut tag_partial = [0u8; 16];
     poly.finalize(&mut tag_partial);

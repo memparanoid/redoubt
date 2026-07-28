@@ -4,34 +4,96 @@
 
 //! ChaCha20 unit tests
 
-use redoubt_zero::{AssertZeroizeOnDrop, ZeroizationProbe};
+use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 use crate::chacha20::{ChaCha20, HChaCha20, XChaCha20};
 use crate::consts::{CHACHA20_BERNSTEIN_NONCE_SIZE, CHACHA20_NONCE_SIZE};
 
-// Zeroization tests
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
 
 #[test]
-fn test_chacha20_ietf_zeroization_on_drop() {
-    let chacha20: ChaCha20<CHACHA20_NONCE_SIZE> = ChaCha20::default();
+fn test_chacha20_bernstein_is_zeroizable() {
+    let mut chacha20: ChaCha20<CHACHA20_BERNSTEIN_NONCE_SIZE> = ChaCha20::default();
 
+    chacha20.unzeroize();
+    assert!(!chacha20.is_zeroized());
+
+    chacha20.fast_zeroize();
     assert!(chacha20.is_zeroized());
+}
+
+#[test]
+fn test_chacha20_bernstein_zeroizes_on_drop() {
+    let mut chacha20: ChaCha20<CHACHA20_BERNSTEIN_NONCE_SIZE> = ChaCha20::default();
+
+    chacha20.unzeroize();
+    assert!(!chacha20.is_zeroized());
+
     chacha20.assert_zeroize_on_drop();
 }
 
 #[test]
-fn test_hchacha20_zeroization_on_drop() {
-    let hchacha20 = HChaCha20::default();
+fn test_chacha20_ietf_is_zeroizable() {
+    let mut chacha20: ChaCha20<CHACHA20_NONCE_SIZE> = ChaCha20::default();
 
+    chacha20.unzeroize();
+    assert!(!chacha20.is_zeroized());
+
+    chacha20.fast_zeroize();
+    assert!(chacha20.is_zeroized());
+}
+
+#[test]
+fn test_chacha20_ietf_zeroizes_on_drop() {
+    let mut chacha20: ChaCha20<CHACHA20_NONCE_SIZE> = ChaCha20::default();
+
+    chacha20.unzeroize();
+    assert!(!chacha20.is_zeroized());
+
+    chacha20.assert_zeroize_on_drop();
+}
+
+#[test]
+fn test_hchacha20_is_zeroizable() {
+    let mut hchacha20 = HChaCha20::default();
+
+    hchacha20.unzeroize();
+    assert!(!hchacha20.is_zeroized());
+
+    hchacha20.fast_zeroize();
     assert!(hchacha20.is_zeroized());
+}
+
+#[test]
+fn test_hchacha20_zeroizes_on_drop() {
+    let mut hchacha20 = HChaCha20::default();
+
+    hchacha20.unzeroize();
+    assert!(!hchacha20.is_zeroized());
+
     hchacha20.assert_zeroize_on_drop();
 }
 
 #[test]
-fn test_xchacha20_zeroization_on_drop() {
-    let xchacha20 = XChaCha20::default();
+fn test_xchacha20_is_zeroizable() {
+    let mut xchacha20 = XChaCha20::default();
 
+    xchacha20.unzeroize();
+    assert!(!xchacha20.is_zeroized());
+
+    xchacha20.fast_zeroize();
     assert!(xchacha20.is_zeroized());
+}
+
+#[test]
+fn test_xchacha20_zeroizes_on_drop() {
+    let mut xchacha20 = XChaCha20::default();
+
+    xchacha20.unzeroize();
+    assert!(!xchacha20.is_zeroized());
+
     xchacha20.assert_zeroize_on_drop();
 }
 
@@ -94,14 +156,6 @@ fn test_chacha20_ietf_encrypt() {
 //     https://cr.yp.to/chacha/chacha-20080128.pdf
 // [3] OpenSSH chacha20-poly1305 worked example
 //     https://github.com/rus-cert/ssh-chacha20-poly1305-drafts
-
-#[test]
-fn test_chacha20_bernstein_zeroization_on_drop() {
-    let chacha20: ChaCha20<CHACHA20_BERNSTEIN_NONCE_SIZE> = ChaCha20::default();
-
-    assert!(chacha20.is_zeroized());
-    chacha20.assert_zeroize_on_drop();
-}
 
 /// draft-agl-tls-chacha20poly1305-04 — Test Vectors 1-4
 #[test]

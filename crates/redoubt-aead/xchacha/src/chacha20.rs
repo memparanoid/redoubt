@@ -88,6 +88,13 @@ impl<const NONCE_SIZE: usize> Default for ChaCha20<NONCE_SIZE> {
     }
 }
 
+#[cfg(test)]
+impl<const NONCE_SIZE: usize> ChaCha20<NONCE_SIZE> {
+    pub(crate) fn unzeroize(&mut self) {
+        self.le_bytes_tmp = [1, 2, 3, 4];
+    }
+}
+
 impl<const NONCE_SIZE: usize> ChaCha20<NONCE_SIZE> {
     #[inline(always)]
     fn quarter_round(&mut self, a: usize, b: usize, c: usize, d: usize) {
@@ -153,12 +160,7 @@ impl<const NONCE_SIZE: usize> ChaCha20<NONCE_SIZE> {
             u32_from_le(&mut self.initial[4 + i], &mut self.le_bytes_tmp);
         }
 
-        setup_counter_and_nonce(
-            &mut self.initial,
-            &mut self.le_bytes_tmp,
-            nonce,
-            counter,
-        );
+        setup_counter_and_nonce(&mut self.initial, &mut self.le_bytes_tmp, nonce, counter);
     }
 
     #[inline(always)]
@@ -251,6 +253,13 @@ pub struct HChaCha20 {
     qr_c: u32,
     qr_d: u32,
     __sentinel: ZeroizeOnDropSentinel,
+}
+
+#[cfg(test)]
+impl HChaCha20 {
+    pub(crate) fn unzeroize(&mut self) {
+        self.le_bytes_tmp = [1, 2, 3, 4];
+    }
 }
 
 impl HChaCha20 {
@@ -381,6 +390,13 @@ pub struct XChaCha20 {
     hchacha: HChaCha20,
     chacha: ChaCha20<CHACHA20_NONCE_SIZE>,
     __sentinel: ZeroizeOnDropSentinel,
+}
+
+#[cfg(test)]
+impl XChaCha20 {
+    pub(crate) fn unzeroize(&mut self) {
+        self.nonce.fill(1u8);
+    }
 }
 
 impl Default for XChaCha20 {

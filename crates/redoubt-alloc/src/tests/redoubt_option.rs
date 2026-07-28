@@ -2,12 +2,41 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+
 use crate::{RedoubtOption, RedoubtOptionError};
-use redoubt_zero::ZeroizationProbe;
+
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
+
+#[test]
+fn test_redoubt_option_is_zeroizable() {
+    let mut opt = RedoubtOption::<u64>::default();
+    let mut value = 42u64;
+    opt.replace(&mut value);
+
+    assert!(!opt.is_zeroized());
+
+    opt.fast_zeroize();
+    assert!(opt.is_zeroized());
+}
+
+#[test]
+fn test_redoubt_option_zeroizes_on_drop() {
+    let mut opt = RedoubtOption::<u64>::default();
+    let mut value = 42u64;
+
+    opt.replace(&mut value);
+    assert!(!opt.is_zeroized());
+
+    opt.assert_zeroize_on_drop();
+}
 
 #[test]
 fn test_redoubt_option_is_none_by_default() {
     let opt = RedoubtOption::<u64>::default();
+
     assert!(opt.is_none());
     assert!(!opt.is_some());
 }
@@ -16,6 +45,7 @@ fn test_redoubt_option_is_none_by_default() {
 fn test_redoubt_option_as_ref_empty() {
     let opt = RedoubtOption::<u64>::default();
     let result = opt.as_ref();
+
     assert!(result.is_err());
     assert!(matches!(result, Err(RedoubtOptionError::Empty)));
 }
@@ -24,6 +54,7 @@ fn test_redoubt_option_as_ref_empty() {
 fn test_redoubt_option_as_mut_empty() {
     let mut opt = RedoubtOption::<u64>::default();
     let result = opt.as_mut();
+
     assert!(result.is_err());
     assert!(matches!(result, Err(RedoubtOptionError::Empty)));
 }
@@ -62,6 +93,7 @@ fn test_redoubt_option_take_some() {
     opt.replace(&mut value);
 
     let taken = opt.take();
+
     assert!(taken.is_ok());
     assert_eq!(taken.expect("Failed to take"), 42);
     assert!(opt.is_none());
@@ -71,6 +103,7 @@ fn test_redoubt_option_take_some() {
 fn test_redoubt_option_take_none() {
     let mut opt = RedoubtOption::<u64>::default();
     let taken = opt.take();
+
     assert!(taken.is_err());
     assert!(matches!(taken, Err(RedoubtOptionError::Empty)));
     assert!(opt.is_none());
@@ -101,6 +134,7 @@ fn test_redoubt_option_as_option() {
     opt.replace(&mut value);
 
     let inner = opt.as_option();
+
     assert!(inner.is_some());
     assert_eq!(*inner.as_ref().expect("Failed to get inner"), 42);
 }

@@ -12,8 +12,8 @@ use redoubt_rand::{
 use redoubt_util::{constant_time_eq, u64_to_le};
 use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
 
-use redoubt_aead_core::AeadError;
 use redoubt_aead_core::AeadBackend;
+use redoubt_aead_core::AeadError;
 
 use super::chacha20::XChaCha20;
 use super::consts::{KEY_SIZE, TAG_SIZE, XNONCE_SIZE};
@@ -32,6 +32,13 @@ pub struct XChacha20Poly1305<E: EntropySource> {
     #[fast_zeroize(skip)]
     nonce_gen: NonceSessionGenerator<E, XNONCE_SIZE>,
     __sentinel: ZeroizeOnDropSentinel,
+}
+
+#[cfg(test)]
+impl<E: EntropySource> XChacha20Poly1305<E> {
+    pub(crate) fn unzeroize(&mut self) {
+        self.len_block.fill(1u8);
+    }
 }
 
 impl<E: EntropySource> XChacha20Poly1305<E> {

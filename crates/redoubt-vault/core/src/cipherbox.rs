@@ -67,6 +67,11 @@ where
     A: AeadApi,
 {
     #[cfg(test)]
+    pub(crate) fn unzeroize(&mut self) {
+        self.pristine = true;
+    }
+
+    #[cfg(test)]
     pub(crate) fn __unsafe_change_api_key_size(&mut self, key_size: usize) {
         self.key_size = key_size;
     }

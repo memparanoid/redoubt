@@ -4,19 +4,12 @@
 
 use crate::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe, ZeroizingGuard};
 
-#[test]
-fn test_zeroizing_guard_from_default() {
-    let guard: ZeroizingGuard<u64> = ZeroizingGuard::from_default();
-
-    // Default value should be zeroized
-    assert!(guard.is_zeroized());
-    assert_eq!(*guard, 0);
-
-    guard.assert_zeroize_on_drop();
-}
+// ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ ZEROIZATION                                                                ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
 
 #[test]
-fn test_zeroizing_guard_source_zeroized() {
+fn test_zeroizing_guard_zeroizes_source() {
     let mut value = 0xDEADBEEFu64;
     let guard = ZeroizingGuard::from_mut(&mut value);
 
@@ -26,6 +19,29 @@ fn test_zeroizing_guard_source_zeroized() {
 
     // Guard has the original value
     assert_eq!(*guard, 0xDEADBEEF);
+    assert!(!guard.is_zeroized());
+}
+
+#[test]
+fn test_zeroizing_guard_is_zeroizable() {
+    let mut value = 0xDEADBEEFu64;
+    let mut guard = ZeroizingGuard::from_mut(&mut value);
+
+    assert!(!guard.is_zeroized());
+
+    guard.fast_zeroize();
+    assert!(guard.is_zeroized());
+}
+
+#[test]
+fn test_zeroizing_guard_from_default() {
+    let guard: ZeroizingGuard<u64> = ZeroizingGuard::from_default();
+
+    // Default value should be zeroized
+    assert!(guard.is_zeroized());
+    assert_eq!(*guard, 0);
+
+    guard.assert_zeroize_on_drop();
 }
 
 #[test]
