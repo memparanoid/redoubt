@@ -21,6 +21,8 @@ use alloc::vec::Vec;
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 use redoubt_aead_core::{AeadApi, AeadError, EntropyError};
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+use redoubt_zero::FastZeroizable;
 
 /// Key size: 128 bits (16 bytes).
 pub const KEY_SIZE: usize = 16;
@@ -115,6 +117,8 @@ impl AeadApi for Aegis128LX86Backend {
         if redoubt_util::constant_time_eq(&computed_tag, tag) {
             Ok(())
         } else {
+            data.fast_zeroize();
+
             Err(AeadError::AuthenticationFailed)
         }
     }

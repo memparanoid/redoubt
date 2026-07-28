@@ -139,6 +139,7 @@ where
             data.fast_zeroize();
             self.poly_key.fast_zeroize();
             self.expected_tag.fast_zeroize();
+
             return Err(AeadError::AuthenticationFailed);
         }
 

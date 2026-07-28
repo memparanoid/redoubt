@@ -238,6 +238,29 @@ fn test_api_decrypt_xchacha_reports_authentication_failed() {
     assert!(matches!(result, Err(AeadError::AuthenticationFailed)));
 }
 
+/// An authentication failure must not release anything through the caller's
+/// buffer: no unverified plaintext, and no ciphertext either. The contract is
+/// that `data` comes back fully zeroized alongside the error.
+#[test]
+fn test_api_decrypt_xchacha_zeroizes_data_on_auth_failure() {
+    let mut aead = Aead::with_xchacha20poly1305();
+    let key = [0x42u8; 32];
+    let nonce = [0x24u8; 24];
+
+    let mut data = *b"attack at dawn!!";
+    let mut tag = [0u8; 16];
+    aead.api_encrypt(&key, &nonce, &[], &mut data, &mut tag)
+        .expect("Failed to api_encrypt(..)");
+
+    // Tamper with the tag so verification fails.
+    tag[0] ^= 0x01;
+
+    let result = aead.api_decrypt(&key, &nonce, &[], &mut data, &tag);
+
+    assert!(matches!(result, Err(AeadError::AuthenticationFailed)));
+    assert!(data.iter().all(|&b| b == 0));
+}
+
 /// draft-irtf-cfrg-xchacha Appendix A.1
 #[test]
 fn test_api_decrypt_xchacha_succeeds() {
@@ -457,6 +480,33 @@ fn test_api_decrypt_aegis_reports_invalid_tag_size() {
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AeadError::InvalidTagSize)));
+}
+
+#[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
+#[test]
+#[cfg_attr(
+    miri,
+    ignore = "calls into hand-written AEGIS assembly; Miri interprets MIR and cannot execute FFI"
+)]
+fn test_api_decrypt_aegis_zeroizes_data_on_auth_failure() {
+    let mut aead = Aead::with_aegis128l();
+    let key = [0x42u8; 16];
+    let nonce = [0x24u8; 16];
+
+    let mut data = *b"attack at dawn!!";
+    let mut tag = [0u8; 16];
+    aead.api_encrypt(&key, &nonce, &[], &mut data, &mut tag)
+        .expect("Failed to api_encrypt(..)");
+
+    // Tamper with the tag so verification fails. AEGIS decrypts in place
+    // before it can verify, so on failure the buffer holds unverified
+    // plaintext — the contract is that it must come back fully zeroized.
+    tag[0] ^= 0x01;
+
+    let result = aead.api_decrypt(&key, &nonce, &[], &mut data, &tag);
+
+    assert!(matches!(result, Err(AeadError::AuthenticationFailed)));
+    assert!(data.iter().all(|&b| b == 0));
 }
 
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
