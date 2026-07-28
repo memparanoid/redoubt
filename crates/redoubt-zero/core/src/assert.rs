@@ -13,20 +13,20 @@ use super::traits::AssertZeroizeOnDrop;
 ///
 /// # Panics
 ///
-/// Panics if the value's `.zeroize()` method was not called during drop.
+/// Panics if the value arrives already marked as zeroized — a pristine value
+/// proves nothing, since dropping it passes regardless of what `Drop` does —
+/// or if the value's `.zeroize()` method was not called during drop.
 ///
 /// # How It Works
 ///
 /// 1. Clones the value's [`ZeroizeOnDropSentinel`](crate::ZeroizeOnDropSentinel)
-/// 2. Resets the sentinel to "not zeroized" state
+/// 2. Asserts the value arrives non-pristine (not yet marked as zeroized)
 /// 3. Drops the value
 /// 4. Asserts the sentinel was marked as zeroized
 ///
 /// Typically used in tests for types that implement [`AssertZeroizeOnDrop`].
 pub fn assert_zeroize_on_drop<T: AssertZeroizeOnDrop>(value: T) {
-    let mut sentinel = value.clone_sentinel();
-
-    sentinel.reset();
+    let sentinel = value.clone_sentinel();
 
     assert!(!sentinel.is_zeroized());
     drop(value);

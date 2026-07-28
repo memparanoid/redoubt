@@ -126,7 +126,7 @@ impl<'a> Drop for FunctionalStruct<'a> {
 }
 
 #[test]
-fn test_functionl_struct() {
+fn test_functional_struct_is_zeroizable() {
     let mut foo = Foo::default();
 
     // Assert (not) zeroization! (Foo is not zeroized by default)
@@ -141,6 +141,14 @@ fn test_functionl_struct() {
 
     // Assert zeroization!
     assert!(fs.is_zeroized());
+}
+
+#[test]
+fn test_functional_struct_zeroizes_on_drop() {
+    let mut foo = Foo::default();
+    let fs = FunctionalStruct::new(&mut foo);
+
+    assert!(!fs.is_zeroized());
 
     fs.assert_zeroize_on_drop();
 }

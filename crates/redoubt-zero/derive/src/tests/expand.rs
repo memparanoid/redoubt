@@ -360,6 +360,49 @@ fn snapshot_tuple_struct_with_multiple_memzer_attrs() {
 }
 
 // === === === === === === === === === ===
+// Fence guarantee
+// === === === === === === === === === ===
+
+/// The expansion itself contains no `compiler_fence` — the ordering guarantee
+/// lives in `zeroize_collection` (collections.rs), which fences after every
+/// element, and in the volatile writes of the primitives below it. This test
+/// pins that contract: every generated `fast_zeroize` must route through
+/// `zeroize_collection` with the sentinel included in the field array, and
+/// must never wipe fields directly. If a refactor of the derive ever emits
+/// direct wipes, the fence chain silently breaks — this is the tripwire.
+#[test]
+fn test_fast_zeroize_routes_through_zeroize_collection() {
+    let derive_input = parse_quote! {
+        #[derive(RedoubtZero)]
+        #[fast_zeroize(drop)]
+        struct Omega {
+            pub alpha: Vec<u8>,
+            pub beta: [u8; 32],
+            __sentinel: ZeroizeOnDropSentinel,
+        }
+    };
+
+    let expanded = pretty(expand(derive_input).expect("expand failed"));
+
+    // prettyplease wraps long calls across lines; flatten before matching.
+    let flat: String = expanded.split_whitespace().collect();
+
+    // The one path that carries the fence.
+    assert!(flat.contains("zeroize_collection"));
+
+    // The sentinel goes through it too — wiping the sentinel IS marking it.
+    assert!(flat.contains("to_fast_zeroizable_dyn_mut(&mutself.__sentinel"));
+
+    // The probe excludes the sentinel: it asks about data, not the mechanism.
+    assert!(!flat.contains("to_zeroization_probe_dyn_ref(&self.__sentinel"));
+
+    // No direct wipes and no inline fences — the guarantee is centralized in
+    // the helper, not copy-pasted into every expansion.
+    assert!(!flat.contains("write_volatile"));
+    assert!(!flat.contains("compiler_fence"));
+}
+
+// === === === === === === === === === ===
 // Error cases
 // === === === === === === === === === ===
 
@@ -413,6 +456,47 @@ fn snapshot_enum_fails() {
 
     let result = expand(derive_input);
     assert!(result.is_err());
+}
+
+#[test]
+fn snapshot_named_struct_skip_on_sentinel_fails() {
+    // A skipped sentinel is never marked, so the drop assertion becomes
+    // impossible while the struct still appears covered. The derive must
+    // reject the combination instead of leaving the rule to documentation.
+    let derive_input = parse_quote! {
+        #[derive(RedoubtZero)]
+        struct Omicron {
+            pub alpha: Vec<u8>,
+            #[fast_zeroize(skip)]
+            __sentinel: ZeroizeOnDropSentinel,
+        }
+    };
+
+    let result = expand(derive_input);
+    assert!(result.is_err());
+
+    let err_str = format!("{}", result.unwrap_err());
+    assert!(err_str.contains("sentinel"));
+    assert!(err_str.contains("skip"));
+}
+
+#[test]
+fn snapshot_tuple_struct_skip_on_sentinel_fails() {
+    let derive_input = parse_quote! {
+        #[derive(RedoubtZero)]
+        struct Ypsilon(
+            Vec<u8>,
+            #[fast_zeroize(skip)]
+            ZeroizeOnDropSentinel,
+        );
+    };
+
+    let result = expand(derive_input);
+    assert!(result.is_err());
+
+    let err_str = format!("{}", result.unwrap_err());
+    assert!(err_str.contains("sentinel"));
+    assert!(err_str.contains("skip"));
 }
 
 #[test]

@@ -271,6 +271,21 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
 
     for (i, f) in &all_fields {
         if Some(*i) == sentinel_idx {
+            // A skipped field never reaches zeroize_collection, so a skipped
+            // sentinel is never marked: zeroization on drop becomes
+            // unverifiable while the struct still appears covered. Reject at
+            // compile time instead of leaving the rule to documentation.
+            if has_fast_zeroize_skip(&f.attrs) {
+                return Err(syn::Error::new_spanned(
+                    &f.ty,
+                    "`#[fast_zeroize(skip)]` cannot be applied to a sentinel field. \
+                     A skipped sentinel is never marked as zeroized, so \
+                     `assert_zeroize_on_drop` can never pass while the struct still \
+                     appears covered. Remove the `skip` attribute from the sentinel.",
+                )
+                .to_compile_error());
+            }
+
             continue;
         }
 
