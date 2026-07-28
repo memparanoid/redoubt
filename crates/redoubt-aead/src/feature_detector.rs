@@ -33,6 +33,19 @@ impl FeatureDetector {
         target_arch = "aarch64"
     ))]
     pub fn platform_has_aes(&self) -> bool {
+        // Miri interprets MIR and cannot call into the linked AEGIS assembly,
+        // so under Miri the AEGIS backend is not merely slow — it is
+        // unreachable, and every test that constructs an `Aead` the ordinary
+        // way would abort on an unsupported operation.
+        //
+        // Reporting no AES support routes construction to XChaCha20-Poly1305,
+        // which is pure Rust with the `asm` feature off (its default) and
+        // therefore something Miri can actually check. That keeps the default
+        // path under scrutiny instead of skipping it; the tests that
+        // deliberately exercise AEGIS carry `#[cfg_attr(miri, ignore)]`.
+        #[cfg(miri)]
+        return false;
+
         #[cfg(any(
             target_arch = "x86_64",
             target_arch = "x86",

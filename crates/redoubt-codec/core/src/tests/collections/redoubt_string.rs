@@ -42,6 +42,17 @@ fn test_redoubt_string_codec_roundtrip() {
 
 #[test]
 fn stress_test_redoubt_string_clear_push_encode_decode_cycles() {
+    // The loop runs SIZE+1 cycles and each one builds a payload of length i,
+    // so the work is quadratic: ~500k formatted characters plus an encode and a
+    // decode of every intermediate size. Compiled that is a second; interpreted
+    // by Miri it does not finish.
+    //
+    // What the cycle proves — that clear/push/encode/decode round-trips at
+    // every length and leaves nothing behind — holds at twenty sizes as well as
+    // at a thousand. The full sweep still runs under `cargo test`.
+    #[cfg(miri)]
+    const SIZE: usize = 20;
+    #[cfg(not(miri))]
     const SIZE: usize = 1000;
     let mut redoubt_string = RedoubtString::new();
 

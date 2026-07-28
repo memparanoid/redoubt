@@ -46,6 +46,46 @@ where
         return;
     }
     let mut indices: Vec<usize> = (0..len).collect();
+
+    // Under Miri the callback is sampled rather than run for every permutation.
+    //
+    // The callers clone a nested collection, encode it, clone again, decode and
+    // scan everything for zeroization — once per permutation. At `len == 6`
+    // that is 720 rounds of it, which compiles to milliseconds and interprets
+    // to hours, because Miri tracks borrow state for every allocation and every
+    // access.
+    //
+    // Sampling is defensible here in a way that skipping the tests would not
+    // be. Miri looks for undefined behaviour on a code path; the 720 orderings
+    // drive the same paths in different sequences, so the seventeenth ordering
+    // is very unlikely to reveal what the first sixteen did not. The exhaustive
+    // sweep still runs on every ordinary `cargo test`, where it costs nothing.
+    //
+    // The stride spreads the sample across the whole space instead of taking a
+    // prefix. That matters: Heap's algorithm holds the last elements fixed
+    // through the first (len-1)! permutations, so a prefix would never move an
+    // element into the final positions — exactly the case these tests are named
+    // after.
+    #[cfg(miri)]
+    {
+        const BUDGET: usize = 16;
+
+        let total = (1..=len).try_fold(1usize, |acc, n| acc.checked_mul(n));
+        let stride = total.map_or(1, |t| t.div_ceil(BUDGET)).max(1);
+
+        let mut seen = 0usize;
+        let mut sampled = |perm: &[usize]| {
+            if seen.is_multiple_of(stride) {
+                callback(perm);
+            }
+            seen += 1;
+        };
+
+        heap_permute(&mut indices, len, &mut sampled);
+        return;
+    }
+
+    #[cfg(not(miri))]
     heap_permute(&mut indices, len, &mut callback);
 }
 
@@ -94,6 +134,10 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg_attr(
+        miri,
+        ignore = "asserts the exhaustive count, which sampling under Miri deliberately breaks"
+    )]
     fn test_index_permutations_counts() {
         for (len, expected) in [(0, 0), (1, 1), (2, 2), (3, 6), (4, 24), (5, 120), (6, 720)] {
             let mut count = 0;

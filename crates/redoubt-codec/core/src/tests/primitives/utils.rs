@@ -299,6 +299,20 @@ where
     test_all_pairs_with(set, |a, b| a == b);
 }
 
+/// Consumers of this set are nested loops: `test_collection_varying_capacities`
+/// runs `for i in 0..len` and, inside it, `for j in 0..i * 2`, cloning,
+/// encoding, decoding and probing zeroization on every pass. At 250 that is
+/// ~62,000 inner rounds with payloads that grow with `i` — a second when
+/// compiled, and far beyond any usable budget under Miri, which tracks borrow
+/// state for every allocation and access.
+///
+/// Sixteen keeps the shape of the test: still varying capacities, still
+/// mismatched decode buffers, still the boundary cases at both ends. The full
+/// sweep runs on every ordinary `cargo test`.
+#[cfg(miri)]
+pub(crate) const EQUIDISTANT_SAMPLE_SIZE: usize = 16;
+
+#[cfg(not(miri))]
 pub(crate) const EQUIDISTANT_SAMPLE_SIZE: usize = 250;
 
 #[cfg(test)]

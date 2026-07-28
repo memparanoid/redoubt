@@ -13,6 +13,28 @@ use redoubt_util::hex_to_bytes;
 
 use redoubt_hkdf_core::HkdfApi;
 
+/// Iterates the vector corpus, sampled with a fixed stride under Miri.
+///
+/// Wycheproof vectors are not interchangeable: each targets a distinct edge —
+/// tags with arithmetic corner cases, empty AAD, boundary lengths — so taking a
+/// prefix would drop whole families. A stride lands across all of them.
+///
+/// Sampling is sound for what Miri is doing here. It looks for undefined
+/// behaviour on a code path, and the path is identical for vector 3 and vector
+/// 300; what changes between vectors is the arithmetic, which Miri does not
+/// check and `cargo test` verifies exhaustively in seconds. Running the full
+/// corpus under interpretation costs hours and adds nothing.
+fn corpus<T>(vectors: &[T]) -> impl Iterator<Item = &T> {
+    #[cfg(miri)]
+    let step = (vectors.len() / 16).max(1);
+
+    #[cfg(not(miri))]
+    let step = 1;
+
+    vectors.iter().step_by(step)
+}
+
+
 /// Wycheproof HKDF test case flags.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -115,7 +137,7 @@ pub fn run_hkdf_wycheproof_tests(backend: &mut impl HkdfApi) {
     let vectors = test_vectors();
     let mut failures = Vec::new();
 
-    for tc in vectors.iter() {
+    for tc in corpus(&vectors) {
         if let Err(msg) = run_test_case(backend, tc) {
             failures.push(msg);
         }

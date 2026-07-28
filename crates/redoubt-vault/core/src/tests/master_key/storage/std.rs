@@ -44,6 +44,7 @@ fn test_std_storage_open_propagates_callback_error() {
 }
 
 #[test]
+#[cfg_attr(miri, ignore = "spawns a subprocess; Miri cannot fork or exec")]
 fn test_std_storage_concurrent_access() {
     let exit_code = run_test_as_subprocess(
         "tests::master_key::storage::std::std_storage_subprocess_concurrent_access",
@@ -52,6 +53,7 @@ fn test_std_storage_concurrent_access() {
 }
 
 #[test]
+#[cfg_attr(miri, ignore = "spawns a subprocess; Miri cannot fork or exec")]
 fn test_std_storage_mutex_poisoned() {
     let exit_code = run_test_as_subprocess(
         "tests::master_key::storage::std::std_storage_subprocess_test_mutex_poisoned",

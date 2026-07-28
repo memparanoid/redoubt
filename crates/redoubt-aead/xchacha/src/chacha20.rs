@@ -91,18 +91,24 @@ impl<const NONCE_SIZE: usize> Default for ChaCha20<NONCE_SIZE> {
 impl<const NONCE_SIZE: usize> ChaCha20<NONCE_SIZE> {
     #[inline(always)]
     fn quarter_round(&mut self, a: usize, b: usize, c: usize, d: usize) {
-        #[cfg(target_arch = "x86_64")]
+        // `not(miri)`: Miri interprets MIR and cannot execute inline assembly.
+        // Without this the pure-Rust fallback below is unreachable on x86_64
+        // and aarch64, and every ChaCha20 path aborts under Miri instead of
+        // being checked. The two implementations are equivalent by
+        // construction, so what Miri validates here is the same arithmetic the
+        // assembly performs.
+        #[cfg(all(target_arch = "x86_64", not(miri)))]
         unsafe {
             super::asm::x86_64::quarter_round(&mut self.working, a, b, c, d);
         }
 
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(all(target_arch = "aarch64", not(miri)))]
         unsafe {
             super::asm::aarch64::quarter_round(&mut self.working, a, b, c, d);
         }
 
         // Full Rust implementation as fallback (uses struct temporaries for zeroization)
-        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+        #[cfg(any(miri, not(any(target_arch = "x86_64", target_arch = "aarch64"))))]
         {
             self.qr_a = self.working[a];
             self.qr_b = self.working[b];
@@ -250,18 +256,24 @@ pub struct HChaCha20 {
 impl HChaCha20 {
     #[inline(always)]
     fn quarter_round(&mut self, a: usize, b: usize, c: usize, d: usize) {
-        #[cfg(target_arch = "x86_64")]
+        // `not(miri)`: Miri interprets MIR and cannot execute inline assembly.
+        // Without this the pure-Rust fallback below is unreachable on x86_64
+        // and aarch64, and every ChaCha20 path aborts under Miri instead of
+        // being checked. The two implementations are equivalent by
+        // construction, so what Miri validates here is the same arithmetic the
+        // assembly performs.
+        #[cfg(all(target_arch = "x86_64", not(miri)))]
         unsafe {
             super::asm::x86_64::quarter_round(&mut self.state, a, b, c, d);
         }
 
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(all(target_arch = "aarch64", not(miri)))]
         unsafe {
             super::asm::aarch64::quarter_round(&mut self.state, a, b, c, d);
         }
 
         // Full Rust implementation as fallback (uses struct temporaries for zeroization)
-        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+        #[cfg(any(miri, not(any(target_arch = "x86_64", target_arch = "aarch64"))))]
         {
             self.qr_a = self.state[a];
             self.qr_b = self.state[b];

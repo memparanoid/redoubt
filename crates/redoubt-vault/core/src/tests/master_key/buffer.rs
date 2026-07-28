@@ -62,6 +62,7 @@ fn test_create_initialized_buffer_returns_correct_length() {
 
 #[cfg(target_os = "linux")]
 #[test]
+#[cfg_attr(miri, ignore = "spawns a subprocess; Miri cannot fork or exec")]
 fn test_create_buffer_falls_back_to_portable_on_protected_failure() {
     use crate::tests::utils::is_seccomp_available;
 
@@ -107,6 +108,7 @@ fn subprocess_create_buffer_falls_back_to_portable() {
 
 #[cfg(target_os = "linux")]
 #[test]
+#[cfg_attr(miri, ignore = "spawns a subprocess; Miri cannot fork or exec")]
 fn test_create_initialized_buffer_succeeds_when_guard_syscalls_blocked() {
     let exit_code = run_test_as_subprocess(
         "tests::master_key::buffer::subprocess_create_initialized_buffer_succeeds_when_guard_syscalls_blocked",
@@ -150,6 +152,7 @@ fn subprocess_create_initialized_buffer_succeeds_when_guard_syscalls_blocked() {
 
 #[cfg(target_os = "linux")]
 #[test]
+#[cfg_attr(miri, ignore = "spawns a subprocess; Miri cannot fork or exec")]
 fn test_create_initialized_buffer_panics_on_entropy_failure() {
     let exit_code = run_test_as_subprocess(
         "tests::master_key::buffer::subprocess_create_initialized_buffer_panics_on_entropy_failure",

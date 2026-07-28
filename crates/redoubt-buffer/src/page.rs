@@ -60,32 +60,54 @@ impl Page {
     }
 
     /// Locks page in RAM (prevents swapping to disk).
+    // Miri models `mmap` but not the operations that change a mapping's
+    // properties. `mlock`, `mprotect`, `madvise` and `munlock` all abort the
+    // interpreter as unsupported foreign calls, which puts every consumer of
+    // this crate — the vault, and therefore the whole cipherbox — out of
+    // Miri's reach.
+    //
+    // Reporting success without performing them keeps the pointer arithmetic,
+    // the slice construction and the zeroization under scrutiny, which is the
+    // part Miri can actually check. The syscalls themselves are the kernel's
+    // contract, not this crate's, and no interpreter was going to verify them.
     pub fn lock(&self) -> Result<(), PageError> {
-        let failed = unsafe { libc::mlock(self.ptr as *const _, self.capacity) } != 0;
+        #[cfg(miri)]
+        return Ok(());
 
-        if failed {
-            return Err(PageError::Lock);
+        #[cfg(not(miri))]
+        {
+            let failed = unsafe { libc::mlock(self.ptr as *const _, self.capacity) } != 0;
+
+            if failed {
+                return Err(PageError::Lock);
+            }
+
+            Ok(())
         }
-
-        Ok(())
     }
 
     /// Marks page as non-dumpable (excludes from core dumps).
     #[cfg(target_os = "linux")]
     pub fn mark_dontdump(&self) -> Result<(), PageError> {
-        let failed = unsafe {
-            libc::madvise(
-                self.ptr as *mut libc::c_void,
-                self.capacity,
-                libc::MADV_DONTDUMP,
-            )
-        } != 0;
+        #[cfg(miri)]
+        return Ok(());
 
-        if failed {
-            return Err(PageError::Madvise);
+        #[cfg(not(miri))]
+        {
+            let failed = unsafe {
+                libc::madvise(
+                    self.ptr as *mut libc::c_void,
+                    self.capacity,
+                    libc::MADV_DONTDUMP,
+                )
+            } != 0;
+
+            if failed {
+                return Err(PageError::Madvise);
+            }
+
+            Ok(())
         }
-
-        Ok(())
     }
 
     /// No-op on non-Linux platforms.
@@ -96,11 +118,14 @@ impl Page {
 
     /// Sets page to PROT_NONE (no read/write access).
     pub fn protect(&self) -> Result<(), PageError> {
-        let failed =
-            unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_NONE) } != 0;
+        #[cfg(not(miri))]
+        {
+            let failed =
+                unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_NONE) } != 0;
 
-        if failed {
-            return Err(PageError::Protect);
+            if failed {
+                return Err(PageError::Protect);
+            }
         }
 
         self.is_protected.store(true, Ordering::Release);
@@ -110,11 +135,14 @@ impl Page {
 
     /// Sets page to PROT_WRITE (allows write access).
     pub fn unprotect(&self) -> Result<(), PageError> {
-        let failed =
-            unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_WRITE) } != 0;
+        #[cfg(not(miri))]
+        {
+            let failed =
+                unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_WRITE) } != 0;
 
-        if failed {
-            return Err(PageError::Unprotect);
+            if failed {
+                return Err(PageError::Unprotect);
+            }
         }
 
         self.is_protected.store(false, Ordering::Release);
@@ -148,7 +176,10 @@ impl Page {
 
     /// Unlocks page (allows swapping). Called in Drop.
     pub fn munlock(&self) {
-        unsafe { libc::munlock(self.ptr as *const _, self.capacity) };
+        #[cfg(not(miri))]
+        unsafe {
+            libc::munlock(self.ptr as *const _, self.capacity)
+        };
     }
 
     pub fn dispose(&mut self) {

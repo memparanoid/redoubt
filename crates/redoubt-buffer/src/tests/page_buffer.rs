@@ -18,7 +18,23 @@ mod page_buffer_tests {
     // =============================================================================
 
     #[test]
-    #[serial(page_buffer)]
+    // `not(miri)`: `serial_test` keeps a process-global registry of reentrant
+    // mutexes, one per lock name, and never frees it — nine leaked allocations that
+    // are not ours and that would have to be silenced with `-Zmiri-ignore-leaks`.
+    // Turning leak detection off in *this* crate is the worst possible place for
+    // it: `redoubt-buffer` is the one doing raw `mmap`, so a leak here means a page
+    // holding secrets that was never unmapped.
+    //
+    // Dropping the serialization instead is sound, because what it serializes does
+    // not exist under Miri. The lock guards contention over process-wide resources
+    // — `RLIMIT_MEMLOCK`, shared by the 21 page buffers these tests instantiate,
+    // and the irreversible seccomp filters — and under Miri `mlock` is a no-op and
+    // the seccomp tests are ignored, since they need a subprocess.
+    //
+    // Note this attribute is already inert under `cargo nextest`, which runs one
+    // process per test: `serial_test`'s registry is per process, so there is
+    // nothing to contend with. It only does anything under `cargo test`.
+    #[cfg_attr(not(miri), serial(page_buffer))]
     fn test_new_mem_protected() {
         let buffer =
             PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
@@ -27,7 +43,7 @@ mod page_buffer_tests {
     }
 
     #[test]
-    #[serial(page_buffer)]
+    #[cfg_attr(not(miri), serial(page_buffer))]
     fn test_new_mem_non_protected() {
         let buffer =
             PageBuffer::new(ProtectionStrategy::MemNonProtected, 32).expect("Failed to new(..)");
@@ -41,7 +57,7 @@ mod page_buffer_tests {
     // See: Page::new() line 47 - branch coverage for ptr == libc::MAP_FAILED
     #[test]
     #[ignore] // Exhausts address space, run explicitly with --ignored
-    #[serial(page_buffer)]
+    #[cfg_attr(not(miri), serial(page_buffer))]
     #[cfg(target_os = "linux")]
     fn test_new_returns_creation_failed() {
         use crate::error::PageError;
@@ -85,7 +101,8 @@ mod page_buffer_tests {
         }
 
         #[test]
-        #[serial(page_buffer)]
+        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(not(miri), serial(page_buffer))]
         fn test_new_returns_lock_failed() {
             let exit_code = run_test_as_subprocess(
                 "tests::page_buffer::page_buffer_tests::seccomp_new::subprocess_test_new_returns_lock_failed",
@@ -108,7 +125,8 @@ mod page_buffer_tests {
         }
 
         #[test]
-        #[serial(page_buffer)]
+        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(not(miri), serial(page_buffer))]
         fn test_new_returns_protection_failed() {
             let exit_code = run_test_as_subprocess(
                 "tests::page_buffer::page_buffer_tests::seccomp_new::subprocess_test_new_returns_protection_failed",
@@ -131,7 +149,8 @@ mod page_buffer_tests {
         }
 
         #[test]
-        #[serial(page_buffer)]
+        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(not(miri), serial(page_buffer))]
         fn test_new_returns_madvise_failed() {
             let exit_code = run_test_as_subprocess(
                 "tests::page_buffer::page_buffer_tests::seccomp_new::subprocess_test_new_returns_madvise_failed",
@@ -149,7 +168,7 @@ mod page_buffer_tests {
     // =============================================================================
 
     #[test]
-    #[serial(page_buffer)]
+    #[cfg_attr(not(miri), serial(page_buffer))]
     fn test_open_reads_data() {
         let mut buffer =
             PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
@@ -170,7 +189,7 @@ mod page_buffer_tests {
     }
 
     #[test]
-    #[serial(page_buffer)]
+    #[cfg_attr(not(miri), serial(page_buffer))]
     fn test_open_mem_non_protected() {
         let mut buffer =
             PageBuffer::new(ProtectionStrategy::MemNonProtected, 32).expect("Failed to new(..)");
@@ -191,7 +210,7 @@ mod page_buffer_tests {
     }
 
     #[test]
-    #[serial(page_buffer)]
+    #[cfg_attr(not(miri), serial(page_buffer))]
     fn test_open_propagates_callback_error() {
         use crate::error::BufferError;
 
@@ -220,7 +239,8 @@ mod page_buffer_tests {
         }
 
         #[test]
-        #[serial(page_buffer)]
+        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(not(miri), serial(page_buffer))]
         fn test_open_aborts_on_unprotect_failure() {
             let exit_code = run_test_as_subprocess(
                 "tests::page_buffer::page_buffer_tests::seccomp_open::subprocess_test_open_aborts_on_unprotect_failure",
@@ -241,7 +261,8 @@ mod page_buffer_tests {
         }
 
         #[test]
-        #[serial(page_buffer)]
+        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(not(miri), serial(page_buffer))]
         fn test_open_aborts_on_protect_failure() {
             let exit_code = run_test_as_subprocess(
                 "tests::page_buffer::page_buffer_tests::seccomp_open::subprocess_test_open_aborts_on_protect_failure",
@@ -255,7 +276,7 @@ mod page_buffer_tests {
     // =============================================================================
 
     #[test]
-    #[serial(page_buffer)]
+    #[cfg_attr(not(miri), serial(page_buffer))]
     fn test_open_mut_writes_data() {
         let mut buffer =
             PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
@@ -276,7 +297,7 @@ mod page_buffer_tests {
     }
 
     #[test]
-    #[serial(page_buffer)]
+    #[cfg_attr(not(miri), serial(page_buffer))]
     fn test_open_mut_zeroize() {
         let mut buffer =
             PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
@@ -304,7 +325,7 @@ mod page_buffer_tests {
     }
 
     #[test]
-    #[serial(page_buffer)]
+    #[cfg_attr(not(miri), serial(page_buffer))]
     fn test_open_mut_propagates_callback_error() {
         use crate::error::BufferError;
 
@@ -333,7 +354,8 @@ mod page_buffer_tests {
         }
 
         #[test]
-        #[serial(page_buffer)]
+        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(not(miri), serial(page_buffer))]
         fn test_open_mut_aborts_on_unprotect_failure() {
             let exit_code = run_test_as_subprocess(
                 "tests::page_buffer::page_buffer_tests::seccomp_open_mut::subprocess_test_open_mut_aborts_on_unprotect_failure",
@@ -354,7 +376,8 @@ mod page_buffer_tests {
         }
 
         #[test]
-        #[serial(page_buffer)]
+        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(not(miri), serial(page_buffer))]
         fn test_open_mut_aborts_on_protect_failure() {
             let exit_code = run_test_as_subprocess(
                 "tests::page_buffer::page_buffer_tests::seccomp_open_mut::subprocess_test_open_mut_aborts_on_protect_failure",
@@ -368,7 +391,7 @@ mod page_buffer_tests {
     // =============================================================================
 
     #[test]
-    #[serial(page_buffer)]
+    #[cfg_attr(not(miri), serial(page_buffer))]
     fn test_len() {
         let buffer =
             PageBuffer::new(ProtectionStrategy::MemProtected, 64).expect("Failed to new(..)");
@@ -376,7 +399,7 @@ mod page_buffer_tests {
     }
 
     #[test]
-    #[serial(page_buffer)]
+    #[cfg_attr(not(miri), serial(page_buffer))]
     fn test_is_empty_false() {
         let buffer =
             PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
@@ -384,7 +407,7 @@ mod page_buffer_tests {
     }
 
     #[test]
-    #[serial(page_buffer)]
+    #[cfg_attr(not(miri), serial(page_buffer))]
     fn test_is_empty_true() {
         let buffer =
             PageBuffer::new(ProtectionStrategy::MemProtected, 0).expect("Failed to new(..)");
@@ -396,7 +419,7 @@ mod page_buffer_tests {
     // =============================================================================
 
     #[test]
-    #[serial(page_buffer)]
+    #[cfg_attr(not(miri), serial(page_buffer))]
     fn test_dispose() {
         let mut buffer =
             PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
@@ -416,7 +439,7 @@ mod page_buffer_tests {
     // =============================================================================
 
     #[test]
-    #[serial(page_buffer)]
+    #[cfg_attr(not(miri), serial(page_buffer))]
     fn test_page_buffer_debug_does_not_expose_contents() {
         let buffer =
             PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");

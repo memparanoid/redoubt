@@ -413,7 +413,17 @@ fn perm_test_encode_decode_roundtrip() {
 
 #[test]
 fn test_vec_with_varying_capacities() {
-    let set: Vec<_> = (0..250)
+    // `test_collection_varying_capacities` is doubly nested — `for i in 0..len`
+    // and, inside it, `for j in 0..i * 2` — so the cost is quadratic in this
+    // count, with a clone, an encode, a decode and a zeroization probe on every
+    // pass. The other callers take this from `EQUIDISTANT_SAMPLE_SIZE`, which
+    // is already gated; this one had it inline, so it needs its own.
+    #[cfg(miri)]
+    const COUNT: usize = 16;
+    #[cfg(not(miri))]
+    const COUNT: usize = 250;
+
+    let set: Vec<_> = (0..COUNT)
         .map(|i| RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i))
         .collect();
 
@@ -480,14 +490,27 @@ fn test_vec_prealloc_zeroizes_existing_elements() {
 fn test_vec_prealloc_zeroizes_large_vec() {
     use crate::collections::vec::vec_prealloc;
 
-    // Force multiple reallocations with many elements
-    let mut vec: Vec<RedoubtCodecTestBreaker> = (0..10_000)
+    // Force multiple reallocations with many elements.
+    //
+    // A `Vec` grows by doubling, so the number of reallocations is logarithmic:
+    // 512 elements already means nine of them, and 10,000 means fourteen. The
+    // property being tested — that shrinking through `vec_prealloc` zeroizes
+    // everything it drops, across several reallocations — is reached at either
+    // count. What is not reachable at 10,000 is Miri, which interprets every
+    // construction, drop and zeroizing write, so the full count still runs
+    // under `cargo test`.
+    #[cfg(miri)]
+    const COUNT: usize = 512;
+    #[cfg(not(miri))]
+    const COUNT: usize = 10_000;
+
+    let mut vec: Vec<RedoubtCodecTestBreaker> = (0..COUNT)
         .map(|i| RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i))
         .collect();
 
-    vec_prealloc(&mut vec, 5_000, false);
+    vec_prealloc(&mut vec, COUNT / 2, false);
 
-    assert_eq!(vec.len(), 5_000);
+    assert_eq!(vec.len(), COUNT / 2);
     assert!(vec.is_zeroized(), "Large vec should be fully zeroized");
 }
 
@@ -521,6 +544,17 @@ fn test_vec_prealloc_grows() {
 // Stress tests
 #[test]
 fn stress_test_vec_clear_push_encode_decode_cycles() {
+    // The loop runs SIZE+1 cycles and each one builds a payload of length i,
+    // so the work is quadratic: ~500k formatted characters plus an encode and a
+    // decode of every intermediate size. Compiled that is a second; interpreted
+    // by Miri it does not finish.
+    //
+    // What the cycle proves — that clear/push/encode/decode round-trips at
+    // every length and leaves nothing behind — holds at twenty sizes as well as
+    // at a thousand. The full sweep still runs under `cargo test`.
+    #[cfg(miri)]
+    const SIZE: usize = 20;
+    #[cfg(not(miri))]
     const SIZE: usize = 1000;
 
     let original: Vec<RedoubtCodecTestBreaker> = (0..SIZE)

@@ -35,6 +35,7 @@ fn test_portable_storage_open_returns_same_bytes_on_subsequent_calls() {
 }
 
 #[test]
+#[cfg_attr(miri, ignore = "spawns a subprocess; Miri cannot fork or exec")]
 fn test_portable_storage_concurrent_access() {
     let exit_code = run_test_as_subprocess(
         "tests::master_key::storage::portable::portable_storage_subprocess_concurrent_access",

@@ -9,6 +9,28 @@ use redoubt_aead_core::AeadBackend;
 use crate::aead::XChacha20Poly1305;
 use crate::consts::*;
 
+/// Iterates the vector corpus, sampled with a fixed stride under Miri.
+///
+/// Wycheproof vectors are not interchangeable: each targets a distinct edge —
+/// tags with arithmetic corner cases, empty AAD, boundary lengths — so taking a
+/// prefix would drop whole families. A stride lands across all of them.
+///
+/// Sampling is sound for what Miri is doing here. It looks for undefined
+/// behaviour on a code path, and the path is identical for vector 3 and vector
+/// 300; what changes between vectors is the arithmetic, which Miri does not
+/// check and `cargo test` verifies exhaustively in seconds. Running the full
+/// corpus under interpretation costs hours and adds nothing.
+fn corpus<T>(vectors: &[T]) -> impl Iterator<Item = &T> {
+    #[cfg(miri)]
+    let step = (vectors.len() / 16).max(1);
+
+    #[cfg(not(miri))]
+    let step = 1;
+
+    vectors.iter().step_by(step)
+}
+
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Flag {
@@ -201,7 +223,7 @@ fn test_xchacha20poly1305_wycheproof_all() {
     let vectors = test_vectors();
     let mut failures = Vec::new();
 
-    for tc in vectors.iter() {
+    for tc in corpus(&vectors) {
         if let Err(msg) = run_test_case(tc) {
             failures.push(msg);
         }
@@ -226,7 +248,7 @@ fn test_xchacha20poly1305_wycheproof_valid_with_flipped_tag() {
     let vectors = test_vectors();
     let mut failures = Vec::new();
 
-    for tc in vectors.iter() {
+    for tc in corpus(&vectors) {
         // Only test valid cases
         if !matches!(tc.result, TestResult::Valid) {
             continue;
@@ -281,7 +303,7 @@ fn test_xchacha20poly1305_wycheproof_roundtrip() {
     let vectors = test_vectors();
     let mut failures = Vec::new();
 
-    for tc in vectors.iter() {
+    for tc in corpus(&vectors) {
         if !matches!(tc.result, TestResult::Valid) {
             continue;
         }

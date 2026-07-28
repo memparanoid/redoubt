@@ -19,7 +19,23 @@ mod page_tests {
     // =============================================================================
 
     #[test]
-    #[serial(page)]
+    // `not(miri)`: `serial_test` keeps a process-global registry of reentrant
+    // mutexes, one per lock name, and never frees it — nine leaked allocations that
+    // are not ours and that would have to be silenced with `-Zmiri-ignore-leaks`.
+    // Turning leak detection off in *this* crate is the worst possible place for
+    // it: `redoubt-buffer` is the one doing raw `mmap`, so a leak here means a page
+    // holding secrets that was never unmapped.
+    //
+    // Dropping the serialization instead is sound, because what it serializes does
+    // not exist under Miri. The lock guards contention over process-wide resources
+    // — `RLIMIT_MEMLOCK`, shared by the 21 page buffers these tests instantiate,
+    // and the irreversible seccomp filters — and under Miri `mlock` is a no-op and
+    // the seccomp tests are ignored, since they need a subprocess.
+    //
+    // Note this attribute is already inert under `cargo nextest`, which runs one
+    // process per test: `serial_test`'s registry is per process, so there is
+    // nothing to contend with. It only does anything under `cargo test`.
+    #[cfg_attr(not(miri), serial(page))]
     fn test_new_page_is_zeroized() {
         let page = Page::new().expect("Failed to new()");
         let slice = unsafe { page.as_slice() };
@@ -28,7 +44,7 @@ mod page_tests {
     }
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     #[cfg(unix)]
     fn test_slice_len_matches_page_size() {
         let page = Page::new().expect("Failed to new()");
@@ -44,7 +60,7 @@ mod page_tests {
     // See: Page::new() line 47 - branch coverage for ptr == libc::MAP_FAILED
     #[test]
     #[ignore] // Exhausts address space, run explicitly with --ignored
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     #[cfg(target_os = "linux")]
     fn test_new_fails_when_address_space_exhausted() {
         let mut original = libc::rlimit {
@@ -72,14 +88,14 @@ mod page_tests {
     // =============================================================================
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_lock_succeeds() {
         let page = Page::new().expect("Failed to new()");
         page.lock().expect("Failed to lock()");
     }
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_lock_then_munlock() {
         let page = Page::new().expect("Failed to new()");
 
@@ -88,7 +104,7 @@ mod page_tests {
     }
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_lock_multiple_times_succeeds() {
         let page = Page::new().expect("Failed to new()");
 
@@ -97,7 +113,7 @@ mod page_tests {
     }
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_munlock_without_lock_succeeds() {
         let page = Page::new().expect("Failed to new()");
 
@@ -123,7 +139,8 @@ mod page_tests {
         }
 
         #[test]
-        #[serial(page)]
+        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(not(miri), serial(page))]
         fn test_lock_fails_when_mlock_blocked() {
             let exit_code = run_test_as_subprocess(
                 "tests::page::page_tests::seccomp_lock::subprocess_test_lock_fails_when_mlock_blocked",
@@ -143,7 +160,7 @@ mod page_tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_mark_dontdump_succeeds() {
         let page = Page::new().expect("Failed to new()");
 
@@ -152,7 +169,7 @@ mod page_tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_mark_dontdump_multiple_times_succeeds() {
         let page = Page::new().expect("Failed to new()");
 
@@ -179,7 +196,8 @@ mod page_tests {
         }
 
         #[test]
-        #[serial(page)]
+        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(not(miri), serial(page))]
         fn test_mark_dontdump_fails_when_madvise_blocked() {
             let exit_code = run_test_as_subprocess(
                 "tests::page::page_tests::seccomp_mark_dontdump::subprocess_test_mark_dontdump_fails_when_madvise_blocked",
@@ -198,7 +216,7 @@ mod page_tests {
     // =============================================================================
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_protect_succeeds() {
         let page = Page::new().expect("Failed to new()");
 
@@ -206,7 +224,7 @@ mod page_tests {
     }
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_protect_then_unprotect() {
         let page = Page::new().expect("Failed to new()");
 
@@ -215,7 +233,7 @@ mod page_tests {
     }
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_protect_unprotect_roundtrip_preserves_data() {
         let mut page = Page::new().expect("Failed to new()");
 
@@ -229,7 +247,7 @@ mod page_tests {
     }
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_multiple_protect_unprotect_cycles() {
         let mut page = Page::new().expect("Failed to new()");
 
@@ -264,7 +282,8 @@ mod page_tests {
         }
 
         #[test]
-        #[serial(page)]
+        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(not(miri), serial(page))]
         fn test_protect_fails_when_mprotect_blocked() {
             let exit_code = run_test_as_subprocess(
                 "tests::page::page_tests::seccomp_protect::subprocess_test_protect_fails_when_mprotect_blocked",
@@ -300,7 +319,8 @@ mod page_tests {
         }
 
         #[test]
-        #[serial(page)]
+        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(not(miri), serial(page))]
         fn test_protect_failure_zeroizes_page() {
             let exit_code = run_test_as_subprocess(
                 "tests::page::page_tests::seccomp_protect::subprocess_test_protect_failure_zeroizes_page",
@@ -319,7 +339,7 @@ mod page_tests {
     // =============================================================================
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_unprotect_on_unprotected_page_succeeds() {
         let page = Page::new().expect("Failed to new()");
 
@@ -327,7 +347,7 @@ mod page_tests {
     }
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_unprotect_allows_write() {
         let mut page = Page::new().expect("Failed to new()");
 
@@ -358,7 +378,8 @@ mod page_tests {
         }
 
         #[test]
-        #[serial(page)]
+        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(not(miri), serial(page))]
         fn test_unprotect_fails_when_mprotect_blocked() {
             let exit_code = run_test_as_subprocess(
                 "tests::page::page_tests::seccomp_unprotect::subprocess_test_unprotect_fails_when_mprotect_blocked",
@@ -377,7 +398,7 @@ mod page_tests {
     // =============================================================================
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_as_mut_slice_allows_writes() {
         let mut page = Page::new().expect("Failed to new()");
 
@@ -394,7 +415,7 @@ mod page_tests {
     }
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_write_read_full_page() {
         let mut page = Page::new().expect("Failed to new()");
 
@@ -409,7 +430,7 @@ mod page_tests {
     // =============================================================================
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_zeroize_clears_all_data() {
         let mut page = Page::new().expect("Failed to new()");
 
@@ -421,7 +442,7 @@ mod page_tests {
     }
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_zeroize_after_partial_write() {
         let mut page = Page::new().expect("Failed to new()");
 
@@ -442,7 +463,7 @@ mod page_tests {
     // =============================================================================
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_dispose_on_unprotected_page() {
         let mut page = Page::new().expect("Failed to new()");
 
@@ -452,7 +473,7 @@ mod page_tests {
     }
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_dispose_on_protected_page() {
         let mut page = Page::new().expect("Failed to new()");
 
@@ -482,7 +503,8 @@ mod page_tests {
         }
 
         #[test]
-        #[serial(page)]
+        #[cfg_attr(miri, ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither")]
+        #[cfg_attr(not(miri), serial(page))]
         fn test_dispose_when_unprotect_fails() {
             let exit_code = run_test_as_subprocess(
                 "tests::page::page_tests::seccomp_dispose::subprocess_test_dispose_when_unprotect_fails",
@@ -501,7 +523,7 @@ mod page_tests {
     // =============================================================================
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_full_lifecycle() {
         let mut page = Page::new().expect("Failed to new()");
 
@@ -524,7 +546,7 @@ mod page_tests {
     }
 
     #[test]
-    #[serial(page)]
+    #[cfg_attr(not(miri), serial(page))]
     fn test_new_write_zeroize_verify() {
         let mut page = Page::new().expect("Failed to new()");
 

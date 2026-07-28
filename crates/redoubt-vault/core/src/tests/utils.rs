@@ -122,6 +122,7 @@ pub fn run_test_as_subprocess(test_name: &str) -> Option<i32> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore = "spawns a subprocess; Miri cannot fork or exec")]
 fn test_run_test_as_subprocess_fails_if_test_does_not_exist() {
     let exit_code = run_test_as_subprocess("uknown::test");
     assert_eq!(exit_code, Some(-1), "test should have failed");
