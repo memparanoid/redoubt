@@ -28,6 +28,22 @@ pub(crate) type Counter = u32;
 /// For a 24-byte nonce with 4-byte counter (20 random bytes):
 /// - Collision probability after wrapping: ~1/2^160 per nonce pair
 ///
+/// # Why hybrid, not purely random
+///
+/// A purely random nonce only offers a *probabilistic* uniqueness guarantee,
+/// bounded by the birthday paradox (~2^64 pairs for a 16-byte nonce). The
+/// counter prefix upgrades intra-session uniqueness to a **deterministic**
+/// guarantee: the first 2^32 nonces of a session cannot collide, by
+/// construction.
+///
+/// Combined with ephemeral per-session keys (a key never comes close to 2^32
+/// uses), the (key, nonce) pair is unique on both axes — the invariant AEAD
+/// ciphers require: reusing a (key, nonce) pair breaks confidentiality and
+/// integrity, it does not merely degrade them.
+///
+/// Division of labor: structure guarantees uniqueness, randomness provides
+/// unpredictability — each mechanism doing what it actually guarantees.
+///
 /// # Example
 ///
 /// ```ignore
@@ -48,7 +64,10 @@ impl<E: EntropySource, const NONCE_SIZE: usize> NonceSessionGenerator<E, NONCE_S
     /// Creates a new nonce session generator.
     ///
     /// The counter is lazily initialized with random bytes on first use
-    /// to avoid predictable patterns in memory dumps.
+    /// to avoid predictable patterns in memory dumps: a counter starting at
+    /// zero is a recognizable fingerprint that also leaks how many nonces
+    /// the session has issued. This is deliberate — do not "simplify" it to
+    /// a zero-initialized counter.
     ///
     /// # Arguments
     ///
