@@ -31,6 +31,10 @@ name    = "codec"
 
 [[bench]]
 harness = false
+name    = "codec_layout"
+
+[[bench]]
+harness = false
 name    = "cipherbox"
 
 [[bench]]
