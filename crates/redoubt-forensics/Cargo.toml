@@ -1,0 +1,17 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["development-tools::testing", "memory-management"]
+description          = "Differential memory forensics: what a secret left behind, counted"
+edition.workspace    = true
+keywords             = ["security", "forensics", "memory", "zeroize"]
+license.workspace    = true
+name                 = "redoubt-forensics"
+readme.workspace     = true
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+libc.workspace = true
