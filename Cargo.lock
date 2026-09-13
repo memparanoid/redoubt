@@ -868,6 +868,8 @@ dependencies = [
  "redoubt-aead-aegis-x86",
  "redoubt-aead-core",
  "redoubt-aead-xchacha",
+ "redoubt-forensics",
+ "redoubt-mem",
  "redoubt-rand",
  "redoubt-util",
  "redoubt-zero",
@@ -926,6 +928,8 @@ dependencies = [
 name = "redoubt-alloc"
 version = "0.1.0-rc.8"
 dependencies = [
+ "redoubt-forensics",
+ "redoubt-mem",
  "redoubt-util",
  "redoubt-zero",
  "thiserror",
@@ -957,6 +961,8 @@ name = "redoubt-codec-core"
 version = "0.1.0-rc.8"
 dependencies = [
  "redoubt-alloc",
+ "redoubt-forensics",
+ "redoubt-mem",
  "redoubt-test-utils",
  "redoubt-util",
  "redoubt-zero",
@@ -983,8 +989,9 @@ dependencies = [
 name = "redoubt-forensics"
 version = "0.1.0-rc.8"
 dependencies = [
+ "cc",
  "libc",
- "redoubt",
+ "proptest",
 ]
 
 [[package]]
@@ -1028,6 +1035,7 @@ version = "0.1.0-rc.8"
 dependencies = [
  "redoubt-hkdf-core",
  "redoubt-hkdf-wycheproof",
+ "redoubt-mem",
  "redoubt-util",
  "redoubt-zero",
 ]
@@ -1047,6 +1055,23 @@ dependencies = [
  "cc",
  "redoubt-hkdf-core",
  "redoubt-hkdf-wycheproof",
+]
+
+[[package]]
+name = "redoubt-mem"
+version = "0.1.0-rc.8"
+dependencies = [
+ "cc",
+ "libc",
+ "redoubt-forensics",
+]
+
+[[package]]
+name = "redoubt-memory-analysis"
+version = "0.1.0-rc.8"
+dependencies = [
+ "libc",
+ "redoubt",
 ]
 
 [[package]]
@@ -1086,8 +1111,14 @@ dependencies = [
 name = "redoubt-vault"
 version = "0.1.0-rc.8"
 dependencies = [
+ "redoubt-aead",
+ "redoubt-alloc",
+ "redoubt-codec",
+ "redoubt-forensics",
+ "redoubt-mem",
  "redoubt-vault-core",
  "redoubt-vault-derive",
+ "redoubt-zero",
 ]
 
 [[package]]
@@ -1100,7 +1131,9 @@ dependencies = [
  "redoubt-alloc",
  "redoubt-buffer",
  "redoubt-codec",
+ "redoubt-forensics",
  "redoubt-guard",
+ "redoubt-mem",
  "redoubt-rand",
  "redoubt-secret",
  "redoubt-test-utils",

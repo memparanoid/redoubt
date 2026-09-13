@@ -20,7 +20,7 @@ COPY . .
 # NOT relax any memory protection: `prctl(PR_SET_DUMPABLE)` and
 # `setrlimit(RLIMIT_CORE)` are applied by the `guard` feature, which is off by
 # default and not enabled here.
-RUN cargo build --release --features internal-forensics --bin redoubt_trace_report -p redoubt-forensics
+RUN cargo build --release --features internal-forensics --bin redoubt_trace_report -p redoubt-memory-analysis
 
 # Make scripts executable
 RUN chmod +x forensics/memory_analysis/entrypoints/analyze_core_dump.sh && \

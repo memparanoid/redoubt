@@ -15,7 +15,7 @@ use std::hint::black_box;
 /// value that was properly zeroized. See `never_free` for the measurement that
 /// makes the difference concrete.
 #[global_allocator]
-static ALLOC: redoubt_forensics::never_free::NeverFree = redoubt_forensics::never_free::NeverFree;
+static ALLOC: redoubt_memory_analysis::never_free::NeverFree = redoubt_memory_analysis::never_free::NeverFree;
 
 use redoubt::alloc::{RedoubtArray, RedoubtOption, RedoubtString, RedoubtVec};
 use redoubt::codec::RedoubtCodec;
@@ -531,9 +531,9 @@ fn main() {
         // `memcpy` and `memset` are vectorized, so a single `println!` between
         // here and the capture is enough to overwrite the registers being
         // measured — which shows up as a clean result rather than as an error.
-        redoubt_forensics::dumper::capture_xsave();
+        redoubt_memory_analysis::dumper::capture_xsave();
 
-        redoubt_forensics::dumper::dump(&dump_stem).expect("Failed to write memory dump");
+        redoubt_memory_analysis::dumper::dump(&dump_stem).expect("Failed to write memory dump");
 
         // Keeps the canary alive across the dump. Dropping it earlier would let
         // the optimizer decide the buffer was dead before `dump` ran, which
