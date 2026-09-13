@@ -137,12 +137,13 @@ where
     /// 3. Re-allocate with new capacity (next power of 2)
     /// 4. Move data from temp back (memcpy + zeroize temp)
     ///
-    /// # Performance Note
+    /// # Why a raw copy
     ///
-    /// Uses `ptr::copy_nonoverlapping` instead of `iter_mut() + mem::take()`
-    /// because every nanosecond counts when handling sensitive data. The
-    /// unsafe memcpy is significantly faster and avoids requiring `T: Clone`
-    /// or `T: Default` bounds.
+    /// `iter_mut() + mem::take()` would need `T: Clone` or `T: Default` and
+    /// is slower element by element. The copy is [`redoubt_mem`]'s and not
+    /// `core::ptr`'s: a length the compiler cannot see is a call into the C
+    /// library's `memcpy`, and glibc's leaves the bytes in vector registers
+    /// nothing afterwards writes over. This one erases what it used.
     ///
     /// By accepting `min_capacity` and doing a single grow, this is O(n) instead
     /// of O(n log n) when growing by large amounts.
@@ -156,7 +157,7 @@ where
         let mut tmp = Vec::with_capacity(current_len);
         unsafe {
             // SAFETY (PRECONDITIONS ARE MET): copying exactly len() elements from valid Vec
-            core::ptr::copy_nonoverlapping(self.inner.as_ptr(), tmp.as_mut_ptr(), current_len);
+            redoubt_mem::copy_nonoverlapping(self.inner.as_ptr(), tmp.as_mut_ptr(), current_len);
             tmp.set_len(current_len);
         }
 
@@ -171,7 +172,7 @@ where
         // 4. Copy data back from tmp
         unsafe {
             // SAFETY (PRECONDITIONS ARE MET): tmp has exactly current_len elements, self has sufficient capacity from reserve_exact
-            core::ptr::copy_nonoverlapping(tmp.as_ptr(), self.inner.as_mut_ptr(), current_len);
+            redoubt_mem::copy_nonoverlapping(tmp.as_ptr(), self.inner.as_mut_ptr(), current_len);
             self.inner.set_len(current_len);
         }
 
@@ -192,10 +193,10 @@ where
     ///
     /// Grows the vector if necessary to accommodate the slice.
     ///
-    /// # Performance Note
+    /// # Why a raw copy
     ///
-    /// Uses `ptr::copy_nonoverlapping` for bulk copy instead of individual
-    /// operations. This is significantly faster for large slices.
+    /// One bulk move instead of an operation per element. [`redoubt_mem`]'s,
+    /// for the reason [`Self::grow_to`] gives.
     pub fn extend_from_mut_slice(&mut self, src: &mut [T])
     where
         T: Default,
@@ -206,7 +207,7 @@ where
             // SAFETY (PRECONDITIONS ARE MET): src has exactly src.len() elements, self has sufficient capacity from maybe_grow_to
             let src_ptr = src.as_ptr();
             let dst_ptr = self.inner.as_mut_ptr().add(self.len());
-            core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, src.len());
+            redoubt_mem::copy_nonoverlapping(src_ptr, dst_ptr, src.len());
             self.inner.set_len(self.len() + src.len());
         }
 
