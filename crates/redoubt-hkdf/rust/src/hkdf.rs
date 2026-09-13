@@ -92,8 +92,28 @@ impl HkdfSha256State {
             self.expand_buf.clear();
 
             if self.t_prev_len > 0 {
-                self.expand_buf
-                    .extend_from_slice(&self.t_prev[..self.t_prev_len]);
+                // Not `extend_from_slice`, which is `memcpy` over a length the
+                // compiler cannot see, and `t_prev` is the previous block of
+                // the derived key.
+                //
+                // For consistency and not for safety. This is the portable
+                // implementation: the compression below moves the same bytes
+                // through whichever registers the compiler picked, so closing
+                // one copy does not make the rest of it quiet. What it buys is
+                // that no secret in this workspace moves by any other copy.
+                //
+                // The buffer was cleared above, so this writes from its start.
+                self.expand_buf.resize(self.t_prev_len, 0);
+
+                // SAFETY: the buffer was just made exactly long enough for the
+                // bytes being written, and the two are different allocations.
+                unsafe {
+                    redoubt_mem::copy_nonoverlapping(
+                        self.t_prev.as_ptr(),
+                        self.expand_buf.as_mut_ptr(),
+                        self.t_prev_len,
+                    );
+                }
             }
 
             self.expand_buf.extend_from_slice(info);
