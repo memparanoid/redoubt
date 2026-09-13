@@ -1,0 +1,21 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "memory-management", "no-std"]
+description          = "Moving secrets between places without leaving them in a register"
+edition.workspace    = true
+keywords             = ["security", "memcpy", "zeroize", "registers", "constant-time"]
+license.workspace    = true
+name                 = "redoubt-mem"
+readme.workspace     = true
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[build-dependencies]
+cc.workspace = true
+
+[dev-dependencies]
+libc.workspace              = true
+redoubt-forensics.workspace = true

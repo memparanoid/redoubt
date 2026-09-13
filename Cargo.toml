@@ -31,6 +31,7 @@ members = [
   "crates/redoubt-buffer",
   "crates/redoubt-test-utils",
   "crates/redoubt-forensics",
+  "crates/redoubt-mem",
   "examples/wasm/rust",
   "examples/wallet",
   "benchmarks",
@@ -67,6 +68,7 @@ resolver = "2"
   redoubt-hkdf-rust             = { path = "crates/redoubt-hkdf/rust", version = "0.1.0-rc.8" }
   redoubt-hkdf-wycheproof       = { path = "crates/redoubt-hkdf/wycheproof", version = "0.1.0-rc.8" }
   redoubt-hkdf-x86              = { path = "crates/redoubt-hkdf/x86", version = "0.1.0-rc.8" }
+  redoubt-mem                   = { path = "crates/redoubt-mem", version = "0.1.0-rc.8" }
   redoubt-rand                  = { path = "crates/redoubt-rand", version = "0.1.0-rc.8" }
   redoubt-secret                = { path = "crates/redoubt-secret", version = "0.1.0-rc.8" }
   redoubt-test-utils            = { path = "crates/redoubt-test-utils", version = "0.1.0-rc.8" }
