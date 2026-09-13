@@ -25,7 +25,7 @@
 #![cfg(target_os = "linux")]
 
 use redoubt_alloc::{RedoubtArray, RedoubtOption, RedoubtString, RedoubtVec};
-use redoubt_forensics::{Forensics, QUIET, Reason, Report, forensics};
+use redoubt_forensics::{Forensics, QUIET, Reason, forensics};
 
 /// Thirty-two distinct bytes: no value repeats, so a run that extends did not
 /// extend by luck.
@@ -107,11 +107,6 @@ fn spelled_backwards() -> Vec<u8> {
     backwards
 }
 
-fn line(what: &str, report_after: &Report, report_before: &Report) {
-    println!("  {what:<28} {report_after}");
-    println!("  {:<28} {}", "", report_after.against(report_before));
-}
-
 /// Everything a caller must be able to say about what an operation left, at
 /// every size.
 fn leaves_nothing_at_any_size(what: &str, mut work: impl FnMut(usize)) -> Result<(), Reason> {
@@ -120,16 +115,12 @@ fn leaves_nothing_at_any_size(what: &str, mut work: impl FnMut(usize)) -> Result
     let report_before = watch.snapshot()?;
 
     println!();
-    println!("  {:<28} {report_before}", "nothing filled yet");
+    report_before.summary("nothing filled yet");
 
     for of in SIZES {
         let report_after = forensics!(watch, { work(of) });
 
-        line(
-            &format!("{what}, {of} bytes"),
-            &report_after,
-            &report_before,
-        );
+        report_after.summary_against(&report_before, &format!("{what}, {of} bytes"));
 
         assert!(
             !report_after.found,
@@ -175,7 +166,7 @@ fn test_the_sweep_finds_the_secret_while_it_is_held() -> Result<(), Reason> {
     let report_in_plain_sight = watch.snapshot()?;
 
     println!();
-    println!("  {:<28} {report_in_plain_sight}", "the secret, held");
+    report_in_plain_sight.summary("the secret, held");
     println!();
 
     assert!(
@@ -257,7 +248,7 @@ fn test_string_replace_leaves_nothing_a_sweep_can_find() -> Result<(), Reason> {
     let report_before = watch.snapshot()?;
 
     println!();
-    println!("  {:<28} {report_before}", "nothing filled yet");
+    report_before.summary("nothing filled yet");
 
     for of in SIZES {
         let report_after = forensics!(watch, {
@@ -271,11 +262,7 @@ fn test_string_replace_leaves_nothing_a_sweep_can_find() -> Result<(), Reason> {
             drop(core::hint::black_box(source));
         });
 
-        line(
-            &format!("a string replaced, {of} bytes"),
-            &report_after,
-            &report_before,
-        );
+        report_after.summary_against(&report_before, &format!("a string replaced, {of} bytes"));
 
         assert!(
             !report_after.found,
@@ -358,8 +345,8 @@ fn test_array_replace_leaves_nothing_a_sweep_can_find() -> Result<(), Reason> {
     });
 
     println!();
-    println!("  {:<28} {report_before}", "nothing filled yet");
-    line("an array replaced", &report_after, &report_before);
+    report_before.summary("nothing filled yet");
+    report_after.summary_against(&report_before, "an array replaced");
     println!();
 
     assert!(
