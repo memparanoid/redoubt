@@ -2,70 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! What a caller concludes from a count of zero is only as good as this file,
-//! so both directions are asserted here against a needle whose whereabouts are
-//! known.
+//! Which mappings are read, and how a needle is counted inside one.
+//!
+//! Both are decided on bytes alone, so both can be asserted without a process
+//! to look at — which is what makes them worth asserting at all. What a caller
+//! concludes from a count of zero rests on the second of these.
 
-use crate::memory::{region, within};
-use crate::score::{occurrences, occurrences_reversed};
-
-/// A needle that is not a run of one byte and is not a palindrome: the first
-/// would match at every offset inside itself, the second would read the same
-/// in both directions and make the two counts agree for the wrong reason.
-const NEEDLE: [u8; 8] = [0x9E, 0x41, 0x17, 0xC3, 0x5A, 0xF0, 0x2B, 0x88];
-
-// ============================================================================
-// occurrences
-// ============================================================================
-
-/// Something the test is holding is somewhere: the value below is in this
-/// process, so a scanner that answers zero is not reading memory at all.
-#[test]
-fn test_occurrences_finds_what_the_process_is_holding() {
-    let held = NEEDLE.to_vec();
-
-    assert!(occurrences(&held) > 0);
-}
-
-// ============================================================================
-// occurrences_reversed
-// ============================================================================
-
-/// The needle is held forwards, so backwards it is absent — and it stays
-/// absent because asking never writes it down. This is the whole basis of
-/// every zero a caller asserts.
-#[test]
-fn test_occurrences_reversed_finds_nothing_for_a_needle_held_forwards() {
-    let held = NEEDLE.to_vec();
-
-    assert_eq!(occurrences_reversed(&held), 0);
-}
-
-/// The same value twice, one of them reversed, and the reversed one finds the
-/// other.
-///
-/// This is the shape every count of zero leans on, asserted here where the
-/// whereabouts of both copies are known: a caller reverses what it was handed
-/// and searches with it, and what it is really asking is whether a second copy
-/// — one nobody reversed — is anywhere. Here there is one on purpose, so the
-/// search has to find it; a reversed search that always answered zero would
-/// pass every one of those tests without looking.
-///
-/// The unreversed copy is on the heap and not the constant it came from: only
-/// writable mappings are read, and a constant lives where nothing can write.
-#[test]
-fn test_occurrences_reversed_finds_the_copy_that_was_not_reversed() {
-    // This is the copy the search is looking for, and being bound is not
-    // enough to have one: nothing reads it, so an optimizing build is free to
-    // never make it. `black_box` is what says it was observed, which is what
-    // forces it to exist somewhere to observe.
-    let _held = core::hint::black_box(NEEDLE.to_vec());
-    let mut needle = NEEDLE.to_vec();
-
-    needle.reverse();
-
-    assert!(occurrences_reversed(&needle) > 0);
-}
+use crate::analysis::memory::{region, within};
 
 // ============================================================================
 // region
@@ -81,13 +24,46 @@ fn test_region_returns_the_bounds_of_a_writable_mapping() {
     );
 }
 
-/// A mapping nothing can write to holds only what a compiler put there, so it
-/// is skipped rather than swept.
+/// Executable is code, and code holds what a compiler put there.
 #[test]
-fn test_region_returns_nothing_for_a_mapping_that_cannot_be_written() {
+fn test_region_returns_nothing_for_a_mapping_that_is_code() {
     assert_eq!(
         region(b"7f8e1c000000-7f8e1c021000 r-xp 00000000 00:00 0 [vdso]"),
+        None
+    );
+}
+
+/// A file mapped in read-only is that file, and reading the binary back is
+/// seconds per sweep for nothing.
+#[test]
+fn test_region_returns_nothing_for_a_file_mapped_read_only() {
+    assert_eq!(
+        region(b"7f8e1c000000-7f8e1c021000 r--p 00000000 08:01 131 /usr/lib/libc.so.6"),
         None,
+    );
+}
+
+/// A page with no permissions at all is a guarded secret at rest, and it is
+/// skipped on purpose.
+///
+/// That is where a key is *meant* to be. Sweeping it would make every sweep
+/// find the secret in its own home, and every absence a caller asked about
+/// would come back a positive.
+#[test]
+fn test_region_returns_nothing_for_a_page_protected_to_nothing() {
+    assert_eq!(
+        region(b"7f8e1c000000-7f8e1c021000 ---p 00000000 00:00 0"),
+        None
+    );
+}
+
+/// And one open for writing alone, which is what a guarded page looks like
+/// from outside while it is being read through. Skipped for the same reason.
+#[test]
+fn test_region_returns_nothing_for_a_write_only_page() {
+    assert_eq!(
+        region(b"7f8e1c000000-7f8e1c021000 -w-p 00000000 00:00 0"),
+        None
     );
 }
 

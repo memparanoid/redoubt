@@ -3,6 +3,9 @@
 // See LICENSE in the repository root for full license text.
 
 #[cfg(target_os = "linux")]
+mod forensics;
+
+#[cfg(target_os = "linux")]
 mod memory;
 
 #[cfg(target_os = "linux")]

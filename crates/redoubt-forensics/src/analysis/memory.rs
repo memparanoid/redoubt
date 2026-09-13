@@ -45,7 +45,9 @@
 
 use std::ptr;
 
-use crate::state::{BLOCK, ForensicState, MAGIC, OK, Parts, Span, Spans};
+use crate::analysis::state::{BLOCK, ForensicState, MAGIC, OK, Parts, Span, Spans};
+use crate::error::{DONE, Reason};
+use crate::forensics::Work;
 
 /// A stopped child holding a photograph of its parent's memory.
 ///
@@ -54,6 +56,15 @@ use crate::state::{BLOCK, ForensicState, MAGIC, OK, Parts, Span, Spans};
 /// for as long as the test runner lives.
 pub(crate) struct Subject {
     pid: libc::pid_t,
+    /// The photograph's memory, open for reading.
+    ///
+    /// `/proc/<pid>/mem` and not `process_vm_readv`, which is where this
+    /// started. The two differ in exactly one way that matters: a read through
+    /// the file uses `FOLL_FORCE` and reaches a page with no permissions,
+    /// while the call refuses one. A secret at rest lives behind
+    /// `mprotect(PROT_NONE)` — which is to say the call cannot read the one
+    /// place anybody guards hardest.
+    mem: libc::c_int,
 }
 
 impl Subject {
@@ -78,10 +89,18 @@ impl Subject {
         }
 
         if pid == 0 {
-            // SAFETY: the child, which is about to stop and then leave. None
-            // of the three returns to Rust.
+            // SAFETY: the child, which is about to stop and then leave.
+            // Nothing here returns to Rust.
             unsafe {
-                libc::ptrace(libc::PTRACE_TRACEME, 0, ptr::null_mut::<libc::c_void>(), 0);
+                // Asked for, and checked. A child that stops without being
+                // traced is a child its parent will wait on until one of them
+                // is killed — the stop is never reported and the stopped
+                // process never exits. Leaving instead turns a hang into an
+                // answer.
+                if libc::ptrace(libc::PTRACE_TRACEME, 0, ptr::null_mut::<libc::c_void>(), 0) < 0 {
+                    libc::_exit(1);
+                }
+
                 libc::raise(libc::SIGSTOP);
                 libc::_exit(0);
             }
@@ -89,41 +108,62 @@ impl Subject {
 
         let mut status = 0;
 
+        // `WUNTRACED`, so that a stop is reported whether or not the trace
+        // took hold. Without it this call is only woken by a traced stop, and
+        // an untraced one waits for an exit that a stopped process is never
+        // going to reach. It costs nothing where tracing works and is the
+        // difference between an error and a wedged test run where it does
+        // not — an emulator that does not implement `ptrace`, a kernel with
+        // `ptrace_scope` locked down, a container without `CAP_SYS_PTRACE`.
+        //
         // SAFETY: the pid is this process's own child, and the status is a
         // local this call writes into.
-        if unsafe { libc::waitpid(pid, &mut status, 0) } < 0 {
+        if unsafe { libc::waitpid(pid, &mut status, libc::WUNTRACED) } < 0 {
             return None;
         }
 
-        // A child that was reaped rather than stopped has no memory left to
-        // read, and reading nothing would answer the same as finding nothing.
+        // A child that left rather than stopped has no memory to read, and
+        // reading nothing would answer the same as finding nothing.
         if !libc::WIFSTOPPED(status) {
             return None;
         }
 
-        Some(Self { pid })
+        let mut path = [0_u8; 32];
+
+        named(pid, b"/mem\0", &mut path);
+
+        // SAFETY: the path is a buffer just written and terminated.
+        let mem = unsafe { libc::open(path.as_ptr().cast(), libc::O_RDONLY) };
+
+        if mem < 0 {
+            // SAFETY: the child is this process's own, stopped and unreaped.
+            unsafe {
+                libc::kill(pid, libc::SIGKILL);
+                libc::waitpid(pid, ptr::null_mut(), 0);
+            }
+
+            return None;
+        }
+
+        Some(Self { pid, mem })
     }
 
     /// As much of the photograph at that address as fits, and nothing on
     /// refusal.
     ///
-    /// No path and no open file: the pid is the whole address.
+    /// A positioned read, so there is no seek to get wrong and no cursor to
+    /// share.
     pub(crate) fn read_at(&self, at: u64, into: &mut [u8]) -> usize {
-        let local = libc::iovec {
-            iov_base: into.as_mut_ptr().cast(),
-            iov_len: into.len(),
+        // SAFETY: the descriptor is this struct's own, open for the whole of
+        // its life, and the pointer and length describe a live writable slice.
+        let got = unsafe {
+            libc::pread64(
+                self.mem,
+                into.as_mut_ptr().cast(),
+                into.len(),
+                at as libc::off_t,
+            )
         };
-
-        let remote = libc::iovec {
-            iov_base: at as usize as *mut libc::c_void,
-            iov_len: into.len(),
-        };
-
-        // SAFETY: both vectors describe one buffer each. The local one is the
-        // slice that was handed in, live and writable for its whole length;
-        // the remote one is read in another address space and never
-        // dereferenced here. The pid is this process's own traced child.
-        let got = unsafe { libc::process_vm_readv(self.pid, &local, 1, &remote, 1, 0) };
 
         usize::try_from(got).unwrap_or(0)
     }
@@ -131,9 +171,11 @@ impl Subject {
 
 impl Drop for Subject {
     fn drop(&mut self) {
-        // SAFETY: the pid is this process's own child, stopped and not yet
-        // reaped, so it cannot have been reused for anything else.
+        // SAFETY: the descriptor is this struct's own, and the pid is this
+        // process's own child, stopped and not yet reaped, so it cannot have
+        // been reused for anything else.
         unsafe {
+            libc::close(self.mem);
             libc::kill(self.pid, libc::SIGKILL);
             libc::waitpid(self.pid, ptr::null_mut(), 0);
         }
@@ -153,10 +195,25 @@ pub(crate) fn region(line: &[u8]) -> Option<Span> {
         return None;
     }
 
-    // Writable, and not merely readable. What is left behind is left behind
-    // by writing, so a mapping nothing can write to holds only what a compiler
-    // put there. Reading those as well is seconds per sweep for a binary of
-    // any size, and finds nothing a caller is asking about.
+    // Readable and writable, and nothing else — which rules out two things on
+    // purpose.
+    //
+    // A mapping of a file nothing can write to holds only what a compiler put
+    // there, and reading the whole binary is seconds per sweep for nothing.
+    //
+    // And a page under `mprotect` is skipped **deliberately**, not by
+    // oversight. That is where a guarded secret lives: `PROT_NONE` at rest,
+    // `PROT_WRITE` alone while it is read through — `---p` and `-w-p`, neither
+    // of which begins with `rw`. Sweeping those was tried and reverted: the
+    // secret's own home is in one of them, so every sweep found it and every
+    // absence a caller asked about came back a positive. A guarded page is the
+    // answer to "where is it meant to be", never to "where did it leak", and an
+    // instrument that cannot tell those apart is worse than one that only
+    // answers the second.
+    //
+    // The cost of the attempt is worth recording: it took the sweep from two
+    // and a half megabytes to seventy, and a photograph from a fifth of a
+    // second to seven.
     if line.get(space + 1..space + 3)? != b"rw" {
         return None;
     }
@@ -186,8 +243,8 @@ fn hex(of: &[u8]) -> Option<u64> {
     Some(at)
 }
 
-/// `/proc/<pid>/maps`, written into a buffer rather than built.
-fn named(pid: libc::pid_t, into: &mut [u8; 32]) -> bool {
+/// `/proc/<pid>/<what>`, written into a buffer rather than built.
+fn named(pid: libc::pid_t, what: &[u8], into: &mut [u8; 32]) -> bool {
     let mut digits = [0_u8; 10];
     let mut count = 0;
     let mut left = pid.unsigned_abs();
@@ -215,7 +272,7 @@ fn named(pid: libc::pid_t, into: &mut [u8; 32]) -> bool {
         at += 1;
     }
 
-    for byte in b"/maps\0" {
+    for byte in what {
         into[at] = *byte;
         at += 1;
     }
@@ -233,20 +290,24 @@ fn named(pid: libc::pid_t, into: &mut [u8; 32]) -> bool {
 /// The photograph's mappings and not this process's. They were the same list
 /// at the instant of the fork and stop being one as soon as anybody allocates,
 /// which is about to happen a great deal.
-pub(crate) fn mappings(pid: libc::pid_t, text: &mut [u8], maps: &mut Spans<'_>) -> bool {
+pub(crate) fn mappings(
+    pid: libc::pid_t,
+    text: &mut [u8],
+    maps: &mut Spans<'_>,
+) -> Result<(), Reason> {
     maps.clear();
 
     let mut path = [0_u8; 32];
 
-    if !named(pid, &mut path) {
-        return false;
+    if !named(pid, b"/maps\0", &mut path) {
+        return Err(Reason::NoMappings);
     }
 
     // SAFETY: the path is a buffer this function just wrote and terminated.
     let file = unsafe { libc::open(path.as_ptr().cast(), libc::O_RDONLY) };
 
     if file < 0 {
-        return false;
+        return Err(Reason::NoMappings);
     }
 
     let mut filled = 0;
@@ -255,7 +316,11 @@ pub(crate) fn mappings(pid: libc::pid_t, text: &mut [u8], maps: &mut Spans<'_>) 
         // SAFETY: the pointer and length are the part of a live slice that has
         // not been filled yet.
         let got = unsafe {
-            libc::read(file, text[filled..].as_mut_ptr().cast(), text.len() - filled)
+            libc::read(
+                file,
+                text[filled..].as_mut_ptr().cast(),
+                text.len() - filled,
+            )
         };
 
         if got <= 0 {
@@ -274,11 +339,15 @@ pub(crate) fn mappings(pid: libc::pid_t, text: &mut [u8], maps: &mut Spans<'_>) 
         };
 
         if !maps.push(span) {
-            return false;
+            return Err(Reason::TooManyMappings);
         }
     }
 
-    !maps.is_empty()
+    if maps.is_empty() {
+        return Err(Reason::NoMappings);
+    }
+
+    Ok(())
 }
 
 /// Every block of the instrument that is in the photograph.
@@ -292,7 +361,7 @@ pub(crate) fn instrument(
     held: &mut [u8],
     maps: &Spans<'_>,
     skips: &mut Spans<'_>,
-) -> bool {
+) -> Result<(), Reason> {
     skips.clear();
 
     let seam = MAGIC.len() - 1;
@@ -313,7 +382,7 @@ pub(crate) fn instrument(
                     let one = at + i as u64;
 
                     if !skips.push((one, one + BLOCK as u64)) {
-                        return false;
+                        return Err(Reason::TooManyBlocks);
                     }
                 }
             }
@@ -326,7 +395,7 @@ pub(crate) fn instrument(
         }
     }
 
-    true
+    Ok(())
 }
 
 /// Every byte of the photograph that is not the instrument's own, in address
@@ -427,15 +496,12 @@ fn next_skip(skips: &Spans<'_>, at: u64) -> u64 {
 /// The child is where every byte of the subject's memory goes, and the child
 /// does not come back. What crosses the pipe is the handful of numbers in the
 /// result, which is the whole reason there are two forks rather than one.
-pub(crate) fn analyse(
-    state: &mut ForensicState,
-    work: fn(&mut ForensicState, &Subject) -> bool,
-) -> bool {
+pub(crate) fn analyse(state: &mut ForensicState, work: Work) -> Result<(), Reason> {
     let mut ends = [0 as libc::c_int; 2];
 
     // SAFETY: the argument is a local array of the two descriptors this fills.
     if unsafe { libc::pipe(ends.as_mut_ptr()) } < 0 {
-        return false;
+        return Err(Reason::NoPipe);
     }
 
     let (reading, writing) = (ends[0], ends[1]);
@@ -452,7 +518,7 @@ pub(crate) fn analyse(
             libc::close(writing);
         }
 
-        return false;
+        return Err(Reason::NoFork);
     }
 
     if pid == 0 {
@@ -460,23 +526,41 @@ pub(crate) fn analyse(
         // what it found, and leaves without returning to Rust.
         unsafe { libc::close(reading) };
 
-        if let Some(subject) = Subject::photograph() {
-            // Read on this side of the fork, where taking a kilobyte of stack
-            // would cost nothing — this stack is one nobody is measuring.
-            let known = {
-                let Parts { report, mut maps, .. } = state.parts();
+        // Whatever the last photograph came to, before this one has a word to
+        // say about itself. A stale number read as a fresh one is the same
+        // mistake as a refusal read as a zero.
+        state.parts().result.fill(0);
 
-                mappings(subject.pid, report, &mut maps)
-            };
+        let how = match Subject::photograph() {
+            None => Err(Reason::NoPhotograph),
+            Some(subject) => {
+                // Read on this side of the fork, where taking a kilobyte of
+                // stack would cost nothing — this stack is one nobody is
+                // measuring.
+                let known = {
+                    let Parts {
+                        report, mut maps, ..
+                    } = state.parts();
 
-            if known && work(state, &subject) {
-                state.parts().result[OK] = 1;
+                    mappings(subject.pid, report, &mut maps)
+                };
+
+                let how = known.and_then(|()| work(state, &subject));
+
+                // Reaped here and not at the end of the scope, because there
+                // is no end of the scope: `_exit` runs no destructor.
+                drop(subject);
+
+                how
             }
+        };
 
-            // Reaped here and not at the end of the scope, because there is no
-            // end of the scope: `_exit` runs no destructor.
-            drop(subject);
-        }
+        // The only word the parent will believe. `work` clears the result on
+        // its way in, so this has to be the last thing written.
+        state.parts().result[OK] = match how {
+            Ok(()) => DONE,
+            Err(why) => why.code(),
+        };
 
         send(writing, state.shipped());
 
@@ -498,7 +582,17 @@ pub(crate) fn analyse(
     // SAFETY: the pid is this process's own child and the status is a local.
     unsafe { libc::waitpid(pid, &mut status, 0) };
 
-    heard && state.read(OK) == 1
+    // An analyst that said nothing is not an analyst that said zero: the block
+    // still holds whatever was in it, and reading that would be reading the
+    // last photograph as if it were this one.
+    if !heard {
+        return Err(Reason::NoAnswer);
+    }
+
+    match state.read(OK) {
+        DONE => Ok(()),
+        why => Err(Reason::from_code(why)),
+    }
 }
 
 /// All of it, however many turns that takes.
@@ -508,9 +602,7 @@ fn send(fd: libc::c_int, bytes: &[u8]) -> bool {
     while sent < bytes.len() {
         // SAFETY: the pointer and length describe the part of a live slice
         // that has not been written yet.
-        let put = unsafe {
-            libc::write(fd, bytes[sent..].as_ptr().cast(), bytes.len() - sent)
-        };
+        let put = unsafe { libc::write(fd, bytes[sent..].as_ptr().cast(), bytes.len() - sent) };
 
         if put <= 0 {
             return false;
@@ -567,8 +659,13 @@ pub(crate) fn within(held: &[u8], needle: &[u8], reversed: bool) -> usize {
 #[repr(C)]
 pub(crate) struct Errand {
     state: *mut ForensicState,
-    work: fn(&mut ForensicState, &Subject) -> bool,
-    done: bool,
+    work: Work,
+    /// How it went, as the same word that crosses the pipe.
+    ///
+    /// A code and not a `Result` because this struct is written from a stack
+    /// the compiler knows nothing about, and a plain word is the one shape
+    /// there is nothing to get wrong about.
+    how: u64,
 }
 
 /// The analysis, entered from the far side of the switch.
@@ -587,7 +684,10 @@ extern "C" fn errand(at: *mut Errand) {
     // for the whole of `elsewhere`, which does not return until this does.
     let state = unsafe { &mut *at.state };
 
-    at.done = analyse(state, at.work);
+    at.how = match analyse(state, at.work) {
+        Ok(()) => DONE,
+        Err(why) => why.code(),
+    };
 }
 
 /// Run the analysis with the stack pointer moved somewhere nobody is looking.
@@ -609,12 +709,13 @@ extern "C" fn errand(at: *mut Errand) {
 /// Inlined, so that reaching the switch is not itself a call. What is written
 /// below the caller's frame is then nothing at all.
 #[inline(always)]
-pub(crate) fn elsewhere(
-    state: &mut ForensicState,
-    work: fn(&mut ForensicState, &Subject) -> bool,
-) -> bool {
+pub(crate) fn elsewhere(state: &mut ForensicState, work: Work) -> Result<(), Reason> {
     let top = state.stack_top();
-    let mut at = Errand { state: std::ptr::from_mut(state), work, done: false };
+    let mut at = Errand {
+        state: std::ptr::from_mut(state),
+        work,
+        how: 0,
+    };
     let to = std::ptr::from_mut(&mut at);
 
     // SAFETY: `top` is sixteen-aligned and the far end of a quarter megabyte
@@ -638,17 +739,19 @@ pub(crate) fn elsewhere(
             clobber_abi("sysv64"),
         );
 
+        // `x20` and not `x19`: both are callee-saved, and LLVM keeps `x19` for
+        // itself as the base pointer, so it refuses it as an operand outright.
         #[cfg(target_arch = "aarch64")]
         core::arch::asm!(
             "mov x0, {to}",
-            "mov x19, sp",
+            "mov x20, sp",
             "mov sp, {top}",
             "blr {run}",
-            "mov sp, x19",
+            "mov sp, x20",
             to = in(reg) to,
             top = in(reg) top,
             run = in(reg) errand as extern "C" fn(*mut Errand),
-            out("x19") _,
+            out("x20") _,
             clobber_abi("C"),
         );
 
@@ -656,5 +759,8 @@ pub(crate) fn elsewhere(
         errand(to);
     }
 
-    at.done
+    match at.how {
+        DONE => Ok(()),
+        why => Err(Reason::from_code(why)),
+    }
 }

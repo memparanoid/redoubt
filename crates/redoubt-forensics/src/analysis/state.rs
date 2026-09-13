@@ -242,7 +242,11 @@ impl Spans<'_> {
 
 impl Default for ForensicState {
     fn default() -> Self {
-        let mut state = Self { block: vec![0; BLOCK / 8], of: 0, backwards: false };
+        let mut state = Self {
+            block: vec![0; BLOCK / 8],
+            of: 0,
+            backwards: false,
+        };
 
         // SAFETY: the block is `BLOCK` bytes and `MAGIC` is far shorter than
         // `HEAD`, which is the room set aside for it at the front.
@@ -282,10 +286,7 @@ impl ForensicState {
         // SAFETY: the result is `u64` and any bit pattern is a valid `u8`, so
         // a byte view of it is aligned and every byte of it initialised.
         unsafe {
-            slice::from_raw_parts_mut(
-                self.block.as_mut_ptr().cast::<u8>().add(AT_RESULT),
-                RESULT,
-            )
+            slice::from_raw_parts_mut(self.block.as_mut_ptr().cast::<u8>().add(AT_RESULT), RESULT)
         }
     }
 

@@ -64,13 +64,55 @@
 mod tests;
 
 #[cfg(target_os = "linux")]
-mod memory;
+mod analysis;
 
 #[cfg(target_os = "linux")]
-mod score;
+mod error;
 
 #[cfg(target_os = "linux")]
-mod state;
+mod forensics;
 
 #[cfg(target_os = "linux")]
-pub use score::{Change, Forensics, Report, occurrences, occurrences_reversed};
+mod macros;
+
+#[cfg(target_os = "linux")]
+mod spiller;
+
+// The whole of it. Everything else — the block, the three processes, the
+// weighing — is reachable only through these, and a caller that needed one of
+// them directly would be doing something this crate has not thought about.
+#[cfg(target_os = "linux")]
+pub use analysis::report::{Change, Report};
+
+#[cfg(target_os = "linux")]
+pub use error::Reason;
+
+#[cfg(target_os = "linux")]
+pub use forensics::{Forensics, occurrences, occurrences_reversed};
+
+// `deep` and `spill` are what `forensics!` expands to, so they are public for
+// the macro's sake before anybody's.
+#[cfg(target_os = "linux")]
+pub use macros::{DEPTH, deep};
+
+// `SPILL`, `VECTORS` and `SLOT` are how the room is read: without them the
+// slice `spilled` hands back is a couple of kilobytes of nothing.
+#[cfg(target_os = "linux")]
+pub use spiller::{SLOT, SPILL, VECTORS, pick_spiller, spill, spilled};
+
+/// The capture, raw, for a caller that needs it to be the next instruction
+/// after the thing being measured.
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    target_os = "linux"
+))]
+pub use spiller::redoubt_spill;
+
+/// The widest capture there is, by name.
+///
+/// [`redoubt_spill`] is the one to reach for. This is here because forcing the
+/// AVX-512 form is the only way to ask what `zmm16-31` are holding on a
+/// machine that has them, and that question is the reason this crate has a
+/// spiller at all.
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+pub use spiller::redoubt_spill_avx512;
