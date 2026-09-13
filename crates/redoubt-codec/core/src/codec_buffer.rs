@@ -102,7 +102,7 @@ impl RedoubtCodecBuffer {
 
         unsafe {
             let ptr = self.allocked_vec.as_mut_ptr().add(self.cursor);
-            core::ptr::copy_nonoverlapping(src as *const T as *const u8, ptr, len);
+            redoubt_mem::copy_nonoverlapping(src as *const T as *const u8, ptr, len);
         }
         self.cursor += len;
 
@@ -122,7 +122,7 @@ impl RedoubtCodecBuffer {
 
         unsafe {
             let ptr = self.allocked_vec.as_mut_ptr().add(self.cursor);
-            core::ptr::copy_nonoverlapping(src.as_ptr() as *const u8, ptr, byte_len);
+            redoubt_mem::copy_nonoverlapping(src.as_ptr() as *const u8, ptr, byte_len);
         }
         self.cursor += byte_len;
 

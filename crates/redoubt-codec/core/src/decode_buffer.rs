@@ -16,7 +16,7 @@ impl DecodeBuffer for &mut [u8] {
 
         // Native endian copy - no conversion
         unsafe {
-            core::ptr::copy_nonoverlapping(self.as_ptr(), dst as *mut usize as *mut u8, size);
+            redoubt_mem::copy_nonoverlapping(self.as_ptr(), dst as *mut usize as *mut u8, size);
         }
 
         // Zeroize the Buffer
@@ -37,7 +37,7 @@ impl DecodeBuffer for &mut [u8] {
         }
 
         unsafe {
-            core::ptr::copy_nonoverlapping(self.as_ptr(), dst as *mut T as *mut u8, len);
+            redoubt_mem::copy_nonoverlapping(self.as_ptr(), dst as *mut T as *mut u8, len);
         }
 
         // Zeroize the Buffer
@@ -58,7 +58,7 @@ impl DecodeBuffer for &mut [u8] {
         }
 
         unsafe {
-            core::ptr::copy_nonoverlapping(self.as_ptr(), dst.as_mut_ptr() as *mut u8, byte_len);
+            redoubt_mem::copy_nonoverlapping(self.as_ptr(), dst.as_mut_ptr() as *mut u8, byte_len);
         }
 
         // Zeroize the Buffer
