@@ -46,10 +46,16 @@ use super::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 /// } // guard drops here → value is zeroized
 /// ```
 ///
-/// # Panics
+/// # What drop does, and what it does not
 ///
-/// The guard panics on drop if the wrapped value's [`ZeroizeOnDropSentinel`] was not
-/// marked as zeroized. This ensures zeroization invariants are enforced.
+/// Dropping the guard zeroizes the value it wraps, which is the whole of its
+/// job. It does not check anything, and it does not panic: the sentinel is
+/// *marked* by that zeroization, not read.
+///
+/// Asking whether it happened is a separate, deliberate act —
+/// [`crate::assert_zeroize_on_drop`], which a test calls. An earlier version
+/// of this documentation said the guard "panics on drop if the sentinel was
+/// not marked as zeroized", and no version of it ever did.
 pub struct ZeroizingGuard<T>
 where
     T: FastZeroizable + ZeroizationProbe + Default,

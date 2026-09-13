@@ -10,23 +10,39 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use crate::{FastZeroizable, ZeroizeMetadata};
 
-/// Runtime verification that zeroization happened before drop.
+/// A flag that records whether zeroization happened, so a test can ask.
 ///
-/// `ZeroizeOnDropSentinel` is a guard type used to verify that `.zeroize()` was called
-/// before a value is dropped. This provides **runtime enforcement** of zeroization
-/// invariants, complementing compile-time checks.
+/// # It records; it does not enforce
+///
+/// This type has no `Drop` of its own and nothing here panics. All it is, is
+/// one shared boolean: `true` while the value is pristine, `false` once
+/// something called `.zeroize()` on it.
+///
+/// What turns that into an assertion is [`crate::assert_zeroize_on_drop`],
+/// which a test calls deliberately — it clones the flag, drops the value, and
+/// checks that the drop flipped it. Nothing does this on its own, and a type
+/// that forgets to zeroize goes unnoticed unless a test asks.
+///
+/// An earlier version of this documentation said the opposite: that it
+/// "panics on drop if `.zeroize()` was not called". It never did, and a
+/// caller reading that would have believed a guarantee that was not there.
+///
+/// # It is not free
+///
+/// It is an `Arc<AtomicBool>`, so every value holding one costs a heap
+/// allocation and an atomic. In a crate whose reason for existing is to leave
+/// nothing in memory, that allocation is not a rounding error: the allocator's
+/// own wide copies are exactly the kind of thing a secret gets left in.
+///
+/// So the types in this workspace carry the field only under `cfg(test)`, and
+/// the `RedoubtZero` derive treats it as optional for that reason.
 ///
 /// # Design
 ///
 /// - Wraps a shared boolean flag (`Arc<AtomicBool>`) representing pristine state
 /// - Initially `true` (pristine/untouched)
 /// - `.zeroize()` sets the flag to `false` (no longer pristine)
-/// - Can be cloned to verify zeroization from tests
-///
-/// # Panics
-///
-/// Panics on drop if `.zeroize()` was not called before drop. This is intentional:
-/// forgetting to zeroize sensitive data is a critical bug that must be caught.
+/// - Cloned, so a test can hold the flag after the value it belonged to is gone
 ///
 /// # Usage
 ///
@@ -37,12 +53,17 @@ use crate::{FastZeroizable, ZeroizeMetadata};
 ///
 /// struct Secret {
 ///     data: Vec<u8>,
+///     #[cfg(test)]
 ///     __sentinel: ZeroizeOnDropSentinel,
 /// }
 ///
 /// impl Drop for Secret {
 ///     fn drop(&mut self) {
 ///         self.data.fast_zeroize();
+///
+///         // The flag is only marked where it exists; the wipe above is what
+///         // matters and happens either way.
+///         #[cfg(test)]
 ///         self.__sentinel.fast_zeroize();
 ///     }
 /// }
