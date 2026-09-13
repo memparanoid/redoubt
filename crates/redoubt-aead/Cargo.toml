@@ -31,4 +31,7 @@ redoubt-aead-aegis-x86.workspace = true
 redoubt-aead-aegis-arm.workspace = true
 
 [dev-dependencies]
+redoubt-forensics.workspace = true
+redoubt-mem.workspace       = true
+redoubt-zero.workspace      = true
 redoubt-util = { workspace = true, features = ["test-utils"] }
