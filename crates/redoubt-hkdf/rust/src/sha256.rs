@@ -116,7 +116,7 @@ impl Sha256State {
         // Initialize working variables with H
         // SAFETY: Word32 is repr(transparent) over u32, same layout
         unsafe {
-            core::ptr::copy_nonoverlapping(
+            redoubt_mem::copy_nonoverlapping(
                 h.as_ptr(),
                 &mut self.wv as *mut [Word32; 8] as *mut u32,
                 8,
@@ -247,7 +247,7 @@ impl Sha256State {
     fn compress_internal(&mut self) {
         // Initialize wv from h
         unsafe {
-            core::ptr::copy_nonoverlapping(
+            redoubt_mem::copy_nonoverlapping(
                 &self.h as *const [Word32; 8] as *const u32,
                 &mut self.wv as *mut [Word32; 8] as *mut u32,
                 8,
