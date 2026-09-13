@@ -53,18 +53,42 @@ fi
 TARGET_DIR="$REPO_ROOT/target/coverage/$CRATE"
 mkdir -p "$TARGET_DIR"
 
-COV_CMD=(
-  cargo +$NIGHTLY llvm-cov -p "$CRATE"
-  --branch
-  --html --output-dir "$CRATE_DIR"
-)
+# Three passes: doctests, then the tests, then one report over both.
+#
+# They have to be separate runs. `cargo test --doc` builds and runs one binary
+# per doctest and `nextest` does not run doctests at all, so a single
+# invocation can only ever measure one of the two. `--no-report` collects the
+# profile data without rendering; the last call renders everything together.
+#
+# Doctests go first: they are the cheapest thing that can be broken and the
+# fastest to say so.
+#
+# `nextest` and not the default runner for the rest, because it gives each test
+# a process. `redoubt-forensics` reads the whole process's memory, so two of
+# its tests sharing one are two secrets in one process and each is the other's
+# needle. And when a test dies on a signal, `nextest` names it instead of
+# reporting that the binary went away.
+FEATURE_ARGS=()
 
 if [ -n "$FEATURES" ]; then
-  COV_CMD+=(--features "$FEATURES")
+  FEATURE_ARGS+=(--features "$FEATURES")
 fi
 
-RUSTC_WRAPPER="$RUSTC_WRAPPER_PATH" \
-COVER_CRATES="$CRATE" \
-RUSTFLAGS="--cfg=__cover_crates_${CRATE//-/_}" \
-CARGO_TARGET_DIR="$TARGET_DIR" \
-"${COV_CMD[@]}"
+run_cov() {
+  RUSTC_WRAPPER="$RUSTC_WRAPPER_PATH" \
+  COVER_CRATES="$CRATE" \
+  RUSTFLAGS="--cfg=__cover_crates_${CRATE//-/_}" \
+  CARGO_TARGET_DIR="$TARGET_DIR" \
+  "$@"
+}
+
+echo "--- doctests ---"
+run_cov cargo +$NIGHTLY llvm-cov --no-report --doctests -p "$CRATE" \
+  "${FEATURE_ARGS[@]}" test --doc
+
+echo "--- tests ---"
+run_cov cargo +$NIGHTLY llvm-cov --no-report nextest -p "$CRATE" "${FEATURE_ARGS[@]}"
+
+echo "--- report ---"
+run_cov cargo +$NIGHTLY llvm-cov report --branch --doctests \
+  --html --output-dir "$CRATE_DIR"

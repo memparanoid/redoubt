@@ -37,8 +37,27 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libseccomp-dev
 
-      - name: cargo test
-        run: cargo test --workspace
+      # A process per test, which some of these need and all of them benefit
+      # from. `redoubt-forensics` reads the whole process's memory: two of its
+      # tests in one process are two secrets in one process, and each is the
+      # other's needle. Under a shared-process runner they fail for reasons
+      # that have nothing to do with the code.
+      #
+      # It also reports which test took a signal. A segfault under `cargo test`
+      # kills the binary and takes every other result with it.
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
 
-      - name: cargo test --all-features
-        run: cargo test --workspace --all-features
+      - name: cargo nextest run
+        run: cargo nextest run --workspace
+
+      - name: cargo nextest run --all-features
+        run: cargo nextest run --workspace --all-features
+
+      # nextest does not run doctests, and this workspace documents its API
+      # with runnable examples. Without this they stop being checked.
+      - name: cargo test --doc
+        run: cargo test --workspace --doc
+
+      - name: cargo test --doc --all-features
+        run: cargo test --workspace --all-features --doc
