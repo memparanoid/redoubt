@@ -30,11 +30,39 @@ jobs:
             name: Windows x86_64
           - os: windows-11-arm
             name: Windows aarch64
+          # The other C library, on both architectures, in a container rather
+          # than cross-compiled: what is being asked about is the allocator,
+          # and only a native musl process has musl's.
+          #
+          # What a freed chunk keeps is the allocator's decision and not the
+          # code's. glibc leaves everything past a chunk's first bytes where it
+          # was; musl's `mallocng` may cover the lot. The sweeps measure what is
+          # left in memory, so the same leak can show under one and not the
+          # other.
+          - os: ubuntu-latest
+            name: Linux x86_64 musl
+            container: alpine:latest
+          - os: ubuntu-24.04-arm
+            name: Linux aarch64 musl
+            container: alpine:latest
 
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
 
     steps:
+      # Before anything else, and before `actions/checkout`: every action runs
+      # on a node the runner injects, and that node is linked against glibc.
+      # `libc6-compat` is what lets it start at all under musl. The rest is
+      # what an Alpine image does not ship and the build needs.
+      - name: Prepare the container
+        if: matrix.container
+        run: |
+          apk add --no-cache \
+            libc6-compat build-base musl-dev \
+            libseccomp-dev libseccomp-static \
+            git curl bash
+
       - uses: actions/checkout@v4
 
       - name: Install Rust
@@ -42,12 +70,12 @@ jobs:
         with:
           components: clippy, rustfmt
 
-      - name: Install libseccomp (Linux only)
-        if: runner.os == 'Linux'
+      - name: Install libseccomp
+        if: runner.os == 'Linux' && !matrix.container
         run: sudo apt-get update && sudo apt-get install -y libseccomp-dev
 
       # Formatting reads the same on every runner, so it is asked once rather
-      # than five times.
+      # than on each.
       - name: cargo fmt --check
         if: matrix.name == 'Linux x86_64'
         run: cargo fmt --all -- --check
@@ -82,8 +110,15 @@ jobs:
 
       # nextest does not run doctests, and this workspace documents its API
       # with runnable examples. Without this they stop being checked.
+      #
+      # Not on the musl entries: a doctest asks whether the documentation still
+      # compiles and answers the same on either C library, so running them
+      # again buys minutes and no signal. What differs between the two is the
+      # allocator, and that is what the sweeps above are for.
       - name: cargo test --doc
+        if: ${{ !matrix.container }}
         run: cargo test --workspace --doc
 
       - name: cargo test --doc --all-features
+        if: ${{ !matrix.container }}
         run: cargo test --workspace --all-features --doc
