@@ -25,7 +25,7 @@
 #![cfg(target_os = "linux")]
 
 use redoubt_alloc::{RedoubtArray, RedoubtOption, RedoubtString, RedoubtVec};
-use redoubt_forensics::{Forensics, QUIET, Reason, forensics};
+use redoubt_forensics::{AnyError, Forensics, QUIET, forensics};
 
 /// Thirty-two distinct bytes: no value repeats, so a run that extends did not
 /// extend by luck.
@@ -109,7 +109,7 @@ fn spelled_backwards() -> Vec<u8> {
 
 /// Everything a caller must be able to say about what an operation left, at
 /// every size.
-fn leaves_nothing_at_any_size(what: &str, mut work: impl FnMut(usize)) -> Result<(), Reason> {
+fn leaves_nothing_at_any_size(what: &str, mut work: impl FnMut(usize)) -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
@@ -155,7 +155,7 @@ fn leaves_nothing_at_any_size(what: &str, mut work: impl FnMut(usize)) -> Result
 ///
 /// A test of its own, so the copy it plants is in nobody else's memory.
 #[test]
-fn test_the_sweep_finds_the_secret_while_it_is_held() -> Result<(), Reason> {
+fn test_the_sweep_finds_the_secret_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
     let mut held = vec![0_u8; SECRET.len()];
@@ -191,7 +191,7 @@ fn test_the_sweep_finds_the_secret_while_it_is_held() -> Result<(), Reason> {
 /// zeroized itself on the way out. Nothing of the secret is supposed to
 /// outlive the call.
 #[test]
-fn test_replace_from_mut_slice_leaves_nothing_a_sweep_can_find() -> Result<(), Reason> {
+fn test_replace_from_mut_slice_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
     leaves_nothing_at_any_size("a vec replaced", |of| {
         let mut source = vec![0_u8; of];
 
@@ -213,7 +213,7 @@ fn test_replace_from_mut_slice_leaves_nothing_a_sweep_can_find() -> Result<(), R
 /// The same, appended rather than replaced, so the vec reallocates on the way
 /// up rather than being sized once.
 #[test]
-fn test_extend_from_mut_slice_leaves_nothing_a_sweep_can_find() -> Result<(), Reason> {
+fn test_extend_from_mut_slice_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
     leaves_nothing_at_any_size("a vec extended", |of| {
         let mut held = RedoubtVec::<u8>::new();
 
@@ -242,7 +242,7 @@ fn test_extend_from_mut_slice_leaves_nothing_a_sweep_can_find() -> Result<(), Re
 /// The secret is written as hex digits: the bytes that land in the string are
 /// not the bytes of [`SECRET`], so this test carries its own needle.
 #[test]
-fn test_string_replace_leaves_nothing_a_sweep_can_find() -> Result<(), Reason> {
+fn test_string_replace_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&spelled_backwards())?;
 
     let report_before = watch.snapshot()?;
@@ -295,7 +295,7 @@ fn test_string_replace_leaves_nothing_a_sweep_can_find() -> Result<(), Reason> {
 /// A vec put inside an option, which has to swap the value into place and
 /// leaves a transit temporary on the stack while it does.
 #[test]
-fn test_option_replace_leaves_nothing_a_sweep_can_find() -> Result<(), Reason> {
+fn test_option_replace_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
     leaves_nothing_at_any_size("an option replaced", |of| {
         let mut source = vec![0_u8; of];
 
@@ -322,7 +322,7 @@ fn test_option_replace_leaves_nothing_a_sweep_can_find() -> Result<(), Reason> {
 /// An array, whose size is fixed, so the sweep over sizes has nothing to say
 /// here and one size is the whole of it.
 #[test]
-fn test_array_replace_leaves_nothing_a_sweep_can_find() -> Result<(), Reason> {
+fn test_array_replace_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
