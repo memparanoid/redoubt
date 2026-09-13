@@ -4,8 +4,17 @@
 
 fn main() {
     let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
 
     if target_arch != "aarch64" {
+        return;
+    }
+
+    if !matches!(target_os.as_str(), "linux" | "macos") {
+        println!(
+            "cargo:warning=aarch64 assembly not supported on {}, skipping",
+            target_os
+        );
         return;
     }
 
