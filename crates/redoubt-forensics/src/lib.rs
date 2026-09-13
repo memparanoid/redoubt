@@ -40,6 +40,11 @@
 //! subject's memory goes through the analyst, and the analyst does not come
 //! back. What crosses into this process is five numbers.
 //!
+//! Where nothing may trace anything — an emulator without `ptrace`, a
+//! container without the capability — there are two, and the analyst reads
+//! itself. The caller is as untouched either way; what it costs is a
+//! photograph that moves while it is read.
+//!
 //! # What it does not cover
 //!
 //! A value that lived only in registers. Those never reach a mapping to be read

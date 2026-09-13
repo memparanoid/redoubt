@@ -32,6 +32,17 @@
 //! megabytes of somebody else's memory pass through it — and then it is gone.
 //! What arrives in `P` is a handful of numbers.
 //!
+//! # Two, where there cannot be three
+//!
+//! Not everywhere has `ptrace`. Where the third process cannot be read, `A`
+//! reads itself and there are two.
+//!
+//! `P` is no worse off: `A` is a copy-on-write fork either way, so nothing it
+//! writes was ever in `P`'s memory. What goes is that the photograph is no
+//! longer still — `A` writes as it reads, and the mappings can move under it.
+//! Everything `A` writes lands in the block, which a sweep already steps over,
+//! so none of it is counted; what is left is a noise floor that breathes.
+//!
 //! # The child asks for nothing
 //!
 //! `fork` takes one thread and the whole address space, locks and all, so a
@@ -49,11 +60,11 @@ use crate::analysis::state::{BLOCK, ForensicState, MAGIC, OK, Parts, Span, Spans
 use crate::error::{DONE, Reason};
 use crate::forensics::Work;
 
-/// A stopped child holding a photograph of its parent's memory.
+/// Memory frozen at the instant of a fork, and open for reading.
 ///
-/// It is killed and reaped in a `Drop` rather than at the end of whatever made
-/// it: a panic between the two would otherwise leave a stopped process behind
-/// for as long as the test runner lives.
+/// Usually a stopped grandchild. Where nothing may trace anything it is the
+/// analyst itself, which comes to the same thing for the one process that
+/// matters — see [`Subject::photograph`].
 pub(crate) struct Subject {
     pid: libc::pid_t,
     /// The photograph's memory, open for reading.
@@ -65,6 +76,11 @@ pub(crate) struct Subject {
     /// `mprotect(PROT_NONE)` — which is to say the call cannot read the one
     /// place anybody guards hardest.
     mem: libc::c_int,
+    /// Whether there is a process to kill when this goes.
+    ///
+    /// False when the photograph is the analyst's own memory: killing that
+    /// would be killing the reader in the middle of reading.
+    own: bool,
 }
 
 impl Subject {
@@ -77,6 +93,31 @@ impl Subject {
     /// Nothing between the fork and the stop allocates or runs a destructor.
     /// Only the calling thread survives into the child, so anything another
     /// thread was holding at that moment is held by nobody there.
+    ///
+    /// # Where nothing may trace anything
+    ///
+    /// Some places have no `ptrace` at all: an emulator that never implemented
+    /// it, a container without `CAP_SYS_PTRACE`, a kernel locked down. There
+    /// the third process cannot be read, and the analyst reads **itself**.
+    ///
+    /// That is a smaller change than it sounds, because of which process the
+    /// three were ever for. The analyst was never the one being protected —
+    /// it gets filthy and then it is gone. The one that must come out
+    /// untouched is the caller, and it is untouched either way: the analyst is
+    /// a copy-on-write fork, so nothing it writes is ever in the caller's
+    /// memory.
+    ///
+    /// What the third process bought was a photograph nobody was writing to
+    /// while it was read. Reading yourself writes as you go — the window, the
+    /// mappings, every frame of the sweep. All of it lands inside the block,
+    /// and the block is what a sweep already steps over, so none of it can be
+    /// counted. That was built for the instrument's own noise and it turns out
+    /// to be exactly what this needs.
+    ///
+    /// What is genuinely given up is that the memory is no longer still. A
+    /// mapping can grow between one read and the next, and a page can be
+    /// handed back mid-sweep and read as whatever it became. Both move the
+    /// noise floor and neither invents a run of the secret.
     pub(crate) fn photograph() -> Option<Self> {
         // SAFETY: `fork` is called with nothing else of this library's in
         // flight. The child path below touches only async-signal-safe calls
@@ -85,7 +126,7 @@ impl Subject {
         let pid = unsafe { libc::fork() };
 
         if pid < 0 {
-            return None;
+            return Self::itself();
         }
 
         if pid == 0 {
@@ -96,7 +137,7 @@ impl Subject {
                 // traced is a child its parent will wait on until one of them
                 // is killed — the stop is never reported and the stopped
                 // process never exits. Leaving instead turns a hang into an
-                // answer.
+                // answer, and the answer is the other way of doing this.
                 if libc::ptrace(libc::PTRACE_TRACEME, 0, ptr::null_mut::<libc::c_void>(), 0) < 0 {
                     libc::_exit(1);
                 }
@@ -111,21 +152,18 @@ impl Subject {
         // `WUNTRACED`, so that a stop is reported whether or not the trace
         // took hold. Without it this call is only woken by a traced stop, and
         // an untraced one waits for an exit that a stopped process is never
-        // going to reach. It costs nothing where tracing works and is the
-        // difference between an error and a wedged test run where it does
-        // not — an emulator that does not implement `ptrace`, a kernel with
-        // `ptrace_scope` locked down, a container without `CAP_SYS_PTRACE`.
+        // going to reach.
         //
         // SAFETY: the pid is this process's own child, and the status is a
         // local this call writes into.
         if unsafe { libc::waitpid(pid, &mut status, libc::WUNTRACED) } < 0 {
-            return None;
+            return Self::itself();
         }
 
-        // A child that left rather than stopped has no memory to read, and
-        // reading nothing would answer the same as finding nothing.
+        // A child that left rather than stopped is a child that could not be
+        // traced, and it said so by leaving.
         if !libc::WIFSTOPPED(status) {
-            return None;
+            return Self::itself();
         }
 
         let mut path = [0_u8; 32];
@@ -142,10 +180,42 @@ impl Subject {
                 libc::waitpid(pid, ptr::null_mut(), 0);
             }
 
+            return Self::itself();
+        }
+
+        Some(Self {
+            pid,
+            mem,
+            own: true,
+        })
+    }
+
+    /// The caller's own memory as the photograph, for where there is no third
+    /// process to be had.
+    ///
+    /// Only ever reached from the analyst, which is itself a fork and does not
+    /// return. What this opens is a snapshot of the caller taken at that fork;
+    /// what it is not is still.
+    fn itself() -> Option<Self> {
+        // SAFETY: takes no argument and cannot fail.
+        let pid = unsafe { libc::getpid() };
+
+        let mut path = [0_u8; 32];
+
+        named(pid, b"/mem\0", &mut path);
+
+        // SAFETY: the path is a buffer just written and terminated.
+        let mem = unsafe { libc::open(path.as_ptr().cast(), libc::O_RDONLY) };
+
+        if mem < 0 {
             return None;
         }
 
-        Some(Self { pid, mem })
+        Some(Self {
+            pid,
+            mem,
+            own: false,
+        })
     }
 
     /// As much of the photograph at that address as fits, and nothing on
@@ -170,12 +240,20 @@ impl Subject {
 }
 
 impl Drop for Subject {
+    /// Reaped here and not at the end of whatever made it: a panic between the
+    /// two would otherwise leave a stopped process behind for as long as the
+    /// test runner lives.
     fn drop(&mut self) {
-        // SAFETY: the descriptor is this struct's own, and the pid is this
-        // process's own child, stopped and not yet reaped, so it cannot have
-        // been reused for anything else.
+        // SAFETY: the descriptor is this struct's own.
+        unsafe { libc::close(self.mem) };
+
+        if !self.own {
+            return;
+        }
+
+        // SAFETY: the pid is this process's own child, stopped and not yet
+        // reaped, so it cannot have been reused for anything else.
         unsafe {
-            libc::close(self.mem);
             libc::kill(self.pid, libc::SIGKILL);
             libc::waitpid(self.pid, ptr::null_mut(), 0);
         }
