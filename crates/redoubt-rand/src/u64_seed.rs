@@ -90,6 +90,7 @@ pub unsafe fn generate(dst: *mut u64) -> Result<(), EntropyError> {
 }
 
 #[inline(always)]
+#[cfg(any(target_os = "linux", target_os = "android", test))]
 pub(crate) fn finalize_getrandom(ret: isize) -> Result<(), EntropyError> {
     if ret == 8 {
         Ok(())
@@ -99,7 +100,7 @@ pub(crate) fn finalize_getrandom(ret: isize) -> Result<(), EntropyError> {
 }
 
 #[inline(always)]
-#[allow(unused)]
+#[cfg(any(target_os = "macos", target_os = "ios", test))]
 pub(crate) fn finalize_getentropy(ret: i32) -> Result<(), EntropyError> {
     if ret == 0 {
         Ok(())
