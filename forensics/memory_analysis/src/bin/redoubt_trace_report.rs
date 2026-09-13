@@ -15,7 +15,8 @@ use std::hint::black_box;
 /// value that was properly zeroized. See `never_free` for the measurement that
 /// makes the difference concrete.
 #[global_allocator]
-static ALLOC: redoubt_memory_analysis::never_free::NeverFree = redoubt_memory_analysis::never_free::NeverFree;
+static ALLOC: redoubt_memory_analysis::never_free::NeverFree =
+    redoubt_memory_analysis::never_free::NeverFree;
 
 use redoubt::alloc::{RedoubtArray, RedoubtOption, RedoubtString, RedoubtVec};
 use redoubt::codec::RedoubtCodec;
