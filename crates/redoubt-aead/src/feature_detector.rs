@@ -5,9 +5,9 @@
 #[cfg(test)]
 pub enum FeatureDetectorBehaviour {
     None,
-    #[cfg(any(
-        all(target_arch = "x86_64", not(target_os = "windows")),
-        target_arch = "aarch64"
+    #[cfg(all(
+        any(target_arch = "x86_64", target_arch = "aarch64"),
+        not(target_os = "windows")
     ))]
     ForceAesTrue,
     ForceAesFalse,
@@ -28,9 +28,9 @@ impl FeatureDetector {
     }
 
     #[inline(always)]
-    #[cfg(any(
-        all(target_arch = "x86_64", not(target_os = "windows")),
-        target_arch = "aarch64"
+    #[cfg(all(
+        any(target_arch = "x86_64", target_arch = "aarch64"),
+        not(target_os = "windows")
     ))]
     pub fn platform_has_aes(&self) -> bool {
         // Miri interprets MIR and cannot call into the linked AEGIS assembly,
@@ -67,9 +67,9 @@ impl FeatureDetector {
     }
 
     #[inline(always)]
-    #[cfg(any(
-        all(target_arch = "x86_64", not(target_os = "windows")),
-        target_arch = "aarch64"
+    #[cfg(all(
+        any(target_arch = "x86_64", target_arch = "aarch64"),
+        not(target_os = "windows")
     ))]
     pub fn has_aes(&self) -> bool {
         #[cfg(test)]

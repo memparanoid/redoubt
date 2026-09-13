@@ -28,14 +28,14 @@ use crate::feature_detector::FeatureDetector;
 #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
 use redoubt_aead_aegis_x86::Aegis128LX86Backend;
 
-#[cfg(target_arch = "aarch64")]
+#[cfg(all(target_arch = "aarch64", not(target_os = "windows")))]
 use redoubt_aead_aegis_arm::Aegis128LArmBackend;
 
 /// Internal enum representing the selected backend implementation.
 enum AeadBackendImpl {
     #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
     Aegis128LX86(Aegis128LX86Backend),
-    #[cfg(target_arch = "aarch64")]
+    #[cfg(all(target_arch = "aarch64", not(target_os = "windows")))]
     Aegis128LArm(Aegis128LArmBackend),
     XChacha20Poly1305(Box<XChacha20Poly1305<redoubt_rand::SystemEntropySource>>),
 }
@@ -89,7 +89,7 @@ impl Aead {
             };
         }
 
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(all(target_arch = "aarch64", not(target_os = "windows")))]
         if feature_detector.has_aes() {
             return Self {
                 backend: AeadBackendImpl::Aegis128LArm(Aegis128LArmBackend),
@@ -108,7 +108,7 @@ impl Aead {
         match &self.backend {
             #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
             AeadBackendImpl::Aegis128LX86(_) => "AEGIS-128L",
-            #[cfg(target_arch = "aarch64")]
+            #[cfg(all(target_arch = "aarch64", not(target_os = "windows")))]
             AeadBackendImpl::Aegis128LArm(_) => "AEGIS-128L",
             AeadBackendImpl::XChacha20Poly1305(_) => "XChaCha20-Poly1305",
         }
@@ -127,7 +127,7 @@ impl Aead {
         match &mut self.backend {
             #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
             AeadBackendImpl::Aegis128LX86(b) => b.api_encrypt(key, nonce, aad, data, tag),
-            #[cfg(target_arch = "aarch64")]
+            #[cfg(all(target_arch = "aarch64", not(target_os = "windows")))]
             AeadBackendImpl::Aegis128LArm(b) => b.api_encrypt(key, nonce, aad, data, tag),
             AeadBackendImpl::XChacha20Poly1305(b) => {
                 let key: &[u8; redoubt_aead_xchacha::KEY_SIZE] =
@@ -155,7 +155,7 @@ impl Aead {
         match &mut self.backend {
             #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
             AeadBackendImpl::Aegis128LX86(b) => b.api_decrypt(key, nonce, aad, data, tag),
-            #[cfg(target_arch = "aarch64")]
+            #[cfg(all(target_arch = "aarch64", not(target_os = "windows")))]
             AeadBackendImpl::Aegis128LArm(b) => b.api_decrypt(key, nonce, aad, data, tag),
             AeadBackendImpl::XChacha20Poly1305(b) => {
                 let key: &[u8; redoubt_aead_xchacha::KEY_SIZE] =
@@ -175,7 +175,7 @@ impl Aead {
         match &mut self.backend {
             #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
             AeadBackendImpl::Aegis128LX86(b) => b.api_generate_nonce(),
-            #[cfg(target_arch = "aarch64")]
+            #[cfg(all(target_arch = "aarch64", not(target_os = "windows")))]
             AeadBackendImpl::Aegis128LArm(b) => b.api_generate_nonce(),
             AeadBackendImpl::XChacha20Poly1305(b) => b
                 .generate_nonce()
@@ -189,7 +189,7 @@ impl Aead {
         match &self.backend {
             #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
             AeadBackendImpl::Aegis128LX86(b) => b.api_key_size(),
-            #[cfg(target_arch = "aarch64")]
+            #[cfg(all(target_arch = "aarch64", not(target_os = "windows")))]
             AeadBackendImpl::Aegis128LArm(b) => b.api_key_size(),
             AeadBackendImpl::XChacha20Poly1305(_) => redoubt_aead_xchacha::KEY_SIZE,
         }
@@ -201,7 +201,7 @@ impl Aead {
         match &self.backend {
             #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
             AeadBackendImpl::Aegis128LX86(b) => b.api_nonce_size(),
-            #[cfg(target_arch = "aarch64")]
+            #[cfg(all(target_arch = "aarch64", not(target_os = "windows")))]
             AeadBackendImpl::Aegis128LArm(b) => b.api_nonce_size(),
             AeadBackendImpl::XChacha20Poly1305(_) => redoubt_aead_xchacha::XNONCE_SIZE,
         }
@@ -213,7 +213,7 @@ impl Aead {
         match &self.backend {
             #[cfg(all(target_arch = "x86_64", not(target_os = "windows")))]
             AeadBackendImpl::Aegis128LX86(b) => b.api_tag_size(),
-            #[cfg(target_arch = "aarch64")]
+            #[cfg(all(target_arch = "aarch64", not(target_os = "windows")))]
             AeadBackendImpl::Aegis128LArm(b) => b.api_tag_size(),
             AeadBackendImpl::XChacha20Poly1305(_) => redoubt_aead_xchacha::TAG_SIZE,
         }
@@ -235,7 +235,7 @@ impl Aead {
     }
 
     #[cfg(test)]
-    #[cfg(target_arch = "aarch64")]
+    #[cfg(all(target_arch = "aarch64", not(target_os = "windows")))]
     pub(crate) fn with_aegis128l() -> Self {
         Self {
             backend: AeadBackendImpl::Aegis128LArm(Aegis128LArmBackend),
