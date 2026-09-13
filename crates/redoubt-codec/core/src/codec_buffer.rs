@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 //! Secure buffer with locked capacity and automatic zeroization.
+use alloc::vec;
 use alloc::vec::Vec;
 
 use redoubt_alloc::AllockedVec;
@@ -146,6 +147,11 @@ impl RedoubtCodecBuffer {
     /// This is crucial when the `RedoubtCodecBuffer` contains sensitive plaintext that
     /// should not remain in memory after encoding is complete.
     ///
+    /// The copy is [`redoubt_mem`]'s and not `to_vec`'s. `to_vec` is
+    /// `core::ptr::copy_nonoverlapping` over a length the compiler cannot see,
+    /// which is a call into the C library's `memcpy` — and this buffer holds
+    /// plaintext at exactly that moment.
+    ///
     /// # Example
     ///
     /// ```ignore
@@ -156,8 +162,15 @@ impl RedoubtCodecBuffer {
     /// ```
     #[inline(always)]
     pub fn export_as_vec(&mut self) -> Vec<u8> {
-        let vec = self.as_slice().to_vec();
+        let of = self.as_slice().len();
+        let mut vec = vec![0_u8; of];
+
+        // SAFETY: `vec` was just made `of` bytes long, the buffer is at least
+        // that long, and the two are different allocations.
+        unsafe { redoubt_mem::copy_nonoverlapping(self.as_slice().as_ptr(), vec.as_mut_ptr(), of) };
+
         self.fast_zeroize();
+
         vec
     }
 }
