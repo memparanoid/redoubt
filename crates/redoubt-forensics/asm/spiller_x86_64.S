@@ -51,6 +51,17 @@ redoubt_spill_room:
     .zero 2176
     .size redoubt_spill_room, 2176
 
+// How many bytes of each vector slot the last capture wrote: 16, 32 or 64,
+// depending on which form ran. Without it a reader cannot tell a register
+// captured narrow from one captured wide that happened to be empty past its
+// sixteenth byte. An immediate straight to memory, so it costs no register.
+    .globl redoubt_spill_width
+    .type  redoubt_spill_width,@object
+    .p2align 3
+redoubt_spill_width:
+    .zero 8
+    .size redoubt_spill_width, 8
+
     .data
     .globl redoubt_spill_which
     .type  redoubt_spill_which,@object
@@ -121,6 +132,7 @@ redoubt_spill_sse:
     movups %xmm13, redoubt_spill_room+960(%rip)
     movups %xmm14, redoubt_spill_room+1024(%rip)
     movups %xmm15, redoubt_spill_room+1088(%rip)
+    movq    $16, redoubt_spill_width(%rip)
     ret
     .size redoubt_spill_sse, .-redoubt_spill_sse
 
@@ -171,6 +183,7 @@ redoubt_spill_avx:
     vmovups %ymm13, redoubt_spill_room+960(%rip)
     vmovups %ymm14, redoubt_spill_room+1024(%rip)
     vmovups %ymm15, redoubt_spill_room+1088(%rip)
+    movq    $32, redoubt_spill_width(%rip)
     ret
     .size redoubt_spill_avx, .-redoubt_spill_avx
 
@@ -238,6 +251,7 @@ redoubt_spill_avx512:
     vmovdqu64 %zmm29, redoubt_spill_room+1984(%rip)
     vmovdqu64 %zmm30, redoubt_spill_room+2048(%rip)
     vmovdqu64 %zmm31, redoubt_spill_room+2112(%rip)
+    movq    $64, redoubt_spill_width(%rip)
     ret
     .size redoubt_spill_avx512, .-redoubt_spill_avx512
 

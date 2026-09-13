@@ -103,7 +103,7 @@ pub use macros::{DEPTH, deep};
 // `SPILL`, `VECTORS` and `SLOT` are how the room is read: without them the
 // slice `spilled` hands back is a couple of kilobytes of nothing.
 #[cfg(target_os = "linux")]
-pub use spiller::{SLOT, SPILL, VECTORS, pick_spiller, spill, spilled};
+pub use spiller::{SLOT, SPILL, VECTORS, pick_spiller, spill, spilled, spilled_width};
 
 /// The capture, raw, for a caller that needs it to be the next instruction
 /// after the thing being measured.
@@ -121,3 +121,10 @@ pub use spiller::redoubt_spill;
 /// spiller at all.
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 pub use spiller::redoubt_spill_avx512;
+
+/// The widest capture there is on this architecture, by name.
+///
+/// The far end of an SVE `z` is where a secret rests here, and the NEON form
+/// cannot see any of it.
+#[cfg(all(target_arch = "aarch64", target_os = "linux"))]
+pub use spiller::redoubt_spill_sve;

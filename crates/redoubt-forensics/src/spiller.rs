@@ -31,9 +31,8 @@
 //!   caller used to work out the address, and the `rdi` slot held our own
 //!   pointer instead of the caller's.
 //! - **No feature check.** Asking what the machine supports is a branch and an
-//!   atomic load, and both need a register. It is asked once, by [`arm`], and
-//!   the answer is a slot the assembly jumps through — a RIP-relative indirect
-//!   jump touches nothing.
+//!   atomic load, and both need a register. It is asked once, by
+//!   [`pick_spiller`], and the answer is a slot the assembly jumps through.
 //!
 //! [`pick_spiller`] is called by [`crate::Forensics::watching`], so a caller
 //! of this crate has nothing to remember. It is idempotent and public for
@@ -76,10 +75,12 @@
 //! caller's. They are that architecture's `rdi`: transit, never a resting
 //! place, and nothing leaves a secret in one.
 //!
-//! And `aarch64` captures NEON only. `z0-z31` are up to 2048 bits each and
-//! their width is not known until run time, which is a different capture
-//! rather than a wider one. Until it exists, a zero from this crate about an
-//! SVE machine is a zero about a quarter of its register file.
+//! Each has one place a secret can rest. On `x86_64` it is `zmm16-31`, which
+//! no form of `vzeroall` reaches and compiled code never touches. On
+//! `aarch64` it is the far end of `z0-z31`: their low 128 bits are `v0-v31`
+//! and everything writes those, but past 128 bits only SVE reaches, and a
+//! compiler emits none unless it was asked to. Both are captured, and neither
+//! by the narrow form — which is what [`pick_spiller`] is for.
 
 /// How much one capture is: the general registers, then one slot per vector
 /// register wide enough for the widest one the architecture has.
@@ -92,7 +93,7 @@ pub const SPILL: usize = 128 + 32 * 64;
 
 /// How much one capture is. See the `x86_64` form above.
 #[cfg(target_arch = "aarch64")]
-pub const SPILL: usize = 256 + 32 * 64;
+pub const SPILL: usize = 256 + 32 * 256;
 
 /// Where the vector slots begin.
 #[cfg(target_arch = "x86_64")]
@@ -114,8 +115,22 @@ pub const SPILL: usize = 0;
 #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
 pub const VECTORS: usize = 0;
 
-/// How far apart one vector slot is from the next, on either architecture.
+/// How far apart one vector slot is from the next.
+///
+/// As wide as the widest vector the architecture defines, whatever this
+/// machine's happens to be — `zmm` at 64 bytes, an SVE `z` at 256 — so that
+/// the layout does not move when the form does. [`spilled_width`] says how
+/// much of each slot the last capture actually wrote.
+#[cfg(target_arch = "x86_64")]
 pub const SLOT: usize = 64;
+
+/// How far apart one vector slot is from the next.
+#[cfg(target_arch = "aarch64")]
+pub const SLOT: usize = 256;
+
+/// How far apart one vector slot is from the next.
+#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+pub const SLOT: usize = 0;
 
 #[cfg(all(
     any(target_arch = "x86_64", target_arch = "aarch64"),
@@ -141,6 +156,11 @@ unsafe extern "C" {
 
     /// Where the captures land. [`spilled`] reads it; nothing should write it.
     static redoubt_spill_room: [u8; SPILL];
+
+    /// How many bytes of each vector slot the last capture wrote.
+    ///
+    /// [`spilled_width`] reads it; the assembly writes it.
+    static redoubt_spill_width: usize;
 
     /// Which form [`redoubt_spill`] jumps to. [`pick_spiller`] writes it.
     ///
@@ -183,10 +203,24 @@ unsafe extern "C" {
 
 #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
 unsafe extern "C" {
+    /// The general registers, the stack pointer, and the whole of `z0-z31`.
+    ///
+    /// The far end of a `z` is the reason this exists. `v0-v31` are its low
+    /// 128 bits and ordinary compiled code writes those constantly, but past
+    /// 128 bits nothing but SVE reaches — and a compiler emits none unless it
+    /// was asked to. So on a machine whose vector length is wider than that,
+    /// whatever a wide copy left up there stays until the process ends, and
+    /// the NEON form cannot see any of it.
+    ///
+    /// # Safety
+    ///
+    /// Needs SVE. Call [`redoubt_spill`] instead unless the point is to force
+    /// this form.
+    pub fn redoubt_spill_sve();
+
     /// The general registers, the stack pointer, and `v0-v31`.
     ///
-    /// The only form there is on this architecture, and NEON is on every
-    /// `aarch64`, so nothing has to be checked to reach it.
+    /// NEON is on every `aarch64`, so nothing has to be checked to reach it.
     ///
     /// # Safety
     ///
@@ -201,11 +235,9 @@ unsafe extern "C" {
 /// any capture — because the question cannot be asked at the capture itself.
 /// Idempotent: it writes the same answer every time.
 ///
-/// Until this runs, [`redoubt_spill`] reaches the narrowest form, which on
-/// `x86_64` is SSE: correct, and a quarter of what a modern machine has. On
-/// `aarch64` there is one form and this changes nothing — it is called there
-/// so that the day an SVE capture exists, every call site already goes
-/// through the slot.
+/// Until this runs, [`redoubt_spill`] reaches the narrowest form — SSE on
+/// `x86_64`, NEON on `aarch64`. Correct either way, and a quarter of what a
+/// modern machine has.
 pub fn pick_spiller() {
     #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
     {
@@ -222,7 +254,11 @@ pub fn pick_spiller() {
 
     #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
     {
-        let pick: unsafe extern "C" fn() = redoubt_spill_neon;
+        let pick: unsafe extern "C" fn() = if std::arch::is_aarch64_feature_detected!("sve") {
+            redoubt_spill_sve
+        } else {
+            redoubt_spill_neon
+        };
 
         redoubt_spill_which.store(pick as *mut (), core::sync::atomic::Ordering::Relaxed);
     }
@@ -260,6 +296,11 @@ pub fn spill() {
 /// x86_64    0    rax rbx rcx rdx rsi rdi rbp rsp r8..r15
 /// aarch64   0    x0..x30, then sp at 248
 /// ```
+///
+/// A slot is as wide as the widest vector the architecture defines, and the
+/// form that ran may have written less of it. [`spilled_width`] says how much
+/// — without it, a register captured narrow reads the same as one captured
+/// wide that happened to be empty past its sixteenth byte.
 #[must_use]
 pub fn spilled() -> &'static [u8] {
     #[cfg(all(
@@ -279,5 +320,35 @@ pub fn spilled() -> &'static [u8] {
     )))]
     {
         &[]
+    }
+}
+
+/// How many bytes of each vector slot the last capture wrote.
+///
+/// Sixteen, thirty-two or sixty-four on `x86_64`, by which form ran; sixteen
+/// from NEON, or this machine's vector length from SVE, on `aarch64`. Zero
+/// until something has been captured.
+///
+/// Anything past this in a slot is whatever was there before, which on a room
+/// nothing has overwritten is zero — and a register that is genuinely zero
+/// reads the same way. That is the difference this answers.
+#[must_use]
+pub fn spilled_width() -> usize {
+    #[cfg(all(
+        any(target_arch = "x86_64", target_arch = "aarch64"),
+        target_os = "linux"
+    ))]
+    {
+        // SAFETY: a static word, written by the captures and read here. A
+        // capture racing this hands back one of the two widths, both true.
+        unsafe { core::ptr::read_volatile(&raw const redoubt_spill_width) }
+    }
+
+    #[cfg(not(all(
+        any(target_arch = "x86_64", target_arch = "aarch64"),
+        target_os = "linux"
+    )))]
+    {
+        0
     }
 }
