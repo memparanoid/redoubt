@@ -5,9 +5,7 @@
 use alloc::vec::Vec;
 
 use crate::error::AllockedVecError;
-use redoubt_zero::{
-    FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,
-};
+use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata};
 
 /// Test behaviour for injecting failures in `AllockedVec` operations.
 ///
@@ -115,7 +113,15 @@ where
     has_been_sealed: bool,
     #[cfg(any(test, feature = "test-utils"))]
     behaviour: AllockedVecBehaviour,
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 impl<T> core::fmt::Debug for AllockedVec<T>
@@ -204,7 +210,8 @@ where
             has_been_sealed: false,
             #[cfg(any(test, feature = "test-utils"))]
             behaviour: AllockedVecBehaviour::default(),
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 

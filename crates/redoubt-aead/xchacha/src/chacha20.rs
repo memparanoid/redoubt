@@ -7,7 +7,7 @@
 //! All sensitive state is zeroized on drop using RedoubtZero.
 
 use redoubt_util::{u32_from_le, u32_to_le};
-use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
+use redoubt_zero::{FastZeroizable, RedoubtZero};
 
 use super::consts::{
     CHACHA20_BLOCK_SIZE, CHACHA20_NONCE_SIZE, HCHACHA20_NONCE_SIZE, KEY_SIZE, XNONCE_SIZE,
@@ -69,7 +69,15 @@ pub struct ChaCha20<const NONCE_SIZE: usize> {
     qr_b: u32,
     qr_c: u32,
     qr_d: u32,
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 impl<const NONCE_SIZE: usize> Default for ChaCha20<NONCE_SIZE> {
@@ -83,7 +91,8 @@ impl<const NONCE_SIZE: usize> Default for ChaCha20<NONCE_SIZE> {
             qr_b: 0,
             qr_c: 0,
             qr_d: 0,
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 }
@@ -252,7 +261,15 @@ pub struct HChaCha20 {
     qr_b: u32,
     qr_c: u32,
     qr_d: u32,
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 #[cfg(test)]
@@ -389,7 +406,15 @@ pub struct XChaCha20 {
     nonce: [u8; CHACHA20_NONCE_SIZE],
     hchacha: HChaCha20,
     chacha: ChaCha20<CHACHA20_NONCE_SIZE>,
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 #[cfg(test)]
@@ -406,7 +431,8 @@ impl Default for XChaCha20 {
             nonce: [0; CHACHA20_NONCE_SIZE],
             hchacha: HChaCha20::default(),
             chacha: ChaCha20::<CHACHA20_NONCE_SIZE>::default(),
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 }

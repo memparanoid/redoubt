@@ -5,7 +5,7 @@
 use alloc::string::String;
 use core::ops::{Deref, DerefMut};
 
-use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
+use redoubt_zero::{FastZeroizable, RedoubtZero};
 
 /// A String wrapper with automatic zeroization and safe reallocation.
 ///
@@ -35,7 +35,15 @@ use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
 #[fast_zeroize(drop)]
 pub struct RedoubtString {
     inner: String,
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -64,7 +72,8 @@ impl RedoubtString {
     pub fn new() -> Self {
         Self {
             inner: String::new(),
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 
@@ -72,7 +81,8 @@ impl RedoubtString {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             inner: String::with_capacity(capacity),
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 

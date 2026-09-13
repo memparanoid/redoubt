@@ -6,7 +6,7 @@
 use alloc::vec::Vec;
 
 use redoubt_alloc::AllockedVec;
-use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
+use redoubt_zero::{FastZeroizable, RedoubtZero};
 
 use crate::error::RedoubtCodecBufferError;
 
@@ -16,7 +16,15 @@ pub struct RedoubtCodecBuffer {
     cursor: usize,
     capacity: usize,
     allocked_vec: AllockedVec<u8>,
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 impl Default for RedoubtCodecBuffer {
@@ -44,7 +52,8 @@ impl RedoubtCodecBuffer {
             cursor: 0,
             capacity,
             allocked_vec,
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 

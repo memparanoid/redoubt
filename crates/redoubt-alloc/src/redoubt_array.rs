@@ -4,9 +4,7 @@
 
 use core::ops::{Deref, DerefMut};
 
-use redoubt_zero::{
-    FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,
-};
+use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata};
 
 use alloc::boxed::Box;
 
@@ -35,7 +33,15 @@ where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
 {
     inner: Box<[T; N]>,
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -77,7 +83,8 @@ where
     {
         Self {
             inner: Box::new(core::array::from_fn(|_| T::default())),
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 
@@ -120,6 +127,8 @@ where
         // in the workspace don't need the reset — they either wipe `inner`
         // only, or never sit on the construction path of a drop assertion.
         self.fast_zeroize();
+
+        #[cfg(test)]
         self.__sentinel.reset();
 
         unsafe {

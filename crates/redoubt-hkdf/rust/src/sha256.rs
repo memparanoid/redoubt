@@ -4,7 +4,7 @@
 
 //! SHA-256 implementation per RFC 6234 Section 6.2
 
-use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
+use redoubt_zero::{FastZeroizable, RedoubtZero};
 
 use super::word32::Word32;
 
@@ -57,7 +57,15 @@ pub(crate) struct Sha256State {
     buffer_len: usize,
     total_len: u64,
 
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 #[cfg(test)]
@@ -92,7 +100,8 @@ impl Sha256State {
             tmp_word: [0u8; 4],
             buffer_len: 0,
             total_len: 0,
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 

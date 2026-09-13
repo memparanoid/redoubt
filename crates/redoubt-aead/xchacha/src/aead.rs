@@ -10,7 +10,7 @@ use redoubt_rand::{
     EntropyError, EntropySource, NonceGenerator, NonceSessionGenerator, SystemEntropySource,
 };
 use redoubt_util::{constant_time_eq, u64_to_le};
-use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
+use redoubt_zero::{FastZeroizable, RedoubtZero};
 
 use redoubt_aead_core::AeadBackend;
 use redoubt_aead_core::AeadError;
@@ -31,7 +31,15 @@ pub struct XChacha20Poly1305<E: EntropySource> {
     len_block: [u8; TAG_SIZE],
     #[fast_zeroize(skip)]
     nonce_gen: NonceSessionGenerator<E, XNONCE_SIZE>,
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 #[cfg(test)]
@@ -58,7 +66,8 @@ impl<E: EntropySource> XChacha20Poly1305<E> {
             expected_tag: [0; TAG_SIZE],
             len_block: [0; TAG_SIZE],
             nonce_gen: NonceSessionGenerator::new(entropy),
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 

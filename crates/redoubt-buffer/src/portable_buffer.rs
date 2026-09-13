@@ -11,7 +11,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use redoubt_zero::{RedoubtZero, ZeroizeOnDropSentinel};
+use redoubt_zero::RedoubtZero;
 
 use crate::error::BufferError;
 use crate::traits::Buffer;
@@ -21,7 +21,15 @@ use crate::traits::Buffer;
 #[fast_zeroize(drop)]
 pub struct PortableBuffer {
     inner: Vec<u8>,
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 #[cfg(test)]
@@ -38,7 +46,8 @@ impl PortableBuffer {
 
         Self {
             inner,
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 }

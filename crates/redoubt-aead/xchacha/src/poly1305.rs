@@ -8,7 +8,7 @@
 //! All sensitive state is zeroized on drop using RedoubtZero.
 
 use redoubt_util::{u32_from_le, u32_to_le};
-use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
+use redoubt_zero::{FastZeroizable, RedoubtZero};
 
 use super::consts::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 
@@ -23,7 +23,15 @@ pub(crate) struct Poly1305Block {
     le_bytes_tmp: [u8; 4],
     shifting_tmp_a: u32,
     shifting_tmp_b: u32,
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 #[cfg(test)]
@@ -52,7 +60,15 @@ pub(crate) struct Poly1305Final {
     shifting_tmp_b: u64,
     le_bytes_tmp: [u8; 4],
     s_u32: u32,
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 #[cfg(test)]
@@ -79,7 +95,15 @@ pub struct Poly1305 {
     buffer_len: usize,
     block: Poly1305Block,
     finalize: Poly1305Final,
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 #[cfg(test)]

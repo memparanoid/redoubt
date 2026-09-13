@@ -22,7 +22,7 @@ mod tests;
 use core::fmt;
 
 use redoubt_codec::{BytesRequired, Decode, Encode, RedoubtCodec};
-use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel};
+use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe};
 
 /// Wrapper that prevents accidental exposure of sensitive data.
 ///
@@ -85,8 +85,16 @@ where
     T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
 {
     inner: Box<T>,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
     #[codec(default)]
-    __sentinel: ZeroizeOnDropSentinel,
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 impl<T> Default for RedoubtSecret<T>
@@ -96,7 +104,8 @@ where
     fn default() -> Self {
         Self {
             inner: Box::new(T::default()),
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 }
@@ -144,7 +153,8 @@ where
 
         Self {
             inner: Box::new(value),
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 

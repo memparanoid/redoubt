@@ -5,9 +5,7 @@
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
-use redoubt_zero::{
-    FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,
-};
+use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata};
 
 /// A Vec wrapper with automatic zeroization and safe reallocation.
 ///
@@ -40,7 +38,15 @@ where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
 {
     inner: Vec<T>,
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -77,7 +83,8 @@ where
     pub fn new() -> Self {
         Self {
             inner: Vec::new(),
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 
@@ -85,7 +92,8 @@ where
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             inner: Vec::with_capacity(capacity),
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 

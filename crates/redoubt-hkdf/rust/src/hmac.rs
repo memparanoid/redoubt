@@ -4,7 +4,7 @@
 
 //! HMAC-SHA256 implementation per RFC 2104
 
-use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizeOnDropSentinel};
+use redoubt_zero::{FastZeroizable, RedoubtZero};
 
 use super::sha256::Sha256State;
 
@@ -30,7 +30,15 @@ pub(crate) struct HmacSha256State {
     /// Inner hash result: SHA256(K ⊕ ipad || message)
     inner_hash: [u8; HASH_LEN],
 
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 #[cfg(test)]
@@ -50,7 +58,8 @@ impl HmacSha256State {
             sha_inner: Sha256State::new(),
             sha_outer: Sha256State::new(),
             inner_hash: [0u8; HASH_LEN],
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
     }
 

@@ -9,8 +9,7 @@ use core::marker::PhantomData;
 use redoubt_aead::AeadApi;
 use redoubt_codec::{BytesRequired, Decode, Encode, RedoubtCodecBuffer};
 use redoubt_zero::{
-    FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata, ZeroizeOnDropSentinel,
-    ZeroizingGuard,
+    FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata, ZeroizingGuard,
 };
 
 use super::consts::AAD;
@@ -46,7 +45,15 @@ where
     tags: Tags<N>,
     tmp_field_cyphertext: Ciphertext,
     tmp_field_codec_buff: RedoubtCodecBuffer,
-    __sentinel: ZeroizeOnDropSentinel,
+    /// Runtime verification that zeroization happened, for the tests that
+    /// read it.
+    ///
+    /// Gated because it is an `Arc<AtomicBool>` — one heap allocation per
+    /// value, in a type whose whole reason for existing is to leave nothing
+    /// in memory. Nothing reads it outside this crate's own tests, and the
+    /// `RedoubtZero` derive treats the field as optional.
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
     #[fast_zeroize(skip)]
     aead: A,
     #[fast_zeroize(skip)]
@@ -126,7 +133,8 @@ where
             poisoned: false,
             tmp_field_cyphertext: Ciphertext::default(),
             tmp_field_codec_buff: RedoubtCodecBuffer::default(),
-            __sentinel: ZeroizeOnDropSentinel::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
             _marker: PhantomData,
         }
     }
