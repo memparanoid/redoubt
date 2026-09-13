@@ -40,19 +40,25 @@ if [ ${#FOUND[@]} -eq 0 ]; then
   exit 1
 fi
 
-# A subset, if the caller named one. Matched against the directory the script
-# sits in, which is what the script itself calls the crate.
+# What the crate is called, read where each `cross-test.sh` reads it. Not the
+# directory: `crates/redoubt-codec/core` is `redoubt-codec-core`, and two of
+# those directories are named `core`.
+named() {
+  sed -n 's/^name *= *"\(.*\)".*/\1/p' "$(dirname "$1")/Cargo.toml" | head -1
+}
+
+# A subset, if the caller named one.
 WANTED=("$@")
 
 SCRIPTS=()
 
 for script in "${FOUND[@]}"; do
-  crate="$(basename "$(dirname "$script")")"
-
   if [ ${#WANTED[@]} -eq 0 ]; then
     SCRIPTS+=("$script")
     continue
   fi
+
+  crate="$(named "$script")"
 
   for one in "${WANTED[@]}"; do
     if [ "$one" = "$crate" ]; then
@@ -64,14 +70,14 @@ done
 
 if [ ${#SCRIPTS[@]} -eq 0 ]; then
   echo "nothing matched: ${WANTED[*]}" >&2
-  echo "found: $(for s in "${FOUND[@]}"; do basename "$(dirname "$s")"; done | tr '\n' ' ')" >&2
+  echo "found: $(for s in "${FOUND[@]}"; do named "$s"; done | tr '\n' ' ')" >&2
   exit 1
 fi
 
 DONE=()
 
 for script in "${SCRIPTS[@]}"; do
-  crate="$(basename "$(dirname "$script")")"
+  crate="$(named "$script")"
 
   echo
   echo "################################################################"

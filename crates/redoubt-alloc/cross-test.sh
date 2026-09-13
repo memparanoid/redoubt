@@ -11,7 +11,9 @@
 # written for, and this is what reads it.
 #
 # The crate is whichever one this file sits in, so it copies from one to the
-# next without being edited.
+# next without being edited. Its name comes from the manifest and not from the
+# directory: `crates/redoubt-codec/core` is the crate `redoubt-codec-core`, and
+# `-p core` matches nothing.
 #
 # Optimized, on both. An assembler optimizes nothing, so hand-written code is
 # the same instructions in either profile, and a debug run spends its time on
@@ -27,7 +29,12 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CRATE="$(basename "$HERE")"
+CRATE="$(sed -n 's/^name *= *"\(.*\)".*/\1/p' "$HERE/Cargo.toml" | head -1)"
+
+[ -n "$CRATE" ] || {
+  echo "no package name in $HERE/Cargo.toml" >&2
+  exit 1
+}
 
 CROSS_CC="${CROSS_CC:-aarch64-unknown-linux-musl-gcc}"
 QEMU="${QEMU:-qemu-aarch64}"
@@ -42,8 +49,21 @@ done
 
 cd "$HERE"
 
+# A crate that cannot be built whole for the other architecture says here which
+# part of it can, in a `cross-test.args` beside this file — data, so that the
+# script itself stays the same in every crate.
+#
+# `redoubt-vault-core` is the one: its lib tests link `libseccomp`, which has no
+# static build for this target, and would not mean anything under emulation if
+# it had one — a filter built for aarch64 loaded into a process whose real
+# syscalls are the host's. `--test forensics` builds the integration target
+# alone, which is the part worth reading on both.
+EXTRA=()
+
+[ -f "$HERE/cross-test.args" ] && read -ra EXTRA < "$HERE/cross-test.args"
+
 echo "== $CRATE on x86_64 =="
-cargo nextest run -p "$CRATE" --release
+cargo nextest run -p "$CRATE" --release ${EXTRA[@]+"${EXTRA[@]}"}
 
 echo
 echo "== $CRATE on aarch64, under $QEMU =="
@@ -53,4 +73,5 @@ echo "== $CRATE on aarch64, under $QEMU =="
 CC_aarch64_unknown_linux_musl="$CROSS_CC" \
   CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="$CROSS_CC" \
   CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUNNER="$QEMU" \
-  cargo nextest run -p "$CRATE" --release --target aarch64-unknown-linux-musl
+  cargo nextest run -p "$CRATE" --release --target aarch64-unknown-linux-musl \
+  ${EXTRA[@]+"${EXTRA[@]}"}
