@@ -6,10 +6,19 @@
 """
 Coverage report generator for Redoubt.
 
+Each crate is measured in three passes — doctests, then the tests under
+`nextest`, then one report over both. `nextest` gives every test a process,
+which `redoubt-forensics` needs (it reads the whole process's memory, so two
+of its tests in one process are each other's needle) and which tells you
+*which* test died when one takes a signal.
+
+The report opens when it is finished, because that is what it is for.
+
 Usage:
-    ./scripts/coverage.py                             # run all crates and generate report
+    ./scripts/coverage.py                             # run all crates, report, open it
     ./scripts/coverage.py redoubt-aead                # run single crate only
     ./scripts/coverage.py --report-only               # just parse existing coverage dirs
+    ./scripts/coverage.py --no-open                   # leave the browser alone
 
 Reads crate list from .cov_crates.
 Format: one crate per line, optional features after space.
@@ -234,9 +243,11 @@ def generate_html(all_stats: list[CrateStats], totals: CrateStats, with_links: b
 
 def main():
     report_only = "--report-only" in sys.argv
-    open_report = "--open" in sys.argv
+    # Opening it is the point of running it. `--no-open` for a terminal that
+    # has no browser to open it with, or a run whose output is being piped.
+    open_report = "--no-open" not in sys.argv
     no_cache = "--no-cache" in sys.argv
-    flags = ("--report-only", "--open", "--no-cache")
+    flags = ("--report-only", "--open", "--no-open", "--no-cache")
     args = [a for a in sys.argv[1:] if a not in flags]
     single_crate = args[0] if args else None
 
