@@ -35,7 +35,7 @@
 
 #![cfg(target_os = "linux")]
 
-use redoubt_forensics::{Forensics, QUIET, Reason, Report, forensics};
+use redoubt_forensics::{AnyError, Forensics, QUIET, forensics};
 use redoubt_vault_core::leak_master_key;
 
 /// How much of the key is taken, which is all of it.
@@ -60,11 +60,6 @@ fn backwards() -> Vec<u8> {
     needle.to_vec()
 }
 
-fn line(what: &str, now: &Report, before: &Report) {
-    println!("  {what:<28} {now}");
-    println!("  {:<28} {}", "", now.against(before));
-}
-
 /// The sweep finds the key when the key is plainly there.
 ///
 /// Every zero the test below reports is worth exactly what this one is worth.
@@ -81,7 +76,7 @@ fn line(what: &str, now: &Report, before: &Report) {
 /// one more step inside the other test it would have had to come last, after
 /// everything it was meant to vouch for had already been measured.
 #[test]
-fn test_the_sweep_finds_the_master_key_while_it_is_held() -> Result<(), Reason> {
+fn test_the_sweep_finds_the_master_key_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
     // A real open, and nothing done to hide it.
@@ -89,16 +84,17 @@ fn test_the_sweep_finds_the_master_key_while_it_is_held() -> Result<(), Reason> 
 
     core::hint::black_box(&held);
 
-    let seen = watch.snapshot()?;
+    let report_in_plain_sight = watch.snapshot()?;
 
     println!();
-    println!("  {:<28} {seen}", "the key, held");
+    report_in_plain_sight.summary("the key, held");
     println!();
 
     assert!(
-        seen.found,
+        report_in_plain_sight.found,
         "the sweep does not reach where the master key lives, so every absence \
-         this file reports is the instrument standing where the evidence is: {seen}",
+         this file reports is the instrument standing where the evidence is: \
+         {report_in_plain_sight}",
     );
 
     drop(core::hint::black_box(held));
@@ -125,13 +121,13 @@ fn test_the_sweep_finds_the_master_key_while_it_is_held() -> Result<(), Reason> 
 ///
 /// A process of its own, because it plants key material on purpose.
 #[test]
-fn test_a_piece_of_the_master_key_kept_is_not_read_as_chance() -> Result<(), Reason> {
+fn test_a_piece_of_the_master_key_kept_is_not_read_as_chance() -> Result<(), AnyError> {
     /// As wide as the widest run [`QUIET`] allows, and a quarter of the key.
     const PIECE: usize = QUIET as usize;
 
     let mut watch = Forensics::watching(&backwards())?;
 
-    let untouched = watch.snapshot()?;
+    let report_before = watch.snapshot()?;
 
     // From the middle, not the front: a prefix is what a search for the key
     // would stumble onto anyway. The key itself goes at the end of the block,
@@ -144,29 +140,31 @@ fn test_a_piece_of_the_master_key_kept_is_not_read_as_chance() -> Result<(), Rea
 
     core::hint::black_box(&kept);
 
-    let seen = watch.snapshot()?;
-    let moved = seen.against(&untouched);
+    let report_after = watch.snapshot()?;
+    let delta = report_after.against(&report_before);
 
     println!();
-    println!("  {:<28} {untouched}", "nothing kept yet");
-    line(&format!("{PIECE} bytes kept"), &seen, &untouched);
+    report_before.summary("nothing kept yet");
+    report_after.summary_against(&report_before, &format!("{PIECE} bytes kept"));
     println!();
 
     assert!(
-        !seen.found,
-        "a search for the whole key found {PIECE} bytes of it, which it cannot: {seen}",
+        !report_after.found,
+        "a search for the whole key found {PIECE} bytes of it, which it cannot: \
+         {report_after}",
     );
 
     assert!(
-        seen.widest >= PIECE as u64,
-        "{PIECE} bytes of the key are in plain sight and the widest run is {}: {seen}",
-        seen.widest,
+        report_after.widest >= PIECE as u64,
+        "{PIECE} bytes of the key are in plain sight and the widest run is {}: \
+         {report_after}",
+        report_after.widest,
     );
 
     assert!(
-        !moved.is_noise(),
+        !delta.is_noise(),
         "{PIECE} bytes of the key read as chance, which is what {QUIET} says they are not: \
-         {moved}",
+         {delta}",
     );
 
     drop(core::hint::black_box(kept));
@@ -179,77 +177,79 @@ fn test_a_piece_of_the_master_key_kept_is_not_read_as_chance() -> Result<(), Rea
 /// The control comes last and not first: planted at the top it would be in
 /// every photograph after it, and there would be nothing left to measure.
 #[test]
-fn test_opening_the_master_key_leaves_nothing_a_sweep_can_find() -> Result<(), Reason> {
+fn test_opening_the_master_key_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
     let needle = backwards();
     let mut watch = Forensics::watching(&needle)?;
 
-    let untouched = watch.snapshot()?;
+    let report_before = watch.snapshot()?;
 
-    let opened = forensics!(watch, {
+    let report_after_opening = forensics!(watch, {
         let key = leak_master_key(WIDE).expect("no master key");
 
         core::hint::black_box(key[0]);
-    })?;
+    });
 
-    let opened_often = forensics!(watch, {
+    let report_after_opening_often = forensics!(watch, {
         for _ in 0..ROUNDS {
             let key = leak_master_key(WIDE).expect("no master key");
 
             core::hint::black_box(key[0]);
         }
-    })?;
+    });
 
     let planted = core::hint::black_box(needle.iter().rev().copied().collect::<Vec<u8>>());
-    let in_plain_sight = watch.snapshot()?;
+    let report_in_plain_sight = watch.snapshot()?;
 
     println!();
-    println!("  {:<28} {untouched}", "nothing opened yet");
-    line("opened once", &opened, &untouched);
-    line(&format!("opened {ROUNDS} times"), &opened_often, &opened);
+    report_before.summary("nothing opened yet");
+    report_after_opening.summary_against(&report_before, "opened once");
+    report_after_opening_often
+        .summary_against(&report_after_opening, &format!("opened {ROUNDS} times"));
     println!();
-    line("a copy in plain sight", &in_plain_sight, &opened_often);
+    report_in_plain_sight.summary_against(&report_after_opening_often, "a copy in plain sight");
     println!();
 
     assert!(
-        in_plain_sight.found,
-        "the sweep reached nowhere, so no zero above means anything: {in_plain_sight}",
+        report_in_plain_sight.found,
+        "the sweep reached nowhere, so no zero above means anything: \
+         {report_in_plain_sight}",
     );
 
     // The absolute bound, on every photograph — the first one included, before
     // anything had been opened. Nothing here is a difference, so nothing here
     // can be cancelled by one residue replacing another.
-    for (after, seen) in [
-        ("the open that made the needle", &untouched),
-        ("one open", &opened),
-        (&format!("{ROUNDS} opens"), &opened_often),
+    for (what, report) in [
+        ("the open that made the needle", &report_before),
+        ("one open", &report_after_opening),
+        (&format!("{ROUNDS} opens"), &report_after_opening_often),
     ] {
         assert!(
-            !seen.found,
-            "the whole key was left behind by {after}: {seen}"
+            !report.found,
+            "the whole key was left behind by {what}: {report}"
         );
 
         assert!(
-            seen.widest <= QUIET,
-            "a run of {} bytes of the key was left behind by {after}, and {QUIET} is \
-             what memory has by accident: {seen}",
-            seen.widest,
+            report.widest <= QUIET,
+            "a run of {} bytes of the key was left behind by {what}, and {QUIET} is \
+             what memory has by accident: {report}",
+            report.widest,
         );
     }
 
     // And the differences, which say what each operation moved. Finer than the
     // bound above, and worth nothing without it.
-    let once = opened.against(&untouched);
+    let delta_once = report_after_opening.against(&report_before);
 
     assert!(
-        once.is_noise(),
-        "one open moved the score past chance: {once}"
+        delta_once.is_noise(),
+        "one open moved the score past chance: {delta_once}"
     );
 
-    let often = opened_often.against(&untouched);
+    let delta_often = report_after_opening_often.against(&report_before);
 
     assert!(
-        often.is_noise(),
-        "{ROUNDS} opens moved the score past chance: {often}"
+        delta_often.is_noise(),
+        "{ROUNDS} opens moved the score past chance: {delta_often}"
     );
 
     drop(core::hint::black_box(planted));
