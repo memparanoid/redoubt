@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Why a photograph could not be taken.
+//! Why a photograph could not be taken, and what a test says when the work it
+//! photographed could not be done either.
 //!
 //! # Why this is not an `Option`
 //!
@@ -110,3 +111,48 @@ impl fmt::Display for Reason {
 }
 
 impl std::error::Error for Reason {}
+
+/// Anything that can stop a measurement: the photograph, or the work being
+/// photographed.
+///
+/// # Why this is exported at all
+///
+/// [`Reason`] is enough for most tests, where the operation cannot fail and the
+/// only thing that can go wrong is the photograph. A test that measures
+/// fallible work — encoding, sealing, opening — has a second source of error
+/// that `Reason` has nothing to say about, and needs one type that reaches
+/// both.
+///
+/// Every such test would otherwise write that type itself, and it is not one
+/// line: the two constraints below are invisible in the result and each one is
+/// a compile error found the hard way. Written once here, they are right
+/// everywhere.
+///
+/// # Why not a boxed `dyn Error`
+///
+/// A bare one implements `From` of five different things — `&str`, `String`,
+/// `Cow`, any `E: Error`, and the core's reflexive one. Solving
+/// `Box<_>: From<?E>` with the error still unknown leaves five candidates and
+/// `E0283`, so every measured block would have to name its own error type to
+/// say which. A newtype has one candidate, and nothing has to be named.
+///
+/// # Why it does not implement `Error`
+///
+/// The blanket `From` below would then overlap with the core's own
+/// `impl<T> From<T> for T` at `T = AnyError`, which does not compile. Nothing
+/// needs it to: a test's error is only ever `Debug`, which is all the harness
+/// asks for.
+pub struct AnyError(Box<dyn std::error::Error + Send + Sync>);
+
+impl<E: std::error::Error + Send + Sync + 'static> From<E> for AnyError {
+    fn from(why: E) -> Self {
+        Self(Box::new(why))
+    }
+}
+
+/// Forwarded, so a failing test names the error it hit and not this wrapper.
+impl fmt::Debug for AnyError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}

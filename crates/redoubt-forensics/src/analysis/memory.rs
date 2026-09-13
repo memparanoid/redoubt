@@ -57,7 +57,7 @@
 use std::ptr;
 
 use crate::analysis::state::{BLOCK, ForensicState, MAGIC, OK, Parts, Span, Spans};
-use crate::error::{DONE, Reason};
+use crate::errors::{DONE, Reason};
 use crate::forensics::Work;
 
 /// Memory frozen at the instant of a fork, and open for reading.

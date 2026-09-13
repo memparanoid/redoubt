@@ -64,7 +64,7 @@ use crate::analysis::memory::{Subject, instrument, sweep, within};
 use crate::analysis::state::{
     COUNT, FOUND, ForensicState, MOST, Parts, RUNS, SCORE, SWEPT, WIDEST,
 };
-use crate::error::Reason;
+use crate::errors::Reason;
 
 /// The whole needle, counted where it is whole.
 pub(crate) fn counted(state: &mut ForensicState, subject: &Subject) -> Result<(), Reason> {

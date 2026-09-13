@@ -72,7 +72,7 @@ mod tests;
 mod analysis;
 
 #[cfg(target_os = "linux")]
-mod error;
+mod errors;
 
 #[cfg(target_os = "linux")]
 mod forensics;
@@ -90,7 +90,7 @@ mod spiller;
 pub use analysis::report::{Change, QUIET, Report};
 
 #[cfg(target_os = "linux")]
-pub use error::Reason;
+pub use errors::{AnyError, Reason};
 
 #[cfg(target_os = "linux")]
 pub use forensics::{Forensics, occurrences, occurrences_reversed};

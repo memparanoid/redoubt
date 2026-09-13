@@ -34,7 +34,7 @@
 //! side of the capture rather than by a `?` where it was written.
 
 use crate::analysis::report::Report;
-use crate::error::Reason;
+use crate::errors::Reason;
 
 /// What a measured block came to, settled against the photograph.
 ///
@@ -134,10 +134,9 @@ pub fn deep<R>(work: impl FnOnce() -> R) -> R {
 /// a `Result` back as well, the caller would write a second `?` after the
 /// brace — and then there are two conversions in a row with a type between them
 /// that nothing has named. `rustc` solves the outer one first, finds more than
-/// one `From` that would serve, and stops: `E0283`, at every call site, and the
-/// only answer is a turbofish in every block. Both shapes of the error type
-/// were tried, a boxed `dyn Error` and a newtype around one, and neither helps:
-/// the ambiguity is in the chain, not in the type.
+/// one `From` that would serve, and stops: `E0283`, at every call site,
+/// answered only by a turbofish in every block. The ambiguity is in the chain
+/// and not in the error type, so no choice of error type avoids it.
 ///
 /// Taking the `return` in here removes the outer conversion. What is left is
 /// one conversion into a type the enclosing signature has already named.
@@ -146,8 +145,8 @@ pub fn deep<R>(work: impl FnOnce() -> R) -> R {
 ///
 /// The block ends in a `Result` whose error the enclosing function can reach by
 /// `From` — including from [`Reason`], which is what the photograph fails with.
-/// A test that measures fallible work declares such a type; one whose block
-/// cannot fail declares nothing and the block stays an expression, as above.
+/// [`crate::AnyError`] is that type. A block that cannot fail stays an
+/// expression, as above, and the function returns [`Reason`].
 ///
 /// The block runs under [`DEPTH`] bytes of frame and the photograph is taken
 /// the instant it returns. Nothing a caller writes can get between the two,

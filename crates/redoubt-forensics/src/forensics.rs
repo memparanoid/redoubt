@@ -8,7 +8,7 @@ use crate::analysis::memory::{Subject, analyse, elsewhere};
 use crate::analysis::report::Report;
 use crate::analysis::score::{counted, runs};
 use crate::analysis::state::{COUNT, FOUND, ForensicState, RUNS, SCORE, SWEPT, WIDEST};
-use crate::error::Reason;
+use crate::errors::Reason;
 
 /// The instrument, holding everything it will need before it needs it.
 ///

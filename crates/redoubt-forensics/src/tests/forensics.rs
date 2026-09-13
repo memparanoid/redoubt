@@ -14,7 +14,7 @@
 //! two around one that keeps sixteen bytes, side by side.
 
 use crate::analysis::report::Report;
-use crate::error::Reason;
+use crate::errors::Reason;
 use crate::forensics::{Forensics, occurrences, occurrences_reversed};
 
 /// Thirty-two distinct bytes: no value repeats, so the table of which byte may
