@@ -9,4 +9,7 @@ mod forensics;
 mod memory;
 
 #[cfg(target_os = "linux")]
+mod report;
+
+#[cfg(target_os = "linux")]
 mod score;

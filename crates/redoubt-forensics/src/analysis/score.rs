@@ -181,7 +181,6 @@ pub(crate) fn runs(state: &mut ForensicState, subject: &Subject) -> Result<(), R
     );
 
     let step = density(next);
-    let floor = lg2(swept);
 
     let mut score = 0_u64;
     let mut widest = 0_u64;
@@ -195,11 +194,7 @@ pub(crate) fn runs(state: &mut ForensicState, subject: &Subject) -> Result<(), R
         closed += count;
         widest = width as u64;
 
-        if width >= 2 {
-            let bits = ((width as u64 - 1) * step).saturating_sub(floor) >> 10;
-
-            score += bits.saturating_mul(count);
-        }
+        score += worth(width as u64, step, swept).saturating_mul(count);
     }
 
     result[FOUND] = u64::from(whole);
@@ -210,6 +205,49 @@ pub(crate) fn runs(state: &mut ForensicState, subject: &Subject) -> Result<(), R
 
     Ok(())
 }
+
+/// What a run of that width is worth, in whole bits of surprise.
+///
+/// Each step past the first is worth `step`, and the whole run is charged
+/// `log2` of the memory it was found in — three bytes of anything are in a
+/// gigabyte of anything. Widths of nothing and of one are worth nothing by
+/// construction: a run of one is a byte the secret happens to contain.
+///
+/// # What the charge buys
+///
+/// It makes the arithmetic independent of how much memory there is. A sweep
+/// of twice the memory turns up twice as many accidental runs of a given
+/// width, and charges each of them one more bit — so the number of accidental
+/// runs worth `b` bits or more comes out the same either way. [`NOISE`] rests
+/// on that, and so does comparing two photographs of processes that have
+/// grown.
+pub(crate) fn worth(width: u64, step: u64, swept: u64) -> u64 {
+    if width < 2 {
+        return 0;
+    }
+
+    // Saturating on both: a sweep cannot produce a run wide enough to overflow
+    // either, but the arithmetic is a pure function of three numbers and being
+    // total is what lets it be swept over rather than sampled.
+    (width - 1).saturating_mul(step).saturating_sub(lg2(swept)) >> 10
+}
+
+/// What a score may rise by, between two photographs, and still be chance.
+///
+/// # Why a constant, when nothing else here is
+///
+/// Because [`worth`] has already taken the memory out. The chance of a run
+/// worth `b` bits or more turning up by accident is `p · 2⁻ᵇ`, where `p` is
+/// the chance a byte is in the secret at all — and neither the memory swept
+/// nor the density of the secret appears in it. A score is already in units
+/// that mean the same thing everywhere.
+///
+/// So the only thing left to choose is how rare a false alarm should be. At
+/// `p ≤ 1`, sixteen bits is one photograph in sixty-five thousand.
+///
+/// A leak is nowhere near it: a whole copy of a thirty-two byte secret scores
+/// a little over two hundred, and five bytes of one is already ten.
+pub(crate) const NOISE: i128 = 16;
 
 /// Which byte may follow which, and which are in the secret at all.
 ///

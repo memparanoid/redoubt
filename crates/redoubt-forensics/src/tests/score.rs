@@ -8,13 +8,342 @@
 //! the arithmetic that decides what a run is worth — which used to be
 //! reachable only by photographing a process, and so was never asserted at
 //! all.
+//!
+//! # The oracle
+//!
+//! Most of what is here is a pure function with no external observable, so
+//! the only oracle available is a second formulation — and a second
+//! formulation written by reading the first is not one. Numbers copied out of
+//! the implementation would be the implementation agreeing with itself.
+//!
+//! So the oracle is the definition the arithmetic stands for. A run of `w`
+//! bytes is a stretch the secret allowed `w - 1` times in a row; if each step
+//! is allowed with probability `p`, that happens by chance at a given place
+//! with probability `p^(w-1)`, and a sweep of `n` bytes offers `n` places. The
+//! surprise of finding one is therefore `-(w - 1)·log2(p) - log2(n)` bits.
+//! [`worth`] is that number, and `std`'s `log2` computes the right-hand side
+//! without reference to ours.
 
-use crate::analysis::score::{close, density, follows, holds, lg2, table};
+use proptest::prelude::*;
+
+use crate::analysis::score::{NOISE, close, density, follows, holds, lg2, table, worth};
 use crate::analysis::state::MOST;
 
 /// Room for one table of successors and one of bytes that appear.
 fn tables() -> (Vec<u8>, Vec<u8>) {
     (vec![0_u8; 256 * 32], vec![0_u8; 32])
+}
+
+/// What one step costs for a short secret whose bytes are all different: each
+/// byte has one successor out of 256, so a whole byte of surprise.
+const SPARSE: u64 = 8 * 1024;
+
+/// A few megabytes, which is what a small process sweeps.
+const SWEPT: u64 = 1 << 21;
+
+/// The widest run the tally can hold, which is the widest a sweep can report.
+const WIDEST: u64 = MOST as u64;
+
+/// The most a step can cost.
+///
+/// [`density`] answers `8192 + log2(nodes) − log2(edges)` in ten binary
+/// places, and a byte with a successor has at least one, so `edges ≥ nodes`
+/// and the answer never passes a whole byte. That is the top of the range
+/// worth generating; past it is arithmetic nothing can ask for.
+const STEEPEST: u64 = 8 * 1024;
+
+/// As much memory as a process is going to have, generously.
+const MEMORY: u64 = 1 << 48;
+
+/// The surprise a run of that width stands for, in bits, worked out from what
+/// a run *is* rather than from how it is scored.
+///
+/// `p = 2^(-step/1024)` is not a reading of the implementation either: `step`
+/// is defined as `log2(256 / t)` in ten binary places, so `2^(-step/1024)` is
+/// `t / 256`, which is the chance a byte of ordinary memory continues a run.
+#[allow(clippy::cast_precision_loss)]
+fn surprise(width: u64, step: u64, swept: u64) -> f64 {
+    (width - 1) as f64 * step as f64 / 1024.0 - (swept as f64).log2()
+}
+
+/// How many runs worth `bits` or more a sweep is expected to throw up by
+/// chance.
+///
+/// Every position is treated as able to start a run, which no real secret
+/// manages — a byte starts one only if the secret contains it — so this is an
+/// upper bound, which is the side worth bounding.
+#[allow(clippy::cast_precision_loss)]
+fn by_chance(bits: u64, step: u64, swept: u64) -> f64 {
+    let extending = 2_f64.powf(-(step as f64) / 1024.0);
+
+    // The narrowest run that clears the bar. Everything wider is rarer, and
+    // the widths in between are already counted by it.
+    for width in 2..=(MOST as u64) {
+        if worth(width, step, swept) >= bits {
+            return swept as f64 * extending.powi(width as i32 - 1);
+        }
+    }
+
+    0.0
+}
+
+// ============================================================================
+// worth
+// ============================================================================
+
+/// A run of no bytes, and a run of one, are worth nothing.
+///
+/// A single byte the secret happens to contain is not a stretch of it: with
+/// thirty-two distinct bytes, one byte of ordinary memory is one of them once
+/// every eight bytes.
+#[test]
+fn test_worth_is_nothing_for_a_run_too_short_to_be_one() {
+    assert_eq!(worth(0, SPARSE, SWEPT), 0);
+    assert_eq!(worth(1, SPARSE, SWEPT), 0);
+}
+
+/// When the memory outweighs the run, the run is worth nothing — not a very
+/// large number from an underflow.
+#[test]
+fn test_worth_is_nothing_when_the_memory_outweighs_the_run() {
+    assert_eq!(worth(2, SPARSE, u64::MAX), 0);
+    assert_eq!(worth(3, 1, u64::MAX), 0);
+}
+
+proptest! {
+    /// Every extra byte is another step the secret had to allow, so a wider
+    /// run can never say less.
+    #[test]
+    fn test_worth_never_falls_as_the_run_widens(
+        width in 0..WIDEST,
+        step in 0..=STEEPEST,
+        swept in 1..=MEMORY,
+    ) {
+        prop_assert!(worth(width + 1, step, swept) >= worth(width, step, swept));
+    }
+
+    /// A sparser secret makes each step more of a surprise, so the same run
+    /// says more.
+    #[test]
+    fn test_worth_never_falls_as_the_secret_gets_sparser(
+        width in 0..=WIDEST,
+        step in 0..STEEPEST,
+        swept in 1..=MEMORY,
+    ) {
+        prop_assert!(worth(width, step + 1, swept) >= worth(width, step, swept));
+    }
+
+    /// More memory is more places for a run to turn up in, so the same run
+    /// says less.
+    #[test]
+    fn test_worth_never_rises_as_more_memory_is_swept(
+        width in 0..=WIDEST,
+        step in 0..=STEEPEST,
+        shift in 1_u32..62,
+    ) {
+        prop_assert!(worth(width, step, 1 << (shift + 1)) <= worth(width, step, 1 << shift));
+    }
+
+    /// Each byte past the first adds one step's worth, which is what a step
+    /// is.
+    ///
+    /// Whole bits, so the fraction each truncation drops shows up as a
+    /// difference of one either way.
+    #[test]
+    fn test_worth_adds_one_step_per_byte_past_the_first(
+        width in 2..WIDEST,
+        step in 1024..=STEEPEST,
+        swept in 1..=MEMORY,
+    ) {
+        // Only where both widths are past the floor: below it they are both
+        // nothing, and nothing minus nothing says nothing about a step.
+        prop_assume!(worth(width, step, swept) > 0);
+
+        let grew = worth(width + 1, step, swept) - worth(width, step, swept);
+
+        prop_assert!(
+            grew.abs_diff(step / 1024) <= 1,
+            "a step of {step} is worth {} a byte, and width {width} grew by {grew}",
+            step / 1024,
+        );
+    }
+
+    /// What it reports is the surprise the run stands for.
+    ///
+    /// The right-hand side is the definition, computed with `std`'s `log2`.
+    /// They agree to within what whole bits can carry: the arithmetic drops
+    /// the fraction, and [`lg2`] reads a shade under the true logarithm.
+    #[test]
+    fn test_worth_agrees_with_the_surprise_a_run_stands_for(
+        width in 2..=WIDEST,
+        step in 0..=STEEPEST,
+        swept in 1..=MEMORY,
+    ) {
+        let want = surprise(width, step, swept);
+        let got = worth(width, step, swept);
+
+        if want <= 0.0 {
+            prop_assert_eq!(got, 0);
+
+            return Ok(());
+        }
+
+        #[allow(clippy::cast_precision_loss)]
+        let got = got as f64;
+
+        prop_assert!(got <= want + 0.1, "said {got}, stands for {want}");
+        prop_assert!(got >= want - 1.1, "said {got}, stands for {want}");
+    }
+
+    /// And where it disagrees it is always low.
+    ///
+    /// A score that misses a leak by a hair, never one that invents a leak
+    /// out of rounding.
+    #[test]
+    fn test_worth_never_overstates_a_run(
+        width in 0..=WIDEST,
+        step in 0..=STEEPEST,
+        swept in 1..=MEMORY,
+    ) {
+        #[allow(clippy::cast_precision_loss)]
+        let got = worth(width, step, swept) as f64;
+
+        prop_assert!(got <= surprise(width.max(1), step, swept).max(0.0) + 0.1);
+    }
+}
+
+/// Nothing in the whole range of three `u64`s overflows or panics.
+#[test]
+fn test_worth_answers_for_anything_three_numbers_can_be() {
+    for width in [0_u64, 1, 2, MOST as u64, u32::MAX.into(), u64::MAX] {
+        for step in [0_u64, 1, SPARSE, u32::MAX.into(), u64::MAX] {
+            for swept in [0_u64, 1, SWEPT, u64::MAX] {
+                let _ = worth(width, step, swept);
+            }
+        }
+    }
+}
+
+/// A sweep of no memory has nothing to charge against, so the narrowest run
+/// there is already counts.
+#[test]
+fn test_worth_charges_nothing_against_no_memory() {
+    assert_eq!(worth(2, SPARSE, 0), SPARSE >> 10);
+}
+
+/// A secret whose bytes say nothing about each other makes every run worth
+/// nothing, however wide.
+#[test]
+fn test_worth_is_nothing_when_a_step_says_nothing() {
+    for width in [2_u64, 32, 1024] {
+        assert_eq!(worth(width, 0, SWEPT), 0);
+    }
+}
+
+// ============================================================================
+// NOISE
+// ============================================================================
+
+proptest! {
+    /// Chance clears the ceiling no more often than the allowance, for every
+    /// amount of memory and every secret.
+    ///
+    /// This is the whole reason the ceiling can be a constant. A run worth
+    /// `b` bits or more turns up by chance at most `2⁻ᵇ` times per sweep —
+    /// the memory cancels, because [`worth`] charges each run exactly the
+    /// `log2` of it that makes the count grow. The factor of two is the slack
+    /// a geometric tail and two roundings need.
+    #[test]
+    fn test_chance_clears_the_ceiling_no_more_than_the_allowance(
+        step in 1024..=STEEPEST,
+        shift in 8_u32..48,
+    ) {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let ceiling = NOISE as u64;
+
+        #[allow(clippy::cast_precision_loss)]
+        let allowed = 2_f64.powi(1 - NOISE as i32);
+
+        let chance = by_chance(ceiling, step, 1 << shift);
+
+        prop_assert!(
+            chance <= allowed,
+            "a step of {step} over 2^{shift} bytes clears {ceiling} bits {chance} times, \
+             and {allowed} is the allowance",
+        );
+    }
+
+    /// A run of the secret's own width is far past the ceiling, whatever the
+    /// secret and whatever the memory.
+    ///
+    /// The other end of the same bound: a ceiling that is only above the
+    /// noise is no use if a whole copy is not well above it.
+    #[test]
+    fn test_a_whole_secret_is_far_past_the_ceiling(
+        of in 16..=4096_u64,
+        shift in 8_u32..48,
+    ) {
+        // What `density` makes of a secret that long, near enough: each byte
+        // has about `of / 256` successors once the secret is longer than the
+        // alphabet, and one while it is shorter.
+        let successors = (of / 256).max(1);
+        let step = SPARSE - lg2(successors);
+
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let ceiling = NOISE as u64;
+
+        let got = worth(of, step, 1 << shift);
+
+        prop_assert!(
+            got >= ceiling * 4,
+            "a whole secret of {of} bytes at step {step} over 2^{shift} bytes is worth {got}",
+        );
+    }
+
+    /// And two bytes of it are not, whatever the secret and whatever the
+    /// memory.
+    #[test]
+    fn test_two_bytes_of_a_secret_never_clear_the_ceiling(
+        step in 0..=STEEPEST,
+        shift in 8_u32..48,
+    ) {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let ceiling = NOISE as u64;
+
+        let got = worth(2, step, 1 << shift);
+
+        prop_assert!(got < ceiling, "two bytes at step {step} over 2^{shift} are worth {got}");
+    }
+}
+
+/// The ceiling and a real secret's own density agree: a whole copy of a
+/// thirty-two byte secret clears it and a pair of its bytes does not.
+///
+/// The `step` here is not a number chosen for the test — it is what
+/// [`density`] makes of a table built from the secret, so this is the two
+/// halves of the arithmetic meeting.
+#[test]
+fn test_the_ceiling_reads_a_real_secret_the_way_it_should() {
+    const SECRET: [u8; 32] = [
+        0x9E, 0x41, 0x17, 0xC3, 0x5A, 0xF0, 0x2B, 0x88, 0x6D, 0xB4, 0x0A, 0xE7, 0x39, 0x52, 0xCE,
+        0x71, 0x84, 0x1D, 0xA6, 0x3F, 0xD8, 0x60, 0x95, 0x2E, 0xBB, 0x07, 0x4C, 0xE1, 0x76, 0xAF,
+        0x13, 0xCA,
+    ];
+
+    let (mut next, mut seen) = tables();
+
+    table(&SECRET, &mut next, &mut seen);
+
+    let step = density(&next);
+
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let ceiling = NOISE as u64;
+
+    assert!(
+        worth(SECRET.len() as u64, step, SWEPT) > ceiling,
+        "a whole copy is not evidence"
+    );
+    assert!(worth(2, step, SWEPT) < ceiling, "two bytes are evidence");
 }
 
 // ============================================================================
@@ -135,6 +464,50 @@ fn test_close_puts_a_run_wider_than_the_tally_in_the_last_slot() {
 }
 
 // ============================================================================
+// density
+// ============================================================================
+
+/// A table nothing was built into cannot say anything about a step, so a step
+/// is worth a whole byte — the most it can ever be worth, which is the safe
+/// direction to be wrong in.
+#[test]
+fn test_density_is_a_whole_byte_for_an_empty_table() {
+    let (next, _) = tables();
+
+    assert_eq!(density(&next), 8 * 1024);
+}
+
+/// One successor per byte is one byte of surprise per step.
+#[test]
+fn test_density_is_a_whole_byte_when_every_byte_has_one_successor() {
+    let (mut next, mut seen) = tables();
+
+    table(b"abcd", &mut next, &mut seen);
+
+    assert_eq!(density(&next), 8 * 1024);
+}
+
+/// More successors per byte is less surprise per step, which is the whole
+/// reason the floor moves by itself: a long secret has a denser table, and its
+/// runs have to be longer before they mean anything.
+#[test]
+fn test_density_falls_as_a_byte_gains_successors() {
+    let (mut next, mut seen) = tables();
+
+    table(b"abcd", &mut next, &mut seen);
+
+    let sparse = density(&next);
+
+    table(b"abacadaeafagah", &mut next, &mut seen);
+
+    let dense = density(&next);
+
+    assert!(
+        dense < sparse,
+        "a denser table was not worth less: {dense} against {sparse}"
+    );
+}
+// ============================================================================
 // lg2
 // ============================================================================
 
@@ -185,49 +558,4 @@ fn test_lg2_stays_within_a_tenth_of_a_bit() {
             "lg2({of}) was {ours}, not {real}"
         );
     }
-}
-
-// ============================================================================
-// density
-// ============================================================================
-
-/// A table nothing was built into cannot say anything about a step, so a step
-/// is worth a whole byte — the most it can ever be worth, which is the safe
-/// direction to be wrong in.
-#[test]
-fn test_density_is_a_whole_byte_for_an_empty_table() {
-    let (next, _) = tables();
-
-    assert_eq!(density(&next), 8 * 1024);
-}
-
-/// One successor per byte is one byte of surprise per step.
-#[test]
-fn test_density_is_a_whole_byte_when_every_byte_has_one_successor() {
-    let (mut next, mut seen) = tables();
-
-    table(b"abcd", &mut next, &mut seen);
-
-    assert_eq!(density(&next), 8 * 1024);
-}
-
-/// More successors per byte is less surprise per step, which is the whole
-/// reason the floor moves by itself: a long secret has a denser table, and its
-/// runs have to be longer before they mean anything.
-#[test]
-fn test_density_falls_as_a_byte_gains_successors() {
-    let (mut next, mut seen) = tables();
-
-    table(b"abcd", &mut next, &mut seen);
-
-    let sparse = density(&next);
-
-    table(b"abacadaeafagah", &mut next, &mut seen);
-
-    let dense = density(&next);
-
-    assert!(
-        dense < sparse,
-        "a denser table was not worth less: {dense} against {sparse}"
-    );
 }

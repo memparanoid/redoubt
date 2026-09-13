@@ -87,7 +87,7 @@ mod spiller;
 // weighing — is reachable only through these, and a caller that needed one of
 // them directly would be doing something this crate has not thought about.
 #[cfg(target_os = "linux")]
-pub use analysis::report::{Change, Report};
+pub use analysis::report::{Change, QUIET, Report};
 
 #[cfg(target_os = "linux")]
 pub use error::Reason;

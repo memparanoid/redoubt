@@ -13,6 +13,16 @@
 
 use core::fmt;
 
+use crate::analysis::score::NOISE;
+
+/// The widest run a process that is holding nothing may have.
+///
+/// It lives here so that callers asserting an absence share one number rather
+/// than each picking their own. Unlike the ceiling [`Change::is_noise`] uses,
+/// it is in the same units as the field it is compared against, so there is
+/// no arithmetic between the two that could drift.
+pub const QUIET: u64 = 8;
+
 /// What one photograph came to.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Report {
@@ -65,6 +75,22 @@ impl Report {
             swept: i128::from(self.swept) - i128::from(before.swept),
             surfaced: self.found && !before.found,
         }
+    }
+}
+
+impl Change {
+    /// Whether this rise in score is what chance throws up, or evidence.
+    ///
+    /// The ceiling is a fixed number of bits and not a number anybody chose
+    /// for this process: the score's own arithmetic has already taken the
+    /// memory out of it, so a score means the same thing in a small process
+    /// and a large one. [`crate::analysis::score::NOISE`] carries the
+    /// reasoning.
+    ///
+    /// A score that fell is not a rise, and is chance by the same token.
+    #[must_use]
+    pub fn is_noise(&self) -> bool {
+        self.score <= NOISE
     }
 }
 
