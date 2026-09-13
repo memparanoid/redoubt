@@ -47,9 +47,9 @@ impl ChunkLayout {
     }
 
     fn encoded_len(&self) -> usize {
-        let mut data = self.clone();
+        let data = self.clone();
 
-        BytesRequired::encode_bytes_required(&mut data).expect("bytes required")
+        BytesRequired::encode_bytes_required(&data).expect("bytes required")
     }
 }
 
@@ -73,7 +73,7 @@ fn bench_encode(c: &mut Criterion) {
                 || l.clone(),
                 |mut layout| {
                     let size =
-                        BytesRequired::encode_bytes_required(&mut layout).expect("bytes required");
+                        BytesRequired::encode_bytes_required(&layout).expect("bytes required");
                     let mut buf = RedoubtCodecBuffer::with_capacity(size);
 
                     layout.encode_into(&mut buf).expect("encode");
@@ -143,7 +143,7 @@ fn bench_roundtrip(c: &mut Criterion) {
                 || l.clone(),
                 |mut layout| {
                     let size =
-                        BytesRequired::encode_bytes_required(&mut layout).expect("bytes required");
+                        BytesRequired::encode_bytes_required(&layout).expect("bytes required");
                     let mut buf = RedoubtCodecBuffer::with_capacity(size);
 
                     layout.encode_into(&mut buf).expect("encode");
