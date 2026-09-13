@@ -76,6 +76,8 @@
 // clippy suggests is exactly what `static_mut_refs` forbids.
 #![allow(clippy::deref_addrof)]
 
+// `xsave64` and nothing else, so it is only reached where that instruction is.
+#[cfg(target_arch = "x86_64")]
 use core::arch::asm;
 use core::fmt::Write as _;
 
