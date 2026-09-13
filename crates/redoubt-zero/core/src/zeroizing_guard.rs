@@ -6,7 +6,6 @@
 
 use alloc::boxed::Box;
 use core::fmt;
-use core::mem;
 use core::ops::{Deref, DerefMut};
 use core::sync::atomic::{Ordering, compiler_fence};
 
@@ -96,8 +95,17 @@ where
     pub fn from_mut(value: &mut T) -> Self {
         // Allocate box with default value
         let mut boxed = Box::new(T::default());
-        // Swap value into the box
-        mem::swap(&mut *boxed, value);
+
+        // Not `mem::swap`, which for an inline `T` moves the value itself
+        // through whatever registers the compiler picked and leaves it in
+        // them. This one erases what it used.
+        //
+        // It has to stay a swap and not become a copy: `value` keeps a
+        // `T::default()` afterwards, and zeroizing that is harmless. Copying
+        // the bytes instead would leave a `Vec` and the box pointing at one
+        // allocation, and the line below would then wipe the box's own data.
+        redoubt_mem::swap(&mut *boxed, value);
+
         // Zeroize the source location
         value.fast_zeroize();
 

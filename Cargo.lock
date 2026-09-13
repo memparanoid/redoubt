@@ -1165,6 +1165,8 @@ name = "redoubt-zero-core"
 version = "0.1.0-rc.8"
 dependencies = [
  "pastey",
+ "redoubt-forensics",
+ "redoubt-mem",
  "redoubt-util",
 ]
 
