@@ -22,3 +22,4 @@ redoubt-zero.workspace = true
 thiserror.workspace    = true
 
 [dev-dependencies]
+redoubt-forensics.workspace = true

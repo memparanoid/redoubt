@@ -112,10 +112,8 @@ where
 
     /// Replaces the entire array from a mutable source, zeroizing the source.
     ///
-    /// # Performance Note
-    ///
-    /// Uses `ptr::swap_nonoverlapping` to exchange contents with the source
-    /// without creating intermediate copies that could spill to stack.
+    /// The copy is [`redoubt_mem`]'s and not `core`'s, which moves the bytes
+    /// through registers it leaves as it found them.
     pub fn replace_from_mut_array(&mut self, src: &mut [T; N]) {
         // This wipe is an implementation detail (clearing the old contents
         // before the swap), not end-of-life zeroization — but fast_zeroize()
@@ -133,11 +131,9 @@ where
 
         unsafe {
             // SAFETY: Both arrays have exactly N elements and are properly aligned
-            // Swap exchanges contents without intermediate copies
-            core::ptr::swap_nonoverlapping(src.as_mut_ptr(), self.inner.as_mut_ptr(), N);
+            redoubt_mem::copy_nonoverlapping(src.as_ptr(), self.inner.as_mut_ptr(), N);
         }
 
-        // Zeroize source (which now contains the old self.inner values, all zeros)
         src.fast_zeroize();
     }
 

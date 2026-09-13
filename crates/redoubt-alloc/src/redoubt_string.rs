@@ -138,8 +138,25 @@ impl RedoubtString {
     fn grow_to(&mut self, min_capacity: usize) {
         let new_capacity = min_capacity.next_power_of_two();
 
-        // 1. Create temp with current data
-        let mut tmp = self.inner.clone();
+        // 1. Create temp with current data.
+        //
+        // Not `clone`, which is `memcpy` over a length the compiler cannot
+        // see: the bytes being moved here are the whole of what this type
+        // exists to keep out of a register.
+        let of = self.inner.len();
+        let mut tmp = String::with_capacity(of);
+
+        // SAFETY: the bytes written are the bytes of a `String` and so are
+        // valid UTF-8; the length is set to exactly what is then written, into
+        // a buffer just reserved for that many, and the two are different
+        // allocations.
+        unsafe {
+            let bytes = tmp.as_mut_vec();
+
+            bytes.set_len(of);
+
+            redoubt_mem::copy_nonoverlapping(self.inner.as_ptr(), bytes.as_mut_ptr(), of);
+        }
 
         // 2. Zeroize old allocation
         self.inner.fast_zeroize();
@@ -166,7 +183,22 @@ impl RedoubtString {
     pub fn extend_from_mut_string(&mut self, src: &mut String) {
         self.maybe_grow_to(self.len() + src.len());
 
-        self.inner.push_str(src);
+        // Not `push_str`, which is `memcpy` over a length the compiler cannot
+        // see, with the text in it.
+        let at = self.inner.len();
+        let of = src.len();
+
+        // SAFETY: what is written are the bytes of a `String` and so are valid
+        // UTF-8; the length is set to exactly what is then written, into room
+        // `maybe_grow_to` has already reserved, and the two are different
+        // allocations.
+        unsafe {
+            let bytes = self.inner.as_mut_vec();
+
+            bytes.set_len(at + of);
+
+            redoubt_mem::copy_nonoverlapping(src.as_ptr(), bytes[at..].as_mut_ptr(), of);
+        }
 
         // Zeroize and clear source
         src.fast_zeroize();
