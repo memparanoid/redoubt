@@ -28,7 +28,20 @@ pub fn leak_master_key(truncate_at: usize) -> Result<ZeroizingGuard<Vec<u8>>, Bu
             ));
         }
 
-        master_key.copy_from_slice(&mk[..truncate_at]);
+        // Not `copy_from_slice`, which is `core::ptr::copy_nonoverlapping`
+        // underneath. A length the compiler cannot see is a call into the C
+        // library's `memcpy`, and glibc's moves the bytes through vector
+        // registers that nothing afterwards writes over — so the whole key
+        // stays in one of them until the process ends. This copy erases the
+        // registers it used.
+        //
+        // SAFETY: `mk` is at least `truncate_at` long, checked above against
+        // `MASTER_KEY_LEN`, and `master_key` was created with exactly that
+        // length. The two are different allocations, so they cannot overlap.
+        unsafe {
+            redoubt_mem::copy_nonoverlapping(mk.as_ptr(), master_key.as_mut_ptr(), truncate_at);
+        }
+
         Ok(())
     })?;
 
