@@ -58,5 +58,7 @@ extern crate std;
 mod tests;
 
 mod copy;
+mod swap;
 
 pub use copy::copy_nonoverlapping;
+pub use swap::{swap, swap_nonoverlapping};
