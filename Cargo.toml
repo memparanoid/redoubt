@@ -2,7 +2,6 @@
 exclude = ["scripts"]
 members = [
   "crates/redoubt",
-  "crates/redoubt-guard",
   "crates/redoubt-zero",
   "crates/redoubt-zero/core",
   "crates/redoubt-zero/derive",
@@ -61,7 +60,6 @@ resolver = "2"
   redoubt-codec-core            = { path = "crates/redoubt-codec/core", version = "0.1.0-rc.8" }
   redoubt-codec-derive          = { path = "crates/redoubt-codec/derive", version = "0.1.0-rc.8" }
   redoubt-forensics             = { path = "crates/redoubt-forensics", version = "0.1.0-rc.8" }
-  redoubt-guard                 = { path = "crates/redoubt-guard", version = "0.1.0-rc.8" }
   redoubt-hkdf                  = { path = "crates/redoubt-hkdf", version = "0.1.0-rc.8" }
   redoubt-hkdf-arm              = { path = "crates/redoubt-hkdf/arm", version = "0.1.0-rc.8" }
   redoubt-hkdf-core             = { path = "crates/redoubt-hkdf/core", version = "0.1.0-rc.8" }

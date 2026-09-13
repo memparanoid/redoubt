@@ -134,4 +134,4 @@ Cross-architecture validation ensures Redoubt types can be updated without leavi
 
 ## Internal Use Only
 
-This module uses the `internal-forensics` feature flag to disable memory protections (prctl, rlimit) and enable core dump generation. **Not intended for production use.**
+This module uses the `internal-forensics` feature flag, which exposes `reset_master_key` so a run can plant a key it knows. It relaxes no memory protection: the key's page is `mlock`ed and kept at `PROT_NONE` here as everywhere. **Not intended for production use.**

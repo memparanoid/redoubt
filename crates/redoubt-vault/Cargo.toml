@@ -16,7 +16,6 @@ path = "src/lib.rs"
 [features]
 asm                = ["redoubt-vault-core/asm"]
 default            = []
-guard              = ["redoubt-vault-core/guard"]
 internal-forensics = ["redoubt-vault-core/internal-forensics"]
 std                = ["redoubt-vault-core/std", "redoubt-vault-derive/std"]
 

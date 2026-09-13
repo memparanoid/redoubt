@@ -20,12 +20,14 @@ pub fn create_buffer() -> Box<dyn Buffer> {
 
 #[cfg(all(unix, not(target_os = "wasi")))]
 pub fn create_buffer() -> Box<dyn Buffer> {
-    // SECURITY: Always use MemProtected for defense in depth.
-    // prctl(PR_SET_DUMPABLE) is reversible, so we always add mprotect() layer.
+    // SECURITY: the key's page is mlocked, kept at PROT_NONE between uses, and
+    // excluded from core dumps with madvise(MADV_DONTDUMP). Everything that
+    // guards it is on the mapping itself, so it holds whatever the process
+    // around it does.
     match PageBuffer::new(ProtectionStrategy::MemProtected, MASTER_KEY_LEN) {
         Ok(buffer) => Box::new(buffer),
         Err(e) => {
-            #[cfg(all(feature = "std", feature = "guard"))]
+            #[cfg(feature = "std")]
             {
                 eprintln!(
                     "\x1b[33m⚠️  SECURITY: Failed to create protected memory page: {:?}\x1b[0m",
@@ -33,7 +35,7 @@ pub fn create_buffer() -> Box<dyn Buffer> {
                 );
                 eprintln!("\x1b[33m   Falling back to heap (no mlock/mprotect/madvise).\x1b[0m");
             }
-            #[cfg(not(all(feature = "std", feature = "guard")))]
+            #[cfg(not(feature = "std"))]
             {
                 let _ = e;
             }
@@ -43,39 +45,11 @@ pub fn create_buffer() -> Box<dyn Buffer> {
 }
 
 pub fn create_initialized_buffer() -> Box<dyn Buffer> {
-    let status = redoubt_guard::guard_status();
-    create_initialized_buffer_with(status)
-}
-
-pub fn create_initialized_buffer_with(status: redoubt_guard::GuardStatus) -> Box<dyn Buffer> {
-    #[cfg(not(all(target_os = "linux", feature = "std")))]
-    let _ = status;
-
     // Forensic analysis warning (applies to all platforms when internal-forensics feature is active)
     #[cfg(all(feature = "internal-forensics", feature = "std"))]
-    {
-        eprintln!(
-            "\x1b[31m⚠️  WARNING: Forensic analysis mode enabled - memory protections DISABLED\x1b[0m"
-        );
-        eprintln!(
-            "\x1b[31m   prctl(PR_SET_DUMPABLE) and setrlimit(RLIMIT_CORE) are NOT applied.\x1b[0m"
-        );
-        eprintln!("\x1b[31m   Process CAN be debugged and core dumps ARE enabled.\x1b[0m");
-    }
-
-    // Check OS-level protections (Linux only)
-    #[cfg(all(target_os = "linux", feature = "std", feature = "guard"))]
-    {
-        if !status.prctl_succeeded {
-            eprintln!("\x1b[33m⚠️  SECURITY: prctl(PR_SET_DUMPABLE) failed\x1b[0m");
-            eprintln!("\x1b[33m   Process can be attached via ptrace.\x1b[0m");
-        }
-
-        if !status.rlimit_succeeded {
-            eprintln!("\x1b[33m⚠️  SECURITY: setrlimit(RLIMIT_CORE) failed\x1b[0m");
-            eprintln!("\x1b[33m   Core dumps may be generated.\x1b[0m");
-        }
-    }
+    eprintln!(
+        "\x1b[31m⚠️  WARNING: Forensic analysis mode enabled - reset_master_key is exposed\x1b[0m"
+    );
 
     let mut buffer = create_buffer();
 

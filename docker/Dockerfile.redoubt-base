@@ -28,7 +28,6 @@ WORKDIR /workspace
 COPY Cargo.toml Cargo.lock Makefile.toml ./
 
 # Copy all crate Cargo.toml files
-COPY crates/redoubt-guard/Cargo.toml ./crates/redoubt-guard/
 COPY crates/redoubt-alloc/Cargo.toml ./crates/redoubt-alloc/
 COPY crates/redoubt-buffer/Cargo.toml ./crates/redoubt-buffer/
 COPY crates/redoubt-zero/Cargo.toml ./crates/redoubt-zero/
@@ -54,8 +53,7 @@ COPY forensics/memory_analysis/Cargo.toml ./forensics/memory_analysis/
 
 # Create stub lib.rs files to satisfy initial cargo build
 # This allows Docker to cache dependency compilation separately from source code
-RUN mkdir -p crates/redoubt-guard/src && echo "// stub" > crates/redoubt-guard/src/lib.rs && \
-    mkdir -p crates/redoubt-alloc/src && echo "// stub" > crates/redoubt-alloc/src/lib.rs && \
+RUN mkdir -p crates/redoubt-alloc/src && echo "// stub" > crates/redoubt-alloc/src/lib.rs && \
     mkdir -p crates/redoubt-buffer/src && echo "// stub" > crates/redoubt-buffer/src/lib.rs && \
     mkdir -p crates/redoubt-zero/src && echo "// stub" > crates/redoubt-zero/src/lib.rs && \
     mkdir -p crates/redoubt-zero/core/src && echo "// stub" > crates/redoubt-zero/core/src/lib.rs && \

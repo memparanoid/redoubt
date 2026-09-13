@@ -16,7 +16,6 @@ path = "src/lib.rs"
 [features]
 asm                = ["redoubt-rand/asm", "redoubt-aead/asm"]
 default            = []
-guard              = ["redoubt-guard/guard"]
 internal-forensics = []
 std                = []
 
@@ -25,7 +24,6 @@ redoubt-aead.workspace   = true
 redoubt-alloc.workspace  = true
 redoubt-buffer.workspace = true
 redoubt-codec.workspace  = true
-redoubt-guard.workspace  = true
 redoubt-mem.workspace    = true
 redoubt-rand.workspace   = true
 redoubt-secret.workspace = true

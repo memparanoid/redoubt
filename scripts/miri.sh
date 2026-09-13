@@ -76,7 +76,6 @@ declare -A SKIP=(
   [redoubt-hkdf-arm]="SHA-256 in linked .S; Miri cannot execute FFI"
   [redoubt-memory-analysis]="uses xsave64; inline asm is unsupported"
   [redoubt-forensics]="forks, traces and switches stacks in asm; Miri models none of it"
-  [redoubt-guard]="prctl/setrlimit are not modelled"
   [benchmarks]="criterion; meaningless under interpretation"
   [wasm-example]="targets wasm"
 )

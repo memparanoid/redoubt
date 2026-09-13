@@ -30,10 +30,10 @@ COPY . .
 
 # Build the binary in release mode.
 #
-# `internal-forensics` exposes `reset_master_key` and prints a warning. It does
-# NOT relax any memory protection: `prctl(PR_SET_DUMPABLE)` and
-# `setrlimit(RLIMIT_CORE)` are applied by the `guard` feature, which is off by
-# default and not enabled here.
+# `internal-forensics` exposes `reset_master_key` and prints a warning. It
+# relaxes no memory protection: the key's page is `mlock`ed and kept at
+# `PROT_NONE` here as everywhere, which is what makes a clean report mean
+# something.
 RUN cargo build --release --features internal-forensics --bin redoubt_trace_report -p redoubt-memory-analysis
 
 # Make scripts executable

@@ -90,7 +90,6 @@ cargo +nightly llvm-cov clean
 mkdir -p "$OUT"
 
 # --- Per-crate runs ---
-mk redoubt-guard
 mk redoubt-alloc
 mk redoubt-zero
 mk redoubt-zero-core

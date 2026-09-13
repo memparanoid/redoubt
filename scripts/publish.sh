@@ -7,7 +7,6 @@ CRATES=(
   # No dependencies
   redoubt-util
   redoubt-test-utils
-  redoubt-guard
 
   # redoubt-zero stack
   redoubt-zero-core    # deps: redoubt-util
@@ -45,7 +44,7 @@ CRATES=(
   redoubt-secret       # deps: redoubt-alloc, redoubt-codec, redoubt-util, redoubt-zero
 
   # redoubt-vault stack
-  redoubt-vault-core   # deps: redoubt-aead, redoubt-alloc, redoubt-buffer, redoubt-codec, redoubt-guard, redoubt-rand, redoubt-secret, redoubt-zero
+  redoubt-vault-core   # deps: redoubt-aead, redoubt-alloc, redoubt-buffer, redoubt-codec, redoubt-mem, redoubt-rand, redoubt-secret, redoubt-zero
   redoubt-vault-derive # deps: redoubt-aead, redoubt-alloc, redoubt-codec, redoubt-secret, redoubt-vault-core, redoubt-zero
   redoubt-vault        # deps: redoubt-vault-core, redoubt-vault-derive
 

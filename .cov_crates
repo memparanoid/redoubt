@@ -3,7 +3,6 @@
 # Lines starting with # are ignored.
 
 # Core
-redoubt-guard
 redoubt-alloc
 redoubt-zero-core
 redoubt-zero-derive

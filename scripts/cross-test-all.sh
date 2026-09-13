@@ -10,11 +10,12 @@
 # Because features are unified across whatever cargo is asked to build at once.
 # A crate that never enables a feature gets it anyway when some other member of
 # the same invocation does, and the test binary that comes out is not the one
-# the crate's own `cargo nextest run -p <crate>` produces. That is not a
-# hypothetical: `redoubt-guard/guard` reaches `redoubt-vault`'s test binary that
-# way, and `prctl(PR_SET_DUMPABLE, 0)` then makes `/proc/<pid>/mem` unreadable,
-# so every forensics test in it fails with `NoPhotograph` — green on its own,
-# red in the suite, and nothing in the diff to explain it.
+# the crate's own `cargo nextest run -p <crate>` produces.
+#
+# That is not a hypothetical. It has already happened once here: a feature three
+# crates away turned the process non-dumpable, `/proc/<pid>/mem` stopped being
+# readable, and every forensics test failed with `NoPhotograph` — green on its
+# own, red in the suite, and nothing in the diff to explain it.
 #
 # Each `cross-test.sh` already runs `-p <its own crate>`. Running them in
 # separate invocations is what keeps that true.

@@ -256,7 +256,8 @@
 //!
 //! - **Encryption at rest**: Sensitive data uses AEAD encryption (AEGIS-128L)
 //! - **Guaranteed zeroization**: Memory is wiped using compiler barriers that prevent optimization
-//! - **OS-level protections**: On Linux, the master key lives in a memory page protected by `prctl` and `mlock`, inaccessible to non-root memory dumps
+//! - **Page-level protections**: the master key lives in its own mapping, `mlock`ed so it never reaches swap, kept at `PROT_NONE` between uses, and excluded from core dumps with `madvise(MADV_DONTDUMP)`
+//! - **Nothing process-wide**: no `prctl`, no `setrlimit`. Blocking debuggers and core dumps for the whole process is the application's decision, not a library's
 //! - **Field-level encryption**: Decrypt only what you need, minimizing exposure time
 //!
 //! # Testing
@@ -284,7 +285,7 @@
 //!
 //! | Platform | Protection level |
 //! |----------|------------------|
-//! | Linux | Full (`prctl`, `rlimit`, `mlock`, `mprotect`) |
+//! | Linux | Full (`mlock`, `mprotect`, `madvise(MADV_DONTDUMP)`) |
 //! | macOS | Partial (`mlock`, `mprotect`) |
 //! | Windows | Encryption only |
 //! | WASI | Encryption only |
@@ -302,7 +303,6 @@ pub mod support;
 pub use redoubt_aead as aead;
 pub use redoubt_alloc as alloc;
 pub use redoubt_codec as codec;
-pub use redoubt_guard as guard;
 pub use redoubt_hkdf as hkdf;
 pub use redoubt_rand as rand;
 pub use redoubt_secret as secret;

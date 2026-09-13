@@ -14,7 +14,6 @@ version.workspace    = true
 redoubt-aead   = { workspace = true }
 redoubt-alloc  = { workspace = true }
 redoubt-codec  = { workspace = true }
-redoubt-guard  = { workspace = true }
 redoubt-hkdf   = { workspace = true }
 redoubt-rand   = { workspace = true }
 redoubt-secret = { workspace = true }
@@ -29,8 +28,7 @@ redoubt-codec.workspace = true
 [features]
 asm = ["redoubt-vault/asm"]
 default = []
-full = ["std", "guard", "asm"]
-guard = ["redoubt-vault/guard"]
+full = ["std", "asm"]
 internal-forensics = ["redoubt-vault/internal-forensics"]
 std = ["redoubt-vault/std"]
 test-utils = [

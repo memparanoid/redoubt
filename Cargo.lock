@@ -850,7 +850,6 @@ dependencies = [
  "redoubt-aead",
  "redoubt-alloc",
  "redoubt-codec",
- "redoubt-guard",
  "redoubt-hkdf",
  "redoubt-rand",
  "redoubt-secret",
@@ -995,15 +994,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "redoubt-guard"
-version = "0.1.0-rc.8"
-dependencies = [
- "libc",
- "libseccomp",
- "serial_test",
-]
-
-[[package]]
 name = "redoubt-hkdf"
 version = "0.1.0-rc.8"
 dependencies = [
@@ -1132,7 +1122,6 @@ dependencies = [
  "redoubt-buffer",
  "redoubt-codec",
  "redoubt-forensics",
- "redoubt-guard",
  "redoubt-mem",
  "redoubt-rand",
  "redoubt-secret",
