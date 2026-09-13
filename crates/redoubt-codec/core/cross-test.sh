@@ -37,12 +37,13 @@ CRATE="$(sed -n 's/^name *= *"\(.*\)".*/\1/p' "$HERE/Cargo.toml" | head -1)"
 }
 
 CROSS_CC="${CROSS_CC:-aarch64-unknown-linux-musl-gcc}"
+MUSL_CC="${MUSL_CC:-x86_64-unknown-linux-musl-gcc}"
 QEMU="${QEMU:-qemu-aarch64}"
 
-for needed in "$CROSS_CC" "$QEMU"; do
+for needed in "$CROSS_CC" "$MUSL_CC" "$QEMU"; do
   command -v "$needed" >/dev/null || {
     echo "missing: $needed" >&2
-    echo "set CROSS_CC and QEMU if they go by other names here" >&2
+    echo "set CROSS_CC, MUSL_CC and QEMU if they go by other names here" >&2
     exit 1
   }
 done
@@ -62,11 +63,30 @@ EXTRA=()
 
 [ -f "$HERE/cross-test.args" ] && read -ra EXTRA < "$HERE/cross-test.args"
 
-echo "== $CRATE on x86_64 =="
+# Three runs, so that the two things that differ are separated. Against the
+# first, the second changes the C library and nothing else, and the third
+# changes the architecture and nothing else. A difference that showed only in
+# one pair would otherwise be unattributable to either.
+#
+# What the C library decides is the allocator, and the allocator decides what a
+# freed chunk keeps: glibc leaves everything past its first bytes where it was,
+# musl's `mallocng` may cover the lot. A sweep reads whatever is left.
+#
+# The fourth corner, aarch64 with glibc, wants a cross compiler this machine
+# does not have. `ubuntu-24.04-arm` in CI is that corner.
+echo "== $CRATE on x86_64, glibc =="
 cargo nextest run -p "$CRATE" --release ${EXTRA[@]+"${EXTRA[@]}"}
 
 echo
-echo "== $CRATE on aarch64, under $QEMU =="
+echo "== $CRATE on x86_64, musl =="
+
+CC_x86_64_unknown_linux_musl="$MUSL_CC" \
+  CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="$MUSL_CC" \
+  cargo nextest run -p "$CRATE" --release --target x86_64-unknown-linux-musl \
+  ${EXTRA[@]+"${EXTRA[@]}"}
+
+echo
+echo "== $CRATE on aarch64, musl, under $QEMU =="
 
 # `cc` looks for its compiler by a name of its own choosing, and cargo for the
 # linker by another, so both are told which one this is.

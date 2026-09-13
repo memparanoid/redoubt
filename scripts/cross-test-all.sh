@@ -93,6 +93,6 @@ done
 
 echo
 echo "################################################################"
-echo "## read on both architectures: ${DONE[*]}"
+echo "## read on every architecture and C library there is one for: ${DONE[*]}"
 echo "################################################################"
 echo
