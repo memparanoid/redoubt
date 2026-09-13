@@ -20,9 +20,16 @@ jobs:
           - os: ubuntu-24.04-arm
             name: Linux aarch64
           - os: macos-latest
-            name: macOS ARM
+            name: macOS aarch64
+          # The last Intel runner. `macos-latest` has been ARM since 14, so
+          # without this the x86_64 half of the AEGIS and SHA-256 assembly is
+          # never run on the platform it is written for.
+          - os: macos-13
+            name: macOS x86_64
           - os: windows-latest
             name: Windows x86_64
+          - os: windows-11-arm
+            name: Windows aarch64
 
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
@@ -32,10 +39,29 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
 
       - name: Install libseccomp (Linux only)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libseccomp-dev
+
+      # Formatting reads the same on every runner, so it is asked once rather
+      # than five times.
+      - name: cargo fmt --check
+        if: matrix.name == 'Linux x86_64'
+        run: cargo fmt --all -- --check
+
+      # Clippy is asked everywhere, because it is not the same question
+      # everywhere: which code exists at all is decided by `cfg`, and a warning
+      # that only appears on one of these is exactly what this matrix is for.
+      # `redoubt-aead` selected a backend whose assembly is not built on
+      # aarch64 Windows, and nothing here saw it until that runner existed.
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: cargo clippy --all-features
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       # A process per test, which some of these need and all of them benefit
       # from. `redoubt-forensics` reads the whole process's memory: two of its
