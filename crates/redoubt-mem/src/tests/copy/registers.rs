@@ -20,47 +20,102 @@
 //! is why the capture reads into `r8-r11` on `x86_64` and `x4-x11` on
 //! `aarch64`.
 //!
+//! # The zero that means nothing
+//!
+//! A capture that reads nothing reads zero, and so does a register that was
+//! properly cleared, so a zero on its own says neither. Every payload register
+//! is seeded with ones before the call, and a routine that returns without
+//! touching anything is run through the same capture: it must come back
+//! holding every seed. Only then does the zero beside it mean anything.
+//!
+//! What a word may come back as is therefore zero **or** the seed. A copy
+//! short enough never to reach the vector path put nothing in one, and the
+//! promise is only about temporaries the routine used. Which is why no fill
+//! below may be `0xFF`: a vector full of that payload reads the same as a
+//! vector nobody touched.
+//!
 //! # What this does not say
 //!
 //! That the process is clean. Only that *this* routine erased *its own*
 //! temporaries. Whatever somebody else left in another register is still
 //! there, and so is the copy in the destination, which is the point of having
 //! made it.
-//!
-//! # The zero that means nothing
-//!
-//! A capture that reads nothing reads zero, and so does a register that was
-//! properly cleared. On `x86_64` the small paths never touch a vector
-//! register at all, so the two are seeded with a value first: if the capture
-//! were reading the wrong place, those seeds would come back and the
-//! assertion would fail. On `aarch64` every path writes `v0`, so there is
-//! nothing to seed.
 
 #![cfg(all(unix, any(target_arch = "x86_64", target_arch = "aarch64")))]
 
-// The routine is not part of this crate's public surface, so the test asks
-// the linker for it by name. Naming the crate as well is what pulls its
-// native library into the link.
 use std::vec;
 
+// The routine is not part of this crate's public surface, so the test asks the
+// linker for it by name.
 unsafe extern "C" {
     fn redoubt_copy_bytes(src: *const u8, dst: *mut u8, bytes: usize);
 }
 
-/// Every register the routine puts copied bytes into, read at the return.
+type CopyBytes = unsafe extern "C" fn(*const u8, *mut u8, usize);
+
+/// A routine with the same signature that does nothing at all.
+///
+/// Naked, so that the compiler emits no prologue: every register the capture
+/// seeded is still seeded when it returns.
+#[unsafe(naked)]
+unsafe extern "C" fn leaves_everything(_: *const u8, _: *mut u8, _: usize) {
+    core::arch::naked_asm!("ret");
+}
+
+/// A routine that copies sixteen bytes through a vector register and returns
+/// without erasing it.
+///
+/// The other half of the calibration. `leaves_everything` says the capture can
+/// see a register nobody wrote; this says it can see one holding what was
+/// copied, which is the thing the real test asserts the absence of. Without
+/// it, an assertion that can never fail would read exactly like one that
+/// always passes.
+///
+/// # Safety
+///
+/// `src` readable and `dst` writable for at least sixteen bytes, and disjoint.
+#[cfg(target_arch = "x86_64")]
+#[unsafe(naked)]
+unsafe extern "C" fn leaves_the_payload(_: *const u8, _: *mut u8, _: usize) {
+    core::arch::naked_asm!("movdqu xmm0, [rdi]", "movdqu [rsi], xmm0", "ret");
+}
+
+/// The same, through `v0`.
+///
+/// # Safety
+///
+/// As above.
+#[cfg(target_arch = "aarch64")]
+#[unsafe(naked)]
+unsafe extern "C" fn leaves_the_payload(_: *const u8, _: *mut u8, _: usize) {
+    core::arch::naked_asm!("ldr q0, [x0]", "str q0, [x1]", "ret");
+}
+
+/// Every register the routine puts copied bytes into, seeded with ones and
+/// read at the return.
 ///
 /// `x3` and the two halves of each of `v0-v3`, which is what the assembly
 /// names as its payload.
+///
+/// # Safety
+///
+/// `f` must follow the C ABI and the same contract as the routine under test:
+/// `src` readable and `dst` writable for `bytes`, and the ranges disjoint.
 #[cfg(target_arch = "aarch64")]
-unsafe fn payload(src: *const u8, dst: *mut u8, bytes: usize) -> [u64; 9] {
+unsafe fn payload(f: CopyBytes, src: *const u8, dst: *mut u8, bytes: usize) -> [u64; 9] {
     let (x3, v0_low, v0_high, v1_low, v1_high, v2_low, v2_high, v3_low, v3_high);
 
-    // SAFETY: the call's own requirements, which the caller below meets. The
-    // `umov`s read vector registers into general ones that are declared as
-    // outputs, and the rest of the register file is declared clobbered.
+    // SAFETY: the caller's contract. The `umov`s read vector registers into
+    // general ones that are declared as outputs, and the rest of the register
+    // file is declared clobbered.
     unsafe {
         core::arch::asm!(
-            "bl {copy}",
+            "mov x3, -1",
+            "movi v0.16b, #255",
+            "movi v1.16b, #255",
+            "movi v2.16b, #255",
+            "movi v3.16b, #255",
+            "blr x16",
             "umov x4, v0.d[0]",
             "umov x5, v0.d[1]",
             "umov x6, v1.d[0]",
@@ -69,7 +124,7 @@ unsafe fn payload(src: *const u8, dst: *mut u8, bytes: usize) -> [u64; 9] {
             "umov x9, v2.d[1]",
             "umov x10, v3.d[0]",
             "umov x11, v3.d[1]",
-            copy = sym redoubt_copy_bytes,
+            in("x16") f,
             in("x0") src,
             in("x1") dst,
             in("x2") bytes,
@@ -92,26 +147,30 @@ unsafe fn payload(src: *const u8, dst: *mut u8, bytes: usize) -> [u64; 9] {
 }
 
 /// The same: `rax`, `rcx`, and the two halves of each of `xmm0` and `xmm1`.
+///
+/// # Safety
+///
+/// As above.
 #[cfg(target_arch = "x86_64")]
-unsafe fn payload(src: *const u8, dst: *mut u8, bytes: usize) -> [u64; 6] {
+unsafe fn payload(f: CopyBytes, src: *const u8, dst: *mut u8, bytes: usize) -> [u64; 6] {
     let (rax, rcx, xmm0_low, xmm0_high, xmm1_low, xmm1_high);
 
-    // SAFETY: the call's own requirements, which the caller below meets. The
-    // two vector registers are seeded before the call so that a capture
-    // reading the wrong place cannot pass by reading zero, and the rest of the
-    // register file is declared clobbered.
+    // SAFETY: the caller's contract, plus: `r12` is callee-saved under SysV,
+    // so it still holds the routine's address when the call is made.
     unsafe {
         core::arch::asm!(
-            "pxor xmm0, xmm0",
-            "pxor xmm1, xmm1",
-            "call {copy}",
+            "mov rax, -1",
+            "mov rcx, -1",
+            "pcmpeqd xmm0, xmm0",
+            "pcmpeqd xmm1, xmm1",
+            "call r12",
             "movq r8, xmm0",
             "psrldq xmm0, 8",
             "movq r9, xmm0",
             "movq r10, xmm1",
             "psrldq xmm1, 8",
             "movq r11, xmm1",
-            copy = sym redoubt_copy_bytes,
+            in("r12") f,
             in("rdi") src,
             in("rsi") dst,
             in("rdx") bytes,
@@ -121,11 +180,68 @@ unsafe fn payload(src: *const u8, dst: *mut u8, bytes: usize) -> [u64; 6] {
             lateout("r9") xmm0_high,
             lateout("r10") xmm1_low,
             lateout("r11") xmm1_high,
+            clobber_abi("C"),
         );
     }
 
     [rax, rcx, xmm0_low, xmm0_high, xmm1_low, xmm1_high]
 }
+
+// ============================================================================
+// The control
+// ============================================================================
+
+/// The capture reports the seeds when the routine leaves them alone.
+///
+/// Every zero the test below reports is worth exactly what this one is worth:
+/// a capture that read zeros no matter what would call every routine clean,
+/// this one included.
+#[test]
+fn test_the_capture_reports_registers_a_routine_left_untouched() {
+    let from = [0xFF_u8; 64];
+    let mut into = [0_u8; 64];
+
+    // SAFETY: two separate allocations of 64 bytes, and a routine that touches
+    // neither.
+    let held = unsafe { payload(leaves_everything, from.as_ptr(), into.as_mut_ptr(), 64) };
+
+    assert!(
+        held.iter().all(|word| *word == u64::MAX),
+        "the capture cannot see what a routine left: {held:x?}",
+    );
+
+    assert!(
+        into.iter().all(|byte| *byte == 0),
+        "a routine that returns copied nothing",
+    );
+}
+
+/// The capture reports the copied byte when a routine leaves it in a register.
+///
+/// The assertion below is that no captured byte is the one that was copied.
+/// This is what says that assertion can fail at all: the same capture, the
+/// same check, against a routine that deliberately leaves the payload where
+/// the real one erases it.
+#[test]
+fn test_the_capture_reports_a_byte_a_routine_left_in_a_register() {
+    const FILL: u8 = 0x97;
+
+    let from = [FILL; 64];
+    let mut into = [0_u8; 64];
+
+    // SAFETY: two separate allocations of 64 bytes, and a routine that reads
+    // and writes sixteen of each.
+    let held = unsafe { payload(leaves_the_payload, from.as_ptr(), into.as_mut_ptr(), 64) };
+
+    assert!(
+        held.iter().any(|word| word.to_ne_bytes().contains(&FILL)),
+        "the capture cannot see a copied byte left in a register: {held:x?}",
+    );
+}
+
+// ============================================================================
+// redoubt_copy_bytes
+// ============================================================================
 
 /// Nothing of what was copied is in a register when the routine returns.
 ///
@@ -137,7 +253,9 @@ unsafe fn payload(src: *const u8, dst: *mut u8, bytes: usize) -> [u64; 6] {
 /// byte in a corner of a vector register is as loud as a whole one.
 #[test]
 fn test_no_register_holds_what_was_copied() {
-    for fill in [0xFF_u8, 0x97, 0x42] {
+    // Neither `0x00` nor `0xFF`: those are what an erased register and an
+    // untouched one hold, so payload made of either would read as innocent.
+    for fill in [0x97_u8, 0x42, 0x5A] {
         let from = vec![fill; 8256];
         let mut into = vec![0_u8; from.len()];
 
@@ -145,10 +263,22 @@ fn test_no_register_holds_what_was_copied() {
             for at in [0_usize, 1, 15, 31, 63] {
                 // SAFETY: two different allocations, both `8256` long, and
                 // `at + of` never reaches that.
-                let held = unsafe { payload(from.as_ptr().add(at), into.as_mut_ptr().add(at), of) };
+                let held = unsafe {
+                    payload(
+                        redoubt_copy_bytes,
+                        from.as_ptr().add(at),
+                        into.as_mut_ptr().add(at),
+                        of,
+                    )
+                };
 
+                // Not "every register is zero". The promise is about the bytes
+                // that were copied, and a register the routine never wrote —
+                // every vector register, for a copy too short to reach them —
+                // is as clean as one it erased.
                 assert!(
-                    held.iter().all(|word| *word == 0),
+                    held.iter()
+                        .all(|word| word.to_ne_bytes().iter().all(|byte| *byte != fill)),
                     "fill {fill:#x}, {of} bytes at {at}: {held:x?}",
                 );
 

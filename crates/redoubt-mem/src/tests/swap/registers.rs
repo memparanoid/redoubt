@@ -38,12 +38,51 @@ unsafe extern "C" {
 /// A routine with the same signature that does nothing at all.
 ///
 /// Naked, so that the compiler emits no prologue: every register the capture
-/// seeded is still seeded when it returns. That is what makes it a control —
-/// if the capture reported zeros for this, it would be reporting zeros for
-/// everything, and the real measurement would mean nothing.
+/// seeded is still seeded when it returns.
 #[unsafe(naked)]
 unsafe extern "C" fn leaves_everything(_: *mut u8, _: *mut u8, _: usize) {
     core::arch::naked_asm!("ret");
+}
+
+/// A routine that exchanges sixteen bytes through vector registers and returns
+/// without erasing them.
+///
+/// The other half of the calibration. `leaves_everything` says the capture can
+/// see a register nobody wrote; this says it can see one holding what was
+/// exchanged, which is the thing the real test asserts the absence of. Without
+/// it, an assertion that can never fail would read exactly like one that
+/// always passes.
+///
+/// # Safety
+///
+/// `a` and `b` readable and writable for at least sixteen bytes, and disjoint.
+#[cfg(target_arch = "x86_64")]
+#[unsafe(naked)]
+unsafe extern "C" fn leaves_the_payload(_: *mut u8, _: *mut u8, _: usize) {
+    core::arch::naked_asm!(
+        "movdqu xmm0, [rdi]",
+        "movdqu xmm2, [rsi]",
+        "movdqu [rdi], xmm2",
+        "movdqu [rsi], xmm0",
+        "ret",
+    );
+}
+
+/// The same, through `v0` and `v2`.
+///
+/// # Safety
+///
+/// As above.
+#[cfg(target_arch = "aarch64")]
+#[unsafe(naked)]
+unsafe extern "C" fn leaves_the_payload(_: *mut u8, _: *mut u8, _: usize) {
+    core::arch::naked_asm!(
+        "ldr q0, [x0]",
+        "ldr q2, [x1]",
+        "str q2, [x0]",
+        "str q0, [x1]",
+        "ret",
+    );
 }
 
 /// Every payload register, seeded with ones, read back the instant `f`
@@ -157,6 +196,30 @@ fn test_the_capture_reports_registers_a_routine_left_untouched() {
 
     assert_eq!(a, [1; 64], "a routine that returns moved nothing");
     assert_eq!(b, [2; 64]);
+}
+
+/// The capture reports the exchanged bytes when a routine leaves them in a
+/// register.
+///
+/// The assertion below is that every payload register comes back zero. This is
+/// what says that assertion can fail at all: the same capture, against a
+/// routine that deliberately leaves the bytes where the real one erases them.
+#[test]
+fn test_the_capture_reports_bytes_a_routine_left_in_a_register() {
+    // Neither `0x00` nor the seed: those are what an erased register and an
+    // untouched one hold.
+    let mut a = [0x97_u8; 64];
+    let mut b = [0x42_u8; 64];
+
+    // SAFETY: two separate arrays of 64 bytes, and a routine that reads and
+    // writes sixteen of each.
+    let seen = unsafe { capture(leaves_the_payload, a.as_mut_ptr(), b.as_mut_ptr(), 64) };
+
+    assert!(
+        seen.iter()
+            .any(|word| word.to_ne_bytes().contains(&0x97) || word.to_ne_bytes().contains(&0x42)),
+        "the capture cannot see an exchanged byte left in a register: {seen:x?}",
+    );
 }
 
 // ============================================================================
