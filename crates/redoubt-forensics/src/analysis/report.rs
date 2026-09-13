@@ -64,17 +64,38 @@ pub struct Change {
     pub surfaced: bool,
 }
 
+/// How wide the tag column is, so that rows printed by different crates line up
+/// against each other.
+const TAG: usize = 28;
+
 impl Report {
     /// What changed between an earlier photograph and this one.
     #[must_use]
-    pub fn against(&self, before: &Self) -> Change {
+    pub fn against(&self, report_before: &Self) -> Change {
         Change {
-            score: i128::from(self.score) - i128::from(before.score),
-            widest: self.widest as i64 - before.widest as i64,
-            runs: i128::from(self.runs) - i128::from(before.runs),
-            swept: i128::from(self.swept) - i128::from(before.swept),
-            surfaced: self.found && !before.found,
+            score: i128::from(self.score) - i128::from(report_before.score),
+            widest: self.widest as i64 - report_before.widest as i64,
+            runs: i128::from(self.runs) - i128::from(report_before.runs),
+            swept: i128::from(self.swept) - i128::from(report_before.swept),
+            surfaced: self.found && !report_before.found,
         }
+    }
+
+    /// This photograph and what it moved, on two lines under one tag.
+    ///
+    /// The tag names the row: a sweep over ten sizes is ten of these, and
+    /// without it they are ten identical lines of `score 0`.
+    pub fn summary_against(&self, report_before: &Self, tag: &str) {
+        println!("  {tag:<TAG$} {self}");
+        println!("  {:<TAG$} {}", "", self.against(report_before));
+    }
+
+    /// One photograph, with nothing to compare it to yet.
+    ///
+    /// The first row of a run, where the tag says what has not happened —
+    /// `nothing copied yet`.
+    pub fn summary(&self, tag: &str) {
+        println!("  {tag:<TAG$} {self}");
     }
 }
 
