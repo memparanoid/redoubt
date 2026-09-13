@@ -34,7 +34,7 @@
 
 #![cfg(target_os = "linux")]
 
-use redoubt_forensics::{Forensics, Reason, forensics};
+use redoubt_forensics::{AnyError, Forensics, forensics};
 
 /// Thirty-two distinct bytes: no value repeats, so a run that extends did not
 /// extend by luck.
@@ -105,7 +105,7 @@ fn theirs(into: &mut [u8]) {
 ///
 /// What *this* crate's copy leaves is a promise it makes, so it is asserted.
 #[test]
-fn test_what_each_copy_leaves_behind() -> Result<(), Reason> {
+fn test_what_each_copy_leaves_behind() -> Result<(), AnyError> {
     let needle = backwards();
     let mut watch = Forensics::watching(&needle)?;
     let mut scratch = vec![0_u8; SECRET.len()];
@@ -163,7 +163,7 @@ fn test_what_each_copy_leaves_behind() -> Result<(), Reason> {
 /// plainly at two hundred. The destination is wiped every time, so what
 /// accumulates is only what the copy itself left.
 #[test]
-fn test_two_hundred_copies_add_up_to_nothing() -> Result<(), Reason> {
+fn test_two_hundred_copies_add_up_to_nothing() -> Result<(), AnyError> {
     const ROUNDS: usize = 200;
 
     let needle = backwards();
@@ -241,7 +241,7 @@ fn ours_at(of: usize, into: &mut [u8]) {
 /// looks exactly like a copy that leaks only on one of those paths. This is
 /// the cheaper of the two to rule out.
 #[test]
-fn test_no_size_of_copy_leaves_anything_behind() -> Result<(), Reason> {
+fn test_no_size_of_copy_leaves_anything_behind() -> Result<(), AnyError> {
     let needle = backwards();
     let mut watch = Forensics::watching(&needle)?;
     let mut scratch = vec![0_u8; BIG.len()];
