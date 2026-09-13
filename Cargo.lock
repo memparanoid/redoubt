@@ -1071,7 +1071,9 @@ dependencies = [
  "getrandom",
  "libc",
  "proptest",
+ "redoubt-forensics",
  "redoubt-hkdf",
+ "redoubt-mem",
  "redoubt-zero",
  "thiserror",
 ]
