@@ -26,7 +26,14 @@ redoubt-aead
 # Buffer
 redoubt-buffer
 
+# Mem
+redoubt-mem
+
+# Forensics
+redoubt-forensics
+
 # Vault
+redoubt-vault
 redoubt-vault-core
 redoubt-vault-derive
 
