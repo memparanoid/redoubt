@@ -205,3 +205,91 @@ fn test_two_hundred_copies_add_up_to_nothing() -> Result<(), Reason> {
 
     Ok(())
 }
+
+/// The secret over and over, in a constant, so that a copy of any size has
+/// something to carry.
+///
+/// A `const`, so it lives where nothing can write and the sweep never reads
+/// the source as a leak.
+const TIMES: usize = 256;
+
+const BIG: [u8; SECRET.len() * TIMES] = {
+    let mut all = [0_u8; SECRET.len() * TIMES];
+    let mut at = 0;
+
+    while at < all.len() {
+        all[at] = SECRET[at % SECRET.len()];
+        at += 1;
+    }
+
+    all
+};
+
+/// A copy of that many bytes, and the destination cleared behind it.
+#[inline(never)]
+fn ours_at(of: usize, into: &mut [u8]) {
+    // SAFETY: `into` is `BIG.len()` long and `of` never passes that, and a
+    // constant and a local are different allocations.
+    unsafe { redoubt_mem::copy_nonoverlapping(BIG.as_ptr(), into.as_mut_ptr(), of) };
+
+    wipe(into);
+}
+
+/// Nothing is left at any size, which is what tells a leak in the copy apart
+/// from a leak in whatever called it.
+///
+/// The routine takes a different path by length — the general registers up to
+/// thirty-two bytes, the vector loop up to five hundred and twelve, and the
+/// string move past that — and a caller that leaks only when its buffers grow
+/// looks exactly like a copy that leaks only on one of those paths. This is
+/// the cheaper of the two to rule out.
+#[test]
+fn test_no_size_of_copy_leaves_anything_behind() -> Result<(), Reason> {
+    let needle = backwards();
+    let mut watch = Forensics::watching(&needle)?;
+    let mut scratch = vec![0_u8; BIG.len()];
+
+    let before = watch.snapshot()?;
+
+    println!();
+    println!("  {:<24} {before}", "nothing copied yet");
+
+    for of in [
+        32_usize,
+        33,
+        63,
+        64,
+        65,
+        127,
+        128,
+        129,
+        511,
+        512,
+        513,
+        1024,
+        4096,
+        BIG.len(),
+    ] {
+        let after = forensics!(watch, { ours_at(of, &mut scratch[..of]) })?;
+
+        line(&format!("{of} bytes"), &after, &before);
+
+        assert!(
+            !after.found,
+            "the whole secret survived a copy of {of} bytes: {after}"
+        );
+
+        let moved = after.against(&before);
+
+        assert!(
+            moved.is_noise(),
+            "a copy of {of} bytes moved the score: {moved}"
+        );
+    }
+
+    println!();
+
+    drop(core::hint::black_box(scratch));
+
+    Ok(())
+}
