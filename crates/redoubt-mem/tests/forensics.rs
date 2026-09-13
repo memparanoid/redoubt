@@ -34,7 +34,7 @@
 
 #![cfg(target_os = "linux")]
 
-use redoubt_forensics::{Forensics, Reason, Report, forensics};
+use redoubt_forensics::{Forensics, Reason, forensics};
 
 /// Thirty-two distinct bytes: no value repeats, so a run that extends did not
 /// extend by luck.
@@ -96,11 +96,6 @@ fn theirs(into: &mut [u8]) {
     wipe(into);
 }
 
-fn line(what: &str, now: &Report, before: &Report) {
-    println!("  {what:<24} {now}");
-    println!("  {:<24} {}", "", now.against(before));
-}
-
 /// Neither copy is asserted against the other, and this one is asserted about
 /// itself.
 ///
@@ -115,29 +110,29 @@ fn test_what_each_copy_leaves_behind() -> Result<(), Reason> {
     let mut watch = Forensics::watching(&needle)?;
     let mut scratch = vec![0_u8; SECRET.len()];
 
-    let quiet = watch.snapshot()?;
+    let report_before = watch.snapshot()?;
 
     // Ours first. Anything the other one leaves in a register nothing writes
     // over would still be there afterwards, and would be counted against this
     // one.
-    let after_ours = forensics!(watch, { ours(&mut scratch) })?;
-    let after_theirs = forensics!(watch, { theirs(&mut scratch) })?;
+    let report_after_ours = forensics!(watch, { ours(&mut scratch) });
+    let report_after_theirs = forensics!(watch, { theirs(&mut scratch) });
 
     // Last, and only now: a copy in plain sight. Everything above is worth
     // what this line is worth.
     let planted = core::hint::black_box(SECRET.to_vec());
-    let control = watch.snapshot()?;
+    let report_in_plain_sight = watch.snapshot()?;
 
     println!();
-    println!("  {:<24} {quiet}", "nothing copied yet");
-    line("redoubt_mem", &after_ours, &quiet);
-    line("core::ptr", &after_theirs, &after_ours);
+    report_before.summary("nothing copied yet");
+    report_after_ours.summary_against(&report_before, "redoubt_mem");
+    report_after_theirs.summary_against(&report_after_ours, "core::ptr");
     println!();
-    line("a copy in plain sight", &control, &after_theirs);
+    report_in_plain_sight.summary_against(&report_after_theirs, "a copy in plain sight");
     println!();
     println!(
         "  the sweep {} the planted copy",
-        if control.found {
+        if report_in_plain_sight.found {
             "FOUND"
         } else {
             "DID NOT FIND — nothing above is worth anything"
@@ -146,13 +141,14 @@ fn test_what_each_copy_leaves_behind() -> Result<(), Reason> {
     println!();
 
     assert!(
-        control.found,
+        report_in_plain_sight.found,
         "the sweep reaches nowhere, so no zero here means anything"
     );
 
     assert!(
-        !after_ours.found,
-        "the whole secret survived this crate's copy:\nbefore {quiet}\nafter  {after_ours}",
+        !report_after_ours.found,
+        "the whole secret survived this crate's copy:\n\
+         before {report_before}\nafter  {report_after_ours}",
     );
 
     drop(core::hint::black_box((planted, scratch)));
@@ -174,31 +170,32 @@ fn test_two_hundred_copies_add_up_to_nothing() -> Result<(), Reason> {
     let mut watch = Forensics::watching(&needle)?;
     let mut scratch = vec![0_u8; SECRET.len()];
 
-    let before = watch.snapshot()?;
+    let report_before = watch.snapshot()?;
 
-    let after = forensics!(watch, {
+    let report_after = forensics!(watch, {
         for _ in 0..ROUNDS {
             ours(&mut scratch);
         }
-    })?;
+    });
 
     let planted = core::hint::black_box(SECRET.to_vec());
-    let control = watch.snapshot()?;
+    let report_in_plain_sight = watch.snapshot()?;
 
     println!();
-    println!("  {:<24} {before}", "nothing copied yet");
-    line(&format!("{ROUNDS} copies"), &after, &before);
-    line("a copy in plain sight", &control, &after);
+    report_before.summary("nothing copied yet");
+    report_after.summary_against(&report_before, &format!("{ROUNDS} copies"));
+    report_in_plain_sight.summary_against(&report_after, "a copy in plain sight");
     println!();
 
     assert!(
-        control.found,
+        report_in_plain_sight.found,
         "the sweep reaches nowhere, so no zero here means anything"
     );
 
     assert!(
-        !after.found,
-        "the whole secret surfaced after {ROUNDS} copies:\nbefore {before}\nafter  {after}",
+        !report_after.found,
+        "the whole secret surfaced after {ROUNDS} copies:\n\
+         before {report_before}\nafter  {report_after}",
     );
 
     drop(core::hint::black_box((planted, scratch)));
@@ -249,10 +246,10 @@ fn test_no_size_of_copy_leaves_anything_behind() -> Result<(), Reason> {
     let mut watch = Forensics::watching(&needle)?;
     let mut scratch = vec![0_u8; BIG.len()];
 
-    let before = watch.snapshot()?;
+    let report_before = watch.snapshot()?;
 
     println!();
-    println!("  {:<24} {before}", "nothing copied yet");
+    println!("  {:<24} {report_before}", "nothing copied yet");
 
     for of in [
         32_usize,
@@ -270,20 +267,20 @@ fn test_no_size_of_copy_leaves_anything_behind() -> Result<(), Reason> {
         4096,
         BIG.len(),
     ] {
-        let after = forensics!(watch, { ours_at(of, &mut scratch[..of]) })?;
+        let report_after = forensics!(watch, { ours_at(of, &mut scratch[..of]) });
 
-        line(&format!("{of} bytes"), &after, &before);
+        report_after.summary_against(&report_before, &format!("{of} bytes"));
 
         assert!(
-            !after.found,
-            "the whole secret survived a copy of {of} bytes: {after}"
+            !report_after.found,
+            "the whole secret survived a copy of {of} bytes: {report_after}"
         );
 
-        let moved = after.against(&before);
+        let delta = report_after.against(&report_before);
 
         assert!(
-            moved.is_noise(),
-            "a copy of {of} bytes moved the score: {moved}"
+            delta.is_noise(),
+            "a copy of {of} bytes moved the score: {delta}"
         );
     }
 
