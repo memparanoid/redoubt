@@ -437,7 +437,7 @@ fn test_reads_the_process_into_a_file_from_one_inlined_frame()
 /// `#[inline(never)]` because a spill that happens in the caller's own frame is
 /// not a spill, it is a variable.
 #[inline(never)]
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 fn spill() -> u8 {
     let mut slot = [0_u8; 32];
 
@@ -445,6 +445,7 @@ fn spill() -> u8 {
     // stores into a local of exactly that size. Both registers are declared
     // clobbered.
     unsafe {
+        #[cfg(target_arch = "x86_64")]
         core::arch::asm!(
             "movdqu xmm0, [{from}]",
             "movdqu xmm1, [{from} + 16]",
@@ -454,6 +455,18 @@ fn spill() -> u8 {
             into = in(reg) slot.as_mut_ptr(),
             out("xmm0") _,
             out("xmm1") _,
+        );
+
+        #[cfg(target_arch = "aarch64")]
+        core::arch::asm!(
+            "ldr q0, [{from}]",
+            "ldr q1, [{from}, #16]",
+            "str q0, [{into}]",
+            "str q1, [{into}, #16]",
+            from = in(reg) SECRET.as_ptr(),
+            into = in(reg) slot.as_mut_ptr(),
+            out("v0") _,
+            out("v1") _,
         );
     }
 
@@ -471,7 +484,7 @@ fn spill() -> u8 {
 /// constant that cannot be written to, it passes through two registers, and it
 /// lands in a frame nobody owns any more.
 #[test]
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 fn test_the_sweep_reaches_a_register_spilled_onto_a_dead_frame() -> Result<(), Reason> {
     let needle = reversed();
     let mut watch = Forensics::watching(&needle)?;

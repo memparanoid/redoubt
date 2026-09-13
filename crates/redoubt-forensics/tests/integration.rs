@@ -126,7 +126,7 @@ fn abandon(of: &[u8; 32]) -> u8 {
 /// dies — the round trip a compiler makes of a thirty-two byte copy when it
 /// vectorises one.
 #[inline(never)]
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 fn spill(of: &[u8; 32]) -> u8 {
     let mut slot = [0_u8; 32];
 
@@ -134,6 +134,7 @@ fn spill(of: &[u8; 32]) -> u8 {
     // stores into a local of exactly that size, with both registers declared
     // clobbered.
     unsafe {
+        #[cfg(target_arch = "x86_64")]
         core::arch::asm!(
             "movdqu xmm0, [{from}]",
             "movdqu xmm1, [{from} + 16]",
@@ -143,6 +144,18 @@ fn spill(of: &[u8; 32]) -> u8 {
             into = in(reg) slot.as_mut_ptr(),
             out("xmm0") _,
             out("xmm1") _,
+        );
+
+        #[cfg(target_arch = "aarch64")]
+        core::arch::asm!(
+            "ldr q0, [{from}]",
+            "ldr q1, [{from}, #16]",
+            "str q0, [{into}]",
+            "str q1, [{into}, #16]",
+            from = in(reg) of.as_ptr(),
+            into = in(reg) slot.as_mut_ptr(),
+            out("v0") _,
+            out("v1") _,
         );
     }
 
@@ -203,7 +216,7 @@ fn test_a_copy_in_a_frame_that_returned_is_found() -> Result<(), Reason> {
 /// the one a search for the whole secret answers `no` to while being perfectly
 /// truthful — because what a spill leaves is a piece.
 #[test]
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 fn test_a_register_spilled_onto_a_dead_frame_is_found() -> Result<(), Reason> {
     alone!();
 
@@ -818,23 +831,44 @@ fn test_reads_out_which_registers_the_capture_fills() -> Result<(), Reason> {
     Ok(())
 }
 
-/// Where the bytes go when the copy is wide.
+/// Where the bytes go when the copy is wide, and how far into a register.
 ///
-/// `vzeroall` reaches `ymm0-15` and no further. `zmm16-31` are outside every
-/// form of it, and compiled code almost never touches them, so a `memcpy`
-/// dispatched to an AVX-512 implementation can leave a secret in one and
-/// nothing will ever write over it.
+/// Each architecture has one place a secret can rest. On `x86_64` it is
+/// `zmm16-31`: `vzeroall` reaches `ymm0-15` and no further, and compiled code
+/// never touches the rest, so a `memcpy` dispatched to an AVX-512
+/// implementation can leave a secret in one and nothing will ever write over
+/// it. On `aarch64` it is not a register but a depth — `v0-v31` are the low
+/// 128 bits of `z0-z31` and everything writes those, while past 128 bits only
+/// SVE reaches and a compiler emits none unless asked.
 ///
-/// This is the capture that can see them.
+/// So the offset matters as much as the register, and both are printed.
 #[test]
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 fn test_reads_out_which_wide_registers_the_copy_fills() -> Result<(), Reason> {
     alone!();
 
-    if !std::arch::is_x86_feature_detected!("avx512f") {
-        eprintln!("    no AVX-512 on this machine, so there is no zmm16-31 to look at");
+    #[cfg(target_arch = "x86_64")]
+    const WIDE: &str = "zmm";
 
-        return Ok(());
+    #[cfg(target_arch = "aarch64")]
+    const WIDE: &str = "z";
+
+    #[cfg(target_arch = "x86_64")]
+    {
+        if !std::arch::is_x86_feature_detected!("avx512f") {
+            eprintln!("    no AVX-512 on this machine, so there is no zmm16-31 to look at");
+
+            return Ok(());
+        }
+    }
+
+    #[cfg(target_arch = "aarch64")]
+    {
+        if !std::arch::is_aarch64_feature_detected!("sve") {
+            eprintln!("    no SVE on this machine, so a z is a v and nothing more");
+
+            return Ok(());
+        }
     }
 
     let mut into = vec![0_u8; ALPHA.len()];
@@ -842,34 +876,49 @@ fn test_reads_out_which_wide_registers_the_copy_fills() -> Result<(), Reason> {
 
     // SAFETY: `into` is as long as `source` and they are different
     // allocations; the capture takes no argument and writes only its own
-    // room. Nothing runs between the two, and this form is called by name
+    // room. Nothing runs between the two, and the form is called by name
     // rather than through the slot because the point is to force it.
     unsafe {
-        core::ptr::copy_nonoverlapping(source.as_ptr(), into.as_mut_ptr(), source.len());
-        redoubt_forensics::redoubt_spill_avx512();
+        #[cfg(target_arch = "x86_64")]
+        {
+            core::ptr::copy_nonoverlapping(source.as_ptr(), into.as_mut_ptr(), source.len());
+            redoubt_forensics::redoubt_spill_avx512();
+        }
+
+        #[cfg(target_arch = "aarch64")]
+        {
+            core::ptr::copy_nonoverlapping(source.as_ptr(), into.as_mut_ptr(), source.len());
+            redoubt_forensics::redoubt_spill_sve();
+        }
     }
 
     let room = redoubt_forensics::spilled();
+    let wide = redoubt_forensics::spilled_width();
 
     eprintln!();
-    eprintln!("    64-byte registers holding some of the value:");
+    eprintln!("    {wide} bytes captured of each register; those holding some of the value:");
 
     let mut seen = false;
 
     for at in 0..32 {
         let from = VECTORS + at * SLOT;
-        let slot = &room[from..from + SLOT];
+        let slot = &room[from..from + wide.min(SLOT)];
         let full = slot.iter().filter(|byte| **byte != 0).count();
 
-        let widest = (1..=ALPHA.len())
-            .rev()
-            .find(|take| slot.windows(*take).any(|w| w == &ALPHA[..*take]))
-            .unwrap_or(0);
+        let Some((widest, began)) = (1..=ALPHA.len()).rev().find_map(|take| {
+            slot.windows(take)
+                .position(|w| w == &ALPHA[..take])
+                .map(|began| (take, began))
+        }) else {
+            continue;
+        };
 
-        if widest > 0 {
-            seen = true;
-            eprintln!("      zmm{at:<2}  {widest:>2} bytes of the value, {full:>2} non-zero");
-        }
+        seen = true;
+
+        eprintln!(
+            "      {WIDE}{at:<2}  {widest:>2} bytes of the value at offset {began:>3}, \
+             {full:>3} non-zero",
+        );
     }
 
     if !seen {
