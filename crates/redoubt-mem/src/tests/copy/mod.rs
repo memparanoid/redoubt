@@ -19,6 +19,9 @@
 //! element too many would pass every assertion about what landed and fail the
 //! ones about what did not.
 
+mod bounds;
+mod registers;
+
 use std::vec;
 use std::vec::Vec;
 

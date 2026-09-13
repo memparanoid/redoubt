@@ -4,6 +4,12 @@
 
 //! That the swap exchanges exactly what it was asked to, and nothing else.
 //!
+//! # One target, two files
+//!
+//! A directory under `tests/` is one binary and not one per file, so what is
+//! named here is linked with it. That costs nothing: `nextest` gives every
+//! test function its own process either way.
+//!
 //! # The oracle is `core`, and that is the point
 //!
 //! Every size and alignment is run twice: once through this crate's routine
@@ -22,7 +28,12 @@
 //! puzzling result somewhere else. The guard-page test asks the same question
 //! of the kernel, which answers with a signal.
 
-use redoubt_mem::{swap, swap_nonoverlapping};
+mod registers;
+
+use std::boxed::Box;
+use std::vec::Vec;
+
+use crate::{swap, swap_nonoverlapping};
 
 /// Cases that are the same on every run and on every machine.
 ///

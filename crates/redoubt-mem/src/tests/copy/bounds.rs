@@ -23,7 +23,10 @@
 
 #![cfg(unix)]
 
-use redoubt_mem::copy_nonoverlapping;
+use std::vec;
+use std::vec::Vec;
+
+use crate::copy_nonoverlapping;
 
 fn pattern(at: usize) -> u8 {
     (at.wrapping_mul(131) ^ (at >> 8) ^ 0x97) as u8

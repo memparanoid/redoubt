@@ -27,7 +27,7 @@
 
 #![cfg(all(unix, any(target_arch = "x86_64", target_arch = "aarch64")))]
 
-use redoubt_mem as _;
+use std::vec;
 
 type Swap = unsafe extern "C" fn(*mut u8, *mut u8, usize);
 

@@ -41,7 +41,7 @@
 // The routine is not part of this crate's public surface, so the test asks
 // the linker for it by name. Naming the crate as well is what pulls its
 // native library into the link.
-use redoubt_mem as _;
+use std::vec;
 
 unsafe extern "C" {
     fn redoubt_copy_bytes(src: *const u8, dst: *mut u8, bytes: usize);
