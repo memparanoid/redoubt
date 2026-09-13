@@ -95,10 +95,10 @@ pub use error::Reason;
 #[cfg(target_os = "linux")]
 pub use forensics::{Forensics, occurrences, occurrences_reversed};
 
-// `deep` and `spill` are what `forensics!` expands to, so they are public for
-// the macro's sake before anybody's.
+// `deep`, `spill` and `Outcome` are what `forensics!` expands to, so they are
+// public for the macro's sake before anybody's.
 #[cfg(target_os = "linux")]
-pub use macros::{DEPTH, deep};
+pub use macros::{DEPTH, Outcome, deep};
 
 // `SPILL`, `VECTORS` and `SLOT` are how the room is read: without them the
 // slice `spilled` hands back is a couple of kilobytes of nothing.

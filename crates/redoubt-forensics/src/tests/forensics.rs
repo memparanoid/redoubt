@@ -492,7 +492,9 @@ fn test_the_sweep_reaches_a_register_spilled_onto_a_dead_frame() -> Result<(), R
     // The macro is the shape a caller is meant to copy: the operation runs a
     // megabyte down, the registers are captured, and the photograph is the
     // next thing that happens.
-    let report = crate::forensics!(watch, { core::hint::black_box(spill()) })?;
+    let report = crate::forensics!(watch, {
+        core::hint::black_box(spill());
+    });
 
     assert!(
         report.found,

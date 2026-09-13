@@ -29,6 +29,52 @@
 //! each is a call, and a call writes exactly where the evidence is. The macro
 //! takes both at once: the block goes down, and the photograph is the next
 //! thing that happens, with nothing in between for anybody to add to later.
+//!
+//! Which is also why a block's own failure is settled by [`Outcome`] on the far
+//! side of the capture rather than by a `?` where it was written.
+
+use crate::analysis::report::Report;
+use crate::error::Reason;
+
+/// What a measured block came to, settled against the photograph.
+///
+/// A block that cannot fail comes to `()` and its error is [`Reason`]; one that
+/// can comes to a `Result` and brings its own.
+///
+/// The error is associated and not a parameter, so that nothing is left to
+/// infer: a parameter here has to be solved through the `From` at the call
+/// site, and for a boxed `dyn Error` there are five that would serve.
+pub trait Outcome {
+    /// What this block can have failed with.
+    type Error;
+
+    /// The photograph, unless something on the way to it went wrong.
+    fn settle(self, after: Result<Report, Reason>) -> Result<Report, Self::Error>;
+}
+
+/// A block with nothing to answer for, so only the photograph can have failed
+/// and the error is the photograph's.
+impl Outcome for () {
+    type Error = Reason;
+
+    fn settle(self, after: Result<Report, Reason>) -> Result<Report, Reason> {
+        after
+    }
+}
+
+/// The operation is asked first and the photograph second, which is the order
+/// they happened in — and the photograph is taken either way, before either is
+/// read. A block that failed is photographed and the photograph thrown away,
+/// because a measurement of an operation that did not finish measures nothing.
+impl<T, E: From<Reason>> Outcome for Result<T, E> {
+    type Error = E;
+
+    fn settle(self, after: Result<Report, Reason>) -> Result<Report, E> {
+        self?;
+
+        after.map_err(E::from)
+    }
+}
 
 /// How far down an operation is run.
 ///
@@ -56,21 +102,61 @@ pub fn deep<R>(work: impl FnOnce() -> R) -> R {
 
 /// An operation and the photograph of what it left, with nothing in between.
 ///
+/// What comes back is the photograph itself and not a `Result`, so there is no
+/// `?` after the closing brace:
+///
 /// ```no_run
-/// # use redoubt_forensics::{Forensics, forensics};
-/// # let needle: Vec<u8> = Vec::new();
+/// # use redoubt_forensics::{Forensics, Reason, forensics};
 /// # fn operation() {}
-/// let mut watch = Forensics::watching(&needle).expect("no fork");
+/// # fn measured() -> Result<(), Reason> {
+/// # let needle: Vec<u8> = Vec::new();
+/// let mut watch = Forensics::watching(&needle)?;
 ///
-/// let before = watch.snapshot().expect("no photograph");
-/// let after = forensics!(watch, { operation() });
+/// let report_before = watch.snapshot()?;
+/// let report_after = forensics!(watch, { operation() });
 ///
-/// println!("{}", after.expect("no photograph").against(&before));
+/// println!("{}", report_after.against(&report_before));
+/// # Ok(())
+/// # }
 /// ```
+///
+/// # The `return` inside it
+///
+/// A photograph that could not be taken leaves the enclosing function, and this
+/// does that itself: it expands to a `match` whose failing arm is a `return`.
+/// So it can only be written inside a function that returns a `Result`, and
+/// that function's error must be reachable by `From` from whatever went wrong.
+///
+/// A `return` hidden in a macro is the sort of thing that reads wrong six
+/// months later, so here is what it is for.
+///
+/// A block that can fail ends in a `Result` and uses `?` inside. If this handed
+/// a `Result` back as well, the caller would write a second `?` after the
+/// brace — and then there are two conversions in a row with a type between them
+/// that nothing has named. `rustc` solves the outer one first, finds more than
+/// one `From` that would serve, and stops: `E0283`, at every call site, and the
+/// only answer is a turbofish in every block. Both shapes of the error type
+/// were tried, a boxed `dyn Error` and a newtype around one, and neither helps:
+/// the ambiguity is in the chain, not in the type.
+///
+/// Taking the `return` in here removes the outer conversion. What is left is
+/// one conversion into a type the enclosing signature has already named.
+///
+/// # An operation that can fail
+///
+/// The block ends in a `Result` whose error the enclosing function can reach by
+/// `From` — including from [`Reason`], which is what the photograph fails with.
+/// A test that measures fallible work declares such a type; one whose block
+/// cannot fail declares nothing and the block stays an expression, as above.
 ///
 /// The block runs under [`DEPTH`] bytes of frame and the photograph is taken
 /// the instant it returns. Nothing a caller writes can get between the two,
 /// which is the one thing left that a caller could get wrong.
+///
+/// Nor can the `?` inside the block: its failure is carried past the capture
+/// untouched and settled by [`Outcome`] only once the photograph has been
+/// taken. A `?` is a call, and a call between the operation and the photograph
+/// writes over the frames the photograph is for.
 ///
 /// # And the registers
 ///
@@ -91,10 +177,16 @@ pub fn deep<R>(work: impl FnOnce() -> R) -> R {
 #[macro_export]
 macro_rules! forensics {
     ($watch:expr, $work:block) => {{
-        $crate::deep(|| $work);
+        let out = $crate::deep(|| $work);
 
         $crate::spill();
 
-        $watch.snapshot()
+        let after = $watch.snapshot();
+
+        match $crate::Outcome::settle(out, after) {
+            Ok(report) => report,
+            // The `return` is the point, and it is explained above the macro.
+            Err(why) => return Err(::core::convert::From::from(why)),
+        }
     }};
 }

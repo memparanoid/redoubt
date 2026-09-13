@@ -205,7 +205,9 @@ fn test_a_copy_in_a_frame_that_returned_is_found() -> Result<(), Reason> {
     alone!();
 
     let mut watch = watching(&ALPHA)?;
-    let report = forensics!(watch, { core::hint::black_box(abandon(&ALPHA)) })?;
+    let report = forensics!(watch, {
+        core::hint::black_box(abandon(&ALPHA));
+    });
 
     assert!(report.found, "{report}");
 
@@ -221,7 +223,9 @@ fn test_a_register_spilled_onto_a_dead_frame_is_found() -> Result<(), Reason> {
     alone!();
 
     let mut watch = watching(&ALPHA)?;
-    let report = forensics!(watch, { core::hint::black_box(spill(&ALPHA)) })?;
+    let report = forensics!(watch, {
+        core::hint::black_box(spill(&ALPHA));
+    });
 
     assert!(report.found, "{report}");
 
@@ -458,8 +462,8 @@ fn test_the_difference_shows_what_an_operation_kept() -> Result<(), Reason> {
     let mut kept = Vec::new();
 
     let after = forensics!(watch, {
-        kept = core::hint::black_box(ALPHA[8..24].to_vec())
-    })?;
+        kept = core::hint::black_box(ALPHA[8..24].to_vec());
+    });
 
     let change = after.against(&before);
 
@@ -482,7 +486,9 @@ fn test_the_difference_shows_nothing_for_an_operation_that_kept_nothing() -> Res
     let mut watch = watching(&ABSENT)?;
     let before = photograph(&mut watch)?;
 
-    let after = forensics!(watch, { core::hint::black_box(1_u8) })?;
+    let after = forensics!(watch, {
+        core::hint::black_box(1_u8);
+    });
 
     let change = after.against(&before);
 
@@ -657,7 +663,9 @@ fn test_the_macro_photographs_after_the_block_and_not_before() -> Result<(), Rea
     let mut watch = watching(&ALPHA)?;
     let mut kept = Vec::new();
 
-    let after = forensics!(watch, { kept = core::hint::black_box(ALPHA.to_vec()) })?;
+    let after = forensics!(watch, {
+        kept = core::hint::black_box(ALPHA.to_vec());
+    });
 
     assert!(
         after.found,
