@@ -7,4 +7,5 @@ node_modules
 target
 coverage
 forensics/core_dumps/
+forensics/memory_analysis/.output/
 /*.txt

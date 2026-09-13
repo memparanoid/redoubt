@@ -1,0 +1,50 @@
+# The same lab as `Dockerfile.musl`, on glibc.
+#
+# # Why there are two
+#
+# The two C libraries do not leave the same thing behind, and the difference is
+# not in `memcpy` — neither of them buffers what it copies on the stack. It is
+# in the allocator. Freeing a chunk under glibc writes tcache or fastbin
+# pointers into its first bytes and leaves the rest of the old contents where
+# they were; musl's `mallocng` treats a freed slot differently and may cover
+# the same bytes at once.
+#
+# So a buffer that was freed without being zeroized can read as a leak under one
+# and as nothing under the other, with the same bug in the same code. A report
+# that comes back clean on musl alone has not shown that anything is clean.
+#
+# Pinned by digest, like the other one: a lab whose base image moves reports a
+# difference that is the image's and reads as the code's. The digest is the
+# multi-architecture index, so `--x86` and `--arm` both resolve from it.
+FROM rust:slim-bookworm@sha256:ebd900bae66fd508b466cef82d64a83a5fb34682e4c8b2797a42908bddc95a57
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  build-essential \
+  python3 \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+# Copy entire workspace
+COPY . .
+
+# Build the binary in release mode.
+#
+# `internal-forensics` exposes `reset_master_key` and prints a warning. It does
+# NOT relax any memory protection: `prctl(PR_SET_DUMPABLE)` and
+# `setrlimit(RLIMIT_CORE)` are applied by the `guard` feature, which is off by
+# default and not enabled here.
+RUN cargo build --release --features internal-forensics --bin redoubt_trace_report -p redoubt-memory-analysis
+
+# Make scripts executable
+RUN chmod +x forensics/memory_analysis/entrypoints/analyze_core_dump.sh && \
+    chmod +x forensics/memory_analysis/scripts/analyze_value.py && \
+    chmod +x forensics/memory_analysis/scripts/analyze_pattern.py && \
+    chmod +x forensics/memory_analysis/scripts/analyze_regions.py
+
+# No `ulimit -c` and no `--cap-add` are needed. The binary dumps its own memory
+# and registers, so nothing here depends on `kernel.core_pattern` — a global
+# sysctl that containers inherit from the host, which is why a lab built on
+# kernel-written core dumps behaves one way under Docker Desktop's Linux VM and
+# another way on a Linux host routing cores to systemd-coredump.
+CMD ["sh", "-c", "./forensics/memory_analysis/entrypoints/analyze_core_dump.sh"]
