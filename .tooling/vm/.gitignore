@@ -1,0 +1,12 @@
+# The machines themselves, one directory per architecture: a twenty gigabyte
+# disk with a saved state inside it, the firmware's writable half, the seed it
+# first booted from, and the key that reaches it.
+#
+# None of it is source and all of it is made by `build.sh` — which is what is
+# tracked, so anybody can make their own.
+aarch64/
+x86_64/
+
+# And the images Ubuntu publishes, kept so that building a machine again is a
+# conversion rather than a download.
+cache/
