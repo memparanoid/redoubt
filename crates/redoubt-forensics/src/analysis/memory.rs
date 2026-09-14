@@ -822,14 +822,16 @@ pub(crate) fn elsewhere(state: &mut ForensicState, work: Work) -> Result<(), Rea
     // stack is exactly as it was. `errand` is `extern "C"`, so nothing
     // unwinds out of it.
     unsafe {
+        // `rdi` by name: `clobber_abi` makes it a `lateout`, and a `lateout`
+        // may be handed to an input — so moving `to` into it before the call
+        // is one register allocation away from destroying what is jumped to.
         #[cfg(target_arch = "x86_64")]
         core::arch::asm!(
-            "mov rdi, {to}",
             "mov r12, rsp",
             "mov rsp, {top}",
             "call {run}",
             "mov rsp, r12",
-            to = in(reg) to,
+            in("rdi") to,
             top = in(reg) top,
             run = in(reg) errand as extern "C" fn(*mut Errand),
             out("r12") _,
@@ -840,12 +842,11 @@ pub(crate) fn elsewhere(state: &mut ForensicState, work: Work) -> Result<(), Rea
         // itself as the base pointer, so it refuses it as an operand outright.
         #[cfg(target_arch = "aarch64")]
         core::arch::asm!(
-            "mov x0, {to}",
             "mov x20, sp",
             "mov sp, {top}",
             "blr {run}",
             "mov sp, x20",
-            to = in(reg) to,
+            in("x0") to,
             top = in(reg) top,
             run = in(reg) errand as extern "C" fn(*mut Errand),
             out("x20") _,
