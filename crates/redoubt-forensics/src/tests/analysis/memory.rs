@@ -85,9 +85,17 @@ fn test_photograph_says_which_process_it_is_of() -> Result<(), AnyError> {
     // SAFETY: takes no argument and cannot fail.
     let mine = unsafe { libc::getpid() };
 
+    // Said out loud, because which of the two a machine gives is not a thing
+    // anybody can tell by reading the code — it depends on whether `ptrace` is
+    // there at all — and every other reading of this crate on that machine is
+    // a reading of one mode or the other.
     if own {
+        eprintln!("the third process is here: this machine traces.");
+
         assert_ne!(pid, mine, "a photograph it owns is of a child, not of us");
     } else {
+        eprintln!("no third process: the analyst reads itself.");
+
         assert_eq!(pid, mine, "a photograph it does not own is of us");
     }
 

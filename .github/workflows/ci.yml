@@ -133,8 +133,13 @@ jobs:
       # The crate and not the seventeen, because the fourteen beside them that
       # do not crash are the control — what is being read is which of the two
       # groups a change moves.
+      # `--success-output`, because one of these tests answers a question about
+      # the machine rather than about the code: whether `ptrace` is there, and
+      # so whether a photograph on it is a third process or the analyst reading
+      # itself. Every other reading of this crate on that machine is a reading
+      # of one mode or the other, and nothing else says which.
       - name: cargo nextest run
-        run: cargo nextest run -p redoubt-forensics --no-fail-fast
+        run: cargo nextest run -p redoubt-forensics --no-fail-fast --success-output final
 
       # - name: cargo nextest run --workspace
       #   run: cargo nextest run --workspace --no-fail-fast
