@@ -112,7 +112,12 @@ one() {
   local name="$1"
   local said
 
-  if said="$("$BIN" --exact "$name" --nocapture 2>&1)"; then
+  # `NEXTEST` on purpose, though nothing here is nextest. A test that needs a
+  # process of its own asks for it by looking for that name, and running the
+  # binary directly is exactly the condition it guards against — so without
+  # this every such test skips itself, writes nothing down, and a run of
+  # thousands reports that nothing failed.
+  if said="$(NEXTEST=1 "$BIN" --exact "$name" --nocapture 2>&1)"; then
     printf '.' >>"$COUNTED"
     return 0
   fi
@@ -161,6 +166,18 @@ kill "$WATCHER" 2>/dev/null || true
 # for, and how many said so themselves by writing down what they said.
 ran="$TOTAL"
 failed="$(grep -c '^===== ' "$FAILURES" || true)"
+
+# What the workers wrote down for themselves, which is the only thing that says
+# anything actually ran. A run where nothing did reports no failures, and no
+# failures is what a clean run looks like — so it is checked rather than
+# assumed.
+counted="$(wc -c <"$COUNTED")"
+
+if [ "$counted" -eq 0 ]; then
+  echo
+  echo "nothing ran. $TOTAL were asked for and none reported back." >&2
+  exit 1
+fi
 
 echo
 echo
