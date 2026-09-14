@@ -103,21 +103,29 @@ jobs:
         run: cargo nextest run --workspace --no-fail-fast --success-output final
 
       - name: cargo nextest run --release
+        if: runner.os == 'Linux'
         run: cargo nextest run --workspace --release --no-fail-fast
 
-      - name: cargo nextest run --all-features
+      # The one every runner takes, and on Windows and macOS the only one: it is
+      # release, which is what ships, and it is the widest — a feature nothing
+      # else turns on is code no other step here compiles.
+      - name: cargo nextest run --all-features --release
         run: cargo nextest run --workspace --all-features --release --no-fail-fast
 
       # nextest does not run doctests, and this workspace documents its API
       # with runnable examples. Without this they stop being checked.
       #
-      # Here and not in the `musl` job: a doctest asks whether the documentation
-      # still compiles, which answers the same on either C library. What differs
-      # between the two is the allocator, and that is what the sweeps are for.
+      # On Linux alone, and not in the `musl` job: a doctest asks whether the
+      # documentation still compiles, and that answers the same everywhere. What
+      # differs between these runners is what the machine leaves in memory, and
+      # that is what the sweeps above are for — so the slow ones spend their
+      # minutes there instead.
       - name: cargo test --doc
+        if: runner.os == 'Linux'
         run: cargo test --workspace --doc
 
       - name: cargo test --doc --all-features
+        if: runner.os == 'Linux'
         run: cargo test --workspace --all-features --doc
 
   # ==========================================================================
