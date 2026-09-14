@@ -5,3 +5,4 @@
 mod memory;
 mod report;
 mod score;
+mod state;

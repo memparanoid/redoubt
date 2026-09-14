@@ -274,6 +274,28 @@ impl<'a> Spans<'a> {
 
         Self { at }
     }
+
+    /// Where the run is and how many bytes of it there are.
+    ///
+    /// For an assertion about the layout of the block, which is the one thing
+    /// about these that no caller can see and every caller depends on.
+    pub(crate) fn at(&self) -> (usize, usize) {
+        (self.at.as_ptr() as usize, self.at.len() * 8)
+    }
+}
+
+#[cfg(test)]
+impl ForensicState {
+    /// The whole block as bytes, from the phrase at its front.
+    ///
+    /// For an assertion about the layout. [`parts`](Self::parts) hands out the
+    /// pieces and never the front, because nothing but the sweep that
+    /// recognises a block has any business reading the phrase.
+    pub(crate) fn whole(&mut self) -> &mut [u8] {
+        // SAFETY: the block is `BLOCK` bytes of `u64`, so a byte view of all of
+        // it is aligned and every byte of it initialised.
+        unsafe { slice::from_raw_parts_mut(self.block.as_mut_ptr().cast::<u8>(), BLOCK) }
+    }
 }
 
 impl Default for ForensicState {
