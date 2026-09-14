@@ -102,11 +102,19 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@nextest
 
+      # `--no-fail-fast`, because the first failure is the least interesting
+      # thing a run can tell us. What is worth knowing is whether one test
+      # failed or every test of a kind did — a single red among a thousand
+      # green is a different bug from a whole path giving way, and stopping at
+      # the first one makes the two look alike.
+      #
+      # It costs the minutes between the first failure and the end of the run,
+      # on a run that is already going to be looked at by hand.
       - name: cargo nextest run
-        run: cargo nextest run --workspace
+        run: cargo nextest run --workspace --no-fail-fast
 
       - name: cargo nextest run --all-features
-        run: cargo nextest run --workspace --all-features
+        run: cargo nextest run --workspace --all-features --no-fail-fast
 
       # nextest does not run doctests, and this workspace documents its API
       # with runnable examples. Without this they stop being checked.
