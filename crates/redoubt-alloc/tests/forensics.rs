@@ -406,6 +406,68 @@ fn test_a_vec_dropped_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> 
 }
 
 // ============================================================================
+// RedoubtString::extend_from_mut_string
+// ============================================================================
+
+/// Appended rather than replaced, so the string reallocates on the way up
+/// rather than being sized once.
+///
+/// Each piece is its own `String`, handed over and emptied by the call — which
+/// is what the `&mut` in the signature is for. What the sweep asks about is the
+/// blocks the string outgrew on the way to its final size.
+#[test]
+fn test_string_extend_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&spelled_backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    println!();
+    report_before.summary("nothing filled yet");
+
+    for of in SIZES {
+        let report_after = forensics!(watch, {
+            let mut held = RedoubtString::new();
+
+            for _ in 0..(of / (SECRET.len() * 2)).max(1) {
+                let mut source = spelled(SECRET.len() * 2);
+
+                held.extend_from_mut_string(&mut source);
+
+                drop(core::hint::black_box(source));
+            }
+
+            drop(core::hint::black_box(held));
+        });
+
+        report_after.summary_against(&report_before, &format!("a string extended, {of} bytes"));
+
+        assert!(
+            !report_after.found,
+            "the whole spelling survived a string extended to {of} bytes: \
+             {report_after}"
+        );
+
+        assert!(
+            report_after.widest <= QUIET,
+            "a run of {} bytes survived a string extended to {of} bytes: \
+             {report_after}",
+            report_after.widest,
+        );
+
+        let delta = report_after.against(&report_before);
+
+        assert!(
+            delta.is_noise(),
+            "a string extended to {of} bytes moved the score: {delta}"
+        );
+    }
+
+    println!();
+
+    Ok(())
+}
+
+// ============================================================================
 // RedoubtString::replace_from_mut_string
 // ============================================================================
 
@@ -455,6 +517,85 @@ fn test_string_replace_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError>
         assert!(
             delta.is_noise(),
             "a string of {of} bytes moved the score: {delta}"
+        );
+    }
+
+    println!();
+
+    Ok(())
+}
+
+// ============================================================================
+// RedoubtString::extend_from_str
+// ============================================================================
+
+/// The one that is handed text it does not own.
+///
+/// The `&str` stays the caller's, so this is the only one of the three that
+/// cannot empty what it was given — and it is the only one that reaches its
+/// buffer through `push_str`, which is the `memcpy` the others are written to
+/// avoid. What is measured is therefore narrower than above: whether the
+/// *string* kept a copy, the caller's own text being the caller's to answer
+/// for.
+///
+/// Which is why the source is emptied here before the photograph, a byte at a
+/// time and volatile. A `String` does not clear itself when it is dropped, so
+/// leaving that to the drop would find the spelling in the block the allocator
+/// just took back and read it as this method's.
+#[test]
+fn test_string_extend_from_str_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&spelled_backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    println!();
+    report_before.summary("nothing filled yet");
+
+    for of in SIZES {
+        let report_after = forensics!(watch, {
+            let mut source = spelled(of);
+
+            let mut held = RedoubtString::new();
+
+            held.extend_from_str(&source);
+
+            drop(core::hint::black_box(held));
+
+            // SAFETY: every byte written is zero, which is valid UTF-8, and the
+            // length is the string's own.
+            let bytes = unsafe { source.as_mut_vec() };
+
+            for at in 0..bytes.len() {
+                // SAFETY: in bounds of a live vec.
+                unsafe { bytes.as_mut_ptr().add(at).write_volatile(0) };
+            }
+
+            drop(core::hint::black_box(source));
+        });
+
+        report_after.summary_against(
+            &report_before,
+            &format!("a string extended from a str, {of} bytes"),
+        );
+
+        assert!(
+            !report_after.found,
+            "the whole spelling survived a string extended from a str of {of} \
+             bytes: {report_after}"
+        );
+
+        assert!(
+            report_after.widest <= QUIET,
+            "a run of {} bytes survived a string extended from a str of {of} \
+             bytes: {report_after}",
+            report_after.widest,
+        );
+
+        let delta = report_after.against(&report_before);
+
+        assert!(
+            delta.is_noise(),
+            "a string extended from a str of {of} bytes moved the score: {delta}"
         );
     }
 
