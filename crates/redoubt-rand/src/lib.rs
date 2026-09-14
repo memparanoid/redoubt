@@ -71,7 +71,6 @@ mod traits;
 
 /// Support module including test utilities.
 pub mod support;
-pub mod u64_seed;
 
 pub use error::EntropyError;
 pub use generate_random_key::generate_random_key;
