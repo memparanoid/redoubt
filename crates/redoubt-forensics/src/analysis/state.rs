@@ -256,6 +256,26 @@ impl Spans<'_> {
     }
 }
 
+#[cfg(test)]
+impl<'a> Spans<'a> {
+    /// One over a caller's own words, holding none to begin with.
+    ///
+    /// Here rather than in the tests because what it knows is the shape of the
+    /// run — a count in the first word and the spans after it — and that is
+    /// this file's to know. A test that built the run itself would be a second
+    /// place the shape is written down, and the two would part company the day
+    /// it changed.
+    ///
+    /// For a test that wants to say what is in one. Everywhere else they are
+    /// filled by a photograph, which is not a thing an assertion about
+    /// [`inside`](crate::analysis::memory::inside) wants to arrange.
+    pub(crate) fn over(at: &'a mut [u64]) -> Self {
+        at[0] = 0;
+
+        Self { at }
+    }
+}
+
 impl Default for ForensicState {
     fn default() -> Self {
         let mut state = Self {

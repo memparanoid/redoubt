@@ -237,6 +237,17 @@ impl Subject {
 
         usize::try_from(got).unwrap_or(0)
     }
+
+    /// Which process the photograph is of, and whether it is this one's to
+    /// reap.
+    ///
+    /// For a test that has to ask somebody other than this struct whether the
+    /// drop did what it says. Nothing else needs either: a caller reads the
+    /// photograph and lets it go.
+    #[cfg(test)]
+    pub(crate) fn of(&self) -> (libc::pid_t, bool) {
+        (self.pid, self.own)
+    }
 }
 
 impl Drop for Subject {
@@ -300,7 +311,7 @@ pub(crate) fn region(line: &[u8]) -> Option<Span> {
 }
 
 /// A run of hexadecimal, read where it lies.
-fn hex(of: &[u8]) -> Option<u64> {
+pub(crate) fn hex(of: &[u8]) -> Option<u64> {
     if of.is_empty() || of.len() > 16 {
         return None;
     }
@@ -322,7 +333,16 @@ fn hex(of: &[u8]) -> Option<u64> {
 }
 
 /// `/proc/<pid>/<what>`, written into a buffer rather than built.
-fn named(pid: libc::pid_t, what: &[u8], into: &mut [u8; 32]) -> bool {
+///
+/// Answers nothing, because there is nothing to answer. It used to hand back a
+/// `bool` that was always `true`, and the one caller that read it had a branch
+/// no input could reach — a hole in the coverage that could never be filled,
+/// standing where a failure would have been reported if one were possible.
+///
+/// What could go wrong is not a `false` either. A `pid` of ten digits and a
+/// `what` long enough would run past the buffer, and that is a panic on the
+/// index rather than a value anybody could check. Both callers pass a literal.
+pub(crate) fn named(pid: libc::pid_t, what: &[u8], into: &mut [u8; 32]) {
     let mut digits = [0_u8; 10];
     let mut count = 0;
     let mut left = pid.unsigned_abs();
@@ -354,8 +374,6 @@ fn named(pid: libc::pid_t, what: &[u8], into: &mut [u8; 32]) -> bool {
         into[at] = *byte;
         at += 1;
     }
-
-    true
 }
 
 /// Every writable mapping of the photograph, read without asking for memory.
@@ -377,9 +395,7 @@ pub(crate) fn mappings(
 
     let mut path = [0_u8; 32];
 
-    if !named(pid, b"/maps\0", &mut path) {
-        return Err(Reason::NoMappings);
-    }
+    named(pid, b"/maps\0", &mut path);
 
     // SAFETY: the path is a buffer this function just wrote and terminated.
     let file = unsafe { libc::open(path.as_ptr().cast(), libc::O_RDONLY) };
@@ -552,7 +568,7 @@ pub(crate) fn sweep(
 }
 
 /// Where the stretch containing that address ends, if one does.
-fn inside(skips: &Spans<'_>, at: u64) -> Option<u64> {
+pub(crate) fn inside(skips: &Spans<'_>, at: u64) -> Option<u64> {
     skips
         .iter()
         .find(|(from, to)| at >= *from && at < *to)
@@ -560,7 +576,7 @@ fn inside(skips: &Spans<'_>, at: u64) -> Option<u64> {
 }
 
 /// Where the next stretch after that address begins, or nowhere.
-fn next_skip(skips: &Spans<'_>, at: u64) -> u64 {
+pub(crate) fn next_skip(skips: &Spans<'_>, at: u64) -> u64 {
     skips
         .iter()
         .map(|(from, _)| from)
@@ -674,7 +690,7 @@ pub(crate) fn analyse(state: &mut ForensicState, work: Work) -> Result<(), Reaso
 }
 
 /// All of it, however many turns that takes.
-fn send(fd: libc::c_int, bytes: &[u8]) -> bool {
+pub(crate) fn send(fd: libc::c_int, bytes: &[u8]) -> bool {
     let mut sent = 0;
 
     while sent < bytes.len() {
@@ -693,7 +709,7 @@ fn send(fd: libc::c_int, bytes: &[u8]) -> bool {
 }
 
 /// The same, the other way.
-fn recv(fd: libc::c_int, bytes: &mut [u8]) -> bool {
+pub(crate) fn recv(fd: libc::c_int, bytes: &mut [u8]) -> bool {
     let mut heard = 0;
 
     while heard < bytes.len() {
