@@ -8,11 +8,6 @@ name: CI
 # come back.
 on:
   workflow_dispatch:
-    inputs:
-      only:
-        description: "One entry of the matrix, by the name it has below. Empty runs all of them."
-        required: false
-        default: ""
   # push:
   #   branches: [main]
   # pull_request:
@@ -25,23 +20,29 @@ jobs:
   test:
     strategy:
       fail-fast: false
+      # One runner while one runner is the question.
+      #
+      # `Linux aarch64` crashes a test with a signal and the other seven do
+      # not, so they are commented rather than removed — every turn of chasing
+      # it would otherwise spend eight machines to learn what one of them
+      # knows. They come back with the two triggers above.
       matrix:
         include:
-          - os: ubuntu-latest
-            name: Linux x86_64
           - os: ubuntu-24.04-arm
             name: Linux aarch64
-          - os: macos-latest
-            name: macOS aarch64
+          # - os: ubuntu-latest
+          #   name: Linux x86_64
+          # - os: macos-latest
+          #   name: macOS aarch64
           # The last Intel runner. `macos-latest` has been ARM since 14, so
           # without this the x86_64 half of the AEGIS and SHA-256 assembly is
           # never run on the platform it is written for.
-          - os: macos-13
-            name: macOS x86_64
-          - os: windows-latest
-            name: Windows x86_64
-          - os: windows-11-arm
-            name: Windows aarch64
+          # - os: macos-13
+          #   name: macOS x86_64
+          # - os: windows-latest
+          #   name: Windows x86_64
+          # - os: windows-11-arm
+          #   name: Windows aarch64
           # The other C library, on both architectures, in a container rather
           # than cross-compiled: what is being asked about is the allocator,
           # and only a native musl process has musl's.
@@ -51,23 +52,16 @@ jobs:
           # was; musl's `mallocng` may cover the lot. The sweeps measure what is
           # left in memory, so the same leak can show under one and not the
           # other.
-          - os: ubuntu-latest
-            name: Linux x86_64 musl
-            container: alpine:latest
-          - os: ubuntu-24.04-arm
-            name: Linux aarch64 musl
-            container: alpine:latest
+          # - os: ubuntu-latest
+          #   name: Linux x86_64 musl
+          #   container: alpine:latest
+          # - os: ubuntu-24.04-arm
+          #   name: Linux aarch64 musl
+          #   container: alpine:latest
 
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
-
-    # One entry, when one is asked for. Chasing a crash that happens on a
-    # single runner is a loop, and every turn of it spending the other seven
-    # is seven machines answering a question nobody asked.
-    if: >-
-      github.event.inputs.only == ''
-      || github.event.inputs.only == matrix.name
 
     steps:
       # Before anything else, and before `actions/checkout`: every action runs
