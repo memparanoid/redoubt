@@ -33,44 +33,13 @@ jobs:
             name: Windows x86_64
           - os: windows-11-arm
             name: Windows aarch64
-          # The other C library, on both architectures, in a container rather
-          # than cross-compiled: what is being asked about is the allocator,
-          # and only a native musl process has musl's.
-          #
-          # What a freed chunk keeps is the allocator's decision and not the
-          # code's. glibc leaves everything past a chunk's first bytes where it
-          # was; musl's `mallocng` may cover the lot. The sweeps measure what is
-          # left in memory, so the same leak can show under one and not the
-          # other.
-          #
-          # Both are held back on one thing: every action here runs on a node
-          # the runner injects, and GitHub supports that node in an Alpine
-          # container on x64 alone. The aarch64 entry cannot start at all until
-          # the actions it uses are replaced by plain shell.
-          # - os: ubuntu-latest
-          #   name: Linux x86_64 musl
-          #   container: alpine:latest
-          # - os: ubuntu-24.04-arm
-          #   name: Linux aarch64 musl
-          #   container: alpine:latest
+          # The other C library is the `musl` job below, which runs no actions
+          # at all and so has to say everything for itself.
 
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    container: ${{ matrix.container }}
 
     steps:
-      # Before anything else, and before `actions/checkout`: every action runs
-      # on a node the runner injects, and that node is linked against glibc.
-      # `libc6-compat` is what lets it start at all under musl. The rest is
-      # what an Alpine image does not ship and the build needs.
-      - name: Prepare the container
-        if: matrix.container
-        run: |
-          apk add --no-cache \
-            libc6-compat build-base musl-dev \
-            libseccomp-dev libseccomp-static \
-            git curl bash
-
       - uses: actions/checkout@v4
 
       - name: Install Rust
@@ -79,7 +48,7 @@ jobs:
           components: clippy, rustfmt
 
       - name: Install libseccomp
-        if: runner.os == 'Linux' && !matrix.container
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libseccomp-dev
 
       # Formatting reads the same on every runner, so it is asked once rather
@@ -142,14 +111,121 @@ jobs:
       # nextest does not run doctests, and this workspace documents its API
       # with runnable examples. Without this they stop being checked.
       #
-      # Not on the musl entries: a doctest asks whether the documentation still
-      # compiles and answers the same on either C library, so running them
-      # again buys minutes and no signal. What differs between the two is the
-      # allocator, and that is what the sweeps above are for.
+      # Here and not in the `musl` job: a doctest asks whether the documentation
+      # still compiles, which answers the same on either C library. What differs
+      # between the two is the allocator, and that is what the sweeps are for.
       - name: cargo test --doc
-        if: ${{ !matrix.container }}
         run: cargo test --workspace --doc
 
       - name: cargo test --doc --all-features
-        if: ${{ !matrix.container }}
         run: cargo test --workspace --all-features --doc
+
+  # ==========================================================================
+  # The other C library
+  # ==========================================================================
+
+  # What a freed chunk keeps is the allocator's decision and not the code's.
+  # glibc leaves everything past a chunk's first bytes where it was; musl's
+  # `mallocng` may cover the lot. The sweeps measure what is left in memory, so
+  # the same leak can show under one and not the other — which is why this is a
+  # native musl process and not a cross-compiled binary. Only a musl process
+  # has musl's allocator.
+  #
+  # # Why this job repeats the one above instead of joining its matrix
+  #
+  # Not one action, on purpose. Every action runs on a node the runner injects
+  # into the container, and GitHub ships that node for Alpine on x64 alone — so
+  # an `aarch64` entry in the matrix above cannot start at all, whatever it is
+  # asked to do. A job whose every step is a shell command needs no node, and
+  # runs on both.
+  #
+  # What that costs is the checkout, the toolchain and nextest written out by
+  # hand below. What it buys is the architecture where the assembly lives.
+  musl:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux x86_64 musl
+          - os: ubuntu-24.04-arm
+            name: Linux aarch64 musl
+
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    container: alpine:latest
+
+    steps:
+      # `libseccomp-static` beside the headers: a musl build links statically,
+      # and the shared library alone leaves the link with nothing to put in.
+      - name: Prepare the container
+        run: |
+          apk add --no-cache \
+            build-base musl-dev \
+            libseccomp-dev libseccomp-static \
+            git curl bash tar
+
+      # `actions/checkout` by hand. The token is the one the run already has,
+      # and the fetch is of the commit itself rather than of a branch — a run
+      # reads the tree it was started for, not whatever the branch has moved to
+      # since.
+      - name: Check out
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          # The checkout is a directory the container made and git is running
+          # as somebody else in it, which git refuses to touch unless told.
+          git config --global --add safe.directory "$PWD"
+
+          # `tr` and not `base64 -w0`: the base64 in here is busybox's, which
+          # has no such flag and fails the whole step for it.
+          header="AUTHORIZATION: basic $(
+            printf 'x-access-token:%s' "$TOKEN" | base64 | tr -d '\n'
+          )"
+
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git -c http.extraheader="$header" fetch --depth 1 origin "$GITHUB_SHA"
+          git checkout -q FETCH_HEAD
+
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |
+            sh -s -- -y --profile minimal --default-toolchain stable \
+              --component clippy
+          echo "$HOME/.cargo/bin" >>"$GITHUB_PATH"
+
+      # Built for this C library and this architecture, because a binary for the
+      # other one does not start here — which is the whole point of the job.
+      # From source when there is no such binary published, which costs minutes
+      # and is still the only way to have it.
+      - name: Install nextest
+        run: |
+          case "$(uname -m)" in
+            x86_64) build=linux-musl ;;
+            aarch64) build=linux-arm-musl ;;
+            *) build= ;;
+          esac
+
+          if [ -n "$build" ] &&
+            curl -fL "https://get.nexte.st/latest/$build" |
+              tar zxf - -C /usr/local/bin; then
+            echo "nextest: $build"
+          else
+            cargo install cargo-nextest --locked
+          fi
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: cargo clippy --all-features
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: cargo nextest run
+        run: cargo nextest run --workspace --no-fail-fast --success-output final
+
+      - name: cargo nextest run --release
+        run: cargo nextest run --workspace --release --no-fail-fast
+
+      - name: cargo nextest run --all-features
+        run: cargo nextest run --workspace --all-features --release --no-fail-fast
