@@ -144,16 +144,40 @@ macro_rules! alone {
     };
 }
 
-/// Thirty-two bytes nothing else in this process is holding.
-#[cfg(target_arch = "x86_64")]
-const HELD: [u8; 32] = [
+/// Said out loud when the machine has no register to hide a secret in.
+///
+/// The pair below asks whether the capture reaches a place the sweep cannot,
+/// and on a machine with no such place there is nothing to ask. What there
+/// must not be is a green that read nothing looking like a green that read
+/// everything.
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+macro_rules! wide {
+    () => {
+        if !has_a_register_nothing_writes() {
+            eprintln!(
+                "skipped: this machine has no register the compiler is obliged \
+                 to leave alone, so the capture has nothing here to reach."
+            );
+
+            return Ok(());
+        }
+    };
+}
+
+/// Sixteen bytes nothing else in this process is holding.
+///
+/// Sixteen and not thirty-two, because on one of the two architectures below
+/// the part of the register the compiler leaves alone begins at a hundred and
+/// twenty-eight bits, and a needle that straddles that line is half in a place
+/// anything may overwrite.
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+const HELD: [u8; 16] = [
     0x9E, 0x41, 0xD7, 0x2B, 0x60, 0xFA, 0x35, 0xC8, 0x1D, 0xB4, 0x7F, 0x02, 0xE6, 0x59, 0xA3, 0x18,
-    0xCB, 0x74, 0x2D, 0x90, 0x46, 0xEF, 0x83, 0x1A, 0x57, 0xBC, 0x09, 0xD3, 0x6E, 0xF1, 0x24, 0xA8,
 ];
 
 /// A needle built backwards, so that asking the question does not put the
 /// answer in the process.
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 fn backwards(of: &[u8]) -> Vec<u8> {
     let mut needle = Vec::with_capacity(of.len());
 
@@ -164,24 +188,67 @@ fn backwards(of: &[u8]) -> Vec<u8> {
     needle
 }
 
+/// Whether this machine has a register the compiler is obliged to leave alone.
+///
+/// Not a property of the code. `zmm16-31` exist where there is `avx512`, and
+/// above the first hundred and twenty-eight bits of `z0-z31` exists where
+/// there is SVE wide enough to have an above — a machine whose vector length
+/// is sixteen bytes has nothing past what NEON already uses.
+#[cfg(target_arch = "x86_64")]
+fn has_a_register_nothing_writes() -> bool {
+    std::arch::is_x86_feature_detected!("avx512f")
+}
+
+/// The same question where the answer is a length.
+#[cfg(target_arch = "aarch64")]
+fn has_a_register_nothing_writes() -> bool {
+    std::arch::is_aarch64_feature_detected!("sve") && vector_length() > 16
+}
+
+/// How many bytes wide this machine's SVE registers are.
+#[cfg(target_arch = "aarch64")]
+fn vector_length() -> usize {
+    let bytes: u64;
+
+    // SAFETY: reads the vector length into a register of the compiler's
+    // choosing and touches nothing else. Guarded by the feature check above,
+    // which is why this is never reached on a machine without SVE.
+    unsafe {
+        core::arch::asm!(
+            ".arch_extension sve",
+            "rdvl {bytes}, #1",
+            ".arch_extension nosve",
+            bytes = out(reg) bytes,
+            options(nomem, nostack),
+        );
+    }
+
+    bytes as usize
+}
+
 /// The secret put where only the capture can reach it, and then read.
 ///
-/// `zmm16` and nothing else: the seeding is in the measured block and the
-/// capture is the macro's, so between the two the compiler may put anything in
-/// a register it is entitled to use. `zmm16-31` are the ones it never writes —
-/// they exist for `avx512` code, which nothing here compiles — so a value left
-/// there is still there when the macro looks. Which is the case the capture
-/// exists for: a wide `memcpy` of a key leaves it in these, and nothing in the
-/// process ever clears them.
+/// The seeding is in the measured block and the capture is the macro's, so
+/// between the two the compiler may put anything in a register it is entitled
+/// to use. These are the ones it is not: `zmm16-31` are reachable only by
+/// `avx512` encodings, which nothing here compiles. A value left there is
+/// still there when the macro looks — which is the case the capture exists
+/// for, since a wide `memcpy` of a key leaves it in exactly these and nothing
+/// in the process ever clears them.
 ///
-/// The buffer it was loaded from is erased before the block ends, so at the
-/// moment of the photograph the register is the only place it is.
+/// The buffer is as wide as the load, because the load is what decides: this
+/// one reads sixty-four bytes whatever the secret's length.
+///
+/// It is erased before the block ends, so at the moment of the photograph the
+/// register is the only place the secret is.
 #[cfg(target_arch = "x86_64")]
 fn only_in_a_wide_register() {
-    let mut from = HELD;
+    let mut from = [0_u8; 64];
 
-    // SAFETY: one write to one vector register, declared, reading the
-    // thirty-two bytes the buffer has. The load is unaligned.
+    from[..HELD.len()].copy_from_slice(&HELD);
+
+    // SAFETY: one write to one vector register, declared, reading the sixty-
+    // four bytes the buffer has and no more. The load is unaligned.
     unsafe {
         core::arch::asm!(
             "vmovdqu64 zmm16, [{from}]",
@@ -190,12 +257,56 @@ fn only_in_a_wide_register() {
         );
     }
 
-    // Volatile, because nothing reads these bytes afterwards and that is
-    // exactly the write an optimiser may delete. If it did, the buffer would
-    // be the second place the secret is and the pair below would agree for a
-    // reason that has nothing to do with the capture.
-    for at in 0..from.len() {
-        unsafe { core::ptr::write_volatile(from.as_mut_ptr().add(at), 0) };
+    erase(&mut from);
+}
+
+/// The same, where the register the compiler leaves alone is the far end of
+/// one it uses.
+///
+/// `z16` past its first hundred and twenty-eight bits. The low half is `v16`,
+/// which ordinary compiled code writes whenever it feels like it; everything
+/// above is reachable by SVE encodings alone, and nothing here compiles any.
+/// So the secret goes at sixteen bytes in, and what sits below it is padding
+/// whose fate nobody cares about.
+///
+/// `ldr` and not a predicated load: it moves the whole register, so the buffer
+/// is the vector length and there is no predicate register to name — and which
+/// predicates Rust will hand out is a question with a different answer on
+/// every toolchain.
+#[cfg(target_arch = "aarch64")]
+fn only_in_a_wide_register() {
+    let wide = vector_length();
+    let mut from = vec![0_u8; wide];
+
+    from[16..16 + HELD.len()].copy_from_slice(&HELD);
+
+    // SAFETY: one write to one vector register, declared as the NEON half that
+    // Rust can name, reading exactly the vector length the buffer was made
+    // from.
+    unsafe {
+        core::arch::asm!(
+            ".arch_extension sve",
+            "ldr z16, [{from}]",
+            ".arch_extension nosve",
+            from = in(reg) from.as_ptr(),
+            out("v16") _,
+        );
+    }
+
+    erase(&mut from);
+}
+
+/// The buffer, gone before the block ends.
+///
+/// Volatile, because nothing reads these bytes afterwards and that is exactly
+/// the write an optimiser may delete. If it did, the buffer would be a second
+/// place the secret is, and the pair below would agree for a reason that has
+/// nothing to do with the capture.
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+fn erase(from: &mut [u8]) {
+    for byte in from.iter_mut() {
+        // SAFETY: a `&mut u8` is valid to write through, volatile or not.
+        unsafe { core::ptr::write_volatile(byte, 0) };
     }
 }
 
@@ -211,18 +322,10 @@ fn only_in_a_wide_register() {
 /// genuinely out of the sweep's reach without it — and if the second ever finds
 /// the secret, the first was proving nothing.
 #[test]
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 fn test_the_macro_captures_a_register_the_sweep_cannot_otherwise_reach() -> Result<(), Reason> {
     alone!();
-
-    if !std::arch::is_x86_feature_detected!("avx512f") {
-        eprintln!(
-            "skipped: no avx512 here, so there is no register the compiler is \
-             guaranteed to leave alone."
-        );
-
-        return Ok(());
-    }
+    wide!();
 
     let mut watch = crate::Forensics::watching(&backwards(&HELD))?;
 
@@ -232,8 +335,8 @@ fn test_the_macro_captures_a_register_the_sweep_cannot_otherwise_reach() -> Resu
 
     assert!(
         with.found,
-        "the secret was in zmm16 and the photograph did not have it, so the \
-         capture did not happen: {with}",
+        "the secret was in a register nothing else writes and the photograph \
+         did not have it, so the capture did not happen: {with}",
     );
 
     Ok(())
@@ -241,18 +344,10 @@ fn test_the_macro_captures_a_register_the_sweep_cannot_otherwise_reach() -> Resu
 
 /// And the same block without the capture, which must find nothing.
 #[test]
-#[cfg(target_arch = "x86_64")]
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 fn test_without_the_capture_a_register_is_out_of_reach() -> Result<(), Reason> {
     alone!();
-
-    if !std::arch::is_x86_feature_detected!("avx512f") {
-        eprintln!(
-            "skipped: no avx512 here, so there is no register the compiler is \
-             guaranteed to leave alone."
-        );
-
-        return Ok(());
-    }
+    wide!();
 
     let mut watch = crate::Forensics::watching(&backwards(&HELD))?;
 
