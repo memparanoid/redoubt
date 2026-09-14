@@ -2,17 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! One file here for each file there, and the same shape of directory around
+//! them, so that finding what tests a function is reading its path with
+//! `tests/` in front of it.
+
+#[cfg(target_os = "linux")]
+mod analysis;
+
 #[cfg(target_os = "linux")]
 mod forensics;
-
-#[cfg(target_os = "linux")]
-mod memory;
-
-#[cfg(target_os = "linux")]
-mod report;
-
-#[cfg(target_os = "linux")]
-mod score;
 
 #[cfg(target_os = "linux")]
 mod spiller;
