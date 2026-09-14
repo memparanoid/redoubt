@@ -181,7 +181,11 @@ fn test_a_copy_on_the_heap_is_found() -> Result<(), Reason> {
     alone!();
 
     let held = core::hint::black_box(ALPHA.to_vec());
-    let report = photograph(&mut watching(&ALPHA)?)?;
+
+    // MEASURING: bound to a local rather than handed over as a temporary, to
+    // see whether that is what a certain machine cannot survive.
+    let mut watch = watching(&ALPHA)?;
+    let report = photograph(&mut watch)?;
 
     assert!(report.found, "{report}");
 
