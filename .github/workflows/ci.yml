@@ -1,11 +1,7 @@
 name: CI
 
-# Asked for by hand, for now.
-#
-# One of these runners crashes a test with a signal and the others do not, and
-# every push while that is true spends eight runners on an answer already
-# known. Manual until the crash is understood, and then the two triggers below
-# come back.
+# Asked for by hand, until a full run of the matrix has been read once. The two
+# triggers below come back with it.
 on:
   workflow_dispatch:
   # push:
@@ -20,29 +16,23 @@ jobs:
   test:
     strategy:
       fail-fast: false
-      # One runner while one runner is the question.
-      #
-      # `Linux aarch64` crashes a test with a signal and the other seven do
-      # not, so they are commented rather than removed — every turn of chasing
-      # it would otherwise spend eight machines to learn what one of them
-      # knows. They come back with the two triggers above.
       matrix:
         include:
           - os: ubuntu-24.04-arm
             name: Linux aarch64
-          # - os: ubuntu-latest
-          #   name: Linux x86_64
-          # - os: macos-latest
-          #   name: macOS aarch64
+          - os: ubuntu-latest
+            name: Linux x86_64
+          - os: macos-latest
+            name: macOS aarch64
           # The last Intel runner. `macos-latest` has been ARM since 14, so
           # without this the x86_64 half of the AEGIS and SHA-256 assembly is
           # never run on the platform it is written for.
-          # - os: macos-13
-          #   name: macOS x86_64
-          # - os: windows-latest
-          #   name: Windows x86_64
-          # - os: windows-11-arm
-          #   name: Windows aarch64
+          - os: macos-13
+            name: macOS x86_64
+          - os: windows-latest
+            name: Windows x86_64
+          - os: windows-11-arm
+            name: Windows aarch64
           # The other C library, on both architectures, in a container rather
           # than cross-compiled: what is being asked about is the allocator,
           # and only a native musl process has musl's.
@@ -52,6 +42,11 @@ jobs:
           # was; musl's `mallocng` may cover the lot. The sweeps measure what is
           # left in memory, so the same leak can show under one and not the
           # other.
+          #
+          # Both are held back on one thing: every action here runs on a node
+          # the runner injects, and GitHub supports that node in an Alpine
+          # container on x64 alone. The aarch64 entry cannot start at all until
+          # the actions it uses are replaced by plain shell.
           # - os: ubuntu-latest
           #   name: Linux x86_64 musl
           #   container: alpine:latest
@@ -99,13 +94,10 @@ jobs:
       # `redoubt-aead` selected a backend whose assembly is not built on
       # aarch64 Windows, and nothing here saw it until that runner existed.
       - name: cargo clippy
-        run: cargo clippy -p redoubt-forensics --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
-      # - name: cargo clippy --workspace
-      #   run: cargo clippy --workspace --all-targets -- -D warnings
-
-      # - name: cargo clippy --all-features
-      #   run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: cargo clippy --all-features
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       # A process per test, which some of these need and all of them benefit
       # from. `redoubt-forensics` reads the whole process's memory: two of its
@@ -118,34 +110,34 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@nextest
 
+      # Both profiles, because they leave different things behind and neither
+      # covers the other. Debug spills every local to the stack; release is what
+      # vectorises a copy and leaves a secret in the wide registers nothing else
+      # writes. A sweep reads whatever is there, so a crate that is clean under
+      # one is not thereby clean under the other.
+      #
+      # Linux alone runs the debug half. It is the same question everywhere and
+      # the slowest runners are the ones that would answer it last.
+      #
       # `--no-fail-fast`, because the first failure is the least interesting
       # thing a run can tell us. What is worth knowing is whether one test
-      # failed or every test of a kind did — a single red among a thousand
-      # green is a different bug from a whole path giving way, and stopping at
-      # the first one makes the two look alike.
+      # failed or every test of a kind did — a single red among a thousand green
+      # is a different bug from a whole path giving way, and stopping at the
+      # first one makes the two look alike.
       #
-      # It costs the minutes between the first failure and the end of the run,
-      # on a run that is already going to be looked at by hand.
-      # One crate while one crate is the question, for the same reason as the
-      # matrix above: seventeen of its tests take a signal here and nowhere
-      # else, and the other eleven hundred have nothing to say about that.
-      #
-      # The crate and not the seventeen, because the fourteen beside them that
-      # do not crash are the control — what is being read is which of the two
-      # groups a change moves.
       # `--success-output`, because one of these tests answers a question about
       # the machine rather than about the code: whether `ptrace` is there, and
       # so whether a photograph on it is a third process or the analyst reading
-      # itself. Every other reading of this crate on that machine is a reading
-      # of one mode or the other, and nothing else says which.
+      # itself. Nothing else says which of the two a run took.
       - name: cargo nextest run
-        run: cargo nextest run -p redoubt-forensics --no-fail-fast --success-output final
+        if: runner.os == 'Linux'
+        run: cargo nextest run --workspace --no-fail-fast --success-output final
 
-      # - name: cargo nextest run --workspace
-      #   run: cargo nextest run --workspace --no-fail-fast
+      - name: cargo nextest run --release
+        run: cargo nextest run --workspace --release --no-fail-fast
 
-      # - name: cargo nextest run --all-features
-      #   run: cargo nextest run --workspace --all-features --no-fail-fast
+      - name: cargo nextest run --all-features
+        run: cargo nextest run --workspace --all-features --release --no-fail-fast
 
       # nextest does not run doctests, and this workspace documents its API
       # with runnable examples. Without this they stop being checked.
@@ -156,12 +148,8 @@ jobs:
       # allocator, and that is what the sweeps above are for.
       - name: cargo test --doc
         if: ${{ !matrix.container }}
-        run: cargo test -p redoubt-forensics --doc
+        run: cargo test --workspace --doc
 
-      # - name: cargo test --doc --workspace
-      #   if: ${{ !matrix.container }}
-      #   run: cargo test --workspace --doc
-
-      # - name: cargo test --doc --all-features
-      #   if: ${{ !matrix.container }}
-      #   run: cargo test --workspace --all-features --doc
+      - name: cargo test --doc --all-features
+        if: ${{ !matrix.container }}
+        run: cargo test --workspace --all-features --doc
