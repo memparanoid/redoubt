@@ -190,3 +190,32 @@ macro_rules! forensics {
         }
     }};
 }
+
+/// [`forensics!`] with the register capture taken out, and nothing else.
+///
+/// The other half of a pair. What the capture is worth is the difference
+/// between the two answers, and a difference is only readable when one line
+/// separates them: a control written by hand out of `deep`, `snapshot` and a
+/// `settle` would differ in three places, and a disagreement could be any of
+/// them.
+///
+/// Here rather than in the tests because the day `forensics!` changes, these
+/// two have to be read together. A copy living in a test file goes stale
+/// without saying so, and the pair would go on reporting a difference that is
+/// no longer about the capture.
+#[cfg(test)]
+macro_rules! without_the_capture {
+    ($watch:expr, $work:block) => {{
+        let out = $crate::deep(|| $work);
+
+        let after = $watch.snapshot();
+
+        match $crate::Outcome::settle(out, after) {
+            Ok(report) => report,
+            Err(why) => return Err(::core::convert::From::from(why)),
+        }
+    }};
+}
+
+#[cfg(test)]
+pub(crate) use without_the_capture;
