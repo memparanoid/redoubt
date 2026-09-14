@@ -63,7 +63,88 @@
 //! the right place. Every absence the rest of the workspace reports is worth
 //! what they are worth, and no more.
 
-use crate::spiller::{SLOT, VECTORS, pick_spiller, spilled};
+use crate::spiller::pick_spiller;
+
+// ============================================================================
+// The room, read from Rust
+// ============================================================================
+
+// The capture's own side of the boundary, declared here rather than beside the
+// rest of the assembly it belongs to.
+//
+// Because nothing that ships reads it. The room is written on every
+// measurement and it is the whole mechanism — but what reads it in earnest is
+// the sweep, through `/proc/<pid>/mem`, finding the copy as memory like any
+// other and needing no symbol and no constant to do it. Naming it from Rust is
+// something only these tests want, so the naming lives with them.
+
+/// How much one capture is: the general registers, then one slot per vector
+/// register wide enough for the widest one the architecture has.
+#[cfg(target_arch = "x86_64")]
+const SPILL: usize = 128 + 32 * 64;
+
+/// How much one capture is. See the `x86_64` form above.
+#[cfg(target_arch = "aarch64")]
+const SPILL: usize = 256 + 32 * 256;
+
+/// Where the vector slots begin: past the general registers, of which there
+/// are sixteen here and thirty-one and a stack pointer there.
+#[cfg(target_arch = "x86_64")]
+const VECTORS: usize = 128;
+
+/// Where the vector slots begin.
+#[cfg(target_arch = "aarch64")]
+const VECTORS: usize = 256;
+
+/// How far apart one vector slot is from the next.
+///
+/// As wide as the widest vector the architecture defines, whatever this
+/// machine's happens to be — `zmm` at 64 bytes, an SVE `z` at 256 — so that
+/// the layout does not move when the form does.
+#[cfg(target_arch = "x86_64")]
+const SLOT: usize = 64;
+
+/// How far apart one vector slot is from the next.
+#[cfg(target_arch = "aarch64")]
+const SLOT: usize = 256;
+
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+unsafe extern "C" {
+    /// Where the captures land. Read here; nothing should ever write it.
+    static redoubt_spill_room: [u8; SPILL];
+
+    /// How many bytes of each vector slot the last capture wrote.
+    static redoubt_spill_width: usize;
+}
+
+/// The room, as bytes.
+///
+/// A slot is as wide as the widest vector the architecture defines, and the
+/// form that ran may have written less of it — so a register captured narrow
+/// reads the same as one captured wide that happened to be empty past its
+/// sixteenth byte. Every test here knows which form it called, so it knows
+/// which of the two it is looking at.
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+fn spilled() -> &'static [u8] {
+    // SAFETY: the room is a static of exactly this size, written only by the
+    // captures, and `u8` has no invalid bit patterns. Nothing else in this
+    // process is capturing while a test reads.
+    unsafe { &*core::ptr::addr_of!(redoubt_spill_room) }
+}
+
+/// How many bytes of each vector slot the last capture wrote.
+///
+/// Sixteen, thirty-two or sixty-four on `x86_64`, by which form ran; sixteen
+/// from NEON, or this machine's vector length from SVE, on `aarch64`.
+///
+/// Anything past this in a slot is whatever was there before, which on a room
+/// nothing has overwritten is zero — and a register that is genuinely zero
+/// reads the same way. That is the difference this answers.
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+fn spilled_width() -> usize {
+    // SAFETY: a static word, written by the captures and read here.
+    unsafe { core::ptr::read_volatile(&raw const redoubt_spill_width) }
+}
 
 /// Thirty-two distinct bytes, so a run that extends did not extend by luck.
 const ALPHA: [u8; 32] = [
@@ -1193,7 +1274,7 @@ fn test_the_wide_capture_fills_the_general_slots() {
     }
 
     let room = spilled();
-    let wide = crate::spiller::spilled_width();
+    let wide = spilled_width();
 
     eprintln!();
     eprintln!("    {wide} bytes captured of each register; those holding some of the value:");

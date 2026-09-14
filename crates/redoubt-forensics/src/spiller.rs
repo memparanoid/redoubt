@@ -82,56 +82,6 @@
 //! compiler emits none unless it was asked to. Both are captured, and neither
 //! by the narrow form — which is what [`pick_spiller`] is for.
 
-/// How much one capture is: the general registers, then one slot per vector
-/// register wide enough for the widest one the architecture has.
-///
-/// The two differ only in how much of the front the general registers take —
-/// sixteen of them on `x86_64`, thirty-one and the stack pointer on
-/// `aarch64`. [`spilled`] says where each one lands.
-#[cfg(target_arch = "x86_64")]
-pub const SPILL: usize = 128 + 32 * 64;
-
-/// How much one capture is. See the `x86_64` form above.
-#[cfg(target_arch = "aarch64")]
-pub const SPILL: usize = 256 + 32 * 256;
-
-/// Where the vector slots begin.
-#[cfg(target_arch = "x86_64")]
-pub const VECTORS: usize = 128;
-
-/// Where the vector slots begin.
-#[cfg(target_arch = "aarch64")]
-pub const VECTORS: usize = 256;
-
-/// Nothing, on an architecture there is no capture for.
-///
-/// Zero and not a guess: [`spilled`] hands back an empty slice there, and a
-/// caller reading a room of no bytes finds no registers, which is exactly
-/// what happened.
-#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-pub const SPILL: usize = 0;
-
-/// Nothing, on an architecture there is no capture for.
-#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-pub const VECTORS: usize = 0;
-
-/// How far apart one vector slot is from the next.
-///
-/// As wide as the widest vector the architecture defines, whatever this
-/// machine's happens to be — `zmm` at 64 bytes, an SVE `z` at 256 — so that
-/// the layout does not move when the form does. [`spilled_width`] says how
-/// much of each slot the last capture actually wrote.
-#[cfg(target_arch = "x86_64")]
-pub const SLOT: usize = 64;
-
-/// How far apart one vector slot is from the next.
-#[cfg(target_arch = "aarch64")]
-pub const SLOT: usize = 256;
-
-/// How far apart one vector slot is from the next.
-#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-pub const SLOT: usize = 0;
-
 #[cfg(all(
     any(target_arch = "x86_64", target_arch = "aarch64"),
     target_os = "linux"
@@ -153,14 +103,6 @@ unsafe extern "C" {
     /// Safe to call at any time. It writes only into the room, and the form it
     /// reaches is one this machine supports.
     pub safe fn redoubt_spill();
-
-    /// Where the captures land. [`spilled`] reads it; nothing should write it.
-    static redoubt_spill_room: [u8; SPILL];
-
-    /// How many bytes of each vector slot the last capture wrote.
-    ///
-    /// [`spilled_width`] reads it; the assembly writes it.
-    static redoubt_spill_width: usize;
 
     /// Which form [`redoubt_spill`] jumps to. [`pick_spiller`] writes it.
     ///
@@ -266,14 +208,21 @@ pub fn pick_spiller() {
 
 /// Every register this thread has, into the room.
 ///
-/// `inline(always)` and a bare call, so this costs exactly what
-/// [`redoubt_spill`] costs and adds no frame of its own.
+/// `inline(always)` and a bare call, so this costs exactly what the capture
+/// itself costs and adds no frame of its own.
+///
+/// Call it between the thing being measured and the photograph — which is what
+/// [`forensics!`](crate::forensics) does, and the reason most callers never
+/// name this at all. Afterwards the registers are in an ordinary writable
+/// mapping, found by the same sweep that finds everything else.
+///
+/// There is nothing here to read the room with. The reader is the sweep, which
+/// goes through the process's own memory and needs no symbol for it.
 ///
 /// ```no_run
-/// # use redoubt_forensics::{spill, spilled};
+/// # use redoubt_forensics::spill;
 /// spill();
-/// // ... take the photograph, and the room is still there ...
-/// core::hint::black_box(spilled());
+/// // ... and then the photograph.
 /// ```
 #[inline(always)]
 pub fn spill() {
@@ -282,73 +231,4 @@ pub fn spill() {
         target_os = "linux"
     ))]
     redoubt_spill();
-}
-
-/// The room, so that a photograph has something to find and a caller can keep
-/// it observed.
-///
-/// All [`SPILL`] bytes, whichever form last wrote into it. Vector register
-/// `n` is at `VECTORS + n * SLOT` on both architectures, at whatever width
-/// was captured, the rest of its slot left as it was. The general registers
-/// are the front, and there the two differ:
-///
-/// ```text
-/// x86_64    0    rax rbx rcx rdx rsi rdi rbp rsp r8..r15
-/// aarch64   0    x0..x30, then sp at 248
-/// ```
-///
-/// A slot is as wide as the widest vector the architecture defines, and the
-/// form that ran may have written less of it. [`spilled_width`] says how much
-/// — without it, a register captured narrow reads the same as one captured
-/// wide that happened to be empty past its sixteenth byte.
-#[must_use]
-pub fn spilled() -> &'static [u8] {
-    #[cfg(all(
-        any(target_arch = "x86_64", target_arch = "aarch64"),
-        target_os = "linux"
-    ))]
-    {
-        // SAFETY: the room is a static of exactly this size, written only by
-        // the captures above, and `u8` has no invalid bit patterns. A capture
-        // racing this is a torn read of bytes nobody interprets.
-        unsafe { &*core::ptr::addr_of!(redoubt_spill_room) }
-    }
-
-    #[cfg(not(all(
-        any(target_arch = "x86_64", target_arch = "aarch64"),
-        target_os = "linux"
-    )))]
-    {
-        &[]
-    }
-}
-
-/// How many bytes of each vector slot the last capture wrote.
-///
-/// Sixteen, thirty-two or sixty-four on `x86_64`, by which form ran; sixteen
-/// from NEON, or this machine's vector length from SVE, on `aarch64`. Zero
-/// until something has been captured.
-///
-/// Anything past this in a slot is whatever was there before, which on a room
-/// nothing has overwritten is zero — and a register that is genuinely zero
-/// reads the same way. That is the difference this answers.
-#[must_use]
-pub fn spilled_width() -> usize {
-    #[cfg(all(
-        any(target_arch = "x86_64", target_arch = "aarch64"),
-        target_os = "linux"
-    ))]
-    {
-        // SAFETY: a static word, written by the captures and read here. A
-        // capture racing this hands back one of the two widths, both true.
-        unsafe { core::ptr::read_volatile(&raw const redoubt_spill_width) }
-    }
-
-    #[cfg(not(all(
-        any(target_arch = "x86_64", target_arch = "aarch64"),
-        target_os = "linux"
-    )))]
-    {
-        0
-    }
 }
