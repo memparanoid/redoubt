@@ -58,7 +58,7 @@ jobs:
       # that only appears on one of these is exactly what this matrix is for.
       # `redoubt-aead` selected a backend whose assembly is not built on
       # aarch64 Windows, and nothing here saw it until that runner existed.
-      - name: cargo clippy
+      - name: cargo clippy --all-features
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       # A process per test, which some of these need and all of them benefit
@@ -94,14 +94,14 @@ jobs:
       # The widest build alone: which code compiles under which features is
       # what the two clippy steps above ask, and running the narrow set here
       # doubles the slowest job to answer it again.
-      - name: cargo nextest run
+      - name: cargo nextest run --all-features
         if: runner.os == 'Linux'
         run: cargo nextest run --workspace --all-features --no-fail-fast --success-output final
 
       # The one every runner takes, and on Windows and macOS the only one: it is
       # release, which is what ships, and it is the widest — a feature nothing
       # else turns on is code no other step here compiles.
-      - name: cargo nextest run --release
+      - name: cargo nextest run --all-features --release
         run: cargo nextest run --workspace --all-features --release --no-fail-fast
 
       # The x86_64 half of macOS, translated. There is no Intel runner left to
@@ -132,7 +132,7 @@ jobs:
       # differs between these runners is what the machine leaves in memory, and
       # that is what the sweeps above are for — so the slow ones spend their
       # minutes there instead.
-      - name: cargo test --doc
+      - name: cargo test --doc --all-features
         if: runner.os == 'Linux'
         run: cargo test --workspace --all-features --doc
 
@@ -231,11 +231,11 @@ jobs:
             cargo install cargo-nextest --locked
           fi
 
-      - name: cargo clippy
+      - name: cargo clippy --all-features
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: cargo nextest run
         run: cargo nextest run --workspace --all-features --no-fail-fast --success-output final
 
-      - name: cargo nextest run --release
+      - name: cargo nextest run --all-features --release
         run: cargo nextest run --workspace --all-features --release --no-fail-fast
