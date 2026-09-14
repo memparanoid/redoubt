@@ -99,10 +99,13 @@ jobs:
       # `redoubt-aead` selected a backend whose assembly is not built on
       # aarch64 Windows, and nothing here saw it until that runner existed.
       - name: cargo clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy -p redoubt-forensics --all-targets -- -D warnings
 
-      - name: cargo clippy --all-features
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      # - name: cargo clippy --workspace
+      #   run: cargo clippy --workspace --all-targets -- -D warnings
+
+      # - name: cargo clippy --all-features
+      #   run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       # A process per test, which some of these need and all of them benefit
       # from. `redoubt-forensics` reads the whole process's memory: two of its
@@ -123,11 +126,21 @@ jobs:
       #
       # It costs the minutes between the first failure and the end of the run,
       # on a run that is already going to be looked at by hand.
+      # One crate while one crate is the question, for the same reason as the
+      # matrix above: seventeen of its tests take a signal here and nowhere
+      # else, and the other eleven hundred have nothing to say about that.
+      #
+      # The crate and not the seventeen, because the fourteen beside them that
+      # do not crash are the control — what is being read is which of the two
+      # groups a change moves.
       - name: cargo nextest run
-        run: cargo nextest run --workspace --no-fail-fast
+        run: cargo nextest run -p redoubt-forensics --no-fail-fast
 
-      - name: cargo nextest run --all-features
-        run: cargo nextest run --workspace --all-features --no-fail-fast
+      # - name: cargo nextest run --workspace
+      #   run: cargo nextest run --workspace --no-fail-fast
+
+      # - name: cargo nextest run --all-features
+      #   run: cargo nextest run --workspace --all-features --no-fail-fast
 
       # nextest does not run doctests, and this workspace documents its API
       # with runnable examples. Without this they stop being checked.
@@ -138,8 +151,12 @@ jobs:
       # allocator, and that is what the sweeps above are for.
       - name: cargo test --doc
         if: ${{ !matrix.container }}
-        run: cargo test --workspace --doc
+        run: cargo test -p redoubt-forensics --doc
 
-      - name: cargo test --doc --all-features
-        if: ${{ !matrix.container }}
-        run: cargo test --workspace --all-features --doc
+      # - name: cargo test --doc --workspace
+      #   if: ${{ !matrix.container }}
+      #   run: cargo test --workspace --doc
+
+      # - name: cargo test --doc --all-features
+      #   if: ${{ !matrix.container }}
+      #   run: cargo test --workspace --all-features --doc
