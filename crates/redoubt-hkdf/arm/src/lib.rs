@@ -10,6 +10,11 @@
 
 #![no_std]
 #![warn(missing_docs)]
+// Where the assembly is built, and nowhere else — `build.rs` assembles for
+// these two and says so for the rest. Empty there rather than declarations with
+// nothing behind them: an `extern` nothing defines compiles, and the first
+// thing to notice is the linker, on whichever binary happened to reach it.
+#![cfg(any(target_os = "linux", target_os = "macos"))]
 
 #[cfg(target_arch = "aarch64")]
 use redoubt_hkdf_core::{HkdfApi, HkdfError};

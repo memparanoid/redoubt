@@ -34,7 +34,11 @@ pub fn hkdf(salt: &[u8], ikm: &[u8], info: &[u8], okm: &mut [u8]) -> Result<(), 
         redoubt_hkdf_x86::X86Backend.api_hkdf(salt, ikm, info, okm)
     }
 
-    #[cfg(all(feature = "asm", target_arch = "aarch64"))]
+    #[cfg(all(
+        feature = "asm",
+        target_arch = "aarch64",
+        any(target_os = "linux", target_os = "macos")
+    ))]
     {
         redoubt_hkdf_arm::ArmBackend.api_hkdf(salt, ikm, info, okm)
     }
@@ -45,7 +49,11 @@ pub fn hkdf(salt: &[u8], ikm: &[u8], info: &[u8], okm: &mut [u8]) -> Result<(), 
             target_arch = "x86_64",
             any(target_os = "linux", target_os = "macos")
         ),
-        all(feature = "asm", target_arch = "aarch64")
+        all(
+            feature = "asm",
+            target_arch = "aarch64",
+            any(target_os = "linux", target_os = "macos")
+        )
     )))]
     {
         redoubt_hkdf_rust::RustBackend.api_hkdf(salt, ikm, info, okm)
