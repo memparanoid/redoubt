@@ -8,9 +8,10 @@
 //!
 //! Whatever runs between an operation ending and the memory freezing is written
 //! onto the stack the operation just used, over the frames that are the whole
-//! reason to look. [`crate::Forensics`] answers that by writing nothing there —
-//! the block is reserved ahead of time and the analysis runs on a stack of its
-//! own, measured at zero bytes below the caller.
+//! reason to look. [`crate::Forensics`] answers that by writing almost nothing
+//! there — the block is reserved ahead of time and the analysis runs on a stack
+//! of its own, reached through a single frame that holds the errand and saved
+//! registers and no part of anybody's secret.
 //!
 //! This answers it from the other end, and the two do not overlap. The
 //! operation runs under a megabyte of frame, so its leavings are a megabyte

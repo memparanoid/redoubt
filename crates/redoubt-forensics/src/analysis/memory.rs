@@ -800,9 +800,12 @@ extern "C" fn errand(at: *mut Errand) {
 /// frame the instrument pushes lands somewhere that is neither the caller's
 /// stack nor anybody's evidence.
 ///
-/// Inlined, so that reaching the switch is not itself a call. What is written
-/// below the caller's frame is then nothing at all.
-#[inline(always)]
+/// A frame of its own, and never the caller's. The switch is sound only while
+/// nothing else in the function it sits in addresses the stack, and inlined
+/// there is no such function — it is whoever called, compiled without knowing
+/// that one of its own instructions moves the stack pointer. What that costs is
+/// this frame, and what is in it is the errand and saved registers.
+#[inline(never)]
 pub(crate) fn elsewhere(state: &mut ForensicState, work: Work) -> Result<(), Reason> {
     let top = state.stack_top();
     let mut at = Errand {
