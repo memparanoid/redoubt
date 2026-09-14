@@ -181,26 +181,11 @@ impl RedoubtString {
 
     /// Extends from a mutable String, zeroizing the source.
     pub fn extend_from_mut_string(&mut self, src: &mut String) {
-        self.maybe_grow_to(self.len() + src.len());
+        self.extend_from_str(src);
 
-        // Not `push_str`, which is `memcpy` over a length the compiler cannot
-        // see, with the text in it.
-        let at = self.inner.len();
-        let of = src.len();
-
-        // SAFETY: what is written are the bytes of a `String` and so are valid
-        // UTF-8; the length is set to exactly what is then written, into room
-        // `maybe_grow_to` has already reserved, and the two are different
-        // allocations.
-        unsafe {
-            let bytes = self.inner.as_mut_vec();
-
-            bytes.set_len(at + of);
-
-            redoubt_mem::copy_nonoverlapping(src.as_ptr(), bytes[at..].as_mut_ptr(), of);
-        }
-
-        // Zeroize and clear source
+        // What the `&mut` is for, and the whole of what this adds over
+        // `extend_from_str`: a caller that owns its text can have it taken
+        // away, and one that borrowed it cannot.
         src.fast_zeroize();
         src.clear();
     }
@@ -216,7 +201,23 @@ impl RedoubtString {
     /// Extends from str (no zeroization, src is immutable).
     pub fn extend_from_str(&mut self, src: &str) {
         self.maybe_grow_to(self.len() + src.len());
-        self.inner.push_str(src);
+
+        // Not `push_str`, which is `memcpy` over a length the compiler cannot
+        // see, with the text in it.
+        let at = self.inner.len();
+        let of = src.len();
+
+        // SAFETY: what is written are the bytes of a `str` and so are valid
+        // UTF-8; the length is set to exactly what is then written, into room
+        // `maybe_grow_to` has already reserved, and a borrowed `str` and this
+        // string's buffer are different allocations.
+        unsafe {
+            let bytes = self.inner.as_mut_vec();
+
+            bytes.set_len(at + of);
+
+            redoubt_mem::copy_nonoverlapping(src.as_ptr(), bytes[at..].as_mut_ptr(), of);
+        }
     }
 
     /// Clears the string, removing all contents.
