@@ -8,6 +8,11 @@ name: CI
 # come back.
 on:
   workflow_dispatch:
+    inputs:
+      only:
+        description: "One entry of the matrix, by the name it has below. Empty runs all of them."
+        required: false
+        default: ""
   # push:
   #   branches: [main]
   # pull_request:
@@ -56,6 +61,13 @@ jobs:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
+
+    # One entry, when one is asked for. Chasing a crash that happens on a
+    # single runner is a loop, and every turn of it spending the other seven
+    # is seven machines answering a question nobody asked.
+    if: >-
+      github.event.inputs.only == ''
+      || github.event.inputs.only == matrix.name
 
     steps:
       # Before anything else, and before `actions/checkout`: every action runs
