@@ -1,13 +1,11 @@
 name: CI
 
-# Asked for by hand, until a full run of the matrix has been read once. The two
-# triggers below come back with it.
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
-  # push:
-  #   branches: [main]
-  # pull_request:
-  #   branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
