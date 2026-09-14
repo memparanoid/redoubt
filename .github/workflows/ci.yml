@@ -24,11 +24,9 @@ jobs:
             name: Linux x86_64
           - os: macos-latest
             name: macOS aarch64
-          # The last Intel runner. `macos-latest` has been ARM since 14, so
-          # without this the x86_64 half of the AEGIS and SHA-256 assembly is
-          # never run on the platform it is written for.
-          - os: macos-13
-            name: macOS x86_64
+          # No Intel entry. `macos-13` was the last one and its image is gone,
+          # so a job asking for that label waits for a runner nobody has — the
+          # x86_64 half is run on the ARM runner under Rosetta instead, below.
           - os: windows-latest
             name: Windows x86_64
           - os: windows-11-arm
@@ -111,6 +109,26 @@ jobs:
       # else turns on is code no other step here compiles.
       - name: cargo nextest run --all-features --release
         run: cargo nextest run --workspace --all-features --release --no-fail-fast
+
+      # The x86_64 half of macOS, translated. There is no Intel runner left to
+      # ask for, and what this is here to answer is narrow enough to survive
+      # the translation: that the portable paths build and run as an x86_64
+      # process on macOS, which is what a consumer of this workspace gets there.
+      #
+      # It answers nothing about the x86_64 assembly. Rosetta translates up to
+      # SSE4.2 and leaves the wide vector extensions absent, so the runtime
+      # detection takes the narrow paths and the wide ones are never reached.
+      # Those are read on the Linux x86_64 runner, which is Intel silicon.
+      - name: Install Rosetta
+        if: matrix.name == 'macOS aarch64'
+        run: softwareupdate --install-rosetta --agree-to-license
+
+      - name: cargo nextest run --target x86_64-apple-darwin
+        if: matrix.name == 'macOS aarch64'
+        run: |
+          rustup target add x86_64-apple-darwin
+          cargo nextest run --workspace --all-features --release \
+            --target x86_64-apple-darwin --no-fail-fast
 
       # nextest does not run doctests, and this workspace documents its API
       # with runnable examples. Without this they stop being checked.
