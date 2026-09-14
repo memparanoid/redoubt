@@ -10,6 +10,9 @@
 mod analysis;
 
 #[cfg(target_os = "linux")]
+mod errors;
+
+#[cfg(target_os = "linux")]
 mod forensics;
 
 #[cfg(target_os = "linux")]

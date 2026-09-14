@@ -182,10 +182,10 @@ fn test_a_copy_on_the_heap_is_found() -> Result<(), Reason> {
 
     let held = core::hint::black_box(ALPHA.to_vec());
 
-    // MEASURING: bound to a local rather than handed over as a temporary, to
-    // see whether that is what a certain machine cannot survive.
+    // MEASURING: `snapshot` reached without the helper in between, which on
+    // one machine is a frame the compiler is free to make disappear.
     let mut watch = watching(&ALPHA)?;
-    let report = photograph(&mut watch)?;
+    let report = watch.snapshot()?;
 
     assert!(report.found, "{report}");
 
