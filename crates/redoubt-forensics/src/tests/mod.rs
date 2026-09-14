@@ -13,3 +13,6 @@ mod report;
 
 #[cfg(target_os = "linux")]
 mod score;
+
+#[cfg(target_os = "linux")]
+mod spiller;

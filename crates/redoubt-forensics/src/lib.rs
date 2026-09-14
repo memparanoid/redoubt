@@ -100,31 +100,10 @@ pub use forensics::{Forensics, occurrences, occurrences_reversed};
 #[cfg(target_os = "linux")]
 pub use macros::{DEPTH, Outcome, deep};
 
-// `SPILL`, `VECTORS` and `SLOT` are how the room is read: without them the
-// slice `spilled` hands back is a couple of kilobytes of nothing.
+// The whole of the capture that is anybody's to call. [`forensics!`] expands
+// into whoever uses it and reaches this by name, which is why it is here and
+// why nothing else needs to be: which slot a register lands in, how wide one
+// is, which form the machine got and the forms themselves are this crate's own
+// business, and what reads them is `src/tests/spiller.rs`, which is inside it.
 #[cfg(target_os = "linux")]
-pub use spiller::{SLOT, SPILL, VECTORS, pick_spiller, spill, spilled, spilled_width};
-
-/// The capture, raw, for a caller that needs it to be the next instruction
-/// after the thing being measured.
-#[cfg(all(
-    any(target_arch = "x86_64", target_arch = "aarch64"),
-    target_os = "linux"
-))]
-pub use spiller::redoubt_spill;
-
-/// The widest capture there is, by name.
-///
-/// [`redoubt_spill`] is the one to reach for. This is here because forcing the
-/// AVX-512 form is the only way to ask what `zmm16-31` are holding on a
-/// machine that has them, and that question is the reason this crate has a
-/// spiller at all.
-#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-pub use spiller::redoubt_spill_avx512;
-
-/// The widest capture there is on this architecture, by name.
-///
-/// The far end of an SVE `z` is where a secret rests here, and the NEON form
-/// cannot see any of it.
-#[cfg(all(target_arch = "aarch64", target_os = "linux"))]
-pub use spiller::redoubt_spill_sve;
+pub use spiller::spill;
