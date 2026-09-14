@@ -234,7 +234,7 @@ jobs:
       - name: cargo clippy --all-features
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      - name: cargo nextest run
+      - name: cargo nextest run --all-features
         run: cargo nextest run --workspace --all-features --no-fail-fast --success-output final
 
       - name: cargo nextest run --all-features --release
