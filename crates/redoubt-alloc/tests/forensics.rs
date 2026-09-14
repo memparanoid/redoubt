@@ -147,6 +147,48 @@ fn leaves_nothing_at_any_size(what: &str, mut work: impl FnMut(usize)) -> Result
     Ok(())
 }
 
+/// A secret the value keeps in its own bytes, which is what none of the
+/// containers here does.
+///
+/// Every one of them holds a `Box`, so moving one moves a pointer and the
+/// secret stays where it was put. This one has nowhere else to be, so moving
+/// it moves the bytes.
+struct Inline {
+    held: [u8; 32],
+}
+
+impl Inline {
+    /// Taken by value, used, and the copy that was taken is emptied — which is
+    /// the whole of what a value-consuming method can do. The slot it was
+    /// copied *from* belongs to the caller and is not reachable from here, and
+    /// a value that has been moved out of is one Rust emits no drop for.
+    ///
+    /// Not inlined, so that the move is one the machine makes. Folded into its
+    /// caller there would be no second place for the bytes to be, and the
+    /// control would measure the optimiser rather than the sweep.
+    #[inline(never)]
+    fn spend(mut self) {
+        core::hint::black_box(&self.held);
+
+        self.held = [0; 32];
+
+        core::hint::black_box(&self.held);
+    }
+}
+
+/// Takes the value and does not give it back.
+///
+/// What a caller handing one of these to somebody else is, and the thing the
+/// ownership sections ask about: the value is moved, and whatever empties it
+/// runs somewhere this test cannot see.
+///
+/// Not inlined. A move within one function is one the optimiser may fold away,
+/// and a measurement of what a move leaves has to be sure a move happened.
+#[inline(never)]
+fn consume<T>(value: T) {
+    core::hint::black_box(&value);
+}
+
 // ============================================================================
 // The control
 // ============================================================================
@@ -177,6 +219,45 @@ fn test_the_sweep_finds_the_secret_while_it_is_held() -> Result<(), AnyError> {
     );
 
     drop(core::hint::black_box(held));
+
+    Ok(())
+}
+
+/// The sweep finds a secret in the slot a value was moved out of.
+///
+/// This is what makes every drop below worth reading. Those say that moving a
+/// container and letting it go leaves nothing; that claim is empty unless the
+/// sweep would have spoken had there been something, and a moved-from slot is
+/// precisely the place it has to reach to say so.
+///
+/// It is also the net under a change nobody has made yet. Each container keeps
+/// its secret behind a `Box` today, which is why moving one moves a pointer;
+/// the day one of them holds its bytes inline, its drop test starts measuring
+/// what this one measures, and this is what says the measurement works.
+#[test]
+fn test_the_sweep_finds_the_secret_a_move_left_behind() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = Inline { held: [0; 32] };
+
+    giving(&mut source.held);
+
+    // The move. What `spend` empties is the copy it was handed; `source` keeps
+    // what that copy was made from, with nothing left to empty it.
+    source.spend();
+
+    let report_left_behind = watch.snapshot()?;
+
+    println!();
+    report_left_behind.summary("moved out of, and spent");
+    println!();
+
+    assert!(
+        report_left_behind.found,
+        "the sweep does not reach the slot a value was moved out of, so every \
+         absence the drops below report is the instrument standing where the \
+         evidence is: {report_left_behind}",
+    );
 
     Ok(())
 }
@@ -227,6 +308,100 @@ fn test_extend_from_mut_slice_leaves_nothing_a_sweep_can_find() -> Result<(), An
         }
 
         drop(core::hint::black_box(held));
+    })
+}
+
+// ============================================================================
+// RedoubtVec: ownership
+// ============================================================================
+
+/// Given away, and emptied somewhere this test cannot see.
+///
+/// The question the ownership sections ask is not whether the drop empties the
+/// value — the replaces ask that. It is whether *moving* it first changes the
+/// answer, because a value that keeps its secret in its own bytes leaves the
+/// slot it was moved out of with nobody to empty it.
+///
+/// What makes the answer no is one word in the declaration: the secret is
+/// behind a `Box`, so what travels is the pointer and the bytes never move.
+/// Whatever empties it reaches them at the address they were always at.
+#[test]
+fn test_a_vec_given_away_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
+    leaves_nothing_at_any_size("a vec given away", |of| {
+        let mut source = vec![0_u8; of];
+
+        giving(&mut source);
+
+        let mut held = RedoubtVec::<u8>::new();
+
+        held.replace_from_mut_slice(&mut source);
+
+        consume(held);
+
+        drop(core::hint::black_box(source));
+    })
+}
+
+// ============================================================================
+// RedoubtVec::drop
+// ============================================================================
+
+/// A vec that is never dropped is found.
+///
+/// The positive the test under it is worth nothing without. `forget` takes the
+/// value and runs no destructor, so the secret stays in the block the vec had —
+/// and if the sweep cannot see it there, then neither could it have seen it had
+/// the drop failed to empty it, and the absence below would be the instrument
+/// and not the code.
+///
+/// It leaks the allocation on purpose, which is what `forget` is for.
+#[test]
+fn test_a_vec_that_is_never_dropped_is_found() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = vec![0_u8; SECRET.len()];
+
+    giving(&mut source);
+
+    let mut held = RedoubtVec::<u8>::new();
+
+    held.replace_from_mut_slice(&mut source);
+
+    core::mem::forget(held);
+
+    let report_never_emptied = watch.snapshot()?;
+
+    println!();
+    report_never_emptied.summary("a vec, never dropped");
+    println!();
+
+    assert!(
+        report_never_emptied.found,
+        "the sweep does not reach what a vec holds, so the absence the test \
+         below reports is the instrument standing where the evidence is: \
+         {report_never_emptied}",
+    );
+
+    drop(core::hint::black_box(source));
+
+    Ok(())
+}
+
+/// And one that is dropped is not.
+#[test]
+fn test_a_vec_dropped_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
+    leaves_nothing_at_any_size("a vec dropped", |of| {
+        let mut source = vec![0_u8; of];
+
+        giving(&mut source);
+
+        let mut held = RedoubtVec::<u8>::new();
+
+        held.replace_from_mut_slice(&mut source);
+
+        drop(held);
+
+        drop(core::hint::black_box(source));
     })
 }
 
@@ -289,6 +464,147 @@ fn test_string_replace_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError>
 }
 
 // ============================================================================
+// RedoubtString: ownership
+// ============================================================================
+
+/// The same, for the type that holds text, which carries its own needle.
+#[test]
+fn test_a_string_given_away_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&spelled_backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    println!();
+    report_before.summary("nothing filled yet");
+
+    for of in SIZES {
+        let report_after = forensics!(watch, {
+            let mut source = spelled(of);
+
+            let mut held = RedoubtString::new();
+
+            held.replace_from_mut_string(&mut source);
+
+            consume(held);
+
+            drop(core::hint::black_box(source));
+        });
+
+        report_after.summary_against(&report_before, &format!("a string given away, {of} bytes"));
+
+        assert!(
+            !report_after.found,
+            "the whole spelling survived a string of {of} bytes being given \
+             away: {report_after}"
+        );
+
+        assert!(
+            report_after.widest <= QUIET,
+            "a run of {} bytes survived a string of {of} bytes being given \
+             away: {report_after}",
+            report_after.widest,
+        );
+
+        let delta = report_after.against(&report_before);
+
+        assert!(
+            delta.is_noise(),
+            "a string of {of} bytes given away moved the score: {delta}"
+        );
+    }
+
+    println!();
+
+    Ok(())
+}
+
+// ============================================================================
+// RedoubtString::drop
+// ============================================================================
+
+/// A string that is never dropped is found.
+#[test]
+fn test_a_string_that_is_never_dropped_is_found() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&spelled_backwards())?;
+
+    let mut source = spelled(SECRET.len() * 2);
+
+    let mut held = RedoubtString::new();
+
+    held.replace_from_mut_string(&mut source);
+
+    core::mem::forget(held);
+
+    let report_never_emptied = watch.snapshot()?;
+
+    println!();
+    report_never_emptied.summary("a string, never dropped");
+    println!();
+
+    assert!(
+        report_never_emptied.found,
+        "the sweep does not reach what a string holds, so the absence the test \
+         below reports is the instrument standing where the evidence is: \
+         {report_never_emptied}",
+    );
+
+    drop(core::hint::black_box(source));
+
+    Ok(())
+}
+
+/// And one that is dropped is not.
+#[test]
+fn test_a_string_dropped_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&spelled_backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    println!();
+    report_before.summary("nothing filled yet");
+
+    for of in SIZES {
+        let report_after = forensics!(watch, {
+            let mut source = spelled(of);
+
+            let mut held = RedoubtString::new();
+
+            held.replace_from_mut_string(&mut source);
+
+            drop(held);
+
+            drop(core::hint::black_box(source));
+        });
+
+        report_after.summary_against(&report_before, &format!("a string dropped, {of} bytes"));
+
+        assert!(
+            !report_after.found,
+            "the whole spelling survived a string of {of} bytes being dropped: \
+             {report_after}"
+        );
+
+        assert!(
+            report_after.widest <= QUIET,
+            "a run of {} bytes survived a string of {of} bytes being dropped: \
+             {report_after}",
+            report_after.widest,
+        );
+
+        let delta = report_after.against(&report_before);
+
+        assert!(
+            delta.is_noise(),
+            "a string of {of} bytes dropped moved the score: {delta}"
+        );
+    }
+
+    println!();
+
+    Ok(())
+}
+
+// ============================================================================
 // RedoubtOption::replace
 // ============================================================================
 
@@ -310,6 +626,99 @@ fn test_option_replace_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError>
         held.replace(&mut inner);
 
         drop(core::hint::black_box(held));
+        drop(core::hint::black_box(inner));
+        drop(core::hint::black_box(source));
+    })
+}
+
+// ============================================================================
+// RedoubtOption: ownership
+// ============================================================================
+
+/// The same, one container deep: what is given away is the option, and what it
+/// holds is a vec that is itself a pointer.
+#[test]
+fn test_an_option_given_away_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
+    leaves_nothing_at_any_size("an option given away", |of| {
+        let mut source = vec![0_u8; of];
+
+        giving(&mut source);
+
+        let mut inner = RedoubtVec::<u8>::new();
+
+        inner.replace_from_mut_slice(&mut source);
+
+        let mut held = RedoubtOption::<RedoubtVec<u8>>::default();
+
+        held.replace(&mut inner);
+
+        consume(held);
+
+        drop(core::hint::black_box(inner));
+        drop(core::hint::black_box(source));
+    })
+}
+
+// ============================================================================
+// RedoubtOption::drop
+// ============================================================================
+
+/// An option that is never dropped is found.
+#[test]
+fn test_an_option_that_is_never_dropped_is_found() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = vec![0_u8; SECRET.len()];
+
+    giving(&mut source);
+
+    let mut inner = RedoubtVec::<u8>::new();
+
+    inner.replace_from_mut_slice(&mut source);
+
+    let mut held = RedoubtOption::<RedoubtVec<u8>>::default();
+
+    held.replace(&mut inner);
+
+    core::mem::forget(held);
+
+    let report_never_emptied = watch.snapshot()?;
+
+    println!();
+    report_never_emptied.summary("an option, never dropped");
+    println!();
+
+    assert!(
+        report_never_emptied.found,
+        "the sweep does not reach what an option holds, so the absence the test \
+         below reports is the instrument standing where the evidence is: \
+         {report_never_emptied}",
+    );
+
+    drop(core::hint::black_box(inner));
+    drop(core::hint::black_box(source));
+
+    Ok(())
+}
+
+/// And one that is dropped is not.
+#[test]
+fn test_an_option_dropped_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
+    leaves_nothing_at_any_size("an option dropped", |of| {
+        let mut source = vec![0_u8; of];
+
+        giving(&mut source);
+
+        let mut inner = RedoubtVec::<u8>::new();
+
+        inner.replace_from_mut_slice(&mut source);
+
+        let mut held = RedoubtOption::<RedoubtVec<u8>>::default();
+
+        held.replace(&mut inner);
+
+        drop(held);
+
         drop(core::hint::black_box(inner));
         drop(core::hint::black_box(source));
     })
@@ -365,6 +774,148 @@ fn test_array_replace_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> 
     assert!(
         delta.is_noise(),
         "an array replace moved the score: {delta}"
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// RedoubtArray: ownership
+// ============================================================================
+
+/// The same, for the one whose length is in its type.
+///
+/// This is the one the moved-from control is aimed at. `RedoubtArray` reads as
+/// a value that would carry its bytes with it and does not: it holds a
+/// `Box<[T; N]>`, and that is the whole of why this passes. Take the `Box` away
+/// and this measures what that control measures.
+#[test]
+fn test_an_array_given_away_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let report_after = forensics!(watch, {
+        let mut source = [0_u8; 32];
+
+        giving(&mut source);
+
+        let mut held = RedoubtArray::<u8, 32>::default();
+
+        held.replace_from_mut_array(&mut source);
+
+        // By reference, for the reason the replace test gives: `[u8; 32]` is
+        // `Copy`, and a `black_box` of it by value is one more copy.
+        core::hint::black_box(&source);
+
+        consume(held);
+    });
+
+    println!();
+    report_before.summary("nothing filled yet");
+    report_after.summary_against(&report_before, "an array given away");
+    println!();
+
+    assert!(
+        !report_after.found,
+        "the whole secret survived an array being given away: {report_after}"
+    );
+
+    assert!(
+        report_after.widest <= QUIET,
+        "a run of {} bytes survived an array being given away: {report_after}",
+        report_after.widest,
+    );
+
+    let delta = report_after.against(&report_before);
+
+    assert!(
+        delta.is_noise(),
+        "an array given away moved the score: {delta}"
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// RedoubtArray::drop
+// ============================================================================
+
+/// An array that is never dropped is found.
+#[test]
+fn test_an_array_that_is_never_dropped_is_found() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = [0_u8; 32];
+
+    giving(&mut source);
+
+    let mut held = RedoubtArray::<u8, 32>::default();
+
+    held.replace_from_mut_array(&mut source);
+
+    core::mem::forget(held);
+
+    let report_never_emptied = watch.snapshot()?;
+
+    println!();
+    report_never_emptied.summary("an array, never dropped");
+    println!();
+
+    assert!(
+        report_never_emptied.found,
+        "the sweep does not reach what an array holds, so the absence the test \
+         below reports is the instrument standing where the evidence is: \
+         {report_never_emptied}",
+    );
+
+    core::hint::black_box(&source);
+
+    Ok(())
+}
+
+/// And one that is dropped is not.
+#[test]
+fn test_an_array_dropped_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let report_after = forensics!(watch, {
+        let mut source = [0_u8; 32];
+
+        giving(&mut source);
+
+        let mut held = RedoubtArray::<u8, 32>::default();
+
+        held.replace_from_mut_array(&mut source);
+
+        core::hint::black_box(&source);
+
+        drop(held);
+    });
+
+    println!();
+    report_before.summary("nothing filled yet");
+    report_after.summary_against(&report_before, "an array dropped");
+    println!();
+
+    assert!(
+        !report_after.found,
+        "the whole secret survived an array being dropped: {report_after}"
+    );
+
+    assert!(
+        report_after.widest <= QUIET,
+        "a run of {} bytes survived an array being dropped: {report_after}",
+        report_after.widest,
+    );
+
+    let delta = report_after.against(&report_before);
+
+    assert!(
+        delta.is_noise(),
+        "an array dropped moved the score: {delta}"
     );
 
     Ok(())
