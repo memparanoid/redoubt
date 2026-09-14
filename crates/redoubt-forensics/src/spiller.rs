@@ -206,6 +206,52 @@ pub fn pick_spiller() {
     }
 }
 
+/// Which capture [`pick_spiller`] settled on, by name.
+///
+/// The widest registers a machine has are the ones a `memcpy` of a key is
+/// likeliest to pass through, and whether this machine has them at all is a
+/// property of the machine and not of the code — so a run that reports `neon`
+/// has said nothing about `sve`, and a reader with no way to tell the two
+/// apart would read the silence as coverage.
+///
+/// Asked of the pointer the dispatch actually jumps through, so it cannot
+/// disagree with what runs.
+#[cfg(test)]
+pub(crate) fn picked() -> &'static str {
+    #[cfg(all(
+        any(target_arch = "x86_64", target_arch = "aarch64"),
+        target_os = "linux"
+    ))]
+    {
+        let at = redoubt_spill_which.load(core::sync::atomic::Ordering::Relaxed);
+
+        #[cfg(target_arch = "x86_64")]
+        let every: [(unsafe extern "C" fn(), &str); 3] = [
+            (redoubt_spill_avx512, "avx512"),
+            (redoubt_spill_avx, "avx"),
+            (redoubt_spill_sse, "sse"),
+        ];
+
+        #[cfg(target_arch = "aarch64")]
+        let every: [(unsafe extern "C" fn(), &str); 2] =
+            [(redoubt_spill_sve, "sve"), (redoubt_spill_neon, "neon")];
+
+        for (one, name) in every {
+            if core::ptr::eq(at, one as *mut ()) {
+                return name;
+            }
+        }
+
+        "none"
+    }
+
+    #[cfg(not(all(
+        any(target_arch = "x86_64", target_arch = "aarch64"),
+        target_os = "linux"
+    )))]
+    "none"
+}
+
 /// Every register this thread has, into the room.
 ///
 /// `inline(always)` and a bare call, so this costs exactly what the capture

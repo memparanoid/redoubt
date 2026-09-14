@@ -1315,3 +1315,28 @@ fn test_the_wide_capture_fills_the_general_slots() {
 
     core::hint::black_box((&into, &source));
 }
+
+// ============================================================================
+// pick_spiller
+// ============================================================================
+
+/// The form the machine gave, said out loud.
+///
+/// Which one it is decides what a run of this crate covered: the wide
+/// registers are where a vectorised copy of a key passes, and a machine
+/// without them never exercises the tests written for them. A run that
+/// captured `neon` has said nothing about `sve`, and nothing else in the
+/// output distinguishes "read and clean" from "never reached".
+#[test]
+fn test_the_capture_says_which_form_the_machine_gave() {
+    pick_spiller();
+
+    let form = crate::spiller::picked();
+
+    eprintln!("the capture is {form} on this machine.");
+
+    assert_ne!(
+        form, "none",
+        "the dispatch points at nothing this crate knows the name of",
+    );
+}
