@@ -46,12 +46,44 @@ echo ""
 
 mkdir -p "$CRATE_DIR"
 
+TARGET_DIR="$REPO_ROOT/target/coverage/$CRATE"
+
+# What `--no-cache` is for, and it has to be after the line above: it used to
+# run before this crate's target directory was named, so it cleaned the
+# ordinary one and left the only directory a coverage run reads untouched.
 if $NO_CACHE; then
-  cargo +$NIGHTLY llvm-cov clean
+  rm -rf "$TARGET_DIR"
 fi
 
-TARGET_DIR="$REPO_ROOT/target/coverage/$CRATE"
 mkdir -p "$TARGET_DIR"
+
+# Every instrumented test binary from before, gone, and not only when somebody
+# asks for it.
+#
+# A report is rendered over the binaries found in the target directory, and a
+# coverage map lives in the binary rather than in the profile data — so one
+# left over from an older build is still read, contributes every region it has
+# and not one count, and drags the whole figure down. Deleting the `.profraw`
+# does not touch it.
+#
+# What that looks like: a file renamed weeks ago goes on appearing at 0%,
+# because the binary that knew it by its old name is still there. It is not a
+# stale number, it is a wrong one, and the two are indistinguishable from the
+# report.
+#
+# Executables only. The `.rlib`s beside them are the dependencies, they are
+# correct however old they are, and keeping them is the difference between
+# rebuilding this crate and rebuilding the graph under it.
+# `llvm-cov-target` and not the target directory itself: `cargo llvm-cov` puts
+# its own build under there, and the binaries a report is rendered over are the
+# ones in it.
+BUILT="$TARGET_DIR/llvm-cov-target"
+
+if [ -d "$BUILT/debug/deps" ]; then
+  find "$BUILT/debug/deps" -maxdepth 1 -type f -executable -delete
+fi
+
+rm -rf "$BUILT/doctestbins"
 
 # Three passes: doctests, then the tests, then one report over both.
 #
