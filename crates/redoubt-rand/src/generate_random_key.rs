@@ -4,8 +4,8 @@
 
 //! Cryptographically secure random key generation with HKDF derivation.
 //!
-//! This module provides high-quality key generation by combining OS entropy
-//! with hardware-sourced seeds through HKDF-SHA512 derivation.
+//! OS entropy through HKDF-SHA256, so that a caller's `info` separates one key
+//! from another.
 
 extern crate alloc;
 use alloc::vec;
@@ -14,38 +14,41 @@ use redoubt_hkdf::hkdf;
 use redoubt_zero::ZeroizingGuard;
 
 use crate::error::EntropyError;
-use crate::u64_seed;
+
+/// What separates this extraction from every other use of the same hash.
+///
+/// Fixed and in the clear, which is what a salt is: RFC 5869 §3.1 says a salt
+/// is "non-secret" and "can be re-used", and gives this exact case — a
+/// generator applying HKDF to a pool of entropy "can fix a salt value and use
+/// it for multiple applications of HKDF without having to protect the secrecy
+/// of the salt".
+///
+/// What it replaced was a salt drawn per call from the same syscall as the
+/// keying material below. A salt buys independence between uses of the hash,
+/// and one taken from the source it is meant to be independent of buys none —
+/// at eight more trips into the kernel for a thirty-two byte key.
+const SALT: &[u8] = b"redoubt-rand.generate_random_key.v1";
 
 /// Generates a cryptographically secure random key.
 ///
-/// The key is derived using a two-stage process:
-/// 1. **OS Entropy (IKM)**: Same size as output key from OS CSPRNG via `getrandom`
-/// 2. **Hardware Seeds (Salt)**: Next multiple of 64 bytes from hardware/OS seeds
-/// 3. **HKDF-SHA256**: Derives final key = HKDF(ikm=os_entropy, salt=seeds, info=info)
+/// `HKDF(ikm = getrandom(key_len), salt = SALT, info = info)`.
 ///
-/// # Why HKDF derivation?
+/// # Why HKDF at all
 ///
-/// The `getrandom` crate provides excellent cryptographic entropy and is the
-/// industry standard for random number generation. As an additional layer of
-/// protection, we derive keys through HKDF-SHA256 with ephemeral hardware seeds.
+/// For `info`, and for nothing else. The keying material is already a uniformly
+/// random string, so the derivation adds no entropy to it — RFC 5869 §3.3 says
+/// as much, that extraction may be skipped outright when the material is
+/// already a strong key. What the same section says not to skip is the expand
+/// step, "especially because it would omit the use of 'info'".
 ///
-/// This approach provides defense-in-depth: if sensitive key material were to
-/// leak during generation (e.g., through compiler spills, unexpected memory dumps,
-/// or side-channel attacks), an attacker would need both the IKM and the ephemeral
-/// seeds to reconstruct the final key. Since seeds are generated on-demand from
-/// hardware sources and immediately zeroized, this significantly reduces the
-/// attack surface.
+/// So what a caller gets is domain separation: two keys asked for under
+/// different `info` are unrelated, and a key asked for twice under the same one
+/// is still two different keys, because the material below is drawn fresh.
 ///
 /// # Security Level
 ///
-/// - **For key_len ≥ 32 bytes**: 256-bit security (limited by salt entropy)
-/// - **For key_len < 32 bytes**: (key_len × 8)-bit security (limited by key size)
-///
-/// The double entropy approach ensures:
-/// - IKM captures full system entropy state
-/// - Salt adds hardware-specific unpredictability
-/// - HKDF-SHA256 combines both sources cryptographically
-/// - Final key requires multiple components to reconstruct
+/// `key_len × 8` bits, up to the 256 of the hash. Nothing here adds to what the
+/// operating system's generator gave.
 ///
 /// # Common Key Sizes
 ///
@@ -62,7 +65,6 @@ use crate::u64_seed;
 ///
 /// Returns `EntropyError::EntropyNotAvailable` if:
 /// - OS entropy source fails (getrandom)
-/// - Hardware seed generation fails
 /// - Output key is empty
 ///
 /// # Example
@@ -81,27 +83,9 @@ use crate::u64_seed;
 ///     .expect("Failed to generate key");
 /// ```
 pub fn generate_random_key(info: &[u8], output_key: &mut [u8]) -> Result<(), EntropyError> {
-    let key_len = output_key.len();
+    let mut ikm = ZeroizingGuard::from_mut(&mut vec![0u8; output_key.len()]);
 
-    // 1. Generate key_len bytes of OS entropy (IKM)
-    let mut ikm = ZeroizingGuard::from_mut(&mut vec![0u8; key_len]);
     getrandom::fill(&mut ikm).map_err(|_| EntropyError::EntropyNotAvailable)?;
 
-    // 2. Generate hardware/OS seed entropy (Salt)
-    // Salt size: next multiple of 64 bytes = 8 u64s per 64 bytes
-    let salt_len_u64 = key_len.div_ceil(64) * 8;
-    let mut salt = ZeroizingGuard::from_mut(&mut vec![0u64; salt_len_u64]);
-    // Generate u64 seeds directly into salt Vec (guaranteed 8-byte alignment)
-    for i in 0..salt_len_u64 {
-        unsafe {
-            let seed_ptr = salt.as_mut_ptr().add(i);
-            u64_seed::generate(seed_ptr)?;
-        }
-    }
-
-    // 3. Derive final key via HKDF-SHA256 directly to output
-    // Convert salt to byte slice for HKDF
-    let salt_bytes =
-        unsafe { core::slice::from_raw_parts(salt.as_ptr() as *const u8, salt_len_u64 * 8) };
-    hkdf(&ikm, salt_bytes, info, output_key).map_err(|_| EntropyError::EntropyNotAvailable)
+    hkdf(&ikm, SALT, info, output_key).map_err(|_| EntropyError::EntropyNotAvailable)
 }
