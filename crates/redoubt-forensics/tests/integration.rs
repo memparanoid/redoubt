@@ -745,7 +745,7 @@ fn test_reads_out_a_leak_beside_no_leak() -> Result<(), Reason> {
 }
 
 // ============================================================================
-// El spiller, controlado
+// The capture, held to something
 // ============================================================================
 
 /// How far apart one register's slot is from the next, whichever form ran.
@@ -753,6 +753,21 @@ const SLOT: usize = 64;
 
 /// Where the vector slots start, the general registers being the first 128.
 const VECTORS: usize = 128;
+
+/// Whether the capture wrote the general slots at all.
+///
+/// The least any of these can be held to, and the most that can be asked
+/// without choosing what the registers hold. A capture that writes nothing, or
+/// writes somewhere nobody reads, is indistinguishable from a machine whose
+/// registers are empty — and this tells the two apart, because `rsp` is one of
+/// the sixteen and a running process has a stack.
+///
+/// What is in a vector register after a copy is the compiler's to decide, so
+/// there is no honest floor to put under that here. Seeding each register and
+/// reading it back is the test that can, and it is not this one.
+fn filled_the_general_slots(room: &[u8]) -> bool {
+    room[..VECTORS].iter().any(|byte| *byte != 0)
+}
 
 /// Thirty-two bytes moved, and every register captured by the very next
 /// instruction.
@@ -772,14 +787,18 @@ fn copy_then_capture(from: &[u8], into: &mut [u8]) {
     }
 }
 
-/// Whether the capture captures anything at all.
+/// The capture holds something of the machine it was called on.
 ///
 /// Every zero this crate reports about registers is worth exactly what this
 /// test is worth: a capture that writes nothing, or writes somewhere nobody
 /// reads, answers "the registers are clean" about a machine it never looked
 /// at.
+///
+/// What is read out below is wider than what is asserted, and on purpose. How
+/// much of the value survived into a register is the compiler's to decide and
+/// changes with the version; that it was looked at is not.
 #[test]
-fn test_reads_out_whether_the_capture_holds_what_was_just_moved() -> Result<(), Reason> {
+fn test_the_capture_holds_something_of_the_machine() -> Result<(), Reason> {
     alone!();
 
     // Which form the machine gets, worked out once and long before. Without
@@ -808,18 +827,27 @@ fn test_reads_out_whether_the_capture_holds_what_was_just_moved() -> Result<(), 
     eprintln!("    longest prefix        {widest} of {}", ALPHA.len());
     eprintln!();
 
+    assert!(
+        filled_the_general_slots(room),
+        "the capture wrote nothing anybody reads, so every absence this crate \
+         reports about a register is about a machine it never looked at",
+    );
+
     core::hint::black_box((&into, &source));
 
     Ok(())
 }
 
-/// Which slots the capture actually fills.
+/// Which slots the capture fills, and that the general ones are among them.
 ///
 /// A capture that writes the general registers and leaves the vector ones
 /// alone would look exactly like a machine whose vector registers are empty,
-/// and the difference is the whole question.
+/// and the difference is the whole question. What is asserted is the half that
+/// can be: which vector slots came back full is read out and not held to,
+/// because a compiler that stopped using them would turn that into a failure
+/// about nothing.
 #[test]
-fn test_reads_out_which_registers_the_capture_fills() -> Result<(), Reason> {
+fn test_the_capture_fills_the_general_slots() -> Result<(), Reason> {
     alone!();
 
     redoubt_forensics::pick_spiller();
@@ -864,6 +892,12 @@ fn test_reads_out_which_registers_the_capture_fills() -> Result<(), Reason> {
 
     eprintln!();
 
+    assert!(
+        filled_the_general_slots(room),
+        "the capture left the general slots as it found them, so the vector \
+         ones above are a reading of nothing",
+    );
+
     core::hint::black_box((&into, &source));
 
     Ok(())
@@ -880,9 +914,13 @@ fn test_reads_out_which_registers_the_capture_fills() -> Result<(), Reason> {
 /// SVE reaches and a compiler emits none unless asked.
 ///
 /// So the offset matters as much as the register, and both are printed.
+///
+/// What is asserted is that the wide form ran and wrote: it is called by name
+/// rather than through the slot, so a machine with the instructions but a form
+/// that writes nowhere would otherwise read out "none" and pass.
 #[test]
 #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
-fn test_reads_out_which_wide_registers_the_copy_fills() -> Result<(), Reason> {
+fn test_the_wide_capture_fills_the_general_slots() -> Result<(), Reason> {
     alone!();
 
     #[cfg(target_arch = "x86_64")]
@@ -964,6 +1002,11 @@ fn test_reads_out_which_wide_registers_the_copy_fills() -> Result<(), Reason> {
     }
 
     eprintln!();
+
+    assert!(
+        filled_the_general_slots(room),
+        "the wide form was called by name and wrote nothing anybody reads",
+    );
 
     core::hint::black_box((&into, &source));
 
