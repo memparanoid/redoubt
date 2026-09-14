@@ -26,12 +26,38 @@
 
 use proptest::prelude::*;
 
-use crate::analysis::score::{NOISE, close, density, follows, holds, lg2, table, worth};
+use crate::analysis::score::{
+    NOISE, close, density, follows, holds, lg2, piece, settle, stretch, table, worth,
+};
 use crate::analysis::state::MOST;
 
 /// Room for one table of successors and one of bytes that appear.
 fn tables() -> (Vec<u8>, Vec<u8>) {
     (vec![0_u8; 256 * 32], vec![0_u8; 32])
+}
+
+/// Thirty-two distinct bytes, so that a stretch of it is a stretch of it and
+/// not a walk that happened to agree.
+const SECRET: [u8; 32] = [
+    0x9E, 0x41, 0x17, 0xC3, 0x5A, 0xF0, 0x2B, 0x88, 0x6D, 0xB4, 0x0A, 0xE7, 0x39, 0x52, 0xCE, 0x71,
+    0x84, 0x1D, 0xA6, 0x3F, 0xD8, 0x60, 0x95, 0x2E, 0xBB, 0x07, 0x4C, 0xE1, 0x76, 0xAF, 0x13, 0xCA,
+];
+
+/// A ring of `MOST` bytes with `run` written so that it ends after `through`
+/// bytes have gone by, the way the sweep leaves it.
+fn ring(run: &[u8], through: usize) -> Vec<u8> {
+    let mut tail = vec![0_u8; MOST];
+
+    for (k, &byte) in run.iter().enumerate() {
+        tail[(through - run.len() + k) % MOST] = byte;
+    }
+
+    tail
+}
+
+/// Scratch for verifying against a secret that long.
+fn lens(of: usize) -> Vec<u16> {
+    vec![0_u16; of]
 }
 
 /// What one step costs for a short secret whose bytes are all different: each
@@ -461,6 +487,200 @@ fn test_close_puts_a_run_wider_than_the_tally_in_the_last_slot() {
     close(MOST * 4, &mut widths);
 
     assert_eq!(widths[MOST - 1], 1);
+}
+
+// ============================================================================
+// settle
+// ============================================================================
+
+/// What is tallied is the width the run reads back to, not the width it
+/// walked: sixteen of one byte, with the secret holding two of it, is one
+/// more run of two.
+#[test]
+fn test_settle_tallies_the_width_the_run_reads_back_to() {
+    let secret = b"a88b";
+    let run = [b'8'; 16];
+    let tail = ring(&run, run.len());
+    let mut widths = vec![0_u64; MOST];
+
+    let whole = settle(
+        run.len(),
+        &tail,
+        run.len(),
+        secret,
+        &mut lens(secret.len()),
+        &mut widths,
+    );
+
+    assert!(!whole);
+    assert_eq!(widths[2], 1);
+    assert_eq!(widths[16], 0);
+}
+
+/// A run that reads back as wide as the secret is the secret.
+#[test]
+fn test_settle_returns_true_for_a_run_that_is_the_whole_secret() {
+    let tail = ring(&SECRET, SECRET.len());
+    let mut widths = vec![0_u64; MOST];
+
+    let whole = settle(
+        SECRET.len(),
+        &tail,
+        SECRET.len(),
+        &SECRET,
+        &mut lens(SECRET.len()),
+        &mut widths,
+    );
+
+    assert!(whole);
+    assert_eq!(widths[SECRET.len()], 1);
+}
+
+// ============================================================================
+// piece
+// ============================================================================
+
+/// One byte the secret has, or a pair it has, is a stretch of it by the way a
+/// run starts and extends, so nothing is read back.
+#[test]
+fn test_piece_returns_the_width_for_a_run_of_two_or_less() {
+    let tail = vec![0_u8; MOST];
+
+    for run in 0..=2 {
+        assert_eq!(
+            piece(run, &tail, MOST, &SECRET, &mut lens(SECRET.len())),
+            run
+        );
+    }
+}
+
+/// One byte repeated is worth as many of it as the secret has in a row, and
+/// no more than the run has.
+#[test]
+fn test_piece_returns_the_stretch_for_a_run_of_one_repeated_byte() {
+    let run = [b'8'; 16];
+    let tail = ring(&run, run.len());
+
+    assert_eq!(piece(16, &tail, 16, b"a88b", &mut lens(4)), 2);
+    assert_eq!(piece(16, &tail, 16, b"a888b", &mut lens(5)), 3);
+    assert_eq!(piece(3, &tail, 16, b"88888", &mut lens(5)), 3);
+}
+
+/// A walk that turns where the secret does not is worth the widest stretch
+/// of the secret in it: `abcab` walks `abcad`'s pairs and holds `abca`.
+#[test]
+fn test_piece_returns_the_widest_stretch_of_the_secret_a_walk_holds() {
+    let run = b"abcab";
+    let tail = ring(run, run.len());
+
+    assert_eq!(
+        piece(run.len(), &tail, run.len(), b"abcad", &mut lens(5)),
+        4
+    );
+}
+
+/// A cycle through several pairs walks as far as memory repeats it. `the`
+/// twice in the sentence, once after a space, is the cycle `t h e ␣`, and a
+/// page of `the the the` walks it to its end. The sentence holds ` the ` and
+/// no more.
+#[test]
+fn test_piece_returns_the_widest_stretch_for_a_walk_around_a_cycle_of_words() {
+    let secret = b"the quick brown fox jumps over the lazy dog";
+    let run = b"the the the the the";
+    let tail = ring(run, run.len());
+
+    assert_eq!(
+        piece(run.len(), &tail, run.len(), secret, &mut lens(secret.len())),
+        " the ".len()
+    );
+}
+
+/// A run that is a stretch of the secret is worth its whole width.
+#[test]
+fn test_piece_returns_the_width_of_a_run_that_is_a_stretch_of_the_secret() {
+    let run = &SECRET[8..24];
+    let tail = ring(run, run.len());
+
+    assert_eq!(
+        piece(
+            run.len(),
+            &tail,
+            run.len(),
+            &SECRET,
+            &mut lens(SECRET.len())
+        ),
+        16
+    );
+}
+
+/// The ring is a ring: a run written across its end reads back whole.
+#[test]
+fn test_piece_reads_a_run_that_wraps_around_the_ring() {
+    let run = &SECRET[8..24];
+    let through = MOST + 5;
+    let tail = ring(run, through);
+
+    assert_eq!(
+        piece(run.len(), &tail, through, &SECRET, &mut lens(SECRET.len())),
+        16
+    );
+}
+
+/// Only the last `MOST` bytes of a wider run are there to read. The six that
+/// begin this one are past the ring, and what is left is the three the
+/// alternation holds.
+#[test]
+fn test_piece_reads_only_the_last_most_bytes_of_a_wider_run() {
+    let secret = b"abcdaba";
+    let mut run = b"abcdab".to_vec();
+
+    while run.len() < MOST + 6 {
+        run.push(if run.len().is_multiple_of(2) {
+            b'a'
+        } else {
+            b'b'
+        });
+    }
+
+    let tail = ring(&run, run.len());
+
+    assert_eq!(
+        piece(run.len(), &tail, run.len(), secret, &mut lens(secret.len())),
+        3
+    );
+}
+
+/// The whole secret reads back as the whole secret.
+#[test]
+fn test_piece_returns_the_whole_width_for_a_run_that_is_the_secret() {
+    let tail = ring(&SECRET, SECRET.len());
+
+    assert_eq!(
+        piece(
+            SECRET.len(),
+            &tail,
+            SECRET.len(),
+            &SECRET,
+            &mut lens(SECRET.len())
+        ),
+        SECRET.len()
+    );
+}
+
+// ============================================================================
+// stretch
+// ============================================================================
+
+#[test]
+fn test_stretch_returns_nothing_for_a_byte_the_secret_lacks() {
+    assert_eq!(stretch(b"a88b888c", b'z'), 0);
+}
+
+/// The longest of the stretches, not the first and not their sum.
+#[test]
+fn test_stretch_returns_the_longest_stretch_of_a_byte() {
+    assert_eq!(stretch(b"a88b888c", b'8'), 3);
+    assert_eq!(stretch(b"a88b888c", b'a'), 1);
 }
 
 // ============================================================================

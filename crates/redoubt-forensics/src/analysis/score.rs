@@ -20,17 +20,17 @@
 //! stretch where every step is one the secret allows; when a step is not, the
 //! run closes and its width is tallied.
 //!
-//! That over-counts, deliberately. It accepts stretches whose every pair is in
-//! the secret but which are not in the secret — and the price of that is one
-//! bit test per byte of memory rather than a search, which is the difference
-//! between sweeping a gigabyte and not being able to. The over-count is the
-//! same in every photograph of the same process with the same secret, so it
-//! cancels in the difference between two, which is the only place anyone is
-//! asked to read it.
+//! A run is a candidate and not a finding. The table accepts any stretch
+//! whose every pair is in the secret, and that includes stretches the secret
+//! never holds: sixteen `8`s walk the pair `88` fifteen times, and the secret
+//! has two of them. So when a run closes its bytes are read back out of the
+//! ring the sweep keeps, and what is tallied is the widest stretch of the
+//! secret inside it — two, for the sixteen `8`s. The table is what keeps the
+//! sweep at one bit test per byte of memory; the reading back only happens to
+//! runs of three or more, which are rare enough to cost nothing.
 //!
-//! The exception is [`crate::Report::found`], which is not a run at all: when
-//! a run reaches the full width of the secret its bytes are compared against
-//! the secret one for one. That one is exact, which is what makes it worth
+//! A run that reads back as wide as the secret is the secret, and that is
+//! [`crate::Report::found`]. It is exact, which is what makes it worth
 //! anything as a positive control.
 //!
 //! # The score
@@ -114,6 +114,8 @@ pub(crate) fn runs(state: &mut ForensicState, subject: &Subject) -> Result<(), R
         next,
         seen,
         widths,
+        tail,
+        lens,
         result,
         mut skips,
         maps,
@@ -132,10 +134,12 @@ pub(crate) fn runs(state: &mut ForensicState, subject: &Subject) -> Result<(), R
 
     instrument(subject, held, &maps, &mut skips)?;
 
+    let secret = &secret[..of];
+    let lens = &mut lens[..of];
+
     let mut run = 0_usize;
     let mut prev = 0_u8;
-    let mut began = 0_usize;
-    let mut placed = false;
+    let mut through = 0_usize;
     let mut whole = false;
 
     let swept = sweep(
@@ -145,38 +149,27 @@ pub(crate) fn runs(state: &mut ForensicState, subject: &Subject) -> Result<(), R
         &skips,
         0,
         |window: &[u8], _, breaks| {
-            for (i, &byte) in window.iter().enumerate() {
+            for &byte in window {
                 if run > 0 && follows(next, prev, byte) {
                     run += 1;
                 } else {
-                    close(run, widths);
+                    whole |= settle(run, tail, through, secret, lens, widths);
 
                     run = usize::from(holds(seen, byte));
-                    began = i;
-                    placed = run > 0;
                 }
 
+                // Every byte, in or out of a run: the arithmetic that reads a
+                // run back is then only about `through`, and not about where
+                // the run was when it was written.
+                tail[through % tail.len()] = byte;
+                through += 1;
                 prev = byte;
-
-                // The one exact thing in here. A run as wide as the secret is only
-                // a run until its bytes are the secret's bytes.
-                if run == of
-                    && placed
-                    && began + of <= window.len()
-                    && window[began..began + of] == secret[..of]
-                {
-                    whole = true;
-                }
             }
 
             if breaks {
-                close(run, widths);
+                whole |= settle(run, tail, through, secret, lens, widths);
                 run = 0;
             }
-
-            // Whatever is still going carries into the next window, but where it
-            // began does not: that index is into a window nobody has any more.
-            placed = false;
         },
     );
 
@@ -285,6 +278,98 @@ pub(crate) fn close(run: usize, widths: &mut [u64]) {
     }
 
     widths[run.min(MOST - 1)] += 1;
+}
+
+/// A run over: read back, tallied at the width it verifies to, and whether
+/// that width was the whole secret.
+pub(crate) fn settle(
+    run: usize,
+    tail: &[u8],
+    through: usize,
+    secret: &[u8],
+    lens: &mut [u16],
+    widths: &mut [u64],
+) -> bool {
+    let real = piece(run, tail, through, secret, lens);
+
+    close(real, widths);
+
+    real == secret.len()
+}
+
+/// The widest stretch of the secret inside a run, read back out of the ring.
+///
+/// A run of one is a byte the secret has and a run of two is a pair it has,
+/// so up to two the run is a stretch of the secret by construction. Past that
+/// it is a walk through the secret's pairs, and a walk can turn where the
+/// secret does not.
+///
+/// `through` is how many bytes have gone through the ring, the run's last one
+/// included. Only the last `tail.len()` of them are still there, which is as
+/// far back as a stretch of the secret can reach: anything a wider run held
+/// before that is not read.
+///
+/// One byte repeated is answered without the scan. It is the common shape of
+/// a wide run — a page of one value, a vector register broadcast — and the
+/// answer is how many of that byte the secret has in a row.
+pub(crate) fn piece(
+    run: usize,
+    tail: &[u8],
+    through: usize,
+    secret: &[u8],
+    lens: &mut [u16],
+) -> usize {
+    if run <= 2 {
+        return run;
+    }
+
+    let width = run.min(tail.len());
+    let byte = |k: usize| tail[(through - width + k) % tail.len()];
+    let first = byte(0);
+
+    if (1..width).all(|k| byte(k) == first) {
+        return stretch(secret, first).min(width);
+    }
+
+    // `lens[j]` is how far a stretch of the secret ending at `j` matches the
+    // run ending at the byte just read. Walked from the top so that each
+    // entry is read before it is written over.
+    lens.fill(0);
+
+    let mut widest = 0;
+
+    for k in 0..width {
+        let byte = byte(k);
+
+        for j in (0..secret.len()).rev() {
+            lens[j] = if secret[j] == byte {
+                if j == 0 { 1 } else { lens[j - 1] + 1 }
+            } else {
+                0
+            };
+
+            widest = widest.max(usize::from(lens[j]));
+        }
+
+        if widest == secret.len() {
+            break;
+        }
+    }
+
+    widest
+}
+
+/// How many of that byte the secret has in a row, at most.
+pub(crate) fn stretch(secret: &[u8], byte: u8) -> usize {
+    let mut longest = 0;
+    let mut now = 0;
+
+    for &each in secret {
+        now = if each == byte { now + 1 } else { 0 };
+        longest = longest.max(now);
+    }
+
+    longest
 }
 
 /// What one step of a run is worth, in bits, to ten binary places.

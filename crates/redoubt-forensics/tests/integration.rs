@@ -49,6 +49,14 @@ const BETA: [u8; 32] = [
     0x21, 0xB8, 0x05, 0x5E, 0xEC, 0x4A, 0x30, 0x8F, 0x12, 0xD5, 0x69, 0xA7, 0x3B, 0xF4, 0x0E, 0x57,
 ];
 
+/// The first secret with one byte doubled, so that its table has one pair a
+/// byte can walk without end. A page of that byte walks it a page wide, and
+/// the secret has two of it.
+const DOUBLED: [u8; 32] = [
+    0x9E, 0x41, 0x17, 0xC3, 0x5A, 0xF0, 0x2B, 0x88, 0x6D, 0xB4, 0x0A, 0xE7, 0x39, 0x52, 0xCE, 0x71,
+    0x71, 0x1D, 0xA6, 0x3F, 0xD8, 0x60, 0x95, 0x2E, 0xBB, 0x07, 0x4C, 0xE1, 0x76, 0xAF, 0x13, 0xCA,
+];
+
 /// A value this file never copies into memory anything can write to. Every
 /// absence asserted here is asserted about this one.
 const ABSENT: [u8; 32] = [
@@ -425,6 +433,28 @@ fn test_a_piece_kept_is_as_wide_as_the_piece() -> Result<(), Reason> {
     assert!(!report.found, "a piece is not the whole of it: {report}");
 
     drop(core::hint::black_box(kept));
+
+    Ok(())
+}
+
+/// A page of one byte is not a run a page wide, however far the secret's
+/// pairs let it walk: the secret has two of that byte in a row, and two is
+/// what the page is worth.
+///
+/// This is what a vector register broadcast leaves on the stack — sixteen
+/// copies of one byte — and it was read as a run of sixteen whenever the byte
+/// happened to be one the secret doubles.
+#[test]
+fn test_a_page_of_a_byte_the_secret_doubles_is_a_run_of_two() -> Result<(), Reason> {
+    alone!();
+
+    let page = core::hint::black_box(vec![DOUBLED[15]; 4096]);
+    let report = photograph(&mut watching(&DOUBLED)?)?;
+
+    assert!(report.widest <= QUIET, "{report}");
+    assert!(!report.found, "{report}");
+
+    drop(core::hint::black_box(page));
 
     Ok(())
 }

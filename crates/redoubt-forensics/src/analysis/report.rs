@@ -37,7 +37,7 @@ pub struct Report {
     pub score: u64,
     /// How many bytes were read to arrive at it.
     pub swept: u64,
-    /// The longest run there was.
+    /// The widest stretch of the secret there was.
     pub widest: u64,
     /// How many runs were closed at all, noise included.
     pub runs: u64,

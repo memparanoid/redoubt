@@ -96,6 +96,14 @@ const NEXT: usize = 256 * 32;
 const SEEN: usize = 32;
 /// One counter per width a run can have.
 const WIDTHS: usize = MOST * 8;
+/// The last bytes swept, kept so that a run can be read back when it closes.
+///
+/// As long as the longest needle: a stretch of the secret is never wider than
+/// the secret, so a run wider than this holds nothing past its last `MOST`
+/// bytes that could be one.
+const TAIL: usize = MOST;
+/// One `u16` per byte of the needle, scratch for verifying a run against it.
+const LENS: usize = MOST * 2;
 /// What comes back through the pipe.
 const RESULT: usize = 64;
 
@@ -108,7 +116,9 @@ const AT_SECRET: usize = AT_REPORT + REPORT;
 const AT_NEXT: usize = AT_SECRET + MOST;
 const AT_SEEN: usize = AT_NEXT + NEXT;
 const AT_WIDTHS: usize = AT_SEEN + SEEN;
-const AT_RESULT: usize = AT_WIDTHS + WIDTHS;
+const AT_TAIL: usize = AT_WIDTHS + WIDTHS;
+const AT_LENS: usize = AT_TAIL + TAIL;
+const AT_RESULT: usize = AT_LENS + LENS;
 const AT_EXCL: usize = AT_RESULT + RESULT;
 const AT_MAPS: usize = AT_EXCL + EXCL;
 const AT_STACK: usize = AT_MAPS + MAPS;
@@ -178,6 +188,12 @@ pub(crate) struct Parts<'a> {
     pub(crate) seen: &'a mut [u8],
     /// How many runs were closed at each width.
     pub(crate) widths: &'a mut [u64],
+    /// The last `MOST` bytes swept, as a ring. A run is read back out of it
+    /// when it closes, wherever it began and whichever window that was in.
+    pub(crate) tail: &'a mut [u8],
+    /// Scratch for verifying a run against the needle, one counter per byte
+    /// of it.
+    pub(crate) lens: &'a mut [u16],
     /// What goes back through the pipe.
     pub(crate) result: &'a mut [u64],
     /// The instrument's own blocks, found by their phrase, to be skipped.
@@ -308,6 +324,8 @@ impl ForensicState {
                 next: slice::from_raw_parts_mut(base.add(AT_NEXT), NEXT),
                 seen: slice::from_raw_parts_mut(base.add(AT_SEEN), SEEN),
                 widths: slice::from_raw_parts_mut(base.add(AT_WIDTHS).cast(), MOST),
+                tail: slice::from_raw_parts_mut(base.add(AT_TAIL), TAIL),
+                lens: slice::from_raw_parts_mut(base.add(AT_LENS).cast(), MOST),
                 result: slice::from_raw_parts_mut(base.add(AT_RESULT).cast(), SHIPPED),
                 skips: Spans {
                     at: slice::from_raw_parts_mut(base.add(AT_EXCL).cast(), 1 + SKIPS * 2),
