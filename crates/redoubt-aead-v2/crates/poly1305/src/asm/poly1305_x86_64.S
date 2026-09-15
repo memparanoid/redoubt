@@ -775,6 +775,14 @@ FUNC(redoubt_poly1305_dirty_registers):
 HIDDEN_FUNC(redoubt_poly1305_dirty_frame)
 FUNC(redoubt_poly1305_dirty_frame):
     sub rsp, FRAME
+    // Isolate this byte from every previous call's residue. Keep rdi, the
+    // requested offset, intact until the whole frame is empty.
+    xor ecx, ecx
+Ldirty_clear:
+    mov qword ptr [rsp + rcx], 0
+    add rcx, 8
+    cmp rcx, FRAME
+    jb Ldirty_clear
     mov byte ptr [rsp + rdi], 0x5c
     add rsp, FRAME
     ret
@@ -799,4 +807,3 @@ Lclean_write:
     POLY1305_EMPTY_FRAME
     POLY1305_ZEROIZE_ALL
     ret
-
