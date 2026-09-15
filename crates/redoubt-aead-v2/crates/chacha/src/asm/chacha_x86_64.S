@@ -63,22 +63,66 @@
 #endif
 
 // ============================================================================
-// Catastrophic Register Zeroization Macro (caller-saved only)
+// The register budget
 // ============================================================================
 //
-// No callee-saved or SIMD register is used. The flags are overwritten by the
-// final xor too. No register leaves carrying a result: outputs are pointers.
+// SysV AMD64 ABI:
+//   - Caller-saved GPR: rax, rcx, rdx, rsi, rdi, r8-r11
+//   - Callee-saved GPR: rbx, rbp, r12-r15  (DO NOT TOUCH)
 //
+// Every register these routines put anything in is named once, below, and
+// every operation over the set goes through that one list. Emptying them and
+// asking whether they are empty are the same nine registers by construction,
+// not by two lists that happen to agree today.
+//
+// Does NOT include: rsp, rbx, rbp, r12-r15. Nothing here puts anything in
+// them, so there is nothing of ours to clear — and no prologue saving them,
+// which means no copy of the caller's values in memory for an epilogue to take
+// back out. A routine that spilled into one of these would have to save it
+// first, and that save is what writes the caller's register to the stack.
+//
+// Does NOT include the SIMD registers either. Nothing here writes one, so
+// clearing them would be clearing registers this code never put anything in.
+//
+// The flags are overwritten by the final xor too. No register leaves carrying
+// a result: outputs are pointers.
+//
+.macro CHACHA_EACH op
+    \op rax
+    \op rcx
+    \op rdx
+    \op rsi
+    \op rdi
+    \op r8
+    \op r9
+    \op r10
+    \op r11
+.endm
+
+.macro CHACHA_CLEAR reg
+    xor \reg, \reg
+.endm
+
+// Copies what rax already holds into each of them, rax included and harmless.
+// Only the probe below uses it, and it is here rather than there so that the
+// budget has one list and every operation over it sits beside that list.
+.macro CHACHA_FILL reg
+    mov \reg, rax
+.endm
+
+// Gathers into rcx, which is in the budget and therefore contributes its own
+// value on its own line. What the gather leaves in rcx is the bits of anything
+// that was not empty. The probe below is its only caller, and it is here for
+// the same reason FILL is.
+.macro CHACHA_GATHER reg
+    or rcx, \reg
+.endm
+
+// ============================================================================
+// Catastrophic Register Zeroization Macro (caller-saved only)
+// ============================================================================
 .macro CHACHA_ZEROIZE_ALL
-    xor rax, rax
-    xor rcx, rcx
-    xor rdx, rdx
-    xor rsi, rsi
-    xor rdi, rdi
-    xor r8,  r8
-    xor r9,  r9
-    xor r10, r10
-    xor r11, r11
+    CHACHA_EACH CHACHA_CLEAR
 .endm
 
 // ============================================================================
@@ -171,19 +215,6 @@ Lrounds\@:
     mov [rsp + WORK + 56], rax
 .endm
 
-// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
-// ║
-// ║ SECURITY WARNING: everything below allocates the frame above, and every
-// ║ secret this file touches passes through it. INITIAL holds the key spread
-// ║ into words, and for XChaCha20 the subkey derived from it; WORK holds the
-// ║ state through the rounds and then one keystream block.
-// ║
-// ║ Frame is written before it is read, and zeroized in full before rsp is
-// ║ advanced. Every routine below leaves through the one wipe at the end of
-// ║ the region, including the ones that jump into the shared loop.
-// ║
-// ║═══════════════════════════════════════════════════════════════════════
-
 // ============================================================================
 // Twenty rounds — rdi: state in/out, sixteen u32 words
 // ============================================================================
@@ -192,6 +223,16 @@ Lrounds\@:
 .globl FUNC(redoubt_chacha_rounds)
 HIDDEN_FUNC(redoubt_chacha_rounds)
 FUNC(redoubt_chacha_rounds):
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: WORK holds the caller's state through the rounds. It is
+// ║ the caller's own words, and it is here because four of them at a time are
+// ║ all the budget has room for.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before rsp is
+// ║ advanced.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
     sub rsp, FRAME
     mov [rsp + OUTPUT], rdi
     .irp offset,0,8,16,24,32,40,48,56
@@ -206,7 +247,12 @@ FUNC(redoubt_chacha_rounds):
         mov rax, [rsp + WORK + \offset]
         mov [rdi + \offset], rax
     .endr
-    jmp Lempty_frame
+
+    CHACHA_EMPTY_FRAME
+// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
+
+    CHACHA_ZEROIZE_ALL
+    ret
 
 // ============================================================================
 // HChaCha20 — rdi: out, rsi: key, rdx: sixteen-byte nonce
@@ -216,6 +262,16 @@ FUNC(redoubt_chacha_rounds):
 .globl FUNC(redoubt_hchacha_subkey)
 HIDDEN_FUNC(redoubt_hchacha_subkey)
 FUNC(redoubt_hchacha_subkey):
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: WORK holds the key spread into words, the state through
+// ║ the rounds, and then the subkey itself. All of it is the long-term key or
+// ║ something derived from it in one step.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before rsp is
+// ║ advanced.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
     sub rsp, FRAME
     mov [rsp + OUTPUT], rdi
     CHACHA_HSTATE rsi,rdx
@@ -230,7 +286,12 @@ FUNC(redoubt_hchacha_subkey):
     mov [rdi + 16], rax
     mov rax, [rsp + WORK + 56]
     mov [rdi + 24], rax
-    jmp Lempty_frame
+
+    CHACHA_EMPTY_FRAME
+// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
+
+    CHACHA_ZEROIZE_ALL
+    ret
 
 // ============================================================================
 // ChaCha20 — rdi: key, rsi: nonce, rdx: counter, rcx: data,
@@ -243,8 +304,25 @@ FUNC(redoubt_hchacha_subkey):
 .globl FUNC(redoubt_chacha_xor)
 HIDDEN_FUNC(redoubt_chacha_xor)
 FUNC(redoubt_chacha_xor):
+    // Nothing to encipher is answered here and not in the loop: no frame is
+    // taken, so there is none to wipe, and the registers are the whole of what
+    // this call touched.
     test r8, r8
-    jz Lreturn
+    jnz Lchacha_xor_body
+    CHACHA_ZEROIZE_ALL
+    ret
+
+Lchacha_xor_body:
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: INITIAL holds the key spread into words and the counter
+// ║ it is streamed from; WORK, in the shared loop below, holds the state
+// ║ through the rounds and then one keystream block.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before rsp is
+// ║ advanced. This routine leaves through the loop's wipe, and only through it.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
     sub rsp, FRAME
     mov [rsp + OUTPUT], rcx
     mov [rsp + LENGTH], r8
@@ -280,8 +358,25 @@ Lbernstein_nonce:
 .globl FUNC(redoubt_xchacha_xor)
 HIDDEN_FUNC(redoubt_xchacha_xor)
 FUNC(redoubt_xchacha_xor):
+    // As above: nothing to encipher takes no frame, so the register wipe is
+    // the whole of the cleanup.
     test r8, r8
-    jz Lreturn
+    jnz Lxchacha_xor_body
+    CHACHA_ZEROIZE_ALL
+    ret
+
+Lxchacha_xor_body:
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: WORK holds the key and the HChaCha state it is put
+// ║ through, and INITIAL then holds the subkey that comes out of it — which is
+// ║ what the whole message is enciphered with. The subkey never leaves the
+// ║ frame: there is no intermediate output and no call back into Rust.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before rsp is
+// ║ advanced. This routine leaves through the loop's wipe, and only through it.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
     sub rsp, FRAME
     mov [rsp + OUTPUT], rcx
     mov [rsp + LENGTH], r8
@@ -363,12 +458,135 @@ Lbernstein_step:
     adc dword ptr [rsp + INITIAL + 52], 0
     jmp Lblock
 
-// Every allocated frame leaves through this wipe, before rsp is advanced.
+// The loop's one exit, and the end of both spill regions that reach it.
 Lempty_frame:
     CHACHA_EMPTY_FRAME
 // ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
 
-Lreturn:
+    CHACHA_ZEROIZE_ALL
+    ret
+
+// ============================================================================
+// THE ZEROIZATION PROBE — everything below measures the routines above
+// ============================================================================
+//
+// Nothing in production calls any of it. It is here and not in a file of its
+// own because a reader asking whether the measurement is right should not have
+// to find a second file and check that a number in it still matches a number
+// in this one: FRAME below is the frame, and the register budget it asks about
+// is the list the wipe uses, not a copy of either.
+//
+// What it costs is a few hundred bytes of instructions that ship unused. What
+// it buys is that the only `160` in the measurement, and the only list of
+// registers, are the ones at the top of this file.
+//
+// What asks comes first, then what is asked about:
+//
+//   registers_are_zeroized   asks the machine, with the budget's own list
+//   frame_is_zeroized        asks the stack, with the file's own FRAME
+//   dirty_registers          fills the budget and leaves it that way
+//   dirty_frame              one byte of the frame, at an offset given
+//   clean_frame              the frame written and emptied, with no rounds
+
+// uint64_t redoubt_chacha_registers_are_zeroized(void)
+//
+// Whether any register in the budget is still holding something. Zero when
+// they are all empty, and the bits of whatever was not otherwise.
+//
+// Takes no argument on purpose. A destination passed in would cost rdi, and
+// rdi is one of the registers being asked about — it would arrive holding our
+// own pointer rather than the caller's value. With nothing passed, `call` is
+// the whole call sequence and every register read here is the caller's own.
+.p2align 4
+.globl FUNC(redoubt_chacha_registers_are_zeroized)
+HIDDEN_FUNC(redoubt_chacha_registers_are_zeroized)
+FUNC(redoubt_chacha_registers_are_zeroized):
+    // rcx gathers and rax is written last: rax's own value went in on the
+    // first line, before anything here overwrote it, which is what lets it
+    // carry the answer out.
+    CHACHA_EACH CHACHA_GATHER
+    mov rax, rcx
+    ret
+
+// uint64_t redoubt_chacha_frame_is_zeroized(void)
+//
+// Whether any byte of the frame the call before it used is still holding
+// something. Zero when it is all empty, and the bits of whatever was not.
+//
+// Reads below its own rsp, and that is the whole of it: `call` leaves rsp
+// where the routine before had it, so what sits under this one's return
+// address is what sat under that one's — the frame it took and gave back.
+//
+// Asked after the registers, never before: reading a hundred and sixty bytes
+// takes registers, and the answer about those has to be taken first.
+.p2align 4
+.globl FUNC(redoubt_chacha_frame_is_zeroized)
+HIDDEN_FUNC(redoubt_chacha_frame_is_zeroized)
+FUNC(redoubt_chacha_frame_is_zeroized):
+    // The index counts up from minus the frame to zero. x86 addresses with a
+    // base plus an index, never a base minus one, so what reaches below rsp is
+    // an index holding a negative number rather than a subtraction.
+    xor eax, eax
+    mov rcx, -FRAME
+Lframe_scan:
+    or rax, [rsp + rcx]
+    add rcx, 8
+    jnz Lframe_scan
+    ret
+
+// Every register in the budget filled, and left that way.
+//
+// What answers whether anything runs between one call and the next: called
+// straight before the verifier, every register it filled has to still be full.
+.p2align 4
+.globl FUNC(redoubt_chacha_dirty_registers)
+HIDDEN_FUNC(redoubt_chacha_dirty_registers)
+FUNC(redoubt_chacha_dirty_registers):
+    mov rax, 0xa5a5a5a5a5a5a5a5
+    CHACHA_EACH CHACHA_FILL
+    ret
+
+// One byte of the frame, dirtied and left. rdi says which.
+//
+// Swept over every offset, this is what establishes that the verifier above
+// reads the whole frame and not the first word of it — and that the byte it
+// reaches is the byte that was written, which is where an off-by-one against
+// the return address sitting next door would show.
+.p2align 4
+.globl FUNC(redoubt_chacha_dirty_frame)
+HIDDEN_FUNC(redoubt_chacha_dirty_frame)
+FUNC(redoubt_chacha_dirty_frame):
+    sub rsp, FRAME
+    // Isolate this byte from every previous call's residue. Keep rdi, the
+    // requested offset, intact until the whole frame is empty.
+    xor ecx, ecx
+Ldirty_clear:
+    mov qword ptr [rsp + rcx], 0
+    add rcx, 8
+    cmp rcx, FRAME
+    jb Ldirty_clear
+    mov byte ptr [rsp + rdi], 0x5c
+    add rsp, FRAME
+    ret
+
+// The whole frame written and then emptied: what a routine above does, without
+// the rounds in between.
+//
+// The positive control. Without it, "the frame came back zero" is only ever
+// asserted about routines whose correctness is what is in question.
+.p2align 4
+.globl FUNC(redoubt_chacha_clean_frame)
+HIDDEN_FUNC(redoubt_chacha_clean_frame)
+FUNC(redoubt_chacha_clean_frame):
+    sub rsp, FRAME
+    mov rax, 0x5c5c5c5c5c5c5c5c
+    xor ecx, ecx
+Lclean_write:
+    mov [rsp + rcx], rax
+    add rcx, 8
+    cmp rcx, FRAME
+    jb Lclean_write
+    CHACHA_EMPTY_FRAME
     CHACHA_ZEROIZE_ALL
     ret
 

@@ -62,32 +62,62 @@
 #endif
 
 // ============================================================================
-// Catastrophic Register Zeroization Macro (caller-saved only)
+// The register budget
 // ============================================================================
 //
-// State words occupy w2-w17; w1 also carries plaintext during the xor.
-// x18, x19-x30 and the SIMD registers are never touched. Clearing x0-x17
-// also removes the public pointers and clears the high halves of every word.
+// AAPCS:
+//   - Caller-saved GPR: x0-x17
+//   - Platform register: x18            (DO NOT TOUCH)
+//   - Callee-saved GPR: x19-x28, x29 (FP), x30 (LR)  (DO NOT TOUCH)
 //
+// Every register these routines put anything in is named once, below, and
+// every operation over the set goes through that one list. Emptying them and
+// asking whether they are empty are the same eighteen registers by
+// construction, not by two lists that happen to agree today.
+//
+// The list is x0-x17: state words occupy w2-w17, w1 also carries plaintext
+// during the xor, and the pointers the caller handed over sit in the rest.
+// Those are the caller's own and it still has them, so clearing them costs
+// nothing; leaving them is a pointer into the caller's key sitting in a
+// register after the routine that needed it has returned. Clearing the whole
+// x register also takes the high half of every word.
+//
+// Does NOT include: x18 is the platform register, and x19 upward are the
+// caller's, restored by an epilogue where there is one.
+//
+// Does NOT include the SIMD registers either. Nothing here writes one, so
+// clearing them would be clearing registers this code never put anything in.
+//
+.macro CHACHA_EACH op
+    .irp reg,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17
+        \op x\reg
+    .endr
+.endm
+
+.macro CHACHA_CLEAR reg
+    mov \reg, xzr
+.endm
+
+// Copies what x0 already holds into each of them, x0 included and harmless.
+// Only the probe below uses it, and it is here rather than there so that the
+// budget has one list and every operation over it sits beside that list.
+.macro CHACHA_FILL reg
+    mov \reg, x0
+.endm
+
+// Gathers into x1, which is in the list and therefore contributes its own
+// value on its own line. What the gather leaves in x1 is the bits of anything
+// that was not empty. The probe below is its only caller, and it is here for
+// the same reason FILL is.
+.macro CHACHA_GATHER reg
+    orr x1, x1, \reg
+.endm
+
+// ============================================================================
+// Catastrophic Register Zeroization Macro (caller-saved only)
+// ============================================================================
 .macro CHACHA_ZEROIZE_ALL
-    mov x0,  xzr
-    mov x1,  xzr
-    mov x2,  xzr
-    mov x3,  xzr
-    mov x4,  xzr
-    mov x5,  xzr
-    mov x6,  xzr
-    mov x7,  xzr
-    mov x8,  xzr
-    mov x9,  xzr
-    mov x10, xzr
-    mov x11, xzr
-    mov x12, xzr
-    mov x13, xzr
-    mov x14, xzr
-    mov x15, xzr
-    mov x16, xzr
-    mov x17, xzr
+    CHACHA_EACH CHACHA_CLEAR
     cmp xzr, xzr
 .endm
 
@@ -200,7 +230,11 @@ FUNC(redoubt_chacha_rounds):
     stp w12, w13, [x0, #40]
     stp w14, w15, [x0, #48]
     stp w16, w17, [x0, #56]
-    b Lreturn
+
+    // No frame here and so no wipe of one: sixteen words fit in w2-w17, and
+    // what is left of them is what the register wipe takes.
+    CHACHA_ZEROIZE_ALL
+    ret
 
 // ============================================================================
 // HChaCha20 — x0: out, x1: key, x2: sixteen-byte nonce; no frame
@@ -216,20 +250,11 @@ FUNC(redoubt_hchacha_subkey):
     stp w4, w5, [x0, #8]
     stp w14, w15, [x0, #16]
     stp w16, w17, [x0, #24]
-    b Lreturn
 
-// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
-// ║
-// ║ SECURITY WARNING: the two routines above this line allocate nothing —
-// ║ their state never leaves w2-w17. The two below hold the key spread into
-// ║ words at offset 16, and for XChaCha20 the subkey derived from it in the
-// ║ same place, for as long as the message takes.
-// ║
-// ║ Frame is written before it is read, and zeroized in full before sp is
-// ║ advanced. Both routines leave through the one wipe at the end of the
-// ║ region, the early exit out of a partial block included.
-// ║
-// ║═══════════════════════════════════════════════════════════════════════
+    // The key and the subkey it derives never leave w2-w17, so there is no
+    // frame here either and the register wipe is the whole of the cleanup.
+    CHACHA_ZEROIZE_ALL
+    ret
 
 // ============================================================================
 // ChaCha20 — x0: key, x1: nonce, x2: counter, x3: data,
@@ -242,7 +267,25 @@ FUNC(redoubt_hchacha_subkey):
 .globl FUNC(redoubt_chacha_xor)
 HIDDEN_FUNC(redoubt_chacha_xor)
 FUNC(redoubt_chacha_xor):
-    cbz x4, Lreturn
+    // Nothing to encipher is answered here and not in the loop: no frame is
+    // taken, so there is none to wipe, and the registers are the whole of what
+    // this call touched.
+    cbnz x4, Lchacha_xor_body
+    CHACHA_ZEROIZE_ALL
+    ret
+
+Lchacha_xor_body:
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: the frame holds the key spread into words at offset 16
+// ║ and the counter it is streamed from, for as long as the message takes. The
+// ║ working state never reaches it — it lives in w2-w17 throughout.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before sp is
+// ║ advanced. This routine leaves through the loop's wipe, and only through
+// ║ it, the early exit out of a partial block included.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
     sub sp, sp, #FRAME
     str x4, [sp, #LENGTH]
     str x5, [sp, #MODE]
@@ -278,7 +321,24 @@ Lkey:
 .globl FUNC(redoubt_xchacha_xor)
 HIDDEN_FUNC(redoubt_xchacha_xor)
 FUNC(redoubt_xchacha_xor):
-    cbz x4, Lreturn
+    // As above: nothing to encipher takes no frame, so the register wipe is
+    // the whole of the cleanup.
+    cbnz x4, Lxchacha_xor_body
+    CHACHA_ZEROIZE_ALL
+    ret
+
+Lxchacha_xor_body:
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: the frame holds the subkey the whole message is
+// ║ enciphered with, written at offset 16 where the stream's key belongs. It
+// ║ never leaves: there is no intermediate output and no call back into Rust.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before sp is
+// ║ advanced. This routine leaves through the loop's wipe, and only through
+// ║ it, the early exit out of a partial block included.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
     sub sp, sp, #FRAME
     str w2, [sp, #48]
     str wzr, [sp, #52]
@@ -398,12 +458,146 @@ Lbernstein_step:
     str x1, [sp, #48]
     b Lblock
 
-// Every stream exit wipes the entire frame before releasing it.
+// The loop's one exit, and the end of both spill regions that reach it.
 Lempty_frame:
     CHACHA_EMPTY_FRAME
 // ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
 
-Lreturn:
+    CHACHA_ZEROIZE_ALL
+    ret
+
+// ============================================================================
+// THE ZEROIZATION PROBE — everything below measures the routines above
+// ============================================================================
+//
+// Nothing in production calls any of it. It is here and not in a file of its
+// own because a reader asking whether the measurement is right should not have
+// to find a second file and check that a number in it still matches a number
+// in this one: FRAME below is the frame, and the register budget it asks about
+// is the list the wipe uses, not a copy of either.
+//
+// What it costs is a few hundred bytes of instructions that ship unused. What
+// it buys is that the only `96` in the measurement, and the only list of
+// registers, are the ones at the top of this file.
+//
+// What asks comes first, then what is asked about:
+//
+//   registers_are_zeroized   asks the machine, with the budget's own list
+//   frame_is_zeroized        asks the stack, with the file's own FRAME
+//   dirty_registers          fills the budget and leaves it that way
+//   dirty_frame              one byte of the frame, at an offset given
+//   clean_frame              the frame written and emptied, with no rounds
+
+// uint64_t redoubt_chacha_registers_are_zeroized(void)
+//
+// Whether any register in the budget is still holding something. Zero when
+// they are all empty, and the bits of whatever was not otherwise.
+//
+// Takes no argument on purpose. A destination passed in would cost x0, and x0
+// is one of the registers being asked about — it would arrive holding our own
+// pointer rather than the caller's value. With nothing passed, `bl` is the
+// whole call sequence and every register read here is the caller's own.
+//
+// x30 is not in the budget and this is the routine that shows why: `bl` writes
+// it on the way here, so asking about it would be asking about the call that
+// did the asking.
+.p2align 4
+.globl FUNC(redoubt_chacha_registers_are_zeroized)
+HIDDEN_FUNC(redoubt_chacha_registers_are_zeroized)
+FUNC(redoubt_chacha_registers_are_zeroized):
+    CHACHA_EACH CHACHA_GATHER
+    mov x0, x1
+    ret
+
+// uint64_t redoubt_chacha_frame_is_zeroized(void)
+//
+// Whether any byte of the frame the call before it used is still holding
+// something. Zero when it is all empty, and the bits of whatever was not.
+//
+// Reads below its own sp, and that is the whole of it: `bl` puts the return
+// address in x30 and leaves sp where the routine before had it, so what sits
+// under this one's sp is what sat under that one's — the frame it took and
+// gave back. There is no return-address slot in between, which is the one way
+// this differs from the same routine on x86-64.
+//
+// Asked after the registers, never before: reading ninety-six bytes takes
+// registers, and the answer about those has to be taken first.
+.p2align 4
+.globl FUNC(redoubt_chacha_frame_is_zeroized)
+HIDDEN_FUNC(redoubt_chacha_frame_is_zeroized)
+FUNC(redoubt_chacha_frame_is_zeroized):
+    mov x0, xzr
+    sub x1, sp, #FRAME
+    mov x2, sp
+Lframe_scan:
+    ldr x3, [x1], #8
+    orr x0, x0, x3
+    cmp x1, x2
+    b.ne Lframe_scan
+    ret
+
+// Every register in the budget filled, and left that way.
+//
+// What answers whether anything runs between one call and the next: called
+// straight before the verifier, every register it filled has to still be full.
+.p2align 4
+.globl FUNC(redoubt_chacha_dirty_registers)
+HIDDEN_FUNC(redoubt_chacha_dirty_registers)
+FUNC(redoubt_chacha_dirty_registers):
+    // The pattern does not fit in one instruction, so it is built sixteen bits
+    // at a time before anything is copied out of x0.
+    mov x0, #0xa5a5
+    movk x0, #0xa5a5, lsl #16
+    movk x0, #0xa5a5, lsl #32
+    movk x0, #0xa5a5, lsl #48
+    CHACHA_EACH CHACHA_FILL
+    ret
+
+// One byte of the frame, dirtied and left. x0 says which.
+//
+// Swept over every offset, this is what establishes that the verifier above
+// reads the whole frame and not the first word of it — and that the byte it
+// reaches is the byte that was written, which is where an off-by-one against
+// whatever sits next door would show.
+.p2align 4
+.globl FUNC(redoubt_chacha_dirty_frame)
+HIDDEN_FUNC(redoubt_chacha_dirty_frame)
+FUNC(redoubt_chacha_dirty_frame):
+    sub sp, sp, #FRAME
+    // Isolate this byte from every previous call's residue. Keep x0, the
+    // requested offset, intact until the whole frame is empty.
+    mov x1, sp
+    add x2, sp, #FRAME
+Ldirty_clear:
+    str xzr, [x1], #8
+    cmp x1, x2
+    b.ne Ldirty_clear
+    mov w1, #0x5c
+    strb w1, [sp, x0]
+    add sp, sp, #FRAME
+    ret
+
+// The whole frame written and then emptied: what a routine above does, without
+// the rounds in between.
+//
+// The positive control. Without it, "the frame came back zero" is only ever
+// asserted about routines whose correctness is what is in question.
+.p2align 4
+.globl FUNC(redoubt_chacha_clean_frame)
+HIDDEN_FUNC(redoubt_chacha_clean_frame)
+FUNC(redoubt_chacha_clean_frame):
+    sub sp, sp, #FRAME
+    mov x0, #0x5c5c
+    movk x0, #0x5c5c, lsl #16
+    movk x0, #0x5c5c, lsl #32
+    movk x0, #0x5c5c, lsl #48
+    mov x1, sp
+    add x2, sp, #FRAME
+Lclean_write:
+    str x0, [x1], #8
+    cmp x1, x2
+    b.ne Lclean_write
+    CHACHA_EMPTY_FRAME
     CHACHA_ZEROIZE_ALL
     ret
 
