@@ -340,6 +340,19 @@ Ldone\@:
     add \word, \word, w1
 .endm
 
+// Not a function and not called: the two routines above reach here and become
+// it, one by branching and one by running out of instructions before it. There
+// is no way back to either.
+//
+// ENTERED WITH: the first sixteen words of the frame holding the state, OUTPUT
+//   the next byte to write, LENGTH what is left of the message, and MODE the
+//   nonce length. Whoever branches here has filled all four.
+//
+// LEFT BY: `b Lempty_frame`, from the `cbz` below or from the tail of
+//   CHACHA_XOR_WORD, and nothing else. The other two branches come back to the
+//   top. A branch out of here that skipped those would skip the frame wipe and
+//   the register wipe with it, and the assembler would not say a word about it.
+//
 Lblock:
     ldp w2, w3, [sp]
     ldp w4, w5, [sp, #8]

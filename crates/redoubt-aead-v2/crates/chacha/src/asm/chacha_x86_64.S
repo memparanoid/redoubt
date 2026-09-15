@@ -312,7 +312,20 @@ FUNC(redoubt_xchacha_xor):
 // ============================================================================
 // Shared stream loop — branches depend only on public lengths and counters
 // ============================================================================
-
+//
+// Not a function and not called: the two routines above reach here and become
+// it, one by jumping and one by running out of instructions before it. There
+// is no way back to either.
+//
+// ENTERED WITH: INITIAL holding the sixteen state words, OUTPUT the next byte
+//   to write, LENGTH what is left of the message, and MODE the nonce length.
+//   Whoever jumps here has filled all four.
+//
+// LEFT BY: `jz Lempty_frame` below, and nothing else. The other two jumps come
+//   back to the top. A branch out of here that skipped that one would skip the
+//   frame wipe and the register wipe with it, and the assembler would not say
+//   a word about it.
+//
 Lblock:
     .irp offset,0,8,16,24,32,40,48,56
         mov rax, [rsp + INITIAL + \offset]
