@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! The two verifiers the probe is built on, each swept over the whole of what
-//! it claims to look at: every register in the budget one at a time, every
-//! byte of the frame one at a time, and a positive for each.
+//! The two verifiers, each swept over the whole of what it claims to look at:
+//! every register in the budget one at a time, every byte of the frame one at
+//! a time, and a positive for each.
 //!
-//! What the routines leave behind is asked in `probe.rs`, using these. Here
-//! they are the thing under test, so nothing below calls a routine.
+//! Every test in the parent reads a verdict one of these gives, so here they
+//! are the thing under test and nothing below calls a routine.
 
-unsafe extern "C" {
-    fn redoubt_poly1305_registers_are_zeroized() -> u64;
-    fn redoubt_poly1305_frame_is_zeroized() -> u64;
-    fn redoubt_poly1305_dirty_frame(at: usize);
-    fn redoubt_poly1305_clean_frame();
-}
+use super::{
+    redoubt_poly1305_clean_frame, redoubt_poly1305_dirty_frame,
+    redoubt_poly1305_frame_is_zeroized, redoubt_poly1305_registers_are_zeroized,
+};
 
 const POISON: u64 = 0xa5a5_a5a5_a5a5_a5a5;
 

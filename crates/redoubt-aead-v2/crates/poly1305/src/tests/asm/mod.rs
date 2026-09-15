@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! What each routine leaves behind, asked of the two verifiers in `asm.rs`.
+//! What each routine leaves behind, asked of the two verifiers in `probes`.
 //!
 //! Those two are swept there — every register one at a time, every byte of the
 //! frame one at a time — so here they are used and not measured. What is
@@ -22,12 +22,16 @@
 //! These are not claims about kernel signal frames, swap, dumps, or the input
 //! and output the caller owns.
 
+mod probes;
+
 use std::vec::Vec;
 
 use redoubt_aead_v2_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 
 use crate::consts::LIMBS;
 
+// The assembly, in the order the file declares it: the three entry points the
+// backend calls, then the probe, which nothing in production calls.
 unsafe extern "C" {
     fn redoubt_poly1305_init(r: *mut u32, s: *mut u8, key: *const u8);
     fn redoubt_poly1305_update(
@@ -52,6 +56,7 @@ unsafe extern "C" {
     fn redoubt_poly1305_frame_is_zeroized() -> u64;
     fn redoubt_poly1305_dirty_registers();
     fn redoubt_poly1305_dirty_frame(at: usize);
+    fn redoubt_poly1305_clean_frame();
 }
 
 /// The clamped key the two routines after `init` are given.
