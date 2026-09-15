@@ -942,6 +942,8 @@ dependencies = [
 name = "redoubt-aead-v2-core"
 version = "0.1.0-rc.8"
 dependencies = [
+ "cc",
+ "rstest",
  "thiserror",
 ]
 

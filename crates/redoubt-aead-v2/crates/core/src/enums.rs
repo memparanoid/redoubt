@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Which of the two implementations an operation is done with.
+//! The choices this crate spells, for itself and for everything above it.
 
 /// The Rust, or whatever the target has.
 ///
