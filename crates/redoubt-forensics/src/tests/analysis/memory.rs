@@ -72,32 +72,18 @@ fn test_photograph_reads_back_what_the_process_was_holding() -> Result<(), AnyEr
 
 /// And it is a second process, not this one dressed up.
 ///
-/// Where `ptrace` is refused there is no third process and the analyst reads
-/// itself — a real path, taken under an emulator and in a container without
-/// the capability, and the one this cannot assert from a machine that has
-/// `ptrace`. So the claim is the weaker one that holds either way: whatever
-/// came back knows which process it is of.
+/// The whole of what the third process buys is that the memory being read is
+/// not the memory doing the reading. A photograph of this process would be a
+/// reading of a thing that moves while it is read, and it would arrive as a
+/// number nobody could tell from the still one.
 #[test]
-fn test_photograph_says_which_process_it_is_of() -> Result<(), AnyError> {
+fn test_photograph_is_of_a_child_and_not_of_us() -> Result<(), AnyError> {
     let subject = Subject::photograph().ok_or(Reason::NoPhotograph)?;
-    let (pid, own) = subject.of();
 
     // SAFETY: takes no argument and cannot fail.
     let mine = unsafe { libc::getpid() };
 
-    // Said out loud, because which of the two a machine gives is not a thing
-    // anybody can tell by reading the code — it depends on whether `ptrace` is
-    // there at all — and every other reading of this crate on that machine is
-    // a reading of one mode or the other.
-    if own {
-        eprintln!("the third process is here: this machine traces.");
-
-        assert_ne!(pid, mine, "a photograph it owns is of a child, not of us");
-    } else {
-        eprintln!("no third process: the analyst reads itself.");
-
-        assert_eq!(pid, mine, "a photograph it does not own is of us");
-    }
+    assert_ne!(subject.of(), mine, "the photograph is of this process");
 
     Ok(())
 }
@@ -133,19 +119,10 @@ fn test_read_at_returns_nothing_for_an_address_that_is_not_mapped() -> Result<()
 /// that pid answers that there is no such child, because the drop already
 /// waited. A drop that killed without reaping would leave a zombie and this
 /// would find it.
-///
-/// Skipped where the photograph is this process — there is no child to reap
-/// and nothing to ask about.
 #[test]
 fn test_dropping_a_photograph_leaves_no_child_behind() -> Result<(), AnyError> {
     let subject = Subject::photograph().ok_or(Reason::NoPhotograph)?;
-    let (pid, own) = subject.of();
-
-    if !own {
-        eprintln!("skipped: no third process here, so there is none to reap.");
-
-        return Ok(());
-    }
+    let pid = subject.of();
 
     drop(subject);
 

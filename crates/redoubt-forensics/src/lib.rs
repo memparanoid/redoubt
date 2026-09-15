@@ -40,10 +40,8 @@
 //! subject's memory goes through the analyst, and the analyst does not come
 //! back. What crosses into this process is five numbers.
 //!
-//! Where nothing may trace anything — an emulator without `ptrace`, a
-//! container without the capability — there are two, and the analyst reads
-//! itself. The caller is as untouched either way; what it costs is a
-//! photograph that moves while it is read.
+//! Where nothing may trace anything — a container without the capability, a
+//! kernel locked down — there is no photograph and the analysis says so.
 //!
 //! # What it does not cover
 //!
