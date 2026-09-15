@@ -144,6 +144,15 @@ mod tests {
     use super::{columns, rounds, state, subkey, xor, xxor};
 
     // === === === === === === === === === ===
+    // rounds
+    // === === === === === === === === === ===
+
+    #[test]
+    fn test_rounds_returns_the_published_intermediate_state() {
+        assert_eq!(rounds(INITIAL), PERMUTED);
+    }
+
+    // === === === === === === === === === ===
     // columns
     // === === === === === === === === === ===
 
@@ -184,15 +193,6 @@ mod tests {
         let suffix = hex("01000000000000090000004a00000000");
 
         assert_eq!(state(&key, &suffix), INITIAL);
-    }
-
-    // === === === === === === === === === ===
-    // rounds
-    // === === === === === === === === === ===
-
-    #[test]
-    fn test_rounds_returns_the_published_intermediate_state() {
-        assert_eq!(rounds(INITIAL), PERMUTED);
     }
 
     // === === === === === === === === === ===

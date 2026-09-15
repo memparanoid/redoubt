@@ -5,6 +5,7 @@
 #[cfg(chacha_asm)]
 mod asm;
 
+mod backend;
 mod chacha20;
 mod hchacha20;
 mod support;

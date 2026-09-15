@@ -23,6 +23,29 @@ use super::support::{oracle, vectors};
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
+fn test_xor_rejects_counter_exhaustion_before_touching_data(#[case] backend: Backend) {
+    let cipher = XChaCha20::with_backend(backend);
+
+    for blocks in 1..=4u32 {
+        let mut data = std::vec![0xa5; blocks as usize * BLOCK_SIZE + 1];
+        let before = data.clone();
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            cipher.xor(
+                &[0x42; KEY_SIZE],
+                &[0x17; XNONCE_SIZE],
+                u32::MAX - blocks + 1,
+                &mut data,
+            );
+        }));
+
+        assert!(result.is_err(), "{blocks} blocks left");
+        assert_eq!(data, before);
+    }
+}
+
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
 fn test_xor_returns_the_published_ciphertext(#[case] backend: Backend) {
     let cipher = XChaCha20::with_backend(backend);
 
@@ -68,29 +91,6 @@ fn test_xor_accepts_the_last_counter(#[case] backend: Backend) {
 
             assert_eq!(data, expected, "counter {counter}, {length} bytes in");
         }
-    }
-}
-
-#[rstest]
-#[case::rust(Backend::Rust)]
-#[case::auto(Backend::Auto)]
-fn test_xor_rejects_counter_exhaustion_before_touching_data(#[case] backend: Backend) {
-    let cipher = XChaCha20::with_backend(backend);
-
-    for blocks in 1..=4u32 {
-        let mut data = std::vec![0xa5; blocks as usize * BLOCK_SIZE + 1];
-        let before = data.clone();
-        let result = catch_unwind(AssertUnwindSafe(|| {
-            cipher.xor(
-                &[0x42; KEY_SIZE],
-                &[0x17; XNONCE_SIZE],
-                u32::MAX - blocks + 1,
-                &mut data,
-            );
-        }));
-
-        assert!(result.is_err(), "{blocks} blocks left");
-        assert_eq!(data, before);
     }
 }
 
