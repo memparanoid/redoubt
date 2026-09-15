@@ -21,3 +21,8 @@ cc.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+
+# Set by the coverage run and by nothing else. Declared so that a build without
+# it is not a build with an unknown `cfg`.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

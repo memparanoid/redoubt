@@ -16,11 +16,12 @@
 //! own way of being reached.
 
 use crate::analysis::memory::{
-    Subject, analyse, hex, inside, instrument, mappings, named, next_skip, recv, region, send,
-    sweep, within,
+    Subject, analyse, elsewhere, finalize_mappings, forked_analyse, frozen_measure, hex, inside,
+    instrument, mappings, measure, named, next_skip, piped_analyse, recv, region, send,
+    stand_still, sweep, traced_stand_still, within,
 };
-use crate::analysis::state::{BLOCK, ForensicState, MAGIC, Spans};
-use crate::errors::{AnyError, Reason};
+use crate::analysis::state::{BLOCK, ForensicState, MAGIC, OK, SHIPPED, STACK, Spans};
+use crate::errors::{AnyError, DONE, Reason};
 
 /// A run with those stretches in it, filled the way a photograph fills one.
 ///
@@ -41,7 +42,7 @@ fn skipping<'a>(over: &'a mut [u64], spans: &[(u64, u64)]) -> Spans<'a> {
 }
 
 // ============================================================================
-// Subject::photograph
+// Subject::freeze
 // ============================================================================
 
 /// The photograph holds what this process held at the instant it was taken.
@@ -60,7 +61,7 @@ fn test_photograph_reads_back_what_the_process_was_holding() -> Result<(), AnyEr
     let held: [u8; 8] = [0x6C, 0x93, 0x2A, 0xE7, 0x51, 0xB8, 0x0D, 0xF4];
     let at = core::hint::black_box(&held).as_ptr() as u64;
 
-    let subject = Subject::photograph().ok_or(Reason::NoPhotograph)?;
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
 
     let mut into = [0_u8; 8];
 
@@ -78,7 +79,7 @@ fn test_photograph_reads_back_what_the_process_was_holding() -> Result<(), AnyEr
 /// number nobody could tell from the still one.
 #[test]
 fn test_photograph_is_of_a_child_and_not_of_us() -> Result<(), AnyError> {
-    let subject = Subject::photograph().ok_or(Reason::NoPhotograph)?;
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
 
     // SAFETY: takes no argument and cannot fail.
     let mine = unsafe { libc::getpid() };
@@ -86,6 +87,67 @@ fn test_photograph_is_of_a_child_and_not_of_us() -> Result<(), AnyError> {
     assert_ne!(subject.of(), mine, "the photograph is of this process");
 
     Ok(())
+}
+
+// ============================================================================
+// Subject::forked_freeze
+// ============================================================================
+
+/// Nothing where the fork did not happen.
+///
+/// The one branch of this that is not about a process, because there is no
+/// process: `fork` answers `-1` when the system is out of what a process is
+/// made of. What must not follow is a wait on a pid that is not one.
+#[test]
+fn test_forked_freeze_returns_nothing_where_there_was_no_fork() {
+    assert!(Subject::forked_freeze(-1).is_none());
+}
+
+// ============================================================================
+// Subject::forked_freeze_with
+// ============================================================================
+
+/// Nothing for a pid this process has no child by.
+///
+/// `waitpid` answers `ECHILD` there, and what must not happen is that the
+/// refusal is read as a stop and the open below asked about somebody else's
+/// process.
+#[test]
+fn test_forked_freeze_with_returns_nothing_for_a_pid_that_is_not_our_child() {
+    // SAFETY: takes no argument and cannot fail.
+    let mine = unsafe { libc::getpid() };
+
+    assert!(Subject::forked_freeze_with(mine).is_none());
+}
+
+// ============================================================================
+// Subject::finalize_freeze
+// ============================================================================
+
+/// Nothing for a child that left instead of stopping.
+///
+/// That is what a child says when the trace was refused: `PTRACE_TRACEME`
+/// failed and it exited rather than stop, because a stop nobody is tracing is
+/// never reported and the wait for it never ends.
+#[test]
+fn test_finalize_freeze_returns_nothing_for_a_child_that_did_not_stop() {
+    // SAFETY: takes no argument and cannot fail.
+    let mine = unsafe { libc::getpid() };
+
+    assert!(Subject::finalize_freeze(mine, 0).is_none());
+}
+
+/// And nothing where the memory cannot be opened.
+///
+/// A pid nothing is running under has no `/proc/<pid>/mem` to open. The
+/// alternative to answering `None` is a `Subject` holding `-1` as a
+/// descriptor, whose every read comes back empty — a photograph of nothing,
+/// indistinguishable from a process that holds nothing.
+#[test]
+fn test_finalize_freeze_returns_nothing_when_the_memory_cannot_be_opened() {
+    // A stopped status for a pid that is not there. `0x7f` in the low byte is
+    // what `WIFSTOPPED` reads, so this is the shape of a stop without one.
+    assert!(Subject::finalize_freeze(libc::pid_t::MAX, 0x7f).is_none());
 }
 
 // ============================================================================
@@ -99,12 +161,111 @@ fn test_photograph_is_of_a_child_and_not_of_us() -> Result<(), AnyError> {
 /// for and keeps going on a zero.
 #[test]
 fn test_read_at_returns_nothing_for_an_address_that_is_not_mapped() -> Result<(), AnyError> {
-    let subject = Subject::photograph().ok_or(Reason::NoPhotograph)?;
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
 
     let mut into = [0xAA_u8; 8];
 
     assert_eq!(subject.read_at(1 << 47, &mut into), 0);
     assert_eq!(into, [0xAA; 8], "nothing was read, so nothing was written");
+
+    Ok(())
+}
+
+// ============================================================================
+// stand_still
+// ============================================================================
+
+/// The child stops, and its memory can be read by the one that forked it.
+///
+/// Asserted from outside, because there is no inside: the process that runs
+/// this never returns from it. What the parent can see is the whole contract —
+/// that it stopped, and that reading it is allowed, which is what the trace
+/// was asked for and is granted to a tracer alone.
+#[test]
+fn test_stand_still_stops_the_child_where_its_parent_can_read_it() -> Result<(), AnyError> {
+    let held: [u8; 8] = [0x3D, 0xA7, 0x14, 0xF2, 0x8B, 0x50, 0xC6, 0x29];
+    let at = core::hint::black_box(&held).as_ptr() as u64;
+
+    // SAFETY: `fork` with nothing of this library's in flight, and a child
+    // that leaves without returning to Rust.
+    let pid = unsafe { libc::fork() };
+
+    assert!(pid >= 0, "no fork");
+
+    if pid == 0 {
+        stand_still();
+    }
+
+    let mut status = 0;
+
+    // SAFETY: the pid is this process's own child, and the status is a local
+    // this call writes into.
+    let waited = unsafe { libc::waitpid(pid, &mut status, libc::WUNTRACED) };
+
+    assert!(waited >= 0, "the child could not be waited on");
+    assert!(
+        libc::WIFSTOPPED(status),
+        "the child left instead of stopping"
+    );
+
+    let mut path = [0_u8; 32];
+
+    named(pid, b"/mem\0", &mut path);
+
+    // SAFETY: the path is a buffer just written and terminated.
+    let mem = unsafe { libc::open(path.as_ptr().cast(), libc::O_RDONLY) };
+
+    assert!(mem >= 0, "the child stopped but is not ours to read");
+
+    let mut into = [0_u8; 8];
+
+    // SAFETY: a descriptor this test opened, and a live writable slice.
+    let got =
+        unsafe { libc::pread64(mem, into.as_mut_ptr().cast(), into.len(), at as libc::off_t) };
+
+    // SAFETY: a descriptor this test opened, and its own stopped child.
+    unsafe {
+        libc::close(mem);
+        libc::kill(pid, libc::SIGKILL);
+        libc::waitpid(pid, core::ptr::null_mut(), 0);
+    }
+
+    assert_eq!(got, 8, "the trace was not what let us read it");
+    assert_eq!(into, held, "what came back is not what the child held");
+
+    Ok(())
+}
+
+// ============================================================================
+// traced_stand_still
+// ============================================================================
+
+/// A trace the machine refused is a child that leaves, and says so by leaving.
+///
+/// The one word it has: an exit of one. Staying instead would be a stop nobody
+/// is tracing, which is never reported — the parent would wait for it until
+/// somebody killed one of them.
+#[test]
+fn test_traced_stand_still_leaves_with_a_word_where_the_trace_was_refused() -> Result<(), AnyError>
+{
+    // SAFETY: `fork` with nothing of this library's in flight, and a child
+    // that leaves without returning to Rust.
+    let pid = unsafe { libc::fork() };
+
+    assert!(pid >= 0, "no fork");
+
+    if pid == 0 {
+        traced_stand_still(-1);
+    }
+
+    let mut status = 0;
+
+    // SAFETY: the pid is this process's own child, and the status is a local
+    // this call writes into.
+    unsafe { libc::waitpid(pid, &mut status, 0) };
+
+    assert!(libc::WIFEXITED(status), "it stopped instead of leaving");
+    assert_eq!(libc::WEXITSTATUS(status), 1, "it left without the word");
 
     Ok(())
 }
@@ -121,7 +282,7 @@ fn test_read_at_returns_nothing_for_an_address_that_is_not_mapped() -> Result<()
 /// would find it.
 #[test]
 fn test_dropping_a_photograph_leaves_no_child_behind() -> Result<(), AnyError> {
-    let subject = Subject::photograph().ok_or(Reason::NoPhotograph)?;
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
     let pid = subject.of();
 
     drop(subject);
@@ -143,19 +304,39 @@ fn test_dropping_a_photograph_leaves_no_child_behind() -> Result<(), AnyError> {
 // region
 // ============================================================================
 
-/// The bounds of a mapping that can be written to. Writable and not merely
-/// readable, because what is left behind is left behind by writing.
+/// A line with no dash names no range, and the search for one says so.
 #[test]
-fn test_region_returns_the_bounds_of_a_writable_mapping() {
-    assert_eq!(
-        region(b"7f8e1c000000-7f8e1c021000 rw-p 00000000 00:00 0"),
-        Some((0x7f8e_1c00_0000, 0x7f8e_1c02_1000)),
-    );
+fn test_region_propagates_a_line_with_no_dash() {
+    assert_eq!(region(b""), None);
+}
+
+/// And one with no space ends before the flags, which is where the answer is.
+#[test]
+fn test_region_propagates_a_line_with_no_space() {
+    assert_eq!(region(b"7f8e1c000000-7f8e1c021000"), None);
+}
+
+/// Nothing where the dash comes after the space.
+///
+/// The two are found independently, so a line holding them in that order would
+/// otherwise be read as a mapping running from one address to another that is
+/// not past it: `hex` would be handed a stretch spanning the space, and what
+/// came back would be a bound nobody wrote.
+#[test]
+fn test_region_reports_a_dash_that_is_past_the_space() {
+    assert_eq!(region(b"7f8e1c000000 rw-p 00000000 00:00 0"), None);
+}
+
+/// A line that ends at the space has no flags to read, and asking for them off
+/// the end is the refusal rather than two bytes of whatever follows.
+#[test]
+fn test_region_propagates_a_line_that_ends_at_the_space() {
+    assert_eq!(region(b"7f8e1c000000-7f8e1c021000 "), None);
 }
 
 /// Executable is code, and code holds what a compiler put there.
 #[test]
-fn test_region_returns_nothing_for_a_mapping_that_is_code() {
+fn test_region_reports_a_mapping_that_is_code() {
     assert_eq!(
         region(b"7f8e1c000000-7f8e1c021000 r-xp 00000000 00:00 0 [vdso]"),
         None
@@ -165,7 +346,7 @@ fn test_region_returns_nothing_for_a_mapping_that_is_code() {
 /// A file mapped in read-only is that file, and reading the binary back is
 /// seconds per sweep for nothing.
 #[test]
-fn test_region_returns_nothing_for_a_file_mapped_read_only() {
+fn test_region_reports_a_file_mapped_read_only() {
     assert_eq!(
         region(b"7f8e1c000000-7f8e1c021000 r--p 00000000 08:01 131 /usr/lib/libc.so.6"),
         None,
@@ -179,7 +360,7 @@ fn test_region_returns_nothing_for_a_file_mapped_read_only() {
 /// find the secret in its own home, and every absence a caller asked about
 /// would come back a positive.
 #[test]
-fn test_region_returns_nothing_for_a_page_protected_to_nothing() {
+fn test_region_reports_a_page_protected_to_nothing() {
     assert_eq!(
         region(b"7f8e1c000000-7f8e1c021000 ---p 00000000 00:00 0"),
         None
@@ -189,16 +370,42 @@ fn test_region_returns_nothing_for_a_page_protected_to_nothing() {
 /// And one open for writing alone, which is what a guarded page looks like
 /// from outside while it is being read through. Skipped for the same reason.
 #[test]
-fn test_region_returns_nothing_for_a_write_only_page() {
+fn test_region_reports_a_write_only_page() {
     assert_eq!(
         region(b"7f8e1c000000-7f8e1c021000 -w-p 00000000 00:00 0"),
         None
     );
 }
 
+/// A first bound that is not a number is no bound, and reading it says so.
+///
+/// The first refusal that comes from what the line holds rather than from its
+/// shape: everything up to here can be told from the punctuation alone.
 #[test]
-fn test_region_returns_nothing_for_a_line_that_is_not_one() {
-    assert_eq!(region(b""), None);
+fn test_region_propagates_a_first_bound_that_is_not_hexadecimal() {
+    assert_eq!(
+        region(b"zzzzzzzzzzzz-7f8e1c021000 rw-p 00000000 00:00 0"),
+        None,
+    );
+}
+
+/// And the second, which is read only once the first came back a number.
+#[test]
+fn test_region_propagates_a_second_bound_that_is_not_hexadecimal() {
+    assert_eq!(
+        region(b"7f8e1c000000-zzzzzzzzzzzz rw-p 00000000 00:00 0"),
+        None,
+    );
+}
+
+/// The bounds of a mapping that can be written to. Writable and not merely
+/// readable, because what is left behind is left behind by writing.
+#[test]
+fn test_region_returns_the_bounds_of_a_writable_mapping() {
+    assert_eq!(
+        region(b"7f8e1c000000-7f8e1c021000 rw-p 00000000 00:00 0"),
+        Some((0x7f8e_1c00_0000, 0x7f8e_1c02_1000)),
+    );
 }
 
 // ============================================================================
@@ -302,6 +509,27 @@ fn test_mappings_reports_no_mappings_for_a_process_that_is_not_there() {
     ));
 }
 
+/// Too many for the room there is, rather than as many as fit.
+///
+/// The run is where a sweep learns what to read, so one that stopped at the
+/// room it had would have the analysis answer about part of a process while
+/// reporting on all of it. Every process has more than one writable mapping,
+/// so room for one is enough to ask.
+#[test]
+fn test_mappings_reports_too_many_mappings_when_there_is_no_room_for_them() {
+    let mut text = vec![0_u8; 1 << 16];
+    let mut block = vec![0_u64; 1 + 2];
+    let mut maps = Spans::over(&mut block);
+
+    // SAFETY: takes no argument and cannot fail.
+    let mine = unsafe { libc::getpid() };
+
+    assert!(matches!(
+        mappings(mine, &mut text, &mut maps),
+        Err(Reason::TooManyMappings),
+    ));
+}
+
 /// The mappings of a process that is there, with a local of this test inside
 /// one of them.
 ///
@@ -333,13 +561,67 @@ fn test_mappings_returns_mappings_that_hold_this_process() -> Result<(), AnyErro
     Ok(())
 }
 
-/// A `/proc` that opens and lists no writable mapping at all.
+// ============================================================================
+// finalize_mappings
+// ============================================================================
+
+/// A listing that names no writable mapping is none, and not an empty sweep.
+///
+/// Reachable here and nowhere else: every process that can be asked about has
+/// a stack, and a stack is writable, so through the open above this branch has
+/// no input. A caller handed an empty list would sweep nothing and report that
+/// the process holds nothing, which is the same words as a clean answer.
 #[test]
-#[ignore = "unreachable from here: every process this can be asked about has a \
-            stack, and a stack is writable. Shell kept because the branch \
-            exists and would be the answer if one ever did not."]
-fn test_mappings_reports_no_mappings_for_a_process_that_has_none() {
-    // Intentionally empty.
+fn test_finalize_mappings_reports_no_mappings_where_none_are_writable() {
+    let mut block = [0_u64; 1 + 2 * 8];
+    let mut maps = Spans::over(&mut block);
+
+    let text = b"7f8e1c000000-7f8e1c021000 r-xp 00000000 00:00 0\n\
+                 7f8e1c021000-7f8e1c022000 ---p 00000000 00:00 0\n";
+
+    assert!(matches!(
+        finalize_mappings(text, &mut maps),
+        Err(Reason::NoMappings),
+    ));
+}
+
+/// And one that names more than there is room for says so.
+#[test]
+fn test_finalize_mappings_reports_too_many_for_a_listing_wider_than_the_room() {
+    // A count and room for one span after it.
+    let mut block = [0_u64; 3];
+    let mut maps = Spans::over(&mut block);
+
+    let text = b"7f8e1c000000-7f8e1c021000 rw-p 00000000 00:00 0\n\
+                 7f8e1c021000-7f8e1c022000 rw-p 00000000 00:00 0\n";
+
+    assert!(matches!(
+        finalize_mappings(text, &mut maps),
+        Err(Reason::TooManyMappings),
+    ));
+}
+
+/// The writable ones, and only those.
+#[test]
+fn test_finalize_mappings_returns_the_writable_mappings_alone() -> Result<(), AnyError> {
+    let mut block = [0_u64; 1 + 2 * 8];
+    let mut maps = Spans::over(&mut block);
+
+    let text = b"7f8e1c000000-7f8e1c021000 rw-p 00000000 00:00 0\n\
+                 7f8e1c021000-7f8e1c022000 r-xp 00000000 00:00 0\n\
+                 7f8e1c022000-7f8e1c023000 rw-p 00000000 00:00 0\n";
+
+    finalize_mappings(text, &mut maps)?;
+
+    assert_eq!(
+        maps.iter().collect::<Vec<_>>(),
+        [
+            (0x7f8e_1c00_0000, 0x7f8e_1c02_1000),
+            (0x7f8e_1c02_2000, 0x7f8e_1c02_3000),
+        ],
+    );
+
+    Ok(())
 }
 
 // ============================================================================
@@ -358,7 +640,7 @@ fn test_instrument_marks_the_whole_block_the_phrase_begins() -> Result<(), AnyEr
     let held = MAGIC;
     let at = core::hint::black_box(&held).as_ptr() as u64;
 
-    let subject = Subject::photograph().ok_or(Reason::NoPhotograph)?;
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
 
     let mut block = [0_u64; 3];
     let maps = skipping(&mut block, &[(at, at + MAGIC.len() as u64)]);
@@ -387,7 +669,7 @@ fn test_instrument_reports_too_many_blocks_when_there_is_no_room_to_mark_one()
     let held = MAGIC;
     let at = core::hint::black_box(&held).as_ptr() as u64;
 
-    let subject = Subject::photograph().ok_or(Reason::NoPhotograph)?;
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
 
     let mut block = [0_u64; 3];
     let maps = skipping(&mut block, &[(at, at + MAGIC.len() as u64)]);
@@ -402,6 +684,34 @@ fn test_instrument_reports_too_many_blocks_when_there_is_no_room_to_mark_one()
         instrument(&subject, &mut into, &maps, &mut skips),
         Err(Reason::TooManyBlocks),
     ));
+
+    Ok(())
+}
+
+/// A stretch that holds no phrase is marked as nothing.
+///
+/// The tests above hand it a window that is the phrase and nothing else, so
+/// every comparison in them matches. What a real sweep is almost entirely made
+/// of is the other answer, and a run that marked those as blocks would have
+/// the analysis step over somebody's memory.
+#[test]
+fn test_instrument_marks_nothing_in_a_stretch_without_the_phrase() -> Result<(), AnyError> {
+    let held = [0x5A_u8; 64];
+    let at = core::hint::black_box(&held).as_ptr() as u64;
+
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
+
+    let mut block = [0_u64; 3];
+    let maps = skipping(&mut block, &[(at, at + 64)]);
+
+    let mut room = [0_u64; 3];
+    let mut skips = Spans::over(&mut room);
+
+    let mut into = [0_u8; 4096];
+
+    instrument(&subject, &mut into, &maps, &mut skips)?;
+
+    assert!(skips.is_empty(), "it marked a block where there is none");
 
     Ok(())
 }
@@ -421,7 +731,7 @@ fn test_sweep_hands_over_what_the_mapping_holds() -> Result<(), AnyError> {
     let held: [u8; 8] = [0x6C, 0x93, 0x2A, 0xE7, 0x51, 0xB8, 0x0D, 0xF4];
     let at = core::hint::black_box(&held).as_ptr() as u64;
 
-    let subject = Subject::photograph().ok_or(Reason::NoPhotograph)?;
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
 
     let mut block = [0_u64; 3];
     let maps = skipping(&mut block, &[(at, at + 8)]);
@@ -453,7 +763,7 @@ fn test_sweep_steps_over_a_skipped_stretch_and_says_so() -> Result<(), AnyError>
     let held: [u8; 8] = [0x6C, 0x93, 0x2A, 0xE7, 0x51, 0xB8, 0x0D, 0xF4];
     let at = core::hint::black_box(&held).as_ptr() as u64;
 
-    let subject = Subject::photograph().ok_or(Reason::NoPhotograph)?;
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
 
     let mut block = [0_u64; 3];
     let maps = skipping(&mut block, &[(at, at + 8)]);
@@ -479,6 +789,145 @@ fn test_sweep_steps_over_a_skipped_stretch_and_says_so() -> Result<(), AnyError>
 
     assert!(seen.is_empty(), "the whole of it was skipped: {seen:02x?}");
     assert!(broke, "the caller was not told the run ended");
+
+    Ok(())
+}
+
+/// A mapping that cannot be read is a break and not an end.
+///
+/// The list of mappings is read before the photograph and a mapping can be
+/// gone by the time the sweep reaches it, or be one the kernel will not hand
+/// over. Nothing is counted there, and the caller is told, because a run it
+/// was carrying must not walk across the hole as though the bytes were its
+/// own.
+#[test]
+fn test_sweep_says_the_ground_broke_where_nothing_could_be_read() -> Result<(), AnyError> {
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
+
+    let mut block = [0_u64; 3];
+    let maps = skipping(&mut block, &[(1 << 47, (1 << 47) + 4096)]);
+
+    let mut empty = [0_u64; 3];
+    let skips = skipping(&mut empty, &[]);
+
+    let mut seen = Vec::new();
+    let mut broke = false;
+    let mut into = [0_u8; 4096];
+
+    let swept = sweep(
+        &subject,
+        &mut into,
+        &maps,
+        &skips,
+        0,
+        |window, _, breaks| {
+            seen.extend_from_slice(window);
+            broke |= breaks;
+        },
+    );
+
+    assert!(seen.is_empty(), "something came back: {seen:02x?}");
+    assert!(broke, "the caller was not told the ground broke");
+    assert_eq!(swept, 0, "nothing was there to read");
+
+    Ok(())
+}
+
+/// A window with no room in it leaves, rather than asking for nothing forever.
+///
+/// How much is read is the lesser of what is left and what the window holds,
+/// so a window of nothing makes that nothing — and the address never moves.
+#[test]
+fn test_sweep_leaves_a_mapping_where_there_is_no_window_to_read_into() -> Result<(), AnyError> {
+    let held: [u8; 8] = [0x6C, 0x93, 0x2A, 0xE7, 0x51, 0xB8, 0x0D, 0xF4];
+    let at = core::hint::black_box(&held).as_ptr() as u64;
+
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
+
+    let mut block = [0_u64; 3];
+    let maps = skipping(&mut block, &[(at, at + 8)]);
+
+    let mut empty = [0_u64; 3];
+    let skips = skipping(&mut empty, &[]);
+
+    let mut seen = Vec::new();
+
+    let swept = sweep(&subject, &mut [], &maps, &skips, 0, |window, _, _| {
+        seen.extend_from_slice(window);
+    });
+
+    assert!(seen.is_empty(), "something came back: {seen:02x?}");
+    assert_eq!(swept, 0, "nothing was read");
+
+    Ok(())
+}
+
+/// A mapping wider than the window comes back in pieces that share their seam.
+///
+/// The turn that matters is the second one: the address moves by the window
+/// less the seam, so the bytes on the join are read twice on purpose. A run
+/// that moved by the whole window would miss every needle straddling it, which
+/// is the one thing the seam exists to prevent.
+#[test]
+fn test_sweep_carries_the_seam_from_one_window_to_the_next() -> Result<(), AnyError> {
+    let held = [0x5A_u8; 64];
+    let at = core::hint::black_box(&held).as_ptr() as u64;
+
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
+
+    let mut block = [0_u64; 3];
+    let maps = skipping(&mut block, &[(at, at + 64)]);
+
+    let mut empty = [0_u64; 3];
+    let skips = skipping(&mut empty, &[]);
+
+    let mut at_each = Vec::new();
+    let mut into = [0_u8; 16];
+
+    sweep(&subject, &mut into, &maps, &skips, 4, |window, from, _| {
+        if !window.is_empty() {
+            at_each.push(from - at);
+        }
+    });
+
+    assert_eq!(
+        at_each,
+        [0, 12, 24, 36, 48],
+        "the windows did not overlap by the seam",
+    );
+
+    Ok(())
+}
+
+/// A seam as wide as the window stops, rather than reading the same bytes for
+/// as long as anybody waits.
+///
+/// The seam is how much consecutive windows share, so one that is the whole
+/// window leaves nothing new in the next read. A caller asking for that is
+/// asking for something it cannot have, and what it gets is an end.
+#[test]
+fn test_sweep_leaves_a_mapping_where_the_seam_is_the_whole_window() -> Result<(), AnyError> {
+    let held = [0x5A_u8; 64];
+    let at = core::hint::black_box(&held).as_ptr() as u64;
+
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
+
+    let mut block = [0_u64; 3];
+    let maps = skipping(&mut block, &[(at, at + 64)]);
+
+    let mut empty = [0_u64; 3];
+    let skips = skipping(&mut empty, &[]);
+
+    let mut windows = 0;
+    let mut into = [0_u8; 8];
+
+    sweep(&subject, &mut into, &maps, &skips, 8, |window, _, _| {
+        if !window.is_empty() {
+            windows += 1;
+        }
+    });
+
+    assert_eq!(windows, 1, "it read past the first window and kept going");
 
     Ok(())
 }
@@ -640,23 +1089,166 @@ fn test_analyse_reports_no_answer_when_the_analyst_says_nothing() {
     ));
 }
 
-/// No pipe to be had.
+// ============================================================================
+// piped_analyse
+// ============================================================================
+
+/// Nothing to say it down, so nothing is measured.
+///
+/// The pipe is opened before anybody forks, and it is the only way back: an
+/// analyst with nowhere to answer would read a process's whole memory and take
+/// the answer to the grave.
 #[test]
-#[ignore = "unreachable from here: `pipe` fails when the process is out of \
-            descriptors, and arranging that would break the test runner \
-            before it broke this. Shell kept because the branch is the first \
-            thing the function does."]
-fn test_analyse_reports_no_pipe() {
-    // Intentionally empty.
+fn test_piped_analyse_reports_no_pipe_where_there_is_none() {
+    let mut state = ForensicState::default();
+
+    assert!(matches!(
+        piped_analyse(&mut state, went_well, -1, [0, 0]),
+        Err(Reason::NoPipe),
+    ));
 }
 
-/// No child to be had.
+// ============================================================================
+// forked_analyse
+// ============================================================================
+
+/// Nothing where the fork did not happen, and both ends closed on the way out.
+///
+/// A refusal that left the pipe open would leak two descriptors per attempt,
+/// and the process that does this most is a test runner.
 #[test]
-#[ignore = "unreachable from here: `fork` fails when the process table is \
-            full, which is not a thing one test can arrange and leave the \
-            machine usable. Shell kept for the same reason as the one above."]
-fn test_analyse_reports_no_fork() {
-    // Intentionally empty.
+fn test_forked_analyse_reports_no_fork_where_there_was_none() {
+    let mut state = ForensicState::default();
+    let (reading, writing) = piped();
+
+    assert!(matches!(
+        forked_analyse(&mut state, went_well, -1, reading, writing),
+        Err(Reason::NoFork),
+    ));
+
+    // SAFETY: both are descriptors, closed or not, and this asks rather than
+    // uses. `EBADF` is the answer being looked for.
+    let again = unsafe { libc::close(reading) };
+
+    assert_eq!(again, -1, "the reading end was left open");
+}
+
+/// Zero is the analyst, and the analyst answers down the pipe and leaves.
+///
+/// Asked from a process this test forked itself, because that is the only way
+/// to be the analyst and still be around to read what it said. What the parent
+/// checks is the contract of the wire: the whole result arrives, and the word
+/// the reader believes is in it.
+#[test]
+fn test_forked_analyse_hands_zero_to_the_analyst() -> Result<(), AnyError> {
+    let mut state = ForensicState::default();
+    let (reading, writing) = piped();
+
+    // SAFETY: `fork` with nothing of this library's in flight, and a child
+    // that leaves through the analyst without returning to Rust.
+    let pid = unsafe { libc::fork() };
+
+    assert!(pid >= 0, "no fork");
+
+    if pid == 0 {
+        forked_analyse(&mut state, went_well, 0, reading, writing)?;
+    }
+
+    // SAFETY: the end this side will not write to.
+    unsafe { libc::close(writing) };
+
+    let mut into = [0_u8; SHIPPED * 8];
+    let heard = recv(reading, &mut into);
+
+    // SAFETY: a descriptor this test opened, and its own child.
+    unsafe {
+        libc::close(reading);
+        libc::waitpid(pid, core::ptr::null_mut(), 0);
+    }
+
+    assert!(heard, "the analyst said nothing");
+
+    let word = u64::from_ne_bytes(
+        into[OK * 8..OK * 8 + 8]
+            .try_into()
+            .expect("eight bytes of the result"),
+    );
+
+    assert_eq!(
+        word, DONE,
+        "the analyst answered, but not that it went well"
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// finalize_analyse
+// ============================================================================
+
+// ============================================================================
+// measure
+// ============================================================================
+
+/// Eight bytes at an address that is the same one every time, so that the work
+/// below can name it without being handed anything.
+static HELD: [u8; 8] = [0x3D, 0xA7, 0x14, 0xF2, 0x8B, 0x50, 0xC6, 0x29];
+
+/// Work that reports what it was given: the mappings it can see, and nothing
+/// at all if the photograph does not hold what this process holds.
+fn what_it_was_handed(state: &mut ForensicState, subject: &Subject) -> Result<(), Reason> {
+    let mut into = [0_u8; 8];
+    let got = subject.read_at(core::ptr::addr_of!(HELD) as u64, &mut into);
+
+    let parts = state.parts();
+    let many = parts.maps.len() as u64;
+
+    parts.result[SHIPPED - 1] = if got == 8 && into == HELD { many } else { 0 };
+
+    Ok(())
+}
+
+/// The work is handed a photograph and the mappings of it, already read.
+///
+/// The one thing the analyst owes the work, and the one nothing asserted:
+/// every sweep is over the list this filled, so a work handed an empty list
+/// answers that the process is clean while having read none of it.
+///
+/// Called here rather than through [`analyse`], which is the point of it being
+/// its own function: through the fork, what the work saw is only what fits in
+/// the result, and what it did not see is indistinguishable from what it
+/// found.
+#[test]
+fn test_measure_hands_the_work_a_photograph_and_its_mappings() -> Result<(), AnyError> {
+    let mut state = ForensicState::default();
+
+    measure(&mut state, what_it_was_handed)?;
+
+    assert!(
+        state.read(SHIPPED - 1) > 0,
+        "the work was handed no mappings, or a photograph that is not of us",
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// frozen_measure
+// ============================================================================
+
+/// No photograph is no measurement, and the work is never asked.
+///
+/// What a machine that refuses `ptrace` hands back. The alternative is a sweep
+/// over no mappings, which comes back as a count of zero — the same number as
+/// a process that holds nothing.
+#[test]
+fn test_frozen_measure_reports_no_photograph_where_there_is_none() {
+    let mut state = ForensicState::default();
+
+    assert!(matches!(
+        frozen_measure(&mut state, went_badly, None),
+        Err(Reason::NoPhotograph),
+    ));
 }
 
 // ============================================================================
@@ -794,4 +1386,62 @@ fn test_within_counts_a_needle_read_backwards() {
 #[test]
 fn test_within_counts_nothing_in_less_than_a_needle() {
     assert_eq!(within(b"a", b"ab", false), 0);
+}
+
+// ============================================================================
+// elsewhere
+// ============================================================================
+
+/// Work that answers where it was standing.
+///
+/// The last word of the result, which nothing else uses, so the parent reads
+/// it back out of the pipe like any other number the analysis returns.
+fn where_it_stood(state: &mut ForensicState, _subject: &Subject) -> Result<(), Reason> {
+    let here = 0_u8;
+
+    state.parts().result[SHIPPED - 1] = core::ptr::from_ref(&here) as u64;
+
+    Ok(())
+}
+
+/// The work runs on the block's own stack, and not on the caller's.
+///
+/// Which is the whole of what this is for: every frame the instrument pushes
+/// from here on lands in the one stretch a sweep steps over, so the hundred
+/// bytes below the caller — where a spill of the secret would be — are never
+/// written over before the photograph reads them.
+///
+/// Asked of the address a local of the work actually has, because the claim is
+/// about where the machine put it and not about what the code asked for.
+#[test]
+fn test_elsewhere_runs_the_work_on_the_block_s_own_stack() -> Result<(), AnyError> {
+    let mut state = ForensicState::default();
+    let top = state.stack_top() as u64;
+
+    elsewhere(&mut state, where_it_stood)?;
+
+    let stood = state.read(SHIPPED - 1);
+
+    assert!(
+        stood <= top && top - stood < STACK as u64,
+        "the work stood at {stood:#x}, which is not in the quarter megabyte \
+         below {top:#x}",
+    );
+
+    Ok(())
+}
+
+/// A reason the work gave, carried back across the switch.
+///
+/// The errand cannot hand over a `Result` — it is written from a stack the
+/// compiler knows nothing about — so it carries a code and this builds the
+/// reason again on the way out.
+#[test]
+fn test_elsewhere_brings_back_the_reason_the_work_gave() {
+    let mut state = ForensicState::default();
+
+    assert!(matches!(
+        elsewhere(&mut state, went_badly),
+        Err(Reason::TooManyBlocks),
+    ));
 }

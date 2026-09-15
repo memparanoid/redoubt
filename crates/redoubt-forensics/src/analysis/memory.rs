@@ -55,11 +55,34 @@ use crate::analysis::state::{BLOCK, ForensicState, MAGIC, OK, Parts, Span, Spans
 use crate::errors::{DONE, Reason};
 use crate::forensics::Work;
 
+/// What this process counted, written down before it goes.
+///
+/// Nothing at all in every build but an instrumented one, where it is the
+/// difference between a measurement and none. Everything below a fork here
+/// leaves through `_exit`, which runs no `atexit` handler — and writing the
+/// profile is what that handler is for. So the analyst and the photograph run,
+/// count in their own copy of the counters, and take it with them.
+///
+/// Called before every `_exit` in this file, which is the whole of the list.
+#[inline(always)]
+fn write_coverage_down() {
+    #[cfg(coverage)]
+    // SAFETY: it takes no argument, and writing the profile is what the
+    // runtime does of its own accord at an ordinary exit.
+    unsafe {
+        unsafe extern "C" {
+            fn __llvm_profile_write_file() -> libc::c_int;
+        }
+
+        __llvm_profile_write_file();
+    }
+}
+
 /// Memory frozen at the instant of a fork, and open for reading.
 ///
 /// Usually a stopped grandchild. Where nothing may trace anything it is the
 /// analyst itself, which comes to the same thing for the one process that
-/// matters — see [`Subject::photograph`].
+/// matters — see [`Subject::freeze`].
 pub(crate) struct Subject {
     pid: libc::pid_t,
     /// The photograph's memory, open for reading.
@@ -87,51 +110,52 @@ impl Subject {
     /// `None` where `ptrace` is refused — a container without
     /// `CAP_SYS_PTRACE`, a kernel locked down, a process made undumpable —
     /// rather than a reading of something else.
-    pub(crate) fn photograph() -> Option<Self> {
+    pub(crate) fn freeze() -> Option<Self> {
         // SAFETY: `fork` is called with nothing else of this library's in
         // flight. The child path below touches only async-signal-safe calls
         // and leaves through `_exit`, which runs no destructor and flushes
         // nothing the parent also owns.
         let pid = unsafe { libc::fork() };
 
+        Self::forked_freeze(pid)
+    }
+
+    /// Which of the two this is, and whether there are two at all.
+    pub(crate) fn forked_freeze(pid: libc::pid_t) -> Option<Self> {
         if pid < 0 {
             return None;
         }
 
         if pid == 0 {
-            // SAFETY: the child, which is about to stop and then leave.
-            // Nothing here returns to Rust.
-            unsafe {
-                // Asked for, and checked. A child that stops without being
-                // traced is a child its parent will wait on until one of them
-                // is killed — the stop is never reported and the stopped
-                // process never exits. Leaving instead turns a hang into an
-                // answer, and the answer is the other way of doing this.
-                if libc::ptrace(libc::PTRACE_TRACEME, 0, ptr::null_mut::<libc::c_void>(), 0) < 0 {
-                    libc::_exit(1);
-                }
-
-                libc::raise(libc::SIGSTOP);
-                libc::_exit(0);
-            }
+            stand_still();
         }
 
+        Self::forked_freeze_with(pid)
+    }
+
+    /// The child, waited on until it stops.
+    ///
+    /// `WUNTRACED`, so that a stop is reported whether or not the trace took
+    /// hold. Without it this call is only woken by a traced stop, and an
+    /// untraced one waits for an exit that a stopped process never reaches.
+    pub(crate) fn forked_freeze_with(pid: libc::pid_t) -> Option<Self> {
         let mut status = 0;
 
-        // `WUNTRACED`, so that a stop is reported whether or not the trace
-        // took hold. Without it this call is only woken by a traced stop, and
-        // an untraced one waits for an exit that a stopped process is never
-        // going to reach.
-        //
         // SAFETY: the pid is this process's own child, and the status is a
         // local this call writes into.
         if unsafe { libc::waitpid(pid, &mut status, libc::WUNTRACED) } < 0 {
             return None;
         }
 
-        // A child that left rather than stopped is a child that could not be
-        // traced, and it said so by leaving. It is already gone, so there is
-        // nothing to reap that the `waitpid` above did not.
+        Self::finalize_freeze(pid, status)
+    }
+
+    /// The stopped child's memory, opened.
+    ///
+    /// A child that left rather than stopped is one that could not be traced,
+    /// and it said so by leaving — already gone, so there is nothing the
+    /// `waitpid` above did not reap.
+    pub(crate) fn finalize_freeze(pid: libc::pid_t, status: libc::c_int) -> Option<Self> {
         if !libc::WIFSTOPPED(status) {
             return None;
         }
@@ -144,7 +168,10 @@ impl Subject {
         let mem = unsafe { libc::open(path.as_ptr().cast(), libc::O_RDONLY) };
 
         if mem < 0 {
-            // SAFETY: the child is this process's own, stopped and unreaped.
+            // Stopped and nobody's: the caller has no value to drop, so the
+            // reaping is here.
+            //
+            // SAFETY: the pid stopped, which is what this arm establishes.
             unsafe {
                 libc::kill(pid, libc::SIGKILL);
                 libc::waitpid(pid, ptr::null_mut(), 0);
@@ -185,6 +212,41 @@ impl Subject {
     #[cfg(test)]
     pub(crate) fn of(&self) -> libc::pid_t {
         self.pid
+    }
+}
+
+/// The child, traced and stopped, which is what makes it the photograph.
+///
+/// The trace is asked for and checked: a child that stops without being traced
+/// is one its parent waits on until somebody is killed, because the stop is
+/// never reported and the stopped process never exits. Leaving instead turns a
+/// hang into an answer.
+///
+pub(crate) fn stand_still() -> ! {
+    // SAFETY: the child, asking to be traced. Nothing here returns to Rust.
+    let traced =
+        unsafe { libc::ptrace(libc::PTRACE_TRACEME, 0, ptr::null_mut::<libc::c_void>(), 0) };
+
+    traced_stand_still(traced)
+}
+
+/// Stopped where a tracer can read it, or gone with a word for why.
+///
+/// Whether the trace took hold arrives as a number, which is what lets the
+/// refusal be asked about: leaving is the whole of the answer there, and a
+/// caller reading an exit of one knows the machine would not have it.
+pub(crate) fn traced_stand_still(traced: libc::c_long) -> ! {
+    // SAFETY: the child, which is about to stop and then leave. Nothing here
+    // returns to Rust.
+    unsafe {
+        if traced < 0 {
+            write_coverage_down();
+            libc::_exit(1);
+        }
+
+        libc::raise(libc::SIGSTOP);
+        write_coverage_down();
+        libc::_exit(0);
     }
 }
 
@@ -361,7 +423,17 @@ pub(crate) fn mappings(
     // SAFETY: a descriptor this function just opened.
     unsafe { libc::close(file) };
 
-    for line in text[..filled].split(|byte| *byte == b'\n') {
+    finalize_mappings(&text[..filled], maps)
+}
+
+/// The listing, as the mappings it names.
+///
+/// Its own function because what it decides is decided by the text and by
+/// nothing else: a caller with a listing in hand asks it directly, where
+/// through the open above the only listing anybody can arrange is the one this
+/// process happens to have.
+pub(crate) fn finalize_mappings(text: &[u8], maps: &mut Spans<'_>) -> Result<(), Reason> {
+    for line in text.split(|byte| *byte == b'\n') {
         let Some(span) = region(line) else {
             continue;
         };
@@ -415,9 +487,10 @@ pub(crate) fn instrument(
                 }
             }
 
-            if got <= seam {
-                break;
-            }
+            // Wider than the seam, and so a step forward: the break above
+            // leaves only reads of at least `MAGIC.len()`, and the seam is one
+            // less than that.
+            debug_assert!(got > seam, "a read of {got} cannot step past {seam}");
 
             at += (got - seam) as u64;
         }
@@ -528,7 +601,24 @@ pub(crate) fn analyse(state: &mut ForensicState, work: Work) -> Result<(), Reaso
     let mut ends = [0 as libc::c_int; 2];
 
     // SAFETY: the argument is a local array of the two descriptors this fills.
-    if unsafe { libc::pipe(ends.as_mut_ptr()) } < 0 {
+    let made = unsafe { libc::pipe(ends.as_mut_ptr()) };
+
+    piped_analyse(state, work, made, ends)
+}
+
+/// The analysis, once there is a way back from it.
+///
+/// Whether there is one arrives as a number, because the pipe is the one thing
+/// opened before anybody forks: a caller with no pipe has nothing to fork for,
+/// and the alternative to saying so is an analyst that measures and then finds
+/// nowhere to say it.
+pub(crate) fn piped_analyse(
+    state: &mut ForensicState,
+    work: Work,
+    made: libc::c_int,
+    ends: [libc::c_int; 2],
+) -> Result<(), Reason> {
+    if made < 0 {
         return Err(Reason::NoPipe);
     }
 
@@ -539,8 +629,25 @@ pub(crate) fn analyse(state: &mut ForensicState, work: Work) -> Result<(), Reaso
     // through `_exit`, which runs no destructor and flushes nothing.
     let pid = unsafe { libc::fork() };
 
+    forked_analyse(state, work, pid, reading, writing)
+}
+
+/// Which of the two this is, and whether there are two at all.
+///
+/// The pid and the descriptors arrive rather than being made here, because
+/// what this decides is decided by them: a `fork` that did not happen is a
+/// number, and closing both ends on the way out is the difference between a
+/// refusal and two descriptors nobody will ever close.
+pub(crate) fn forked_analyse(
+    state: &mut ForensicState,
+    work: Work,
+    pid: libc::pid_t,
+    reading: libc::c_int,
+    writing: libc::c_int,
+) -> Result<(), Reason> {
     if pid < 0 {
-        // SAFETY: both are descriptors this function just opened.
+        // SAFETY: both are descriptors the caller opened and neither is this
+        // process's to use once there is no analyst to talk to.
         unsafe {
             libc::close(reading);
             libc::close(writing);
@@ -550,54 +657,21 @@ pub(crate) fn analyse(state: &mut ForensicState, work: Work) -> Result<(), Reaso
     }
 
     if pid == 0 {
-        // SAFETY: the analyst. It closes the end it will not use, works, sends
-        // what it found, and leaves without returning to Rust.
-        unsafe { libc::close(reading) };
-
-        // Whatever the last photograph came to, before this one has a word to
-        // say about itself. A stale number read as a fresh one is the same
-        // mistake as a refusal read as a zero.
-        state.parts().result.fill(0);
-
-        let how = match Subject::photograph() {
-            None => Err(Reason::NoPhotograph),
-            Some(subject) => {
-                // Read on this side of the fork, where taking a kilobyte of
-                // stack would cost nothing — this stack is one nobody is
-                // measuring.
-                let known = {
-                    let Parts {
-                        report, mut maps, ..
-                    } = state.parts();
-
-                    mappings(subject.pid, report, &mut maps)
-                };
-
-                let how = known.and_then(|()| work(state, &subject));
-
-                // Reaped here and not at the end of the scope, because there
-                // is no end of the scope: `_exit` runs no destructor.
-                drop(subject);
-
-                how
-            }
-        };
-
-        // The only word the parent will believe. `work` clears the result on
-        // its way in, so this has to be the last thing written.
-        state.parts().result[OK] = match how {
-            Ok(()) => DONE,
-            Err(why) => why.code(),
-        };
-
-        send(writing, state.shipped());
-
-        // SAFETY: the child, which does not return.
-        unsafe { libc::_exit(0) };
+        answer(state, work, reading, writing);
     }
 
-    // SAFETY: a descriptor this function just opened, and the end this process
-    // will not write to.
+    finalize_analyse(state, pid, reading, writing)
+}
+
+/// The waiting half: what the analyst said, or that it said nothing.
+pub(crate) fn finalize_analyse(
+    state: &mut ForensicState,
+    pid: libc::pid_t,
+    reading: libc::c_int,
+    writing: libc::c_int,
+) -> Result<(), Reason> {
+    // SAFETY: a descriptor the caller opened, and the end this process will
+    // not write to.
     unsafe { libc::close(writing) };
 
     let heard = recv(reading, state.shipped());
@@ -621,6 +695,74 @@ pub(crate) fn analyse(state: &mut ForensicState, work: Work) -> Result<(), Reaso
         DONE => Ok(()),
         why => Err(Reason::from_code(why)),
     }
+}
+
+/// The analyst: it measures, says what it found down the pipe, and leaves.
+///
+/// Nothing here allocates — everything written to was reserved before the
+/// fork — and it leaves through `_exit`, which runs no destructor and flushes
+/// nothing the parent also owns.
+pub(crate) fn answer(
+    state: &mut ForensicState,
+    work: Work,
+    reading: libc::c_int,
+    writing: libc::c_int,
+) -> ! {
+    // SAFETY: the end this side will not read from.
+    unsafe { libc::close(reading) };
+
+    // Whatever the last photograph came to, before this one has a word to say
+    // about itself. A stale number read as a fresh one is the same mistake as
+    // a refusal read as a zero.
+    state.parts().result.fill(0);
+
+    let how = measure(state, work);
+
+    // The only word the parent will believe, and the last thing written: the
+    // work clears the result on its way in.
+    state.parts().result[OK] = match how {
+        Ok(()) => DONE,
+        Err(why) => why.code(),
+    };
+
+    send(writing, state.shipped());
+
+    write_coverage_down();
+
+    // SAFETY: the analyst, which does not return.
+    unsafe { libc::_exit(0) }
+}
+
+/// The measurement itself: a photograph, its mappings, and the work over them.
+///
+/// Every step of it happens where taking a kilobyte of stack costs nothing,
+/// because this stack is one nobody is measuring.
+pub(crate) fn measure(state: &mut ForensicState, work: Work) -> Result<(), Reason> {
+    frozen_measure(state, work, Subject::freeze())
+}
+
+/// The measurement, over a photograph that may not have been taken.
+///
+/// The photograph arrives rather than being taken here, because whether there
+/// is one is the machine's to say: where `ptrace` is refused there is nothing
+/// to measure, and answering that is the difference between a refusal and a
+/// sweep of no mappings at all.
+pub(crate) fn frozen_measure(
+    state: &mut ForensicState,
+    work: Work,
+    subject: Option<Subject>,
+) -> Result<(), Reason> {
+    let subject = subject.ok_or(Reason::NoPhotograph)?;
+
+    let known = {
+        let Parts {
+            report, mut maps, ..
+        } = state.parts();
+
+        mappings(subject.pid, report, &mut maps)
+    };
+
+    known.and_then(|()| work(state, &subject))
 }
 
 /// All of it, however many turns that takes.
