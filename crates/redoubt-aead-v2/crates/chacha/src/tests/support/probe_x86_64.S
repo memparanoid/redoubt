@@ -5,7 +5,12 @@
 // Test-only caller. It owns the memory before poisoning or inspecting it;
 // no load or store happens below rsp. The production return address is public.
 // Snapshot: nine caller-saved GPRs, six callee-saved GPRs, 24 guard bytes,
-// then the production function's 160-byte frame.
+// then 168 bytes of what the production function used as its frame.
+//
+// The window is wider than any frame here needs. What it buys is that a
+// routine which grows one later is measured without this file changing, and
+// that a routine which overruns the frame it declared is caught by the guard
+// rather than going unseen.
 
 .text
 .p2align 4

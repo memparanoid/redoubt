@@ -75,6 +75,11 @@ const POISON: u64 = 0xa5a5a5a5a5a5a5a5;
 
 /// Call an assembly entry point and inspect its registers and released frame.
 ///
+/// `allocated_frame` says whether the routine took a frame at all. One that
+/// took none has to leave the poison where it was: an emptied window under a
+/// routine that never reached for it would mean the probe is wiping its own
+/// measurement.
+///
 /// SAFETY: call[0] must name one of the declared entry points and call[1..]
 /// must satisfy that function's pointer, length and counter preconditions.
 unsafe fn observe(call: [usize; 7], allocated_frame: bool) {

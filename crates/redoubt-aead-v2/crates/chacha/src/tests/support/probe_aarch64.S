@@ -3,8 +3,14 @@
 // See LICENSE in the repository root for full license text.
 
 // Test-only caller. Snapshot: x0-x17, x19-x29, x18 before and after,
-// 32 guard bytes, then the 96-byte production frame. All inspected memory
-// is reserved again before reading it. x18 is never changed.
+// 32 guard bytes, then 96 bytes of what the production function used as its
+// frame. All inspected memory is reserved again before reading it. x18 is
+// never changed.
+//
+// The window is wider than any frame here needs. What it buys is that a
+// routine which grows one later is measured without this file changing, and
+// that a routine which overruns the frame it declared is caught by the guard
+// rather than going unseen.
 
 .text
 .p2align 4
