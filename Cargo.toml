@@ -11,6 +11,9 @@ members = [
   "crates/redoubt-aead/aegis/wycheproof",
   "crates/redoubt-aead/aegis/x86",
   "crates/redoubt-aead/aegis/arm",
+  "crates/redoubt-aead-v2/crates/core",
+  "crates/redoubt-aead-v2/crates/chacha",
+  "crates/redoubt-aead-v2/crates/poly1305",
   "crates/redoubt-secret",
   "crates/redoubt-rand",
   "crates/redoubt-hkdf",
@@ -53,7 +56,10 @@ resolver = "2"
   redoubt-aead-aegis-wycheproof = { path = "crates/redoubt-aead/aegis/wycheproof", version = "0.1.0-rc.8" }
   redoubt-aead-aegis-x86        = { path = "crates/redoubt-aead/aegis/x86", version = "0.1.0-rc.8" }
   redoubt-aead-core             = { path = "crates/redoubt-aead/core", version = "0.1.0-rc.8" }
+  redoubt-aead-v2-core          = { path = "crates/redoubt-aead-v2/crates/core", version = "0.1.0-rc.8" }
   redoubt-aead-xchacha          = { path = "crates/redoubt-aead/xchacha", version = "0.1.0-rc.8" }
+  redoubt-chacha                = { path = "crates/redoubt-aead-v2/crates/chacha", version = "0.1.0-rc.8" }
+  redoubt-poly1305              = { path = "crates/redoubt-aead-v2/crates/poly1305", version = "0.1.0-rc.8" }
   redoubt-alloc                 = { path = "crates/redoubt-alloc", version = "0.1.0-rc.8" }
   redoubt-buffer                = { path = "crates/redoubt-buffer", version = "0.1.0-rc.8" }
   redoubt-codec                 = { path = "crates/redoubt-codec", version = "0.1.0-rc.8" }
@@ -100,8 +106,10 @@ resolver = "2"
   # Dev dependencies (used via [dev-dependencies] in individual crates)
   criterion    = "0.5"
   libseccomp   = "0.4.0"
+  num-bigint   = "0.5.1"
   prettyplease = "0.2.37"
   proptest     = "1.9.0"
+  rstest       = "0.27.0"
   serial_test  = "3.2.0"
   trybuild     = "1.0"
 

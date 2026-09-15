@@ -1,0 +1,30 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "no-std"]
+description          = "ChaCha20, HChaCha20 and XChaCha20 with guaranteed zeroization"
+edition.workspace    = true
+keywords             = ["chacha20", "xchacha20", "stream-cipher", "crypto", "zeroize"]
+license.workspace    = true
+name                 = "redoubt-chacha"
+readme.workspace     = true
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+# Lets a crate above this one say which backend its whole chain runs on. Without
+# it the choice does not exist and every operation goes where the target says.
+test-utils = []
+
+[dependencies]
+redoubt-aead-v2-core.workspace = true
+redoubt-zero.workspace         = true
+
+[build-dependencies]
+cc.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+rstest.workspace   = true

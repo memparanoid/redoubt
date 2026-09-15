@@ -1,0 +1,17 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "no-std"]
+description          = "Core traits and error types for AEAD backends"
+edition.workspace    = true
+keywords             = ["aead", "encryption", "crypto"]
+license.workspace    = true
+name                 = "redoubt-aead-v2-core"
+readme.workspace     = true
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
