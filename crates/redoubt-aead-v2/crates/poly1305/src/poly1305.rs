@@ -63,7 +63,25 @@ impl Poly1305 {
     /// One that will authenticate one message under `key`.
     #[must_use]
     pub fn new(key: &[u8; KEY_SIZE]) -> Self {
-        Self::with_backend(Backend::default(), key)
+        Self::new_with(Backend::default(), key)
+    }
+
+    /// The one that does the work, whatever the visibility above it.
+    fn new_with(backend: Backend, key: &[u8; KEY_SIZE]) -> Self {
+        let mut poly = Self {
+            backend,
+            r: [0; LIMBS],
+            s: [0; BLOCK_SIZE],
+            acc: [0; LIMBS],
+            block: [0; BLOCK_SIZE],
+            filled: 0,
+            #[cfg(test)]
+            __sentinel: ZeroizeOnDropSentinel::default(),
+        };
+
+        init(backend, &mut poly.r, &mut poly.s, key);
+
+        poly
     }
 
     /// As much of the message as the caller has. Any number of calls says the
@@ -122,22 +140,15 @@ impl Poly1305 {
 
     /// The same, with the backend named rather than taken as the target has
     /// it. What `new` is, once the choice has been made.
-    #[cfg_attr(not(any(test, feature = "test-utils")), allow(dead_code))]
-    pub(crate) fn with_backend(backend: Backend, key: &[u8; KEY_SIZE]) -> Self {
-        let mut poly = Self {
-            backend,
-            r: [0; LIMBS],
-            s: [0; BLOCK_SIZE],
-            acc: [0; LIMBS],
-            block: [0; BLOCK_SIZE],
-            filled: 0,
-            #[cfg(test)]
-            __sentinel: ZeroizeOnDropSentinel::default(),
-        };
-
-        init(backend, &mut poly.r, &mut poly.s, key);
-
-        poly
+    ///
+    /// Gated, and reachable from above only with `test-utils`: an AEAD is a
+    /// cipher and an authenticator standing together, and a test that wants
+    /// the whole of it in Rust has to be able to say so to both. Nothing that
+    /// ships asks — what ships takes the assembly where the target has it.
+    #[cfg(any(test, feature = "test-utils"))]
+    #[must_use]
+    pub fn with_backend(backend: Backend, key: &[u8; KEY_SIZE]) -> Self {
+        Self::new_with(backend, key)
     }
 
     /// Something in it that a zeroization has to remove.
@@ -165,7 +176,7 @@ pub(crate) fn tag_with_backend(
     said: &[u8],
     out: &mut [u8; TAG_SIZE],
 ) {
-    let mut poly = Poly1305::with_backend(backend, key);
+    let mut poly = Poly1305::new_with(backend, key);
 
     finalize(backend, &mut poly.acc, &poly.r, &poly.s, said, out);
 }
