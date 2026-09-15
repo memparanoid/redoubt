@@ -26,7 +26,7 @@ fn tag_of(backend: Backend, key: &[u8; KEY_SIZE], message: &[u8]) -> [u8; TAG_SI
     let mut tag = [0u8; TAG_SIZE];
 
     poly.update(message);
-    poly.finalize(&mut tag);
+    poly.finalize_mut(&mut tag);
 
     tag
 }
@@ -44,7 +44,7 @@ fn tag_of_split(
 
     poly.update(head);
     poly.update(rest);
-    poly.finalize(&mut tag);
+    poly.finalize_mut(&mut tag);
 
     tag
 }
@@ -129,20 +129,20 @@ fn test_update_padded_returns_the_tag_of_the_message_and_its_zeros(#[case] backe
         let mut tag = [0u8; TAG_SIZE];
 
         poly.update_padded(&message);
-        poly.finalize(&mut tag);
+        poly.finalize_mut(&mut tag);
 
         assert_eq!(tag, tag_of(backend, &key, &padded), "{length} bytes in");
     }
 }
 
 // === === === === === === === === === ===
-// finalize
+// finalize_mut
 // === === === === === === === === === ===
 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_finalize_returns_the_appendix_tag(#[case] backend: Backend) {
+fn test_finalize_mut_returns_the_appendix_tag(#[case] backend: Backend) {
     for Vector {
         number,
         asks,
@@ -159,14 +159,13 @@ fn test_finalize_returns_the_appendix_tag(#[case] backend: Backend) {
     }
 }
 
-// === === === === === === === === === ===
-// finalize_mut
-// === === === === === === === === === ===
-
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_finalize_mut_returns_the_tag_finalize_returns(#[case] backend: Backend) {
+fn test_finalize_mut_empties_the_state_it_answered_from(#[case] backend: Backend) {
+    // Long enough to leave a tail in the buffer: what an emptying that only
+    // reached the accumulator would leave behind is the last block of the
+    // message, and a message ending on a boundary would not have one.
     let key = [0x3f; KEY_SIZE];
     let message = b"long enough to leave a tail in the buffer at the end";
 
@@ -175,8 +174,6 @@ fn test_finalize_mut_returns_the_tag_finalize_returns(#[case] backend: Backend) 
 
     poly.update(message);
     poly.finalize_mut(&mut tag);
-
-    assert_eq!(tag, tag_of(backend, &key, message));
 
     // Assert zeroization!
     assert!(poly.is_zeroized());

@@ -27,8 +27,12 @@ use crate::consts::LIMBS;
 /// One key, one message. The key is a pair — `r`, which the message is
 /// evaluated at, and `s`, which is added to the result — and a second message
 /// under the same pair gives away the first. Which is why the key arrives at
-/// construction and [`Self::finalize`] takes the value: there is no way to
-/// spell asking this one for a second tag.
+/// construction: nothing here takes a second one.
+///
+/// Asking twice is not refused, it is emptied — [`Self::finalize_mut`] wipes
+/// what it answered from, so a second call answers from nothing. Holding the
+/// caller to one tag is the caller's job, and in this workspace the caller is
+/// the AEAD.
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
 pub struct Poly1305 {
@@ -91,37 +95,15 @@ impl Poly1305 {
 
     /// The tag, and nothing of the message left behind.
     ///
-    /// Takes the value for two reasons, and the second is load-bearing. An
-    /// authenticator that answered twice would be a key used on two messages,
-    /// which is the one thing a one-time authenticator cannot survive. And
-    /// what is handed over below is the last of the message, still sitting in
-    /// the buffer: nothing under this empties it, because the same call from a
-    /// caller that had the whole message is handed the caller's own bytes and
-    /// has no business writing over those. What empties this one is the drop at
-    /// the end of this function, which is only here because the value came in.
-    pub fn finalize(mut self, out: &mut [u8; TAG_SIZE]) {
-        finalize(
-            self.backend,
-            &mut self.acc,
-            &self.r,
-            &self.s,
-            &self.block[..self.filled],
-            out,
-        );
-    }
-
-    /// The tag, without the value being moved to take it.
+    /// Takes a pointer and not the value. A parameter taken by value is an
+    /// instruction to copy: the caller holds one of these in a slot of its own
+    /// frame, and handing it over duplicates it. A drop at the end would then
+    /// empty the copy it was given, while the slot it was copied from is a
+    /// value nobody owns any more — so nothing drops it, and the last block of
+    /// the message stays there until the frame is reused.
     ///
-    /// What [`Self::finalize`] gives up, and why there are two. A parameter
-    /// taken by value is an instruction to copy: the caller holds one of these
-    /// in a slot of its own frame, and handing it over duplicates it. The drop
-    /// at the end of `finalize` then empties the copy it was given, and the
-    /// slot it was copied from is a value nobody owns any more, so nothing
-    /// drops it and the last block of the message stays there until the frame
-    /// is reused.
-    ///
-    /// This one is handed a pointer, so there is one of it. The wipe below is
-    /// what the drop would have done, on the only copy there is.
+    /// There is one of this one, and the wipe below is what that drop would
+    /// have done, on the only copy there is.
     ///
     /// What it cannot do is refuse a second call. The emptied state is what
     /// that call would answer for.
