@@ -112,6 +112,27 @@ unsafe extern "C" {
     safe static redoubt_spill_which: core::sync::atomic::AtomicPtr<()>;
 }
 
+/// Point the dispatch at something that is not a form.
+///
+/// Beside the slot because the slot is what it writes, and for the reading
+/// below: a dispatch pointing somewhere this crate cannot name is the shape of
+/// one nobody wrote, and the reading has to say so rather than answer with the
+/// nearest form.
+///
+/// What is in the slot afterwards is the caller's to put back, and nothing may
+/// capture in between — the jump would land here.
+#[cfg(all(
+    test,
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    target_os = "linux"
+))]
+pub(crate) fn use_no_form() {
+    redoubt_spill_which.store(
+        pick_spiller as *mut (),
+        core::sync::atomic::Ordering::Relaxed,
+    );
+}
+
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 unsafe extern "C" {
     /// The general registers and the whole of `zmm0-31`.
@@ -180,33 +201,97 @@ unsafe extern "C" {
 /// Until this runs, [`redoubt_spill`] reaches the narrowest form — SSE on
 /// `x86_64`, NEON on `aarch64`. Correct either way, and a quarter of what a
 /// modern machine has.
+/// Which registers a capture reaches.
+///
+/// Named rather than counted in bytes, because a caller comparing a width
+/// against a constant is a caller that has to know how wide a slot is — and
+/// what it wanted to know was whether this machine has the registers a wide
+/// copy of a key passes through.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) enum Form {
+    /// `xmm0-15`, on every `x86_64` there is.
+    #[cfg(target_arch = "x86_64")]
+    Sse,
+    /// `ymm0-15`.
+    #[cfg(target_arch = "x86_64")]
+    Avx,
+    /// `zmm0-31`, the half of which nothing else in a process writes.
+    #[cfg(target_arch = "x86_64")]
+    Avx512,
+    /// `v0-31`, on every `aarch64`.
+    #[cfg(target_arch = "aarch64")]
+    Neon,
+    /// `z0-31`, whose far end is where `aarch64` keeps what NEON cannot see.
+    #[cfg(target_arch = "aarch64")]
+    Sve,
+}
+
 pub fn pick_spiller() {
     #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-    {
-        let pick: unsafe extern "C" fn() = if std::arch::is_x86_feature_detected!("avx512f") {
-            redoubt_spill_avx512
-        } else if std::arch::is_x86_feature_detected!("avx") {
-            redoubt_spill_avx
-        } else {
-            redoubt_spill_sse
-        };
-
-        redoubt_spill_which.store(pick as *mut (), core::sync::atomic::Ordering::Relaxed);
-    }
+    use_spiller(pick_spiller_from(
+        std::arch::is_x86_feature_detected!("avx512f"),
+        std::arch::is_x86_feature_detected!("avx"),
+    ));
 
     #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
-    {
-        let pick: unsafe extern "C" fn() = if std::arch::is_aarch64_feature_detected!("sve") {
-            redoubt_spill_sve
-        } else {
-            redoubt_spill_neon
-        };
+    use_spiller(pick_spiller_from(std::arch::is_aarch64_feature_detected!(
+        "sve"
+    )));
+}
 
-        redoubt_spill_which.store(pick as *mut (), core::sync::atomic::Ordering::Relaxed);
+/// Which capture a machine with those registers wants.
+///
+/// The machine's answers arrive rather than being asked for here, because what
+/// this decides is decided by them alone — and a machine is one set of answers
+/// for the life of a process, so asked here there would be one arm of this
+/// anybody could ever reach.
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+#[must_use]
+pub(crate) fn pick_spiller_from(wide: bool, some: bool) -> Form {
+    if wide {
+        Form::Avx512
+    } else if some {
+        Form::Avx
+    } else {
+        Form::Sse
     }
 }
 
-/// Which capture [`pick_spiller`] settled on, by name.
+/// The same, where the choice is one question wide.
+#[cfg(all(target_arch = "aarch64", target_os = "linux"))]
+#[must_use]
+pub(crate) fn pick_spiller_from(wide: bool) -> Form {
+    if wide { Form::Sve } else { Form::Neon }
+}
+
+/// Point [`redoubt_spill`] at that form.
+///
+/// The one place a form becomes an address. A jump is what the capture does
+/// first and it uses no register to get there, so what it lands on has to be
+/// settled long beforehand and written down once.
+#[cfg(all(
+    any(target_arch = "x86_64", target_arch = "aarch64"),
+    target_os = "linux"
+))]
+pub(crate) fn use_spiller(form: Form) {
+    let pick: unsafe extern "C" fn() = match form {
+        #[cfg(target_arch = "x86_64")]
+        Form::Avx512 => redoubt_spill_avx512,
+        #[cfg(target_arch = "x86_64")]
+        Form::Avx => redoubt_spill_avx,
+        #[cfg(target_arch = "x86_64")]
+        Form::Sse => redoubt_spill_sse,
+        #[cfg(target_arch = "aarch64")]
+        Form::Sve => redoubt_spill_sve,
+        #[cfg(target_arch = "aarch64")]
+        Form::Neon => redoubt_spill_neon,
+    };
+
+    redoubt_spill_which.store(pick as *mut (), core::sync::atomic::Ordering::Relaxed);
+}
+
+/// Which capture the dispatch is pointing at.
 ///
 /// The widest registers a machine has are the ones a `memcpy` of a key is
 /// likeliest to pass through, and whether this machine has them at all is a
@@ -217,7 +302,7 @@ pub fn pick_spiller() {
 /// Asked of the pointer the dispatch actually jumps through, so it cannot
 /// disagree with what runs.
 #[cfg(test)]
-pub(crate) fn picked() -> &'static str {
+pub(crate) fn picked() -> Option<Form> {
     #[cfg(all(
         any(target_arch = "x86_64", target_arch = "aarch64"),
         target_os = "linux"
@@ -226,30 +311,32 @@ pub(crate) fn picked() -> &'static str {
         let at = redoubt_spill_which.load(core::sync::atomic::Ordering::Relaxed);
 
         #[cfg(target_arch = "x86_64")]
-        let every: [(unsafe extern "C" fn(), &str); 3] = [
-            (redoubt_spill_avx512, "avx512"),
-            (redoubt_spill_avx, "avx"),
-            (redoubt_spill_sse, "sse"),
+        let every = [
+            (redoubt_spill_avx512 as unsafe extern "C" fn(), Form::Avx512),
+            (redoubt_spill_avx, Form::Avx),
+            (redoubt_spill_sse, Form::Sse),
         ];
 
         #[cfg(target_arch = "aarch64")]
-        let every: [(unsafe extern "C" fn(), &str); 2] =
-            [(redoubt_spill_sve, "sve"), (redoubt_spill_neon, "neon")];
+        let every = [
+            (redoubt_spill_sve as unsafe extern "C" fn(), Form::Sve),
+            (redoubt_spill_neon, Form::Neon),
+        ];
 
-        for (one, name) in every {
+        for (one, form) in every {
             if core::ptr::eq(at, one as *mut ()) {
-                return name;
+                return Some(form);
             }
         }
 
-        "none"
+        None
     }
 
     #[cfg(not(all(
         any(target_arch = "x86_64", target_arch = "aarch64"),
         target_os = "linux"
     )))]
-    "none"
+    None
 }
 
 /// Every register this thread has, into the room.

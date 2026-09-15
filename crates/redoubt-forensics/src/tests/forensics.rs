@@ -110,6 +110,46 @@ fn test_occurrences_reversed_finds_the_copy_that_was_not_reversed() -> Result<()
 }
 
 // ============================================================================
+// Forensics::snapshot
+// ============================================================================
+
+/// The reason the analysis gave, carried out to the caller.
+#[test]
+#[ignore = "wants the syscall blocked from under it: the analysis fails only \
+            where the machine refuses it a pipe, a process or a trace, and \
+            `snapshot` takes nothing that decides which. Reachable with \
+            seccomp in a subprocess, which this crate has no harness for."]
+fn test_snapshot_propagates_the_reason_the_analysis_gave() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// Forensics::snapshot_reversed
+// ============================================================================
+
+/// A needle of nothing is refused before anything is photographed.
+///
+/// Every byte of memory holds it, so a sweep for it would answer that the
+/// secret is everywhere — which is the same as answering nothing, said loudly.
+/// The refusal is the first thing this does and the one failure that does not
+/// need a machine to go wrong.
+#[test]
+fn test_snapshot_reversed_propagates_a_needle_of_nothing() {
+    assert!(matches!(
+        Forensics::snapshot_reversed(&[]),
+        Err(Reason::Needle),
+    ));
+}
+
+/// And the photograph's own failure, which this only carries.
+#[test]
+#[ignore = "the same as `test_snapshot_propagates_the_reason_the_analysis_gave`: \
+            it is that photograph, reached through one more call."]
+fn test_snapshot_reversed_propagates_the_reason_the_photograph_gave() {
+    // Intentionally empty.
+}
+
+// ============================================================================
 // The controls
 // ============================================================================
 

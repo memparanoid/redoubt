@@ -93,6 +93,83 @@ fn test_against_reports_surfaced_only_when_the_secret_was_not_there_before() {
 }
 
 // ============================================================================
+// Report::row
+// ============================================================================
+
+/// The tag is padded to one width, so that rows written by different crates
+/// line up under each other.
+///
+/// That is the whole of what the tag is for. A row whose numbers begin at a
+/// different column is a readout nobody can scan down, which is how these are
+/// read — a sweep over ten sizes is ten of them.
+#[test]
+fn test_row_puts_the_numbers_at_the_same_column_whatever_the_tag() {
+    let short = quiet().row("a");
+    let long = quiet().row("a tag as long as tags get");
+
+    assert_eq!(
+        short.find("score"),
+        long.find("score"),
+        "the numbers moved with the tag:\n{short}\n{long}",
+    );
+}
+
+/// A tag wider than the column takes the room it needs rather than being cut.
+///
+/// Losing the end of a tag is losing which row it is, and the rows are told
+/// apart by nothing else.
+#[test]
+fn test_row_keeps_a_tag_that_is_wider_than_the_column() {
+    let tag = "a tag that is wider than the column it was given";
+
+    assert!(quiet().row(tag).contains(tag));
+}
+
+// ============================================================================
+// Report::rows_against
+// ============================================================================
+
+/// The photograph first and what it moved second.
+///
+/// The two are one reading, and the other way round is a change that appears
+/// to precede the thing it is a change from.
+#[test]
+fn test_rows_against_puts_the_photograph_before_the_change() {
+    let before = quiet();
+    let after = Report {
+        score: 90,
+        ..quiet()
+    };
+
+    let [first, second] = after.rows_against(&before, "something happened");
+
+    assert!(first.contains("something happened"), "{first}");
+    assert!(first.contains("score           90"), "{first}");
+    assert!(second.contains("score           +90"), "{second}");
+}
+
+// ============================================================================
+// Report::summary and Report::summary_against
+// ============================================================================
+
+/// They print the rows they build, which is the whole of what they add.
+///
+/// What is on the rows is asserted above; this is here so that the printing
+/// itself is run rather than assumed, and so that a tag wide enough to change
+/// the formatting is not first tried by a caller.
+#[test]
+fn test_summary_prints_the_rows_it_builds() {
+    let before = quiet();
+    let after = Report {
+        score: 90,
+        ..quiet()
+    };
+
+    before.summary("nothing yet");
+    after.summary_against(&before, "something happened");
+}
+
+// ============================================================================
 // Change::is_noise
 // ============================================================================
 
@@ -156,6 +233,27 @@ fn test_is_noise_does_not_depend_on_how_much_memory_was_swept() {
             "2^{shift} bytes and a rise over the ceiling"
         );
     }
+}
+
+// ============================================================================
+// Change::row
+// ============================================================================
+
+/// The change sits under the photograph it is a change from.
+///
+/// The two are one reading and are printed as two lines, so a change whose
+/// numbers began elsewhere would read as a row of its own rather than as the
+/// second half of the one above it.
+#[test]
+fn test_row_puts_a_change_in_the_same_column_as_the_photograph() {
+    let report = quiet().row("whatever happened");
+    let change = quiet().against(&quiet()).row("");
+
+    assert_eq!(
+        report.find("score"),
+        change.find("score"),
+        "the two halves of one reading begin at different columns:\n{report}\n{change}",
+    );
 }
 
 // ============================================================================

@@ -67,7 +67,7 @@ use crate::analysis::state::{
 use crate::errors::Reason;
 
 /// The whole needle, counted where it is whole.
-pub(crate) fn counted(state: &mut ForensicState, subject: &Subject) -> Result<(), Reason> {
+pub(crate) fn count(state: &mut ForensicState, subject: &Subject) -> Result<(), Reason> {
     let of = state.of;
     let backwards = state.backwards;
 

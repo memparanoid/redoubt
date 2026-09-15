@@ -86,8 +86,19 @@ impl Report {
     /// The tag names the row: a sweep over ten sizes is ten of these, and
     /// without it they are ten identical lines of `score 0`.
     pub fn summary_against(&self, report_before: &Self, tag: &str) {
-        println!("  {tag:<TAG$} {self}");
-        println!("  {:<TAG$} {}", "", self.against(report_before));
+        for row in self.rows_against(report_before, tag) {
+            println!("{row}");
+        }
+    }
+
+    /// The two rows as they are printed, in the order they are printed.
+    ///
+    /// The order is the reading: the photograph says where the process stands
+    /// and the change says what the operation did to it, and the two the other
+    /// way round is a change that appears to precede what it is a change from.
+    #[must_use]
+    pub fn rows_against(&self, report_before: &Self, tag: &str) -> [String; 2] {
+        [self.row(tag), self.against(report_before).row("")]
     }
 
     /// One photograph, with nothing to compare it to yet.
@@ -95,7 +106,17 @@ impl Report {
     /// The first row of a run, where the tag says what has not happened —
     /// `nothing copied yet`.
     pub fn summary(&self, tag: &str) {
-        println!("  {tag:<TAG$} {self}");
+        println!("{}", self.row(tag));
+    }
+
+    /// The row as it is printed, without printing it.
+    ///
+    /// What the tag buys is that rows from different crates line up under each
+    /// other, and lining up is a property of the text rather than of the
+    /// writing of it.
+    #[must_use]
+    pub fn row(&self, tag: &str) -> String {
+        format!("  {tag:<TAG$} {self}")
     }
 }
 
@@ -112,6 +133,12 @@ impl Change {
     #[must_use]
     pub fn is_noise(&self) -> bool {
         self.score <= NOISE
+    }
+
+    /// The row as it is printed, in the same column as the photograph above it.
+    #[must_use]
+    pub fn row(&self, tag: &str) -> String {
+        format!("  {tag:<TAG$} {self}")
     }
 }
 

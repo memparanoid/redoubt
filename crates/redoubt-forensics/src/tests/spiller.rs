@@ -63,7 +63,7 @@
 //! the right place. Every absence the rest of the workspace reports is worth
 //! what they are worth, and no more.
 
-use crate::spiller::pick_spiller;
+use crate::spiller::{Form, pick_spiller, pick_spiller_from, picked, use_no_form, use_spiller};
 
 // ============================================================================
 // The room, read from Rust
@@ -1331,12 +1331,96 @@ fn test_the_wide_capture_fills_the_general_slots() {
 fn test_the_capture_says_which_form_the_machine_gave() {
     pick_spiller();
 
-    let form = crate::spiller::picked();
+    let form = picked();
 
-    eprintln!("the capture is {form} on this machine.");
+    eprintln!("the capture is {form:?} on this machine.");
 
-    assert_ne!(
-        form, "none",
-        "the dispatch points at nothing this crate knows the name of",
+    assert!(
+        form.is_some(),
+        "the dispatch points at nothing this crate has a name for",
     );
+}
+
+// ============================================================================
+// pick_spiller_from
+// ============================================================================
+
+/// The widest the machine has, of the three it may have.
+///
+/// Which one is what decides whether a run of this crate reached the registers
+/// a vectorised copy of a key passes through. Asked of the answers rather than
+/// of the machine, because a machine is one set of answers for the life of a
+/// process: asked there, two of these three arms could never be read.
+#[test]
+#[cfg(target_arch = "x86_64")]
+fn test_pick_spiller_from_takes_the_widest_the_machine_has() {
+    assert_eq!(pick_spiller_from(true, true), Form::Avx512);
+    assert_eq!(pick_spiller_from(true, false), Form::Avx512);
+    assert_eq!(pick_spiller_from(false, true), Form::Avx);
+    assert_eq!(pick_spiller_from(false, false), Form::Sse);
+}
+
+/// The same where the choice is one question wide.
+#[test]
+#[cfg(target_arch = "aarch64")]
+fn test_pick_spiller_from_takes_the_widest_the_machine_has() {
+    assert_eq!(pick_spiller_from(true), Form::Sve);
+    assert_eq!(pick_spiller_from(false), Form::Neon);
+}
+
+// ============================================================================
+// use_spiller
+// ============================================================================
+
+/// Every form is reachable through the slot, and each is the one asked for.
+///
+/// The capture jumps through that slot using no register to get there, so a
+/// form written into it wrongly is a capture that reads somebody else's
+/// registers into the room — and the room is what every verdict is read from.
+///
+/// Put back the way it was found, because the slot is one word for the whole
+/// process and the tests around this one capture through it.
+#[test]
+fn test_use_spiller_points_the_capture_at_the_form_it_was_given() {
+    let before = picked();
+
+    #[cfg(target_arch = "x86_64")]
+    let every = [Form::Sse, Form::Avx, Form::Avx512];
+
+    #[cfg(target_arch = "aarch64")]
+    let every = [Form::Neon, Form::Sve];
+
+    for form in every {
+        use_spiller(form);
+
+        assert_eq!(picked(), Some(form));
+    }
+
+    if let Some(form) = before {
+        use_spiller(form);
+    }
+}
+
+// ============================================================================
+// picked
+// ============================================================================
+
+/// Nothing, where the dispatch points somewhere this crate cannot name.
+///
+/// The reading is what says which registers a run reached, so one that
+/// answered with the nearest form would report coverage of a capture that
+/// never happened.
+#[test]
+fn test_picked_returns_nothing_for_a_dispatch_it_cannot_name() {
+    let before = picked();
+
+    use_no_form();
+
+    let named = picked();
+
+    if let Some(form) = before {
+        use_spiller(form);
+    }
+
+    assert_eq!(named, None);
 }

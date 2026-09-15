@@ -26,10 +26,12 @@
 
 use proptest::prelude::*;
 
+use crate::analysis::memory::elsewhere;
 use crate::analysis::score::{
-    NOISE, close, density, follows, holds, lg2, piece, settle, stretch, table, worth,
+    NOISE, close, density, follows, holds, lg2, piece, runs, settle, stretch, table, worth,
 };
-use crate::analysis::state::MOST;
+use crate::analysis::state::{FOUND, ForensicState, MOST};
+use crate::errors::AnyError;
 
 /// Room for one table of successors and one of bytes that appear.
 fn tables() -> (Vec<u8>, Vec<u8>) {
@@ -778,4 +780,40 @@ fn test_lg2_stays_within_a_tenth_of_a_bit() {
             "lg2({of}) was {ours}, not {real}"
         );
     }
+}
+
+// ============================================================================
+// runs
+// ============================================================================
+
+/// A needle held forwards is swept forwards, and found.
+///
+/// Every photograph a caller takes holds its needle backwards, because writing
+/// it forwards in the process being measured is putting the secret there. So
+/// the turn this makes on the way in is the one that never runs from outside —
+/// and a sweep that turned the needle the wrong way would answer that a
+/// process holding the secret holds nothing.
+#[test]
+fn test_runs_sweeps_a_needle_that_is_already_forwards() -> Result<(), AnyError> {
+    let held: [u8; 32] = [
+        0x4E, 0x2B, 0xD7, 0x91, 0x35, 0xAC, 0x68, 0xF0, 0x1D, 0xB4, 0x7F, 0x02, 0xE6, 0x59, 0xA3,
+        0x18, 0xCB, 0x74, 0x2D, 0x90, 0x46, 0xEF, 0x83, 0x1A, 0x57, 0xBC, 0x09, 0xD3, 0x6E, 0xF1,
+        0x24, 0xA7,
+    ];
+
+    core::hint::black_box(&held);
+
+    let mut state = ForensicState::default();
+
+    assert!(state.hold(&held, false), "the needle is one it can hold");
+
+    elsewhere(&mut state, runs)?;
+
+    assert_eq!(
+        state.read(FOUND),
+        1,
+        "the process is holding it and the sweep did not find it",
+    );
+
+    Ok(())
 }

@@ -6,7 +6,7 @@
 
 use crate::analysis::memory::{Subject, analyse, elsewhere};
 use crate::analysis::report::Report;
-use crate::analysis::score::{counted, runs};
+use crate::analysis::score::{count, runs};
 use crate::analysis::state::{COUNT, FOUND, ForensicState, RUNS, SCORE, SWEPT, WIDEST};
 use crate::errors::Reason;
 
@@ -87,6 +87,10 @@ impl Forensics {
     /// must not make.
     #[inline(always)]
     pub fn snapshot(&mut self) -> Result<Report, Reason> {
+        // Uncovered for now: the analysis fails only where the machine refuses
+        // it a pipe, a process or a trace, and this takes nothing that decides
+        // which. Reachable with the syscall blocked from under it — seccomp in
+        // a subprocess, which nothing here has yet.
         elsewhere(&mut self.state, runs)?;
 
         Ok(Report {
@@ -110,6 +114,9 @@ impl Forensics {
     ///
     /// Any [`Reason`].
     pub fn snapshot_reversed(needle: &[u8]) -> Result<Report, Reason> {
+        // Uncovered for now: the photograph's own failure, for the reason
+        // above. The refusal beside it — a needle this cannot hold — is
+        // reachable and is asked about.
         Self::watching(needle)?.snapshot()
     }
 }
@@ -144,7 +151,7 @@ fn exactly(needle: &[u8], backwards: bool) -> Result<usize, Reason> {
         return Err(Reason::Needle);
     }
 
-    analyse(&mut state, counted)?;
+    analyse(&mut state, count)?;
 
     Ok(state.read(COUNT) as usize)
 }
