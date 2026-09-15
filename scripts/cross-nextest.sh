@@ -186,9 +186,13 @@ for arch in "${MACHINES[@]}"; do
       # `cargo-nextest nextest`, which is what the binary is called and how it
       # wants to be asked: it is built as a cargo subcommand, so the first word
       # after it is the one cargo would have eaten.
+      # `--color always`, because what runs in there has no terminal: the ssh
+      # is not on a tty, so nextest reads that as nobody watching and answers
+      # in plain text. The one watching is here.
       ssh_in "cd /tmp/redoubt && cargo-nextest nextest run \
         --archive-file /tmp/tests.tar.zst \
         --workspace-remap /tmp/redoubt \
+        --color always \
         --no-fail-fast \
         --success-output final"
     done
