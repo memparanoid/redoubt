@@ -234,3 +234,37 @@ fn test_string() {
     assert!(s.is_zeroized());
     assert!(redoubt_util::is_slice_zeroized(s.as_bytes()));
 }
+
+// === === === === === === === === === ===
+// Box<T>
+// === === === === === === === === === ===
+
+#[test]
+fn test_box() {
+    let mut boxed = alloc::boxed::Box::new([u8::MAX; SIZE]);
+
+    assert!(!boxed.is_zeroized());
+
+    boxed.fast_zeroize();
+
+    assert!(boxed.is_zeroized());
+    assert!(redoubt_util::is_slice_zeroized(&*boxed));
+}
+
+// === === === === === === === === === ===
+// Option<T>
+// === === === === === === === === === ===
+
+#[test]
+fn test_option() {
+    let mut held = Some([u8::MAX; SIZE]);
+
+    assert!(!held.is_zeroized());
+
+    held.fast_zeroize();
+
+    // The tag as much as the value: a `Some` holding zeros still says that
+    // there was something to hold.
+    assert_eq!(held, None);
+    assert!(held.is_zeroized());
+}
