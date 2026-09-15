@@ -66,7 +66,7 @@
 #endif
 
 // ============================================================================
-// Catastrophic Register Zeroization Macro (caller-saved only)
+// The register budget
 // ============================================================================
 //
 // AAPCS:
@@ -74,38 +74,53 @@
 //   - Platform register: x18            (DO NOT TOUCH)
 //   - Callee-saved GPR: x19-x28, x29 (FP), x30 (LR)  (DO NOT TOUCH)
 //
-// Zeroizes:
-//   - x0-x17, which is every register this file puts a limb or a product in,
-//     and the three pointers the caller handed over on top of them. Those are
-//     the caller's own and it still has them, so clearing them costs nothing;
-//     leaving them is a pointer into the caller's key sitting in a register
-//     after the routine that needed it has returned.
+// Every register these routines put anything in is named once, below, and
+// every operation over the set goes through that one list. Emptying them and
+// asking whether they are empty are the same eighteen registers by
+// construction, not by two lists that happen to agree today.
 //
-// Does NOT touch: x18 is the platform register, and x19 upward are the
+// The list is x0-x17: every register a limb or a product lands in, and the
+// three pointers the caller handed over on top of them. Those are the caller's
+// own and it still has them, so clearing them costs nothing; leaving them is a
+// pointer into the caller's key sitting in a register after the routine that
+// needed it has returned.
+//
+// Does NOT include: x18 is the platform register, and x19 upward are the
 // caller's, restored by an epilogue where there is one.
 //
-// Does NOT touch the SIMD registers either. Nothing here writes one, so
+// Does NOT include the SIMD registers either. Nothing here writes one, so
 // clearing them would be clearing registers this code never put anything in.
 //
+.macro POLY1305_EACH op
+    .irp reg,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17
+        \op x\reg
+    .endr
+.endm
+
+.macro POLY1305_CLEAR reg
+    mov \reg, xzr
+.endm
+
+// Copies what x0 already holds into each of them, x0 included and harmless.
+// Only the probe below uses it, and it is here rather than there so that the
+// budget has one list and every operation over it sits beside that list.
+.macro POLY1305_FILL reg
+    mov \reg, x0
+.endm
+
+// Gathers into x1, which is in the list and therefore contributes its own
+// value on its own line. What the gather leaves in x1 is the bits of anything
+// that was not empty. The probe below is its only caller, and it is here for
+// the same reason FILL is.
+.macro POLY1305_GATHER reg
+    orr x1, x1, \reg
+.endm
+
+// ============================================================================
+// Catastrophic Register Zeroization Macro (caller-saved only)
+// ============================================================================
 .macro POLY1305_ZEROIZE_ALL
-    mov x0,  xzr
-    mov x1,  xzr
-    mov x2,  xzr
-    mov x3,  xzr
-    mov x4,  xzr
-    mov x5,  xzr
-    mov x6,  xzr
-    mov x7,  xzr
-    mov x8,  xzr
-    mov x9,  xzr
-    mov x10, xzr
-    mov x11, xzr
-    mov x12, xzr
-    mov x13, xzr
-    mov x14, xzr
-    mov x15, xzr
-    mov x16, xzr
-    mov x17, xzr
+    POLY1305_EACH POLY1305_CLEAR
 .endm
 
 // ============================================================================
@@ -642,5 +657,132 @@ Lwritten_back:
     POLY1305_EMPTY_FRAME
 // ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
 
+    POLY1305_ZEROIZE_ALL
+    ret
+
+// ============================================================================
+// THE ZEROIZATION PROBE — everything below measures the routines above
+// ============================================================================
+//
+// Nothing in production calls any of it. It is here and not in a file of its
+// own because a reader asking whether the measurement is right should not have
+// to find a second file and check that a number in it still matches a number
+// in this one: FRAME below is the frame, and the register budget it asks about
+// is the list the wipe uses, not a copy of either.
+//
+// What it costs is a few hundred bytes of instructions that ship unused. What
+// it buys is that the only `160` in the measurement, and the only list of
+// registers, are the ones at the top of this file.
+//
+// What asks comes first, then what is asked about:
+//
+//   registers_are_zeroized   asks the machine, with the budget's own list
+//   frame_is_zeroized        asks the stack, with the file's own FRAME
+//   dirty_registers          fills the budget and leaves it that way
+//   dirty_frame              one byte of the frame, at an offset given
+//   clean_frame              the frame written and emptied, with no arithmetic
+
+// uint64_t redoubt_poly1305_registers_are_zeroized(void)
+//
+// Whether any register in the budget is still holding something. Zero when
+// they are all empty, and the bits of whatever was not otherwise.
+//
+// Takes no argument on purpose. A destination passed in would cost x0, and x0
+// is one of the registers being asked about — it would arrive holding our own
+// pointer rather than the caller's value. With nothing passed, `bl` is the
+// whole call sequence and every register read here is the caller's own.
+//
+// x30 is not in the budget and this is the routine that shows why: `bl` writes
+// it on the way here, so asking about it would be asking about the call that
+// did the asking.
+.p2align 4
+.globl FUNC(redoubt_poly1305_registers_are_zeroized)
+HIDDEN_FUNC(redoubt_poly1305_registers_are_zeroized)
+FUNC(redoubt_poly1305_registers_are_zeroized):
+    POLY1305_EACH POLY1305_GATHER
+    mov x0, x1
+    ret
+
+// uint64_t redoubt_poly1305_frame_is_zeroized(void)
+//
+// Whether any byte of the frame the call before it used is still holding
+// something. Zero when it is all empty, and the bits of whatever was not.
+//
+// Reads below its own sp, and that is the whole of it: `bl` puts the return
+// address in x30 and leaves sp where the routine before had it, so what sits
+// under this one's sp is what sat under that one's — the frame it took and
+// gave back. There is no return-address slot in between, which is the one way
+// this differs from the same routine on x86-64.
+//
+// Asked after the registers, never before: reading a hundred and sixty bytes
+// takes registers, and the answer about those has to be taken first.
+.p2align 4
+.globl FUNC(redoubt_poly1305_frame_is_zeroized)
+HIDDEN_FUNC(redoubt_poly1305_frame_is_zeroized)
+FUNC(redoubt_poly1305_frame_is_zeroized):
+    mov x0, xzr
+    sub x1, sp, #FRAME
+    mov x2, sp
+Lframe_scan:
+    ldr x3, [x1], #8
+    orr x0, x0, x3
+    cmp x1, x2
+    b.ne Lframe_scan
+    ret
+
+// Every register in the budget filled, and left that way.
+//
+// What answers whether anything runs between one call and the next: called
+// straight before the verifier, every register it filled has to still be full.
+.p2align 4
+.globl FUNC(redoubt_poly1305_dirty_registers)
+HIDDEN_FUNC(redoubt_poly1305_dirty_registers)
+FUNC(redoubt_poly1305_dirty_registers):
+    // The pattern does not fit in one instruction, so it is built sixteen bits
+    // at a time before anything is copied out of x0.
+    mov x0, #0xa5a5
+    movk x0, #0xa5a5, lsl #16
+    movk x0, #0xa5a5, lsl #32
+    movk x0, #0xa5a5, lsl #48
+    POLY1305_EACH POLY1305_FILL
+    ret
+
+// One byte of the frame, dirtied and left. x0 says which.
+//
+// Swept over every offset, this is what establishes that the verifier above
+// reads the whole frame and not the first word of it — and that the byte it
+// reaches is the byte that was written, which is where an off-by-one against
+// whatever sits next door would show.
+.p2align 4
+.globl FUNC(redoubt_poly1305_dirty_frame)
+HIDDEN_FUNC(redoubt_poly1305_dirty_frame)
+FUNC(redoubt_poly1305_dirty_frame):
+    sub sp, sp, #FRAME
+    mov w1, #0x5c
+    strb w1, [sp, x0]
+    add sp, sp, #FRAME
+    ret
+
+// The whole frame written and then emptied: what a routine above does, without
+// the arithmetic in between.
+//
+// The positive control. Without it, "the frame came back zero" is only ever
+// asserted about routines whose correctness is what is in question.
+.p2align 4
+.globl FUNC(redoubt_poly1305_clean_frame)
+HIDDEN_FUNC(redoubt_poly1305_clean_frame)
+FUNC(redoubt_poly1305_clean_frame):
+    sub sp, sp, #FRAME
+    mov x0, #0x5c5c
+    movk x0, #0x5c5c, lsl #16
+    movk x0, #0x5c5c, lsl #32
+    movk x0, #0x5c5c, lsl #48
+    mov x1, sp
+    add x2, sp, #FRAME
+Lclean_write:
+    str x0, [x1], #8
+    cmp x1, x2
+    b.ne Lclean_write
+    POLY1305_EMPTY_FRAME
     POLY1305_ZEROIZE_ALL
     ret

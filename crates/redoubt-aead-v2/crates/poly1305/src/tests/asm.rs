@@ -2,302 +2,297 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Observe the machine immediately after the assembly returns, before Rust
-//! can reuse its registers or stack. These tests are not claims about kernel
-//! signal frames, swap, dumps, or caller-owned input and output.
-
-use std::vec::Vec;
-
-use redoubt_aead_v2_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
-
-use crate::consts::LIMBS;
+//! The two verifiers the probe is built on, each swept over the whole of what
+//! it claims to look at: every register in the budget one at a time, every
+//! byte of the frame one at a time, and a positive for each.
+//!
+//! What the routines leave behind is asked in `probe.rs`, using these. Here
+//! they are the thing under test, so nothing below calls a routine.
 
 unsafe extern "C" {
-    fn redoubt_poly1305_probe(call: *const usize, snapshot: *mut u64);
-    fn redoubt_poly1305_untouched();
-    fn redoubt_poly1305_init(r: *mut u32, s: *mut u8, key: *const u8);
-    fn redoubt_poly1305_update(
-        acc: *mut u64,
-        r: *const u32,
-        block: *mut u8,
-        filled: *mut usize,
-        said: *const u8,
-        said_len: usize,
-    );
-    fn redoubt_poly1305_finalize(
-        acc: *mut u64,
-        r: *const u32,
-        s: *const u8,
-        said: *const u8,
-        said_len: usize,
-        out: *mut u8,
-    );
+    fn redoubt_poly1305_registers_are_zeroized() -> u64;
+    fn redoubt_poly1305_frame_is_zeroized() -> u64;
+    fn redoubt_poly1305_dirty_frame(at: usize);
+    fn redoubt_poly1305_clean_frame();
 }
-
-#[cfg(target_arch = "x86_64")]
-core::arch::global_asm!(
-    include_str!("support/probe_x86_64.S"),
-    probe = sym redoubt_poly1305_probe,
-    untouched = sym redoubt_poly1305_untouched,
-);
-
-#[cfg(target_arch = "aarch64")]
-core::arch::global_asm!(
-    include_str!("support/probe_aarch64.S"),
-    probe = sym redoubt_poly1305_probe,
-    untouched = sym redoubt_poly1305_untouched,
-);
-
-#[cfg(target_arch = "x86_64")]
-const CALLER_WORDS: usize = 9;
-#[cfg(target_arch = "aarch64")]
-const CALLER_WORDS: usize = 18;
-#[cfg(target_arch = "x86_64")]
-const PRESERVED_WORDS: usize = 6;
-#[cfg(target_arch = "aarch64")]
-const PRESERVED_WORDS: usize = 11;
-#[cfg(target_arch = "x86_64")]
-const GUARD_AT: usize = 15;
-#[cfg(target_arch = "aarch64")]
-const GUARD_AT: usize = 31;
-#[cfg(target_arch = "x86_64")]
-const FRAME_AT: usize = 18;
-#[cfg(target_arch = "aarch64")]
-const FRAME_AT: usize = 35;
-#[cfg(target_arch = "x86_64")]
-const SNAPSHOT_WORDS: usize = 38;
-#[cfg(target_arch = "aarch64")]
-const SNAPSHOT_WORDS: usize = 55;
 
 const POISON: u64 = 0xa5a5_a5a5_a5a5_a5a5;
 
 // === === === === === === === === === ===
-// Test helpers
+// redoubt_poly1305_registers_are_zeroized
 // === === === === === === === === === ===
 
-/// Call an assembly entry point and inspect its registers and released frame.
-///
-/// `allocated_frame` says whether the routine took a frame at all. One that
-/// took none has to leave the poison where it was: an emptied window under a
-/// routine that never reached for it would mean the probe is wiping its own
-/// measurement.
-///
-/// SAFETY: call[0] must name one of the declared entry points and call[1..]
-/// must satisfy that function's pointer and length preconditions.
-unsafe fn observe(call: [usize; 7], allocated_frame: bool) {
-    let mut snapshot = [u64::MAX; SNAPSHOT_WORDS];
+#[cfg(target_arch = "x86_64")]
+mod dirty_register {
+    use super::{POISON, redoubt_poly1305_registers_are_zeroized};
 
-    // SAFETY: the caller supplies valid arguments. The probe reads exactly
-    // seven words and writes the architecture's documented snapshot size.
-    unsafe { redoubt_poly1305_probe(call.as_ptr(), snapshot.as_mut_ptr()) };
+    /// One test per register: fill that one and nothing else, and ask.
+    ///
+    /// Every other test here reads a verdict the verifier gives. A verdict
+    /// about a register it never actually looks at would be a clean bill of
+    /// health for a register nobody checked, and there is no way to find that
+    /// out except by dirtying them one at a time.
+    ///
+    /// The eight others are emptied first, which is what makes the answer
+    /// about this one. Left as the compiler happened to leave them, a verdict
+    /// of "dirty" would be a verdict about whichever of them held something,
+    /// and every one of these tests would pass without the register in its own
+    /// name ever being looked at.
+    ///
+    /// The poison is an immediate and not an operand. Handed over in a
+    /// register, the compiler is free to pick one of the caller-saved ones —
+    /// `lateout` says they are written late, not that they are unavailable
+    /// before — and the emptying above would wipe it on the way past.
+    macro_rules! test_dirty_register_is_seen {
+        ($name:ident, $register:tt) => {
+            #[test]
+            fn $name() {
+                let dirty: u64;
 
-    assert_eq!(
-        &snapshot[..CALLER_WORDS],
-        &[0; CALLER_WORDS],
-        "caller-saved registers"
-    );
+                // SAFETY: the callee takes no argument and returns in the
+                // return register, so the only registers that matter are the
+                // ones named here, and every caller-saved one is declared
+                // clobbered.
+                unsafe {
+                    core::arch::asm!(
+                        "xor rax, rax",
+                        "xor rcx, rcx",
+                        "xor rdx, rdx",
+                        "xor rsi, rsi",
+                        "xor rdi, rdi",
+                        "xor r8, r8",
+                        "xor r9, r9",
+                        "xor r10, r10",
+                        "xor r11, r11",
+                        concat!("mov ", $register, ", {poison}"),
+                        "call {verifier}",
+                        poison = const POISON,
+                        verifier = sym redoubt_poly1305_registers_are_zeroized,
+                        lateout("rax") dirty,
+                        lateout("rcx") _, lateout("rdx") _, lateout("rsi") _,
+                        lateout("rdi") _, lateout("r8") _, lateout("r9") _,
+                        lateout("r10") _, lateout("r11") _,
+                    );
+                }
 
-    for (at, &value) in snapshot[CALLER_WORDS..CALLER_WORDS + PRESERVED_WORDS]
-        .iter()
-        .enumerate()
-    {
-        assert_eq!(value, 19 + at as u64, "callee-saved register {at}");
-    }
-
-    #[cfg(target_arch = "aarch64")]
-    assert_eq!(snapshot[29], snapshot[30], "platform register x18");
-
-    assert!(
-        snapshot[GUARD_AT..FRAME_AT]
-            .iter()
-            .all(|&word| word == POISON),
-        "frame underrun"
-    );
-
-    let expected = if allocated_frame { 0 } else { POISON };
-    assert!(
-        snapshot[FRAME_AT..].iter().all(|&word| word == expected),
-        "released stack frame: {:?}",
-        &snapshot[FRAME_AT..]
-    );
-}
-
-// === === === === === === === === === ===
-// redoubt_poly1305_probe
-// === === === === === === === === === ===
-
-#[test]
-fn test_probe_reports_the_registers_a_call_left_alone() {
-    let mut snapshot = [0u64; SNAPSHOT_WORDS];
-
-    // SAFETY: the target takes no arguments and returns at once, so every
-    // slot below is a value it never reads.
-    unsafe {
-        redoubt_poly1305_probe(
-            [
-                redoubt_poly1305_untouched as *const () as usize,
-                POISON as usize,
-                POISON as usize,
-                POISON as usize,
-                POISON as usize,
-                POISON as usize,
-                POISON as usize,
-            ]
-            .as_ptr(),
-            snapshot.as_mut_ptr(),
-        );
-    }
-
-    // What every other test here asserts is that a register came back empty.
-    // That is worth nothing unless an empty one can be told from a full one,
-    // and this is where that is established: nothing cleared these, so none of
-    // them may read as cleared.
-    assert!(
-        snapshot[..CALLER_WORDS].iter().all(|&word| word != 0),
-        "a register nothing touched reads as empty: {:?}",
-        &snapshot[..CALLER_WORDS]
-    );
-
-    assert!(
-        snapshot[GUARD_AT..].iter().all(|&word| word == POISON),
-        "a frame nothing touched reads as emptied"
-    );
-}
-
-// === === === === === === === === === ===
-// init
-// === === === === === === === === === ===
-
-#[test]
-fn test_init_zeroizes_its_registers() {
-    let key: [u8; KEY_SIZE] = core::array::from_fn(|at| 0x40 + at as u8);
-    let mut r = [0u32; LIMBS];
-    let mut s = [0u8; BLOCK_SIZE];
-
-    // SAFETY: the three arrays are disjoint and have the widths the routine
-    // reads and writes. The trailing slots are values it never reads.
-    unsafe {
-        observe(
-            [
-                redoubt_poly1305_init as *const () as usize,
-                r.as_mut_ptr() as usize,
-                s.as_mut_ptr() as usize,
-                key.as_ptr() as usize,
-                POISON as usize,
-                POISON as usize,
-                POISON as usize,
-            ],
-            false,
-        );
-    }
-
-    let mut expected_r = [0u32; LIMBS];
-    let mut expected_s = [0u8; BLOCK_SIZE];
-    crate::backend::rust::init(&mut expected_r, &mut expected_s, &key);
-
-    assert_eq!(r, expected_r);
-    assert_eq!(s, expected_s);
-}
-
-// === === === === === === === === === ===
-// update
-// === === === === === === === === === ===
-
-#[test]
-fn test_update_zeroizes_its_registers_and_frame() {
-    let key: [u8; KEY_SIZE] = core::array::from_fn(|at| 0x40 + at as u8);
-    let mut r = [0u32; LIMBS];
-    let mut s = [0u8; BLOCK_SIZE];
-    crate::backend::rust::init(&mut r, &mut s, &key);
-
-    // Every way the buffer can be on the way in, against every way the next
-    // piece of message can leave it: short of a block, exactly one, and past
-    // it with a tail.
-    for filled in [0, 1, 8, 15] {
-        for length in [0, 1, 15, 16, 17, 31, 32, 64, 65] {
-            let said: Vec<u8> = (0..length).map(|at| (at as u8) ^ 0x5a).collect();
-
-            let mut acc = [0u64; LIMBS];
-            let mut block = [0u8; BLOCK_SIZE];
-            let mut held = filled;
-            block[..filled].fill(0xc3);
-
-            let mut expected_acc = [0u64; LIMBS];
-            let mut expected_block = block;
-            let mut expected_held = filled;
-
-            // SAFETY: every pointer is to storage of the width the routine
-            // reads or writes, `said` is as long as the length beside it, and
-            // `filled` is no greater than the block it indexes.
-            unsafe {
-                observe(
-                    [
-                        redoubt_poly1305_update as *const () as usize,
-                        acc.as_mut_ptr() as usize,
-                        r.as_ptr() as usize,
-                        block.as_mut_ptr() as usize,
-                        &raw mut held as usize,
-                        said.as_ptr() as usize,
-                        length,
-                    ],
-                    true,
+                assert_eq!(
+                    dirty, POISON,
+                    concat!("a dirty ", $register, " does not reach the answer")
                 );
             }
-
-            crate::backend::rust::update(
-                &mut expected_acc,
-                &r,
-                &mut expected_block,
-                &mut expected_held,
-                &said,
-            );
-
-            assert_eq!(acc, expected_acc, "{filled} held, {length} bytes in");
-            assert_eq!(block, expected_block, "{filled} held, {length} bytes in");
-            assert_eq!(held, expected_held, "{filled} held, {length} bytes in");
-        }
+        };
     }
+
+    /// The other way round, and the reason the rest mean anything.
+    ///
+    /// A verifier that answered "dirty" whatever it was handed would pass
+    /// every test below, so one of them has to hand it a machine that is
+    /// actually clean.
+    #[test]
+    fn test_an_empty_register_file_reads_as_empty() {
+        let dirty: u64;
+
+        // SAFETY: the callee takes no argument and returns in the return
+        // register. Every caller-saved register is emptied here before the
+        // call and declared clobbered after it.
+        unsafe {
+            core::arch::asm!(
+                "xor rax, rax",
+                "xor rcx, rcx",
+                "xor rdx, rdx",
+                "xor rsi, rsi",
+                "xor rdi, rdi",
+                "xor r8, r8",
+                "xor r9, r9",
+                "xor r10, r10",
+                "xor r11, r11",
+                "call {verifier}",
+                verifier = sym redoubt_poly1305_registers_are_zeroized,
+                lateout("rax") dirty,
+                lateout("rcx") _, lateout("rdx") _, lateout("rsi") _,
+                lateout("rdi") _, lateout("r8") _, lateout("r9") _,
+                lateout("r10") _, lateout("r11") _,
+            );
+        }
+
+        assert_eq!(dirty, 0, "an empty register file reads as dirty");
+    }
+
+    test_dirty_register_is_seen!(test_rax_is_seen, "rax");
+    test_dirty_register_is_seen!(test_rcx_is_seen, "rcx");
+    test_dirty_register_is_seen!(test_rdx_is_seen, "rdx");
+    test_dirty_register_is_seen!(test_rsi_is_seen, "rsi");
+    test_dirty_register_is_seen!(test_rdi_is_seen, "rdi");
+    test_dirty_register_is_seen!(test_r8_is_seen, "r8");
+    test_dirty_register_is_seen!(test_r9_is_seen, "r9");
+    test_dirty_register_is_seen!(test_r10_is_seen, "r10");
+    test_dirty_register_is_seen!(test_r11_is_seen, "r11");
+}
+
+#[cfg(target_arch = "aarch64")]
+mod dirty_register {
+    use super::{POISON, redoubt_poly1305_registers_are_zeroized};
+
+    /// One test per register: fill that one and nothing else, and ask.
+    ///
+    /// Every other test here reads a verdict the verifier gives. A verdict
+    /// about a register it never actually looks at would be a clean bill of
+    /// health for a register nobody checked, and there is no way to find that
+    /// out except by dirtying them one at a time.
+    ///
+    /// The seventeen others are emptied first, which is what makes the answer
+    /// about this one. Left as the compiler happened to leave them, a verdict
+    /// of "dirty" would be a verdict about whichever of them held something,
+    /// and every one of these tests would pass without the register in its own
+    /// name ever being looked at.
+    ///
+    /// The poison is built in place with four immediates rather than handed
+    /// over in a register. In a register the compiler is free to pick one of
+    /// the caller-saved ones — `lateout` says they are written late, not that
+    /// they are unavailable before — and the emptying above would wipe it on
+    /// the way past.
+    macro_rules! test_dirty_register_is_seen {
+        ($name:ident, $register:tt) => {
+            #[test]
+            fn $name() {
+                let dirty: u64;
+
+                // SAFETY: the callee takes no argument and returns in the
+                // return register, so the only registers that matter are the
+                // ones named here, and every caller-saved one is declared
+                // clobbered.
+                unsafe {
+                    core::arch::asm!(
+                        "mov x0, xzr", "mov x1, xzr", "mov x2, xzr",
+                        "mov x3, xzr", "mov x4, xzr", "mov x5, xzr",
+                        "mov x6, xzr", "mov x7, xzr", "mov x8, xzr",
+                        "mov x9, xzr", "mov x10, xzr", "mov x11, xzr",
+                        "mov x12, xzr", "mov x13, xzr", "mov x14, xzr",
+                        "mov x15, xzr", "mov x16, xzr", "mov x17, xzr",
+                        concat!("mov ", $register, ", #0xa5a5"),
+                        concat!("movk ", $register, ", #0xa5a5, lsl #16"),
+                        concat!("movk ", $register, ", #0xa5a5, lsl #32"),
+                        concat!("movk ", $register, ", #0xa5a5, lsl #48"),
+                        "bl {verifier}",
+                        verifier = sym redoubt_poly1305_registers_are_zeroized,
+                        lateout("x0") dirty,
+                        lateout("x1") _, lateout("x2") _, lateout("x3") _,
+                        lateout("x4") _, lateout("x5") _, lateout("x6") _,
+                        lateout("x7") _, lateout("x8") _, lateout("x9") _,
+                        lateout("x10") _, lateout("x11") _, lateout("x12") _,
+                        lateout("x13") _, lateout("x14") _, lateout("x15") _,
+                        lateout("x16") _, lateout("x17") _, lateout("x30") _,
+                    );
+                }
+
+                assert_eq!(
+                    dirty, POISON,
+                    concat!("a dirty ", $register, " does not reach the answer")
+                );
+            }
+        };
+    }
+
+    /// The other way round, and the reason the rest mean anything.
+    ///
+    /// A verifier that answered "dirty" whatever it was handed would pass
+    /// every test below, so one of them has to hand it a machine that is
+    /// actually clean.
+    #[test]
+    fn test_an_empty_register_file_reads_as_empty() {
+        let dirty: u64;
+
+        // SAFETY: the callee takes no argument and returns in the return
+        // register. Every caller-saved register is emptied here before the
+        // call and declared clobbered after it.
+        unsafe {
+            core::arch::asm!(
+                "mov x0, xzr", "mov x1, xzr", "mov x2, xzr", "mov x3, xzr",
+                "mov x4, xzr", "mov x5, xzr", "mov x6, xzr", "mov x7, xzr",
+                "mov x8, xzr", "mov x9, xzr", "mov x10, xzr", "mov x11, xzr",
+                "mov x12, xzr", "mov x13, xzr", "mov x14, xzr", "mov x15, xzr",
+                "mov x16, xzr", "mov x17, xzr",
+                "bl {verifier}",
+                verifier = sym redoubt_poly1305_registers_are_zeroized,
+                lateout("x0") dirty,
+                lateout("x1") _, lateout("x2") _, lateout("x3") _,
+                lateout("x4") _, lateout("x5") _, lateout("x6") _,
+                lateout("x7") _, lateout("x8") _, lateout("x9") _,
+                lateout("x10") _, lateout("x11") _, lateout("x12") _,
+                lateout("x13") _, lateout("x14") _, lateout("x15") _,
+                lateout("x16") _, lateout("x17") _, lateout("x30") _,
+            );
+        }
+
+        assert_eq!(dirty, 0, "an empty register file reads as dirty");
+    }
+
+    test_dirty_register_is_seen!(test_x0_is_seen, "x0");
+    test_dirty_register_is_seen!(test_x1_is_seen, "x1");
+    test_dirty_register_is_seen!(test_x2_is_seen, "x2");
+    test_dirty_register_is_seen!(test_x3_is_seen, "x3");
+    test_dirty_register_is_seen!(test_x4_is_seen, "x4");
+    test_dirty_register_is_seen!(test_x5_is_seen, "x5");
+    test_dirty_register_is_seen!(test_x6_is_seen, "x6");
+    test_dirty_register_is_seen!(test_x7_is_seen, "x7");
+    test_dirty_register_is_seen!(test_x8_is_seen, "x8");
+    test_dirty_register_is_seen!(test_x9_is_seen, "x9");
+    test_dirty_register_is_seen!(test_x10_is_seen, "x10");
+    test_dirty_register_is_seen!(test_x11_is_seen, "x11");
+    test_dirty_register_is_seen!(test_x12_is_seen, "x12");
+    test_dirty_register_is_seen!(test_x13_is_seen, "x13");
+    test_dirty_register_is_seen!(test_x14_is_seen, "x14");
+    test_dirty_register_is_seen!(test_x15_is_seen, "x15");
+    test_dirty_register_is_seen!(test_x16_is_seen, "x16");
+    test_dirty_register_is_seen!(test_x17_is_seen, "x17");
 }
 
 // === === === === === === === === === ===
-// finalize
+// redoubt_poly1305_frame_is_zeroized
 // === === === === === === === === === ===
 
+/// The frame every routine takes, as the layout at the top of the assembly
+/// declares it.
+const FRAME: usize = 160;
+
+/// One call per byte: leave that one and nothing else, and ask.
+///
+/// Every routine that takes a frame will read a verdict this gives, and a
+/// verdict about a byte it never looks at would be a clean bill of health for
+/// memory nobody inspected. A hundred and sixty is cheap and it is the only
+/// way to know it reads all of them — an off-by-one at either end, against the
+/// return address sitting next door, shows up here and nowhere else.
+///
+/// The pair is called with nothing in between, which is the other thing being
+/// measured: if anything ran there, the frame the verifier reads would not be
+/// the one the writer left.
 #[test]
-fn test_finalize_zeroizes_its_registers_and_frame() {
-    let key: [u8; KEY_SIZE] = core::array::from_fn(|at| 0x40 + at as u8);
-    let mut r = [0u32; LIMBS];
-    let mut s = [0u8; BLOCK_SIZE];
-    crate::backend::rust::init(&mut r, &mut s, &key);
+fn test_a_byte_left_anywhere_in_the_frame_is_seen() {
+    for at in 0..FRAME {
+        // SAFETY: the target writes one byte inside the frame it allocated,
+        // and the verifier reads the frame the call before it released.
+        let dirty = unsafe {
+            redoubt_poly1305_dirty_frame(at);
+            redoubt_poly1305_frame_is_zeroized()
+        };
 
-    // Every tail a message can end on, and one that spans several blocks.
-    for length in [0, 1, 2, 15, 16, 17, 31, 32, 33, 64, 65] {
-        let said: Vec<u8> = (0..length).map(|at| (at as u8) ^ 0x5a).collect();
-        let mut acc = [0u64; LIMBS];
-        let mut tag = [0u8; TAG_SIZE];
-
-        // SAFETY: every pointer is to an array of the width the routine reads
-        // or writes, and `said` is as long as the length beside it.
-        unsafe {
-            observe(
-                [
-                    redoubt_poly1305_finalize as *const () as usize,
-                    acc.as_mut_ptr() as usize,
-                    r.as_ptr() as usize,
-                    s.as_ptr() as usize,
-                    said.as_ptr() as usize,
-                    length,
-                    tag.as_mut_ptr() as usize,
-                ],
-                true,
-            );
-        }
-
-        let mut expected_acc = [0u64; LIMBS];
-        let mut expected_tag = [0u8; TAG_SIZE];
-        crate::backend::rust::finalize(&mut expected_acc, &r, &s, &said, &mut expected_tag);
-
-        assert_eq!(tag, expected_tag, "{length} bytes in");
-        assert_eq!(acc, expected_acc, "{length} bytes in");
+        assert_ne!(dirty, 0, "byte {at} of the frame reads as empty");
     }
+}
+
+/// The other way round, and the reason the sweep above means anything.
+///
+/// A verifier that answered "dirty" whatever it was handed would pass every
+/// one of those hundred and sixty.
+#[test]
+fn test_a_frame_written_and_emptied_reads_as_empty() {
+    // SAFETY: the target fills the frame it allocated and empties it again,
+    // and the verifier reads what it released.
+    let dirty = unsafe {
+        redoubt_poly1305_clean_frame();
+        redoubt_poly1305_frame_is_zeroized()
+    };
+
+    // Assert zeroization!
+    assert_eq!(dirty, 0, "a frame that was emptied reads as full");
 }

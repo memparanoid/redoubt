@@ -5,5 +5,8 @@
 #[cfg(poly1305_asm)]
 mod asm;
 
+#[cfg(poly1305_asm)]
+mod probe;
+
 mod poly1305;
 mod support;
