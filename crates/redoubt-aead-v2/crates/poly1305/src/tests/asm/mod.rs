@@ -4,8 +4,7 @@
 
 //! What each routine leaves behind, asked of the two verifiers in `probes`.
 //!
-//! Those two are swept there — every register one at a time, every byte of the
-//! frame one at a time — so here they are used and not measured. What is
+//! Their own tests live there; here they are used and not measured. What is
 //! measured here is the routine, and only what it left: whether it computes the
 //! right tag is settled in `poly1305.rs`, where both backends run the vectors
 //! and the oracle. An assertion about an answer would make every test below
@@ -14,10 +13,10 @@
 //! Three per routine, the two negatives first and the real one last, because
 //! the negatives are what make it mean anything.
 //!
-//! The real one is four calls with nothing between them. The dirtying goes
-//! first, because a machine that reads empty afterwards would otherwise say
-//! only that nobody wrote it. The registers are asked before the frame,
-//! because reading a hundred and sixty bytes takes registers.
+//! The dirtying goes first. The selected routine and both verifiers then run
+//! in one assembly block, so Rust cannot insert work before the measurement.
+//! The register verdict is kept in a callee-saved register while the frame is
+//! scanned; that move neither changes the stack pointer nor touches the frame.
 //!
 //! These are not claims about kernel signal frames, swap, dumps, or the input
 //! and output the caller owns.
@@ -25,6 +24,8 @@
 mod probes;
 
 use std::vec::Vec;
+
+use rstest::rstest;
 
 use redoubt_aead_v2_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 
@@ -77,56 +78,151 @@ fn clamped() -> ([u32; LIMBS], [u8; BLOCK_SIZE]) {
     (r, s)
 }
 
-/// The two negatives every routine below is given, one routine at a time.
+/// A negative control with the same arguments as the routine it replaces.
 ///
-/// They are what make the third test mean anything, and they are written per
-/// routine rather than once because what they measure is per routine: between
-/// the dirtying and the verifier the compiler emits the call sequence for
-/// *that* routine, and the sequence for three arguments is not the sequence
-/// for six. Nothing in the language promises either of them emits nothing
-/// else. If one put an instruction there that dirtied a register or moved the
-/// stack pointer, the pair fails — which makes it a measurement of what this
-/// compiler did rather than an argument about what compilers do.
+/// The tail branch keeps the caller's stack pointer and return address. A
+/// regular Rust wrapper could take another frame or change the registers on
+/// return, making the residue belong to the wrapper instead of the helper.
 ///
-/// One byte is enough for the frame: the sweep in `asm.rs` has already
-/// established that any of the hundred and sixty is seen.
-macro_rules! test_the_calls_carry_what_was_left {
-    ($registers:ident, $frame:ident) => {
-        #[test]
-        fn $registers() {
-            // SAFETY: the target takes no argument and leaves the budget full.
-            let registers = unsafe {
-                redoubt_poly1305_dirty_registers();
-                redoubt_poly1305_registers_are_zeroized()
-            };
+/// Only the frame control replaces the first argument with byte offset zero.
+/// These functions never dereference their pointer arguments.
+macro_rules! negative_controls {
+    ($registers:ident, $frame:ident, ($($argument:ident: $kind:ty),* $(,)?)) => {
+        #[unsafe(naked)]
+        unsafe extern "C" fn $registers($($argument: $kind),*) {
+            #[cfg(target_arch = "x86_64")]
+            core::arch::naked_asm!(
+                "jmp {target}",
+                target = sym redoubt_poly1305_dirty_registers,
+            );
 
-            assert_ne!(registers, 0, "a register nothing cleared reads as cleared");
+            #[cfg(target_arch = "aarch64")]
+            core::arch::naked_asm!(
+                "b {target}",
+                target = sym redoubt_poly1305_dirty_registers,
+            );
         }
 
-        #[test]
-        fn $frame() {
-            // SAFETY: the target writes one byte inside the frame it allocated.
-            let frame = unsafe {
-                redoubt_poly1305_dirty_frame(0);
-                redoubt_poly1305_frame_is_zeroized()
-            };
+        #[unsafe(naked)]
+        unsafe extern "C" fn $frame($($argument: $kind),*) {
+            #[cfg(target_arch = "x86_64")]
+            core::arch::naked_asm!(
+                "xor edi, edi",
+                "jmp {target}",
+                target = sym redoubt_poly1305_dirty_frame,
+            );
 
-            assert_ne!(frame, 0, "a frame nothing cleared reads as cleared");
+            #[cfg(target_arch = "aarch64")]
+            core::arch::naked_asm!(
+                "mov x0, xzr",
+                "b {target}",
+                target = sym redoubt_poly1305_dirty_frame,
+            );
         }
     };
+}
+
+/// Call the selected routine with its ABI arguments and immediately measure it.
+///
+/// The caller must uphold the routine's pointer and length preconditions.
+/// Both verifiers preserve r12/x20, where the first verdict waits for the
+/// second. Declaring that output makes Rust preserve its caller's value.
+macro_rules! measure {
+    ($routine:expr, $first:expr $(, ($x86:tt, $arm:tt, $argument:expr))* $(,)?) => {{
+        let registers: u64;
+        let frame: u64;
+
+        #[cfg(target_arch = "x86_64")]
+        core::arch::asm!(
+            "call r11",
+            "call {register_probe}",
+            "mov r12, rax",
+            "call {frame_probe}",
+            register_probe = sym redoubt_poly1305_registers_are_zeroized,
+            frame_probe = sym redoubt_poly1305_frame_is_zeroized,
+            inlateout("r11") $routine => _,
+            inlateout("rdi") $first => _,
+            $(inlateout($x86) $argument => _,)*
+            lateout("r12") registers,
+            lateout("rax") frame,
+            clobber_abi("C"),
+        );
+
+        #[cfg(target_arch = "aarch64")]
+        core::arch::asm!(
+            "blr x16",
+            "bl {register_probe}",
+            "mov x20, x0",
+            "bl {frame_probe}",
+            register_probe = sym redoubt_poly1305_registers_are_zeroized,
+            frame_probe = sym redoubt_poly1305_frame_is_zeroized,
+            inlateout("x16") $routine => _,
+            inlateout("x0") $first => frame,
+            $(inlateout($arm) $argument => _,)*
+            lateout("x20") registers,
+            clobber_abi("C"),
+        );
+
+        (registers, frame)
+    }};
+}
+
+/// Which residue the case deliberately leaves, or neither for the real call.
+#[derive(Clone, Copy)]
+enum Left {
+    Registers,
+    Frame,
+    Nothing,
+}
+
+/// Each negative asks only about the residue it deliberately leaves.
+fn assert_residue(registers: u64, frame: u64, left: Left, takes_frame: bool) {
+    match left {
+        Left::Registers => {
+            assert_ne!(
+                registers, 0,
+                "registers the replacement left full read as empty"
+            );
+        }
+        Left::Frame => {
+            assert_ne!(
+                frame, 0,
+                "the frame the replacement left full reads as empty"
+            );
+        }
+        Left::Nothing => {
+            // Assert zeroization!
+            assert_eq!(registers, 0, "the registers after the real routine");
+
+            if takes_frame {
+                assert_eq!(frame, 0, "the frame after the real routine");
+            } else {
+                assert_ne!(frame, 0, "a routine that takes no frame emptied one");
+            }
+        }
+    }
 }
 
 // === === === === === === === === === ===
 // init
 // === === === === === === === === === ===
 
-test_the_calls_carry_what_was_left!(
-    test_a_register_left_full_is_seen_across_the_init_calls,
-    test_a_frame_left_full_is_seen_across_the_init_calls
+type Init = unsafe extern "C" fn(*mut u32, *mut u8, *const u8);
+
+negative_controls!(
+    dirty_init_registers,
+    dirty_init_frame,
+    (_r: *mut u32, _s: *mut u8, _key: *const u8)
 );
 
-#[test]
-fn test_init_leaves_nothing_in_the_registers_and_takes_no_frame() {
+#[rstest]
+#[case::registers_left_full(dirty_init_registers as Init, Left::Registers)]
+#[case::frame_left_full(dirty_init_frame as Init, Left::Frame)]
+#[case::real(redoubt_poly1305_init as Init, Left::Nothing)]
+fn test_init_leaves_the_residue_its_case_declares(#[case] routine: Init, #[case] left: Left) {
+    // All cases use this indirect call site, including under release/LTO.
+    // The controls exercise this caller; they do not certify other callers.
+    let routine = core::hint::black_box(routine);
     let key: [u8; KEY_SIZE] = core::array::from_fn(|at| 0x40 + at as u8);
     let mut r = [0u32; LIMBS];
     let mut s = [0u8; BLOCK_SIZE];
@@ -136,33 +232,39 @@ fn test_init_leaves_nothing_in_the_registers_and_takes_no_frame() {
     let (registers, frame) = unsafe {
         redoubt_poly1305_dirty_registers();
         redoubt_poly1305_dirty_frame(0);
-        redoubt_poly1305_init(r.as_mut_ptr(), s.as_mut_ptr(), key.as_ptr());
-        (
-            redoubt_poly1305_registers_are_zeroized(),
-            redoubt_poly1305_frame_is_zeroized(),
+        measure!(
+            routine,
+            r.as_mut_ptr(),
+            ("rsi", "x1", s.as_mut_ptr()),
+            ("rdx", "x2", key.as_ptr()),
         )
     };
 
-    // Assert zeroization!
-    assert_eq!(registers, 0, "the registers after the clamp");
-
-    // The clamp fits in the budget, so this routine allocates nothing and the
-    // byte left under it has to still be there. An emptied window here would
-    // mean it reached for memory its layout never declared.
-    assert_ne!(frame, 0, "a routine that takes no frame emptied one");
+    // The real clamp takes no frame; its pre-dirtied byte must remain.
+    assert_residue(registers, frame, left, false);
 }
 
 // === === === === === === === === === ===
 // update
 // === === === === === === === === === ===
 
-test_the_calls_carry_what_was_left!(
-    test_a_register_left_full_is_seen_across_the_update_calls,
-    test_a_frame_left_full_is_seen_across_the_update_calls
+type Update = unsafe extern "C" fn(*mut u64, *const u32, *mut u8, *mut usize, *const u8, usize);
+
+negative_controls!(
+    dirty_update_registers,
+    dirty_update_frame,
+    (
+        _acc: *mut u64, _r: *const u32, _block: *mut u8,
+        _filled: *mut usize, _said: *const u8, _said_len: usize,
+    )
 );
 
-#[test]
-fn test_update_leaves_nothing_in_the_registers_or_the_frame() {
+#[rstest]
+#[case::registers_left_full(dirty_update_registers as Update, Left::Registers)]
+#[case::frame_left_full(dirty_update_frame as Update, Left::Frame)]
+#[case::real(redoubt_poly1305_update as Update, Left::Nothing)]
+fn test_update_leaves_the_residue_its_case_declares(#[case] routine: Update, #[case] left: Left) {
+    let routine = core::hint::black_box(routine);
     let (r, _) = clamped();
 
     // Every way the buffer can be on the way in, against every way the next
@@ -183,23 +285,18 @@ fn test_update_leaves_nothing_in_the_registers_or_the_frame() {
             let (registers, frame) = unsafe {
                 redoubt_poly1305_dirty_registers();
                 redoubt_poly1305_dirty_frame(0);
-                redoubt_poly1305_update(
+                measure!(
+                    routine,
                     acc.as_mut_ptr(),
-                    r.as_ptr(),
-                    block.as_mut_ptr(),
-                    &raw mut held,
-                    said.as_ptr(),
-                    length,
-                );
-                (
-                    redoubt_poly1305_registers_are_zeroized(),
-                    redoubt_poly1305_frame_is_zeroized(),
+                    ("rsi", "x1", r.as_ptr()),
+                    ("rdx", "x2", block.as_mut_ptr()),
+                    ("rcx", "x3", &raw mut held),
+                    ("r8", "x4", said.as_ptr()),
+                    ("r9", "x5", length),
                 )
             };
 
-            // Assert zeroization!
-            assert_eq!(registers, 0, "the registers, {filled} held, {length} in");
-            assert_eq!(frame, 0, "the frame, {filled} held, {length} in");
+            assert_residue(registers, frame, left, true);
         }
     }
 }
@@ -208,13 +305,26 @@ fn test_update_leaves_nothing_in_the_registers_or_the_frame() {
 // finalize
 // === === === === === === === === === ===
 
-test_the_calls_carry_what_was_left!(
-    test_a_register_left_full_is_seen_across_the_finalize_calls,
-    test_a_frame_left_full_is_seen_across_the_finalize_calls
+type Finalize = unsafe extern "C" fn(*mut u64, *const u32, *const u8, *const u8, usize, *mut u8);
+
+negative_controls!(
+    dirty_finalize_registers,
+    dirty_finalize_frame,
+    (
+        _acc: *mut u64, _r: *const u32, _s: *const u8,
+        _said: *const u8, _said_len: usize, _out: *mut u8,
+    )
 );
 
-#[test]
-fn test_finalize_leaves_nothing_in_the_registers_or_the_frame() {
+#[rstest]
+#[case::registers_left_full(dirty_finalize_registers as Finalize, Left::Registers)]
+#[case::frame_left_full(dirty_finalize_frame as Finalize, Left::Frame)]
+#[case::real(redoubt_poly1305_finalize as Finalize, Left::Nothing)]
+fn test_finalize_leaves_the_residue_its_case_declares(
+    #[case] routine: Finalize,
+    #[case] left: Left,
+) {
+    let routine = core::hint::black_box(routine);
     let (r, s) = clamped();
 
     // Every tail a message can end on, and one that spans several blocks.
@@ -228,22 +338,17 @@ fn test_finalize_leaves_nothing_in_the_registers_or_the_frame() {
         let (registers, frame) = unsafe {
             redoubt_poly1305_dirty_registers();
             redoubt_poly1305_dirty_frame(0);
-            redoubt_poly1305_finalize(
+            measure!(
+                routine,
                 acc.as_mut_ptr(),
-                r.as_ptr(),
-                s.as_ptr(),
-                said.as_ptr(),
-                length,
-                tag.as_mut_ptr(),
-            );
-            (
-                redoubt_poly1305_registers_are_zeroized(),
-                redoubt_poly1305_frame_is_zeroized(),
+                ("rsi", "x1", r.as_ptr()),
+                ("rdx", "x2", s.as_ptr()),
+                ("rcx", "x3", said.as_ptr()),
+                ("r8", "x4", length),
+                ("r9", "x5", tag.as_mut_ptr()),
             )
         };
 
-        // Assert zeroization!
-        assert_eq!(registers, 0, "the registers after {length} bytes in");
-        assert_eq!(frame, 0, "the frame after {length} bytes in");
+        assert_residue(registers, frame, left, true);
     }
 }
