@@ -4,17 +4,36 @@
 
 //! The two verifiers, each swept over the whole of what it claims to look at:
 //! every register in the budget one at a time, every byte of the frame one at
-//! a time, and a positive for each.
+//! a time, and a positive for each. Then the two writers they are swept with,
+//! captured rather than asked: an OR cannot say which element carried it.
 //!
 //! Every test in the parent reads a verdict one of these gives, so here they
 //! are the thing under test and nothing below calls a routine.
 
 use super::{
-    redoubt_poly1305_clean_frame, redoubt_poly1305_dirty_frame,
+    redoubt_poly1305_clean_frame, redoubt_poly1305_dirty_frame, redoubt_poly1305_dirty_registers,
     redoubt_poly1305_frame_is_zeroized, redoubt_poly1305_registers_are_zeroized,
 };
 
 const POISON: u64 = 0xa5a5_a5a5_a5a5_a5a5;
+
+/// The frame every routine takes, as the layout at the top of the assembly
+/// declares it.
+const FRAME: usize = 160;
+
+/// The budget, in the order the list at the top of the assembly names it.
+///
+/// Both files have to say it, and only one of them can be the assembly: what
+/// this one buys is that a register missing from the wipe is named when the
+/// capture below fails, rather than reported as an index.
+#[cfg(target_arch = "x86_64")]
+const BUDGET: [&str; 9] = ["rax", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11"];
+
+#[cfg(target_arch = "aarch64")]
+const BUDGET: [&str; 18] = [
+    "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14",
+    "x15", "x16", "x17",
+];
 
 // === === === === === === === === === ===
 // redoubt_poly1305_registers_are_zeroized
@@ -249,10 +268,6 @@ mod dirty_register {
 // redoubt_poly1305_frame_is_zeroized
 // === === === === === === === === === ===
 
-/// The frame every routine takes, as the layout at the top of the assembly
-/// declares it.
-const FRAME: usize = 160;
-
 /// One call per byte: leave that one and nothing else, and ask.
 ///
 /// Every routine that takes a frame will read a verdict this gives, and a
@@ -293,4 +308,190 @@ fn test_a_frame_written_and_emptied_reads_as_empty() {
 
     // Assert zeroization!
     assert_eq!(dirty, 0, "a frame that was emptied reads as full");
+}
+
+// === === === === === === === === === ===
+// redoubt_poly1305_dirty_registers
+// === === === === === === === === === ===
+
+/// The writer must fill every register in the budget, not merely some of them.
+///
+/// The sweep above establishes that the verifier sees any one register. This
+/// is the other half of that instrument: the negatives in the parent read
+/// "something is still full", and a writer short by one register would let
+/// them pass while never dirtying the register the routine under test failed
+/// to wipe.
+///
+/// Capture the registers directly rather than asking the OR verifier, for the
+/// same reason the frame writer is captured below: an OR cannot tell which of
+/// them carried the answer. They are emptied first, so an equality here can
+/// only have come from the writer.
+#[test]
+fn test_dirty_registers_fills_every_register_in_the_budget() {
+    let mut actual = [0u64; BUDGET.len()];
+
+    #[cfg(target_arch = "x86_64")]
+    // SAFETY: the callee takes no argument, and r12 is outside the budget it
+    // fills, so the destination survives the call. `actual` is as long as the
+    // budget, and the stores below cover it exactly once each.
+    unsafe {
+        core::arch::asm!(
+            "xor rax, rax",
+            "xor rcx, rcx",
+            "xor rdx, rdx",
+            "xor rsi, rsi",
+            "xor rdi, rdi",
+            "xor r8, r8",
+            "xor r9, r9",
+            "xor r10, r10",
+            "xor r11, r11",
+            "call {writer}",
+            "mov [r12], rax",
+            "mov [r12 + 8], rcx",
+            "mov [r12 + 16], rdx",
+            "mov [r12 + 24], rsi",
+            "mov [r12 + 32], rdi",
+            "mov [r12 + 40], r8",
+            "mov [r12 + 48], r9",
+            "mov [r12 + 56], r10",
+            "mov [r12 + 64], r11",
+            writer = sym redoubt_poly1305_dirty_registers,
+            inlateout("r12") actual.as_mut_ptr() => _,
+            clobber_abi("C"),
+        );
+    }
+
+    #[cfg(target_arch = "aarch64")]
+    // SAFETY: the same, with x20 outside the budget instead of r12.
+    unsafe {
+        core::arch::asm!(
+            "mov x0, xzr", "mov x1, xzr", "mov x2, xzr", "mov x3, xzr",
+            "mov x4, xzr", "mov x5, xzr", "mov x6, xzr", "mov x7, xzr",
+            "mov x8, xzr", "mov x9, xzr", "mov x10, xzr", "mov x11, xzr",
+            "mov x12, xzr", "mov x13, xzr", "mov x14, xzr", "mov x15, xzr",
+            "mov x16, xzr", "mov x17, xzr",
+            "bl {writer}",
+            "stp x0, x1, [x20]",
+            "stp x2, x3, [x20, #16]",
+            "stp x4, x5, [x20, #32]",
+            "stp x6, x7, [x20, #48]",
+            "stp x8, x9, [x20, #64]",
+            "stp x10, x11, [x20, #80]",
+            "stp x12, x13, [x20, #96]",
+            "stp x14, x15, [x20, #112]",
+            "stp x16, x17, [x20, #128]",
+            writer = sym redoubt_poly1305_dirty_registers,
+            inlateout("x20") actual.as_mut_ptr() => _,
+            clobber_abi("C"),
+        );
+    }
+
+    for (at, &value) in actual.iter().enumerate() {
+        assert_eq!(
+            value, POISON,
+            "{} came back from the writer empty",
+            BUDGET[at]
+        );
+    }
+}
+
+// === === === === === === === === === ===
+// redoubt_poly1305_dirty_frame
+// === === === === === === === === === ===
+
+/// The writer must leave exactly one byte, even on a previously full frame.
+///
+/// Capture the bytes directly rather than asking the OR verifier: that answer
+/// cannot distinguish the requested byte from residue somewhere else. Filling,
+/// calling and capturing stay in one assembly block, with every stack access
+/// inside a region reserved by this caller or by the writer itself.
+#[test]
+fn test_dirty_frame_clears_every_byte_except_the_requested_one() {
+    for at in 0..FRAME {
+        let mut actual = [0xffu8; FRAME];
+
+        #[cfg(target_arch = "x86_64")]
+        // SAFETY: at is inside the writer's frame, and actual covers all 160
+        // captured bytes. r12 holds its pointer across the call; the writer
+        // preserves it. The 176-byte reservation keeps call alignment and
+        // includes eight bytes below the frame plus the return-address slot:
+        // the writer's frame is [rsp + 8, rsp + 168) after reserving again.
+        unsafe {
+            core::arch::asm!(
+                "sub rsp, {window}",
+                "mov rax, {poison}",
+                "xor ecx, ecx",
+                "2:",
+                "mov [rsp + rcx + 8], rax",
+                "add rcx, 8",
+                "cmp rcx, {frame}",
+                "jb 2b",
+                "add rsp, {window}",
+                "call {writer}",
+                "sub rsp, {window}",
+                "xor ecx, ecx",
+                "3:",
+                "mov al, [rsp + rcx + 8]",
+                "mov [r12 + rcx], al",
+                "mov byte ptr [rsp + rcx + 8], 0",
+                "inc rcx",
+                "cmp rcx, {frame}",
+                "jb 3b",
+                "add rsp, {window}",
+                window = const FRAME + 16,
+                frame = const FRAME,
+                poison = const POISON,
+                writer = sym redoubt_poly1305_dirty_frame,
+                inlateout("rdi") at => _,
+                inlateout("r12") actual.as_mut_ptr() => _,
+                clobber_abi("C"),
+            );
+        }
+
+        #[cfg(target_arch = "aarch64")]
+        // SAFETY: at and actual satisfy the same bounds as above. x20 holds
+        // the destination across the call and is preserved by the writer.
+        // The frame is sixteen-byte aligned. bl uses x30, not a stack slot,
+        // so reserving FRAME again gives exactly the writer's former frame.
+        unsafe {
+            core::arch::asm!(
+                "sub sp, sp, #{frame}",
+                "mov x1, #0xa5a5",
+                "movk x1, #0xa5a5, lsl #16",
+                "movk x1, #0xa5a5, lsl #32",
+                "movk x1, #0xa5a5, lsl #48",
+                "mov x2, xzr",
+                "2:",
+                "str x1, [sp, x2]",
+                "add x2, x2, #8",
+                "cmp x2, #{frame}",
+                "b.lo 2b",
+                "add sp, sp, #{frame}",
+                "bl {writer}",
+                "sub sp, sp, #{frame}",
+                "mov x2, xzr",
+                "3:",
+                "ldrb w1, [sp, x2]",
+                "strb w1, [x20, x2]",
+                "strb wzr, [sp, x2]",
+                "add x2, x2, #1",
+                "cmp x2, #{frame}",
+                "b.lo 3b",
+                "add sp, sp, #{frame}",
+                frame = const FRAME,
+                writer = sym redoubt_poly1305_dirty_frame,
+                inlateout("x0") at => _,
+                inlateout("x20") actual.as_mut_ptr() => _,
+                clobber_abi("C"),
+            );
+        }
+
+        for (byte, &value) in actual.iter().enumerate() {
+            assert_eq!(
+                value,
+                if byte == at { 0x5c } else { 0 },
+                "requested byte {at}, captured byte {byte}",
+            );
+        }
+    }
 }
