@@ -10,8 +10,11 @@
 //! `backend.rs`, where both backends run the vectors and the oracle. An
 //! assertion about an answer would make every test below two tests.
 //!
-//! Three per routine, the two negatives first and the real one last, because
-//! the negatives are what make it mean anything.
+//! Four cases per routine, the three negatives first and the real one last,
+//! because the negatives are what make it mean anything. Two of them leave a
+//! residue of their own; the third leaves the machine exactly as it arrived,
+//! which is what says the reading is about the routine and not about the call
+//! site having tidied up.
 //!
 //! The dirtying goes first. The selected routine and both verifiers then run
 //! in one assembly block, so Rust cannot insert work before the measurement.
@@ -59,16 +62,27 @@ unsafe extern "C" {
 /// rest in a frame, aarch64 keeps all sixteen in w2-w17 and takes none.
 const ROUNDS_TAKE_A_FRAME: bool = cfg!(target_arch = "x86_64");
 
-/// A negative control with the same arguments as the routine it replaces.
+/// Three negative controls with the same arguments as the routine they
+/// replace.
 ///
 /// The tail branch keeps the caller's stack pointer and return address. A
 /// regular Rust wrapper could take another frame or change the registers on
 /// return, making the residue belong to the wrapper instead of the helper.
 ///
+/// The first two leave a residue of their own. The third leaves none and does
+/// nothing at all, which is the one that answers whether the *caller's*
+/// dirtying survives to the verifier: without it, the real routine reading
+/// clean could be the call site having cleaned rather than the routine.
+///
 /// Only the frame control replaces the first argument with byte offset zero.
 /// These functions never dereference their pointer arguments.
 macro_rules! negative_controls {
-    ($registers:ident, $frame:ident, ($($argument:ident: $kind:ty),* $(,)?)) => {
+    ($registers:ident, $frame:ident, $untouched:ident, ($($argument:ident: $kind:ty),* $(,)?)) => {
+        #[unsafe(naked)]
+        unsafe extern "C" fn $untouched($($argument: $kind),*) {
+            core::arch::naked_asm!("ret");
+        }
+
         #[unsafe(naked)]
         unsafe extern "C" fn $registers($($argument: $kind),*) {
             #[cfg(target_arch = "x86_64")]
@@ -153,12 +167,23 @@ macro_rules! measure {
 enum Left {
     Registers,
     Frame,
+    Everything,
     Nothing,
 }
 
 /// Each negative asks only about the residue it deliberately leaves.
 fn assert_residue(registers: u64, frame: u64, left: Left, takes_frame: bool) {
     match left {
+        Left::Everything => {
+            // A call that did nothing at all. What the caller dirtied before it
+            // has to still be there afterwards, or a clean reading below says
+            // only that something between the calls tidied up.
+            assert_ne!(
+                registers, 0,
+                "a call that ran nothing emptied the registers"
+            );
+            assert_ne!(frame, 0, "a call that ran nothing emptied the frame");
+        }
         Left::Registers => {
             assert_ne!(
                 registers, 0,
@@ -193,12 +218,14 @@ type Rounds = unsafe extern "C" fn(*mut u32);
 negative_controls!(
     dirty_rounds_registers,
     dirty_rounds_frame,
+    untouched_rounds,
     (_state: *mut u32)
 );
 
 #[rstest]
 #[case::registers_left_full(dirty_rounds_registers as Rounds, Left::Registers)]
 #[case::frame_left_full(dirty_rounds_frame as Rounds, Left::Frame)]
+#[case::nothing_ran(untouched_rounds as Rounds, Left::Everything)]
 #[case::real(redoubt_chacha_rounds as Rounds, Left::Nothing)]
 fn test_rounds_leaves_the_residue_its_case_declares(#[case] routine: Rounds, #[case] left: Left) {
     // All cases use this indirect call site, including under release/LTO.
@@ -225,12 +252,14 @@ type Subkey = unsafe extern "C" fn(*mut u8, *const u8, *const u8);
 negative_controls!(
     dirty_subkey_registers,
     dirty_subkey_frame,
+    untouched_subkey,
     (_out: *mut u8, _key: *const u8, _nonce: *const u8)
 );
 
 #[rstest]
 #[case::registers_left_full(dirty_subkey_registers as Subkey, Left::Registers)]
 #[case::frame_left_full(dirty_subkey_frame as Subkey, Left::Frame)]
+#[case::nothing_ran(untouched_subkey as Subkey, Left::Everything)]
 #[case::real(redoubt_hchacha_subkey as Subkey, Left::Nothing)]
 fn test_subkey_leaves_the_residue_its_case_declares(#[case] routine: Subkey, #[case] left: Left) {
     let routine = core::hint::black_box(routine);
@@ -263,6 +292,7 @@ type Xor = unsafe extern "C" fn(*const u8, *const u8, u64, *mut u8, usize, usize
 negative_controls!(
     dirty_xor_registers,
     dirty_xor_frame,
+    untouched_xor,
     (
         _key: *const u8, _nonce: *const u8, _counter: u64,
         _data: *mut u8, _len: usize, _nonce_len: usize,
@@ -272,6 +302,7 @@ negative_controls!(
 #[rstest]
 #[case::registers_left_full(dirty_xor_registers as Xor, Left::Registers)]
 #[case::frame_left_full(dirty_xor_frame as Xor, Left::Frame)]
+#[case::nothing_ran(untouched_xor as Xor, Left::Everything)]
 #[case::real(redoubt_chacha_xor as Xor, Left::Nothing)]
 fn test_xor_leaves_the_residue_its_case_declares(
     #[case] routine: Xor,
@@ -318,6 +349,7 @@ type Xxor = unsafe extern "C" fn(*const u8, *const u8, u64, *mut u8, usize);
 negative_controls!(
     dirty_xxor_registers,
     dirty_xxor_frame,
+    untouched_xxor,
     (
         _key: *const u8, _nonce: *const u8, _counter: u64,
         _data: *mut u8, _len: usize,
@@ -327,6 +359,7 @@ negative_controls!(
 #[rstest]
 #[case::registers_left_full(dirty_xxor_registers as Xxor, Left::Registers)]
 #[case::frame_left_full(dirty_xxor_frame as Xxor, Left::Frame)]
+#[case::nothing_ran(untouched_xxor as Xxor, Left::Everything)]
 #[case::real(redoubt_xchacha_xor as Xxor, Left::Nothing)]
 fn test_xxor_leaves_the_residue_its_case_declares(#[case] routine: Xxor, #[case] left: Left) {
     let routine = core::hint::black_box(routine);

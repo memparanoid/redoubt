@@ -11,10 +11,28 @@ use redoubt_aead_v2_core::Backend;
 use redoubt_aead_v2_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
+use crate::backend::HAS_ASM;
 use crate::poly1305::{Poly1305, tag_with_backend};
 
 use super::support::oracle;
 use super::support::vectors::{VECTORS, Vector};
+
+/// The precondition every case below rests on, which is why it is first.
+///
+/// The two backends are the same code where the target has no assembly, and a
+/// pair of cases that found them agreeing there would have proved nothing
+/// about either — while reading as though it had proved it twice.
+#[test]
+#[expect(
+    clippy::assertions_on_constants,
+    reason = "a constant is what it asks about: whether this build has the assembly at all"
+)]
+fn test_this_target_has_the_assembly() {
+    assert!(
+        HAS_ASM,
+        "the cases below name two backends and this target has one"
+    );
+}
 
 // === === === === === === === === === ===
 // Test helpers

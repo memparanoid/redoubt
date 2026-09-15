@@ -7,9 +7,26 @@ use rstest::rstest;
 
 use redoubt_aead_v2_core::Backend;
 
-use crate::backend::rounds;
+use crate::backend::{HAS_ASM, rounds};
 
 use super::support::{oracle, vectors};
+
+/// The precondition every case below rests on, which is why it is first.
+///
+/// The two backends are the same code where the target has no assembly, and a
+/// pair of cases that found them agreeing there would have proved nothing
+/// about either — while reading as though it had proved it twice.
+#[test]
+#[expect(
+    clippy::assertions_on_constants,
+    reason = "a constant is what it asks about: whether this build has the assembly at all"
+)]
+fn test_this_target_has_the_assembly() {
+    assert!(
+        HAS_ASM,
+        "the cases below name two backends and this target has one"
+    );
+}
 
 // === === === === === === === === === ===
 // rounds

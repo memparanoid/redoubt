@@ -10,8 +10,11 @@
 //! and the oracle. An assertion about an answer would make every test below
 //! two tests.
 //!
-//! Three per routine, the two negatives first and the real one last, because
-//! the negatives are what make it mean anything.
+//! Four cases per routine, the three negatives first and the real one last,
+//! because the negatives are what make it mean anything. Two of them leave a
+//! residue of their own; the third leaves the machine exactly as it arrived,
+//! which is what says the reading is about the routine and not about the call
+//! site having tidied up.
 //!
 //! The dirtying goes first. The selected routine and both verifiers then run
 //! in one assembly block, so Rust cannot insert work before the measurement.
@@ -78,16 +81,27 @@ fn clamped() -> ([u32; LIMBS], [u8; BLOCK_SIZE]) {
     (r, s)
 }
 
-/// A negative control with the same arguments as the routine it replaces.
+/// Three negative controls with the same arguments as the routine they
+/// replace.
 ///
 /// The tail branch keeps the caller's stack pointer and return address. A
 /// regular Rust wrapper could take another frame or change the registers on
 /// return, making the residue belong to the wrapper instead of the helper.
 ///
+/// The first two leave a residue of their own. The third leaves none and does
+/// nothing at all, which is the one that answers whether the *caller's*
+/// dirtying survives to the verifier: without it, the real routine reading
+/// clean could be the call site having cleaned rather than the routine.
+///
 /// Only the frame control replaces the first argument with byte offset zero.
 /// These functions never dereference their pointer arguments.
 macro_rules! negative_controls {
-    ($registers:ident, $frame:ident, ($($argument:ident: $kind:ty),* $(,)?)) => {
+    ($registers:ident, $frame:ident, $untouched:ident, ($($argument:ident: $kind:ty),* $(,)?)) => {
+        #[unsafe(naked)]
+        unsafe extern "C" fn $untouched($($argument: $kind),*) {
+            core::arch::naked_asm!("ret");
+        }
+
         #[unsafe(naked)]
         unsafe extern "C" fn $registers($($argument: $kind),*) {
             #[cfg(target_arch = "x86_64")]
@@ -172,12 +186,23 @@ macro_rules! measure {
 enum Left {
     Registers,
     Frame,
+    Everything,
     Nothing,
 }
 
 /// Each negative asks only about the residue it deliberately leaves.
 fn assert_residue(registers: u64, frame: u64, left: Left, takes_frame: bool) {
     match left {
+        Left::Everything => {
+            // A call that did nothing at all. What the caller dirtied before it
+            // has to still be there afterwards, or a clean reading below says
+            // only that something between the calls tidied up.
+            assert_ne!(
+                registers, 0,
+                "a call that ran nothing emptied the registers"
+            );
+            assert_ne!(frame, 0, "a call that ran nothing emptied the frame");
+        }
         Left::Registers => {
             assert_ne!(
                 registers, 0,
@@ -212,12 +237,14 @@ type Init = unsafe extern "C" fn(*mut u32, *mut u8, *const u8);
 negative_controls!(
     dirty_init_registers,
     dirty_init_frame,
+    untouched_init,
     (_r: *mut u32, _s: *mut u8, _key: *const u8)
 );
 
 #[rstest]
 #[case::registers_left_full(dirty_init_registers as Init, Left::Registers)]
 #[case::frame_left_full(dirty_init_frame as Init, Left::Frame)]
+#[case::nothing_ran(untouched_init as Init, Left::Everything)]
 #[case::real(redoubt_poly1305_init as Init, Left::Nothing)]
 fn test_init_leaves_the_residue_its_case_declares(#[case] routine: Init, #[case] left: Left) {
     // All cases use this indirect call site, including under release/LTO.
@@ -253,6 +280,7 @@ type Update = unsafe extern "C" fn(*mut u64, *const u32, *mut u8, *mut usize, *c
 negative_controls!(
     dirty_update_registers,
     dirty_update_frame,
+    untouched_update,
     (
         _acc: *mut u64, _r: *const u32, _block: *mut u8,
         _filled: *mut usize, _said: *const u8, _said_len: usize,
@@ -262,6 +290,7 @@ negative_controls!(
 #[rstest]
 #[case::registers_left_full(dirty_update_registers as Update, Left::Registers)]
 #[case::frame_left_full(dirty_update_frame as Update, Left::Frame)]
+#[case::nothing_ran(untouched_update as Update, Left::Everything)]
 #[case::real(redoubt_poly1305_update as Update, Left::Nothing)]
 fn test_update_leaves_the_residue_its_case_declares(#[case] routine: Update, #[case] left: Left) {
     let routine = core::hint::black_box(routine);
@@ -310,6 +339,7 @@ type Finalize = unsafe extern "C" fn(*mut u64, *const u32, *const u8, *const u8,
 negative_controls!(
     dirty_finalize_registers,
     dirty_finalize_frame,
+    untouched_finalize,
     (
         _acc: *mut u64, _r: *const u32, _s: *const u8,
         _said: *const u8, _said_len: usize, _out: *mut u8,
@@ -319,6 +349,7 @@ negative_controls!(
 #[rstest]
 #[case::registers_left_full(dirty_finalize_registers as Finalize, Left::Registers)]
 #[case::frame_left_full(dirty_finalize_frame as Finalize, Left::Frame)]
+#[case::nothing_ran(untouched_finalize as Finalize, Left::Everything)]
 #[case::real(redoubt_poly1305_finalize as Finalize, Left::Nothing)]
 fn test_finalize_leaves_the_residue_its_case_declares(
     #[case] routine: Finalize,
