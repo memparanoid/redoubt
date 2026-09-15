@@ -13,7 +13,10 @@ use redoubt_aead_v2_core::consts::chacha::{KEY_SIZE, NONCE_SIZE};
 /// Hexadecimal published as contiguous lines, decoded only in tests.
 pub(crate) fn hex<const N: usize>(value: &str) -> [u8; N] {
     assert_eq!(value.len(), N * 2);
-    core::array::from_fn(|at| u8::from_str_radix(&value[at * 2..at * 2 + 2], 16).unwrap())
+    core::array::from_fn(|at| {
+        u8::from_str_radix(&value[at * 2..at * 2 + 2], 16)
+            .expect("a transcribed vector is hexadecimal")
+    })
 }
 
 /// RFC 8439 §2.3.2, before the twenty rounds.

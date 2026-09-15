@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use core::array::TryFromSliceError;
+
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::vec::Vec;
 
@@ -261,17 +263,17 @@ fn test_xor_bernstein_rejects_counter_exhaustion_before_touching_data(#[case] ba
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_xor_touches_only_the_named_bytes_at_every_alignment(#[case] backend: Backend) {
+fn test_xor_touches_only_the_named_bytes_at_every_alignment(
+    #[case] backend: Backend,
+) -> Result<(), TryFromSliceError> {
     let cipher = ChaCha20::with_backend(backend);
 
     for offset in 0..16 {
         let key_storage = [0x42; KEY_SIZE + 16];
         let nonce_storage = [0x17; NONCE_SIZE + 16];
-        let key = key_storage[offset..offset + KEY_SIZE].try_into().unwrap();
-        let nonce: &[u8; NONCE_SIZE] = nonce_storage[offset..offset + NONCE_SIZE]
-            .try_into()
-            .unwrap();
-        let short: &[u8; BERNSTEIN_NONCE_SIZE] = nonce[..BERNSTEIN_NONCE_SIZE].try_into().unwrap();
+        let key = key_storage[offset..offset + KEY_SIZE].try_into()?;
+        let nonce: &[u8; NONCE_SIZE] = nonce_storage[offset..offset + NONCE_SIZE].try_into()?;
+        let short: &[u8; BERNSTEIN_NONCE_SIZE] = nonce[..BERNSTEIN_NONCE_SIZE].try_into()?;
 
         // Every possible tail, including empty and full blocks, after more
         // than two full blocks as well as at the start of a message.
@@ -303,6 +305,8 @@ fn test_xor_touches_only_the_named_bytes_at_every_alignment(#[case] backend: Bac
         assert_eq!(key_storage, [0x42; KEY_SIZE + 16]);
         assert_eq!(nonce_storage, [0x17; NONCE_SIZE + 16]);
     }
+
+    Ok(())
 }
 
 proptest! {

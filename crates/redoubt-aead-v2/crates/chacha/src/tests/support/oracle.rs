@@ -65,7 +65,13 @@ fn state(key: &[u8; 32], suffix: &[u8; 16]) -> [u32; 16] {
     bytes[16..48].copy_from_slice(key);
     bytes[48..].copy_from_slice(suffix);
 
-    core::array::from_fn(|at| u32::from_le_bytes(bytes[at * 4..at * 4 + 4].try_into().unwrap()))
+    core::array::from_fn(|at| {
+        u32::from_le_bytes(
+            bytes[at * 4..at * 4 + 4]
+                .try_into()
+                .expect("infallible: the slice is exactly 4 bytes"),
+        )
+    })
 }
 
 /// ChaCha20 with either nonce layout, one freshly built state per block.
@@ -74,11 +80,17 @@ pub(crate) fn xor(key: &[u8; 32], nonce: &[u8], counter: u64, data: &[u8]) -> Ve
 
     for (at, chunk) in out.chunks_mut(64).enumerate() {
         let mut suffix = [0u8; 16];
-        let counter = counter.checked_add(at as u64).unwrap();
+        let counter = counter
+            .checked_add(at as u64)
+            .expect("the message runs past the end of the counter");
 
         match nonce.len() {
             8 => suffix[..8].copy_from_slice(&counter.to_le_bytes()),
-            12 => suffix[..4].copy_from_slice(&u32::try_from(counter).unwrap().to_le_bytes()),
+            12 => suffix[..4].copy_from_slice(
+                &u32::try_from(counter)
+                    .expect("the message runs past the end of the counter")
+                    .to_le_bytes(),
+            ),
             _ => panic!("ChaCha20 needs eight or twelve nonce bytes"),
         }
 
@@ -109,7 +121,12 @@ pub(crate) fn subkey(key: &[u8; 32], nonce: &[u8; 16]) -> [u8; 32] {
 
 /// XChaCha20 as the explicit composition the production seam keeps inside.
 pub(crate) fn xxor(key: &[u8; 32], nonce: &[u8; 24], counter: u32, data: &[u8]) -> Vec<u8> {
-    let derived = subkey(key, nonce[..16].try_into().unwrap());
+    let derived = subkey(
+        key,
+        nonce[..16]
+            .try_into()
+            .expect("infallible: nonce[0..16] is exactly 16 bytes"),
+    );
     let mut short = [0u8; 12];
     short[4..].copy_from_slice(&nonce[16..]);
 

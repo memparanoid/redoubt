@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use core::array::TryFromSliceError;
+
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use proptest::prelude::*;
@@ -95,16 +97,16 @@ fn test_xor_rejects_counter_exhaustion_before_touching_data(#[case] backend: Bac
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_xor_touches_only_the_named_bytes_at_every_alignment(#[case] backend: Backend) {
+fn test_xor_touches_only_the_named_bytes_at_every_alignment(
+    #[case] backend: Backend,
+) -> Result<(), TryFromSliceError> {
     let cipher = XChaCha20::with_backend(backend);
 
     for offset in 0..16 {
         let key_storage: [u8; KEY_SIZE + 16] = core::array::from_fn(|at| at as u8);
         let nonce_storage: [u8; XNONCE_SIZE + 16] = core::array::from_fn(|at| 0x80 + at as u8);
-        let key = key_storage[offset..offset + KEY_SIZE].try_into().unwrap();
-        let nonce = nonce_storage[offset..offset + XNONCE_SIZE]
-            .try_into()
-            .unwrap();
+        let key = key_storage[offset..offset + KEY_SIZE].try_into()?;
+        let nonce = nonce_storage[offset..offset + XNONCE_SIZE].try_into()?;
 
         for length in (0..=BLOCK_SIZE).chain(BLOCK_SIZE * 3..=BLOCK_SIZE * 4) {
             let plaintext = std::vec![0x5a; length];
@@ -126,6 +128,8 @@ fn test_xor_touches_only_the_named_bytes_at_every_alignment(#[case] backend: Bac
         assert_eq!(key_storage, core::array::from_fn(|at| at as u8));
         assert_eq!(nonce_storage, core::array::from_fn(|at| 0x80 + at as u8));
     }
+
+    Ok(())
 }
 
 proptest! {

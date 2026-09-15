@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use core::array::TryFromSliceError;
+
 use proptest::prelude::*;
 use rstest::rstest;
 
@@ -33,24 +35,22 @@ fn test_subkey_returns_the_published_subkey(#[case] backend: Backend) {
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_subkey_overwrites_only_the_output_at_every_alignment(#[case] backend: Backend) {
+fn test_subkey_overwrites_only_the_output_at_every_alignment(
+    #[case] backend: Backend,
+) -> Result<(), TryFromSliceError> {
     let cipher = HChaCha20::with_backend(backend);
 
     for offset in 0..16 {
         let key_storage: [u8; KEY_SIZE + 16] = core::array::from_fn(|at| at as u8);
         let nonce_storage: [u8; HNONCE_SIZE + 16] = core::array::from_fn(|at| 0x80 + at as u8);
-        let key = key_storage[offset..offset + KEY_SIZE].try_into().unwrap();
-        let nonce = nonce_storage[offset..offset + HNONCE_SIZE]
-            .try_into()
-            .unwrap();
+        let key = key_storage[offset..offset + KEY_SIZE].try_into()?;
+        let nonce = nonce_storage[offset..offset + HNONCE_SIZE].try_into()?;
         let expected = oracle::subkey(key, nonce);
 
         for fill in [0, 0xa5, 0xff] {
             let mut storage = [fill; KEY_SIZE + 32];
             cipher.subkey(
-                (&mut storage[offset..offset + KEY_SIZE])
-                    .try_into()
-                    .unwrap(),
+                (&mut storage[offset..offset + KEY_SIZE]).try_into()?,
                 key,
                 nonce,
             );
@@ -71,6 +71,8 @@ fn test_subkey_overwrites_only_the_output_at_every_alignment(#[case] backend: Ba
         assert_eq!(key_storage, core::array::from_fn(|at| at as u8));
         assert_eq!(nonce_storage, core::array::from_fn(|at| 0x80 + at as u8));
     }
+
+    Ok(())
 }
 
 proptest! {
