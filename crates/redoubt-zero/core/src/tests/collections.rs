@@ -267,4 +267,10 @@ fn test_option() {
     // there was something to hold.
     assert_eq!(held, None);
     assert!(held.is_zeroized());
+
+    // And again on what is already nothing, which a caller zeroizing a struct
+    // field by field reaches whenever the field is empty.
+    held.fast_zeroize();
+
+    assert_eq!(held, None);
 }
