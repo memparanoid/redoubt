@@ -82,7 +82,7 @@
 .endm
 
 // ============================================================================
-// BEGIN SPILL REGION — 160 bytes, entirely above rsp
+// Frame layout — 160 bytes, entirely above rsp
 // ============================================================================
 //
 //   INITIAL   0..63    state before the rounds, including an XChaCha subkey
@@ -109,10 +109,6 @@
     .endr
     add rsp, FRAME
 .endm
-
-// ============================================================================
-// END SPILL REGION
-// ============================================================================
 
 // RFC 8439 §2.1. Addresses and rotations are fixed, independent of the state.
 .macro CHACHA_QUARTER a,b,c,d
@@ -174,6 +170,19 @@ Lrounds\@:
     mov rax, [\nonce + 8]
     mov [rsp + WORK + 56], rax
 .endm
+
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: everything below allocates the frame above, and every
+// ║ secret this file touches passes through it. INITIAL holds the key spread
+// ║ into words, and for XChaCha20 the subkey derived from it; WORK holds the
+// ║ state through the rounds and then one keystream block.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before rsp is
+// ║ advanced. Every routine below leaves through the one wipe at the end of
+// ║ the region, including the ones that jump into the shared loop.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
 
 // ============================================================================
 // Twenty rounds — rdi: state in/out, sixteen u32 words
@@ -344,6 +353,8 @@ Lbernstein_step:
 // Every allocated frame leaves through this wipe, before rsp is advanced.
 Lempty_frame:
     CHACHA_EMPTY_FRAME
+// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
+
 Lreturn:
     CHACHA_ZEROIZE_ALL
     ret

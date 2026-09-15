@@ -92,7 +92,7 @@
 .endm
 
 // ============================================================================
-// BEGIN SPILL REGION — stream operations only, 96 bytes above sp
+// Frame layout — stream operations only, 96 bytes above sp
 // ============================================================================
 //
 //   INITIAL  0..63   state before the rounds, including an XChaCha subkey
@@ -121,10 +121,6 @@
     stp xzr, xzr, [sp, #80]
     add sp, sp, #FRAME
 .endm
-
-// ============================================================================
-// END SPILL REGION
-// ============================================================================
 
 // Word i lives in w(i+2). Only the fixed round count in w1 changes flags.
 .macro CHACHA_QUARTER a,b,c,d
@@ -221,6 +217,19 @@ FUNC(redoubt_hchacha_subkey):
     stp w14, w15, [x0, #16]
     stp w16, w17, [x0, #24]
     b Lreturn
+
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: the two routines above this line allocate nothing —
+// ║ their state never leaves w2-w17. The two below hold the key spread into
+// ║ words at offset 16, and for XChaCha20 the subkey derived from it in the
+// ║ same place, for as long as the message takes.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before sp is
+// ║ advanced. Both routines leave through the one wipe at the end of the
+// ║ region, the early exit out of a partial block included.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
 
 // ============================================================================
 // ChaCha20 — x0: key, x1: nonce, x2: counter, x3: data,
@@ -379,6 +388,8 @@ Lbernstein_step:
 // Every stream exit wipes the entire frame before releasing it.
 Lempty_frame:
     CHACHA_EMPTY_FRAME
+// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
+
 Lreturn:
     CHACHA_ZEROIZE_ALL
     ret
