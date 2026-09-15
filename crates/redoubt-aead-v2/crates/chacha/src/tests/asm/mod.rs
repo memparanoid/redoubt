@@ -62,21 +62,22 @@ unsafe extern "C" {
 /// rest in a frame, aarch64 keeps all sixteen in w2-w17 and takes none.
 const ROUNDS_TAKE_A_FRAME: bool = cfg!(target_arch = "x86_64");
 
-/// Three negative controls with the same arguments as the routine they
-/// replace.
+/// Three stand-ins for the routine, with its arguments and none of its work.
 ///
 /// The tail branch keeps the caller's stack pointer and return address. A
 /// regular Rust wrapper could take another frame or change the registers on
 /// return, making the residue belong to the wrapper instead of the helper.
 ///
-/// The first two leave a residue of their own. The third leaves none and does
-/// nothing at all, which is the one that answers whether the *caller's*
-/// dirtying survives to the verifier: without it, the real routine reading
-/// clean could be the call site having cleaned rather than the routine.
+/// The first two leave a residue of their own, which is what says the verifier
+/// sees one across this call site. The third leaves none and does nothing at
+/// all: it is the only one that measures the gap, because the other two dirty
+/// the machine again from inside the call. What it answers is whether the
+/// *caller's* dirtying survives to the verifier — without it, the real routine
+/// reading clean could be the call site having cleaned rather than the routine.
 ///
-/// Only the frame control replaces the first argument with byte offset zero.
+/// Only the frame stand-in replaces the first argument with byte offset zero.
 /// These functions never dereference their pointer arguments.
-macro_rules! negative_controls {
+macro_rules! controls {
     ($registers:ident, $frame:ident, $untouched:ident, ($($argument:ident: $kind:ty),* $(,)?)) => {
         #[unsafe(naked)]
         unsafe extern "C" fn $untouched($($argument: $kind),*) {
@@ -215,7 +216,7 @@ fn assert_residue(registers: u64, frame: u64, left: Left, takes_frame: bool) {
 
 type Rounds = unsafe extern "C" fn(*mut u32);
 
-negative_controls!(
+controls!(
     dirty_rounds_registers,
     dirty_rounds_frame,
     untouched_rounds,
@@ -249,7 +250,7 @@ fn test_rounds_leaves_the_residue_its_case_declares(#[case] routine: Rounds, #[c
 
 type Subkey = unsafe extern "C" fn(*mut u8, *const u8, *const u8);
 
-negative_controls!(
+controls!(
     dirty_subkey_registers,
     dirty_subkey_frame,
     untouched_subkey,
@@ -289,7 +290,7 @@ fn test_subkey_leaves_the_residue_its_case_declares(#[case] routine: Subkey, #[c
 
 type Xor = unsafe extern "C" fn(*const u8, *const u8, u64, *mut u8, usize, usize);
 
-negative_controls!(
+controls!(
     dirty_xor_registers,
     dirty_xor_frame,
     untouched_xor,
@@ -346,7 +347,7 @@ fn test_xor_leaves_the_residue_its_case_declares(
 
 type Xxor = unsafe extern "C" fn(*const u8, *const u8, u64, *mut u8, usize);
 
-negative_controls!(
+controls!(
     dirty_xxor_registers,
     dirty_xxor_frame,
     untouched_xxor,
