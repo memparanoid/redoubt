@@ -124,6 +124,51 @@ fn test_update_returns_the_same_tag_at_every_split(#[case] backend: Backend) {
     }
 }
 
+proptest! {
+    /// The same message in any number of pieces, against the oracle.
+    ///
+    /// The one above compares this path against itself: every split agrees, and
+    /// they would still all agree if the buffer dropped the same byte in every
+    /// one of them. And the oracle proptest below enters through
+    /// `tag_with_backend`, which hands the whole message over at once and never
+    /// carries `filled` across a call.
+    ///
+    /// This is the only thing that holds a partial buffer to an answer computed
+    /// another way: a random key, a random message, and cuts wherever they
+    /// fall — so a block boundary, a one-byte tail and several whole blocks in
+    /// a row all arrive without being asked for.
+    #[test]
+    fn test_update_returns_what_the_oracle_returns_at_every_partition(
+        key: [u8; KEY_SIZE],
+        message in proptest::collection::vec(any::<u8>(), 0..600),
+        cuts in proptest::collection::vec(any::<usize>(), 0..8),
+    ) {
+        let expected = oracle::tag(&key, &message);
+
+        // Anywhere in the message, in order, and no offset twice.
+        let mut offsets: Vec<usize> =
+            cuts.iter().map(|cut| cut % (message.len() + 1)).collect();
+        offsets.sort_unstable();
+        offsets.dedup();
+
+        for backend in [Backend::Rust, Backend::Auto] {
+            let mut poly = Poly1305::with_backend(backend, &key);
+            let mut tag = [0u8; TAG_SIZE];
+            let mut from = 0;
+
+            for &to in &offsets {
+                poly.update(&message[from..to]);
+                from = to;
+            }
+
+            poly.update(&message[from..]);
+            poly.finalize_mut(&mut tag);
+
+            prop_assert_eq!(tag, expected, "{:?}, cut at {:?}", backend, offsets);
+        }
+    }
+}
+
 // === === === === === === === === === ===
 // update_padded
 // === === === === === === === === === ===
@@ -221,6 +266,34 @@ fn test_tag_with_backend_returns_the_appendix_tag(#[case] backend: Backend) {
             "RFC 8439 A.3 vector #{number} asks about {asks}"
         );
     }
+}
+
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_tag_with_backend_returns_what_the_oracle_returns_at_the_widest(
+    #[case] backend: Backend,
+) {
+    // Every part of this input is the largest it can be. The clamp takes the
+    // top four bits of four bytes of `r` and the bottom two of three others,
+    // so a key of all ones is the largest `r` it lets through — which makes
+    // every one of the twenty-five partial products as wide as it gets, and
+    // the carry chain across the five limbs of twenty-six bits as long. A
+    // message of all ones adds the largest block there is before every
+    // multiplication, and an `s` of all ones is the widest carry the final
+    // addition can take.
+    //
+    // The published vectors go the other way: 5 through 11 push the reduction
+    // with a small `r`. And a generator reaches all ones with a probability
+    // nobody should plan around.
+    let key = [0xffu8; KEY_SIZE];
+    let message = std::vec![0xffu8; BLOCK_SIZE * 1000];
+    let expected = oracle::tag(&key, &message);
+
+    let mut tag = [0u8; TAG_SIZE];
+    tag_with_backend(backend, &key, &message, &mut tag);
+
+    assert_eq!(tag, expected);
 }
 
 proptest! {
