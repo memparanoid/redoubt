@@ -42,6 +42,13 @@
     mov x28, #28
     mov x29, #29
 
+    // x0-x5 and x16-x17 are about to carry the call. The rest are poisoned
+    // here so that a zero in the snapshot is something the callee did, and
+    // not a register nobody ever wrote.
+    .irp reg,6,7,8,9,10,11,12,13,14,15
+        mov x\reg, x0
+    .endr
+
     ldr x17, [sp, #8]
     ldr x16, [x17]
     ldp x0, x1, [x17, #8]
@@ -93,4 +100,15 @@
     mov x0, xzr
     mov x1, xzr
     mov x2, xzr
+    ret
+
+// A target that leaves the machine exactly as the probe handed it over.
+//
+// What the other tests assert is that a register came back empty. That says
+// nothing unless the probe can also report one that did not, which is what
+// calling this one establishes: every caller-saved register is poisoned above,
+// and after this returns the snapshot has to show it.
+.p2align 4
+.globl {untouched}
+{untouched}:
     ret

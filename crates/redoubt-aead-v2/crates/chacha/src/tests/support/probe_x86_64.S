@@ -101,3 +101,15 @@ Lprobe_copy:
     xor r10d, r10d
     xor r11d, r11d
     ret
+
+// A target that leaves the machine exactly as the probe handed it over.
+//
+// What the other tests assert is that a register came back empty. That says
+// nothing unless the probe can also report one that did not, which is what
+// calling this one establishes: rax still holds the poison written above, the
+// argument registers hold whatever the caller put in them, and after this
+// returns the snapshot has to show all of it.
+.p2align 4
+.globl {untouched}
+{untouched}:
+    ret

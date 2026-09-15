@@ -12,6 +12,7 @@ use super::support::{oracle, vectors};
 
 unsafe extern "C" {
     fn redoubt_chacha_probe(call: *const usize, snapshot: *mut u64);
+    fn redoubt_chacha_untouched();
     fn redoubt_chacha_rounds(state: *mut u32);
     fn redoubt_hchacha_subkey(out: *mut u8, key: *const u8, nonce: *const u8);
     fn redoubt_chacha_xor(
@@ -35,12 +36,14 @@ unsafe extern "C" {
 core::arch::global_asm!(
     include_str!("support/probe_x86_64.S"),
     probe = sym redoubt_chacha_probe,
+    untouched = sym redoubt_chacha_untouched,
 );
 
 #[cfg(target_arch = "aarch64")]
 core::arch::global_asm!(
     include_str!("support/probe_aarch64.S"),
     probe = sym redoubt_chacha_probe,
+    untouched = sym redoubt_chacha_untouched,
 );
 
 #[cfg(target_arch = "x86_64")]
@@ -112,6 +115,48 @@ unsafe fn observe(call: [usize; 7], allocated_frame: bool) {
 }
 
 // === === === === === === === === === ===
+// redoubt_chacha_probe
+// === === === === === === === === === ===
+
+#[test]
+fn test_probe_reports_the_registers_a_call_left_alone() {
+    let mut snapshot = [0u64; SNAPSHOT_WORDS];
+
+    // SAFETY: the target takes no arguments and returns at once, so every
+    // slot below is a value it never reads.
+    unsafe {
+        redoubt_chacha_probe(
+            [
+                redoubt_chacha_untouched as *const () as usize,
+                POISON as usize,
+                POISON as usize,
+                POISON as usize,
+                POISON as usize,
+                POISON as usize,
+                POISON as usize,
+            ]
+            .as_ptr(),
+            snapshot.as_mut_ptr(),
+        );
+    }
+
+    // What every other test here asserts is that a register came back empty.
+    // That is worth nothing unless an empty one can be told from a full one,
+    // and this is where that is established: nothing cleared these, so none of
+    // them may read as cleared.
+    assert!(
+        snapshot[..CALLER_WORDS].iter().all(|&word| word != 0),
+        "a register nothing touched reads as empty: {:?}",
+        &snapshot[..CALLER_WORDS]
+    );
+
+    assert!(
+        snapshot[GUARD_AT..].iter().all(|&word| word == POISON),
+        "a frame nothing touched reads as emptied"
+    );
+}
+
+// === === === === === === === === === ===
 // rounds
 // === === === === === === === === === ===
 
@@ -125,11 +170,13 @@ fn test_rounds_zeroizes_its_registers_and_frame() {
             [
                 redoubt_chacha_rounds as *const () as usize,
                 state.as_mut_ptr() as usize,
-                0,
-                0,
-                0,
-                0,
-                0,
+                // Poison and not zero in the slots this one never reads: a
+                // register that arrives empty proves nothing by leaving empty.
+                POISON as usize,
+                POISON as usize,
+                POISON as usize,
+                POISON as usize,
+                POISON as usize,
             ],
             cfg!(target_arch = "x86_64"),
         );
@@ -156,9 +203,9 @@ fn test_subkey_zeroizes_its_registers_and_frame() {
                 out.as_mut_ptr() as usize,
                 key.as_ptr() as usize,
                 nonce.as_ptr() as usize,
-                0,
-                0,
-                0,
+                POISON as usize,
+                POISON as usize,
+                POISON as usize,
             ],
             cfg!(target_arch = "x86_64"),
         );
@@ -232,7 +279,7 @@ fn test_xxor_zeroizes_its_registers_and_frame() {
                     7,
                     data.as_mut_ptr() as usize,
                     length,
-                    0,
+                    POISON as usize,
                 ],
                 length != 0,
             );
