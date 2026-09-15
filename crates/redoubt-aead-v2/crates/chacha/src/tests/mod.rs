@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+#[cfg(chacha_asm)]
+mod asm;
+
 mod chacha20;
 mod hchacha20;
 mod support;

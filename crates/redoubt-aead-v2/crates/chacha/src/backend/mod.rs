@@ -34,6 +34,7 @@ use asm as chosen;
 #[cfg(not(chacha_asm))]
 use rust as chosen;
 
+#[cfg(test)]
 use crate::consts::WORDS;
 
 /// Whether this target was built with assembly, which is what `Auto` goes to.
@@ -48,7 +49,7 @@ pub const HAS_ASM: bool = cfg!(chacha_asm);
 /// Reachable on its own for the one published answer that is an intermediate:
 /// RFC 8439 §2.3.2 prints the state after the rounds and before it is added
 /// back, which nothing that returns a keystream can be held to.
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 pub(crate) fn rounds(backend: Backend, state: &mut [u32; WORDS]) {
     match backend {
         Backend::Rust => rust::rounds(state),

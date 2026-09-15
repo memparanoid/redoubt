@@ -6,7 +6,7 @@
 //! bytes long and be picked at random without anybody counting.
 
 use redoubt_aead_v2_core::Backend;
-use redoubt_aead_v2_core::consts::chacha::{BLOCK_SIZE, KEY_SIZE, XNONCE_SIZE};
+use redoubt_aead_v2_core::consts::chacha::{KEY_SIZE, XNONCE_SIZE};
 
 use crate::backend::xxor;
 
@@ -42,13 +42,6 @@ impl XChaCha20 {
         counter: u32,
         data: &mut [u8],
     ) {
-        let blocks = data.len().div_ceil(BLOCK_SIZE) as u64;
-
-        assert!(
-            u64::from(counter) + blocks <= u64::from(u32::MAX) + 1,
-            "the message runs past the end of the counter"
-        );
-
         xxor(self.backend, key, nonce, u64::from(counter), data);
     }
 

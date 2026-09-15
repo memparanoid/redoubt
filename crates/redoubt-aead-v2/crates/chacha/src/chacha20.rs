@@ -5,9 +5,7 @@
 //! ChaCha20, both of the ways its nonce and counter are laid out.
 
 use redoubt_aead_v2_core::Backend;
-use redoubt_aead_v2_core::consts::chacha::{
-    BERNSTEIN_NONCE_SIZE, BLOCK_SIZE, KEY_SIZE, NONCE_SIZE,
-};
+use redoubt_aead_v2_core::consts::chacha::{BERNSTEIN_NONCE_SIZE, KEY_SIZE, NONCE_SIZE};
 
 use crate::backend::xor;
 
@@ -46,13 +44,6 @@ impl ChaCha20 {
         counter: u32,
         data: &mut [u8],
     ) {
-        let blocks = data.len().div_ceil(BLOCK_SIZE) as u64;
-
-        assert!(
-            u64::from(counter) + blocks <= u64::from(u32::MAX) + 1,
-            "the message runs past the end of the counter"
-        );
-
         xor(self.backend, key, nonce, u64::from(counter), data);
     }
 
@@ -60,8 +51,12 @@ impl ChaCha20 {
     /// `counter`.
     ///
     /// Eight bytes of nonce and sixty-four bits of counter, which is what
-    /// OpenSSH speaks. No bound worth checking here: a message that took this
-    /// counter round would be sixteen zebibytes.
+    /// OpenSSH speaks.
+    ///
+    /// # Panics
+    ///
+    /// Where `data` would take the sixty-four bit counter past its end. Even
+    /// a short message can do that when the caller starts near `u64::MAX`.
     pub fn xor_bernstein(
         &self,
         key: &[u8; KEY_SIZE],

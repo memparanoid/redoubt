@@ -11,7 +11,7 @@
 //! named as such: what is below empties the slot it named, and cannot empty the
 //! copies the compiler may have made of it.
 
-use redoubt_zero::{FastZeroizable, RedoubtZero};
+use redoubt_zero::RedoubtZero;
 
 use redoubt_aead_v2_core::consts::chacha::{
     BLOCK_SIZE, HNONCE_SIZE, KEY_SIZE, NONCE_SIZE, XNONCE_SIZE,
@@ -74,17 +74,30 @@ pub(crate) fn subkey(out: &mut [u8; KEY_SIZE], key: &[u8; KEY_SIZE], nonce: &[u8
 /// counter of thirty-two bits, and eight is Bernstein's original with a counter
 /// of sixty-four.
 pub(crate) fn xor(key: &[u8; KEY_SIZE], nonce: &[u8], counter: u64, data: &mut [u8]) {
+    let blocks = data.len().div_ceil(BLOCK_SIZE) as u64;
+    let last = if nonce.len() == NONCE_SIZE {
+        u64::from(u32::MAX)
+    } else {
+        u64::MAX
+    };
+
+    assert!(
+        counter <= last && (blocks == 0 || blocks - 1 <= last - counter),
+        "the message runs past the end of the counter"
+    );
+
     let mut work = Work::default();
 
     build(&mut work.initial, key, nonce, counter);
 
-    for (at, chunk) in data.chunks_mut(BLOCK_SIZE).enumerate() {
-        step(&mut work.initial, nonce.len(), at as u64);
+    for chunk in data.chunks_mut(BLOCK_SIZE) {
         block(&mut work);
 
         for (byte, from) in chunk.iter_mut().zip(work.keystream.iter()) {
             *byte ^= from;
         }
+
+        step(&mut work.initial, nonce.len());
     }
 }
 
@@ -174,16 +187,16 @@ fn build(initial: &mut [u32; WORDS], key: &[u8; KEY_SIZE], nonce: &[u8], counter
     }
 }
 
-/// The counter moved `by` blocks past where `build` put it.
+/// The counter advanced by one block.
 ///
 /// A whole state rebuilt per block would spread the key again every time, and
 /// the key is the one thing in there that does not change.
-fn step(initial: &mut [u32; WORDS], nonce_len: usize, by: u64) {
+fn step(initial: &mut [u32; WORDS], nonce_len: usize) {
     if nonce_len == NONCE_SIZE {
-        initial[COUNTER_AT] = initial[COUNTER_AT].wrapping_add(by as u32);
+        initial[COUNTER_AT] = initial[COUNTER_AT].wrapping_add(1);
     } else {
         let moved = (u64::from(initial[COUNTER_AT + 1]) << 32 | u64::from(initial[COUNTER_AT]))
-            .wrapping_add(by);
+            .wrapping_add(1);
 
         initial[COUNTER_AT] = moved as u32;
         initial[COUNTER_AT + 1] = (moved >> 32) as u32;
