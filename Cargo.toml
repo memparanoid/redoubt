@@ -60,10 +60,9 @@ resolver = "2"
   redoubt-aead-v2-core          = { path = "crates/redoubt-aead-v2/crates/core", version = "0.1.0-rc.8" }
   redoubt-aead-xchacha          = { path = "crates/redoubt-aead/xchacha", version = "0.1.0-rc.8" }
   redoubt-aead-xchachapoly1305  = { path = "crates/redoubt-aead-v2/crates/xchachapoly1305", version = "0.1.0-rc.8" }
-  redoubt-chacha                = { path = "crates/redoubt-aead-v2/crates/chacha", version = "0.1.0-rc.8" }
-  redoubt-poly1305              = { path = "crates/redoubt-aead-v2/crates/poly1305", version = "0.1.0-rc.8" }
   redoubt-alloc                 = { path = "crates/redoubt-alloc", version = "0.1.0-rc.8" }
   redoubt-buffer                = { path = "crates/redoubt-buffer", version = "0.1.0-rc.8" }
+  redoubt-chacha                = { path = "crates/redoubt-aead-v2/crates/chacha", version = "0.1.0-rc.8" }
   redoubt-codec                 = { path = "crates/redoubt-codec", version = "0.1.0-rc.8" }
   redoubt-codec-core            = { path = "crates/redoubt-codec/core", version = "0.1.0-rc.8" }
   redoubt-codec-derive          = { path = "crates/redoubt-codec/derive", version = "0.1.0-rc.8" }
@@ -75,6 +74,7 @@ resolver = "2"
   redoubt-hkdf-wycheproof       = { path = "crates/redoubt-hkdf/wycheproof", version = "0.1.0-rc.8" }
   redoubt-hkdf-x86              = { path = "crates/redoubt-hkdf/x86", version = "0.1.0-rc.8" }
   redoubt-mem                   = { path = "crates/redoubt-mem", version = "0.1.0-rc.8" }
+  redoubt-poly1305              = { path = "crates/redoubt-aead-v2/crates/poly1305", version = "0.1.0-rc.8" }
   redoubt-rand                  = { path = "crates/redoubt-rand", version = "0.1.0-rc.8" }
   redoubt-secret                = { path = "crates/redoubt-secret", version = "0.1.0-rc.8" }
   redoubt-test-utils            = { path = "crates/redoubt-test-utils", version = "0.1.0-rc.8" }

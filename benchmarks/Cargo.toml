@@ -11,20 +11,21 @@ asm = ["redoubt-aead/asm", "redoubt-hkdf/asm"]
 redoubt-aead         = { path = "../crates/redoubt-aead" }
 redoubt-aead-xchacha = { path = "../crates/redoubt-aead/xchacha" }
 
-# The cipher and the authenticator carry `test-utils` so that a bench can name
-# the backend and put the two implementations side by side, which is the only
-# way to read what the assembly is worth.
-redoubt-aead-v2-core         = { path = "../crates/redoubt-aead-v2/crates/core" }
+redoubt-aead-v2-core = { path = "../crates/redoubt-aead-v2/crates/core" }
 redoubt-aead-xchachapoly1305 = { path = "../crates/redoubt-aead-v2/crates/xchachapoly1305" }
-redoubt-chacha               = { path = "../crates/redoubt-aead-v2/crates/chacha", features = ["test-utils"] }
-redoubt-poly1305             = { path = "../crates/redoubt-aead-v2/crates/poly1305", features = ["test-utils"] }
-redoubt-alloc        = { path = "../crates/redoubt-alloc" }
-redoubt-buffer       = { path = "../crates/redoubt-buffer" }
-redoubt-codec        = { path = "../crates/redoubt-codec" }
-redoubt-hkdf         = { path = "../crates/redoubt-hkdf" }
-redoubt-util         = { path = "../crates/redoubt-util" }
-redoubt-vault        = { path = "../crates/redoubt-vault" }
-redoubt-zero         = { path = "../crates/redoubt-zero" }
+redoubt-alloc = { path = "../crates/redoubt-alloc" }
+redoubt-buffer = { path = "../crates/redoubt-buffer" }
+redoubt-chacha = { path = "../crates/redoubt-aead-v2/crates/chacha", features = [
+  "test-utils",
+] }
+redoubt-codec = { path = "../crates/redoubt-codec" }
+redoubt-hkdf = { path = "../crates/redoubt-hkdf" }
+redoubt-poly1305 = { path = "../crates/redoubt-aead-v2/crates/poly1305", features = [
+  "test-utils",
+] }
+redoubt-util = { path = "../crates/redoubt-util" }
+redoubt-vault = { path = "../crates/redoubt-vault" }
+redoubt-zero = { path = "../crates/redoubt-zero" }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

@@ -271,9 +271,7 @@ fn test_tag_with_backend_returns_the_appendix_tag(#[case] backend: Backend) {
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_tag_with_backend_returns_what_the_oracle_returns_at_the_widest(
-    #[case] backend: Backend,
-) {
+fn test_tag_with_backend_returns_what_the_oracle_returns_at_the_widest(#[case] backend: Backend) {
     // Every part of this input is the largest it can be. The clamp takes the
     // top four bits of four bytes of `r` and the bottom two of three others,
     // so a key of all ones is the largest `r` it lets through — which makes
