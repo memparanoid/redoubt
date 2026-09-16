@@ -23,7 +23,7 @@ pub struct XChaCha20 {
     #[fast_zeroize(skip)]
     backend: Backend,
     // Something to test zeroization on drop against.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-utils"))]
     __marker: [u8; 32],
     #[cfg(test)]
     __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
@@ -35,7 +35,7 @@ impl XChaCha20 {
     pub fn new() -> Self {
         Self {
             backend: Backend::default(),
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-utils"))]
             __marker: Default::default(),
             #[cfg(test)]
             __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
@@ -72,8 +72,8 @@ impl XChaCha20 {
     }
 
     /// Something in it that a zeroization has to remove.
-    #[cfg(test)]
-    pub(crate) fn unzeroize(&mut self) {
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn unzeroize(&mut self) {
         self.__marker = [0xff; 32];
     }
 }
