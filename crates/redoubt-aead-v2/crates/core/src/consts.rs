@@ -53,4 +53,12 @@ pub mod aegis {
 
     /// Bytes of tag.
     pub const TAG_SIZE: usize = 16;
+
+    /// Bytes the state absorbs at a time: two blocks of sixteen, which is what
+    /// the L in the name is.
+    ///
+    /// Twice the tag rather than equal to it, unlike the others here, and it is
+    /// the number that decides whether a message has a tail — which is the only
+    /// thing that makes either routine reach for the stack.
+    pub const BLOCK_SIZE: usize = 32;
 }
