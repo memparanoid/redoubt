@@ -6,6 +6,7 @@
 
 use redoubt_aead_v2_core::Backend;
 use redoubt_aead_v2_core::consts::chacha::{BERNSTEIN_NONCE_SIZE, KEY_SIZE, NONCE_SIZE};
+use redoubt_zero::RedoubtZero;
 
 use crate::backend::xor;
 
@@ -14,16 +15,30 @@ use crate::backend::xor;
 /// It holds nothing but where its operations go. A stream cipher applied to a
 /// whole buffer keeps no state between calls — no key resident afterwards, no
 /// keystream, and nothing to zeroize that is not the backend's own.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[cfg_attr(test, derive(Clone, Eq, PartialEq, Debug))]
+#[derive(Default, RedoubtZero)]
+#[fast_zeroize(drop)]
 pub struct ChaCha20 {
+    #[fast_zeroize(skip)]
     backend: Backend,
+    // Something to test zeroization on drop against.
+    #[cfg(test)]
+    __marker: [u8; 32],
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 impl ChaCha20 {
     /// One whose operations go where the target says.
     #[must_use]
     pub fn new() -> Self {
-        Self::with_backend(Backend::default())
+        Self {
+            backend: Backend::default(),
+            #[cfg(test)]
+            __marker: Default::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
+        }
     }
 
     /// `data` xored with the keystream of RFC 8439, starting at `counter`.
@@ -71,13 +86,16 @@ impl ChaCha20 {
     #[cfg(any(test, feature = "test-utils"))]
     #[must_use]
     pub fn with_backend(backend: Backend) -> Self {
-        Self { backend }
+        let mut made = Self::new();
+
+        made.backend = backend;
+
+        made
     }
 
-    /// One whose operations go where the target says, which is the only place
-    /// they go outside a test.
-    #[cfg(not(any(test, feature = "test-utils")))]
-    fn with_backend(backend: Backend) -> Self {
-        Self { backend }
+    /// Something in it that a zeroization has to remove.
+    #[cfg(test)]
+    pub(crate) fn unzeroize(&mut self) {
+        self.__marker = [0xff; 32];
     }
 }

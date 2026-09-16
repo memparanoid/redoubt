@@ -7,6 +7,7 @@
 
 use redoubt_aead_v2_core::Backend;
 use redoubt_aead_v2_core::consts::chacha::{KEY_SIZE, XNONCE_SIZE};
+use redoubt_zero::RedoubtZero;
 
 use crate::backend::xxor;
 
@@ -15,16 +16,30 @@ use crate::backend::xxor;
 /// It holds nothing but where its operations go. The subkey the first sixteen
 /// bytes of the nonce derive is made and used inside one backend call, so it
 /// never crosses back into Rust and there is no second key to keep or to wipe.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[cfg_attr(test, derive(Clone, Eq, PartialEq, Debug))]
+#[derive(Default, RedoubtZero)]
+#[fast_zeroize(drop)]
 pub struct XChaCha20 {
+    #[fast_zeroize(skip)]
     backend: Backend,
+    // Something to test zeroization on drop against.
+    #[cfg(test)]
+    __marker: [u8; 32],
+    #[cfg(test)]
+    __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 impl XChaCha20 {
     /// One whose operations go where the target says.
     #[must_use]
     pub fn new() -> Self {
-        Self::with_backend(Backend::default())
+        Self {
+            backend: Backend::default(),
+            #[cfg(test)]
+            __marker: Default::default(),
+            #[cfg(test)]
+            __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
+        }
     }
 
     /// `data` xored with the keystream, starting at `counter`.
@@ -49,13 +64,16 @@ impl XChaCha20 {
     #[cfg(any(test, feature = "test-utils"))]
     #[must_use]
     pub fn with_backend(backend: Backend) -> Self {
-        Self { backend }
+        let mut made = Self::new();
+
+        made.backend = backend;
+
+        made
     }
 
-    /// One whose operations go where the target says, which is the only place
-    /// they go outside a test.
-    #[cfg(not(any(test, feature = "test-utils")))]
-    fn with_backend(backend: Backend) -> Self {
-        Self { backend }
+    /// Something in it that a zeroization has to remove.
+    #[cfg(test)]
+    pub(crate) fn unzeroize(&mut self) {
+        self.__marker = [0xff; 32];
     }
 }

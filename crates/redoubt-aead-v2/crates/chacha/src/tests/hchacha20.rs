@@ -10,9 +10,43 @@ use rstest::rstest;
 use redoubt_aead_v2_core::Backend;
 use redoubt_aead_v2_core::consts::chacha::{HNONCE_SIZE, KEY_SIZE};
 
+use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+
 use crate::hchacha20::HChaCha20;
 
 use super::support::{oracle, vectors};
+
+// === === === === === === === === === ===
+// HChaCha20
+// === === === === === === === === === ===
+
+/// What it holds in a build that ships is where its operations go, and there is
+/// nothing there to empty. The marker is what these two have to work on, so
+/// that the wipe and the drop are exercised against something rather than
+/// against a type that would pass either way.
+#[test]
+fn test_hchacha20_is_zeroizable() {
+    let mut hchacha = HChaCha20::new();
+
+    hchacha.unzeroize();
+    assert!(!hchacha.is_zeroized());
+
+    hchacha.fast_zeroize();
+
+    // Assert zeroization!
+    assert!(hchacha.is_zeroized());
+}
+
+#[test]
+fn test_hchacha20_zeroizes_on_drop() {
+    let mut hchacha = HChaCha20::new();
+
+    hchacha.unzeroize();
+    assert!(!hchacha.is_zeroized());
+
+    // Assert zeroization!
+    hchacha.assert_zeroize_on_drop();
+}
 
 // === === === === === === === === === ===
 // subkey
