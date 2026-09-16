@@ -172,6 +172,12 @@ impl XChaCha20Poly1305 {
 
         authenticator.update(&lengths);
     }
+
+    /// Something in it that a zeroization has to remove.
+    #[cfg(test)]
+    pub(crate) fn unzeroize(&mut self) {
+        self.cipher.unzeroize();
+    }
 }
 
 impl AeadSizes for XChaCha20Poly1305 {

@@ -6,3 +6,4 @@ mod support;
 
 mod rfc;
 mod wycheproof;
+mod xchachapoly1305;
