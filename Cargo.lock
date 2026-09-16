@@ -958,6 +958,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "redoubt-aead-xchachapoly1305"
+version = "0.1.0-rc.8"
+dependencies = [
+ "proptest",
+ "redoubt-aead-v2-core",
+ "redoubt-alloc",
+ "redoubt-chacha",
+ "redoubt-forensics",
+ "redoubt-mem",
+ "redoubt-poly1305",
+ "redoubt-zero",
+ "rstest",
+]
+
+[[package]]
 name = "redoubt-alloc"
 version = "0.1.0-rc.8"
 dependencies = [

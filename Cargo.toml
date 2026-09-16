@@ -14,6 +14,7 @@ members = [
   "crates/redoubt-aead-v2/crates/core",
   "crates/redoubt-aead-v2/crates/chacha",
   "crates/redoubt-aead-v2/crates/poly1305",
+  "crates/redoubt-aead-v2/crates/xchachapoly1305",
   "crates/redoubt-secret",
   "crates/redoubt-rand",
   "crates/redoubt-hkdf",
@@ -58,6 +59,7 @@ resolver = "2"
   redoubt-aead-core             = { path = "crates/redoubt-aead/core", version = "0.1.0-rc.8" }
   redoubt-aead-v2-core          = { path = "crates/redoubt-aead-v2/crates/core", version = "0.1.0-rc.8" }
   redoubt-aead-xchacha          = { path = "crates/redoubt-aead/xchacha", version = "0.1.0-rc.8" }
+  redoubt-aead-xchachapoly1305  = { path = "crates/redoubt-aead-v2/crates/xchachapoly1305", version = "0.1.0-rc.8" }
   redoubt-chacha                = { path = "crates/redoubt-aead-v2/crates/chacha", version = "0.1.0-rc.8" }
   redoubt-poly1305              = { path = "crates/redoubt-aead-v2/crates/poly1305", version = "0.1.0-rc.8" }
   redoubt-alloc                 = { path = "crates/redoubt-alloc", version = "0.1.0-rc.8" }
