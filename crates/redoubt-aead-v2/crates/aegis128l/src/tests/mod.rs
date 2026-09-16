@@ -11,6 +11,7 @@
 
 mod support;
 
+mod aegis128l;
 mod asm;
 mod probes;
 mod rfc;
