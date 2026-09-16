@@ -10,3 +10,5 @@ mod chacha20;
 mod hchacha20;
 mod support;
 mod xchacha20;
+
+mod rfc;
