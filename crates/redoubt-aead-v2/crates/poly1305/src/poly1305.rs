@@ -33,7 +33,7 @@ use crate::consts::LIMBS;
 /// what it answered from, so a second call answers from nothing. Holding the
 /// caller to one tag is the caller's job, and in this workspace the caller is
 /// the AEAD.
-#[derive(RedoubtZero)]
+#[derive(Default, RedoubtZero)]
 #[fast_zeroize(drop)]
 pub struct Poly1305 {
     /// Which of the two backends this one's operations go to.
@@ -63,13 +63,8 @@ impl Poly1305 {
     /// One that will authenticate one message under `key`.
     #[must_use]
     pub fn new(key: &[u8; KEY_SIZE]) -> Self {
-        Self::new_with(Backend::default(), key)
-    }
-
-    /// The one that does the work, whatever the visibility above it.
-    fn new_with(backend: Backend, key: &[u8; KEY_SIZE]) -> Self {
         let mut poly = Self {
-            backend,
+            backend: Backend::default(),
             r: [0; LIMBS],
             s: [0; BLOCK_SIZE],
             acc: [0; LIMBS],
@@ -79,7 +74,7 @@ impl Poly1305 {
             __sentinel: ZeroizeOnDropSentinel::default(),
         };
 
-        init(backend, &mut poly.r, &mut poly.s, key);
+        init(Backend::default(), &mut poly.r, &mut poly.s, key);
 
         poly
     }
@@ -138,17 +133,29 @@ impl Poly1305 {
         self.fast_zeroize();
     }
 
-    /// The same, with the backend named rather than taken as the target has
-    /// it. What `new` is, once the choice has been made.
+    /// Where the operations after this one go.
     ///
     /// Gated, and reachable from above only with `test-utils`: an AEAD is a
     /// cipher and an authenticator standing together, and a test that wants
     /// the whole of it in Rust has to be able to say so to both. Nothing that
     /// ships asks — what ships takes the assembly where the target has it.
+    ///
+    /// The clamp is not one of the operations after this one. It ran when the
+    /// key arrived, on whatever [`Self::new`] was given, and it is the same
+    /// answer either way — a caller that needs it named too wants
+    /// [`tag_with_backend`], which has the key and the choice at once.
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn set_backend(&mut self, backend: Backend) {
+        self.backend = backend;
+    }
+
+    /// The same, for a caller that has one to hand rather than one to keep.
     #[cfg(any(test, feature = "test-utils"))]
     #[must_use]
-    pub fn with_backend(backend: Backend, key: &[u8; KEY_SIZE]) -> Self {
-        Self::new_with(backend, key)
+    pub fn with_backend(mut self, backend: Backend) -> Self {
+        self.set_backend(backend);
+
+        self
     }
 
     /// Something in it that a zeroization has to remove.
@@ -176,7 +183,10 @@ pub(crate) fn tag_with_backend(
     said: &[u8],
     out: &mut [u8; TAG_SIZE],
 ) {
-    let mut poly = Poly1305::new_with(backend, key);
+    let mut poly = Poly1305::new(key);
+
+    #[cfg(test)]
+    poly.set_backend(backend);
 
     finalize(backend, &mut poly.acc, &poly.r, &poly.s, said, out);
 }

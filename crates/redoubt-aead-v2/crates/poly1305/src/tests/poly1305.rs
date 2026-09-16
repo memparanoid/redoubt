@@ -40,7 +40,7 @@ fn test_this_target_has_the_assembly() {
 
 /// One message through one authenticator, whole.
 fn tag_of(backend: Backend, key: &[u8; KEY_SIZE], message: &[u8]) -> [u8; TAG_SIZE] {
-    let mut poly = Poly1305::with_backend(backend, key);
+    let mut poly = Poly1305::new(key).with_backend(backend);
     let mut tag = [0u8; TAG_SIZE];
 
     poly.update(message);
@@ -56,7 +56,7 @@ fn tag_of_split(
     message: &[u8],
     at: usize,
 ) -> [u8; TAG_SIZE] {
-    let mut poly = Poly1305::with_backend(backend, key);
+    let mut poly = Poly1305::new(key).with_backend(backend);
     let mut tag = [0u8; TAG_SIZE];
     let (head, rest) = message.split_at(at);
 
@@ -152,7 +152,7 @@ proptest! {
         offsets.dedup();
 
         for backend in [Backend::Rust, Backend::Auto] {
-            let mut poly = Poly1305::with_backend(backend, &key);
+            let mut poly = Poly1305::new(&key).with_backend(backend);
             let mut tag = [0u8; TAG_SIZE];
             let mut from = 0;
 
@@ -188,7 +188,7 @@ fn test_update_padded_returns_the_tag_of_the_message_and_its_zeros(#[case] backe
         let mut padded = message.clone();
         padded.resize(length.next_multiple_of(BLOCK_SIZE), 0);
 
-        let mut poly = Poly1305::with_backend(backend, &key);
+        let mut poly = Poly1305::new(&key).with_backend(backend);
         let mut tag = [0u8; TAG_SIZE];
 
         poly.update_padded(&message);
@@ -232,7 +232,7 @@ fn test_finalize_mut_empties_the_state_it_answered_from(#[case] backend: Backend
     let key = [0x3f; KEY_SIZE];
     let message = b"long enough to leave a tail in the buffer at the end";
 
-    let mut poly = Poly1305::with_backend(backend, &key);
+    let mut poly = Poly1305::new(&key).with_backend(backend);
     let mut tag = [0u8; TAG_SIZE];
 
     poly.update(message);
