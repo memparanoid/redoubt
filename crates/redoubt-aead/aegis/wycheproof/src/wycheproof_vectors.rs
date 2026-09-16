@@ -10,6 +10,9 @@
 // Version: unknown
 // Number of tests: 479
 
+use std::vec;
+use std::vec::Vec;
+
 use super::wycheproof::{Flag, TestCase, TestResult};
 
 /// Returns all AEAD Wycheproof test vectors.

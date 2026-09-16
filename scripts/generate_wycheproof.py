@@ -28,6 +28,25 @@ TEST_CONFIGS = [
         ),
     },
     {
+        # The emit writes `use super::wycheproof::{...}`, so the types live
+        # beside the vectors rather than with the test that reads them.
+        "name": "XChaCha20-Poly1305",
+        "type": "aead",
+        "url": "https://raw.githubusercontent.com/C2SP/wycheproof/main/testvectors_v1/xchacha20_poly1305_test.json",
+        "output": os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "crates",
+            "redoubt-aead-v2",
+            "crates",
+            "xchachapoly1305",
+            "src",
+            "tests",
+            "support",
+            "wycheproof_vectors.rs",
+        ),
+    },
+    {
         "name": "AEGIS-128L",
         "type": "aead",
         "url": "https://raw.githubusercontent.com/C2SP/wycheproof/main/testvectors_v1/aegis128L_test.json",
@@ -156,6 +175,13 @@ def generate_aead_rust(data, source_url):
     lines.append(f"// Algorithm: {data.get('algorithm', 'unknown')}")
     lines.append(f"// Version: {data.get('generatorVersion', 'unknown')}")
     lines.append(f"// Number of tests: {data.get('numberOfTests', 'unknown')}")
+    lines.append("")
+    # Named rather than taken from the prelude: a crate that is `no_std` with
+    # `extern crate std` for its tests has core's prelude, and neither of these
+    # is in it. Redundant where the prelude does carry them, and rustc does not
+    # complain about importing something it already has.
+    lines.append("use std::vec;")
+    lines.append("use std::vec::Vec;")
     lines.append("")
     lines.append("use super::wycheproof::{Flag, TestCase, TestResult};")
     lines.append("")

@@ -29,4 +29,5 @@ proptest.workspace          = true
 redoubt-chacha              = { workspace = true, features = ["test-utils"] }
 redoubt-forensics.workspace = true
 redoubt-poly1305            = { workspace = true, features = ["test-utils"] }
+redoubt-util                = { workspace = true, features = ["test-utils"] }
 rstest.workspace            = true

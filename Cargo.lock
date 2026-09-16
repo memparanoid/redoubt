@@ -35,11 +35,15 @@ version = "0.1.0-rc.8"
 dependencies = [
  "criterion",
  "redoubt-aead",
+ "redoubt-aead-v2-core",
  "redoubt-aead-xchacha",
+ "redoubt-aead-xchachapoly1305",
  "redoubt-alloc",
  "redoubt-buffer",
+ "redoubt-chacha",
  "redoubt-codec",
  "redoubt-hkdf",
+ "redoubt-poly1305",
  "redoubt-util",
  "redoubt-vault",
  "redoubt-zero",
@@ -968,6 +972,7 @@ dependencies = [
  "redoubt-forensics",
  "redoubt-mem",
  "redoubt-poly1305",
+ "redoubt-util",
  "redoubt-zero",
  "rstest",
 ]
