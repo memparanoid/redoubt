@@ -3,4 +3,6 @@
 // See LICENSE in the repository root for full license text.
 
 mod support;
+
+mod rfc;
 mod wycheproof;
