@@ -11,6 +11,7 @@ members = [
   "crates/redoubt-aead/aegis/wycheproof",
   "crates/redoubt-aead/aegis/x86",
   "crates/redoubt-aead/aegis/arm",
+  "crates/redoubt-aead-v2/crates/aegis128l",
   "crates/redoubt-aead-v2/crates/core",
   "crates/redoubt-aead-v2/crates/chacha",
   "crates/redoubt-aead-v2/crates/poly1305",
@@ -56,6 +57,7 @@ resolver = "2"
   redoubt-aead-aegis-arm        = { path = "crates/redoubt-aead/aegis/arm", version = "0.1.0-rc.8" }
   redoubt-aead-aegis-wycheproof = { path = "crates/redoubt-aead/aegis/wycheproof", version = "0.1.0-rc.8" }
   redoubt-aead-aegis-x86        = { path = "crates/redoubt-aead/aegis/x86", version = "0.1.0-rc.8" }
+  redoubt-aead-aegis128l        = { path = "crates/redoubt-aead-v2/crates/aegis128l", version = "0.1.0-rc.8" }
   redoubt-aead-core             = { path = "crates/redoubt-aead/core", version = "0.1.0-rc.8" }
   redoubt-aead-v2-core          = { path = "crates/redoubt-aead-v2/crates/core", version = "0.1.0-rc.8" }
   redoubt-aead-xchacha          = { path = "crates/redoubt-aead/xchacha", version = "0.1.0-rc.8" }
