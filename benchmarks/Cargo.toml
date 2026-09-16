@@ -10,6 +10,14 @@ asm = ["redoubt-aead/asm", "redoubt-hkdf/asm"]
 [dependencies]
 redoubt-aead         = { path = "../crates/redoubt-aead" }
 redoubt-aead-xchacha = { path = "../crates/redoubt-aead/xchacha" }
+
+# The cipher and the authenticator carry `test-utils` so that a bench can name
+# the backend and put the two implementations side by side, which is the only
+# way to read what the assembly is worth.
+redoubt-aead-v2-core         = { path = "../crates/redoubt-aead-v2/crates/core" }
+redoubt-aead-xchachapoly1305 = { path = "../crates/redoubt-aead-v2/crates/xchachapoly1305" }
+redoubt-chacha               = { path = "../crates/redoubt-aead-v2/crates/chacha", features = ["test-utils"] }
+redoubt-poly1305             = { path = "../crates/redoubt-aead-v2/crates/poly1305", features = ["test-utils"] }
 redoubt-alloc        = { path = "../crates/redoubt-alloc" }
 redoubt-buffer       = { path = "../crates/redoubt-buffer" }
 redoubt-codec        = { path = "../crates/redoubt-codec" }
@@ -52,3 +60,7 @@ name    = "hkdf_sha256"
 [[bench]]
 harness = false
 name    = "chacha20_poly1305"
+
+[[bench]]
+harness = false
+name    = "xchachapoly1305"
