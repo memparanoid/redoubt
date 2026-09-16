@@ -14,10 +14,9 @@ use std::vec::Vec;
 /// Twenty rounds, with the diagonal round expressed as shifted columns.
 pub(crate) fn rounds(input: [u32; 16]) -> [u32; 16] {
     let mut rows = [[0u32; 4]; 4];
+    let (words, _) = input.as_chunks::<4>();
 
-    for (row, words) in rows.iter_mut().zip(input.chunks_exact(4)) {
-        row.copy_from_slice(words);
-    }
+    rows.copy_from_slice(words);
 
     for _ in 0..10 {
         columns(&mut rows);
