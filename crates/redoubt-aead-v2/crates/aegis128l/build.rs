@@ -20,7 +20,7 @@ const X86_64: &str = "src/asm/aegis128l_x86_64.S";
 const AARCH64: &str = "src/asm/aegis128l_aarch64.S";
 
 /// What the crate compiles under when one of them was built.
-const HAS_ASM: &str = "aegis_asm";
+const HAS_ASM: &str = "aegis128l_asm";
 
 fn main() {
     println!("cargo::rustc-check-cfg=cfg({HAS_ASM})");
@@ -32,7 +32,10 @@ fn main() {
         return;
     };
 
-    cc::Build::new().file(file).flag(flag).compile("aegis_asm");
+    cc::Build::new()
+        .file(file)
+        .flag(flag)
+        .compile("aegis128l_asm");
 
     println!("cargo::rerun-if-changed={file}");
     println!("cargo::rustc-cfg={HAS_ASM}");

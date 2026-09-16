@@ -28,7 +28,7 @@
 #[cfg(test)]
 extern crate std;
 
-#[cfg(test)]
+#[cfg(all(test, aegis128l_asm))]
 mod tests;
 
 mod aegis128l;
@@ -41,4 +41,4 @@ pub use aegis128l::Aegis128L;
 /// False means the symbols [`Aegis128L`] calls were never assembled, and
 /// anything that links this crate will not find them. It says nothing about
 /// whether the machine running the result has the AES instructions.
-pub const HAS_ASM: bool = cfg!(aegis_asm);
+pub const HAS_ASM: bool = cfg!(aegis128l_asm);
