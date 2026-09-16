@@ -9,9 +9,12 @@
 //! in the order the assembly declares them, then the probe, which nothing in
 //! production calls.
 
+mod support;
+
 mod asm;
 mod probes;
 mod rfc;
+mod wycheproof;
 
 use redoubt_aead_v2_core::consts::aegis::{KEY_SIZE, NONCE_SIZE};
 

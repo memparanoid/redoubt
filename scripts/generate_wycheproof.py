@@ -62,6 +62,25 @@ TEST_CONFIGS = [
         ),
     },
     {
+        # The emit writes `use super::wycheproof::{...}`, so the types live
+        # beside the vectors rather than with the test that reads them.
+        "name": "AEGIS-128L",
+        "type": "aead",
+        "url": "https://raw.githubusercontent.com/C2SP/wycheproof/main/testvectors_v1/aegis128L_test.json",
+        "output": os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "crates",
+            "redoubt-aead-v2",
+            "crates",
+            "aegis128l",
+            "src",
+            "tests",
+            "support",
+            "wycheproof_vectors.rs",
+        ),
+    },
+    {
         "name": "HKDF-SHA-256",
         "type": "hkdf",
         "url": "https://raw.githubusercontent.com/C2SP/wycheproof/refs/heads/main/testvectors_v1/hkdf_sha256_test.json",
