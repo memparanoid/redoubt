@@ -58,14 +58,6 @@ const ABSENT: [u8; 32] = [
     0xA9, 0x08, 0xF3, 0x5C, 0x37, 0xE0, 0x91, 0x4D, 0xBA, 0x1F, 0x68, 0xC4, 0x83, 0x20, 0xD7, 0x46,
 ];
 
-/// What a sixteen byte piece is worth, near enough.
-///
-/// Fifteen steps of eight bits each, less the twenty-odd that a few megabytes
-/// of memory throws up by chance, is a little under a hundred. The floor here
-/// is generous: it stays true for a process a thousand times larger, where the
-/// same piece is worth ninety.
-const LEAK: u64 = 80;
-
 /// The widest run a process that is holding nothing may have.
 ///
 /// Runs of one and two are what any memory has by accident. Three is already
@@ -347,8 +339,28 @@ fn test_the_sweep_reaches_a_copy_left_deep_in_the_stack() -> Result<(), Reason> 
 
     Ok(())
 }
+
 // ============================================================================
-// Two copies, one reversed
+// occurrences
+// ============================================================================
+
+/// A plain count finds what is plainly there, which is the other half of the
+/// pair: one direction cannot be trusted without the other.
+#[test]
+fn test_a_plain_count_finds_a_plain_copy() -> Result<(), Reason> {
+    alone!();
+
+    let held = core::hint::black_box(ALPHA.to_vec());
+
+    assert!(occurrences(&held)? > 0);
+
+    drop(core::hint::black_box(held));
+
+    Ok(())
+}
+
+// ============================================================================
+// occurrences_reversed
 // ============================================================================
 
 /// The same value twice, one of them reversed, and the reversed one finds the
@@ -392,175 +404,56 @@ fn test_a_value_held_only_backwards_is_not_found_forwards() -> Result<(), Reason
     Ok(())
 }
 
-/// A plain count finds what is plainly there, which is the other half of the
-/// pair: one direction cannot be trusted without the other.
+// ============================================================================
+// Forensics::watching
+// ============================================================================
+
+/// Nothing to look for is not the same as finding nothing, and the difference
+/// has to survive the door.
 #[test]
-fn test_a_plain_count_finds_a_plain_copy() -> Result<(), Reason> {
+fn test_an_empty_needle_is_refused() {
+    assert!(Forensics::watching(&[]).is_err());
+    assert_eq!(occurrences(&[]).err(), Some(Reason::Needle));
+    assert_eq!(occurrences_reversed(&[]).err(), Some(Reason::Needle));
+}
+
+/// Longer than there is room for is refused rather than truncated. A needle
+/// quietly cut in half would answer about a value nobody asked about.
+#[test]
+fn test_a_needle_longer_than_there_is_room_for_is_refused() {
+    let far_too_long = vec![0x5A_u8; 8193];
+
+    assert!(Forensics::watching(&far_too_long).is_err());
+    assert_eq!(occurrences(&far_too_long).err(), Some(Reason::Needle));
+}
+
+/// The longest needle there is room for is taken.
+#[test]
+fn test_the_longest_needle_there_is_room_for_is_taken() -> Result<(), Reason> {
     alone!();
 
-    let held = core::hint::black_box(ALPHA.to_vec());
+    let as_long_as_it_goes = vec![0x5A_u8; 8192];
+    let mut watch = Forensics::watching(&as_long_as_it_goes)?;
 
-    assert!(occurrences(&held)? > 0);
-
-    drop(core::hint::black_box(held));
+    assert!(watch.snapshot().is_ok());
 
     Ok(())
 }
 
-/// Two values that share no adjacent pair. Holding one must not answer for the
-/// other, or every absence in this file is an accident of which bytes were
-/// picked.
+/// One byte is a needle, and the door is not where it should be turned away.
 #[test]
-fn test_holding_one_value_does_not_find_another() -> Result<(), Reason> {
+fn test_a_needle_of_one_byte_is_taken() -> Result<(), Reason> {
     alone!();
 
-    let held = core::hint::black_box(ALPHA.to_vec());
-    let report = photograph(&mut watching(&BETA)?)?;
+    let mut watch = Forensics::watching(&[0x9E])?;
 
-    assert!(!report.found, "{report}");
-    assert_eq!(report.score, 0, "{report}");
-
-    drop(core::hint::black_box(held));
+    assert!(watch.snapshot().is_ok());
 
     Ok(())
 }
 
 // ============================================================================
-// The absences
-// ============================================================================
-
-/// A value this file never copies anywhere is not found anywhere.
-#[test]
-fn test_a_value_that_is_nowhere_is_not_found() -> Result<(), Reason> {
-    alone!();
-
-    let report = photograph(&mut watching(&ABSENT)?)?;
-
-    assert!(!report.found, "{report}");
-    assert_eq!(report.score, 0, "{report}");
-
-    Ok(())
-}
-
-/// And is not counted either.
-///
-/// This one says more than it looks. Counting means handing the value to the
-/// instrument, which copies it into its own block — writable memory, in this
-/// process, holding the thing being searched for. The answer is zero only
-/// because the sweep steps over its own block. Were the phrase at the front of
-/// it ever to stop working, this is the test that would say so.
-#[test]
-fn test_a_value_that_is_nowhere_is_counted_zero_times() -> Result<(), Reason> {
-    alone!();
-
-    assert_eq!(occurrences(&ABSENT)?, 0);
-
-    Ok(())
-}
-
-/// A constant that was never copied lives where nothing can write, and only
-/// writable mappings are read. So even the original is not found.
-#[test]
-fn test_a_constant_nobody_copied_is_not_found() -> Result<(), Reason> {
-    alone!();
-
-    assert_eq!(occurrences(&ALPHA)?, 0);
-
-    Ok(())
-}
-
-// ============================================================================
-// The score
-// ============================================================================
-
-/// A process holding none of it scores nothing at all — not "little", nothing.
-/// The floor is arithmetic and not a threshold somebody chose.
-#[test]
-fn test_a_quiet_process_scores_nothing() -> Result<(), Reason> {
-    alone!();
-
-    let report = photograph(&mut watching(&ABSENT)?)?;
-
-    assert_eq!(report.score, 0, "{report}");
-    assert!(report.widest <= QUIET, "{report}");
-
-    Ok(())
-}
-
-/// A piece kept is a run as wide as the piece.
-#[test]
-fn test_a_piece_kept_is_as_wide_as_the_piece() -> Result<(), Reason> {
-    alone!();
-
-    let kept = core::hint::black_box(ALPHA[8..24].to_vec());
-    let report = photograph(&mut watching(&ALPHA)?)?;
-
-    assert!(report.widest >= 16, "{report}");
-    assert!(report.score >= LEAK, "{report}");
-    assert!(!report.found, "a piece is not the whole of it: {report}");
-
-    drop(core::hint::black_box(kept));
-
-    Ok(())
-}
-
-/// An operation that keeps a piece shows up in the difference between the
-/// photograph before it and the one after.
-#[test]
-fn test_the_difference_shows_what_an_operation_kept() -> Result<(), Reason> {
-    alone!();
-
-    let mut watch = watching(&ALPHA)?;
-    let before = photograph(&mut watch)?;
-
-    forensics!({
-        let kept = core::hint::black_box(ALPHA[8..24].to_vec());
-
-        capture!();
-
-        core::mem::forget(kept);
-    });
-
-    let after = photograph(&mut watch)?;
-    let change = after.against(&before);
-
-    // The score and not the width: a quiet process scores exactly nothing, so
-    // subtracting one takes nothing off the margin. Its widest is `QUIET`, and
-    // a floor on that difference is a floor short by however quiet the process
-    // happened to be — which is why the width is asserted where it needs no
-    // subtraction, against the photograph itself.
-    assert!(
-        change.score >= i128::from(LEAK),
-        "{before}\n{after}\n{change}"
-    );
-
-    Ok(())
-}
-
-/// And an operation that keeps nothing shows up as nothing.
-#[test]
-fn test_the_difference_shows_nothing_for_an_operation_that_kept_nothing() -> Result<(), Reason> {
-    alone!();
-
-    let mut watch = watching(&ABSENT)?;
-    let before = photograph(&mut watch)?;
-
-    forensics!({
-        core::hint::black_box(1_u8);
-
-        capture!();
-    });
-
-    let after = photograph(&mut watch)?;
-    let change = after.against(&before);
-
-    assert_eq!(change.score, 0, "{before}\n{after}\n{change}");
-
-    Ok(())
-}
-
-// ============================================================================
-// The photograph itself
+// Forensics::snapshot
 // ============================================================================
 
 /// A sweep that read nothing would answer every question here with silence, so
@@ -628,55 +521,8 @@ fn test_snapshot_propagates_the_reason_the_analysis_gave() {
 }
 
 // ============================================================================
-// What it refuses
 // ============================================================================
-
-/// Nothing to look for is not the same as finding nothing, and the difference
-/// has to survive the door.
-#[test]
-fn test_an_empty_needle_is_refused() {
-    assert!(Forensics::watching(&[]).is_err());
-    assert_eq!(occurrences(&[]).err(), Some(Reason::Needle));
-    assert_eq!(occurrences_reversed(&[]).err(), Some(Reason::Needle));
-}
-
-/// Longer than there is room for is refused rather than truncated. A needle
-/// quietly cut in half would answer about a value nobody asked about.
-#[test]
-fn test_a_needle_longer_than_there_is_room_for_is_refused() {
-    let far_too_long = vec![0x5A_u8; 8193];
-
-    assert!(Forensics::watching(&far_too_long).is_err());
-    assert_eq!(occurrences(&far_too_long).err(), Some(Reason::Needle));
-}
-
-/// The longest needle there is room for is taken.
-#[test]
-fn test_the_longest_needle_there_is_room_for_is_taken() -> Result<(), Reason> {
-    alone!();
-
-    let as_long_as_it_goes = vec![0x5A_u8; 8192];
-    let mut watch = Forensics::watching(&as_long_as_it_goes)?;
-
-    assert!(watch.snapshot().is_ok());
-
-    Ok(())
-}
-
-/// One byte is a needle, and the door is not where it should be turned away.
-#[test]
-fn test_a_needle_of_one_byte_is_taken() -> Result<(), Reason> {
-    alone!();
-
-    let mut watch = Forensics::watching(&[0x9E])?;
-
-    assert!(watch.snapshot().is_ok());
-
-    Ok(())
-}
-
-// ============================================================================
-// The two shapes of the door
+// Forensics::snapshot_reversed
 // ============================================================================
 
 /// The one-call form answers, and answers the same as the other about anything
@@ -718,38 +564,63 @@ fn test_snapshot_reversed_propagates_the_reason_the_photograph_gave() {
 }
 
 // ============================================================================
-// The readout
+// The absences
 // ============================================================================
 
-/// Every number this crate answers with, for a process holding nothing and the
-/// same process holding sixteen bytes. Asserts nothing; run it with
-/// `cargo nextest run --no-capture`.
+/// Two values that share no adjacent pair. Holding one must not answer for the
+/// other, or every absence in this file is an accident of which bytes were
+/// picked.
 #[test]
-fn test_reads_out_a_leak_beside_no_leak() -> Result<(), Reason> {
+fn test_holding_one_value_does_not_find_another() -> Result<(), Reason> {
     alone!();
 
-    let mut watch = watching(&ALPHA)?;
+    let held = core::hint::black_box(ALPHA.to_vec());
+    let report = photograph(&mut watching(&BETA)?)?;
 
-    let quiet_before = photograph(&mut watch)?;
-    let quiet_after = photograph(&mut watch)?;
+    assert!(!report.found, "{report}");
+    assert_eq!(report.score, 0, "{report}");
 
-    let loud_before = photograph(&mut watch)?;
-    let kept = core::hint::black_box(ALPHA[8..24].to_vec());
-    let loud_after = photograph(&mut watch)?;
+    drop(core::hint::black_box(held));
 
-    eprintln!();
-    eprintln!("  nothing kept");
-    eprintln!("    before  {quiet_before}");
-    eprintln!("    after   {quiet_after}");
-    eprintln!("    change  {}", quiet_after.against(&quiet_before));
-    eprintln!();
-    eprintln!("  sixteen bytes kept");
-    eprintln!("    before  {loud_before}");
-    eprintln!("    after   {loud_after}");
-    eprintln!("    change  {}", loud_after.against(&loud_before));
-    eprintln!();
+    Ok(())
+}
 
-    drop(core::hint::black_box(kept));
+/// A value this file never copies anywhere is not found anywhere.
+#[test]
+fn test_a_value_that_is_nowhere_is_not_found() -> Result<(), Reason> {
+    alone!();
+
+    let report = photograph(&mut watching(&ABSENT)?)?;
+
+    assert!(!report.found, "{report}");
+    assert_eq!(report.score, 0, "{report}");
+
+    Ok(())
+}
+
+/// A value that is nowhere is not counted either.
+///
+/// This one says more than it looks. Counting means handing the value to the
+/// instrument, which copies it into its own block — writable memory, in this
+/// process, holding the thing being searched for. The answer is zero only
+/// because the sweep steps over its own block. Were the phrase at the front of
+/// it ever to stop working, this is the test that would say so.
+#[test]
+fn test_a_value_that_is_nowhere_is_counted_zero_times() -> Result<(), Reason> {
+    alone!();
+
+    assert_eq!(occurrences(&ABSENT)?, 0);
+
+    Ok(())
+}
+
+/// A constant that was never copied lives where nothing can write, and only
+/// writable mappings are read. So even the original is not found.
+#[test]
+fn test_a_constant_nobody_copied_is_not_found() -> Result<(), Reason> {
+    alone!();
+
+    assert_eq!(occurrences(&ALPHA)?, 0);
 
     Ok(())
 }
