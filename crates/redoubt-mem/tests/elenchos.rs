@@ -425,11 +425,7 @@ fn test_a_sized_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError
     elenchos!({
         // SAFETY: two different allocations, both the secret's length.
         unsafe {
-            redoubt_mem::swap_nonoverlapping(
-                secret.as_mut_ptr(),
-                empty.as_mut_ptr(),
-                SECRET.len(),
-            );
+            redoubt_mem::swap_nonoverlapping(secret.as_mut_ptr(), empty.as_mut_ptr(), SECRET.len());
         }
 
         capture!();
@@ -467,11 +463,7 @@ macro_rules! swapped {
             elenchos!({
                 // SAFETY: two different allocations, both `$of` long.
                 unsafe {
-                    redoubt_mem::swap_nonoverlapping(
-                        secret.as_mut_ptr(),
-                        empty.as_mut_ptr(),
-                        $of,
-                    );
+                    redoubt_mem::swap_nonoverlapping(secret.as_mut_ptr(), empty.as_mut_ptr(), $of);
                 }
 
                 capture!();
