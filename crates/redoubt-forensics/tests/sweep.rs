@@ -32,6 +32,10 @@ use redoubt_forensics::{
     Forensics, Reason, Report, capture, forensics, occurrences, occurrences_reversed,
 };
 
+mod support;
+
+use support::helpers::alone;
+
 // ============================================================================
 // The material
 // ============================================================================
@@ -67,20 +71,6 @@ const QUIET: u64 = 4;
 // ============================================================================
 // The tools
 // ============================================================================
-
-/// A test that needs a process to itself, or a word about why it did not run.
-///
-/// Silently passing would be worse than failing: every absence in this file is
-/// only true in a process where nobody else put the value there.
-macro_rules! alone {
-    () => {
-        if std::env::var_os("NEXTEST").is_none() {
-            eprintln!("skipped: this test needs a process of its own. `cargo nextest run`.");
-
-            return Ok(());
-        }
-    };
-}
 
 /// A needle, built from its last byte to its first.
 ///

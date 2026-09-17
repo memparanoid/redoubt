@@ -49,6 +49,10 @@
 
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
 
+mod support;
+
+use support::helpers::alone;
+
 /// Thirty-two distinct bytes: no value repeats, so a run that extends did not
 /// extend by luck.
 ///
@@ -340,6 +344,8 @@ fn erase(from: &mut [u8]) {
 /// register half is for.
 #[test]
 fn test_the_capture_finds_a_secret_that_is_only_in_a_register() -> Result<(), AnyError> {
+    alone!();
+
     let mut watch = Forensics::watching(&backwards(&NARROW))?;
 
     let mut held = [0_u8; NARROW.len()];
@@ -375,6 +381,8 @@ fn test_the_capture_finds_a_secret_that_is_only_in_a_register() -> Result<(), An
 /// memory that the load was supposed to have left nowhere.
 #[test]
 fn test_a_register_is_out_of_reach_without_the_capture() -> Result<(), AnyError> {
+    alone!();
+
     let mut watch = Forensics::watching(&backwards(&NARROW))?;
 
     let mut held = [0_u8; NARROW.len()];
@@ -409,6 +417,8 @@ fn test_a_register_is_out_of_reach_without_the_capture() -> Result<(), AnyError>
 /// test here leaves its secret in memory as well, and would stay green.
 #[test]
 fn test_the_capture_finds_a_secret_in_a_register_nothing_writes() -> Result<(), AnyError> {
+    alone!();
+
     wide!();
 
     let mut watch = Forensics::watching(&backwards(&HELD))?;
@@ -433,6 +443,8 @@ fn test_the_capture_finds_a_secret_in_a_register_nothing_writes() -> Result<(), 
 /// The same block with the capture taken out, which must find nothing.
 #[test]
 fn test_a_register_nothing_writes_is_out_of_reach_without_the_capture() -> Result<(), AnyError> {
+    alone!();
+
     wide!();
 
     let mut watch = Forensics::watching(&backwards(&HELD))?;
@@ -462,6 +474,8 @@ fn test_a_register_nothing_writes_is_out_of_reach_without_the_capture() -> Resul
 /// photograph would have spoken had there been something in that frame.
 #[test]
 fn test_the_capture_finds_a_frame_that_was_left_full() -> Result<(), AnyError> {
+    alone!();
+
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
 
     forensics!({
@@ -490,6 +504,8 @@ fn test_the_capture_finds_a_frame_that_was_left_full() -> Result<(), AnyError> {
 /// only difference is whether the operation wiped.
 #[test]
 fn test_a_frame_emptied_before_it_is_left_holds_nothing() -> Result<(), AnyError> {
+    alone!();
+
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
 
     forensics!({
@@ -517,6 +533,8 @@ fn test_a_frame_emptied_before_it_is_left_holds_nothing() -> Result<(), AnyError
 /// difference has to be able to speak, and this is what says it can.
 #[test]
 fn test_the_difference_says_the_secret_surfaced() -> Result<(), AnyError> {
+    alone!();
+
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
 
     let report_before = watch.snapshot()?;
@@ -557,6 +575,8 @@ fn test_the_difference_says_the_secret_surfaced() -> Result<(), AnyError> {
 /// clean. This is the side that says it can be quiet.
 #[test]
 fn test_the_difference_is_quiet_when_the_frame_was_emptied() -> Result<(), AnyError> {
+    alone!();
+
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
 
     let report_before = watch.snapshot()?;
@@ -598,6 +618,8 @@ fn test_the_difference_is_quiet_when_the_frame_was_emptied() -> Result<(), AnyEr
 /// the photograph to report a clean process.
 #[test]
 fn test_a_cleanup_run_before_the_capture_erases_the_evidence() -> Result<(), AnyError> {
+    alone!();
+
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
     let waste = vec![0_u8; WASTE];
 
@@ -632,6 +654,8 @@ fn test_a_cleanup_run_before_the_capture_erases_the_evidence() -> Result<(), Any
 /// on that, because the window was copied out of the stack before it ran.
 #[test]
 fn test_a_cleanup_run_after_the_capture_leaves_the_evidence() -> Result<(), AnyError> {
+    alone!();
+
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
     let waste = vec![0_u8; WASTE];
 
