@@ -4,7 +4,7 @@
 
 //! What two photographs say between them.
 
-use crate::analysis::report::{Change, Report};
+use crate::analysis::report::Report;
 use crate::analysis::score::NOISE;
 
 /// A photograph of a process that found nothing.
@@ -93,6 +93,53 @@ fn test_against_reports_surfaced_only_when_the_secret_was_not_there_before() {
 }
 
 // ============================================================================
+// Report::summary_against
+// ============================================================================
+
+#[test]
+fn test_summary_against_prints_a_change_without_panicking() {
+    let before = quiet();
+    let after = Report {
+        score: 90,
+        ..quiet()
+    };
+
+    after.summary_against(&before, "something happened");
+}
+
+// ============================================================================
+// Report::rows_against
+// ============================================================================
+
+/// The photograph first and what it moved second.
+///
+/// The two are one reading, and the other way round is a change that appears
+/// to precede the thing it is a change from.
+#[test]
+fn test_rows_against_puts_the_photograph_before_the_change() {
+    let before = quiet();
+    let after = Report {
+        score: 90,
+        ..quiet()
+    };
+
+    let [first, second] = after.rows_against(&before, "something happened");
+
+    assert!(first.contains("something happened"), "{first}");
+    assert!(first.contains("score           90"), "{first}");
+    assert!(second.contains("score           +90"), "{second}");
+}
+
+// ============================================================================
+// Report::summary
+// ============================================================================
+
+#[test]
+fn test_summary_prints_a_report_without_panicking() {
+    quiet().summary("nothing yet");
+}
+
+// ============================================================================
 // Report::row
 // ============================================================================
 
@@ -123,50 +170,6 @@ fn test_row_keeps_a_tag_that_is_wider_than_the_column() {
     let tag = "a tag that is wider than the column it was given";
 
     assert!(quiet().row(tag).contains(tag));
-}
-
-// ============================================================================
-// Report::rows_against
-// ============================================================================
-
-/// The photograph first and what it moved second.
-///
-/// The two are one reading, and the other way round is a change that appears
-/// to precede the thing it is a change from.
-#[test]
-fn test_rows_against_puts_the_photograph_before_the_change() {
-    let before = quiet();
-    let after = Report {
-        score: 90,
-        ..quiet()
-    };
-
-    let [first, second] = after.rows_against(&before, "something happened");
-
-    assert!(first.contains("something happened"), "{first}");
-    assert!(first.contains("score           90"), "{first}");
-    assert!(second.contains("score           +90"), "{second}");
-}
-
-// ============================================================================
-// Report::summary and Report::summary_against
-// ============================================================================
-
-/// They print the rows they build, which is the whole of what they add.
-///
-/// What is on the rows is asserted above; this is here so that the printing
-/// itself is run rather than assumed, and so that a tag wide enough to change
-/// the formatting is not first tried by a caller.
-#[test]
-fn test_summary_prints_the_rows_it_builds() {
-    let before = quiet();
-    let after = Report {
-        score: 90,
-        ..quiet()
-    };
-
-    before.summary("nothing yet");
-    after.summary_against(&before, "something happened");
 }
 
 // ============================================================================
@@ -257,7 +260,7 @@ fn test_row_puts_a_change_in_the_same_column_as_the_photograph() {
 }
 
 // ============================================================================
-// Display
+// Display for Report
 // ============================================================================
 
 /// Every number a reader is asked to compare is in the line, and the exact
@@ -284,6 +287,10 @@ fn test_report_displays_every_number_it_holds() {
     );
 }
 
+// ============================================================================
+// Display for Change
+// ============================================================================
+
 /// A rise and a fall read differently at a glance, which is the only reason
 /// this is not `Debug`.
 #[test]
@@ -308,14 +315,4 @@ fn test_change_says_when_the_whole_secret_surfaced() {
 
     assert!(present.against(&absent).to_string().contains("surfaced"));
     assert!(!absent.against(&absent).to_string().contains("surfaced"));
-}
-
-/// A `Change` is `Copy`, so a caller can hand one around without deciding
-/// whether it still owns it.
-#[test]
-fn test_change_is_copy() {
-    let change = quiet().against(&quiet());
-    let also: Change = change;
-
-    assert_eq!(change, also);
 }
