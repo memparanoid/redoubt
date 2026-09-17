@@ -221,6 +221,34 @@ fn test_worth_is_nothing_when_the_memory_outweighs_the_run() {
     assert_eq!(worth(3, 1, u64::MAX), 0);
 }
 
+/// A sweep of no memory has nothing to charge against, so the narrowest run
+/// there is already counts.
+#[test]
+fn test_worth_charges_nothing_against_no_memory() {
+    assert_eq!(worth(2, SPARSE, 0), SPARSE >> 10);
+}
+
+/// A secret whose bytes say nothing about each other makes every run worth
+/// nothing, however wide.
+#[test]
+fn test_worth_is_nothing_when_a_step_says_nothing() {
+    for width in [2_u64, 32, 1024] {
+        assert_eq!(worth(width, 0, SWEPT), 0);
+    }
+}
+
+/// Nothing in the whole range of three `u64`s overflows or panics.
+#[test]
+fn test_worth_answers_for_anything_three_numbers_can_be() {
+    for width in [0_u64, 1, 2, MOST as u64, u32::MAX.into(), u64::MAX] {
+        for step in [0_u64, 1, SPARSE, u32::MAX.into(), u64::MAX] {
+            for swept in [0_u64, 1, SWEPT, u64::MAX] {
+                let _ = worth(width, step, swept);
+            }
+        }
+    }
+}
+
 proptest! {
     /// Every extra byte is another step the secret had to allow, so a wider
     /// run can never say less.
@@ -320,34 +348,6 @@ proptest! {
         let got = worth(width, step, swept) as f64;
 
         prop_assert!(got <= surprise(width.max(1), step, swept).max(0.0) + 0.1);
-    }
-}
-
-/// Nothing in the whole range of three `u64`s overflows or panics.
-#[test]
-fn test_worth_answers_for_anything_three_numbers_can_be() {
-    for width in [0_u64, 1, 2, MOST as u64, u32::MAX.into(), u64::MAX] {
-        for step in [0_u64, 1, SPARSE, u32::MAX.into(), u64::MAX] {
-            for swept in [0_u64, 1, SWEPT, u64::MAX] {
-                let _ = worth(width, step, swept);
-            }
-        }
-    }
-}
-
-/// A sweep of no memory has nothing to charge against, so the narrowest run
-/// there is already counts.
-#[test]
-fn test_worth_charges_nothing_against_no_memory() {
-    assert_eq!(worth(2, SPARSE, 0), SPARSE >> 10);
-}
-
-/// A secret whose bytes say nothing about each other makes every run worth
-/// nothing, however wide.
-#[test]
-fn test_worth_is_nothing_when_a_step_says_nothing() {
-    for width in [2_u64, 32, 1024] {
-        assert_eq!(worth(width, 0, SWEPT), 0);
     }
 }
 
@@ -458,7 +458,27 @@ fn test_the_ceiling_reads_a_real_secret_the_way_it_should() {
 }
 
 // ============================================================================
-// table, follows, holds
+// table
+// ============================================================================
+
+/// The table is about pairs, not places: the same pair anywhere in the secret
+/// is the same bit.
+#[test]
+fn test_table_is_built_fresh_each_time() {
+    let (mut next, mut seen) = tables();
+
+    table(b"abcd", &mut next, &mut seen);
+    table(b"wxyz", &mut next, &mut seen);
+
+    assert!(
+        !follows(&next, b'a', b'b'),
+        "the first secret was still in the table"
+    );
+    assert!(follows(&next, b'w', b'x'));
+}
+
+// ============================================================================
+// follows
 // ============================================================================
 
 /// Every pair that is in the secret is in the table.
@@ -497,21 +517,25 @@ fn test_follows_keeps_every_successor_a_byte_has() {
     assert!(follows(&next, b'a', b'c'));
 }
 
-/// The table is about pairs, not places: the same pair anywhere in the secret
-/// is the same bit.
+/// A secret of one byte has no pairs at all, so nothing can extend and every
+/// run is one wide.
+///
+/// The byte is asked for as well, because `follows` answers no for a table
+/// nobody filled: without it the refusal would pass against `table` never
+/// having run.
 #[test]
-fn test_table_is_built_fresh_each_time() {
+fn test_follows_refuses_every_pair_for_a_secret_of_one_byte() {
     let (mut next, mut seen) = tables();
 
-    table(b"abcd", &mut next, &mut seen);
-    table(b"wxyz", &mut next, &mut seen);
+    table(b"a", &mut next, &mut seen);
 
-    assert!(
-        !follows(&next, b'a', b'b'),
-        "the first secret was still in the table"
-    );
-    assert!(follows(&next, b'w', b'x'));
+    assert!(holds(&seen, b'a'), "the table was never built");
+    assert!(!follows(&next, b'a', b'a'));
 }
+
+// ============================================================================
+// holds
+// ============================================================================
 
 /// Which bytes are in the secret at all, which is what starts a run.
 #[test]
@@ -524,18 +548,6 @@ fn test_holds_answers_for_the_bytes_the_secret_has() {
     assert!(holds(&seen, b'd'));
     assert!(!holds(&seen, b'e'));
     assert!(!holds(&seen, 0));
-}
-
-/// A secret of one byte has that byte and no pairs at all, so nothing can
-/// extend and every run is one wide.
-#[test]
-fn test_a_single_byte_secret_has_no_pairs() {
-    let (mut next, mut seen) = tables();
-
-    table(b"a", &mut next, &mut seen);
-
-    assert!(holds(&seen, b'a'));
-    assert!(!follows(&next, b'a', b'a'));
 }
 
 // ============================================================================
