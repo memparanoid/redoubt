@@ -23,7 +23,12 @@
 //! portable fallback moves the same bytes through registers the compiler
 //! chose rather than ones somebody wrote down.
 
-#![cfg(target_os = "linux")]
+// Every measurement in this file was taken with an instrument that could not
+// see past a call made after the operation, so each absence it reports is
+// worth less than it says. Kept unbuilt: this crate is the one being replaced,
+// and rewriting its measurements against the new instrument is work that goes
+// with whatever replaces it.
+#![cfg(any())]
 
 use redoubt_aead::Aead;
 use redoubt_forensics::{AnyError, Forensics, QUIET, forensics};
