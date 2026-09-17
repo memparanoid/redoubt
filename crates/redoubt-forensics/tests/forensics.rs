@@ -430,7 +430,7 @@ fn test_the_capture_finds_a_secret_in_a_register_nothing_writes() -> Result<(), 
     Ok(())
 }
 
-/// And the same block with the capture taken out, which must find nothing.
+/// The same block with the capture taken out, which must find nothing.
 #[test]
 fn test_a_register_nothing_writes_is_out_of_reach_without_the_capture() -> Result<(), AnyError> {
     wide!();

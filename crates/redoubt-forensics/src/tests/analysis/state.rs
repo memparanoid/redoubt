@@ -105,7 +105,7 @@ fn test_spans_push_refuses_one_more_than_it_has_room_for() {
     assert_eq!(spans.get(1), (300, 400), "it overwrote the last one");
 }
 
-/// And what it refuses, it leaves out of the words past the count.
+/// What it refuses, it leaves out of the words past the count.
 ///
 /// The run lives in the block, and the words past the last span are the next
 /// piece. One written there anyway is a refusal that did the write regardless.
@@ -239,7 +239,7 @@ fn test_default_writes_the_phrase_at_the_front() {
     assert_eq!(&state.whole()[..MAGIC.len()], &MAGIC[..]);
 }
 
-/// And nothing else is written at all.
+/// Nothing else is written at all.
 ///
 /// The child may not allocate, so everything it will ever touch is reserved
 /// here — and a reading left over from the last measurement is indeterminable
@@ -268,7 +268,7 @@ fn test_hold_refuses_a_needle_of_nothing() {
     assert!(!state.hold(&[], false));
 }
 
-/// And one wider than the room set aside for it.
+/// A needle wider than the room set aside for it.
 ///
 /// The room cannot grow: it is a piece of a block reserved before the
 /// photograph, which is the entire reason it is reserved. A needle that did not
@@ -467,7 +467,7 @@ fn test_parts_hands_out_pieces_that_do_not_stand_on_each_other() {
     );
 }
 
-/// And every one of them is eight-aligned, which is what makes the `u64` views
+/// Every one of them is eight-aligned, which is what makes the `u64` views
 /// of them sound.
 ///
 /// A `u64` read from an address that is not a multiple of eight is undefined
@@ -537,7 +537,7 @@ fn test_stack_top_is_aligned_as_a_stack_pointer_must_be() {
     assert_eq!(state.stack_top() as usize % 16, 0);
 }
 
-/// And it is the far end of a piece of the block, not of somebody's memory.
+/// It is the far end of a piece of the block, not of somebody's memory.
 ///
 /// The analysis runs on it, so every frame it pushes lands in the one stretch a
 /// sweep steps over. A stack outside the block is the instrument writing its
@@ -609,7 +609,7 @@ fn test_read_returns_nothing_before_anything_has_been_measured() {
     }
 }
 
-/// And each name is a different number, read back as what was written to it.
+/// Each name is a different number, read back as what was written to it.
 ///
 /// They are offsets into one run, so two that landed on the same word would be
 /// a score reported as a count — with nothing anywhere to say so.

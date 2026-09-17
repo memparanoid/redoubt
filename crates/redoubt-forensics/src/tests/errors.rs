@@ -56,7 +56,7 @@ fn test_code_gives_a_different_word_to_every_reason() {
     }
 }
 
-/// And none of them travels as the word success does.
+/// No reason travels as the word success does.
 ///
 /// A reason numbered [`DONE`] is a failure the parent reads as a clean
 /// photograph, which is the one mistake this crate exists to avoid.
@@ -150,7 +150,7 @@ fn test_debug_is_the_error_and_not_the_wrapper() {
     );
 }
 
-/// And it takes anything that is an error, not only this crate's.
+/// It takes anything that is an error, not only this crate's.
 ///
 /// Which is the whole reason it exists: a test measuring fallible work has a
 /// second source of error, and one type has to reach both.
@@ -162,7 +162,7 @@ fn test_it_takes_an_error_from_anywhere() {
     assert!(format!("{wrapped:?}").contains("a refusal from somewhere else"));
 }
 
-/// And `?` reaches it without anybody naming a type.
+/// `?` reaches it without anybody naming a type.
 ///
 /// The shape every test in this workspace is written in. If the conversion
 /// ever needed an annotation, every one of them would stop compiling — which

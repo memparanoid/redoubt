@@ -71,7 +71,7 @@ fn test_photograph_reads_back_what_the_process_was_holding() -> Result<(), AnyEr
     Ok(())
 }
 
-/// And it is a second process, not this one dressed up.
+/// The photograph is a second process, not this one dressed up.
 ///
 /// The whole of what the third process buys is that the memory being read is
 /// not the memory doing the reading. A photograph of this process would be a
@@ -137,7 +137,7 @@ fn test_finalize_freeze_returns_nothing_for_a_child_that_did_not_stop() {
     assert!(Subject::finalize_freeze(mine, 0).is_none());
 }
 
-/// And nothing where the memory cannot be opened.
+/// Nothing where the memory cannot be opened.
 ///
 /// A pid nothing is running under has no `/proc/<pid>/mem` to open. The
 /// alternative to answering `None` is a `Subject` holding `-1` as a
@@ -322,7 +322,7 @@ fn test_region_returns_nothing_for_a_line_with_no_dash() {
     assert_eq!(region(b""), None);
 }
 
-/// And one with no space ends before the flags, which is where the answer is.
+/// A line with no space ends before the flags, which is where the answer is.
 #[test]
 fn test_region_returns_nothing_for_a_line_with_no_space() {
     assert_eq!(region(b"7f8e1c000000-7f8e1c021000"), None);
@@ -379,7 +379,7 @@ fn test_region_returns_nothing_for_a_page_protected_to_nothing() {
     );
 }
 
-/// And one open for writing alone, which is what a guarded page looks like
+/// A page open for writing alone, which is what a guarded page looks like
 /// from outside while it is being read through. Skipped for the same reason.
 #[test]
 fn test_region_returns_nothing_for_a_write_only_page() {
@@ -401,7 +401,7 @@ fn test_region_propagates_a_first_bound_that_is_not_hexadecimal() {
     );
 }
 
-/// And the second, which is read only once the first came back a number.
+/// The second bound, read only once the first came back a number.
 #[test]
 fn test_region_propagates_a_second_bound_that_is_not_hexadecimal() {
     assert_eq!(
@@ -597,7 +597,7 @@ fn test_finalize_mappings_reports_no_mappings_where_none_are_writable() {
     ));
 }
 
-/// And one that names more than there is room for says so.
+/// A line that names more than there is room for says so.
 #[test]
 fn test_finalize_mappings_reports_too_many_for_a_listing_wider_than_the_room() {
     // A count and room for one span after it.
@@ -670,7 +670,7 @@ fn test_instrument_marks_the_whole_block_the_phrase_begins() -> Result<(), AnyEr
     Ok(())
 }
 
-/// And it says so rather than quietly marking fewer than it found.
+/// It says so rather than quietly marking fewer than it found.
 ///
 /// A sweep that ran out of room to skip would read the instrument's own block
 /// as somebody's memory and find the secret in the one place it is certain to
@@ -1409,7 +1409,7 @@ fn test_send_writes_everything_it_was_given() {
     }
 }
 
-/// And `false` where there is nobody left to write to.
+/// `false` where there is nobody left to write to.
 ///
 /// The parent closes its end and the analyst finds out by being refused. What
 /// it may not do is carry on as though it had been heard.
@@ -1459,7 +1459,7 @@ fn test_recv_reads_everything_it_was_promised() {
     }
 }
 
-/// And `false` for a pipe that ended before it had said everything.
+/// `false` for a pipe that ended before it had said everything.
 ///
 /// Which is what the analyst dying looks like from this end: some of the
 /// answer, and then nothing. Half a block read as a whole one is the last

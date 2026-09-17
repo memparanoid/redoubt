@@ -541,7 +541,7 @@ fn test_the_one_call_form_finds_a_copy_on_the_heap() -> Result<(), Reason> {
     Ok(())
 }
 
-/// And says nothing is there when nothing is.
+/// It says nothing is there when nothing is.
 #[test]
 fn test_the_one_call_form_finds_nothing_when_there_is_nothing() -> Result<(), Reason> {
     alone!();
@@ -554,7 +554,7 @@ fn test_the_one_call_form_finds_nothing_when_there_is_nothing() -> Result<(), Re
     Ok(())
 }
 
-/// And the photograph's own failure, which this only carries.
+/// The photograph’s own failure, which this only carries.
 #[test]
 #[ignore = "the same as the analysis failing under `snapshot`, reached through \
             one more call: it wants the syscall blocked from under it, which \

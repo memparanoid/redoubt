@@ -493,7 +493,7 @@ fn test_follows_accepts_every_pair_the_secret_has() {
     assert!(follows(&next, b'c', b'd'));
 }
 
-/// And a pair it does not have is not, which is what closes a run.
+/// A pair the secret does not have is not in it, which is what closes a run.
 #[test]
 fn test_follows_refuses_a_pair_the_secret_does_not_have() {
     let (mut next, mut seen) = tables();
@@ -860,7 +860,7 @@ fn test_lg2_never_falls() {
     }
 }
 
-/// And stays within a tenth of a bit of the real thing, which is what makes it
+/// It stays within a tenth of a bit of the real thing, which is what makes it
 /// usable as a floor: the error is far smaller than a run being one byte
 /// wider.
 #[test]
