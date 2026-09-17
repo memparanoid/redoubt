@@ -35,6 +35,7 @@ version = "0.1.0-rc.8"
 dependencies = [
  "criterion",
  "redoubt-aead",
+ "redoubt-aead-aegis128l",
  "redoubt-aead-v2-core",
  "redoubt-aead-xchacha",
  "redoubt-aead-xchachapoly1305",
