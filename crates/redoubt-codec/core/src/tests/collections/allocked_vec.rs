@@ -14,7 +14,7 @@ use crate::traits::{BytesRequired, Decode, Encode, PreAlloc};
 fn make_allocked_vec(items: &[RedoubtCodecTestBreaker]) -> AllockedVec<RedoubtCodecTestBreaker> {
     let mut vec = AllockedVec::with_capacity(items.len());
     for item in items {
-        vec.push(*item).expect("push");
+        vec.push(&mut { *item }).expect("push");
     }
     vec
 }
@@ -207,32 +207,32 @@ fn test_allocked_vec_encode_decode_roundtrip() {
 #[test]
 fn perm_test_allocked_vec_encode_into_propagates_error_at_any_position() {
     let mut vec = AllockedVec::with_capacity(6);
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         1,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         2,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         3,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         4,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         5,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::ForceEncodeError,
         6,
     )]))
@@ -261,32 +261,32 @@ fn perm_test_allocked_vec_encode_into_propagates_error_at_any_position() {
 #[test]
 fn perm_test_allocked_vec_decode_from_propagates_error_at_any_position() {
     let mut vec = AllockedVec::with_capacity(6);
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         1,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         2,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         3,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         4,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         5,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         6,
     )]))
@@ -339,32 +339,32 @@ fn perm_test_allocked_vec_decode_from_propagates_error_at_any_position() {
 #[test]
 fn perm_test_allocked_vec_encode_decode_roundtrip() {
     let mut vec: AllockedVec<AllockedVec<RedoubtCodecTestBreaker>> = AllockedVec::with_capacity(6);
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         1,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         2,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         3,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         4,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         5,
     )]))
     .expect("Failed to push(..)");
-    vec.push(make_allocked_vec(&[RedoubtCodecTestBreaker::new(
+    vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         6,
     )]))

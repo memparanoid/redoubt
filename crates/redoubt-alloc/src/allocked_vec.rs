@@ -32,14 +32,14 @@ use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadat
 ///         vec.change_behaviour(AllockedVecBehaviour::FailAtPush);
 ///
 ///         // This will fail even though capacity allows it
-///         let result = vec.push(1u8);
+///         let result = vec.push(&mut 1u8);
 ///         assert!(result.is_err());
 ///
 ///         // Reset to normal behaviour
 ///         vec.change_behaviour(AllockedVecBehaviour::None);
 ///
 ///         // Now it works
-///         vec.push(1u8)?;
+///         vec.push(&mut 1u8)?;
 ///         Ok(())
 ///     }
 /// }
@@ -93,8 +93,8 @@ impl FastZeroizable for AllockedVecBehaviour {
 ///     let mut vec = AllockedVec::new();
 ///     vec.reserve_exact(5)?;
 ///
-///     vec.push(1u8)?;
-///     vec.push(2u8)?;
+///     vec.push(&mut 1u8)?;
+///     vec.push(&mut 2u8)?;
 ///
 ///     assert_eq!(vec.len(), 2);
 ///     assert_eq!(vec.capacity(), 5);
@@ -281,7 +281,11 @@ where
         Ok(())
     }
 
-    /// Pushes a value onto the end of the vector.
+    /// Pushes a value onto the end of the vector, emptying where it came from.
+    ///
+    /// Takes the value by reference and exchanges it for a `T::default()`. A
+    /// parameter taken by value is an instruction to copy, and the copy the
+    /// caller is left holding is in a slot this has no way to reach.
     ///
     /// # Errors
     ///
@@ -294,16 +298,25 @@ where
     ///
     /// fn example() -> Result<(), AllockedVecError> {
     ///     let mut vec = AllockedVec::with_capacity(2);
-    ///     vec.push(1u8)?;
-    ///     vec.push(2u8)?;
+    ///     let mut one = 1u8;
+    ///     let mut two = 2u8;
+    ///
+    ///     vec.push(&mut one)?;
+    ///     vec.push(&mut two)?;
+    ///
+    ///     // What was handed over is gone from where it was handed from
+    ///     assert_eq!((one, two), (0, 0));
     ///
     ///     // Exceeds capacity
-    ///     assert!(vec.push(3u8).is_err());
+    ///     assert!(vec.push(&mut 3u8).is_err());
     ///     Ok(())
     /// }
     /// # example().unwrap();
     /// ```
-    pub fn push(&mut self, value: T) -> Result<(), AllockedVecError> {
+    pub fn push(&mut self, value: &mut T) -> Result<(), AllockedVecError>
+    where
+        T: Default,
+    {
         #[cfg(any(test, feature = "test-utils"))]
         if matches!(self.behaviour, AllockedVecBehaviour::FailAtPush) {
             return Err(AllockedVecError::CapacityExceeded);
@@ -313,7 +326,20 @@ where
             return Err(AllockedVecError::CapacityExceeded);
         }
 
-        self.inner.push(value);
+        // The default goes in first and the exchange happens against the slot
+        // it is already in. `self.inner.push(value)` would be a move, and a
+        // move of anything wider than a register is a copy the compiler places
+        // where it likes and empties nowhere.
+        //
+        // An exchange and not a copy, because `T` may own an allocation: a
+        // copy of one leaves two values naming the same buffer, which is a
+        // wipe of what was just stored and a second free of it.
+        let at = self.inner.len();
+
+        self.inner.push(T::default());
+
+        redoubt_mem::swap(value, &mut self.inner[at]);
+
         Ok(())
     }
 
@@ -326,7 +352,7 @@ where
     ///
     /// fn example() -> Result<(), AllockedVecError> {
     ///     let mut vec = AllockedVec::with_capacity(10);
-    ///     vec.push(1u8)?;
+    ///     vec.push(&mut 1u8)?;
     ///     assert_eq!(vec.len(), 1);
     ///     Ok(())
     /// }
@@ -373,8 +399,8 @@ where
     ///
     /// fn example() -> Result<(), AllockedVecError> {
     ///     let mut vec = AllockedVec::with_capacity(3);
-    ///     vec.push(1u8)?;
-    ///     vec.push(2u8)?;
+    ///     vec.push(&mut 1u8)?;
+    ///     vec.push(&mut 2u8)?;
     ///
     ///     assert_eq!(vec.as_slice(), &[1, 2]);
     ///     Ok(())
@@ -394,8 +420,8 @@ where
     ///
     /// fn example() -> Result<(), AllockedVecError> {
     ///     let mut vec = AllockedVec::with_capacity(3);
-    ///     vec.push(1u8)?;
-    ///     vec.push(2u8)?;
+    ///     vec.push(&mut 1u8)?;
+    ///     vec.push(&mut 2u8)?;
     ///
     ///     vec.as_mut_slice()[0] = 42;
     ///     assert_eq!(vec.as_slice(), &[42, 2]);
@@ -428,9 +454,9 @@ where
     ///
     /// fn example() -> Result<(), AllockedVecError> {
     ///     let mut vec = AllockedVec::with_capacity(5);
-    ///     vec.push(1u8)?;
-    ///     vec.push(2u8)?;
-    ///     vec.push(3u8)?;
+    ///     vec.push(&mut 1u8)?;
+    ///     vec.push(&mut 2u8)?;
+    ///     vec.push(&mut 3u8)?;
     ///
     ///     vec.truncate(1);
     ///
@@ -456,7 +482,8 @@ where
 
     /// Drains values from a mutable slice into the vector.
     ///
-    /// The source slice is zeroized after draining (each element replaced with `T::default()`).
+    /// The source slice is zeroized after draining, and each value crosses by
+    /// an exchange that leaves nothing of it in a register.
     ///
     /// # Errors
     ///
@@ -500,8 +527,17 @@ where
         }
 
         for item in slice.iter_mut() {
-            let value = core::mem::take(item);
-            self.inner.push(value);
+            // The default goes in first and the exchange happens against the
+            // slot it is already in. A `push` of the caller's value would be a
+            // move, and a move of anything wider than a register is a copy the
+            // compiler places where it likes and empties nowhere.
+            let at = self.inner.len();
+
+            self.inner.push(T::default());
+
+            redoubt_mem::swap(item, &mut self.inner[at]);
+
+            item.fast_zeroize();
         }
 
         Ok(())
@@ -530,14 +566,14 @@ where
     ///
     /// fn example() -> Result<(), AllockedVecError> {
     ///     let mut vec = AllockedVec::with_capacity(5);
-    ///     vec.push(1u8)?;
-    ///     vec.push(2u8)?;
+    ///     vec.push(&mut 1u8)?;
+    ///     vec.push(&mut 2u8)?;
     ///
     ///     // Expand capacity safely
     ///     vec.realloc_with_capacity(10);
     ///
     ///     // Now can push more elements
-    ///     vec.push(3u8)?;
+    ///     vec.push(&mut 3u8)?;
     ///     assert_eq!(vec.capacity(), 10);
     ///     Ok(())
     /// }
@@ -563,8 +599,8 @@ where
     ///
     /// fn example() -> Result<(), AllockedVecError> {
     ///     let mut vec = AllockedVec::<u8>::with_capacity(5);
-    ///     vec.push(1)?;
-    ///     vec.push(2)?;
+    ///     vec.push(&mut 1)?;
+    ///     vec.push(&mut 2)?;
     ///
     ///     vec.fill_with_default();
     ///
@@ -603,7 +639,7 @@ where
     ///         vec.change_behaviour(AllockedVecBehaviour::FailAtPush);
     ///
     ///         // Next push will fail
-    ///         assert!(vec.push(1u8).is_err());
+    ///         assert!(vec.push(&mut 1u8).is_err());
     ///     }
     /// }
     /// ```
@@ -675,8 +711,8 @@ where
     /// use redoubt_zero::FastZeroizable;
     ///
     /// let mut vec = AllockedVec::with_capacity(5);
-    /// vec.push(1u8).unwrap();
-    /// vec.push(2u8).unwrap();
+    /// vec.push(&mut 1u8).unwrap();
+    /// vec.push(&mut 2u8).unwrap();
     /// assert_eq!(vec.len(), 2);
     ///
     /// let old_len = vec.len();

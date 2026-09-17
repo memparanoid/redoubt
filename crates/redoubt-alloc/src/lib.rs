@@ -32,13 +32,14 @@
 //!     // Now sealed - cannot reserve again
 //!     assert!(vec.reserve_exact(20).is_err());
 //!
-//!     // Push works while capacity allows
-//!     for i in 0u8..10 {
-//!         vec.push(i)?;
+//!     // Push works while capacity allows, and empties what it is handed
+//!     for mut i in 0u8..10 {
+//!         vec.push(&mut i)?;
+//!         assert_eq!(i, 0);
 //!     }
 //!
 //!     // Exceeding capacity fails
-//!     assert!(vec.push(42).is_err());
+//!     assert!(vec.push(&mut 42).is_err());
 //!     Ok(())
 //! }
 //! # example().unwrap();
@@ -51,15 +52,15 @@
 //!
 //! fn example() -> Result<(), AllockedVecError> {
 //!     let mut vec = AllockedVec::<u8>::with_capacity(5);
-//!     vec.push(1)?;
-//!     vec.push(2)?;
+//!     vec.push(&mut 1)?;
+//!     vec.push(&mut 2)?;
 //!
 //!     // Change capacity with realloc_with_capacity()
 //!     // This zeroizes the old allocation before creating the new one
 //!     vec.realloc_with_capacity(10);
 //!
-//!     for i in 3u8..=10 {
-//!         vec.push(i)?;
+//!     for mut i in 3u8..=10 {
+//!         vec.push(&mut i)?;
 //!     }
 //!
 //!     assert_eq!(vec.len(), 10);
