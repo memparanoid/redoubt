@@ -104,13 +104,58 @@ unsafe extern "C" {
     /// reaches is one this machine supports.
     pub safe fn redoubt_spill();
 
+    /// The vector half alone, for a caller that wrote the general registers
+    /// itself.
+    ///
+    /// The same jump through a slot, reaching the same form at its second
+    /// entry. What it is for is the order: a `call` puts eight bytes below the
+    /// stack pointer on `x86_64`, and eight bytes below the stack pointer is
+    /// the shallowest of what an operation left. A caller that has copied that
+    /// region somewhere else already can afford them; one that has not,
+    /// cannot.
+    ///
+    /// # Safety
+    ///
+    /// Safe to call at any time. It writes only into the room, and the form it
+    /// reaches is one this machine supports.
+    pub safe fn redoubt_spill_vectors();
+
     /// Which form [`redoubt_spill`] jumps to. [`pick_spiller`] writes it.
     ///
     /// Declared as an atomic because that is what it is: one word, written
     /// from Rust and read by the processor's instruction fetch. Its initial
     /// value is the narrowest form, so it is callable before anything picks.
     safe static redoubt_spill_which: core::sync::atomic::AtomicPtr<()>;
+
+    /// Which form [`redoubt_spill_vectors`] jumps to.
+    ///
+    /// Two slots and not one, because a jump cannot be told which half of a
+    /// form to start at. [`use_spiller`] writes both from the one choice, so
+    /// the two can only name entries of the same form.
+    safe static redoubt_spill_vectors_which: core::sync::atomic::AtomicPtr<()>;
+
+    /// Where a capture lands.
+    ///
+    /// Declared here for the one caller that needs the address rather than the
+    /// contents: a capture written out at its call site, which reaches the
+    /// slots itself instead of calling anything. Nothing reads it through this
+    /// name — the reader is the sweep, which needs no symbol.
+    pub safe static redoubt_spill_room: [u8; SPILL];
 }
+
+/// How wide the room is.
+///
+/// Sixteen general slots of eight bytes and thirty-two vector slots of
+/// sixty-four, which is `zmm`'s width.
+#[cfg(target_arch = "x86_64")]
+pub const SPILL: usize = 2176;
+
+/// How wide the room is.
+///
+/// Thirty-one general slots and the stack pointer, then thirty-two vector
+/// slots of 256 bytes, which is the widest vector this architecture defines.
+#[cfg(target_arch = "aarch64")]
+pub const SPILL: usize = 8448;
 
 /// Point the dispatch at something that is not a form.
 ///
@@ -162,6 +207,27 @@ unsafe extern "C" {
     /// Always available on `x86_64`. Reaches 384 bytes of the room and leaves
     /// the rest as it was.
     pub fn redoubt_spill_sse();
+
+    /// The vector half of [`redoubt_spill_avx512`].
+    ///
+    /// # Safety
+    ///
+    /// Needs AVX-512F.
+    pub fn redoubt_spill_vectors_avx512();
+
+    /// The vector half of [`redoubt_spill_avx`].
+    ///
+    /// # Safety
+    ///
+    /// Needs AVX.
+    pub fn redoubt_spill_vectors_avx();
+
+    /// The vector half of [`redoubt_spill_sse`].
+    ///
+    /// # Safety
+    ///
+    /// Always available on `x86_64`.
+    pub fn redoubt_spill_vectors_sse();
 }
 
 #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
@@ -189,6 +255,20 @@ unsafe extern "C" {
     ///
     /// Safe to call at any time.
     pub safe fn redoubt_spill_neon();
+
+    /// The vector half of [`redoubt_spill_sve`].
+    ///
+    /// # Safety
+    ///
+    /// Needs SVE.
+    pub fn redoubt_spill_vectors_sve();
+
+    /// The vector half of [`redoubt_spill_neon`].
+    ///
+    /// # Safety
+    ///
+    /// Safe to call at any time.
+    pub safe fn redoubt_spill_vectors_neon();
 }
 
 /// Point [`redoubt_spill`] at the widest form this machine supports.
@@ -265,30 +345,35 @@ pub(crate) fn pick_spiller_from(wide: bool) -> Form {
     if wide { Form::Sve } else { Form::Neon }
 }
 
-/// Point [`redoubt_spill`] at that form.
+/// Point both entries at that form.
 ///
-/// The one place a form becomes an address. A jump is what the capture does
+/// The one place a form becomes an address. A jump is what a capture does
 /// first and it uses no register to get there, so what it lands on has to be
 /// settled long beforehand and written down once.
+///
+/// Both slots are written here and from the one answer, so that the two can
+/// only ever name entries of the same form.
 #[cfg(all(
     any(target_arch = "x86_64", target_arch = "aarch64"),
     target_os = "linux"
 ))]
 pub(crate) fn use_spiller(form: Form) {
-    let pick: unsafe extern "C" fn() = match form {
+    let (whole, vectors): (unsafe extern "C" fn(), unsafe extern "C" fn()) = match form {
         #[cfg(target_arch = "x86_64")]
-        Form::Avx512 => redoubt_spill_avx512,
+        Form::Avx512 => (redoubt_spill_avx512, redoubt_spill_vectors_avx512),
         #[cfg(target_arch = "x86_64")]
-        Form::Avx => redoubt_spill_avx,
+        Form::Avx => (redoubt_spill_avx, redoubt_spill_vectors_avx),
         #[cfg(target_arch = "x86_64")]
-        Form::Sse => redoubt_spill_sse,
+        Form::Sse => (redoubt_spill_sse, redoubt_spill_vectors_sse),
         #[cfg(target_arch = "aarch64")]
-        Form::Sve => redoubt_spill_sve,
+        Form::Sve => (redoubt_spill_sve, redoubt_spill_vectors_sve),
         #[cfg(target_arch = "aarch64")]
-        Form::Neon => redoubt_spill_neon,
+        Form::Neon => (redoubt_spill_neon, redoubt_spill_vectors_neon),
     };
 
-    redoubt_spill_which.store(pick as *mut (), core::sync::atomic::Ordering::Relaxed);
+    redoubt_spill_which.store(whole as *mut (), core::sync::atomic::Ordering::Relaxed);
+
+    redoubt_spill_vectors_which.store(vectors as *mut (), core::sync::atomic::Ordering::Relaxed);
 }
 
 /// Which capture the dispatch is pointing at.

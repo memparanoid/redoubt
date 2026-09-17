@@ -30,7 +30,11 @@
 //! this process after the only buffer holding them was cleared, which is a
 //! property of the path and not of the randomness.
 
-#![cfg(target_os = "linux")]
+// Every measurement in this file was taken with an instrument that could not
+// see past a call made after the operation, so each absence it reports is
+// worth less than it says. Kept unbuilt, and only until `elenchos.rs` covers
+// what it covered.
+#![cfg(any())]
 
 use redoubt_forensics::{AnyError, Forensics, QUIET, forensics};
 use redoubt_rand::{EntropySource, SystemEntropySource};

@@ -81,6 +81,9 @@ mod macros;
 #[cfg(target_os = "linux")]
 mod spiller;
 
+#[cfg(target_os = "linux")]
+mod window;
+
 // The whole of it. Everything else — the block, the three processes, the
 // weighing — is reachable only through these, and a caller that needed one of
 // them directly would be doing something this crate has not thought about.
@@ -105,3 +108,12 @@ pub use macros::{DEPTH, Outcome, deep};
 // business, and what reads them is `src/tests/spiller.rs`, which is inside it.
 #[cfg(target_os = "linux")]
 pub use spiller::spill;
+
+// What `capture!` expands into reaches by name, and nothing else has a use for
+// any of it: the room's address, the entry that writes the vectors alone, and
+// the three numbers the window is made of.
+#[cfg(target_os = "linux")]
+pub use spiller::{SPILL, redoubt_spill_room, redoubt_spill_vectors};
+
+#[cfg(target_os = "linux")]
+pub use window::{COPY, FLOOR, SP, open};

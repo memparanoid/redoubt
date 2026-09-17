@@ -30,6 +30,13 @@ pub enum Reason {
     ///
     /// The only one of these that is decided before anything forks.
     Needle,
+    /// The stack has no floor that can be read from end to end.
+    ///
+    /// The process's first thread grows its stack on demand, so the pages
+    /// below the stack pointer are not all there and a copy of the window
+    /// faults. A thread that was spawned has one mapping, made whole when the
+    /// thread was made.
+    NoFloor,
     /// No pipe, so the analyst would have had nowhere to answer.
     NoPipe,
     /// No analyst.
@@ -66,6 +73,7 @@ impl Reason {
     pub(crate) const fn code(self) -> u64 {
         match self {
             Self::Needle => 2,
+            Self::NoFloor => 10,
             Self::NoPipe => 3,
             Self::NoFork => 4,
             Self::NoAnswer => 5,
@@ -84,6 +92,7 @@ impl Reason {
     pub(crate) const fn from_code(code: u64) -> Self {
         match code {
             2 => Self::Needle,
+            10 => Self::NoFloor,
             3 => Self::NoPipe,
             4 => Self::NoFork,
             6 => Self::NoPhotograph,
@@ -99,6 +108,7 @@ impl fmt::Display for Reason {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Needle => "nothing to look for, or more than the window is wide",
+            Self::NoFloor => "the stack has no floor that can be read from end to end",
             Self::NoPipe => "no pipe for the analyst to answer through",
             Self::NoFork => "no analyst",
             Self::NoAnswer => "the analyst never answered",

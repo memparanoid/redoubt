@@ -13,13 +13,24 @@
 //! Subtracting two photographs does not make that contamination go away. A
 //! residue that vanishes while another appears reads as no change at all, and
 //! so does a leak that lands exactly where the last one was overwritten. The
-//! difference says what an operation *moved*, which is not the same as what
-//! is there.
+//! difference says what an operation *moved*, which is not the same as what is
+//! there.
 //!
 //! So every photograph is also held to an absolute bound — [`QUIET`], the
 //! widest run memory throws up by accident — and the first one is held to it
 //! before anything has been opened at all. That one owes nothing to any other
 //! photograph, and it is what makes the differences below worth reading.
+//!
+//! # One claim per test
+//!
+//! The control that says the sweep reaches the key plants a copy of it, and a
+//! copy planted in a process is in every photograph that process takes
+//! afterwards. Kept in the same test as a measurement, it can only come last —
+//! after everything it was meant to vouch for had already been measured.
+//!
+//! Under `nextest` each test is a process of its own, so it does not have to:
+//! the control is its own test, plants its copy in nobody else's memory, and
+//! is read first.
 //!
 //! # What it caught
 //!
@@ -33,13 +44,9 @@
 //! So the assertions below are the shape of a regression that already
 //! happened once.
 
-// Every measurement in this file was taken with an instrument that could not
-// see past a call made after the operation, so each absence it reports is
-// worth less than it says. Kept unbuilt, and only until `elenchos.rs` covers
-// what it covered.
-#![cfg(any())]
+#![cfg(target_os = "linux")]
 
-use redoubt_forensics::{AnyError, Forensics, QUIET, forensics};
+use redoubt_forensics::{AnyError, Forensics, QUIET, Report, capture, elenchos};
 use redoubt_vault_core::leak_master_key;
 
 /// How much of the key is taken, which is all of it.
@@ -60,13 +67,48 @@ fn backwards() -> Vec<u8> {
     let mut needle = leak_master_key(WIDE).expect("no master key");
 
     needle.reverse();
-
     needle.to_vec()
 }
 
+/// The three things an absence has to survive.
+///
+/// The whole key is gone, no piece of it wider than chance is left, and the
+/// score did not move. The first two are absolute and owe nothing to any other
+/// photograph, which is what makes the third worth reading.
+fn leaves_nothing(report_before: &Report, report_after: &Report, what: &str) {
+    println!();
+    report_before.summary("nothing opened yet");
+    report_after.summary_against(report_before, what);
+    println!();
+
+    // Assert zeroization!
+    assert!(
+        !report_after.found,
+        "the whole key was left behind by {what}: {report_after}"
+    );
+
+    assert!(
+        report_after.widest <= QUIET,
+        "a run of {} bytes of the key was left behind by {what}, and {QUIET} is \
+         what memory has by accident: {report_after}",
+        report_after.widest,
+    );
+
+    let delta = report_after.against(report_before);
+
+    assert!(
+        delta.is_noise(),
+        "{what} moved the score past chance: {delta}"
+    );
+}
+
+// ============================================================================
+// leak_master_key
+// ============================================================================
+
 /// The sweep finds the key when the key is plainly there.
 ///
-/// Every zero the test below reports is worth exactly what this one is worth.
+/// Every zero the tests below report is worth exactly what this one is worth.
 /// A sweep that reached no memory at all answers `no` to everything, and so
 /// does a process that is genuinely clean — the two are the same answer, and
 /// only a copy the sweep has to find tells them apart.
@@ -74,34 +116,34 @@ fn backwards() -> Vec<u8> {
 /// What is held is the key as `leak_master_key` produces it, and not a value
 /// rebuilt from the needle: the question is whether the sweep reaches where
 /// that function actually puts it.
-///
-/// It is a test of its own, and that is the point. `nextest` gives each test a
-/// process, so a key held in plain sight here is in nobody else's memory. As
-/// one more step inside the other test it would have had to come last, after
-/// everything it was meant to vouch for had already been measured.
 #[test]
-fn test_the_sweep_finds_the_master_key_while_it_is_held() -> Result<(), AnyError> {
+fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
-    // A real open, and nothing done to hide it.
-    let held = leak_master_key(WIDE).expect("no master key");
+    elenchos!({
+        // A real open, and nothing done to hide it.
+        let held = leak_master_key(WIDE)?;
 
-    core::hint::black_box(&held);
+        capture!();
 
-    let report_in_plain_sight = watch.snapshot()?;
+        // Kept rather than let go, which is the one line between this and the
+        // test below. Emits no code, so the two are the same measurement of
+        // the same call.
+        core::mem::forget(held);
+    });
+
+    let report = watch.snapshot()?;
 
     println!();
-    report_in_plain_sight.summary("the key, held");
+    report.summary("the key, held");
     println!();
 
     assert!(
-        report_in_plain_sight.found,
+        report.found,
         "the sweep does not reach where the master key lives, so every absence \
          this file reports is the instrument standing where the evidence is: \
-         {report_in_plain_sight}",
+         {report}",
     );
-
-    drop(core::hint::black_box(held));
 
     Ok(())
 }
@@ -122,8 +164,6 @@ fn test_the_sweep_finds_the_master_key_while_it_is_held() -> Result<(), AnyError
 /// exactly that width, put there deliberately, must therefore not read as
 /// accident to the score either. Raise one of the two without the other and
 /// this test is what notices.
-///
-/// A process of its own, because it plants key material on purpose.
 #[test]
 fn test_a_piece_of_the_master_key_kept_is_not_read_as_chance() -> Result<(), AnyError> {
     /// As wide as the widest run [`QUIET`] allows, and a quarter of the key.
@@ -137,7 +177,7 @@ fn test_a_piece_of_the_master_key_kept_is_not_read_as_chance() -> Result<(), Any
     // would stumble onto anyway. The key itself goes at the end of the block,
     // so what is left alive is the piece and nothing else.
     let kept = {
-        let key = leak_master_key(WIDE).expect("no master key");
+        let key = leak_master_key(WIDE)?;
 
         key[8..8 + PIECE].to_vec()
     };
@@ -167,8 +207,8 @@ fn test_a_piece_of_the_master_key_kept_is_not_read_as_chance() -> Result<(), Any
 
     assert!(
         !delta.is_noise(),
-        "{PIECE} bytes of the key read as chance, which is what {QUIET} says they are not: \
-         {delta}",
+        "{PIECE} bytes of the key read as chance, which is what {QUIET} says \
+         they are not: {delta}",
     );
 
     drop(core::hint::black_box(kept));
@@ -176,87 +216,57 @@ fn test_a_piece_of_the_master_key_kept_is_not_read_as_chance() -> Result<(), Any
     Ok(())
 }
 
-/// Opening it leaves nothing, once or two hundred times.
+/// Opening it once leaves nothing.
 ///
-/// The control comes last and not first: planted at the top it would be in
-/// every photograph after it, and there would be nothing left to measure.
+/// The guard is let go at the end of the block, which is after the capture and
+/// before the photograph — so the stack the open used is read as the open left
+/// it, and the allocation is read after whatever empties it has run.
 #[test]
-fn test_opening_the_master_key_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
-    let needle = backwards();
-    let mut watch = Forensics::watching(&needle)?;
+fn test_opening_the_master_key_once_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
 
-    let report_after_opening = forensics!(watch, {
-        let key = leak_master_key(WIDE).expect("no master key");
+    elenchos!({
+        let key = leak_master_key(WIDE)?;
 
         core::hint::black_box(key[0]);
+
+        capture!();
     });
 
-    let report_after_opening_often = forensics!(watch, {
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(&report_before, &report_after, "one open");
+
+    Ok(())
+}
+
+/// Opening it two hundred times leaves nothing either.
+///
+/// What the count is for is a piece that survives one open in fifty: it would
+/// not show once and shows plainly here. The capture reads the stack as the
+/// last open left it, and the photograph reads every allocation the two
+/// hundred of them made and gave back.
+#[test]
+fn test_opening_the_master_key_often_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    elenchos!({
         for _ in 0..ROUNDS {
-            let key = leak_master_key(WIDE).expect("no master key");
+            let key = leak_master_key(WIDE)?;
 
             core::hint::black_box(key[0]);
         }
+
+        capture!();
     });
 
-    let planted = core::hint::black_box(needle.iter().rev().copied().collect::<Vec<u8>>());
-    let report_in_plain_sight = watch.snapshot()?;
+    let report_after = watch.snapshot()?;
 
-    println!();
-    report_before.summary("nothing opened yet");
-    report_after_opening.summary_against(&report_before, "opened once");
-    report_after_opening_often
-        .summary_against(&report_after_opening, &format!("opened {ROUNDS} times"));
-    println!();
-    report_in_plain_sight.summary_against(&report_after_opening_often, "a copy in plain sight");
-    println!();
-
-    assert!(
-        report_in_plain_sight.found,
-        "the sweep reached nowhere, so no zero above means anything: \
-         {report_in_plain_sight}",
-    );
-
-    // The absolute bound, on every photograph — the first one included, before
-    // anything had been opened. Nothing here is a difference, so nothing here
-    // can be cancelled by one residue replacing another.
-    for (what, report) in [
-        ("the open that made the needle", &report_before),
-        ("one open", &report_after_opening),
-        (&format!("{ROUNDS} opens"), &report_after_opening_often),
-    ] {
-        assert!(
-            !report.found,
-            "the whole key was left behind by {what}: {report}"
-        );
-
-        assert!(
-            report.widest <= QUIET,
-            "a run of {} bytes of the key was left behind by {what}, and {QUIET} is \
-             what memory has by accident: {report}",
-            report.widest,
-        );
-    }
-
-    // And the differences, which say what each operation moved. Finer than the
-    // bound above, and worth nothing without it.
-    let delta_once = report_after_opening.against(&report_before);
-
-    assert!(
-        delta_once.is_noise(),
-        "one open moved the score past chance: {delta_once}"
-    );
-
-    let delta_often = report_after_opening_often.against(&report_before);
-
-    assert!(
-        delta_often.is_noise(),
-        "{ROUNDS} opens moved the score past chance: {delta_often}"
-    );
-
-    drop(core::hint::black_box(planted));
+    leaves_nothing(&report_before, &report_after, &format!("{ROUNDS} opens"));
 
     Ok(())
 }

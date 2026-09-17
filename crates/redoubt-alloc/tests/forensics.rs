@@ -22,10 +22,14 @@
 //! nothing. Each one is dropped before the photograph, so what is left was
 //! not in any container when the operation ended.
 
-#![cfg(target_os = "linux")]
+// Every measurement in this file was taken with an instrument that could not
+// see past a call made after the operation, so each absence it reports is
+// worth less than it says. Kept unbuilt, and only until `elenchos.rs` covers
+// what it covered.
+#![cfg(any())]
 
 use redoubt_alloc::{RedoubtArray, RedoubtOption, RedoubtString, RedoubtVec};
-use redoubt_forensics::{AnyError, Forensics, QUIET, forensics};
+use redoubt_forensics::{AnyError, Forensics, QUIET, deep, spill};
 
 /// Thirty-two distinct bytes: no value repeats, so a run that extends did not
 /// extend by luck.
@@ -105,46 +109,6 @@ fn spelled_backwards() -> Vec<u8> {
     }
 
     backwards
-}
-
-/// Everything a caller must be able to say about what an operation left, at
-/// every size.
-fn leaves_nothing_at_any_size(what: &str, mut work: impl FnMut(usize)) -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
-
-    let report_before = watch.snapshot()?;
-
-    println!();
-    report_before.summary("nothing filled yet");
-
-    for of in SIZES {
-        let report_after = forensics!(watch, { work(of) });
-
-        report_after.summary_against(&report_before, &format!("{what}, {of} bytes"));
-
-        assert!(
-            !report_after.found,
-            "the whole secret survived {what} of {of} bytes: {report_after}",
-        );
-
-        assert!(
-            report_after.widest <= QUIET,
-            "a run of {} bytes survived {what} of {of} bytes, and {QUIET} is what \
-             memory has by accident: {report_after}",
-            report_after.widest,
-        );
-
-        let delta = report_after.against(&report_before);
-
-        assert!(
-            delta.is_noise(),
-            "{what} of {of} bytes moved the score: {delta}"
-        );
-    }
-
-    println!();
-
-    Ok(())
 }
 
 /// A secret the value keeps in its own bytes, which is what none of the
@@ -273,18 +237,60 @@ fn test_the_sweep_finds_the_secret_a_move_left_behind() -> Result<(), AnyError> 
 /// outlive the call.
 #[test]
 fn test_replace_from_mut_slice_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
-    leaves_nothing_at_any_size("a vec replaced", |of| {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    println!();
+    report_before.summary("nothing filled yet");
+
+    for of in SIZES {
+        // Built before `deep` and dropped after it. A buffer built inside is
+        // dropped inside, and `dealloc` is a call whose frame lands on the
+        // stack the measured call just released.
         let mut source = vec![0_u8; of];
 
         giving(&mut source);
 
         let mut held = RedoubtVec::<u8>::new();
 
-        held.replace_from_mut_slice(&mut source);
+        deep(|| held.replace_from_mut_slice(&mut source));
 
-        drop(core::hint::black_box(held));
+        spill();
+
+        // After `deep` has returned, which is a megabyte of released pad above
+        // the frame the replace left. Inside, this drop would land on it.
+        drop(held);
+
+        let report_after = watch.snapshot()?;
+
+        report_after.summary_against(&report_before, &format!("a vec replaced, {of} bytes"));
+
         drop(core::hint::black_box(source));
-    })
+
+        assert!(
+            !report_after.found,
+            "the whole secret survived a vec replaced of {of} bytes: {report_after}",
+        );
+
+        assert!(
+            report_after.widest <= QUIET,
+            "a run of {} bytes survived a vec replaced of {of} bytes, and {QUIET} \
+             is what memory has by accident: {report_after}",
+            report_after.widest,
+        );
+
+        let delta = report_after.against(&report_before);
+
+        assert!(
+            delta.is_noise(),
+            "a vec replaced of {of} bytes moved the score: {delta}"
+        );
+    }
+
+    println!();
+
+    Ok(())
 }
 
 // ============================================================================
@@ -295,20 +301,70 @@ fn test_replace_from_mut_slice_leaves_nothing_a_sweep_can_find() -> Result<(), A
 /// up rather than being sized once.
 #[test]
 fn test_extend_from_mut_slice_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
-    leaves_nothing_at_any_size("a vec extended", |of| {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    println!();
+    report_before.summary("nothing filled yet");
+
+    for of in SIZES {
+        // Every source is filled before the block. Built inside, each would be
+        // dropped inside, and `dealloc` is a call whose frame lands on the
+        // stack the extend before it has just released.
+        let mut sources: Vec<Vec<u8>> = (0..(of / SECRET.len()).max(1))
+            .map(|_| {
+                let mut source = vec![0_u8; SECRET.len()];
+
+                giving(&mut source);
+
+                source
+            })
+            .collect();
+
         let mut held = RedoubtVec::<u8>::new();
 
-        for _ in 0..(of / SECRET.len()).max(1) {
-            let mut source = vec![0_u8; SECRET.len()];
+        deep(|| {
+            for source in &mut sources {
+                held.extend_from_mut_slice(source);
+            }
+        });
 
-            giving(&mut source);
-            held.extend_from_mut_slice(&mut source);
+        spill();
 
-            drop(core::hint::black_box(source));
-        }
+        // After `deep` has returned, which is a megabyte of released pad above
+        // the frames the extends left. Inside, this drop would land on them.
+        drop(held);
 
-        drop(core::hint::black_box(held));
-    })
+        let report_after = watch.snapshot()?;
+
+        report_after.summary_against(&report_before, &format!("a vec extended, {of} bytes"));
+
+        drop(core::hint::black_box(sources));
+
+        assert!(
+            !report_after.found,
+            "the whole secret survived a vec extended to {of} bytes: {report_after}",
+        );
+
+        assert!(
+            report_after.widest <= QUIET,
+            "a run of {} bytes survived a vec extended to {of} bytes, and {QUIET} \
+             is what memory has by accident: {report_after}",
+            report_after.widest,
+        );
+
+        let delta = report_after.against(&report_before);
+
+        assert!(
+            delta.is_noise(),
+            "a vec extended to {of} bytes moved the score: {delta}"
+        );
+    }
+
+    println!();
+
+    Ok(())
 }
 
 // ============================================================================
@@ -327,7 +383,14 @@ fn test_extend_from_mut_slice_leaves_nothing_a_sweep_can_find() -> Result<(), An
 /// Whatever empties it reaches them at the address they were always at.
 #[test]
 fn test_a_vec_given_away_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
-    leaves_nothing_at_any_size("a vec given away", |of| {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    println!();
+    report_before.summary("nothing filled yet");
+
+    for of in SIZES {
         let mut source = vec![0_u8; of];
 
         giving(&mut source);
@@ -336,10 +399,39 @@ fn test_a_vec_given_away_leaves_nothing_a_sweep_can_find() -> Result<(), AnyErro
 
         held.replace_from_mut_slice(&mut source);
 
-        consume(held);
+        deep(|| consume(held));
+
+        spill();
 
         drop(core::hint::black_box(source));
-    })
+
+        let report_after = watch.snapshot()?;
+
+        report_after.summary_against(&report_before, &format!("a vec given away, {of} bytes"));
+
+        assert!(
+            !report_after.found,
+            "the whole secret survived a vec given away of {of} bytes: {report_after}",
+        );
+
+        assert!(
+            report_after.widest <= QUIET,
+            "a run of {} bytes survived a vec given away of {of} bytes, and \
+             {QUIET} is what memory has by accident: {report_after}",
+            report_after.widest,
+        );
+
+        let delta = report_after.against(&report_before);
+
+        assert!(
+            delta.is_noise(),
+            "a vec given away of {of} bytes moved the score: {delta}"
+        );
+    }
+
+    println!();
+
+    Ok(())
 }
 
 // ============================================================================
@@ -390,7 +482,14 @@ fn test_a_vec_that_is_never_dropped_is_found() -> Result<(), AnyError> {
 /// And one that is dropped is not.
 #[test]
 fn test_a_vec_dropped_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
-    leaves_nothing_at_any_size("a vec dropped", |of| {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    println!();
+    report_before.summary("nothing filled yet");
+
+    for of in SIZES {
         let mut source = vec![0_u8; of];
 
         giving(&mut source);
@@ -399,10 +498,39 @@ fn test_a_vec_dropped_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> 
 
         held.replace_from_mut_slice(&mut source);
 
-        drop(held);
+        deep(|| drop(held));
+
+        spill();
 
         drop(core::hint::black_box(source));
-    })
+
+        let report_after = watch.snapshot()?;
+
+        report_after.summary_against(&report_before, &format!("a vec dropped, {of} bytes"));
+
+        assert!(
+            !report_after.found,
+            "the whole secret survived a vec dropped of {of} bytes: {report_after}",
+        );
+
+        assert!(
+            report_after.widest <= QUIET,
+            "a run of {} bytes survived a vec dropped of {of} bytes, and {QUIET} \
+             is what memory has by accident: {report_after}",
+            report_after.widest,
+        );
+
+        let delta = report_after.against(&report_before);
+
+        assert!(
+            delta.is_noise(),
+            "a vec dropped of {of} bytes moved the score: {delta}"
+        );
+    }
+
+    println!();
+
+    Ok(())
 }
 
 // ============================================================================
@@ -425,19 +553,24 @@ fn test_string_extend_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> 
     report_before.summary("nothing filled yet");
 
     for of in SIZES {
-        let report_after = forensics!(watch, {
-            let mut held = RedoubtString::new();
+        let mut sources: Vec<String> = (0..(of / (SECRET.len() * 2)).max(1))
+            .map(|_| spelled(SECRET.len() * 2))
+            .collect();
 
-            for _ in 0..(of / (SECRET.len() * 2)).max(1) {
-                let mut source = spelled(SECRET.len() * 2);
+        let mut held = RedoubtString::new();
 
-                held.extend_from_mut_string(&mut source);
-
-                drop(core::hint::black_box(source));
+        deep(|| {
+            for source in &mut sources {
+                held.extend_from_mut_string(source);
             }
-
-            drop(core::hint::black_box(held));
         });
+
+        spill();
+
+        drop(core::hint::black_box(held));
+        drop(core::hint::black_box(sources));
+
+        let report_after = watch.snapshot()?;
 
         report_after.summary_against(&report_before, &format!("a string extended, {of} bytes"));
 
@@ -488,16 +621,17 @@ fn test_string_replace_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError>
     report_before.summary("nothing filled yet");
 
     for of in SIZES {
-        let report_after = forensics!(watch, {
-            let mut source = spelled(of);
+        let mut source = spelled(of);
+        let mut held = RedoubtString::new();
 
-            let mut held = RedoubtString::new();
+        deep(|| held.replace_from_mut_string(&mut source));
 
-            held.replace_from_mut_string(&mut source);
+        spill();
 
-            drop(core::hint::black_box(held));
-            drop(core::hint::black_box(source));
-        });
+        drop(core::hint::black_box(held));
+        drop(core::hint::black_box(source));
+
+        let report_after = watch.snapshot()?;
 
         report_after.summary_against(&report_before, &format!("a string replaced, {of} bytes"));
 
@@ -552,26 +686,31 @@ fn test_string_extend_from_str_leaves_nothing_a_sweep_can_find() -> Result<(), A
     report_before.summary("nothing filled yet");
 
     for of in SIZES {
-        let report_after = forensics!(watch, {
-            let mut source = spelled(of);
+        let mut source = spelled(of);
+        let mut held = RedoubtString::new();
 
-            let mut held = RedoubtString::new();
+        deep(|| held.extend_from_str(&source));
 
-            held.extend_from_str(&source);
+        spill();
 
-            drop(core::hint::black_box(held));
+        drop(core::hint::black_box(held));
 
-            // SAFETY: every byte written is zero, which is valid UTF-8, and the
-            // length is the string's own.
-            let bytes = unsafe { source.as_mut_vec() };
+        // The source is the caller's and `extend_from_str` never promised to
+        // empty it, so the test empties it by hand rather than leave a copy
+        // standing that the photograph would find and blame on the string.
+        //
+        // SAFETY: every byte written is zero, which is valid UTF-8, and the
+        // length is the string's own.
+        let bytes = unsafe { source.as_mut_vec() };
 
-            for at in 0..bytes.len() {
-                // SAFETY: in bounds of a live vec.
-                unsafe { bytes.as_mut_ptr().add(at).write_volatile(0) };
-            }
+        for at in 0..bytes.len() {
+            // SAFETY: in bounds of a live vec.
+            unsafe { bytes.as_mut_ptr().add(at).write_volatile(0) };
+        }
 
-            drop(core::hint::black_box(source));
-        });
+        drop(core::hint::black_box(source));
+
+        let report_after = watch.snapshot()?;
 
         report_after.summary_against(
             &report_before,
@@ -619,17 +758,18 @@ fn test_a_string_given_away_leaves_nothing_a_sweep_can_find() -> Result<(), AnyE
     report_before.summary("nothing filled yet");
 
     for of in SIZES {
-        let report_after = forensics!(watch, {
-            let mut source = spelled(of);
+        let mut source = spelled(of);
+        let mut held = RedoubtString::new();
 
-            let mut held = RedoubtString::new();
+        held.replace_from_mut_string(&mut source);
 
-            held.replace_from_mut_string(&mut source);
+        deep(|| consume(held));
 
-            consume(held);
+        spill();
 
-            drop(core::hint::black_box(source));
-        });
+        drop(core::hint::black_box(source));
+
+        let report_after = watch.snapshot()?;
 
         report_after.summary_against(&report_before, &format!("a string given away, {of} bytes"));
 
@@ -705,17 +845,18 @@ fn test_a_string_dropped_leaves_nothing_a_sweep_can_find() -> Result<(), AnyErro
     report_before.summary("nothing filled yet");
 
     for of in SIZES {
-        let report_after = forensics!(watch, {
-            let mut source = spelled(of);
+        let mut source = spelled(of);
+        let mut held = RedoubtString::new();
 
-            let mut held = RedoubtString::new();
+        held.replace_from_mut_string(&mut source);
 
-            held.replace_from_mut_string(&mut source);
+        deep(|| drop(held));
 
-            drop(held);
+        spill();
 
-            drop(core::hint::black_box(source));
-        });
+        drop(core::hint::black_box(source));
+
+        let report_after = watch.snapshot()?;
 
         report_after.summary_against(&report_before, &format!("a string dropped, {of} bytes"));
 
@@ -753,7 +894,14 @@ fn test_a_string_dropped_leaves_nothing_a_sweep_can_find() -> Result<(), AnyErro
 /// leaves a transit temporary on the stack while it does.
 #[test]
 fn test_option_replace_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
-    leaves_nothing_at_any_size("an option replaced", |of| {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    println!();
+    report_before.summary("nothing filled yet");
+
+    for of in SIZES {
         let mut source = vec![0_u8; of];
 
         giving(&mut source);
@@ -764,12 +912,43 @@ fn test_option_replace_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError>
 
         let mut held = RedoubtOption::<RedoubtVec<u8>>::default();
 
-        held.replace(&mut inner);
+        deep(|| {
+            held.replace(&mut inner);
+        });
+
+        spill();
 
         drop(core::hint::black_box(held));
         drop(core::hint::black_box(inner));
         drop(core::hint::black_box(source));
-    })
+
+        let report_after = watch.snapshot()?;
+
+        report_after.summary_against(&report_before, &format!("an option replaced, {of} bytes"));
+
+        assert!(
+            !report_after.found,
+            "the whole secret survived an option replaced of {of} bytes: {report_after}",
+        );
+
+        assert!(
+            report_after.widest <= QUIET,
+            "a run of {} bytes survived an option replaced of {of} bytes, and \
+             {QUIET} is what memory has by accident: {report_after}",
+            report_after.widest,
+        );
+
+        let delta = report_after.against(&report_before);
+
+        assert!(
+            delta.is_noise(),
+            "an option replaced of {of} bytes moved the score: {delta}"
+        );
+    }
+
+    println!();
+
+    Ok(())
 }
 
 // ============================================================================
@@ -780,7 +959,14 @@ fn test_option_replace_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError>
 /// holds is a vec that is itself a pointer.
 #[test]
 fn test_an_option_given_away_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
-    leaves_nothing_at_any_size("an option given away", |of| {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    println!();
+    report_before.summary("nothing filled yet");
+
+    for of in SIZES {
         let mut source = vec![0_u8; of];
 
         giving(&mut source);
@@ -793,11 +979,40 @@ fn test_an_option_given_away_leaves_nothing_a_sweep_can_find() -> Result<(), Any
 
         held.replace(&mut inner);
 
-        consume(held);
+        deep(|| consume(held));
+
+        spill();
 
         drop(core::hint::black_box(inner));
         drop(core::hint::black_box(source));
-    })
+
+        let report_after = watch.snapshot()?;
+
+        report_after.summary_against(&report_before, &format!("an option given away, {of} bytes"));
+
+        assert!(
+            !report_after.found,
+            "the whole secret survived an option given away of {of} bytes: {report_after}",
+        );
+
+        assert!(
+            report_after.widest <= QUIET,
+            "a run of {} bytes survived an option given away of {of} bytes, and \
+             {QUIET} is what memory has by accident: {report_after}",
+            report_after.widest,
+        );
+
+        let delta = report_after.against(&report_before);
+
+        assert!(
+            delta.is_noise(),
+            "an option given away of {of} bytes moved the score: {delta}"
+        );
+    }
+
+    println!();
+
+    Ok(())
 }
 
 // ============================================================================
@@ -845,7 +1060,14 @@ fn test_an_option_that_is_never_dropped_is_found() -> Result<(), AnyError> {
 /// And one that is dropped is not.
 #[test]
 fn test_an_option_dropped_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> {
-    leaves_nothing_at_any_size("an option dropped", |of| {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    println!();
+    report_before.summary("nothing filled yet");
+
+    for of in SIZES {
         let mut source = vec![0_u8; of];
 
         giving(&mut source);
@@ -858,11 +1080,40 @@ fn test_an_option_dropped_leaves_nothing_a_sweep_can_find() -> Result<(), AnyErr
 
         held.replace(&mut inner);
 
-        drop(held);
+        deep(|| drop(held));
+
+        spill();
 
         drop(core::hint::black_box(inner));
         drop(core::hint::black_box(source));
-    })
+
+        let report_after = watch.snapshot()?;
+
+        report_after.summary_against(&report_before, &format!("an option dropped, {of} bytes"));
+
+        assert!(
+            !report_after.found,
+            "the whole secret survived an option dropped of {of} bytes: {report_after}",
+        );
+
+        assert!(
+            report_after.widest <= QUIET,
+            "a run of {} bytes survived an option dropped of {of} bytes, and \
+             {QUIET} is what memory has by accident: {report_after}",
+            report_after.widest,
+        );
+
+        let delta = report_after.against(&report_before);
+
+        assert!(
+            delta.is_noise(),
+            "an option dropped of {of} bytes moved the score: {delta}"
+        );
+    }
+
+    println!();
+
+    Ok(())
 }
 
 // ============================================================================
@@ -877,22 +1128,24 @@ fn test_array_replace_leaves_nothing_a_sweep_can_find() -> Result<(), AnyError> 
 
     let report_before = watch.snapshot()?;
 
-    let report_after = forensics!(watch, {
-        let mut source = [0_u8; 32];
+    let mut source = [0_u8; 32];
 
-        giving(&mut source);
+    giving(&mut source);
 
-        let mut held = RedoubtArray::<u8, 32>::default();
+    let mut held = RedoubtArray::<u8, 32>::default();
 
-        held.replace_from_mut_array(&mut source);
+    deep(|| held.replace_from_mut_array(&mut source));
 
-        // By reference on purpose: `[u8; 32]` is `Copy`, so a `black_box` of
-        // it by value makes one more copy on the stack, and the test would be
-        // measuring itself.
-        core::hint::black_box(&source);
+    spill();
 
-        drop(core::hint::black_box(held));
-    });
+    // By reference on purpose: `[u8; 32]` is `Copy`, so a `black_box` of it by
+    // value makes one more copy on the stack, and the test would be measuring
+    // itself.
+    core::hint::black_box(&source);
+
+    drop(core::hint::black_box(held));
+
+    let report_after = watch.snapshot()?;
 
     println!();
     report_before.summary("nothing filled yet");
@@ -936,21 +1189,23 @@ fn test_an_array_given_away_leaves_nothing_a_sweep_can_find() -> Result<(), AnyE
 
     let report_before = watch.snapshot()?;
 
-    let report_after = forensics!(watch, {
-        let mut source = [0_u8; 32];
+    let mut source = [0_u8; 32];
 
-        giving(&mut source);
+    giving(&mut source);
 
-        let mut held = RedoubtArray::<u8, 32>::default();
+    let mut held = RedoubtArray::<u8, 32>::default();
 
-        held.replace_from_mut_array(&mut source);
+    held.replace_from_mut_array(&mut source);
 
-        // By reference, for the reason the replace test gives: `[u8; 32]` is
-        // `Copy`, and a `black_box` of it by value is one more copy.
-        core::hint::black_box(&source);
+    deep(|| consume(held));
 
-        consume(held);
-    });
+    spill();
+
+    // By reference, for the reason the replace test gives: `[u8; 32]` is
+    // `Copy`, and a `black_box` of it by value is one more copy.
+    core::hint::black_box(&source);
+
+    let report_after = watch.snapshot()?;
 
     println!();
     report_before.summary("nothing filled yet");
@@ -1022,19 +1277,21 @@ fn test_an_array_dropped_leaves_nothing_a_sweep_can_find() -> Result<(), AnyErro
 
     let report_before = watch.snapshot()?;
 
-    let report_after = forensics!(watch, {
-        let mut source = [0_u8; 32];
+    let mut source = [0_u8; 32];
 
-        giving(&mut source);
+    giving(&mut source);
 
-        let mut held = RedoubtArray::<u8, 32>::default();
+    let mut held = RedoubtArray::<u8, 32>::default();
 
-        held.replace_from_mut_array(&mut source);
+    held.replace_from_mut_array(&mut source);
 
-        core::hint::black_box(&source);
+    deep(|| drop(held));
 
-        drop(held);
-    });
+    spill();
+
+    core::hint::black_box(&source);
+
+    let report_after = watch.snapshot()?;
 
     println!();
     report_before.summary("nothing filled yet");

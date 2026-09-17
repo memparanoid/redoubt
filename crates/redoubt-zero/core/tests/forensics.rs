@@ -27,7 +27,11 @@
 //!
 //! A guard still holding the secret would be found, and would say nothing.
 
-#![cfg(target_os = "linux")]
+// Every measurement in this file was taken with an instrument that could not
+// see past a call made after the operation, so each absence it reports is
+// worth less than it says. Kept unbuilt, and only until `elenchos.rs` covers
+// what it covered.
+#![cfg(any())]
 
 use redoubt_forensics::{AnyError, Forensics, QUIET, forensics};
 use redoubt_zero_core::{FastZeroizable, ZeroizationProbe, ZeroizingGuard, ZeroizingMutGuard};

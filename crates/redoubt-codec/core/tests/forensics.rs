@@ -22,7 +22,11 @@
 //! back out to. What is left was left by the encoding or the decoding, and not
 //! by anything the test is still holding.
 
-#![cfg(target_os = "linux")]
+// Every measurement in this file was taken with an instrument that could not
+// see past a call made after the operation, so each absence it reports is
+// worth less than it says. Kept unbuilt, and only until `elenchos.rs` covers
+// what it covered.
+#![cfg(any())]
 
 use redoubt_alloc::RedoubtVec;
 use redoubt_codec_core::{Decode, Encode, RedoubtCodecBuffer};

@@ -43,6 +43,24 @@
 // into it when it is built. At the call site this is one `call` instruction
 // and nothing else.
 
+// # Two ways in
+//
+// Every form can be entered at its start, which writes the general registers
+// and then the vectors, or at its vector half, which writes the vectors alone.
+// The second entry is its own symbol with its own dispatch slot, and both
+// slots name the same form.
+//
+// It is there for a caller that has already written the general registers down
+// itself, with stores it placed where it wanted them, and reaches here only
+// for the vectors — which have no encoding a caller can place, because a `movq`
+// to a static is three bytes of opcode and a `vmovdqu64` is a form the machine
+// may not have.
+//
+// What that caller buys is the order. A `call` pushes eight bytes below `rsp`,
+// and eight bytes below `rsp` is where the deepest of what an operation left
+// is. Entering here last, after the caller has copied that region somewhere
+// else, puts the return address on top of something already read.
+
     .bss
     .globl redoubt_spill_room
     .type  redoubt_spill_room,@object
@@ -70,6 +88,15 @@ redoubt_spill_which:
     .quad redoubt_spill_sse
     .size redoubt_spill_which, 8
 
+// The same choice, for the entry that writes the vectors alone. Two slots and
+// not one, because a jump cannot be told which half to start at.
+    .globl redoubt_spill_vectors_which
+    .type  redoubt_spill_vectors_which,@object
+    .p2align 3
+redoubt_spill_vectors_which:
+    .quad redoubt_spill_vectors_sse
+    .size redoubt_spill_vectors_which, 8
+
     .text
 
 // void redoubt_spill(void)
@@ -84,6 +111,18 @@ redoubt_spill:
     endbr64
     jmp *redoubt_spill_which(%rip)
     .size redoubt_spill, .-redoubt_spill
+
+// void redoubt_spill_vectors(void)
+//
+// The vector half of whichever form the slot holds, for a caller that wrote
+// the general registers itself.
+    .globl redoubt_spill_vectors
+    .type  redoubt_spill_vectors,@function
+    .p2align 4
+redoubt_spill_vectors:
+    endbr64
+    jmp *redoubt_spill_vectors_which(%rip)
+    .size redoubt_spill_vectors, .-redoubt_spill_vectors
 
 // void redoubt_spill_sse(void)
 //
@@ -112,6 +151,15 @@ redoubt_spill_sse:
     movq  %r13, redoubt_spill_room+104(%rip)
     movq  %r14, redoubt_spill_room+112(%rip)
     movq  %r15, redoubt_spill_room+120(%rip)
+
+// void redoubt_spill_vectors_sse(void)
+//
+// The vector half on its own. Reached by the second dispatch, so it needs a
+// landing pad of its own; the form above falls through it, where it is a nop.
+    .globl redoubt_spill_vectors_sse
+    .type  redoubt_spill_vectors_sse,@function
+redoubt_spill_vectors_sse:
+    endbr64
 
     // One slot per register, 64 bytes wide, whatever this form can fill of
     // it. The layout does not depend on which form ran, because which form
@@ -164,6 +212,14 @@ redoubt_spill_avx:
     movq  %r13, redoubt_spill_room+104(%rip)
     movq  %r14, redoubt_spill_room+112(%rip)
     movq  %r15, redoubt_spill_room+120(%rip)
+
+// void redoubt_spill_vectors_avx(void)
+//
+// The vector half on its own.
+    .globl redoubt_spill_vectors_avx
+    .type  redoubt_spill_vectors_avx,@function
+redoubt_spill_vectors_avx:
+    endbr64
 
     // 64 bytes apart, the same slots the AVX-512 form fills. Half of each is
     // written and half is left as it was.
@@ -218,6 +274,14 @@ redoubt_spill_avx512:
     movq  %r13, redoubt_spill_room+104(%rip)
     movq  %r14, redoubt_spill_room+112(%rip)
     movq  %r15, redoubt_spill_room+120(%rip)
+
+// void redoubt_spill_vectors_avx512(void)
+//
+// The vector half on its own.
+    .globl redoubt_spill_vectors_avx512
+    .type  redoubt_spill_vectors_avx512,@function
+redoubt_spill_vectors_avx512:
+    endbr64
 
     vmovdqu64 %zmm0,  redoubt_spill_room+128(%rip)
     vmovdqu64 %zmm1,  redoubt_spill_room+192(%rip)

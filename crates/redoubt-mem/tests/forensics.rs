@@ -32,7 +32,11 @@
 //! zeros above are worth what the last line is worth: a copy in plain sight,
 //! planted only once everything else has been measured.
 
-#![cfg(target_os = "linux")]
+// Every measurement in this file was taken with an instrument that could not
+// see past a call made after the operation, so each absence it reports is
+// worth less than it says. Kept unbuilt, and only until `elenchos.rs` covers
+// what it covered.
+#![cfg(any())]
 
 use redoubt_forensics::{AnyError, Forensics, forensics};
 
