@@ -64,25 +64,31 @@ fn a_deep_frame_left_full(left: usize) -> usize {
     a_deep_frame_left_full(left - 1)
 }
 
-/// How wide the frame [`a_frame_with_one_byte_set`] leaves behind is.
+/// How wide the frame `redoubt_dirty_frame` leaves behind is, which the
+/// assembly sets to the same number.
 ///
 /// Every offset of it is asked about separately, so this is a count of captures
 /// and each is microseconds.
 const WIDE: usize = 256;
 
-/// A released frame of [`WIDE`] zeroes with a one at `at`, and the address it
-/// was written at.
+/// The stack the control puts between the call and the frame it leaves.
 ///
-/// The zeroes are the half that matters: a copy that doubled a byte or carried
-/// the frame over by one has somewhere to show it, which a frame full of marks
-/// does not.
-#[inline(never)]
-fn a_frame_with_one_byte_set(at: usize) -> usize {
-    let mut room = [0_u8; WIDE];
+/// Sixteen because both architectures want the stack pointer aligned to it.
+const WEDGE: usize = 16;
 
-    room[at] = 1;
+unsafe extern "C" {
+    /// A frame of [`WIDE`] zeroes with a one at `at`, released before it
+    /// answers, and where it stood.
+    ///
+    /// In assembly because the frame has to be flush against the stack pointer
+    /// the capture will run at. A Rust helper leaves its mark wherever the
+    /// compiler put the local, with padding of the compiler's choosing between
+    /// that local and the stack pointer, and a capture consuming a few bytes of
+    /// stack would land in the padding and be missed.
+    fn redoubt_dirty_frame(at: usize) -> *const u8;
 
-    core::hint::black_box(&mut room).as_ptr() as usize
+    /// The same, [`WEDGE`] bytes further from the caller's stack pointer.
+    fn redoubt_dirty_frame_deeper(at: usize) -> *const u8;
 }
 
 /// The mapping `/proc/self/maps` puts an address in, as `(low, high)`.
@@ -351,6 +357,25 @@ fn test_the_copy_reaches_a_frame_released_a_long_way_from_the_capture() -> Resul
 /// frame over by a byte. Each of the three reads as a one in a place the offset
 /// did not name, and nothing coarser than a byte at a time distinguishes them.
 ///
+/// # What it is really for
+///
+/// The capture writes the registers and copies the window with no frame of its
+/// own, and the window it copies begins at the frame the call that just
+/// returned left. Those two facts are the whole instrument. A step that grew a
+/// frame would write over the evidence on its way to reading it — and then
+/// every absence in this workspace goes on passing, each of them passing
+/// because the secret was destroyed rather than because it was never there.
+/// That is a green that cannot be told from a real one by anything downstream.
+///
+/// The frame is left by assembly rather than by Rust so that it is flush
+/// against the stack pointer the capture runs at. A frame the compiler laid out
+/// has padding of the compiler's choosing above the mark, and a capture
+/// consuming a few bytes would land in the padding, be overwritten before it
+/// was read, and be missed by every offset here.
+///
+/// What this test cannot do is make those steps take stack, because they take
+/// none. That is what the control beside it is for.
+///
 /// One `open` for the lot: the room is written over by each capture and it is
 /// read before the next, and a window per offset would leak a stack's worth of
 /// allocation two hundred and fifty-six times.
@@ -359,13 +384,20 @@ fn test_every_byte_of_a_released_frame_is_in_the_copy_at_its_own_offset() -> Res
     open()?;
 
     for offset in 0..WIDE {
-        let at = a_frame_with_one_byte_set(offset);
+        // SAFETY: the offset is inside the frame the routine takes, and the
+        // address it answers with is read only through the copy below.
+        let at = unsafe { redoubt_dirty_frame(offset) } as usize;
 
         capture!();
 
         // SAFETY: `FLOOR` and `COPY` were written by `open` above and `SP` by
         // the capture, all three on the thread reading them.
-        let (floor, copy) = unsafe { (FLOOR, COPY) };
+        let (floor, stood, copy) = unsafe { (FLOOR, SP, COPY) };
+
+        assert!(
+            floor <= at && at + WIDE <= stood,
+            "the frame at {at:#x} is not inside the window {floor:#x}-{stood:#x}",
+        );
 
         // SAFETY: the room is as wide as the window, and the frame is inside it
         // with `WIDE` bytes to spare — it was released before the capture wrote
@@ -385,6 +417,63 @@ fn test_every_byte_of_a_released_frame_is_in_the_copy_at_its_own_offset() -> Res
             "the frame left with byte {offset} set came back with these set",
         );
     }
+
+    Ok(())
+}
+
+/// Stack put between the call and the frame moves where the frame is read back
+/// from, by exactly as much as was put there.
+///
+/// # Why the sweep above is not enough on its own
+///
+/// It is green, and it would be green for a capture whose first two steps took
+/// a frame of their own — because they take none, so there is no way to make
+/// them and watch it turn red. A measurement nobody has seen fail is a
+/// measurement nobody has seen work, and that is the whole of what this crate
+/// says about absences, turned on the crate itself.
+///
+/// So the same amount of stack is inserted where those steps would insert it:
+/// between the call that leaves the frame and the capture that reads it. If the
+/// answer moves by exactly that much, the sweep above is reading the stack
+/// pointer it thinks it is, and it will move again the day the capture starts
+/// spending any.
+///
+/// # Why the two are subtracted rather than each compared to a number
+///
+/// The absolute distance is a return address on one architecture and nothing on
+/// the other, and on either it is what the call spends — a number this test
+/// would have to know and would then stop measuring. The difference of the two
+/// is the wedge and nothing else, so the same assertion holds wherever it runs,
+/// and a capture that grew a four byte frame could not hide inside a constant
+/// that was eight.
+#[test]
+fn test_stack_put_before_the_frame_moves_where_it_is_read_back_from() -> Result<(), Reason> {
+    open()?;
+
+    // SAFETY: the offset is inside the frame the routine takes, and the address
+    // it answers with is compared and never read through.
+    let flush = unsafe { redoubt_dirty_frame(0) } as usize;
+
+    capture!();
+
+    // SAFETY: written by the capture just above, on the thread reading it.
+    let over_the_flush = unsafe { SP } - flush;
+
+    // SAFETY: as above, and this one takes `WEDGE` bytes more before it does.
+    let wedged = unsafe { redoubt_dirty_frame_deeper(0) } as usize;
+
+    capture!();
+
+    // SAFETY: written by the capture just above, on the thread reading it.
+    let over_the_wedged = unsafe { SP } - wedged;
+
+    assert_eq!(
+        over_the_wedged - over_the_flush,
+        WEDGE,
+        "{WEDGE} bytes of stack went in and the frame was read back \
+         {} further down",
+        over_the_wedged - over_the_flush,
+    );
 
     Ok(())
 }

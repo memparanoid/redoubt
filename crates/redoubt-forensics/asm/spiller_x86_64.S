@@ -319,4 +319,91 @@ redoubt_spill_vectors_avx512:
     ret
     .size redoubt_spill_avx512, .-redoubt_spill_avx512
 
+// ============================================================================
+// THE FRAME PROBE
+// ============================================================================
+//
+// Nothing production calls this. It exists so that a test can leave a frame
+// whose position is known to the byte, which is what the capture's first two
+// steps have to be measured against.
+//
+// # Why the frame is taken here and not in Rust
+//
+// A Rust helper that leaves a mark in its frame leaves it wherever the compiler
+// put the local, with whatever padding it liked between that local and the
+// stack pointer. A capture that consumed a few bytes of stack would write into
+// the padding and no mark would notice. Here the frame is `sub`tracted from
+// `rsp` and the mark is written at an offset from `rsp`, so the frame is flush
+// against where the capture will run and there is nowhere for a write to land
+// unseen.
+
+// uint8_t *redoubt_dirty_frame(size_t at)
+//
+// Takes a frame of REDOUBT_FRAME bytes, empties it, writes a one at `at`, gives
+// the frame back and answers where it was.
+//
+// The emptying is not ceremony: without it the zeroes a caller asserts are
+// whatever the last call through here left, and a sweep over every offset would
+// read as though it had seen them all while establishing nothing about most.
+    .set REDOUBT_FRAME, 256
+
+    .globl redoubt_dirty_frame
+    .type  redoubt_dirty_frame,@function
+    .p2align 4
+redoubt_dirty_frame:
+    endbr64
+
+    subq    $REDOUBT_FRAME, %rsp
+
+    movq    %rdi, %rdx
+    movq    %rsp, %rdi
+    xorl    %eax, %eax
+    movl    $REDOUBT_FRAME, %ecx
+    cld
+    rep stosb
+
+    movb    $1, (%rsp,%rdx)
+    movq    %rsp, %rax
+
+    addq    $REDOUBT_FRAME, %rsp
+    ret
+    .size redoubt_dirty_frame, .-redoubt_dirty_frame
+
+// uint8_t *redoubt_dirty_frame_deeper(size_t at)
+//
+// The same, with REDOUBT_WEDGE bytes of stack taken before the frame is.
+//
+// The control for the sweep above, and the only thing that says it would go red
+// the day the capture's first two steps grew a frame of their own. Those steps
+// take no stack today, so there is no way to make them do it — what can be done
+// is to insert the same amount somewhere the measurement has to see, and check
+// that the answer moves by exactly that much.
+    .set REDOUBT_WEDGE, 16
+
+// Written out rather than wrapping the routine above, because a wrapper would
+// call it and a call leaves a return address of its own: the wedge would be
+// what was asked for plus whatever the architecture spends reaching there,
+// which is the arithmetic this exists to avoid.
+    .globl redoubt_dirty_frame_deeper
+    .type  redoubt_dirty_frame_deeper,@function
+    .p2align 4
+redoubt_dirty_frame_deeper:
+    endbr64
+
+    subq    $REDOUBT_FRAME + REDOUBT_WEDGE, %rsp
+
+    movq    %rdi, %rdx
+    movq    %rsp, %rdi
+    xorl    %eax, %eax
+    movl    $REDOUBT_FRAME, %ecx
+    cld
+    rep stosb
+
+    movb    $1, (%rsp,%rdx)
+    movq    %rsp, %rax
+
+    addq    $REDOUBT_FRAME + REDOUBT_WEDGE, %rsp
+    ret
+    .size redoubt_dirty_frame_deeper, .-redoubt_dirty_frame_deeper
+
     .section .note.GNU-stack,"",@progbits
