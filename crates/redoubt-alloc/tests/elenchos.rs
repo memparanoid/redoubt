@@ -287,7 +287,6 @@ fn test_what_was_pushed_is_found_while_the_vec_holds_it() -> Result<(), AnyError
 
     elenchos!({
         let mut held = AllockedVec::<Block>::with_capacity(1);
-
         held.push(&mut { SECRET })?;
 
         capture!();
@@ -356,17 +355,18 @@ a_vec_pushed_into!(test_a_vec_of_65536_pushed_into_leaves_nothing, 65536);
 // AllockedVec::truncate
 // ============================================================================
 
-/// What a truncation dropped is found while the vec that held it is kept.
+/// The tail is found while it is still the vec's.
 ///
-/// The photograph is taken with the vec still there and its tail already cut,
-/// which is where the bytes the truncation dropped would be if it left them.
+/// What the absence below is measured against: the sweep reaches the storage a
+/// truncation is about to cut, so a clean answer afterwards is the cut and not
+/// the instrument. Before and not after, because the type hands back nothing it
+/// removed — there is no `pop` — so a cut tail exists nowhere to be found.
 #[test]
-fn test_what_a_truncation_dropped_is_found_while_the_vec_is_kept() -> Result<(), AnyError> {
+fn test_what_a_truncation_will_cut_is_found_before_it_is_cut() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
     elenchos!({
         let mut held = AllockedVec::<Block>::with_capacity(1);
-
         held.push(&mut { SECRET })?;
 
         capture!();
@@ -531,7 +531,6 @@ fn test_what_was_carried_over_is_found_while_the_vec_holds_it() -> Result<(), An
 
     elenchos!({
         let mut held = AllockedVec::<Block>::with_capacity(1);
-
         held.push(&mut { SECRET })?;
 
         held.realloc_with_capacity(2);
@@ -612,7 +611,6 @@ fn test_an_allocked_vec_given_away_is_found_while_it_is_held() -> Result<(), Any
 
     elenchos!({
         let mut held = AllockedVec::<Block>::with_capacity(1);
-
         held.push(&mut { SECRET })?;
 
         // CORRECTNESS: before the capture, because this is the operation. What
