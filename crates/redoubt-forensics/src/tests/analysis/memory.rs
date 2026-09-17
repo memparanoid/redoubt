@@ -306,13 +306,13 @@ fn test_dropping_a_photograph_leaves_no_child_behind() -> Result<(), AnyError> {
 
 /// A line with no dash names no range, and the search for one says so.
 #[test]
-fn test_region_propagates_a_line_with_no_dash() {
+fn test_region_returns_nothing_for_a_line_with_no_dash() {
     assert_eq!(region(b""), None);
 }
 
 /// And one with no space ends before the flags, which is where the answer is.
 #[test]
-fn test_region_propagates_a_line_with_no_space() {
+fn test_region_returns_nothing_for_a_line_with_no_space() {
     assert_eq!(region(b"7f8e1c000000-7f8e1c021000"), None);
 }
 
@@ -323,20 +323,20 @@ fn test_region_propagates_a_line_with_no_space() {
 /// not past it: `hex` would be handed a stretch spanning the space, and what
 /// came back would be a bound nobody wrote.
 #[test]
-fn test_region_reports_a_dash_that_is_past_the_space() {
+fn test_region_returns_nothing_for_a_dash_that_is_past_the_space() {
     assert_eq!(region(b"7f8e1c000000 rw-p 00000000 00:00 0"), None);
 }
 
 /// A line that ends at the space has no flags to read, and asking for them off
 /// the end is the refusal rather than two bytes of whatever follows.
 #[test]
-fn test_region_propagates_a_line_that_ends_at_the_space() {
+fn test_region_returns_nothing_for_a_line_that_ends_at_the_space() {
     assert_eq!(region(b"7f8e1c000000-7f8e1c021000 "), None);
 }
 
 /// Executable is code, and code holds what a compiler put there.
 #[test]
-fn test_region_reports_a_mapping_that_is_code() {
+fn test_region_returns_nothing_for_a_mapping_that_is_code() {
     assert_eq!(
         region(b"7f8e1c000000-7f8e1c021000 r-xp 00000000 00:00 0 [vdso]"),
         None
@@ -346,7 +346,7 @@ fn test_region_reports_a_mapping_that_is_code() {
 /// A file mapped in read-only is that file, and reading the binary back is
 /// seconds per sweep for nothing.
 #[test]
-fn test_region_reports_a_file_mapped_read_only() {
+fn test_region_returns_nothing_for_a_file_mapped_read_only() {
     assert_eq!(
         region(b"7f8e1c000000-7f8e1c021000 r--p 00000000 08:01 131 /usr/lib/libc.so.6"),
         None,
@@ -360,7 +360,7 @@ fn test_region_reports_a_file_mapped_read_only() {
 /// find the secret in its own home, and every absence a caller asked about
 /// would come back a positive.
 #[test]
-fn test_region_reports_a_page_protected_to_nothing() {
+fn test_region_returns_nothing_for_a_page_protected_to_nothing() {
     assert_eq!(
         region(b"7f8e1c000000-7f8e1c021000 ---p 00000000 00:00 0"),
         None
@@ -370,7 +370,7 @@ fn test_region_reports_a_page_protected_to_nothing() {
 /// And one open for writing alone, which is what a guarded page looks like
 /// from outside while it is being read through. Skipped for the same reason.
 #[test]
-fn test_region_reports_a_write_only_page() {
+fn test_region_returns_nothing_for_a_write_only_page() {
     assert_eq!(
         region(b"7f8e1c000000-7f8e1c021000 -w-p 00000000 00:00 0"),
         None
