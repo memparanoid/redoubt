@@ -26,11 +26,11 @@
 
 use proptest::prelude::*;
 
-use crate::analysis::memory::elsewhere;
+use crate::analysis::memory::{elsewhere, measure};
 use crate::analysis::score::{
-    NOISE, close, density, follows, holds, lg2, piece, runs, settle, stretch, table, worth,
+    NOISE, close, count, density, follows, holds, lg2, piece, runs, settle, stretch, table, worth,
 };
-use crate::analysis::state::{FOUND, ForensicState, MOST};
+use crate::analysis::state::{COUNT, FOUND, ForensicState, MOST};
 use crate::errors::AnyError;
 
 /// Room for one table of successors and one of bytes that appear.
@@ -113,6 +113,89 @@ fn by_chance(bits: u64, step: u64, swept: u64) -> f64 {
     }
 
     0.0
+}
+
+// ============================================================================
+// count
+// ============================================================================
+
+/// The needle a caller is holding, in the process it is holding it in.
+///
+/// Thirty-two bytes, because that is what a run has to be to be one: the whole
+/// of what the analyzer weighs is a stretch, and a needle narrow enough to
+/// arrive by chance is a needle every sweep finds everywhere.
+const HELD: [u8; 32] = [
+    0x4E, 0x2B, 0xD7, 0x91, 0x35, 0xAC, 0x68, 0xF0, 0x1D, 0xB4, 0x7F, 0x02, 0xE6, 0x59, 0xA3, 0x18,
+    0xCB, 0x74, 0x2D, 0x90, 0x46, 0xEF, 0x83, 0x1A, 0x57, 0xBC, 0x09, 0xD3, 0x6E, 0xF1, 0x24, 0xA7,
+];
+
+/// A count photograph says nothing about the numbers the weighing writes.
+///
+/// One block serves every photograph, and it is the caller's: the words this
+/// work never touches survive from one sweep to the next. A caller that weighs
+/// and then counts would otherwise read the weighing's score beside the count,
+/// as though one sweep had answered both — and neither number would be wrong
+/// on its own, which is what makes it silent.
+///
+/// Through `measure`, where this work's clearing is the only one. The analyst
+/// clears the result before it asks the work anything, so the same test through
+/// `elsewhere` passes with the line gone.
+#[test]
+fn test_count_leaves_none_of_the_weighing_that_came_before_it() -> Result<(), AnyError> {
+    let held = HELD;
+
+    core::hint::black_box(&held);
+
+    let mut state = ForensicState::default();
+
+    assert!(state.hold(&held, false), "the needle is one it can hold");
+
+    measure(&mut state, runs)?;
+
+    assert_eq!(
+        state.read(FOUND),
+        1,
+        "the process is holding it and the weighing did not find it",
+    );
+
+    measure(&mut state, count)?;
+
+    assert_eq!(state.read(COUNT), 1, "the count did not find it");
+    assert_eq!(state.read(FOUND), 0, "the weighing's answer came back too");
+
+    Ok(())
+}
+
+// ============================================================================
+// runs
+// ============================================================================
+
+/// A needle held forwards is swept forwards, and found.
+///
+/// Every photograph a caller takes holds its needle backwards, because writing
+/// it forwards in the process being measured is putting the secret there. So
+/// the turn this makes on the way in is the one that never runs from outside —
+/// and a sweep that turned the needle the wrong way would answer that a
+/// process holding the secret holds nothing.
+#[test]
+fn test_runs_sweeps_a_needle_that_is_already_forwards() -> Result<(), AnyError> {
+    let held = HELD;
+
+    core::hint::black_box(&held);
+
+    let mut state = ForensicState::default();
+
+    assert!(state.hold(&held, false), "the needle is one it can hold");
+
+    elsewhere(&mut state, runs)?;
+
+    assert_eq!(
+        state.read(FOUND),
+        1,
+        "the process is holding it and the sweep did not find it",
+    );
+
+    Ok(())
 }
 
 // ============================================================================
@@ -780,40 +863,4 @@ fn test_lg2_stays_within_a_tenth_of_a_bit() {
             "lg2({of}) was {ours}, not {real}"
         );
     }
-}
-
-// ============================================================================
-// runs
-// ============================================================================
-
-/// A needle held forwards is swept forwards, and found.
-///
-/// Every photograph a caller takes holds its needle backwards, because writing
-/// it forwards in the process being measured is putting the secret there. So
-/// the turn this makes on the way in is the one that never runs from outside —
-/// and a sweep that turned the needle the wrong way would answer that a
-/// process holding the secret holds nothing.
-#[test]
-fn test_runs_sweeps_a_needle_that_is_already_forwards() -> Result<(), AnyError> {
-    let held: [u8; 32] = [
-        0x4E, 0x2B, 0xD7, 0x91, 0x35, 0xAC, 0x68, 0xF0, 0x1D, 0xB4, 0x7F, 0x02, 0xE6, 0x59, 0xA3,
-        0x18, 0xCB, 0x74, 0x2D, 0x90, 0x46, 0xEF, 0x83, 0x1A, 0x57, 0xBC, 0x09, 0xD3, 0x6E, 0xF1,
-        0x24, 0xA7,
-    ];
-
-    core::hint::black_box(&held);
-
-    let mut state = ForensicState::default();
-
-    assert!(state.hold(&held, false), "the needle is one it can hold");
-
-    elsewhere(&mut state, runs)?;
-
-    assert_eq!(
-        state.read(FOUND),
-        1,
-        "the process is holding it and the sweep did not find it",
-    );
-
-    Ok(())
 }
