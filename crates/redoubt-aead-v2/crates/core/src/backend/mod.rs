@@ -32,7 +32,11 @@ use crate::Backend;
 ///
 /// Where it is false the two backends are the same code, and a test that finds
 /// them agreeing has proved nothing.
-#[cfg(test)]
+#[cfg(all(
+    test,
+    not(target_os = "windows"),
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
 pub(crate) const HAS_ASM: bool = cfg!(ct_asm);
 
 /// Whether the two runs hold the same bytes, in a time that says nothing about
