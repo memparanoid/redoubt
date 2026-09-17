@@ -179,6 +179,50 @@ fn test_spans_iter_returns_all_of_them_in_the_order_they_went_in() {
 }
 
 // ============================================================================
+// Spans::over
+// ============================================================================
+
+/// A run begins empty over words that were left holding something.
+///
+/// The words are the caller's scratch and a caller reuses it: the count lives
+/// in the first of them, so a run that took what was there would start at
+/// whatever the last photograph pushed and write its spans past the room.
+#[test]
+fn test_over_starts_a_run_that_is_empty_whatever_the_words_held() {
+    let mut room = [u64::MAX; 9];
+
+    assert!(Spans::over(&mut room).is_empty());
+}
+
+// ============================================================================
+// Spans::at
+// ============================================================================
+
+/// The caller's own words, and their width in bytes rather than in words.
+///
+/// What reads this is the sweep, which skips by address and length: a width
+/// eight times short would leave seven eighths of the run swept as though it
+/// were somebody else's memory.
+#[test]
+fn test_at_returns_the_words_it_was_given_and_their_width_in_bytes() {
+    let mut room = [0_u64; 9];
+    let stood = room.as_ptr() as usize;
+
+    assert_eq!(Spans::over(&mut room).at(), (stood, 72));
+}
+
+// ============================================================================
+// ForensicState::whole
+// ============================================================================
+
+#[test]
+#[ignore = "Covered transitively: the default section reads the block through \
+            this, asserting it is BLOCK bytes long and begins at the phrase, \
+            which is the whole of what it hands back. Shell preserved in case \
+            it grows a second caller."]
+fn test_whole_returns_the_block_from_the_phrase_at_its_front() {}
+
+// ============================================================================
 // ForensicState::default
 // ============================================================================
 
@@ -596,16 +640,10 @@ fn test_read_gives_each_name_back_its_own_number() {
 // ForensicState::drop
 // ============================================================================
 
-/// The phrase does not outlive the block.
-///
-/// Cannot be read from here. What the drop wipes is memory that the same drop
-/// hands back to the allocator, and the only witness to it is a read of a freed
-/// chunk — which is the sweep's job and undefined behaviour in a test, where
-/// the allocator is free to have handed the chunk to somebody else first.
-///
-/// The claim itself is read where it matters: a block left in the heap with its
-/// phrase intact is a stretch every later sweep skips, so what proves the wipe
-/// is a photograph over a process that has dropped one, taken from outside.
 #[test]
-#[ignore = "needs a reader on the far side of the free"]
+#[ignore = "Uncovered: the only witness to what this wipes is a read of the \
+            chunk the same drop hands back to the allocator, which is \
+            undefined behaviour in a test — by then the chunk may be \
+            somebody else's. Shell preserved in case the wipe grows something \
+            observable before the free."]
 fn test_drop_leaves_no_phrase_behind_in_the_heap() {}
