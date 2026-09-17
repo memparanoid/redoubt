@@ -255,13 +255,13 @@ fn test_swap_exchanges_owners_without_dropping_or_duplicating_them() {
     use std::rc::Rc;
 
     #[repr(C)]
-    struct Owner {
+    struct OwnerU64 {
         tag: u8,
         value: Box<u64>,
         drops: Rc<Cell<usize>>,
     }
 
-    impl Drop for Owner {
+    impl Drop for OwnerU64 {
         fn drop(&mut self) {
             self.drops.set(self.drops.get() + 1);
         }
@@ -269,13 +269,13 @@ fn test_swap_exchanges_owners_without_dropping_or_duplicating_them() {
 
     let drops = Rc::new(Cell::new(0));
 
-    let mut a = Owner {
+    let mut a = OwnerU64 {
         tag: 1,
         value: Box::new(11),
         drops: drops.clone(),
     };
 
-    let mut b = Owner {
+    let mut b = OwnerU64 {
         tag: 2,
         value: Box::new(22),
         drops: drops.clone(),
@@ -298,6 +298,106 @@ fn test_swap_exchanges_owners_without_dropping_or_duplicating_them() {
     drop(b);
 
     assert_eq!(drops.get(), 2, "two owners, dropped once each");
+}
+
+/// An owner whose handle is three words, and which counts its own drops.
+///
+/// The one above owns through a `Box`, which is a single word: a width measured
+/// wrong there is a pointer that arrives or does not. Here the pointer, the
+/// capacity and the length have to arrive together, and they are inside a value
+/// that something will later free — so a handle that came apart is not a wrong
+/// answer, it is a free of a block with a length the allocator never gave out.
+///
+/// The drop count is the other half, as above: a routine that left a third copy
+/// somewhere would drop three times at the end, not two.
+#[test]
+fn test_swap_exchanges_three_word_owners_without_dropping_or_duplicating_them() {
+    use std::cell::Cell;
+    use std::rc::Rc;
+
+    #[repr(C)]
+    struct OwnerVec {
+        tag: u8,
+        holding: std::vec::Vec<u8>,
+        drops: Rc<Cell<usize>>,
+    }
+
+    impl Drop for OwnerVec {
+        fn drop(&mut self) {
+            self.drops.set(self.drops.get() + 1);
+        }
+    }
+
+    let drops = Rc::new(Cell::new(0));
+
+    let mut a = OwnerVec {
+        tag: 1,
+        holding: std::vec![11u8; 3],
+        drops: drops.clone(),
+    };
+
+    let mut b = OwnerVec {
+        tag: 2,
+        holding: std::vec![22u8; 64],
+        drops: drops.clone(),
+    };
+
+    let address_a = a.holding.as_ptr();
+    let address_b = b.holding.as_ptr();
+
+    let capacity_a = a.holding.capacity();
+    let capacity_b = b.holding.capacity();
+
+    swap(&mut a, &mut b);
+
+    assert_eq!((a.tag, &a.holding[..]), (2, &std::vec![22u8; 64][..]));
+    assert_eq!((b.tag, &b.holding[..]), (1, &std::vec![11u8; 3][..]));
+
+    assert_eq!(
+        (a.holding.as_ptr(), a.holding.capacity()),
+        (address_b, capacity_b)
+    );
+    assert_eq!(
+        (b.holding.as_ptr(), b.holding.capacity()),
+        (address_a, capacity_a)
+    );
+
+    assert_eq!(drops.get(), 0, "a swap drops nothing");
+
+    drop(a);
+    drop(b);
+
+    assert_eq!(drops.get(), 2, "two owners, dropped once each");
+}
+
+/// An owner whose handle is three words, exchanged whole.
+///
+/// A `Box` is one word and cannot show this: what a `Vec` adds is that its
+/// pointer, its capacity and its length have to arrive together. An exchange
+/// that measured the wrong width would leave one side pointing at the other's
+/// block with its own length, and that does not fail here — it fails at the
+/// free, with a size the allocator was never given.
+///
+/// Both sides own a block, and the lengths differ, so a length that stayed
+/// behind is visible as a length.
+#[test]
+fn test_swap_exchanges_a_three_word_handle_whole() {
+    let mut a = std::vec![1u8, 2, 3];
+    let mut b = std::vec![9u8; 64];
+
+    let address_a = a.as_ptr();
+    let address_b = b.as_ptr();
+
+    let capacity_a = a.capacity();
+    let capacity_b = b.capacity();
+
+    swap(&mut a, &mut b);
+
+    assert_eq!(a, std::vec![9u8; 64]);
+    assert_eq!(b, std::vec![1u8, 2, 3]);
+
+    assert_eq!((a.as_ptr(), a.capacity()), (address_b, capacity_b));
+    assert_eq!((b.as_ptr(), b.capacity()), (address_a, capacity_a));
 }
 
 // ============================================================================
