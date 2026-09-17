@@ -138,6 +138,8 @@ pub fn open() -> Result<(), Reason> {
 fn reach() -> Result<(usize, usize), Reason> {
     // SAFETY: both are reads of the caller's own identity and cannot fail.
     if unsafe { libc::gettid() } == unsafe { libc::getpid() } {
+        // Uncovered: libtest runs every test on a thread it spawned, so the two
+        // never agree from anything that measures this.
         return Err(Reason::NoFloor);
     }
 
@@ -146,6 +148,8 @@ fn reach() -> Result<(usize, usize), Reason> {
     // SAFETY: the attributes are written by the call and read only where it
     // answered zero.
     if unsafe { libc::pthread_getattr_np(libc::pthread_self(), attr.as_mut_ptr()) } != 0 {
+        // Uncovered: it fails for a thread that has ended or was never one, and
+        // the thread asking is neither.
         return Err(Reason::NoFloor);
     }
 
@@ -166,6 +170,9 @@ fn reach() -> Result<(usize, usize), Reason> {
     unsafe { libc::pthread_attr_destroy(&raw mut attr) };
 
     if told != 0 || guard >= size {
+        // Uncovered: neither half is reachable from a live thread. The two reads
+        // answer zero for attributes the call above filled, and a guard as wide
+        // as the whole stack is a thread with no room to run in.
         return Err(Reason::NoFloor);
     }
 

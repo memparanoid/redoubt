@@ -14,3 +14,6 @@ mod errors;
 
 #[cfg(target_os = "linux")]
 mod spiller;
+
+#[cfg(target_os = "linux")]
+mod window;
