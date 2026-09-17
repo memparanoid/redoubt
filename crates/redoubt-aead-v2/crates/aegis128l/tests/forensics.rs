@@ -46,7 +46,11 @@
 //! place the tag could be and another test's needle to trip over. `nextest`,
 //! not `cargo test`.
 
-#![cfg(target_os = "linux")]
+// Every measurement in this file was taken with an instrument that could not
+// see past a call made after the operation, so each absence it reports is
+// worth less than it says. Kept unbuilt, and only until `elenchos.rs` covers
+// what it covered.
+#![cfg(any())]
 
 use std::vec;
 use std::{println, vec::Vec};

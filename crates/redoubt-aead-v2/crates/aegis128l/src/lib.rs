@@ -29,9 +29,6 @@
 extern crate std;
 
 #[cfg(all(test, aegis128l_asm))]
-mod forensics;
-
-#[cfg(all(test, aegis128l_asm))]
 mod tests;
 
 mod aegis128l;
