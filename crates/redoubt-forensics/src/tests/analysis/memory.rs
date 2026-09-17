@@ -16,9 +16,9 @@
 //! own way of being reached.
 
 use crate::analysis::memory::{
-    Subject, analyse, elsewhere, finalize_mappings, forked_analyse, frozen_measure, hex, inside,
-    instrument, mappings, measure, named, next_skip, piped_analyse, recv, region, send,
-    stand_still, sweep, traced_stand_still, within,
+    Subject, analyse, answer, elsewhere, finalize_analyse, finalize_mappings, forked_analyse,
+    frozen_measure, hex, inside, instrument, mappings, measure, named, next_skip, piped_analyse,
+    recv, region, send, stand_still, sweep, traced_stand_still, within,
 };
 use crate::analysis::state::{BLOCK, ForensicState, MAGIC, OK, SHIPPED, STACK, Spans};
 use crate::errors::{AnyError, DONE, Reason};
@@ -169,6 +169,18 @@ fn test_read_at_returns_nothing_for_an_address_that_is_not_mapped() -> Result<()
     assert_eq!(into, [0xAA; 8], "nothing was read, so nothing was written");
 
     Ok(())
+}
+
+// ============================================================================
+// Subject::of
+// ============================================================================
+
+#[test]
+#[ignore = "Covered transitively: the freeze section asserts that the pid this \
+            answers is not this process's own, which is the only claim it \
+            makes. Shell preserved in case it grows one."]
+fn test_of_returns_the_pid_of_the_photograph() {
+    // Intentionally empty.
 }
 
 // ============================================================================
@@ -1112,6 +1124,20 @@ fn test_piped_analyse_reports_no_pipe_where_there_is_none() {
 // forked_analyse
 // ============================================================================
 
+/// Both ends of a pipe, for every test below that needs one.
+///
+/// Raw descriptors rather than anything that closes itself: what is being
+/// tested takes a descriptor, and each test closes what it opened at the point
+/// where closing it is the thing being arranged.
+fn piped() -> (libc::c_int, libc::c_int) {
+    let mut ends = [0 as libc::c_int; 2];
+
+    // SAFETY: the argument is a local array of the two descriptors this fills.
+    assert!(unsafe { libc::pipe(ends.as_mut_ptr()) } >= 0, "a pipe");
+
+    (ends[0], ends[1])
+}
+
 /// Nothing where the fork did not happen, and both ends closed on the way out.
 ///
 /// A refusal that left the pipe open would leak two descriptors per attempt,
@@ -1186,6 +1212,111 @@ fn test_forked_analyse_hands_zero_to_the_analyst() -> Result<(), AnyError> {
 // finalize_analyse
 // ============================================================================
 
+#[test]
+#[ignore = "Covered transitively: the analyse section reaches this branch with \
+            the same trigger, an analyst that leaves without writing, and \
+            asserts the same reason. Shell preserved in case the wait grows a \
+            second way of saying nothing."]
+fn test_finalize_analyse_reports_no_answer_when_the_analyst_says_nothing() {
+    // Intentionally empty.
+}
+
+/// Both ends closed by the time the answer is handed back.
+///
+/// Neither close is visible in the result, and the process doing this most is a
+/// test runner: two descriptors per photograph, against a limit nothing here
+/// raises. The kernel is what says so — a second `close` of a descriptor this
+/// already closed is `EBADF`, and of one it left open is success.
+#[test]
+fn test_finalize_analyse_closes_both_ends_of_the_pipe() -> Result<(), AnyError> {
+    let mut state = ForensicState::default();
+    let (reading, writing) = piped();
+
+    // SAFETY: `fork` with nothing of this library's in flight, and a child that
+    // leaves through the analyst without returning to Rust.
+    let pid = unsafe { libc::fork() };
+
+    assert!(pid >= 0, "no fork");
+
+    if pid == 0 {
+        answer(&mut state, went_well, reading, writing);
+    }
+
+    finalize_analyse(&mut state, pid, reading, writing)?;
+
+    // SAFETY: both are descriptors, closed or not, and this asks rather than
+    // uses. `EBADF` is the answer being looked for.
+    let (again, once_more) = unsafe { (libc::close(reading), libc::close(writing)) };
+
+    assert_eq!(again, -1, "the reading end was left open");
+    assert_eq!(once_more, -1, "the writing end was left open");
+
+    Ok(())
+}
+
+// ============================================================================
+// answer
+// ============================================================================
+
+/// Work that measures nothing and writes nothing, so that what the parent reads
+/// back is whatever was in the block before the analyst was asked.
+fn wrote_nothing(_state: &mut ForensicState, _subject: &Subject) -> Result<(), Reason> {
+    Ok(())
+}
+
+/// What the last photograph came to is gone before this one answers.
+///
+/// A stale number read as a fresh one is the same mistake as a refusal read as
+/// a zero, and neither says anything on its way past: the block is the caller's
+/// and it survives from one photograph to the next, so a word this did not
+/// write is a word the last sweep wrote. The dirtying happens before the fork,
+/// which is what makes the child inherit it.
+#[test]
+fn test_answer_clears_what_the_last_photograph_left() {
+    let mut state = ForensicState::default();
+    let (reading, writing) = piped();
+
+    for word in 0..SHIPPED {
+        state.parts().result[word] = 0x5C5C_5C5C_5C5C_5C5C;
+    }
+
+    // SAFETY: `fork` with nothing of this library's in flight, and a child that
+    // leaves through the analyst without returning to Rust.
+    let pid = unsafe { libc::fork() };
+
+    assert!(pid >= 0, "no fork");
+
+    if pid == 0 {
+        answer(&mut state, wrote_nothing, reading, writing);
+    }
+
+    // SAFETY: the end this side will not write to.
+    unsafe { libc::close(writing) };
+
+    let mut into = [0_u8; SHIPPED * 8];
+    let heard = recv(reading, &mut into);
+
+    // SAFETY: a descriptor this test opened, and its own child.
+    unsafe {
+        libc::close(reading);
+        libc::waitpid(pid, core::ptr::null_mut(), 0);
+    }
+
+    assert!(heard, "the analyst said nothing");
+
+    for word in 0..SHIPPED {
+        let read = u64::from_ne_bytes(
+            into[word * 8..word * 8 + 8]
+                .try_into()
+                .expect("eight bytes of the result"),
+        );
+
+        let expected = if word == OK { DONE } else { 0 };
+
+        assert_eq!(read, expected, "word {word} came back from the last sweep");
+    }
+}
+
 // ============================================================================
 // measure
 // ============================================================================
@@ -1254,20 +1385,6 @@ fn test_frozen_measure_reports_no_photograph_where_there_is_none() {
 // ============================================================================
 // send
 // ============================================================================
-
-/// Both ends of a pipe, for the two below.
-///
-/// Raw descriptors rather than anything that closes itself: what is being
-/// tested takes a descriptor, and each test closes what it opened at the point
-/// where closing it is the thing being arranged.
-fn piped() -> (libc::c_int, libc::c_int) {
-    let mut ends = [0 as libc::c_int; 2];
-
-    // SAFETY: the argument is a local array of the two descriptors this fills.
-    assert!(unsafe { libc::pipe(ends.as_mut_ptr()) } >= 0, "a pipe");
-
-    (ends[0], ends[1])
-}
 
 /// Everything it was given, however many turns the pipe takes to accept it.
 #[test]
