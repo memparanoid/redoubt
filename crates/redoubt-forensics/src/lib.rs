@@ -96,19 +96,6 @@ pub use errors::{AnyError, Reason};
 #[cfg(target_os = "linux")]
 pub use forensics::{Forensics, occurrences, occurrences_reversed};
 
-// `deep`, `spill` and `Outcome` are what `forensics!` expands to, so they are
-// public for the macro's sake before anybody's.
-#[cfg(target_os = "linux")]
-pub use macros::{DEPTH, Outcome, deep};
-
-// The whole of the capture that is anybody's to call. [`forensics!`] expands
-// into whoever uses it and reaches this by name, which is why it is here and
-// why nothing else needs to be: which slot a register lands in, how wide one
-// is, which form the machine got and the forms themselves are this crate's own
-// business, and what reads them is `src/tests/spiller.rs`, which is inside it.
-#[cfg(target_os = "linux")]
-pub use spiller::spill;
-
 // What `capture!` expands into reaches by name, and nothing else has a use for
 // any of it: the room's address, the entry that writes the vectors alone, and
 // the three numbers the window is made of.

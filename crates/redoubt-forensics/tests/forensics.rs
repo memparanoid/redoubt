@@ -25,7 +25,7 @@
 //! # The shape
 //!
 //! ```text
-//! elenchos!({
+//! forensics!({
 //!     operation();        // the only thing that touches the secret
 //!     capture!();         // the registers, and the stack, out of reach
 //!     cleanup();          // anything at all
@@ -47,7 +47,7 @@
     any(target_arch = "x86_64", target_arch = "aarch64")
 ))]
 
-use redoubt_forensics::{AnyError, Forensics, capture, elenchos};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics};
 
 /// Thirty-two distinct bytes: no value repeats, so a run that extends did not
 /// extend by luck.
@@ -194,7 +194,7 @@ fn test_the_capture_finds_a_secret_that_is_only_in_a_register() -> Result<(), An
 
     giving(&mut held, &NARROW);
 
-    elenchos!({
+    forensics!({
         into_a_register(&mut held);
         capture!();
     });
@@ -258,7 +258,7 @@ fn test_a_register_is_out_of_reach_without_the_capture() -> Result<(), AnyError>
 fn test_the_capture_finds_a_frame_that_was_left_full() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
 
-    elenchos!({
+    forensics!({
         a_frame_left_full();
         capture!();
     });
@@ -286,7 +286,7 @@ fn test_the_capture_finds_a_frame_that_was_left_full() -> Result<(), AnyError> {
 fn test_a_frame_emptied_before_it_is_left_holds_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
 
-    elenchos!({
+    forensics!({
         a_frame_emptied();
         capture!();
     });
@@ -318,7 +318,7 @@ fn test_the_difference_says_the_secret_surfaced() -> Result<(), AnyError> {
     println!();
     report_before.summary("nothing run yet");
 
-    elenchos!({
+    forensics!({
         a_frame_left_full();
         capture!();
     });
@@ -358,7 +358,7 @@ fn test_the_difference_is_quiet_when_the_frame_was_emptied() -> Result<(), AnyEr
     println!();
     report_before.summary("nothing run yet");
 
-    elenchos!({
+    forensics!({
         a_frame_emptied();
         capture!();
     });
@@ -376,7 +376,10 @@ fn test_the_difference_is_quiet_when_the_frame_was_emptied() -> Result<(), AnyEr
 
     let delta = report_after.against(&report_before);
 
-    assert!(delta.is_noise(), "an emptied frame moved the score: {delta}");
+    assert!(
+        delta.is_noise(),
+        "an emptied frame moved the score: {delta}"
+    );
 
     Ok(())
 }
@@ -392,7 +395,7 @@ fn test_a_cleanup_run_before_the_capture_erases_the_evidence() -> Result<(), Any
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
     let waste = vec![0_u8; WASTE];
 
-    elenchos!({
+    forensics!({
         a_frame_left_full();
 
         drop(core::hint::black_box(waste));
@@ -426,7 +429,7 @@ fn test_a_cleanup_run_after_the_capture_leaves_the_evidence() -> Result<(), AnyE
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
     let waste = vec![0_u8; WASTE];
 
-    elenchos!({
+    forensics!({
         a_frame_left_full();
         capture!();
 

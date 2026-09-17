@@ -102,6 +102,12 @@ unsafe extern "C" {
     ///
     /// Safe to call at any time. It writes only into the room, and the form it
     /// reaches is one this machine supports.
+    ///
+    /// Nothing that ships calls this: `capture!` writes the general registers
+    /// itself and reaches [`redoubt_spill_vectors`] for the rest. What reads
+    /// the whole form is `src/tests/spiller.rs`, which is where the register
+    /// lists live.
+    #[cfg(test)]
     pub safe fn redoubt_spill();
 
     /// The vector half alone, for a caller that wrote the general registers
@@ -422,31 +428,4 @@ pub(crate) fn picked() -> Option<Form> {
         target_os = "linux"
     )))]
     None
-}
-
-/// Every register this thread has, into the room.
-///
-/// `inline(always)` and a bare call, so this costs exactly what the capture
-/// itself costs and adds no frame of its own.
-///
-/// Call it between the thing being measured and the photograph — which is what
-/// [`forensics!`](crate::forensics) does, and the reason most callers never
-/// name this at all. Afterwards the registers are in an ordinary writable
-/// mapping, found by the same sweep that finds everything else.
-///
-/// There is nothing here to read the room with. The reader is the sweep, which
-/// goes through the process's own memory and needs no symbol for it.
-///
-/// ```no_run
-/// # use redoubt_forensics::spill;
-/// spill();
-/// // ... and then the photograph.
-/// ```
-#[inline(always)]
-pub fn spill() {
-    #[cfg(all(
-        any(target_arch = "x86_64", target_arch = "aarch64"),
-        target_os = "linux"
-    ))]
-    redoubt_spill();
 }

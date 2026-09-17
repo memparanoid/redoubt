@@ -1006,6 +1006,8 @@ version = "0.1.0-rc.8"
 dependencies = [
  "libc",
  "libseccomp",
+ "redoubt-forensics",
+ "redoubt-mem",
  "redoubt-rand",
  "redoubt-util",
  "redoubt-zero",

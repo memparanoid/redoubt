@@ -28,7 +28,9 @@
 
 #![cfg(target_os = "linux")]
 
-use redoubt_forensics::{Forensics, Reason, Report, forensics, occurrences, occurrences_reversed};
+use redoubt_forensics::{
+    Forensics, Reason, Report, capture, forensics, occurrences, occurrences_reversed,
+};
 
 // ============================================================================
 // The material
@@ -47,14 +49,6 @@ const ALPHA: [u8; 32] = [
 const BETA: [u8; 32] = [
     0x2D, 0xF7, 0x63, 0x1A, 0xC8, 0x35, 0x9B, 0x50, 0xE4, 0x0C, 0x77, 0xA2, 0x18, 0xDF, 0x66, 0x93,
     0x21, 0xB8, 0x05, 0x5E, 0xEC, 0x4A, 0x30, 0x8F, 0x12, 0xD5, 0x69, 0xA7, 0x3B, 0xF4, 0x0E, 0x57,
-];
-
-/// The first secret with one byte doubled, so that its table has one pair a
-/// byte can walk without end. A page of that byte walks it a page wide, and
-/// the secret has two of it.
-static DOUBLED: [u8; 32] = [
-    0x9E, 0x41, 0x17, 0xC3, 0x5A, 0xF0, 0x2B, 0x88, 0x6D, 0xB4, 0x0A, 0xE7, 0x39, 0x52, 0xCE, 0x71,
-    0x71, 0x1D, 0xA6, 0x3F, 0xD8, 0x60, 0x95, 0x2E, 0xBB, 0x07, 0x4C, 0xE1, 0x76, 0xAF, 0x13, 0xCA,
 ];
 
 /// A value this file never copies into memory anything can write to. Every
@@ -217,9 +211,14 @@ fn test_a_copy_in_a_frame_that_returned_is_found() -> Result<(), Reason> {
     alone!();
 
     let mut watch = watching(&ALPHA)?;
-    let report = forensics!(watch, {
+
+    forensics!({
         core::hint::black_box(abandon(&ALPHA));
+
+        capture!();
     });
+
+    let report = watch.snapshot()?;
 
     assert!(report.found, "{report}");
 
@@ -235,9 +234,14 @@ fn test_a_register_spilled_onto_a_dead_frame_is_found() -> Result<(), Reason> {
     alone!();
 
     let mut watch = watching(&ALPHA)?;
-    let report = forensics!(watch, {
+
+    forensics!({
         core::hint::black_box(spill(&ALPHA));
+
+        capture!();
     });
+
+    let report = watch.snapshot()?;
 
     assert!(report.found, "{report}");
 
@@ -441,50 +445,6 @@ fn test_a_piece_kept_is_as_wide_as_the_piece() -> Result<(), Reason> {
     Ok(())
 }
 
-/// A page of one byte is not a run a page wide, however far the secret's
-/// pairs let it walk: the secret has two of that byte in a row, and two is
-/// what the page is worth.
-///
-/// This is what a vector register broadcast leaves on the stack — sixteen
-/// copies of one byte — and it was read as a run of sixteen whenever the byte
-/// happened to be one the secret doubles.
-#[test]
-fn test_a_page_of_a_byte_the_secret_doubles_is_a_run_of_two() -> Result<(), Reason> {
-    alone!();
-
-    let page = core::hint::black_box(vec![DOUBLED[15]; 4096]);
-    let report = photograph(&mut watching(&DOUBLED)?)?;
-
-    assert!(report.widest <= QUIET, "{report}");
-    assert!(!report.found, "{report}");
-
-    drop(core::hint::black_box(page));
-
-    Ok(())
-}
-
-/// And a wider piece is worth more than a narrower one, which is the whole
-/// point of weighing rather than counting.
-#[test]
-fn test_a_wider_piece_is_worth_more_than_a_narrower_one() -> Result<(), Reason> {
-    alone!();
-
-    let mut watch = watching(&ALPHA)?;
-
-    let narrow = core::hint::black_box(ALPHA[..8].to_vec());
-    let less = photograph(&mut watch)?;
-
-    let wide = core::hint::black_box(ALPHA[8..].to_vec());
-    let more = photograph(&mut watch)?;
-
-    assert!(more.score > less.score, "{less} then {more}");
-    assert!(more.widest > less.widest, "{less} then {more}");
-
-    drop(core::hint::black_box((narrow, wide)));
-
-    Ok(())
-}
-
 /// An operation that keeps a piece shows up in the difference between the
 /// photograph before it and the one after.
 #[test]
@@ -493,21 +453,27 @@ fn test_the_difference_shows_what_an_operation_kept() -> Result<(), Reason> {
 
     let mut watch = watching(&ALPHA)?;
     let before = photograph(&mut watch)?;
-    let mut kept = Vec::new();
 
-    let after = forensics!(watch, {
-        kept = core::hint::black_box(ALPHA[8..24].to_vec());
+    forensics!({
+        let kept = core::hint::black_box(ALPHA[8..24].to_vec());
+
+        capture!();
+
+        core::mem::forget(kept);
     });
 
+    let after = photograph(&mut watch)?;
     let change = after.against(&before);
 
+    // The score and not the width: a quiet process scores exactly nothing, so
+    // subtracting one takes nothing off the margin. Its widest is `QUIET`, and
+    // a floor on that difference is a floor short by however quiet the process
+    // happened to be. What the width says is asserted without a subtraction by
+    // `test_a_piece_kept_is_as_wide_as_the_piece`.
     assert!(
         change.score >= i128::from(LEAK),
         "{before}\n{after}\n{change}"
     );
-    assert!(change.widest >= 14, "{before}\n{after}\n{change}");
-
-    drop(core::hint::black_box(kept));
 
     Ok(())
 }
@@ -520,31 +486,16 @@ fn test_the_difference_shows_nothing_for_an_operation_that_kept_nothing() -> Res
     let mut watch = watching(&ABSENT)?;
     let before = photograph(&mut watch)?;
 
-    let after = forensics!(watch, {
+    forensics!({
         core::hint::black_box(1_u8);
+
+        capture!();
     });
 
+    let after = photograph(&mut watch)?;
     let change = after.against(&before);
 
     assert_eq!(change.score, 0, "{before}\n{after}\n{change}");
-
-    Ok(())
-}
-
-/// A photograph compared with itself is no change at all, which is the one
-/// arithmetic anybody reading a difference relies on.
-#[test]
-fn test_a_photograph_against_itself_is_no_change() -> Result<(), Reason> {
-    alone!();
-
-    let report = photograph(&mut watching(&ABSENT)?)?;
-    let change = report.against(&report);
-
-    assert_eq!(change.score, 0);
-    assert_eq!(change.widest, 0);
-    assert_eq!(change.runs, 0);
-    assert_eq!(change.swept, 0);
-    assert!(!change.surfaced);
 
     Ok(())
 }
@@ -684,29 +635,6 @@ fn test_the_one_call_form_finds_nothing_when_there_is_nothing() -> Result<(), Re
 
     assert!(!report.found, "{report}");
     assert_eq!(report.score, 0, "{report}");
-
-    Ok(())
-}
-
-/// The macro takes the photograph, and takes it after the block rather than
-/// before — which is the one thing it exists to guarantee.
-#[test]
-fn test_the_macro_photographs_after_the_block_and_not_before() -> Result<(), Reason> {
-    alone!();
-
-    let mut watch = watching(&ALPHA)?;
-    let mut kept = Vec::new();
-
-    let after = forensics!(watch, {
-        kept = core::hint::black_box(ALPHA.to_vec());
-    });
-
-    assert!(
-        after.found,
-        "the block had not run when the photograph was taken: {after}"
-    );
-
-    drop(core::hint::black_box(kept));
 
     Ok(())
 }

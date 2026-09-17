@@ -28,7 +28,7 @@ extern crate std;
 mod tests;
 
 #[cfg(test)]
-mod elenchos;
+mod forensics;
 
 mod xchachapoly1305;
 
