@@ -13,9 +13,9 @@
 //! reaches where a value lives, and that it finds one when there is one to
 //! find.
 //!
-//! That is why there are five separate tests for "it is found" before the first
-//! test for "it is not". They are the calibration, and the absences are only
-//! worth what they are worth.
+//! That is why the section that finds a copy comes before the one that asserts
+//! there is none, and is longer. It is the calibration, and the absences are
+//! only worth what it is worth.
 //!
 //! # A process each
 //!
@@ -165,7 +165,7 @@ fn spill(of: &[u8; 32]) -> u8 {
 }
 
 // ============================================================================
-// The sweep reaches — five places a copy can be
+// The sweep reaches
 // ============================================================================
 
 /// The heap. The easiest place there is, and the one every other test here
@@ -288,6 +288,65 @@ fn test_a_copy_in_a_writable_static_is_found() -> Result<(), Reason> {
     Ok(())
 }
 
+/// How many frames down the secret is written before the photograph is taken.
+///
+/// Deep enough to be out of the instrument's way. The sweep runs from the
+/// shallow frame and the stack grows down, so everything the sweep itself
+/// touches — the block it reserves, the file it parses, the fork — is at higher
+/// addresses than this. Too shallow and the instrument writes over the very
+/// thing it is looking for, and answers that there was nothing there.
+const DEEP: usize = 256;
+
+/// The secret written into a local that far down, and abandoned.
+///
+/// Each frame carries something so that the frames add up to a distance rather
+/// than a few hundred bytes. Nothing unwinds it and nothing clears it: what is
+/// being asked is whether the sweep can see a frame nobody is using any more.
+#[inline(never)]
+fn deeper(left: usize) -> u8 {
+    let mut floor = core::hint::black_box([0_u8; 128]);
+
+    if left == 0 {
+        floor[..ALPHA.len()].copy_from_slice(&ALPHA);
+
+        return core::hint::black_box(&floor)[0];
+    }
+
+    floor[0] = deeper(left - 1);
+
+    core::hint::black_box(&floor)[0]
+}
+
+/// A copy left in a stack frame that has been returned from is still found.
+///
+/// This is the control every reading about the stack rests on, and it is worth
+/// making separately from the one on the heap: a spill is the whole reason to
+/// ask this question at all — bytes move through registers wide enough to hold
+/// half a secret, and a register that gets spilled is a secret on the stack
+/// that no search for a copy would explain.
+///
+/// A failure here does not say the stack is clean. It says this crate cannot
+/// see the stack, and that every zero it has ever answered about one was the
+/// instrument standing where the evidence was.
+#[test]
+fn test_the_sweep_reaches_a_copy_left_deep_in_the_stack() -> Result<(), Reason> {
+    // Everything reserved first, and on purpose. Anything done between leaving
+    // the frame and freezing the memory is written into that frame — which is
+    // the whole reason the instrument is a value rather than a function.
+    let needle = backwards(&ALPHA);
+    let mut watch = Forensics::watching(&needle)?;
+
+    core::hint::black_box(deeper(DEEP));
+
+    let report = watch.snapshot()?;
+
+    assert!(
+        report.found,
+        "a copy {DEEP} frames down was not found: {report}"
+    );
+
+    Ok(())
+}
 // ============================================================================
 // Two copies, one reversed
 // ============================================================================
@@ -468,8 +527,8 @@ fn test_the_difference_shows_what_an_operation_kept() -> Result<(), Reason> {
     // The score and not the width: a quiet process scores exactly nothing, so
     // subtracting one takes nothing off the margin. Its widest is `QUIET`, and
     // a floor on that difference is a floor short by however quiet the process
-    // happened to be. What the width says is asserted without a subtraction by
-    // `test_a_piece_kept_is_as_wide_as_the_piece`.
+    // happened to be — which is why the width is asserted where it needs no
+    // subtraction, against the photograph itself.
     assert!(
         change.score >= i128::from(LEAK),
         "{before}\n{after}\n{change}"
@@ -558,6 +617,16 @@ fn test_taking_many_photographs_accumulates_nothing() -> Result<(), Reason> {
     Ok(())
 }
 
+/// The reason the analysis gave, carried out to the caller.
+#[test]
+#[ignore = "wants the syscall blocked from under it: the analysis fails only \
+            where the machine refuses it a pipe, a process or a trace, and \
+            `snapshot` takes nothing that decides which. Reachable with \
+            seccomp in a subprocess, which this crate has no harness for."]
+fn test_snapshot_propagates_the_reason_the_analysis_gave() {
+    // Intentionally empty.
+}
+
 // ============================================================================
 // What it refuses
 // ============================================================================
@@ -639,6 +708,15 @@ fn test_the_one_call_form_finds_nothing_when_there_is_nothing() -> Result<(), Re
     Ok(())
 }
 
+/// And the photograph's own failure, which this only carries.
+#[test]
+#[ignore = "the same as the analysis failing under `snapshot`, reached through \
+            one more call: it wants the syscall blocked from under it, which \
+            needs seccomp in a subprocess and no harness here has one."]
+fn test_snapshot_reversed_propagates_the_reason_the_photograph_gave() {
+    // Intentionally empty.
+}
+
 // ============================================================================
 // The readout
 // ============================================================================
@@ -672,6 +750,124 @@ fn test_reads_out_a_leak_beside_no_leak() -> Result<(), Reason> {
     eprintln!();
 
     drop(core::hint::black_box(kept));
+
+    Ok(())
+}
+
+// ============================================================================
+// The experiment
+// ============================================================================
+
+/// The process read into a file from a single inlined frame, and the secret
+/// looked for in the file rather than in memory.
+///
+/// A control on everything else here, owing nothing to it. The buffer is
+/// reserved and both files are opened before the secret exists, so the capture
+/// is a loop of `seek`, `read`, `write` and nothing else — and being inlined it
+/// pushes no frame of its own. If the residue does not survive even this, it
+/// was never there to be found.
+///
+/// Asserts nothing, so it is asked for rather than run: `--ignored`.
+#[test]
+#[ignore = "a readout, not an assertion: it writes the process's writable \
+            memory to a file and reports what it found there. Run it with \
+            --ignored --no-capture when an absence elsewhere needs a second \
+            opinion that owes this crate nothing."]
+fn test_reads_the_process_into_a_file_from_one_inlined_frame()
+-> Result<(), Box<dyn std::error::Error>> {
+    use std::fs::File;
+    use std::io::{Read, Seek, SeekFrom, Write};
+
+    /// The dump goes whatever way this test goes.
+    ///
+    /// After an `assert!` would be after a panic on the run that most wants
+    /// cleaning up: what is left behind is every writable byte of a process
+    /// that was holding a secret.
+    struct Swept(&'static str);
+
+    impl Drop for Swept {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(self.0);
+        }
+    }
+
+    let _swept = Swept("/tmp/analysis.txt");
+
+    /// Every writable mapping, straight out to the file.
+    #[inline(always)]
+    fn dump(mem: &mut File, out: &mut File, held: &mut [u8], spans: &[(u64, u64)]) {
+        for (from, to) in spans {
+            let mut at = *from;
+
+            while at < *to {
+                let take = ((*to - at) as usize).min(held.len());
+
+                if mem.seek(SeekFrom::Start(at)).is_err() {
+                    break;
+                }
+
+                if mem.read_exact(&mut held[..take]).is_err() {
+                    break;
+                }
+
+                let _ = out.write_all(&held[..take]);
+
+                at += take as u64;
+            }
+        }
+    }
+
+    // Everything reserved, opened and parsed before the secret is anywhere.
+    let mut held = vec![0_u8; 1 << 20];
+    let mut out = File::create("/tmp/analysis.txt")?;
+    let mut mem = File::open("/proc/self/mem")?;
+    let mut spans: Vec<(u64, u64)> = Vec::new();
+
+    for line in std::fs::read_to_string("/proc/self/maps")?.lines() {
+        let mut fields = line.split_whitespace();
+        let (Some(range), Some(flags)) = (fields.next(), fields.next()) else {
+            continue;
+        };
+
+        if !flags.starts_with("rw") {
+            continue;
+        }
+
+        let Some((from, to)) = range.split_once('-') else {
+            continue;
+        };
+
+        if let (Ok(from), Ok(to)) = (u64::from_str_radix(from, 16), u64::from_str_radix(to, 16)) {
+            spans.push((from, to));
+        }
+    }
+
+    // The secret, one frame down and abandoned.
+    core::hint::black_box(deeper(0));
+
+    dump(&mut mem, &mut out, &mut held, &spans);
+
+    drop(out);
+
+    let mut dumped = Vec::new();
+
+    File::open("/tmp/analysis.txt")?.read_to_end(&mut dumped)?;
+
+    let whole = dumped
+        .windows(ALPHA.len())
+        .filter(|at| *at == ALPHA)
+        .count();
+
+    let widest = (1..=ALPHA.len())
+        .rev()
+        .find(|take| dumped.windows(*take).any(|at| at == &ALPHA[..*take]))
+        .unwrap_or(0);
+
+    eprintln!();
+    eprintln!("    dumped              {} bytes", dumped.len());
+    eprintln!("    the whole secret    {whole} times");
+    eprintln!("    longest prefix      {widest} of {}", ALPHA.len());
+    eprintln!();
 
     Ok(())
 }

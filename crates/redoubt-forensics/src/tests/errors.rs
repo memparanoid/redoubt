@@ -23,8 +23,9 @@ use crate::errors::{AnyError, DONE, Reason};
 /// no way to ask it for its variants, so a new one has to be added here by
 /// hand. A test that silently stopped covering a variant would be worse than
 /// one that has to be edited, and this is the file where that is noticed.
-const EVERY: [Reason; 8] = [
+const EVERY: [Reason; 9] = [
     Reason::Needle,
+    Reason::NoFloor,
     Reason::NoPipe,
     Reason::NoFork,
     Reason::NoAnswer,

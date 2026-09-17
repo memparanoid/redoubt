@@ -23,15 +23,14 @@
 //! A caller that reads "nothing survived in a register" is trusting three
 //! things, and each is measured somewhere:
 //!
-//! 1. **A value that reaches a register is found.** That is
-//!    `test_a_register_spilled_onto_a_dead_frame_is_found`, out in
-//!    `tests/sweep.rs`, and it is the one to read first — a secret goes
-//!    through a pair of vector registers onto a frame that then dies, the
-//!    whole of [`forensics!`](crate::forensics) runs over it, and it comes
-//!    back found. End to end, through the same door a caller uses.
+//! 1. **A value that reaches a register is found.** Asserted out in
+//!    `tests/sweep.rs`, and the one to read first — a secret goes through a
+//!    pair of vector registers onto a frame that then dies, the whole of
+//!    [`forensics!`](crate::forensics) runs over it, and it comes back found.
+//!    End to end, through the same door a caller uses.
 //! 2. **Every register reaches the room, at its own slot.** That is this file.
 //!    Without it, step one is one path that happens to work and says nothing
-//!    about the other twenty-nine.
+//!    about the rest of the register file.
 //! 3. **The room is memory the sweep reads.** It is a static in the process,
 //!    and the sweep reads the process.
 //!
@@ -253,8 +252,8 @@ const SEED: [u8; 64] = [
 /// stack, and `rbp`, which holds the frame pointer rather than anything of
 /// anyone's. Neither is a place a secret comes to rest.
 ///
-/// `rbx` is, and it is [below](test_the_capture_writes_down_rbx) rather than
-/// here, because Rust refuses to let inline assembly name it.
+/// `rbx` is, and it is asserted on its own below rather than here, because
+/// Rust refuses to let inline assembly name it.
 ///
 /// # Nothing else is declared clobbered
 ///
@@ -403,8 +402,8 @@ fn found_only_at(register: &str, slot: usize, wide: usize) {
 /// makes borrowing it legitimate rather than a violation dressed up.
 ///
 /// The stack is used here, by the push and by the call both. That is already
-/// true of the twenty-nine above, whose `call` says the same thing, and it is
-/// why none of these blocks claims `nostack`.
+/// true of every block above, whose `call` says the same thing, and it is why
+/// none of them claims `nostack`.
 ///
 /// # Why this one could not be left to its neighbours
 ///
