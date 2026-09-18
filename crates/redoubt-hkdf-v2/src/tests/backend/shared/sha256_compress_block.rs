@@ -68,19 +68,22 @@ fn padded(message: &[u8]) -> Vec<u8> {
 /// The digest of a message, taken one block at a time through the compression.
 fn compressed(backend: Backend, message: &[u8]) -> String {
     let mut state = H0;
+    let padded = padded(message);
 
-    for block in padded(message).chunks_exact(BLOCK_SIZE) {
-        let block: &[u8; BLOCK_SIZE] = block
-            .try_into()
-            .expect("Infallible: chunks_exact yields nothing but full chunks");
-
+    // The padding makes the length a whole number of blocks, so the remainder
+    // `as_chunks` returns beside them is empty and there is nothing to do with
+    // it. Asking for blocks of a width rather than slices of a length is also
+    // what makes each one the array the compression takes, with nothing to
+    // convert and nothing to say about a conversion that cannot fail.
+    for block in padded.as_chunks::<BLOCK_SIZE>().0 {
         sha256_compress_block(backend, &mut state, block);
     }
 
     let mut out = vec![0_u8; HASH_SIZE];
+    let (words, _) = out.as_chunks_mut::<4>();
 
-    for (word, into) in state.iter().zip(out.chunks_exact_mut(4)) {
-        into.copy_from_slice(&word.to_be_bytes());
+    for (word, into) in state.iter().zip(words) {
+        *into = word.to_be_bytes();
     }
 
     hex(&out)
