@@ -5,7 +5,7 @@
 use redoubt_alloc::AllockedVec;
 use redoubt_zero::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
-use crate::zeroizing::Zeroizing;
+use redoubt_zero::ZeroizingGuard;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError};
@@ -65,8 +65,8 @@ where
     T: FastZeroizable + ZeroizeMetadata + EncodeSlice + BytesRequired + ZeroizationProbe,
 {
     fn try_encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
-        let mut size = Zeroizing::from(&mut self.len());
-        let mut bytes_required = Zeroizing::from(&mut self.encode_bytes_required()?);
+        let mut size = ZeroizingGuard::from_mut(&mut self.len());
+        let mut bytes_required = ZeroizingGuard::from_mut(&mut self.encode_bytes_required()?);
 
         write_header(buf, &mut size, &mut bytes_required)?;
 
@@ -114,7 +114,7 @@ where
 {
     #[inline(always)]
     fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-        let mut size = Zeroizing::from(&mut 0usize);
+        let mut size = ZeroizingGuard::from_mut(&mut 0usize);
 
         process_header(buf, &mut size)?;
 

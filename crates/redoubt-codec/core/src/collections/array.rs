@@ -9,7 +9,7 @@ use crate::error::{DecodeError, EncodeError, OverflowError};
 use crate::traits::{
     BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc, TryDecode, TryEncode,
 };
-use crate::zeroizing::Zeroizing;
+use redoubt_zero::ZeroizingGuard;
 
 use super::helpers::{header_size, process_header, write_header};
 
@@ -63,8 +63,13 @@ where
     T: EncodeSlice + BytesRequired + FastZeroizable + ZeroizeMetadata,
 {
     fn try_encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
-        let mut size = Zeroizing::new(N);
-        let mut bytes_required = Zeroizing::from(&mut self.encode_bytes_required()?);
+        // The width is a const, and a mutable reference to one is a reference
+        // to a fresh temporary each time it is written. Bound to a local, the
+        // guard takes the value out of somewhere that exists.
+        let mut width = N;
+
+        let mut size = ZeroizingGuard::from_mut(&mut width);
+        let mut bytes_required = ZeroizingGuard::from_mut(&mut self.encode_bytes_required()?);
 
         write_header(buf, &mut size, &mut bytes_required)?;
 
@@ -112,7 +117,7 @@ where
 {
     #[inline(always)]
     fn try_decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-        let mut size = Zeroizing::from(&mut 0usize);
+        let mut size = ZeroizingGuard::from_mut(&mut 0usize);
 
         process_header(buf, &mut size)?;
 

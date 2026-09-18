@@ -10,7 +10,7 @@ use redoubt_zero::FastZeroizable;
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError, RedoubtCodecBufferError};
 use crate::traits::{BytesRequired, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize};
-use crate::zeroizing::Zeroizing;
+use redoubt_zero::ZeroizingGuard;
 
 pub fn header_size() -> usize {
     2 * size_of::<usize>()
@@ -30,7 +30,7 @@ pub fn write_header(
 
 #[inline(always)]
 pub fn process_header(buf: &mut &mut [u8], output_size: &mut usize) -> Result<(), DecodeError> {
-    let header_size = Zeroizing::from(&mut header_size());
+    let header_size = ZeroizingGuard::from_mut(&mut header_size());
 
     if buf.len() < *header_size {
         return Err(DecodeError::PreconditionViolated);
@@ -41,7 +41,7 @@ pub fn process_header(buf: &mut &mut [u8], output_size: &mut usize) -> Result<()
     buf.read_usize(output_size)?;
 
     // bytes_required is only used internally for validation
-    let mut bytes_required = Zeroizing::from(&mut 0usize);
+    let mut bytes_required = ZeroizingGuard::from_mut(&mut 0usize);
 
     // Infallible: precondition ensures buf.len() >= header_size (2 * usize)
     // Error branch kept for panic-free guarantees, cannot be tested
@@ -51,7 +51,7 @@ pub fn process_header(buf: &mut &mut [u8], output_size: &mut usize) -> Result<()
         return Err(DecodeError::PreconditionViolated);
     }
 
-    let expected_len = Zeroizing::from(&mut (*bytes_required - *header_size));
+    let expected_len = ZeroizingGuard::from_mut(&mut (*bytes_required - *header_size));
 
     if buf.len() < *expected_len {
         return Err(DecodeError::PreconditionViolated);
@@ -99,10 +99,11 @@ pub fn to_decode_zeroize_dyn_mut<T: DecodeZeroize>(x: &mut T) -> &mut dyn Decode
 pub fn bytes_required_sum<'a>(
     iter: impl Iterator<Item = &'a dyn BytesRequired>,
 ) -> Result<usize, OverflowError> {
-    let mut total = Zeroizing::from(&mut 0usize);
+    let mut total = ZeroizingGuard::from_mut(&mut 0usize);
 
     for elem in iter {
-        let new_total = Zeroizing::from(&mut total.wrapping_add(elem.encode_bytes_required()?));
+        let new_total =
+            ZeroizingGuard::from_mut(&mut total.wrapping_add(elem.encode_bytes_required()?));
 
         if *new_total < *total {
             return Err(OverflowError {

@@ -12,4 +12,3 @@ mod decode_buffer;
 mod error;
 mod primitives;
 mod support;
-mod zeroizing;
