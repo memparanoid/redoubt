@@ -1150,10 +1150,115 @@ FUNC(redoubt_hmac_sha256):
     HKDF_SHA256_ZEROIZE_ALL
     ret
 
+
 //============================================================================
-// hkdf_sha256 (fixed: variable msg buffer + RFC limit + strong zeroization)
+// sha256_absorb
 //============================================================================
-// HKDF-SHA256 per RFC 5869
+// Adds a run of bytes to a message being hashed a piece at a time
+//
+// C signature:
+//   void sha256_absorb(
+//       uint32_t H[8],
+//       const uint8_t *src,
+//       size_t len,
+//       uint8_t block[64],
+//       size_t *fill
+//   );
+//
+// Parameters:
+//   x0: H_ptr (the chaining state, advanced one block at a time)
+//   x1: src_ptr (the bytes to add)
+//   x2: len
+//   x3: block_ptr (the caller's 64-byte buffer, filled across calls)
+//   x4: fill_ptr (how many bytes the buffer holds; read and written)
+//
+// Behavior:
+//   Appends the run to the buffer, and every time the buffer fills, folds it
+//   into H and empties it. The buffer is left holding fewer than 64 bytes, so
+//   the caller can add another run or hand what is left to
+//   sha256_update_finalize.
+//
+// Usage: Called by hkdf_sha256, which has a message in three pieces and no
+//        place to put the whole of it
+//
+// The buffer and the counter are the caller's, and are not zeroized here: this
+// routine is called again on the same two, and the caller is the one that knows
+// when they are finished with.
+//============================================================================
+// Local: reached from `hkdf_sha256` and from nowhere outside this file. A name
+// in the symbol table is a name a linked library can collide with, and the
+// linker resolves that without a word to anybody.
+.p2align 4
+.Lsha256_absorb:
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: the frame holds no message bytes, only the arguments —
+// ║ but ABSORB_SRC and ABSORB_H are pointers into the caller's secrets, and a
+// ║ pointer left behind is a pointer somebody can follow.
+// ║
+// ║ They are here because the compression empties every caller-saved register
+// ║ before it returns, so nothing that has to outlive the call can be left in
+// ║ one — and a prologue that saved a callee-saved register instead would write
+// ║ the caller's value to a stack this routine cannot wipe.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before sp is
+// ║ advanced.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
+    sub     sp, sp, #FRAME_ABSORB
+
+    str     x30, [sp, #ABSORB_LR]
+    str     x0, [sp, #ABSORB_H]
+    str     x1, [sp, #ABSORB_SRC]
+    str     x2, [sp, #ABSORB_LEFT]
+    str     x3, [sp, #ABSORB_BLOCK]
+    str     x4, [sp, #ABSORB_FILL]
+
+.Labsorb_loop:
+    ldr     x2, [sp, #ABSORB_LEFT]
+    cbz     x2, .Labsorb_done
+
+    ldr     x4, [sp, #ABSORB_FILL]
+    ldr     x5, [x4]
+    ldr     x3, [sp, #ABSORB_BLOCK]
+    ldr     x1, [sp, #ABSORB_SRC]
+
+    ldrb    w6, [x1]
+    strb    w6, [x3, x5]
+
+    add     x1, x1, #1
+    sub     x2, x2, #1
+    add     x5, x5, #1
+    str     x1, [sp, #ABSORB_SRC]
+    str     x2, [sp, #ABSORB_LEFT]
+    str     x5, [x4]
+
+    cmp     x5, #64
+    b.lo    .Labsorb_loop
+
+    // The buffer is full: fold it in and start it again.
+    ldr     x0, [sp, #ABSORB_H]
+    ldr     x1, [sp, #ABSORB_BLOCK]
+    bl      FUNC(redoubt_sha256_compress_block)
+
+    ldr     x4, [sp, #ABSORB_FILL]
+    str     xzr, [x4]
+    b       .Labsorb_loop
+
+.Labsorb_done:
+    // The caller's return address, back out of the frame before the frame goes.
+    ldr     x30, [sp, #ABSORB_LR]
+
+    HKDF_EMPTY_FRAME FRAME_ABSORB
+// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
+
+    HKDF_SHA256_ZEROIZE_ALL
+    ret
+
+//============================================================================
+// hkdf_sha256
+//============================================================================
+// HKDF-SHA256 per RFC 5869: Extract-and-Expand key derivation
 //
 // C signature:
 //   void hkdf_sha256(
@@ -1173,160 +1278,228 @@ FUNC(redoubt_hmac_sha256):
 //   x6: okm_ptr
 //   x7: okm_len
 //
-// Stack layout (variable):
-//   [sp+0..31]   : PRK (32 bytes, SECRET)
-//   [sp+32..63]  : T(i) (32 bytes, SECRET)
-//   [sp+64..]    : msg buffer = T(i-1) || info || counter
-//                 size = align16(32 + info_len + 1)
+// Behavior:
+//   1. Extract: PRK = HMAC-SHA256(salt, IKM)
+//   2. Expand: Iteratively generate OKM blocks:
+//      T(1) = HMAC(PRK, info || 0x01)
+//      T(i) = HMAC(PRK, T(i-1) || info || i) for i = 2..N
+//      OKM = first okm_len bytes of T(1) || T(2) || ... || T(N)
+//      where N = ceil(okm_len / 32)
 //
-// Security notes:
-// - Enforces okm_len <= 8160 (255 * 32) per RFC 5869.
-// - Zeroizes the entire local frame (PRK + T + msg buffer) before returning.
-// - Clears registers that may have held sensitive bytes (best effort).
-
+// A length the counter has no block for is refused above this file, so the
+// counter is written with one byte here and never checked.
+//
+// Why the expansion does not call hmac_sha256:
+//   The message of each iteration is T(i-1) || info || counter, and a call
+//   would need it in one piece — which means a buffer sized from info_len, and
+//   a routine whose prologue cannot say how much stack it takes. Instead the
+//   pieces are fed to the hash where they lie, the pads are built once from a
+//   key that is already a block or less, and the frame is a number.
+//
+// Registers: none callee-saved. What has to outlive a call is in the frame.
+//
+// Stack layout: FRAME_HKDF bytes, laid out by the HKDF_* constants above, and
+//               zeroized in full before return.
+//
+// Security: PRK, the pads, the block buffer, the chaining state, the inner
+//           digest and T(i) are all in the frame and go out with it
+//           + HKDF_SHA256_ZEROIZE_ALL clears all caller-saved registers
+//============================================================================
 .globl FUNC(redoubt_hkdf_sha256)
+HIDDEN_FUNC(redoubt_hkdf_sha256)
 .p2align 4
 FUNC(redoubt_hkdf_sha256):
-    // Prologue: save FP/LR + callee-saved regs we use (x19-x28).
-    // Preconditions (okm_len <= 8160, okm_len > 0) are checked by Rust wrapper.
-    stp     x29, x30, [sp, #-96]!
-    mov     x29, sp
-    stp     x19, x20, [sp, #16]
-    stp     x21, x22, [sp, #32]
-    stp     x23, x24, [sp, #48]
-    stp     x25, x26, [sp, #64]
-    stp     x27, x28, [sp, #80]
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: HKDF_PRK holds the extracted key, which is what every
+// ║ byte of output is derived from. HKDF_IPAD and HKDF_OPAD hold it exclusive-
+// ║ ored with the constants RFC 2104 names — each of those is the key,
+// ║ recoverable by undoing one xor against a byte anybody can look up.
+// ║
+// ║ HKDF_H holds a state with a pad already folded in, HKDF_INNER the inner
+// ║ digest the outer hash is keyed over, and HKDF_T a block of the output
+// ║ itself. HKDF_BLOCK holds the tail of the message being hashed.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before sp is
+// ║ advanced.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
+    sub     sp, sp, #FRAME_HKDF
 
-    // Move stable params into callee-saved regs.
-    mov     x19, x4                           // info_ptr
-    mov     x20, x5                           // info_len
-    mov     x21, x6                           // okm_ptr
-    mov     x22, x7                           // okm_len
+    // What has to survive the calls below. The salt and the IKM are not among
+    // them: they are read by the extraction and never again.
+    str     x30, [sp, #HKDF_LR]
+    str     x4, [sp, #HKDF_INFO]
+    str     x5, [sp, #HKDF_INFOLEN]
+    str     x6, [sp, #HKDF_OKM]
+    str     x7, [sp, #HKDF_OKMLEN]
 
-    // Compute msg_cap_aligned = align16(32 + info_len + 1)
-    // and locals_size = 64 + msg_cap_aligned
-    add     x27, x20, #33                     // msg_cap = info_len + 32 + 1
-    add     x27, x27, #15
-    and     x27, x27, #-16                    // msg_cap_aligned in x27
-    add     x28, x27, #64                     // locals_size in x28 (PRK+T = 64)
-    sub     sp, sp, x28                       // allocate locals
-
-    // ------------------------------------------------------------------------
+    // ========================================================================
     // Step 1: Extract - PRK = HMAC-SHA256(salt, IKM)
-    // ------------------------------------------------------------------------
-    mov     x4, sp                            // out: PRK at sp+0
+    // ========================================================================
+    // x0 through x3 still hold what the caller put there.
+    add     x4, sp, #HKDF_PRK
     bl      FUNC(redoubt_hmac_sha256)
 
-    // ------------------------------------------------------------------------
-    // Step 2: Expand
-    // ------------------------------------------------------------------------
-    mov     x23, #1                           // counter = 1..255
-    mov     x24, #0                           // T_len = 0 for i=1
+    // ========================================================================
+    // Step 2: the pads, built once
+    // ========================================================================
+    // PRK is 32 bytes, which is inside a block, so the key needs no hashing
+    // down and the bytes past it are the zero padding RFC 2104 asks for.
+    add     x6, sp, #HKDF_PRK
+    add     x7, sp, #HKDF_IPAD
+    add     x8, sp, #HKDF_OPAD
+    mov     w0, #0x36
+    mov     w1, #0x5c
+    mov     x16, #0
+.Lhkdf_pad_loop:
+    cmp     x16, #64
+    b.ge    .Lhkdf_pad_done
+
+    mov     w17, wzr
+    cmp     x16, #32
+    b.ge    .Lhkdf_pad_byte
+    ldrb    w17, [x6, x16]
+
+.Lhkdf_pad_byte:
+    eor     w2, w17, w0
+    strb    w2, [x7, x16]
+
+    eor     w2, w17, w1
+    strb    w2, [x8, x16]
+
+    add     x16, x16, #1
+    b       .Lhkdf_pad_loop
+
+.Lhkdf_pad_done:
+    // ========================================================================
+    // Step 3: Expand
+    // ========================================================================
+    mov     x0, #1
+    str     x0, [sp, #HKDF_COUNTER]
+    str     xzr, [sp, #HKDF_TLEN]
 
 .Lhkdf_expand_loop:
-    cbz     x22, .Lhkdf_done
+    ldr     x0, [sp, #HKDF_OKMLEN]
+    cbz     x0, .Lhkdf_done
 
-    // msg_base = sp + 64
-    add     x25, sp, #64
+    // inner = SHA256(ipad || T(i-1) || info || counter)
+#if defined(__APPLE__)
+    adrp    x0, .LH256_INIT@PAGE
+    add     x0, x0, .LH256_INIT@PAGEOFF
+#else
+    adrp    x0, .LH256_INIT
+    add     x0, x0, :lo12:.LH256_INIT
+#endif
+    ld1     {v0.4s, v1.4s}, [x0]
+    add     x0, sp, #HKDF_H
+    st1     {v0.4s, v1.4s}, [x0]
 
-    // Copy T(i-1) from [sp+32] length x24 into msg_base.
-    add     x16, sp, #32                      // T(i-1) / T(i) location
-    mov     x26, #0
-.Lhkdf_copy_t:
-    cmp     x26, x24
-    b.ge    .Lhkdf_t_copied
-    ldrb    w15, [x16, x26]                   // w15 holds SECRET byte
-    strb    w15, [x25, x26]
-    add     x26, x26, #1
-    b       .Lhkdf_copy_t
+    add     x0, sp, #HKDF_H
+    add     x1, sp, #HKDF_IPAD
+    bl      FUNC(redoubt_sha256_compress_block)
 
-.Lhkdf_t_copied:
-    // Copy info right after T(i-1)
-    add     x25, x25, x24
-    mov     x26, #0
-.Lhkdf_copy_info:
-    cmp     x26, x20
-    b.ge    .Lhkdf_info_copied
-    ldrb    w15, [x19, x26]
-    strb    w15, [x25, x26]
-    add     x26, x26, #1
-    b       .Lhkdf_copy_info
+    str     xzr, [sp, #HKDF_FILL]
 
-.Lhkdf_info_copied:
-    // Append counter byte after info
-    add     x25, x25, x20
-    strb    w23, [x25]
+    // T(i-1), which is nothing on the first round.
+    add     x0, sp, #HKDF_H
+    add     x1, sp, #HKDF_T
+    ldr     x2, [sp, #HKDF_TLEN]
+    add     x3, sp, #HKDF_BLOCK
+    add     x4, sp, #HKDF_FILL
+    bl      .Lsha256_absorb
 
-    // msg_len = T_len + info_len + 1
-    add     x17, x24, x20
-    add     x17, x17, #1
+    // info, read where the caller left it.
+    add     x0, sp, #HKDF_H
+    ldr     x1, [sp, #HKDF_INFO]
+    ldr     x2, [sp, #HKDF_INFOLEN]
+    add     x3, sp, #HKDF_BLOCK
+    add     x4, sp, #HKDF_FILL
+    bl      .Lsha256_absorb
 
-    // T(i) = HMAC(PRK, msg)
-    mov     x0, sp                            // key: PRK at sp+0
-    mov     x1, #32                           // key_len
-    add     x2, sp, #64                       // msg_base
-    mov     x3, x17                           // msg_len
-    add     x4, sp, #32                       // out: T(i) at sp+32
-    bl      FUNC(redoubt_hmac_sha256)
+    // The counter closes the message, so it goes into the buffer rather than
+    // through the absorb: what is left is one partial block, which is what the
+    // padding wants.
+    ldr     x5, [sp, #HKDF_FILL]
+    ldr     x6, [sp, #HKDF_COUNTER]
+    add     x7, sp, #HKDF_BLOCK
+    strb    w6, [x7, x5]
+    add     x5, x5, #1
 
-    // Copy min(okm_len, 32) bytes from T(i) into okm_ptr.
-    mov     x25, #32
-    cmp     x22, #32
-    csel    x25, x22, x25, lo                 // bytes_to_copy in x25
+    // total_len = 64 + T_len + info_len + 1
+    ldr     x9, [sp, #HKDF_TLEN]
+    ldr     x10, [sp, #HKDF_INFOLEN]
+    add     x9, x9, x10
+    add     x9, x9, #65
 
-    add     x16, sp, #32
-    mov     x26, #0
-.Lhkdf_copy_okm:
-    cmp     x26, x25
-    b.ge    .Lhkdf_okm_copied
-    ldrb    w15, [x16, x26]                   // SECRET byte
-    strb    w15, [x21, x26]
-    add     x26, x26, #1
-    b       .Lhkdf_copy_okm
+    add     x0, sp, #HKDF_H
+    add     x1, sp, #HKDF_BLOCK
+    mov     x2, x5
+    mov     x3, x9
+    add     x4, sp, #HKDF_INNER
+    bl      .Lsha256_update_finalize
 
-.Lhkdf_okm_copied:
-    // Update output cursor and remaining length.
-    add     x21, x21, x25
-    sub     x22, x22, x25
+    // T(i) = SHA256(opad || inner)
+#if defined(__APPLE__)
+    adrp    x0, .LH256_INIT@PAGE
+    add     x0, x0, .LH256_INIT@PAGEOFF
+#else
+    adrp    x0, .LH256_INIT
+    add     x0, x0, :lo12:.LH256_INIT
+#endif
+    ld1     {v0.4s, v1.4s}, [x0]
+    add     x0, sp, #HKDF_H
+    st1     {v0.4s, v1.4s}, [x0]
 
-    // Next iteration state.
-    add     x23, x23, #1                      // counter++
-    mov     x24, #32                          // T_len=32 from now on
+    add     x0, sp, #HKDF_H
+    add     x1, sp, #HKDF_OPAD
+    bl      FUNC(redoubt_sha256_compress_block)
 
-    // Optional: wipe the first 32 bytes of msg buffer (contains T(i-1))
-    // This reduces exposure if something crashes mid-loop.
-    // (Costs a few stores; keep if paranoia > perf.)
-    add     x16, sp, #64
-    stp     xzr, xzr, [x16, #0]
-    stp     xzr, xzr, [x16, #16]
+    add     x0, sp, #HKDF_H
+    add     x1, sp, #HKDF_INNER
+    mov     x2, #32
+    mov     x3, #96
+    add     x4, sp, #HKDF_T
+    bl      .Lsha256_update_finalize
 
+    // As much of T(i) as the caller still has room for.
+    ldr     x10, [sp, #HKDF_OKMLEN]
+    mov     x11, #32
+    cmp     x10, #32
+    csel    x11, x10, x11, lo
+
+    ldr     x12, [sp, #HKDF_OKM]
+    add     x13, sp, #HKDF_T
+    mov     x16, #0
+.Lhkdf_emit_loop:
+    cmp     x16, x11
+    b.ge    .Lhkdf_emitted
+    ldrb    w17, [x13, x16]
+    strb    w17, [x12, x16]
+    add     x16, x16, #1
+    b       .Lhkdf_emit_loop
+
+.Lhkdf_emitted:
+    add     x12, x12, x11
+    str     x12, [sp, #HKDF_OKM]
+    sub     x10, x10, x11
+    str     x10, [sp, #HKDF_OKMLEN]
+
+    ldr     x0, [sp, #HKDF_COUNTER]
+    add     x0, x0, #1
+    str     x0, [sp, #HKDF_COUNTER]
+    mov     x0, #32
+    str     x0, [sp, #HKDF_TLEN]
     b       .Lhkdf_expand_loop
 
 .Lhkdf_done:
-    // ------------------------------------------------------------------------
-    // Strong zeroization of locals: PRK (32) + T (32) + msg buffer (x27 bytes)
-    // Total bytes = 64 + x27 = x28
-    // x28 already equals locals_size and is 16-byte aligned.
-    // ------------------------------------------------------------------------
-    mov     x0, sp                            // ptr
-    lsr     x1, x28, #4                       // 16-byte chunks
-.Lhkdf_wipe_loop:
-    stp     xzr, xzr, [x0], #16
-    subs    x1, x1, #1
-    b.ne    .Lhkdf_wipe_loop
+    // The caller's return address, back out of the frame before the frame goes.
+    ldr     x30, [sp, #HKDF_LR]
 
-    // Deallocate locals.
-    add     sp, sp, x28
+    HKDF_EMPTY_FRAME FRAME_HKDF
+// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
 
-    // Zeroize all caller-saved registers (GPR + SIMD) that may have held
-    // SECRET bytes during HKDF derivation.
     HKDF_SHA256_ZEROIZE_ALL
-
-    // Restore callee-saved regs and return.
-    ldp     x27, x28, [sp, #80]
-    ldp     x25, x26, [sp, #64]
-    ldp     x23, x24, [sp, #48]
-    ldp     x21, x22, [sp, #32]
-    ldp     x19, x20, [sp, #16]
-    ldp     x29, x30, [sp], #96
     ret
+
+    .section .note.GNU-stack,"",@progbits
