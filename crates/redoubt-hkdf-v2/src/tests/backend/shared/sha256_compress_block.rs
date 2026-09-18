@@ -29,7 +29,7 @@ use redoubt_asm::Backend;
 use crate::backend::sha256_compress_block;
 use crate::consts::{BLOCK_SIZE, HASH_SIZE};
 
-use super::super::{LONG_MSG, LONG_MSG_COUNT, SHORT_MSG, SHORT_MSG_COUNT, hex, messages};
+use crate::tests::{LONG_MSG, LONG_MSG_COUNT, SHORT_MSG, SHORT_MSG_COUNT, hex, messages};
 
 /// The state a digest starts from, FIPS 180-4 §5.3.3.
 ///

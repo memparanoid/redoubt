@@ -4,9 +4,9 @@
 
 //! One file per function the seam declares, in the order it declares them.
 
+mod asm;
 mod rust;
-mod sha256_compress_block;
-mod sha256_hash;
+mod shared;
 
 /// The precondition every case in every file below rests on.
 ///

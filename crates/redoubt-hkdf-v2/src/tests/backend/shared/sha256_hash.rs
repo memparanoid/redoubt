@@ -18,7 +18,7 @@ use redoubt_asm::Backend;
 use crate::backend::sha256_hash;
 use crate::consts::HASH_SIZE;
 
-use super::super::{
+use crate::tests::{
     CHAINED, LONG_MSG, LONG_MSG_COUNT, MONTE, MONTE_COUNT, SHORT_MSG, SHORT_MSG_COUNT, field,
     from_hex, hex, messages,
 };

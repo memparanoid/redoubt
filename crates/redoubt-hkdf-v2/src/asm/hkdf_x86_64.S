@@ -1563,3 +1563,199 @@ FUNC(redoubt_hkdf_sha256):
 #if !defined(__APPLE__)
 .size FUNC(redoubt_hkdf_sha256), .-FUNC(redoubt_hkdf_sha256)
 #endif
+
+
+// ============================================================================
+// THE ZEROIZATION PROBE — everything below measures the routines above
+// ============================================================================
+//
+// Nothing in production calls any of it. It is here and not in a file of its
+// own because a reader asking whether the measurement is right should not have
+// to find a second file and check that a number in it still matches a number
+// in this one: the FRAME_* constants below are the frames, and the register
+// budget it asks about is the list the wipe uses, not a copy of either.
+//
+// What it costs is a few hundred bytes of instructions that ship unused. What
+// it buys is that the only sizes in the measurement, and the only list of
+// registers, are the ones at the top of this file.
+//
+// What asks comes first, then what is asked about:
+//
+//   registers_are_zeroized   asks the machine, with the budget's own list
+//   frame_is_zeroized_X      asks the stack, with routine X's own FRAME_X
+//   dirty_registers          fills the budget and leaves it that way
+//   dirty_frame_X            one byte of X's frame, at an offset given
+//   clean_frame_X            X's frame written and emptied, with no work
+//
+// # Why the frame instruments are one set per routine
+//
+// The routines here do not share a frame, so there is no one window to read.
+// The three that concern a frame are written once, as a macro over a size, and
+// instantiated with each routine's own constant — which is the same constant
+// that routine's `sub rsp` names. A verifier and the routine it is asked about
+// therefore cannot disagree about where the frame was without the file saying
+// two different things in the same place.
+
+.macro HKDF_GATHER_VECTOR reg
+    por xmm0, \reg
+.endm
+
+// Copies what xmm0 already holds into each of them, xmm0 included and harmless.
+.macro HKDF_FILL_VECTOR reg
+    movdqa \reg, xmm0
+.endm
+
+// uint64_t redoubt_hkdf_registers_are_zeroized(void)
+//
+// Whether any register in the budget is still holding something. Zero when
+// they are all empty, and the bits of whatever was not otherwise.
+//
+// Takes no argument on purpose. A destination passed in would cost rdi, and
+// rdi is one of the registers being asked about — it would arrive holding our
+// own pointer rather than the caller's value. With nothing passed, `call` is
+// the whole call sequence and every register read here is the caller's own.
+.p2align 4
+.globl FUNC(redoubt_hkdf_registers_are_zeroized)
+HIDDEN_FUNC(redoubt_hkdf_registers_are_zeroized)
+FUNC(redoubt_hkdf_registers_are_zeroized):
+    // The vectors gather first, into xmm0, whose own value goes in on the first
+    // line. `por` reads and writes nothing but vector registers, so every
+    // general register is still the caller's when the next line reaches it.
+    HKDF_EACH_VECTOR HKDF_GATHER_VECTOR
+
+    // rcx gathers, its own value going in on its own line, and rax is read
+    // before anything here writes to it.
+    HKDF_EACH_GPR HKDF_GATHER_GPR
+
+    // The vectors fold in last, through a register whose value rcx already has.
+    movq rax, xmm0
+    or rcx, rax
+    pextrq rax, xmm0, 1
+    or rcx, rax
+
+    mov rax, rcx
+    ret
+
+// Every register in the budget filled, and left that way.
+//
+// What answers whether anything runs between one call and the next: called
+// straight before a verifier, every register it filled has to still be full.
+.p2align 4
+.globl FUNC(redoubt_hkdf_dirty_registers)
+HIDDEN_FUNC(redoubt_hkdf_dirty_registers)
+FUNC(redoubt_hkdf_dirty_registers):
+    mov rax, 0xa5a5a5a5a5a5a5a5
+    movq xmm0, rax
+    punpcklqdq xmm0, xmm0
+    HKDF_EACH_VECTOR HKDF_FILL_VECTOR
+    HKDF_EACH_GPR HKDF_FILL_GPR
+    ret
+
+// The three frame instruments for a routine whose frame is \size bytes.
+//
+// uint64_t redoubt_hkdf_frame_is_zeroized_\name(void)
+//
+//   Whether any byte of the frame the call before it used is still holding
+//   something. Zero when it is all empty, and the bits of whatever was not.
+//
+//   Reads below its own rsp, and that is the whole of it: `call` leaves rsp
+//   where the routine before had it, so what sits under this one's return
+//   address is what sat under that one's — the frame it took and gave back.
+//
+//   Asked after the registers, never before: reading a frame takes registers,
+//   and the answer about those has to be taken first.
+//
+// void redoubt_hkdf_dirty_frame_\name(size_t at)
+//
+//   One byte of the frame, dirtied and left. rdi says which.
+//
+//   Swept over every offset, this is what establishes that the verifier reads
+//   the whole frame and not the first word of it — and that the byte it reaches
+//   is the byte that was written, which is where an off-by-one against the
+//   return address sitting next door would show.
+//
+// void redoubt_hkdf_clean_frame_\name(void)
+//
+//   The whole frame written and then emptied: what the routine does, without
+//   the work in between. The positive control — without it, "the frame came
+//   back zero" is only ever asserted about routines whose correctness is what
+//   is in question.
+.macro HKDF_FRAME_PROBE name, size
+.p2align 4
+.globl FUNC(redoubt_hkdf_frame_is_zeroized_\name)
+HIDDEN_FUNC(redoubt_hkdf_frame_is_zeroized_\name)
+FUNC(redoubt_hkdf_frame_is_zeroized_\name):
+    // The index counts up from minus the frame to zero. x86 addresses with a
+    // base plus an index, never a base minus one, so what reaches below rsp is
+    // an index holding a negative number rather than a subtraction.
+    xor eax, eax
+    mov rcx, -\size
+1:
+    or rax, [rsp + rcx]
+    add rcx, 8
+    jnz 1b
+    ret
+
+.p2align 4
+.globl FUNC(redoubt_hkdf_dirty_frame_\name)
+HIDDEN_FUNC(redoubt_hkdf_dirty_frame_\name)
+FUNC(redoubt_hkdf_dirty_frame_\name):
+    sub rsp, \size
+    // Isolate this byte from every previous call's residue. Keep rdi, the
+    // requested offset, intact until the whole frame is empty.
+    xor ecx, ecx
+2:
+    mov qword ptr [rsp + rcx], 0
+    add rcx, 8
+    cmp rcx, \size
+    jb 2b
+    mov byte ptr [rsp + rdi], 0x5c
+    add rsp, \size
+    ret
+
+.p2align 4
+.globl FUNC(redoubt_hkdf_clean_frame_\name)
+HIDDEN_FUNC(redoubt_hkdf_clean_frame_\name)
+FUNC(redoubt_hkdf_clean_frame_\name):
+    sub rsp, \size
+    mov rax, 0x5c5c5c5c5c5c5c5c
+    xor ecx, ecx
+3:
+    mov [rsp + rcx], rax
+    add rcx, 8
+    cmp rcx, \size
+    jb 3b
+    HKDF_EMPTY_FRAME \size
+    HKDF_SHA256_ZEROIZE_ALL
+    ret
+.endm
+
+// The two routines with no name outside this file, given one for the length of
+// a measurement.
+//
+// A jump and not a call. `jmp` leaves rsp and the return address exactly as
+// they arrived, so the frame the routine takes is the one it would have taken
+// from its real caller — and the one the verifier will read. A `call` here
+// would put another return address in between and move the whole window.
+.p2align 4
+.globl FUNC(redoubt_hkdf_probe_update_finalize)
+HIDDEN_FUNC(redoubt_hkdf_probe_update_finalize)
+FUNC(redoubt_hkdf_probe_update_finalize):
+    jmp .Lsha256_update_finalize
+
+.p2align 4
+.globl FUNC(redoubt_hkdf_probe_absorb)
+HIDDEN_FUNC(redoubt_hkdf_probe_absorb)
+FUNC(redoubt_hkdf_probe_absorb):
+    jmp .Lsha256_absorb
+
+HKDF_FRAME_PROBE compress_block, FRAME_COMPRESS
+HKDF_FRAME_PROBE hash, FRAME_HASH
+HKDF_FRAME_PROBE update_finalize, FRAME_UPDATE
+HKDF_FRAME_PROBE hmac, FRAME_HMAC
+HKDF_FRAME_PROBE absorb, FRAME_ABSORB
+HKDF_FRAME_PROBE hkdf, FRAME_HKDF
+
+#if !defined(__APPLE__)
+.section .note.GNU-stack,"",@progbits
+#endif
