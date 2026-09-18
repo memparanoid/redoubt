@@ -1002,6 +1002,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "redoubt-asm"
+version = "0.1.0-rc.8"
+
+[[package]]
 name = "redoubt-buffer"
 version = "0.1.0-rc.8"
 dependencies = [

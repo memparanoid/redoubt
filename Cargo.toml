@@ -29,6 +29,7 @@ members = [
   "crates/redoubt-vault/core",
   "crates/redoubt-vault/derive",
   "crates/redoubt-alloc",
+  "crates/redoubt-asm",
   "crates/redoubt-codec",
   "crates/redoubt-codec/core",
   "crates/redoubt-codec/derive",
@@ -63,6 +64,7 @@ resolver = "2"
   redoubt-aead-xchacha          = { path = "crates/redoubt-aead/xchacha", version = "0.1.0-rc.8" }
   redoubt-aead-xchachapoly1305  = { path = "crates/redoubt-aead-v2/crates/xchachapoly1305", version = "0.1.0-rc.8" }
   redoubt-alloc                 = { path = "crates/redoubt-alloc", version = "0.1.0-rc.8" }
+  redoubt-asm                   = { path = "crates/redoubt-asm", version = "0.1.0-rc.8" }
   redoubt-buffer                = { path = "crates/redoubt-buffer", version = "0.1.0-rc.8" }
   redoubt-chacha                = { path = "crates/redoubt-aead-v2/crates/chacha", version = "0.1.0-rc.8" }
   redoubt-codec                 = { path = "crates/redoubt-codec", version = "0.1.0-rc.8" }

@@ -1,0 +1,14 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "no-std"]
+description          = "Which implementation a primitive runs: the assembly its target has, or the portable Rust"
+edition.workspace    = true
+keywords             = ["assembly", "crypto", "no-std"]
+license.workspace    = true
+name                 = "redoubt-asm"
+readme.workspace     = true
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
