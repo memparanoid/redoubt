@@ -248,11 +248,10 @@ fn test_a_decoded_value_is_found_while_it_holds_the_secret() -> Result<(), AnyEr
 
         value.encode_into(&mut buffer)?;
 
-        let mut wire = buffer.as_mut_slice().to_vec();
-        let mut reading = &mut wire[..];
+        let mut wire = buffer.export_as_vec();
         let mut back = RedoubtVec::<u8>::new();
 
-        back.decode_from(&mut reading)?;
+        back.decode_from(&mut wire.as_mut_slice())?;
 
         capture!();
 
@@ -291,11 +290,10 @@ macro_rules! decoded {
                 value.encode_into(&mut buffer)?;
                 value.fast_zeroize();
 
-                let mut wire = buffer.as_mut_slice().to_vec();
-                let mut reading = &mut wire[..];
+                let mut wire = buffer.export_as_vec();
                 let mut back = RedoubtVec::<u8>::new();
 
-                back.decode_from(&mut reading)?;
+                back.decode_from(&mut wire.as_mut_slice())?;
 
                 capture!();
 
