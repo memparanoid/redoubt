@@ -9,6 +9,7 @@ mod support;
 
 mod backend;
 mod hkdf;
+mod libsodium;
 mod rfc;
 mod wycheproof;
 
@@ -22,11 +23,16 @@ pub(crate) const SHORT_MSG: &str = include_str!("../../vectors/SHA256ShortMsg.rs
 pub(crate) const LONG_MSG: &str = include_str!("../../vectors/SHA256LongMsg.rsp");
 pub(crate) const MONTE: &str = include_str!("../../vectors/SHA256Monte.rsp");
 
+/// One digest per info length, generated from libsodium by the script beside
+/// it, read from here for the same reason the three above are.
+pub(crate) const SODIUM_DIGESTS: &str = include_str!("../../vectors/hkdf_sha256_digests.txt");
+
 /// How many messages each of them says it has, so a file that arrived
 /// truncated is a failure and not a shorter run that passes.
 pub(crate) const SHORT_MSG_COUNT: usize = 65;
 pub(crate) const LONG_MSG_COUNT: usize = 64;
 pub(crate) const MONTE_COUNT: usize = 100;
+pub(crate) const MD_COUNT: usize = 131;
 
 /// How many digests the Monte Carlo takes between one checkpoint and the next.
 pub(crate) const CHAINED: usize = 1_000;
