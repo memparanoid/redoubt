@@ -8,7 +8,7 @@
 //!   x0: H_ptr (input/output, 32 bytes) - NEVER MODIFY
 //!   x1: block_ptr (input, 64 bytes) - NEVER MODIFY
 //!   x2: loop counter t (0-63)
-//!   x3: K_ptr (K256 constants)
+//!   x3: K_ptr (.LK256 constants)
 //!   w4-w10: temporaries for T1, T2, Ch, Maj, Σ, σ
 //!   w17: temp for inline operations
 //!   v16: H[0..3] (H state, first 4 words)
@@ -126,7 +126,7 @@ RODATA_SECTION
 .p2align 6
 
 // SHA-256 K constants (64 rounds)
-K256:
+.LK256:
     .long 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5
     .long 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5
     .long 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3
@@ -145,7 +145,7 @@ K256:
     .long 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 
 // SHA-256 Initial Hash Values (H^(0) per FIPS 180-4)
-H256_INIT:
+.LH256_INIT:
     .long 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a
     .long 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
 
@@ -172,10 +172,10 @@ H256_INIT:
 // Stack usage:
 //   64 bytes for W[0..15] (zeroized before return)
 //
-.global FUNC(sha256_compress_block)
-HIDDEN_FUNC(sha256_compress_block)
+.global FUNC(redoubt_sha256_compress_block)
+HIDDEN_FUNC(redoubt_sha256_compress_block)
 .p2align 4
-FUNC(sha256_compress_block):
+FUNC(redoubt_sha256_compress_block):
     // Allocate stack for W[0..15]
     sub     sp, sp, #64
 
@@ -196,13 +196,13 @@ FUNC(sha256_compress_block):
     mov     v18.16b, v16.16b
     mov     v19.16b, v17.16b
 
-    // Load K256 pointer
+    // Load .LK256 pointer
 #if defined(__APPLE__)
-    adrp    x3, K256@PAGE
-    add     x3, x3, K256@PAGEOFF
+    adrp    x3, .LK256@PAGE
+    add     x3, x3, .LK256@PAGEOFF
 #else
-    adrp    x3, K256
-    add     x3, x3, :lo12:K256
+    adrp    x3, .LK256
+    add     x3, x3, :lo12:.LK256
 #endif
 
     // ========================================================================
@@ -433,10 +433,10 @@ FUNC(sha256_compress_block):
 //   [sp+96]: final block buffer 2 (64 bytes, if needed)
 //   Total: 160 bytes
 //
-.global FUNC(sha256_hash)
-HIDDEN_FUNC(sha256_hash)
+.global FUNC(redoubt_sha256_hash)
+HIDDEN_FUNC(redoubt_sha256_hash)
 .p2align 4
-FUNC(sha256_hash):
+FUNC(redoubt_sha256_hash):
     // Prologue: save frame pointer and link register (REQUIRED - we do bl!)
     stp     x29, x30, [sp, #-16]!
     mov     x29, sp
@@ -454,13 +454,13 @@ FUNC(sha256_hash):
     mov     x14, x1             // original_msg_len (constant)
     mov     x15, x2             // digest_ptr
 
-    // Initialize H with H256_INIT
+    // Initialize H with .LH256_INIT
 #if defined(__APPLE__)
-    adrp    x0, H256_INIT@PAGE
-    add     x0, x0, H256_INIT@PAGEOFF
+    adrp    x0, .LH256_INIT@PAGE
+    add     x0, x0, .LH256_INIT@PAGEOFF
 #else
-    adrp    x0, H256_INIT
-    add     x0, x0, :lo12:H256_INIT
+    adrp    x0, .LH256_INIT
+    add     x0, x0, :lo12:.LH256_INIT
 #endif
     ld1     {v0.4s, v1.4s}, [x0]
     st1     {v0.4s, v1.4s}, [sp]
@@ -477,7 +477,7 @@ FUNC(sha256_hash):
     mov     x1, x12             // block_ptr
 
     // No need to save/restore x12-x15: compress_block doesn't touch them!
-    bl      FUNC(sha256_compress_block)
+    bl      FUNC(redoubt_sha256_compress_block)
 
     // Advance to next block
     add     x12, x12, #64
@@ -527,7 +527,7 @@ FUNC(sha256_hash):
     mov     x0, sp              // H_ptr
     add     x1, sp, #32         // block_ptr
 
-    bl      FUNC(sha256_compress_block)
+    bl      FUNC(redoubt_sha256_compress_block)
 
     b       .Lhash_finish
 
@@ -537,7 +537,7 @@ FUNC(sha256_hash):
     mov     x0, sp
     add     x1, sp, #32
 
-    bl      FUNC(sha256_compress_block)
+    bl      FUNC(redoubt_sha256_compress_block)
 
     // Second block: all zeros except length at end
     add     x16, sp, #96
@@ -555,7 +555,7 @@ FUNC(sha256_hash):
     mov     x0, sp
     add     x1, sp, #96
 
-    bl      FUNC(sha256_compress_block)
+    bl      FUNC(redoubt_sha256_compress_block)
 
 .Lhash_finish:
     // Copy H state to digest (as big-endian bytes per SHA-256 spec)
@@ -627,10 +627,11 @@ FUNC(sha256_hash):
 //   [sp+96]: final block buffer 2 (64 bytes, if needed)
 //   Total: 160 bytes
 //
-.global FUNC(sha256_update_finalize)
-HIDDEN_FUNC(sha256_update_finalize)
+// Local: reached from `hmac_sha256` and from nowhere outside this file. A name
+// in the symbol table is a name a linked library can collide with, and the
+// linker resolves that without a word to anybody.
 .p2align 4
-FUNC(sha256_update_finalize):
+.Lsha256_update_finalize:
     // Prologue: save callee-saved registers and link register
     stp     x29, x30, [sp, #-32]!
     mov     x29, sp
@@ -661,7 +662,7 @@ FUNC(sha256_update_finalize):
 
     mov     x0, sp              // H_ptr (on stack)
     mov     x1, x12             // block_ptr
-    bl      FUNC(sha256_compress_block)
+    bl      FUNC(redoubt_sha256_compress_block)
 
     add     x12, x12, #64
     sub     x13, x13, #64
@@ -707,7 +708,7 @@ FUNC(sha256_update_finalize):
 
     mov     x0, sp
     add     x1, sp, #32
-    bl      FUNC(sha256_compress_block)
+    bl      FUNC(redoubt_sha256_compress_block)
 
     b       .Lupdate_finish
 
@@ -715,7 +716,7 @@ FUNC(sha256_update_finalize):
 .Lupdate_two_blocks:
     mov     x0, sp
     add     x1, sp, #32
-    bl      FUNC(sha256_compress_block)
+    bl      FUNC(redoubt_sha256_compress_block)
 
     // Second block: zeros + length
     add     x16, sp, #96
@@ -730,7 +731,7 @@ FUNC(sha256_update_finalize):
 
     mov     x0, sp
     add     x1, sp, #96
-    bl      FUNC(sha256_compress_block)
+    bl      FUNC(redoubt_sha256_compress_block)
 
 .Lupdate_finish:
     // Copy H state to digest (big-endian)
@@ -797,9 +798,9 @@ FUNC(sha256_update_finalize):
 //   x22: msg_len (preserved)
 //   x23: mac_ptr (preserved, callee-saved)
 //
-.globl FUNC(hmac_sha256)
+.globl FUNC(redoubt_hmac_sha256)
 .p2align 4
-FUNC(hmac_sha256):
+FUNC(redoubt_hmac_sha256):
     // Prologue: save FP/LR + callee-saved regs we use (x19-x27)
     // Use 96 bytes to store pairs cleanly and keep 16-byte alignment.
     stp     x29, x30, [sp, #-96]!
@@ -831,7 +832,7 @@ FUNC(hmac_sha256):
     mov     x0, x19             // key_ptr
     mov     x1, x20             // key_len
     add     x2, sp, #224        // temp digest buffer
-    bl      FUNC(sha256_hash)
+    bl      FUNC(redoubt_sha256_hash)
 
     // Copy hashed key to K_padded (32 bytes)
     add     x0, sp, #224
@@ -907,11 +908,11 @@ FUNC(hmac_sha256):
 
     // Initialize H with SHA256_INIT
 #if defined(__APPLE__)
-    adrp    x0, H256_INIT@PAGE
-    add     x0, x0, H256_INIT@PAGEOFF
+    adrp    x0, .LH256_INIT@PAGE
+    add     x0, x0, .LH256_INIT@PAGEOFF
 #else
-    adrp    x0, H256_INIT
-    add     x0, x0, :lo12:H256_INIT
+    adrp    x0, .LH256_INIT
+    add     x0, x0, :lo12:.LH256_INIT
 #endif
     ld1     {v0.4s, v1.4s}, [x0]
     st1     {v0.4s, v1.4s}, [sp]
@@ -919,7 +920,7 @@ FUNC(hmac_sha256):
     // Compress ipad block (64 bytes)
     mov     x0, sp              // H_ptr (on stack)
     mov     x1, x24             // ipad ptr (saved before)
-    bl      FUNC(sha256_compress_block)
+    bl      FUNC(redoubt_sha256_compress_block)
 
     // Now call sha256_update_finalize with msg
     mov     x0, sp              // H_ptr (current state after ipad)
@@ -927,7 +928,7 @@ FUNC(hmac_sha256):
     mov     x2, x22             // msg_len
     add     x3, x22, #64        // total_len = 64 (ipad) + msg_len
     mov     x4, x25             // output: inner_hash ptr (saved before)
-    bl      FUNC(sha256_update_finalize)
+    bl      .Lsha256_update_finalize
 
     // Zeroize H state
     stp     xzr, xzr, [sp]
@@ -952,11 +953,11 @@ FUNC(hmac_sha256):
 
     // Initialize H with SHA256_INIT
 #if defined(__APPLE__)
-    adrp    x0, H256_INIT@PAGE
-    add     x0, x0, H256_INIT@PAGEOFF
+    adrp    x0, .LH256_INIT@PAGE
+    add     x0, x0, .LH256_INIT@PAGEOFF
 #else
-    adrp    x0, H256_INIT
-    add     x0, x0, :lo12:H256_INIT
+    adrp    x0, .LH256_INIT
+    add     x0, x0, :lo12:.LH256_INIT
 #endif
     ld1     {v0.4s, v1.4s}, [x0]
     st1     {v0.4s, v1.4s}, [sp]
@@ -964,7 +965,7 @@ FUNC(hmac_sha256):
     // Compress opad block (64 bytes)
     mov     x0, sp              // H_ptr (on stack)
     mov     x1, x24             // opad ptr (saved before)
-    bl      FUNC(sha256_compress_block)
+    bl      FUNC(redoubt_sha256_compress_block)
 
     // Now call sha256_update_finalize with inner_hash
     mov     x0, sp              // H_ptr (current state after opad)
@@ -972,7 +973,7 @@ FUNC(hmac_sha256):
     mov     x2, #32             // inner_hash length (32 bytes)
     mov     x3, #96             // total_len = 64 (opad) + 32 (inner_hash)
     mov     x4, x23             // output: mac_ptr (final output)
-    bl      FUNC(sha256_update_finalize)
+    bl      .Lsha256_update_finalize
 
     // Zeroize H state
     stp     xzr, xzr, [sp]
@@ -1050,9 +1051,9 @@ FUNC(hmac_sha256):
 // - Zeroizes the entire local frame (PRK + T + msg buffer) before returning.
 // - Clears registers that may have held sensitive bytes (best effort).
 
-.globl FUNC(hkdf_sha256)
+.globl FUNC(redoubt_hkdf_sha256)
 .p2align 4
-FUNC(hkdf_sha256):
+FUNC(redoubt_hkdf_sha256):
     // Prologue: save FP/LR + callee-saved regs we use (x19-x28).
     // Preconditions (okm_len <= 8160, okm_len > 0) are checked by Rust wrapper.
     stp     x29, x30, [sp, #-96]!
@@ -1081,7 +1082,7 @@ FUNC(hkdf_sha256):
     // Step 1: Extract - PRK = HMAC-SHA256(salt, IKM)
     // ------------------------------------------------------------------------
     mov     x4, sp                            // out: PRK at sp+0
-    bl      FUNC(hmac_sha256)
+    bl      FUNC(redoubt_hmac_sha256)
 
     // ------------------------------------------------------------------------
     // Step 2: Expand
@@ -1133,7 +1134,7 @@ FUNC(hkdf_sha256):
     add     x2, sp, #64                       // msg_base
     mov     x3, x17                           // msg_len
     add     x4, sp, #32                       // out: T(i) at sp+32
-    bl      FUNC(hmac_sha256)
+    bl      FUNC(redoubt_hmac_sha256)
 
     // Copy min(okm_len, 32) bytes from T(i) into okm_ptr.
     mov     x25, #32
