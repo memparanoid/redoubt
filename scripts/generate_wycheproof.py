@@ -108,6 +108,39 @@ TEST_CONFIGS = [
             "hmac_sha256_wycheproof_vectors.rs",
         ),
     },
+    {
+        # The emit writes `use super::hkdf_sha256_wycheproof::{...}`, so the
+        # types live beside the vectors rather than with the test that reads
+        # them.
+        "name": "HKDF-SHA-256",
+        "type": "hkdf",
+        "url": "https://raw.githubusercontent.com/C2SP/wycheproof/refs/heads/main/testvectors_v1/hkdf_sha256_test.json",
+        "output": os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "crates",
+            "redoubt-hkdf-v2",
+            "src",
+            "tests",
+            "support",
+            "hkdf_sha256_wycheproof_vectors.rs",
+        ),
+    },
+    {
+        "name": "HMAC-SHA-256",
+        "type": "mac",
+        "url": "https://raw.githubusercontent.com/C2SP/wycheproof/refs/heads/main/testvectors_v1/hmac_sha256_test.json",
+        "output": os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "crates",
+            "redoubt-hkdf-v2",
+            "src",
+            "tests",
+            "support",
+            "hmac_sha256_wycheproof_vectors.rs",
+        ),
+    },
 ]
 
 # AEAD flags
@@ -320,6 +353,13 @@ def generate_mac_rust(data, source_url):
     lines.append("//")
     lines.append(f"// Algorithm: {data.get('algorithm', 'unknown')}")
     lines.append(f"// Number of tests: {data.get('numberOfTests', 'unknown')}")
+    lines.append("")
+    # The crates that read this are `no_std`, so the vector and the string it
+    # holds come from `alloc` and not from a prelude that is not there.
+    lines.append("extern crate alloc;")
+    lines.append("")
+    lines.append("use alloc::vec;")
+    lines.append("use alloc::vec::Vec;")
     lines.append("")
     lines.append("use super::hmac_sha256_wycheproof::{Flag, TestCase, TestResult};")
     lines.append("")

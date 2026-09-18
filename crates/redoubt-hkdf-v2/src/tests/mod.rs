@@ -5,9 +5,12 @@
 //! One file here for each file there, and the same shape of directory around
 //! them.
 
+mod support;
+
 mod backend;
 mod hkdf;
 mod rfc;
+mod wycheproof;
 
 use alloc::string::String;
 use alloc::vec::Vec;
