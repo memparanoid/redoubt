@@ -24,4 +24,5 @@ redoubt-zero.workspace = true
 thiserror.workspace    = true
 
 [dev-dependencies]
-rstest.workspace = true
+proptest.workspace = true
+rstest.workspace   = true

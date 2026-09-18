@@ -1119,6 +1119,7 @@ name = "redoubt-hkdf-v2"
 version = "0.1.0-rc.8"
 dependencies = [
  "cc",
+ "proptest",
  "redoubt-asm",
  "redoubt-mem",
  "redoubt-util",
