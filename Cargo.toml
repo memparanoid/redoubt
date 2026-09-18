@@ -24,6 +24,7 @@ members = [
   "crates/redoubt-hkdf/rust",
   "crates/redoubt-hkdf/x86",
   "crates/redoubt-hkdf/arm",
+  "crates/redoubt-hkdf-v2",
   "crates/redoubt-util",
   "crates/redoubt-vault",
   "crates/redoubt-vault/core",
@@ -75,6 +76,7 @@ resolver = "2"
   redoubt-hkdf-arm              = { path = "crates/redoubt-hkdf/arm", version = "0.1.0-rc.8" }
   redoubt-hkdf-core             = { path = "crates/redoubt-hkdf/core", version = "0.1.0-rc.8" }
   redoubt-hkdf-rust             = { path = "crates/redoubt-hkdf/rust", version = "0.1.0-rc.8" }
+  redoubt-hkdf-v2               = { path = "crates/redoubt-hkdf-v2", version = "0.1.0-rc.8" }
   redoubt-hkdf-wycheproof       = { path = "crates/redoubt-hkdf/wycheproof", version = "0.1.0-rc.8" }
   redoubt-hkdf-x86              = { path = "crates/redoubt-hkdf/x86", version = "0.1.0-rc.8" }
   redoubt-mem                   = { path = "crates/redoubt-mem", version = "0.1.0-rc.8" }
@@ -118,6 +120,21 @@ resolver = "2"
   rstest       = "0.27.0"
   serial_test  = "3.2.0"
   trybuild     = "1.0"
+
+# The SHAVS Monte Carlo is a hundred thousand chained digests per backend, and
+# unoptimized it is minutes of every `cargo test`. Optimized here and nowhere
+# else: the debug assertions stay on, which is what the dev profile is for.
+[profile.dev.package.redoubt-hkdf-v2]
+opt-level = 3
+
+[profile.dev.package.redoubt-mem]
+opt-level = 3
+
+[profile.dev.package.redoubt-util]
+opt-level = 3
+
+[profile.dev.package.redoubt-zero]
+opt-level = 3
 
 [profile.release]
 codegen-units = 1
