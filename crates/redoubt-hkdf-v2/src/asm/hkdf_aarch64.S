@@ -2,26 +2,43 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! SHA-256 Compression Function - AArch64 v5 (Standalone)
-//!
-//! REGISTER ALLOCATION (strict adherence to REGISTER_ALLOCATION.md):
-//!   x0: H_ptr (input/output, 32 bytes) - NEVER MODIFY
-//!   x1: block_ptr (input, 64 bytes) - NEVER MODIFY
-//!   x2: loop counter t (0-63)
-//!   x3: K_ptr (.LK256 constants)
-//!   w4-w10: temporaries for T1, T2, Ch, Maj, Σ, σ
-//!   w17: temp for inline operations
-//!   v16: H[0..3] (H state, first 4 words)
-//!   v17: H[4..7] (H state, last 4 words)
-//!   v18: {a, b, c, d} (working variables)
-//!   v19: {e, f, g, h} (working variables)
-//!   v20-v23: sliding window W[t-16..t-1] for rounds 16-63
-//!   v24: temporary for W[t] during window update
-//!
-//! CRITICAL INVARIANTS:
-//!   - x12-x15 are NEVER touched (available for callers)
-//!   - No prologue/epilogue (uses only caller-saved registers)
-//!   - Stack: 64 bytes for W[0..15], zeroized before ret
+// HKDF-SHA256 by hand, for aarch64 under AAPCS.
+//
+// # One path, and what it costs
+//
+// There is no runtime feature detection, no cryptographic-extension path and no
+// SVE path: what the machine has is not asked, so the same instructions run
+// everywhere and what is written here is what executed. A second copy would
+// need a check, another copy of the rounds, and a wipe written once per
+// register file — and none of that is paid for until somebody measures that it
+// matters.
+//
+// The floor is the ARMv8-A baseline, and here that is the truth rather than a
+// hope: the rounds use `ld1`, `st1`, `rev32`, `umov`, `ins` and `add` over the
+// `v` registers, and every one of them is in the base instruction set. The
+// SHA-256 extension instructions — `sha256h`, `sha256su0` — are not used and
+// are not baseline, which is the line this file does not cross.
+//
+// # What crosses the boundary
+//
+// Four routines, in the order `backend/mod.rs` declares them. Every argument is
+// a pointer to storage the caller declared, except the lengths, which are
+// public: how long a message is says nothing about what is in it. Nothing is
+// returned — a returned value leaves in a register, and a register carrying the
+// answer out is one the wipe at the end cannot touch.
+//
+// # What must not branch on a secret
+//
+// Nothing here does. SHA-256 is adds, rotations and boolean functions over
+// words, and the only branches are the block loop and the padding, which are
+// decided by lengths the caller already knows.
+//
+// # What this file cannot answer for
+//
+// A core dump, a page that went to swap, a debugger attached to the process, or
+// a signal handler that ran between two of these instructions. The registers
+// and the frame are emptied before each routine returns; what the kernel did
+// with them in between is outside what any of this can promise.
 
 // ============================================================================
 // Platform-specific symbol naming
@@ -44,79 +61,218 @@
 .arch armv8-a
 
 // ============================================================================
-// Complete Register Zeroization Macro
+// The register budget
 // ============================================================================
 //
-// Strategy: Top-level functions (hmac_sha256, hkdf_sha256) use this macro
-//           to zeroize ALL caller-saved registers after stack cleanup.
+// AAPCS64:
+//   - Caller-saved GPR: x0-x17
+//   - Callee-saved GPR: x19-x28  (DO NOT TOUCH)
+//   - Caller-saved SIMD: v0-v7, v16-v31
+//   - Callee-saved SIMD: v8-v15, and only their low halves  (DO NOT TOUCH)
 //
-// Zeroizes ONLY caller-saved registers:
-//   - v0-v7    : Caller-saved SIMD (SHA-256 H state, working vars)
-//   - v16-v31  : Caller-saved SIMD (data blocks, temporaries)
-//   - x0-x17   : Caller-saved GPR (pointers, lengths, temporaries)
-//                NOTE: x18 is platform register - DO NOT USE OR ZEROIZE
+// Every register these routines put anything in is named once, below, and every
+// operation over the set goes through that one list. Emptying them and asking
+// whether they are empty are the same registers by construction, not two lists
+// that happen to agree today.
 //
-// Never zeroized (ABI requirement):
-//   - x18      : Platform register (reserved by OS - DO NOT TOUCH)
-//   - x19-x28  : Callee-saved GPR (restored by epilogue, not zeroized)
-//   - x29 (FP) : Frame pointer (restored by epilogue)
-//   - x30 (LR) : Link register (restored by epilogue)
-//   - sp       : Stack pointer
-//   - v8-v15   : Callee-saved SIMD (not used by our implementation)
+// The general list is the whole caller-saved set, and here that is also every
+// register the file writes, so there is no exception to record.
 //
-// Usage: Called by top-level functions (hmac_sha256, hkdf_sha256) after
-//        stack zeroization but before restoring callee-saved registers.
+// The vector list is v0, v1 and v16 through v24, which is where this file stops
+// writing. That is the one place the rule above is not followed, and the reason
+// is measured in calls: the compression clears its registers once per block of
+// every message there is, and thirteen `movi` for registers nothing puts
+// anything in are thirteen instructions per block for nothing.
 //
-.macro HKDF_SHA256_ZEROIZE_ALL
-    // === SIMD: Zeroize caller-saved v0-v7, v16-v31 ===
-    movi v0.16b, #0
-    movi v1.16b, #0
-    movi v2.16b, #0
-    movi v3.16b, #0
-    movi v4.16b, #0
-    movi v5.16b, #0
-    movi v6.16b, #0
-    movi v7.16b, #0
-    // v8-v15 are callee-saved - DO NOT ZEROIZE (not used anyway)
-    movi v16.16b, #0
-    movi v17.16b, #0
-    movi v18.16b, #0
-    movi v19.16b, #0
-    movi v20.16b, #0
-    movi v21.16b, #0
-    movi v22.16b, #0
-    movi v23.16b, #0
-    movi v24.16b, #0
-    movi v25.16b, #0
-    movi v26.16b, #0
-    movi v27.16b, #0
-    movi v28.16b, #0
-    movi v29.16b, #0
-    movi v30.16b, #0
-    movi v31.16b, #0
+// A routine that reaches for any other vector register has to add it here. That
+// is the cost of the exception, and it is written down so the next reader knows
+// the list is short on purpose rather than by oversight.
+//
+// Does NOT include sp, x18, x19-x28 or v8-v15. A routine that spilled into a
+// callee-saved one would have to save it first, and that save is what writes
+// the caller's register to the stack — a value that was never ours, that we
+// cannot name, and that the caller cannot wipe because it does not know a copy
+// was made.
+//
+// Does NOT include x30 either, and that one is not a choice. Every `bl` writes
+// the link register, including the `bl` that reaches a verifier, so asking a
+// verifier about x30 would be asking it about its own call. What the routines
+// do instead is keep the caller's x30 in a frame slot across their own calls,
+// and load it back before the frame is emptied.
 
-    // === GPR: Zeroize caller-saved x0-x17 (skip x18 - platform register) ===
-    mov x0, xzr
-    mov x1, xzr
-    mov x2, xzr
-    mov x3, xzr
-    mov x4, xzr
-    mov x5, xzr
-    mov x6, xzr
-    mov x7, xzr
-    mov x8, xzr
-    mov x9, xzr
-    mov x10, xzr
-    mov x11, xzr
-    mov x12, xzr
-    mov x13, xzr
-    mov x14, xzr
-    mov x15, xzr
-    mov x16, xzr
-    mov x17, xzr
-    // x18 is platform register - DO NOT TOUCH
-    // x19-x28 are callee-saved - DO NOT ZEROIZE (restored by epilogue)
+.macro HKDF_EACH_GPR op
+    .irp reg,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17
+        \op x\reg
+    .endr
 .endm
+
+.macro HKDF_EACH_VECTOR op
+    .irp reg,0,1,16,17,18,19,20,21,22,23,24
+        \op v\reg
+    .endr
+.endm
+
+.macro HKDF_CLEAR_GPR reg
+    mov \reg, xzr
+.endm
+
+.macro HKDF_CLEAR_VECTOR reg
+    movi \reg\().16b, #0
+.endm
+
+// Copies what x0 already holds into each of them, x0 included and harmless.
+// Only the probe at the end of this file uses it, and it is here rather than
+// there so that the budget has one list and every operation over it sits beside
+// that list.
+.macro HKDF_FILL_GPR reg
+    mov \reg, x0
+.endm
+
+// Copies what v0 already holds into each of them, v0 included and harmless.
+.macro HKDF_FILL_VECTOR reg
+    mov \reg\().16b, v0.16b
+.endm
+
+// Gathers into x1, which is in the budget and therefore contributes its own
+// value on its own line. What the gather leaves in x1 is the bits of anything
+// that was not empty.
+.macro HKDF_GATHER_GPR reg
+    orr x1, x1, \reg
+.endm
+
+// Gathers into v0, whose own value goes in on the first line for the same
+// reason.
+.macro HKDF_GATHER_VECTOR reg
+    orr v0.16b, v0.16b, \reg\().16b
+.endm
+
+// ============================================================================
+// Catastrophic register zeroization
+// ============================================================================
+.macro HKDF_SHA256_ZEROIZE_ALL
+    HKDF_EACH_GPR HKDF_CLEAR_GPR
+    HKDF_EACH_VECTOR HKDF_CLEAR_VECTOR
+.endm
+
+// ============================================================================
+// The frames
+// ============================================================================
+//
+// One size per routine rather than one for the file. A single size would make
+// the widest routine's frame the price every one of them pays, on every call,
+// and `sha256_compress_block` is called once per block of every message there
+// is.
+//
+// What a shared size buys is a probe written once. That is bought here another
+// way: the probe at the end of this file is a macro instantiated per routine
+// with that routine's own constant, so each verifier reads the window its
+// routine took and the number still lives in exactly one place.
+//
+// Every size is a multiple of sixteen, which is what the architecture requires
+// of the stack pointer at all times. `bl` writes no stack, so unlike x86-64
+// there is no return-address slot to step over: the frame is exactly
+// `[sp - FRAME, sp)` as the caller left it.
+//
+// Every routine that calls another has a slot for the link register. It is the
+// caller's return address, which is public, and it is loaded back before the
+// frame is emptied — so the slot goes out zeroized with everything else.
+
+// sha256_compress_block: the message schedule. It calls nothing, so it needs no
+// slot for the link register, and its arguments stay in the registers they
+// arrived in for as long as they are read.
+.set COMPRESS_W, 0
+.set FRAME_COMPRESS, 64
+
+// sha256_hash: the chaining state, the padded tail, and what has to outlive a
+// call to the compression — which empties every caller-saved register before it
+// returns, so nothing survives in one.
+.set HASH_H, 0
+.set HASH_BLOCK1, 32
+.set HASH_BLOCK2, 96
+.set HASH_MSG, 160
+.set HASH_LEFT, 168
+.set HASH_TOTAL, 176
+.set HASH_DIGEST, 184
+.set HASH_LR, 192
+.set FRAME_HASH, 208
+
+// sha256_update_finalize: the same, over a state the caller already has. The
+// caller's H is read once at the start and never again, so it needs no slot.
+.set UPDATE_H, 0
+.set UPDATE_BLOCK1, 32
+.set UPDATE_BLOCK2, 96
+.set UPDATE_MSG, 160
+.set UPDATE_LEFT, 168
+.set UPDATE_TOTAL, 176
+.set UPDATE_DIGEST, 184
+.set UPDATE_LR, 192
+.set FRAME_UPDATE, 208
+
+// sha256_absorb: where it is in a message it is being handed in pieces.
+.set ABSORB_H, 0
+.set ABSORB_SRC, 8
+.set ABSORB_LEFT, 16
+.set ABSORB_BLOCK, 24
+.set ABSORB_FILL, 32
+.set ABSORB_LR, 40
+.set FRAME_ABSORB, 48
+
+// hmac_sha256: the key padded to a block, the inner and outer pads made from
+// it, the inner digest, somewhere to hash a key that is too long, and the
+// chaining state.
+.set HMAC_KPAD, 0
+.set HMAC_IPAD, 64
+.set HMAC_OPAD, 128
+.set HMAC_INNER, 192
+.set HMAC_KHASH, 224
+.set HMAC_H, 256
+.set HMAC_KEY, 288
+.set HMAC_KEYLEN, 296
+.set HMAC_MSG, 304
+.set HMAC_MSGLEN, 312
+.set HMAC_MAC, 320
+.set HMAC_LR, 328
+.set FRAME_HMAC, 336
+
+// hkdf_sha256: the pseudorandom key, the two pads made from it, the block being
+// filled, the chaining state, the inner digest, the block of output being made,
+// and the arguments that have to outlive a call.
+//
+// The pads are built once and read every iteration, which is why the expansion
+// here does not call `hmac_sha256`: that routine would rebuild them from the
+// key each time, and would want the message in one piece — which is the whole
+// of the reason this routine used to size its frame from `info_len`.
+.set HKDF_PRK, 0
+.set HKDF_IPAD, 32
+.set HKDF_OPAD, 96
+.set HKDF_BLOCK, 160
+.set HKDF_H, 224
+.set HKDF_INNER, 256
+.set HKDF_T, 288
+.set HKDF_FILL, 320
+.set HKDF_TLEN, 328
+.set HKDF_COUNTER, 336
+.set HKDF_INFO, 344
+.set HKDF_INFOLEN, 352
+.set HKDF_OKM, 360
+.set HKDF_OKMLEN, 368
+.set HKDF_LR, 376
+.set FRAME_HKDF, 384
+
+// Empties a frame of `size` bytes and gives it back.
+//
+// Takes the size rather than reading one constant, because the routines here do
+// not share a frame. What keeps it honest is that every call site names the
+// same constant its own `sub sp` did.
+.macro HKDF_EMPTY_FRAME size
+    .set _empty_at, 0
+    .rept \size / 16
+        stp xzr, xzr, [sp, #_empty_at]
+        .set _empty_at, _empty_at + 16
+    .endr
+    add sp, sp, #\size
+.endm
+
 
 // ============================================================================
 // Constants
