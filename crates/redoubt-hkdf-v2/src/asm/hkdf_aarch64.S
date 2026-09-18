@@ -1502,4 +1502,193 @@ FUNC(redoubt_hkdf_sha256):
     HKDF_SHA256_ZEROIZE_ALL
     ret
 
+// ============================================================================
+// THE ZEROIZATION PROBE — everything below measures the routines above
+// ============================================================================
+//
+// Nothing in production calls any of it. It is here and not in a file of its
+// own because a reader asking whether the measurement is right should not have
+// to find a second file and check that a number in it still matches a number
+// in this one: the FRAME_* constants below are the frames, and the register
+// budget it asks about is the list the wipe uses, not a copy of either.
+//
+// What asks comes first, then what is asked about:
+//
+//   registers_are_zeroized   asks the machine, with the budget's own list
+//   frame_is_zeroized_X      asks the stack, with routine X's own FRAME_X
+//   dirty_registers          fills the budget and leaves it that way
+//   dirty_frame_X            one byte of X's frame, at an offset given
+//   clean_frame_X            X's frame written and emptied, with no work
+//
+// # Why the frame instruments are one set per routine
+//
+// The routines here do not share a frame, so there is no one window to read.
+// The three that concern a frame are written once, as a macro over a size, and
+// instantiated with each routine's own constant — which is the same constant
+// that routine's `sub sp` names. A verifier and the routine it is asked about
+// therefore cannot disagree about where the frame was without the file saying
+// two different things in the same place.
+
+// Builds the pattern in place, four immediates at a time, because a 64-bit
+// value does not fit in one instruction and a literal pool would put it in
+// memory this file would then have to account for.
+.macro HKDF_PROBE_PATTERN reg, half
+    movz    \reg, #\half
+    movk    \reg, #\half, lsl #16
+    movk    \reg, #\half, lsl #32
+    movk    \reg, #\half, lsl #48
+.endm
+
+// uint64_t redoubt_hkdf_registers_are_zeroized(void)
+//
+// Whether any register in the budget is still holding something. Zero when
+// they are all empty, and the bits of whatever was not otherwise.
+//
+// Takes no argument on purpose. A destination passed in would cost x0, and x0
+// is one of the registers being asked about — it would arrive holding our own
+// pointer rather than the caller's value. With nothing passed, `bl` is the
+// whole call sequence and every register read here is the caller's own.
+.p2align 4
+.globl FUNC(redoubt_hkdf_registers_are_zeroized)
+HIDDEN_FUNC(redoubt_hkdf_registers_are_zeroized)
+FUNC(redoubt_hkdf_registers_are_zeroized):
+    // The vectors gather first, into v0, whose own value goes in on the first
+    // line. `orr` over `.16b` reads and writes nothing but vector registers, so
+    // every general register is still the caller's when the next line reaches
+    // it.
+    HKDF_EACH_VECTOR HKDF_GATHER_VECTOR
+
+    // x1 gathers, its own value going in on its own line, and x0 is read before
+    // anything here writes to it.
+    HKDF_EACH_GPR HKDF_GATHER_GPR
+
+    // The vectors fold in last, through registers whose values x1 already has.
+    umov    x2, v0.d[0]
+    orr     x1, x1, x2
+    umov    x3, v0.d[1]
+    orr     x1, x1, x3
+
+    mov     x0, x1
+    ret
+
+// Every register in the budget filled, and left that way.
+//
+// What answers whether anything runs between one call and the next: called
+// straight before a verifier, every register it filled has to still be full.
+.p2align 4
+.globl FUNC(redoubt_hkdf_dirty_registers)
+HIDDEN_FUNC(redoubt_hkdf_dirty_registers)
+FUNC(redoubt_hkdf_dirty_registers):
+    HKDF_PROBE_PATTERN x0, 0xa5a5
+    dup     v0.2d, x0
+    HKDF_EACH_VECTOR HKDF_FILL_VECTOR
+    HKDF_EACH_GPR HKDF_FILL_GPR
+    ret
+
+// The three frame instruments for a routine whose frame is \size bytes.
+//
+// uint64_t redoubt_hkdf_frame_is_zeroized_\name(void)
+//
+//   Whether any byte of the frame the call before it used is still holding
+//   something. Zero when it is all empty, and the bits of whatever was not.
+//
+//   Reads below its own sp, and that is the whole of it: `bl` writes no stack,
+//   so this routine's sp is the sp the routine before it was entered with, and
+//   `[sp - \size, sp)` is the frame that one took and gave back.
+//
+//   Asked after the registers, never before: reading a frame takes registers,
+//   and the answer about those has to be taken first.
+//
+// void redoubt_hkdf_dirty_frame_\name(size_t at)
+//
+//   One byte of the frame, dirtied and left. x0 says which.
+//
+//   Swept over every offset, this is what establishes that the verifier reads
+//   the whole frame and not the first word of it — and that the byte it reaches
+//   is the byte that was written, which is where an off-by-one against whatever
+//   sits next door would show.
+//
+// void redoubt_hkdf_clean_frame_\name(void)
+//
+//   The whole frame written and then emptied: what the routine does, without
+//   the work in between. The positive control — without it, "the frame came
+//   back zero" is only ever asserted about routines whose correctness is what
+//   is in question.
+.macro HKDF_FRAME_PROBE name, size
+.p2align 4
+.globl FUNC(redoubt_hkdf_frame_is_zeroized_\name)
+HIDDEN_FUNC(redoubt_hkdf_frame_is_zeroized_\name)
+FUNC(redoubt_hkdf_frame_is_zeroized_\name):
+    mov     x0, xzr
+    sub     x1, sp, #\size
+    mov     x2, sp
+1:
+    ldr     x3, [x1], #8
+    orr     x0, x0, x3
+    cmp     x1, x2
+    b.lo    1b
+    ret
+
+.p2align 4
+.globl FUNC(redoubt_hkdf_dirty_frame_\name)
+HIDDEN_FUNC(redoubt_hkdf_dirty_frame_\name)
+FUNC(redoubt_hkdf_dirty_frame_\name):
+    sub     sp, sp, #\size
+    // Isolate this byte from every previous call's residue. Keep x0, the
+    // requested offset, intact until the whole frame is empty.
+    mov     x1, xzr
+2:
+    str     xzr, [sp, x1]
+    add     x1, x1, #8
+    cmp     x1, #\size
+    b.lo    2b
+    mov     w2, #0x5c
+    strb    w2, [sp, x0]
+    add     sp, sp, #\size
+    ret
+
+.p2align 4
+.globl FUNC(redoubt_hkdf_clean_frame_\name)
+HIDDEN_FUNC(redoubt_hkdf_clean_frame_\name)
+FUNC(redoubt_hkdf_clean_frame_\name):
+    sub     sp, sp, #\size
+    HKDF_PROBE_PATTERN x0, 0x5c5c
+    mov     x1, xzr
+3:
+    str     x0, [sp, x1]
+    add     x1, x1, #8
+    cmp     x1, #\size
+    b.lo    3b
+    HKDF_EMPTY_FRAME \size
+    HKDF_SHA256_ZEROIZE_ALL
+    ret
+.endm
+
+// The two routines with no name outside this file, given one for the length of
+// a measurement.
+//
+// A branch and not a call. `b` leaves sp and the link register exactly as they
+// arrived, so the routine takes its frame where it would have taken it from its
+// real caller — and the one the verifier will read. A `bl` here would overwrite
+// the return address with one of its own and the routine would come back to the
+// trampoline instead of to the test.
+.p2align 4
+.globl FUNC(redoubt_hkdf_probe_update_finalize)
+HIDDEN_FUNC(redoubt_hkdf_probe_update_finalize)
+FUNC(redoubt_hkdf_probe_update_finalize):
+    b       .Lsha256_update_finalize
+
+.p2align 4
+.globl FUNC(redoubt_hkdf_probe_absorb)
+HIDDEN_FUNC(redoubt_hkdf_probe_absorb)
+FUNC(redoubt_hkdf_probe_absorb):
+    b       .Lsha256_absorb
+
+HKDF_FRAME_PROBE compress_block, FRAME_COMPRESS
+HKDF_FRAME_PROBE hash, FRAME_HASH
+HKDF_FRAME_PROBE update_finalize, FRAME_UPDATE
+HKDF_FRAME_PROBE hmac, FRAME_HMAC
+HKDF_FRAME_PROBE absorb, FRAME_ABSORB
+HKDF_FRAME_PROBE hkdf, FRAME_HKDF
+
     .section .note.GNU-stack,"",@progbits
