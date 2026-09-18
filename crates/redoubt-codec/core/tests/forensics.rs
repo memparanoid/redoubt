@@ -37,7 +37,7 @@
 #![cfg(target_os = "linux")]
 
 use redoubt_alloc::RedoubtVec;
-use redoubt_codec_core::{Decode, Encode, RedoubtCodecBuffer};
+use redoubt_codec_core::{Decode, DecodeBuffer, Encode, RedoubtCodecBuffer};
 use redoubt_forensics::{AnyError, Forensics, QUIET, Report, capture, forensics};
 use redoubt_zero::FastZeroizable;
 
@@ -325,3 +325,118 @@ decoded!(test_decoding_1024_bytes_leaves_nothing, 1024);
 decoded!(test_decoding_4096_bytes_leaves_nothing, 4096);
 decoded!(test_decoding_16384_bytes_leaves_nothing, 16384);
 decoded!(test_decoding_32768_bytes_leaves_nothing, 32768);
+
+// ============================================================================
+// DecodeBuffer
+// ============================================================================
+//
+// A read moves the secret out of the buffer and shortens what is left. Both
+// halves of that are it: the bytes that were read have to be gone from where
+// they were read, and the shortening has to happen without a copy of the
+// buffer being made somewhere to shorten it.
+//
+// A module that moves a secret and has no sweep of its own is not a module
+// that leaves nothing; it is a module nobody asked.
+//
+// # Why `read_usize` is not swept here
+//
+// It moves eight bytes, which is `QUIET` — the width memory reaches by
+// accident. An absence at that width is not evidence, and a length is public
+// anyway. What the other two do at a width that means something is what says
+// the shortening is clean, and `read_usize` shortens the same way.
+
+/// The secret is in the buffer before anything has read from it.
+#[test]
+fn test_a_buffer_is_found_while_it_holds_the_secret() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    forensics!({
+        let mut source = held(4096);
+        let mut destination = [0_u8; 32];
+
+        source.as_mut_slice().read(&mut destination)?;
+
+        capture!();
+
+        // An array has no drop to skip, so what keeps it findable is that
+        // something reads it after the photograph.
+        core::hint::black_box(&destination);
+
+        source.fast_zeroize();
+
+        drop(source);
+    });
+
+    is_found(&watch.snapshot()?, "a buffer still holding the secret");
+
+    Ok(())
+}
+
+/// One value read out, and nothing of it left where it was read from.
+#[test]
+fn test_reading_a_value_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    forensics!({
+        let mut source = held(4096);
+        let mut destination = [0_u8; 32];
+
+        source.as_mut_slice().read(&mut destination)?;
+
+        capture!();
+
+        destination.fast_zeroize();
+        source.fast_zeroize();
+
+        drop(source);
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(&report_before, &report_after, "read a value");
+
+    Ok(())
+}
+
+macro_rules! read_slice_of {
+    ($name:ident, $of:expr) => {
+        #[test]
+        fn $name() -> Result<(), AnyError> {
+            let mut watch = Forensics::watching(&backwards())?;
+
+            let report_before = watch.snapshot()?;
+
+            forensics!({
+                let mut source = held($of);
+                let mut destination = vec![0_u8; $of];
+
+                source.as_mut_slice().read_slice(&mut destination)?;
+
+                capture!();
+
+                destination.fast_zeroize();
+                source.fast_zeroize();
+
+                drop((destination, source));
+            });
+
+            let report_after = watch.snapshot()?;
+
+            leaves_nothing(
+                &report_before,
+                &report_after,
+                &format!("read a slice of {} bytes", $of),
+            );
+
+            Ok(())
+        }
+    };
+}
+
+read_slice_of!(test_reading_a_slice_of_32_bytes_leaves_nothing, 32);
+read_slice_of!(test_reading_a_slice_of_1024_bytes_leaves_nothing, 1024);
+read_slice_of!(test_reading_a_slice_of_4096_bytes_leaves_nothing, 4096);
+read_slice_of!(test_reading_a_slice_of_16384_bytes_leaves_nothing, 16384);
+read_slice_of!(test_reading_a_slice_of_32768_bytes_leaves_nothing, 32768);
