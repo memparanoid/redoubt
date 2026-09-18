@@ -31,20 +31,10 @@ use redoubt_asm::Backend;
 use crate::backend::{sha256_compress_block, sha256_hash};
 use crate::consts::{BLOCK_SIZE, HASH_SIZE};
 
-use super::super::{from_hex, hex};
-
-const SHORT_MSG: &str = include_str!("../../../vectors/SHA256ShortMsg.rsp");
-const LONG_MSG: &str = include_str!("../../../vectors/SHA256LongMsg.rsp");
-const MONTE: &str = include_str!("../../../vectors/SHA256Monte.rsp");
-
-/// How many messages each file says it has, so a file that arrived truncated
-/// is a failure and not a shorter run that passes.
-const SHORT_MSG_COUNT: usize = 65;
-const LONG_MSG_COUNT: usize = 64;
-const MONTE_COUNT: usize = 100;
-
-/// How many digests the Monte Carlo takes between one checkpoint and the next.
-const CHAINED: usize = 1_000;
+use super::super::{
+    CHAINED, LONG_MSG, LONG_MSG_COUNT, MONTE, MONTE_COUNT, SHORT_MSG, SHORT_MSG_COUNT, from_hex,
+    hex,
+};
 
 /// The state a digest starts from, FIPS 180-4 §5.3.3.
 ///
