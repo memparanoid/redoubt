@@ -112,8 +112,15 @@ unsafe extern "C" {
     fn redoubt_hkdf_clean_frame_hkdf();
 }
 
-/// What the writers leave, and what the verifiers therefore have to report.
+/// What the register writer leaves, and what the verifier therefore has to
+/// report.
 const POISON: u64 = 0xa5a5_a5a5_a5a5_a5a5;
+
+/// The one byte the frame writer leaves, at the offset it was asked for.
+///
+/// Distinct from the poison above so that a byte found in a frame cannot be a
+/// register's worth of pattern that reached the stack some other way.
+const LEFT_BYTE: u8 = 0x5c;
 
 /// The general registers of the budget, in the order the list at the top of the
 /// assembly names them.
@@ -571,7 +578,7 @@ macro_rules! test_the_frame_writer_leaves_one_byte {
                 for (byte, &value) in actual.iter().enumerate() {
                     assert_eq!(
                         value,
-                        if byte == at { 0x5c } else { 0 },
+                        if byte == at { LEFT_BYTE } else { 0 },
                         "requested byte {at}, captured byte {byte}",
                     );
                 }
@@ -1195,7 +1202,25 @@ fn test_hkdf_leaves_the_residue_its_case_declares(#[case] routine: Hkdf, #[case]
 /// The gather is a word at a time, so the byte lands wherever it sits inside its
 /// own word, and every other word contributes nothing.
 fn only_the_byte_at(at: usize) -> u64 {
-    0x5c_u64 << (8 * (at % 8))
+    u64::from(LEFT_BYTE) << (8 * (at % 8))
+}
+
+/// No offset expects an empty window.
+///
+/// Every sweep below asserts what this returns, and cannot check it: the only
+/// other thing that knows where the byte lands is the verifier, which is what
+/// those sweeps are asking about. So what is asked here is the one property that
+/// would make the sweeps lie rather than fail — an expected answer of zero turns
+/// "the verifier found the byte" into "the verifier found nothing", and that
+/// reads as a pass at exactly the offset the byte went missing.
+///
+/// A shift wide enough to push the byte out of the word is how it would happen,
+/// and the widest frame is where there is most room to get the modulus wrong.
+#[test]
+fn test_no_offset_expects_an_empty_window() {
+    for at in 0..FRAME_HKDF {
+        assert_ne!(only_the_byte_at(at), 0, "offset {at}");
+    }
 }
 
 #[test]
