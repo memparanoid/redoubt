@@ -4,7 +4,6 @@
 
 //! One file per function the seam declares, in the order it declares them.
 
-mod hmac_sha256;
 mod rust;
 mod sha256_compress_block;
 mod sha256_hash;

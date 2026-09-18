@@ -7,6 +7,7 @@
 
 mod backend;
 mod hkdf;
+mod rfc;
 
 use alloc::string::String;
 use alloc::vec::Vec;
