@@ -23,7 +23,9 @@ impl DecodeBuffer for &mut [u8] {
         redoubt_util::fast_zeroize_slice(&mut self[..size]);
 
         // Shrink the slice - consume the bytes we read
-        *self = &mut core::mem::take(self)[size..];
+        let mut taken = <&mut [u8]>::default();
+        redoubt_mem::swap(self, &mut taken);
+        *self = &mut taken[size..];
 
         Ok(())
     }
@@ -44,7 +46,9 @@ impl DecodeBuffer for &mut [u8] {
         redoubt_util::fast_zeroize_slice(&mut self[..len]);
 
         // Shrink the slice - consume the bytes we read
-        *self = &mut core::mem::take(self)[len..];
+        let mut taken = <&mut [u8]>::default();
+        redoubt_mem::swap(self, &mut taken);
+        *self = &mut taken[len..];
 
         Ok(())
     }
@@ -65,7 +69,9 @@ impl DecodeBuffer for &mut [u8] {
         redoubt_util::fast_zeroize_slice(&mut self[..byte_len]);
 
         // Shrink the slice - consume the bytes we read
-        *self = &mut core::mem::take(self)[byte_len..];
+        let mut taken = <&mut [u8]>::default();
+        redoubt_mem::swap(self, &mut taken);
+        *self = &mut taken[byte_len..];
 
         Ok(())
     }
