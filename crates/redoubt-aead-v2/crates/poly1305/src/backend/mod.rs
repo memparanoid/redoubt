@@ -26,8 +26,8 @@ pub(crate) mod rust;
 #[cfg(poly1305_asm)]
 pub(crate) mod asm;
 
-use redoubt_aead_v2_core::Backend;
 use redoubt_aead_v2_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
+use redoubt_asm::Backend;
 
 #[cfg(poly1305_asm)]
 use asm as chosen;

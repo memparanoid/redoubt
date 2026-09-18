@@ -29,13 +29,11 @@ extern crate std;
 mod tests;
 
 mod backend;
-mod enums;
 mod error;
 mod traits;
 
 pub mod consts;
 
 pub use backend::constant_time_eq;
-pub use enums::Backend;
 pub use error::AeadError;
 pub use traits::{AeadBackend, AeadDecrypt, AeadEncrypt, AeadSizes};

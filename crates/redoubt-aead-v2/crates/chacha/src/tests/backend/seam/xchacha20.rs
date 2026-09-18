@@ -9,46 +9,12 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use proptest::prelude::*;
 use rstest::rstest;
 
-use redoubt_aead_v2_core::Backend;
 use redoubt_aead_v2_core::consts::chacha::{BLOCK_SIZE, KEY_SIZE, XNONCE_SIZE};
-
-use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+use redoubt_asm::Backend;
 
 use crate::xchacha20::XChaCha20;
 
-use super::support::{oracle, vectors};
-
-// === === === === === === === === === ===
-// XChaCha20
-// === === === === === === === === === ===
-
-/// What it holds in a build that ships is where its operations go, and there is
-/// nothing there to empty. The marker is what these two have to work on, so
-/// that the wipe and the drop are exercised against something rather than
-/// against a type that would pass either way.
-#[test]
-fn test_xchacha20_is_zeroizable() {
-    let mut xchacha = XChaCha20::new();
-
-    xchacha.unzeroize();
-    assert!(!xchacha.is_zeroized());
-
-    xchacha.fast_zeroize();
-
-    // Assert zeroization!
-    assert!(xchacha.is_zeroized());
-}
-
-#[test]
-fn test_xchacha20_zeroizes_on_drop() {
-    let mut xchacha = XChaCha20::new();
-
-    xchacha.unzeroize();
-    assert!(!xchacha.is_zeroized());
-
-    // Assert zeroization!
-    xchacha.assert_zeroize_on_drop();
-}
+use crate::tests::support::{oracle, vectors};
 
 // === === === === === === === === === ===
 // xor

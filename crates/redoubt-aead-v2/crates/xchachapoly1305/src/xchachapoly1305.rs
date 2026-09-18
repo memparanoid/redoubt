@@ -19,7 +19,7 @@ use redoubt_zero::RedoubtZero;
 use redoubt_zero::{FastZeroizable, ZeroizingGuard};
 
 #[cfg(test)]
-use redoubt_aead_v2_core::Backend;
+use redoubt_asm::Backend;
 
 /// The counter the one-time key is taken from, and the one the message starts
 /// at.

@@ -25,8 +25,8 @@ pub(crate) mod rust;
 #[cfg(chacha_asm)]
 pub(crate) mod asm;
 
-use redoubt_aead_v2_core::Backend;
 use redoubt_aead_v2_core::consts::chacha::{HNONCE_SIZE, KEY_SIZE, XNONCE_SIZE};
+use redoubt_asm::Backend;
 
 #[cfg(chacha_asm)]
 use asm as chosen;

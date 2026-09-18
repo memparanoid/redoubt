@@ -19,7 +19,8 @@ use rstest::rstest;
 
 use redoubt_aead_v2_core::consts::chacha::{KEY_SIZE, XNONCE_SIZE};
 use redoubt_aead_v2_core::consts::poly1305::{KEY_SIZE as POLY_KEY_SIZE, TAG_SIZE};
-use redoubt_aead_v2_core::{AeadDecrypt, AeadEncrypt, Backend};
+use redoubt_aead_v2_core::{AeadDecrypt, AeadEncrypt};
+use redoubt_asm::Backend;
 use redoubt_chacha::xchacha20::XChaCha20;
 use redoubt_util::hex_to_bytes;
 

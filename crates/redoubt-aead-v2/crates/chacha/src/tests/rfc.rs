@@ -22,8 +22,8 @@ use std::vec::Vec;
 
 use rstest::rstest;
 
-use redoubt_aead_v2_core::Backend;
 use redoubt_aead_v2_core::consts::chacha::{BLOCK_SIZE, KEY_SIZE, NONCE_SIZE};
+use redoubt_asm::Backend;
 
 use crate::chacha20::ChaCha20;
 

@@ -4,8 +4,8 @@
 
 //! ChaCha20, both of the ways its nonce and counter are laid out.
 
-use redoubt_aead_v2_core::Backend;
 use redoubt_aead_v2_core::consts::chacha::{BERNSTEIN_NONCE_SIZE, KEY_SIZE, NONCE_SIZE};
+use redoubt_asm::Backend;
 use redoubt_zero::RedoubtZero;
 
 use crate::backend::xor;

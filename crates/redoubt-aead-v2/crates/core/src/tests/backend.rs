@@ -14,8 +14,8 @@ use std::vec::Vec;
 
 use rstest::rstest;
 
-use crate::Backend;
 use crate::backend::{constant_time_eq, constant_time_eq_with_backend};
+use redoubt_asm::Backend;
 
 /// A tag's width, which is what every caller of this compares.
 const TAG_SIZE: usize = 16;

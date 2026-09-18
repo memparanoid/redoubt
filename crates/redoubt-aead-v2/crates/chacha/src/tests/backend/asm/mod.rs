@@ -6,9 +6,8 @@
 //!
 //! Their own tests live there; here they are used and not measured. What is
 //! measured here is the routine, and only what it left: whether it enciphers
-//! correctly is settled in `chacha20.rs`, `xchacha20.rs`, `hchacha20.rs` and
-//! `backend.rs`, where both backends run the vectors and the oracle. An
-//! assertion about an answer would make every test below two tests.
+//! correctly is settled where the vectors and the oracle are run against every
+//! backend. An assertion about an answer would make every test below two tests.
 //!
 //! Four cases per routine, the three negatives first and the real one last,
 //! because the negatives are what make it mean anything. Two of them leave a

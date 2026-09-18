@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(poly1305_asm)]
-mod asm;
+//! One file here for each file there, and the same shape of directory around
+//! them.
 
-mod poly1305;
 mod support;
+
+mod backend;
+mod rfc;

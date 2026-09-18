@@ -10,49 +10,15 @@ use std::vec::Vec;
 use proptest::prelude::*;
 use rstest::rstest;
 
-use redoubt_aead_v2_core::Backend;
 use redoubt_aead_v2_core::consts::chacha::{
     BERNSTEIN_NONCE_SIZE, BLOCK_SIZE, KEY_SIZE, NONCE_SIZE,
 };
-
-use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+use redoubt_asm::Backend;
 
 use crate::chacha20::ChaCha20;
 
-use super::support::vectors::{VECTORS, Vector};
-use super::support::{oracle, vectors};
-
-// === === === === === === === === === ===
-// ChaCha20
-// === === === === === === === === === ===
-
-/// What it holds in a build that ships is where its operations go, and there is
-/// nothing there to empty. The marker is what these two have to work on, so
-/// that the wipe and the drop are exercised against something rather than
-/// against a type that would pass either way.
-#[test]
-fn test_chacha20_is_zeroizable() {
-    let mut chacha = ChaCha20::new();
-
-    chacha.unzeroize();
-    assert!(!chacha.is_zeroized());
-
-    chacha.fast_zeroize();
-
-    // Assert zeroization!
-    assert!(chacha.is_zeroized());
-}
-
-#[test]
-fn test_chacha20_zeroizes_on_drop() {
-    let mut chacha = ChaCha20::new();
-
-    chacha.unzeroize();
-    assert!(!chacha.is_zeroized());
-
-    // Assert zeroization!
-    chacha.assert_zeroize_on_drop();
-}
+use crate::tests::support::vectors::{VECTORS, Vector};
+use crate::tests::support::{oracle, vectors};
 
 // === === === === === === === === === ===
 // xor

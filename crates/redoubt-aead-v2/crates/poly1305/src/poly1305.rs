@@ -16,8 +16,8 @@
 use redoubt_zero::ZeroizeOnDropSentinel;
 use redoubt_zero::{FastZeroizable, RedoubtZero};
 
-use redoubt_aead_v2_core::Backend;
 use redoubt_aead_v2_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
+use redoubt_asm::Backend;
 
 use crate::backend::{finalize, init, update};
 use crate::consts::LIMBS;

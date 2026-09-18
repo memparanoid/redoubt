@@ -2,118 +2,21 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! What each entry point answers, asked of every backend the target has.
+
 use std::vec::Vec;
 
 use proptest::prelude::*;
 use rstest::rstest;
 
-use redoubt_aead_v2_core::Backend;
 use redoubt_aead_v2_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
-use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+use redoubt_asm::Backend;
+use redoubt_zero::ZeroizationProbe;
 
 use crate::poly1305::{Poly1305, tag_with_backend};
 
-use super::support::oracle;
-use super::support::vectors::{VECTORS, Vector};
-
-/// The precondition every case below rests on, which is why it is first.
-///
-/// The two backends are the same code where the target has no assembly, and a
-/// pair of cases that found them agreeing there would have proved nothing
-/// about either — while reading as though it had proved it twice.
-/// Where this file says the assembly belongs, written out rather than taken
-/// from the build script.
-///
-/// Gating on `poly1305_asm` would be the build script agreeing with itself.
-/// This is the other half of a pair: the build script decides, and this says
-/// what it was meant to decide. A target that drops out of one and not the
-/// other lands here as a failure instead of as a suite that quietly stopped
-/// comparing two backends.
-#[test]
-#[cfg(all(
-    not(target_os = "windows"),
-    any(target_arch = "x86_64", target_arch = "aarch64")
-))]
-#[expect(
-    clippy::assertions_on_constants,
-    reason = "a constant is what it asks about: whether this build has the assembly at all"
-)]
-fn test_this_target_has_the_assembly() {
-    use crate::backend::HAS_ASM;
-
-    assert!(
-        HAS_ASM,
-        "the cases below name two backends and this target has one"
-    );
-}
-
-// === === === === === === === === === ===
-// Test helpers
-// === === === === === === === === === ===
-
-/// One message through one authenticator, whole.
-fn tag_of(backend: Backend, key: &[u8; KEY_SIZE], message: &[u8]) -> [u8; TAG_SIZE] {
-    let mut poly = Poly1305::new(key).with_backend(backend);
-    let mut tag = [0u8; TAG_SIZE];
-
-    poly.update(message);
-    poly.finalize_mut(&mut tag);
-
-    tag
-}
-
-/// The same message, handed over in two pieces split at `at`.
-fn tag_of_split(
-    backend: Backend,
-    key: &[u8; KEY_SIZE],
-    message: &[u8],
-    at: usize,
-) -> [u8; TAG_SIZE] {
-    let mut poly = Poly1305::new(key).with_backend(backend);
-    let mut tag = [0u8; TAG_SIZE];
-    let (head, rest) = message.split_at(at);
-
-    poly.update(head);
-    poly.update(rest);
-    poly.finalize_mut(&mut tag);
-
-    tag
-}
-
-// === === === === === === === === === ===
-// Poly1305
-// === === === === === === === === === ===
-
-#[test]
-fn test_poly1305_is_zeroizable() {
-    let mut poly = Poly1305::new(&[0x11; KEY_SIZE]);
-
-    poly.unzeroize();
-    assert!(!poly.is_zeroized());
-
-    poly.fast_zeroize();
-
-    // Assert zeroization!
-    assert!(poly.is_zeroized());
-}
-
-#[test]
-fn test_poly1305_zeroizes_on_drop() {
-    let mut poly = Poly1305::new(&[0x11; KEY_SIZE]);
-
-    poly.unzeroize();
-    assert!(!poly.is_zeroized());
-
-    // Assert zeroization!
-    poly.assert_zeroize_on_drop();
-}
-
-#[test]
-fn test_poly1305_debug_says_nothing() {
-    let poly = Poly1305::new(&[0xab; KEY_SIZE]);
-
-    assert_eq!(std::format!("{poly:?}"), "Poly1305 { [protected] }");
-}
+use crate::tests::support::oracle;
+use crate::tests::support::{tag_of, tag_of_split};
 
 // === === === === === === === === === ===
 // update
@@ -218,26 +121,6 @@ fn test_update_padded_returns_the_tag_of_the_message_and_its_zeros(#[case] backe
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_finalize_mut_returns_the_appendix_tag(#[case] backend: Backend) {
-    for Vector {
-        number,
-        asks,
-        key,
-        message,
-        tag: expected,
-    } in VECTORS
-    {
-        assert_eq!(
-            &tag_of(backend, key, message),
-            expected,
-            "RFC 8439 A.3 vector #{number} asks about {asks}"
-        );
-    }
-}
-
-#[rstest]
-#[case::rust(Backend::Rust)]
-#[case::auto(Backend::Auto)]
 fn test_finalize_mut_empties_the_state_it_answered_from(#[case] backend: Backend) {
     // Long enough to leave a tail in the buffer: what an emptying that only
     // reached the accumulator would leave behind is the last block of the
@@ -258,28 +141,6 @@ fn test_finalize_mut_empties_the_state_it_answered_from(#[case] backend: Backend
 // === === === === === === === === === ===
 // tag_with_backend
 // === === === === === === === === === ===
-
-#[rstest]
-#[case::rust(Backend::Rust)]
-#[case::auto(Backend::Auto)]
-fn test_tag_with_backend_returns_the_appendix_tag(#[case] backend: Backend) {
-    for Vector {
-        number,
-        asks,
-        key,
-        message,
-        tag: expected,
-    } in VECTORS
-    {
-        let mut tag = [0u8; TAG_SIZE];
-        tag_with_backend(backend, key, message, &mut tag);
-
-        assert_eq!(
-            &tag, expected,
-            "RFC 8439 A.3 vector #{number} asks about {asks}"
-        );
-    }
-}
 
 #[rstest]
 #[case::rust(Backend::Rust)]

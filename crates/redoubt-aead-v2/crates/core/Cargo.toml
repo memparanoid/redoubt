@@ -17,7 +17,8 @@ path = "src/lib.rs"
 cc.workspace = true
 
 [dependencies]
-thiserror.workspace = true
+redoubt-asm.workspace = true
+thiserror.workspace   = true
 
 [dev-dependencies]
 rstest.workspace = true

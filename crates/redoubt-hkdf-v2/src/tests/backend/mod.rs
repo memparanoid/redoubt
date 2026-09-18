@@ -6,7 +6,7 @@
 
 mod asm;
 mod rust;
-mod shared;
+mod seam;
 
 /// The precondition every case in every file below rests on.
 ///

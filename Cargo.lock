@@ -40,6 +40,7 @@ dependencies = [
  "redoubt-aead-xchacha",
  "redoubt-aead-xchachapoly1305",
  "redoubt-alloc",
+ "redoubt-asm",
  "redoubt-buffer",
  "redoubt-chacha",
  "redoubt-codec",
@@ -960,6 +961,7 @@ name = "redoubt-aead-v2-core"
 version = "0.1.0-rc.8"
 dependencies = [
  "cc",
+ "redoubt-asm",
  "rstest",
  "thiserror",
 ]
@@ -981,6 +983,7 @@ dependencies = [
  "proptest",
  "redoubt-aead-v2-core",
  "redoubt-alloc",
+ "redoubt-asm",
  "redoubt-chacha",
  "redoubt-forensics",
  "redoubt-mem",
@@ -1027,6 +1030,7 @@ dependencies = [
  "cc",
  "proptest",
  "redoubt-aead-v2-core",
+ "redoubt-asm",
  "redoubt-zero",
  "rstest",
 ]
@@ -1170,6 +1174,7 @@ dependencies = [
  "num-bigint",
  "proptest",
  "redoubt-aead-v2-core",
+ "redoubt-asm",
  "redoubt-zero",
  "rstest",
 ]

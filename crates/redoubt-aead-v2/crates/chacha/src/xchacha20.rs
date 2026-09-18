@@ -5,8 +5,8 @@
 //! XChaCha20: ChaCha20 under a subkey, so that a nonce can be twenty-four
 //! bytes long and be picked at random without anybody counting.
 
-use redoubt_aead_v2_core::Backend;
 use redoubt_aead_v2_core::consts::chacha::{KEY_SIZE, XNONCE_SIZE};
+use redoubt_asm::Backend;
 use redoubt_zero::RedoubtZero;
 
 use crate::backend::xxor;

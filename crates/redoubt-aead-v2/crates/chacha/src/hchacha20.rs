@@ -4,8 +4,8 @@
 
 //! HChaCha20, which turns a key and sixteen bytes of nonce into another key.
 
-use redoubt_aead_v2_core::Backend;
 use redoubt_aead_v2_core::consts::chacha::{HNONCE_SIZE, KEY_SIZE};
+use redoubt_asm::Backend;
 use redoubt_zero::RedoubtZero;
 
 use crate::backend::subkey;

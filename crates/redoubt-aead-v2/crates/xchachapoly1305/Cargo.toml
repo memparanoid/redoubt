@@ -16,6 +16,7 @@ path = "src/lib.rs"
 [dependencies]
 redoubt-aead-v2-core.workspace = true
 redoubt-alloc.workspace        = true
+redoubt-asm.workspace          = true
 redoubt-chacha.workspace       = true
 redoubt-mem.workspace          = true
 redoubt-poly1305.workspace     = true

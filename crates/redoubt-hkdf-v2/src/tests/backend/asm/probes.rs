@@ -13,9 +13,8 @@
 //!
 //! The routines come after, and there the verifiers are taken as read. What is
 //! measured is the routine, and only what it left: whether it digests correctly
-//! is settled in `shared`, `rfc.rs` and `wycheproof.rs`, where both backends run
-//! every published answer. An assertion about an answer would make every one of
-//! those tests two tests.
+//! is settled where the published answers are run against every backend. An
+//! assertion about an answer would make every one of those tests two tests.
 //!
 //! Four cases per routine, the three negatives first and the real one last,
 //! because the negatives are what make it mean anything. Two of them leave a

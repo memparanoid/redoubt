@@ -26,7 +26,7 @@ use asm as chosen;
 #[cfg(not(ct_asm))]
 use rust as chosen;
 
-use crate::Backend;
+use redoubt_asm::Backend;
 
 /// Whether this target was built with assembly, which is what `Auto` goes to.
 ///
