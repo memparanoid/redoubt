@@ -1691,4 +1691,8 @@ HKDF_FRAME_PROBE hmac, FRAME_HMAC
 HKDF_FRAME_PROBE absorb, FRAME_ABSORB
 HKDF_FRAME_PROBE hkdf, FRAME_HKDF
 
-    .section .note.GNU-stack,"",@progbits
+// The note that says this object wants no executable stack. It is an ELF
+// section and Mach-O has no equivalent, so it is written where there is one.
+#if !defined(__APPLE__)
+.section .note.GNU-stack,"",@progbits
+#endif
