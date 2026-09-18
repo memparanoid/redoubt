@@ -40,7 +40,16 @@ use rust as chosen;
 ///
 /// Where it is false the two backends are the same code, and a test that finds
 /// them agreeing has proved nothing.
-#[cfg(test)]
+///
+/// The gate is the one its only reader carries, and not `hkdf_asm`: what that
+/// test asks is whether a target the build script was meant to compile assembly
+/// for actually got it, so gating this on the build script's own answer would
+/// be the build script agreeing with itself.
+#[cfg(all(
+    test,
+    not(target_os = "windows"),
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
 pub(crate) const HAS_ASM: bool = cfg!(hkdf_asm);
 
 /// One block folded into the state somebody else is carrying.
