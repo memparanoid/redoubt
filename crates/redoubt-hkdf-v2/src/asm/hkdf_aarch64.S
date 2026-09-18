@@ -977,68 +977,75 @@ FUNC(redoubt_sha256_hash):
 .globl FUNC(redoubt_hmac_sha256)
 .p2align 4
 FUNC(redoubt_hmac_sha256):
-    // Prologue: save FP/LR + callee-saved regs we use (x19-x27)
-    // Use 96 bytes to store pairs cleanly and keep 16-byte alignment.
-    stp     x29, x30, [sp, #-96]!
-    mov     x29, sp
-    stp     x19, x20, [sp, #16]
-    stp     x21, x22, [sp, #32]
-    stp     x23, x24, [sp, #48]
-    stp     x25, x26, [sp, #64]
-    str     x27, [sp, #80]      // x27 used in inner logic, x28 reserved for future
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: HMAC_KPAD holds the caller's key padded to a block, and
+// ║ HMAC_IPAD and HMAC_OPAD hold it exclusive-ored with the constants RFC 2104
+// ║ names — each of those is the key, recoverable by undoing one xor against a
+// ║ byte anybody can look up. HMAC_KHASH holds the key hashed down where it was
+// ║ too long to pad, and HMAC_H the state with a pad already folded in.
+// ║
+// ║ HMAC_INNER holds the inner digest, which is what the outer hash is keyed
+// ║ over and is not a caller's to see.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before sp is
+// ║ advanced.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
+    sub     sp, sp, #FRAME_HMAC
 
-    // Allocate stack (256 bytes)
-    sub     sp, sp, #256
-
-    // Save parameters to callee-saved registers
-    mov     x19, x0             // key_ptr
-    mov     x20, x1             // key_len
-    mov     x21, x2             // msg_ptr
-    mov     x22, x3             // msg_len
-    mov     x23, x4             // mac_ptr
+    // What has to survive the calls below.
+    str     x30, [sp, #HMAC_LR]
+    str     x0, [sp, #HMAC_KEY]
+    str     x1, [sp, #HMAC_KEYLEN]
+    str     x2, [sp, #HMAC_MSG]
+    str     x3, [sp, #HMAC_MSGLEN]
+    str     x4, [sp, #HMAC_MAC]
 
     // ========================================================================
     // Step 1: Process key
     // ========================================================================
     // If key_len > 64, hash it first; otherwise use as-is
-    cmp     x20, #64
+    cmp     x1, #64
     b.le    .Lhmac_key_short
 
-    // key_len > 64: K = SHA256(key)
-    mov     x0, x19             // key_ptr
-    mov     x1, x20             // key_len
-    add     x2, sp, #224        // temp digest buffer
+    // key_len > 64: K = SHA256(key). The key and its length are still in the
+    // registers they arrived in.
+    add     x2, sp, #HMAC_KHASH
     bl      FUNC(redoubt_sha256_hash)
 
     // Copy hashed key to K_padded (32 bytes)
-    add     x0, sp, #224
-    mov     x1, sp
+    add     x0, sp, #HMAC_KHASH
+    add     x1, sp, #HMAC_KPAD
     ldp     x2, x3, [x0]
     stp     x2, x3, [x1]
     ldp     x2, x3, [x0, #16]
     stp     x2, x3, [x1, #16]
 
     // Zero remaining 32 bytes of K_padded
-    stp     xzr, xzr, [sp, #32]
-    stp     xzr, xzr, [sp, #48]
+    stp     xzr, xzr, [x1, #32]
+    stp     xzr, xzr, [x1, #48]
 
     b       .Lhmac_key_ready
 
 .Lhmac_key_short:
     // key_len <= 64: copy key to K_padded and zero-pad
     // First zero entire K_padded buffer
-    stp     xzr, xzr, [sp]
-    stp     xzr, xzr, [sp, #16]
-    stp     xzr, xzr, [sp, #32]
-    stp     xzr, xzr, [sp, #48]
+    add     x1, sp, #HMAC_KPAD
+    stp     xzr, xzr, [x1]
+    stp     xzr, xzr, [x1, #16]
+    stp     xzr, xzr, [x1, #32]
+    stp     xzr, xzr, [x1, #48]
 
     // Copy key bytes
+    ldr     x4, [sp, #HMAC_KEY]
+    ldr     x5, [sp, #HMAC_KEYLEN]
     mov     x16, #0
 .Lhmac_copy_key:
-    cmp     x16, x20
+    cmp     x16, x5
     b.ge    .Lhmac_key_ready
-    ldrb    w17, [x19, x16]
-    strb    w17, [sp, x16]
+    ldrb    w17, [x4, x16]
+    strb    w17, [x1, x16]
     add     x16, x16, #1
     b       .Lhmac_copy_key
 
@@ -1048,20 +1055,21 @@ FUNC(redoubt_hmac_sha256):
     // ========================================================================
     mov     w0, #0x36               // ipad constant
     mov     w1, #0x5c               // opad constant
+    add     x6, sp, #HMAC_KPAD
+    add     x7, sp, #HMAC_IPAD
+    add     x8, sp, #HMAC_OPAD
     mov     x16, #0
 .Lhmac_xor_loop:
     cmp     x16, #64
     b.ge    .Lhmac_xor_done
 
-    ldrb    w17, [sp, x16]          // K_padded[i]
+    ldrb    w17, [x6, x16]          // K_padded[i]
 
     eor     w2, w17, w0             // ipad[i] = K_padded[i] ⊕ 0x36
-    add     x3, sp, #64
-    strb    w2, [x3, x16]
+    strb    w2, [x7, x16]
 
     eor     w2, w17, w1             // opad[i] = K_padded[i] ⊕ 0x5c
-    add     x3, sp, #128
-    strb    w2, [x3, x16]
+    strb    w2, [x8, x16]
 
     add     x16, x16, #1
     b       .Lhmac_xor_loop
@@ -1075,13 +1083,6 @@ FUNC(redoubt_hmac_sha256):
     //   2. Compress ipad block
     //   3. Call sha256_update_finalize(H, msg, msg_len, inner_hash)
 
-    // Save pointers to main frame locations before allocating temp H
-    add     x24, sp, #64        // ipad location in main frame
-    add     x25, sp, #192       // inner_hash location in main frame
-
-    // Allocate 32 bytes for H state on stack
-    sub     sp, sp, #32
-
     // Initialize H with SHA256_INIT
 #if defined(__APPLE__)
     adrp    x0, .LH256_INIT@PAGE
@@ -1091,26 +1092,21 @@ FUNC(redoubt_hmac_sha256):
     add     x0, x0, :lo12:.LH256_INIT
 #endif
     ld1     {v0.4s, v1.4s}, [x0]
-    st1     {v0.4s, v1.4s}, [sp]
+    add     x0, sp, #HMAC_H
+    st1     {v0.4s, v1.4s}, [x0]
 
     // Compress ipad block (64 bytes)
-    mov     x0, sp              // H_ptr (on stack)
-    mov     x1, x24             // ipad ptr (saved before)
+    add     x0, sp, #HMAC_H
+    add     x1, sp, #HMAC_IPAD
     bl      FUNC(redoubt_sha256_compress_block)
 
     // Now call sha256_update_finalize with msg
-    mov     x0, sp              // H_ptr (current state after ipad)
-    mov     x1, x21             // msg_ptr
-    mov     x2, x22             // msg_len
-    add     x3, x22, #64        // total_len = 64 (ipad) + msg_len
-    mov     x4, x25             // output: inner_hash ptr (saved before)
+    add     x0, sp, #HMAC_H
+    ldr     x1, [sp, #HMAC_MSG]
+    ldr     x2, [sp, #HMAC_MSGLEN]
+    add     x3, x2, #64         // total_len = 64 (ipad) + msg_len
+    add     x4, sp, #HMAC_INNER
     bl      .Lsha256_update_finalize
-
-    // Zeroize H state
-    stp     xzr, xzr, [sp]
-    stp     xzr, xzr, [sp, #16]
-
-    add     sp, sp, #32         // deallocate H buffer
 
     // ========================================================================
     // Step 4: Compute outer hash = SHA256(opad || inner_hash)
@@ -1120,13 +1116,6 @@ FUNC(redoubt_hmac_sha256):
     //   2. Compress opad block
     //   3. Call sha256_update_finalize(H, inner_hash, 32, mac)
 
-    // Save pointers to main frame locations before allocating temp H
-    add     x24, sp, #128       // opad location in main frame
-    add     x25, sp, #192       // inner_hash location in main frame
-
-    // Allocate 32 bytes for H state on stack
-    sub     sp, sp, #32
-
     // Initialize H with SHA256_INIT
 #if defined(__APPLE__)
     adrp    x0, .LH256_INIT@PAGE
@@ -1136,61 +1125,29 @@ FUNC(redoubt_hmac_sha256):
     add     x0, x0, :lo12:.LH256_INIT
 #endif
     ld1     {v0.4s, v1.4s}, [x0]
-    st1     {v0.4s, v1.4s}, [sp]
+    add     x0, sp, #HMAC_H
+    st1     {v0.4s, v1.4s}, [x0]
 
     // Compress opad block (64 bytes)
-    mov     x0, sp              // H_ptr (on stack)
-    mov     x1, x24             // opad ptr (saved before)
+    add     x0, sp, #HMAC_H
+    add     x1, sp, #HMAC_OPAD
     bl      FUNC(redoubt_sha256_compress_block)
 
     // Now call sha256_update_finalize with inner_hash
-    mov     x0, sp              // H_ptr (current state after opad)
-    mov     x1, x25             // inner_hash ptr (saved before)
+    add     x0, sp, #HMAC_H
+    add     x1, sp, #HMAC_INNER
     mov     x2, #32             // inner_hash length (32 bytes)
     mov     x3, #96             // total_len = 64 (opad) + 32 (inner_hash)
-    mov     x4, x23             // output: mac_ptr (final output)
+    ldr     x4, [sp, #HMAC_MAC]
     bl      .Lsha256_update_finalize
 
-    // Zeroize H state
-    stp     xzr, xzr, [sp]
-    stp     xzr, xzr, [sp, #16]
+    // The caller's return address, back out of the frame before the frame goes.
+    ldr     x30, [sp, #HMAC_LR]
 
-    add     sp, sp, #32         // deallocate H buffer
+    HKDF_EMPTY_FRAME FRAME_HMAC
+// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
 
-    // ========================================================================
-    // Cleanup and return
-    // ========================================================================
-    // Zeroize main stack frame (256 bytes: K_padded, ipad, opad, inner_hash, temp)
-    stp     xzr, xzr, [sp]
-    stp     xzr, xzr, [sp, #16]
-    stp     xzr, xzr, [sp, #32]
-    stp     xzr, xzr, [sp, #48]
-    stp     xzr, xzr, [sp, #64]
-    stp     xzr, xzr, [sp, #80]
-    stp     xzr, xzr, [sp, #96]
-    stp     xzr, xzr, [sp, #112]
-    stp     xzr, xzr, [sp, #128]
-    stp     xzr, xzr, [sp, #144]
-    stp     xzr, xzr, [sp, #160]
-    stp     xzr, xzr, [sp, #176]
-    stp     xzr, xzr, [sp, #192]
-    stp     xzr, xzr, [sp, #208]
-    stp     xzr, xzr, [sp, #224]
-    stp     xzr, xzr, [sp, #240]
-
-    add     sp, sp, #256
-
-    // Zeroize all caller-saved registers (GPR + SIMD) that may have held
-    // SECRET bytes during HMAC computation.
     HKDF_SHA256_ZEROIZE_ALL
-
-    // Epilogue: restore callee-saved regs
-    ldr     x27, [sp, #80]
-    ldp     x25, x26, [sp, #64]
-    ldp     x23, x24, [sp, #48]
-    ldp     x21, x22, [sp, #32]
-    ldp     x19, x20, [sp, #16]
-    ldp     x29, x30, [sp], #96
     ret
 
 //============================================================================
