@@ -2,24 +2,23 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! HKDF-SHA256 and the three steps it is made of, each reachable on its own.
+//! HKDF-SHA256, as the door and the derivation behind it.
 
 use redoubt_asm::Backend;
 
-use crate::backend::{hkdf_sha256, hmac_sha256, sha256_compress_block, sha256_hash};
-use crate::consts::{BLOCK_SIZE, HASH_SIZE, MAX_OUTPUT_SIZE};
+use crate::backend::hkdf_sha256;
+use crate::consts::MAX_OUTPUT_SIZE;
 use crate::error::HkdfError;
 
-/// A derivation, and the hash and authenticator under it.
+/// A derivation.
 ///
-/// It holds nothing but where its operations go. Every one of them is handed
-/// the whole of what it works on and keeps nothing between calls — no key
-/// resident afterwards, no chaining state, and nothing to zeroize that is not
-/// the backend's own.
+/// It holds nothing but where its operations go. It is handed the whole of what
+/// it works on and keeps nothing between calls — no key resident afterwards, no
+/// chaining state, and nothing to zeroize that is not the backend's own.
 ///
-/// Not public, and neither is anything on it. What a caller wants is [`hkdf`];
-/// the three steps under it are here so that each can be asked of either
-/// backend and held to the answers its own standard publishes.
+/// Not public, and neither is anything on it. What a caller wants is [`hkdf`].
+/// The steps the derivation is made of are not reached through here: a test
+/// that wants one asks the seam, which is where a backend can be named.
 #[cfg_attr(test, derive(Clone, Eq, PartialEq, Debug))]
 #[derive(Default)]
 pub(crate) struct HkdfSha256 {
@@ -32,25 +31,6 @@ impl HkdfSha256 {
         Self {
             backend: Backend::default(),
         }
-    }
-
-    /// One block folded into the state somebody else is carrying.
-    ///
-    /// The state arrives and leaves through the same eight words. What a caller
-    /// does between blocks is its own business, and what it is holding is never
-    /// copied out to be handed back.
-    pub(crate) fn compress_block(&self, h: &mut [u32; 8], block: &[u8; BLOCK_SIZE]) {
-        sha256_compress_block(self.backend, h, block);
-    }
-
-    /// The digest of a message of any length, FIPS 180-4.
-    pub(crate) fn hash(&self, data: &[u8], out: &mut [u8; HASH_SIZE]) {
-        sha256_hash(self.backend, data, out);
-    }
-
-    /// HMAC-SHA256, RFC 2104.
-    pub(crate) fn hmac(&self, key: &[u8], data: &[u8], out: &mut [u8; HASH_SIZE]) {
-        hmac_sha256(self.backend, key, data, out);
     }
 
     /// `okm` filled with key material derived from `ikm`, RFC 5869.

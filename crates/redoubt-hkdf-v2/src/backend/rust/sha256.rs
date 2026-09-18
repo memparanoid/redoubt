@@ -112,6 +112,7 @@ impl Sha256State {
     /// # Arguments
     /// * `h` - Hash state (8 × u32, input/output)
     /// * `block` - Message block (64 bytes)
+    #[cfg(test)]
     pub fn compress_block(&mut self, h: &mut [u32; 8], block: &[u8; 64]) {
         // Initialize working variables with H
         // SAFETY: Word32 is repr(transparent) over u32, same layout
@@ -360,6 +361,7 @@ impl Sha256State {
     }
 
     /// Hash complete message
+    #[cfg(test)]
     pub fn hash(&mut self, data: &[u8], out: &mut [u8; HASH_LEN]) {
         self.update(data);
         self.finalize(out);

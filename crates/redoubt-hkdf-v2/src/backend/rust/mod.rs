@@ -20,16 +20,20 @@ pub(crate) mod hmac;
 pub(crate) mod sha256;
 pub(crate) mod word32;
 
+#[cfg(test)]
 use crate::consts::{BLOCK_SIZE, HASH_SIZE};
 
 use hkdf::HkdfSha256State;
+#[cfg(test)]
 use hmac::HmacSha256State;
+#[cfg(test)]
 use sha256::Sha256State;
 
 /// One block folded into the state somebody else is carrying.
 ///
 /// Reachable on its own because it is the one step of SHA-256 that has
 /// published answers of its own, and because the assembly has a symbol for it.
+#[cfg(test)]
 pub(crate) fn sha256_compress_block(h: &mut [u32; 8], block: &[u8; BLOCK_SIZE]) {
     let mut state = Sha256State::new();
 
@@ -37,6 +41,7 @@ pub(crate) fn sha256_compress_block(h: &mut [u32; 8], block: &[u8; BLOCK_SIZE]) 
 }
 
 /// The digest of a message of any length.
+#[cfg(test)]
 pub(crate) fn sha256_hash(data: &[u8], out: &mut [u8; HASH_SIZE]) {
     let mut state = Sha256State::new();
 
@@ -44,6 +49,7 @@ pub(crate) fn sha256_hash(data: &[u8], out: &mut [u8; HASH_SIZE]) {
 }
 
 /// HMAC-SHA256, RFC 2104.
+#[cfg(test)]
 pub(crate) fn hmac_sha256(key: &[u8], data: &[u8], out: &mut [u8; HASH_SIZE]) {
     let mut state = HmacSha256State::new();
 

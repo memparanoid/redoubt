@@ -8,9 +8,6 @@
 //! architecture whose probe is not written yet, drops the whole of it rather
 //! than a list of items each saying the same thing.
 
-#![cfg(all(
-    hkdf_asm,
-    any(target_arch = "x86_64", target_arch = "aarch64")
-))]
+#![cfg(all(hkdf_asm, any(target_arch = "x86_64", target_arch = "aarch64")))]
 
 mod probes;

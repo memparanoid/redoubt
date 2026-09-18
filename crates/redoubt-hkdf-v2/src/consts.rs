@@ -9,6 +9,7 @@
 //! three places a change has to land.
 
 /// The bytes SHA-256 compresses at a time, and the width HMAC pads its key to.
+#[cfg(test)]
 pub const BLOCK_SIZE: usize = 64;
 
 /// The bytes a digest is, which is also one block of derived output.

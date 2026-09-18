@@ -1224,7 +1224,18 @@ macro_rules! measure_with_stack_arguments {
         $a6:expr, $a7:expr $(,)?
     ) => {{
         $frame_writer($at);
-        measure!($routine, $frame_probe, $a0, $a1, $a2, $a3, $a4, $a5, $a6, $a7)
+        measure!(
+            $routine,
+            $frame_probe,
+            $a0,
+            $a1,
+            $a2,
+            $a3,
+            $a4,
+            $a5,
+            $a6,
+            $a7
+        )
     }};
 }
 
@@ -1244,7 +1255,10 @@ fn assert_residue(registers: u64, frame: u64, left: Left) {
             // A call that did nothing at all. What the caller dirtied before it
             // has to still be there afterwards, or a clean reading below says
             // only that something between the calls tidied up.
-            assert_ne!(registers, 0, "a call that ran nothing emptied the registers");
+            assert_ne!(
+                registers, 0,
+                "a call that ran nothing emptied the registers"
+            );
             assert_ne!(frame, 0, "a call that ran nothing emptied the frame");
         }
         Left::Registers => {

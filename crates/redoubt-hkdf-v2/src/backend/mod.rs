@@ -27,6 +27,7 @@ pub(crate) mod asm;
 
 use redoubt_asm::Backend;
 
+#[cfg(test)]
 use crate::consts::{BLOCK_SIZE, HASH_SIZE};
 
 #[cfg(hkdf_asm)]
@@ -43,6 +44,13 @@ use rust as chosen;
 pub(crate) const HAS_ASM: bool = cfg!(hkdf_asm);
 
 /// One block folded into the state somebody else is carrying.
+///
+/// Nothing above the seam calls it: a caller wants a derivation, and the
+/// derivation reaches the assembly in one call. It is declared here so that the
+/// compression can be put to the answers NIST publishes for it, on either
+/// backend, which is the only oracle that reaches a state that is not the
+/// initial one.
+#[cfg(test)]
 pub(crate) fn sha256_compress_block(backend: Backend, h: &mut [u32; 8], block: &[u8; BLOCK_SIZE]) {
     match backend {
         Backend::Rust => rust::sha256_compress_block(h, block),
@@ -51,6 +59,10 @@ pub(crate) fn sha256_compress_block(backend: Backend, h: &mut [u32; 8], block: &
 }
 
 /// The digest of a message of any length.
+///
+/// Test-only for the same reason as the compression above, and held to the same
+/// published answers.
+#[cfg(test)]
 pub(crate) fn sha256_hash(backend: Backend, data: &[u8], out: &mut [u8; HASH_SIZE]) {
     match backend {
         Backend::Rust => rust::sha256_hash(data, out),
@@ -59,6 +71,10 @@ pub(crate) fn sha256_hash(backend: Backend, data: &[u8], out: &mut [u8; HASH_SIZ
 }
 
 /// HMAC-SHA256, RFC 2104.
+///
+/// Test-only for the same reason, and held to the tags RFC 4231 and Wycheproof
+/// publish.
+#[cfg(test)]
 pub(crate) fn hmac_sha256(backend: Backend, key: &[u8], data: &[u8], out: &mut [u8; HASH_SIZE]) {
     match backend {
         Backend::Rust => rust::hmac_sha256(key, data, out),

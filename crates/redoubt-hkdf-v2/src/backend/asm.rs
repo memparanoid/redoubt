@@ -14,13 +14,20 @@
 //! `sha256_hash`, and a collision there is resolved by the linker without a
 //! word to anybody.
 
+#[cfg(test)]
 use crate::consts::{BLOCK_SIZE, HASH_SIZE};
 
 unsafe extern "C" {
+    // The first three are declared only where something reaches them, which is
+    // the tests. The assembly defines them in every build — its own routines
+    // call them — and what changes here is whether Rust has a name for one.
+    #[cfg(test)]
     fn redoubt_sha256_compress_block(h: *mut u32, block: *const u8);
 
+    #[cfg(test)]
     fn redoubt_sha256_hash(msg: *const u8, msg_len: usize, digest: *mut u8);
 
+    #[cfg(test)]
     fn redoubt_hmac_sha256(
         key: *const u8,
         key_len: usize,
@@ -42,6 +49,7 @@ unsafe extern "C" {
 }
 
 /// One block folded into the state somebody else is carrying.
+#[cfg(test)]
 pub(crate) fn sha256_compress_block(h: &mut [u32; 8], block: &[u8; BLOCK_SIZE]) {
     // SAFETY: the state is eight words and the block is `BLOCK_SIZE` bytes,
     // which is what the routine reads and writes, and the two are distinct
@@ -50,6 +58,7 @@ pub(crate) fn sha256_compress_block(h: &mut [u32; 8], block: &[u8; BLOCK_SIZE]) 
 }
 
 /// The digest of a message of any length.
+#[cfg(test)]
 pub(crate) fn sha256_hash(data: &[u8], out: &mut [u8; HASH_SIZE]) {
     // SAFETY: the message is as long as the length beside it, the destination
     // is `HASH_SIZE` bytes, and a shared borrow and an exclusive one cannot be
@@ -58,6 +67,7 @@ pub(crate) fn sha256_hash(data: &[u8], out: &mut [u8; HASH_SIZE]) {
 }
 
 /// HMAC-SHA256, RFC 2104.
+#[cfg(test)]
 pub(crate) fn hmac_sha256(key: &[u8], data: &[u8], out: &mut [u8; HASH_SIZE]) {
     // SAFETY: each pointer is as long as the length beside it, the destination
     // is `HASH_SIZE` bytes, and the exclusive borrow is neither of the two
