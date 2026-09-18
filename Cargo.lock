@@ -1123,6 +1123,7 @@ dependencies = [
  "redoubt-mem",
  "redoubt-util",
  "redoubt-zero",
+ "rstest",
  "thiserror",
 ]
 

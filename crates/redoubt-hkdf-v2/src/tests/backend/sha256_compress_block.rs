@@ -22,6 +22,8 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 
+use rstest::rstest;
+
 use redoubt_asm::Backend;
 
 use crate::backend::sha256_compress_block;
@@ -93,32 +95,36 @@ fn compressed(backend: Backend, message: &[u8]) -> String {
 /// The lengths are what this is for: fifty-five bytes is the last that fits in
 /// one block with its length field, and fifty-six is the first that does not.
 /// Both sides of that line are in here.
-#[test]
-fn test_compress_block_answers_the_published_digest_for_every_short_message() {
-    for backend in [Backend::Rust, Backend::Auto] {
-        for (message, digest) in messages(SHORT_MSG, SHORT_MSG_COUNT) {
-            assert_eq!(
-                compressed(backend, &message),
-                digest,
-                "{} bytes, {backend:?}",
-                message.len(),
-            );
-        }
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_compress_block_answers_the_published_digest_for_every_short_message(
+    #[case] backend: Backend,
+) {
+    for (message, digest) in messages(SHORT_MSG, SHORT_MSG_COUNT) {
+        assert_eq!(
+            compressed(backend, &message),
+            digest,
+            "{} bytes",
+            message.len(),
+        );
     }
 }
 
 /// Messages of 163 bytes to 6400, which is the chain run long enough that a
 /// state carried wrongly from one block to the next has somewhere to show.
-#[test]
-fn test_compress_block_answers_the_published_digest_for_every_long_message() {
-    for backend in [Backend::Rust, Backend::Auto] {
-        for (message, digest) in messages(LONG_MSG, LONG_MSG_COUNT) {
-            assert_eq!(
-                compressed(backend, &message),
-                digest,
-                "{} bytes, {backend:?}",
-                message.len(),
-            );
-        }
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_compress_block_answers_the_published_digest_for_every_long_message(
+    #[case] backend: Backend,
+) {
+    for (message, digest) in messages(LONG_MSG, LONG_MSG_COUNT) {
+        assert_eq!(
+            compressed(backend, &message),
+            digest,
+            "{} bytes",
+            message.len(),
+        );
     }
 }
