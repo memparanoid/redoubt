@@ -7,8 +7,11 @@
 //! a time, and a positive for each. Then the two writers they are swept with,
 //! captured rather than asked: an OR cannot say which element carried it.
 //!
-//! Every test in `asm` reads a verdict one of these gives, so here they are the
-//! thing under test and nothing below calls a routine.
+//! The verifiers come first and are the thing under test; nothing in that half
+//! calls a routine. The routines come after, and there the verifiers are taken
+//! as read: what is measured is the routine, and only what it left. Whether it
+//! authenticates correctly is settled against the published vectors, where an
+//! answer can be compared to one somebody else published.
 //!
 //! The state of AEGIS lives in the vector registers and nowhere else, so those
 //! are in the budget as well as the general ones — twenty-five registers on
@@ -17,17 +20,64 @@
 //! pattern in both of its lanes: in one only, the equality below would hold
 //! without saying which lane was read.
 
-use super::{
-    FRAME, redoubt_aegis128l_clean_frame, redoubt_aegis128l_dirty_frame,
-    redoubt_aegis128l_dirty_registers, redoubt_aegis128l_frame_is_zeroized,
-    redoubt_aegis128l_registers_are_zeroized,
-};
+use std::vec::Vec;
+
+use rstest::rstest;
+
+use redoubt_aead_v2_core::consts::aegis::{BLOCK_SIZE, KEY_SIZE, NONCE_SIZE, TAG_SIZE};
+
+// The assembly, in the order the file declares it: the two entry points the
+// backend calls, then the probe, which nothing in production calls.
+unsafe extern "C" {
+    fn redoubt_aegis128l_encrypt(
+        key: *const u8,
+        nonce: *const u8,
+        aad: *const u8,
+        aad_len: usize,
+        data: *mut u8,
+        data_len: usize,
+        tag: *mut u8,
+    );
+    fn redoubt_aegis128l_decrypt(
+        key: *const u8,
+        nonce: *const u8,
+        aad: *const u8,
+        aad_len: usize,
+        data: *mut u8,
+        data_len: usize,
+        tag: *mut u8,
+    );
+
+    // The probe, last and apart: what asks first, then what is asked about.
+    fn redoubt_aegis128l_registers_are_zeroized() -> u64;
+    fn redoubt_aegis128l_frame_is_zeroized() -> u64;
+    fn redoubt_aegis128l_dirty_registers();
+    fn redoubt_aegis128l_dirty_frame(at: usize);
+    fn redoubt_aegis128l_clean_frame();
+}
+
+/// A key and a nonce at the widths the routines read.
+///
+/// Their values are arbitrary: nothing that uses them asserts on an answer.
+fn material() -> ([u8; KEY_SIZE], [u8; NONCE_SIZE]) {
+    (
+        core::array::from_fn(|at| 0x40 + at as u8),
+        core::array::from_fn(|at| 0x70 + at as u8),
+    )
+}
 
 const POISON: u64 = 0xa5a5_a5a5_a5a5_a5a5;
 
 /// The byte the poison is made of, for the capture that reads a vector a byte
 /// at a time rather than a word at a time.
 const POISON_BYTE: u8 = 0xa5;
+
+/// The one byte the frame writer leaves, at the offset it was asked for.
+const LEFT_BYTE: u8 = 0x5c;
+
+/// The frame every routine takes, as the layout at the top of the assembly
+/// declares it. Both targets reach the same width.
+const FRAME: usize = 32;
 
 /// The general half of the budget, in the order the list at the top of the
 /// assembly names it.
@@ -61,13 +111,19 @@ const VECTOR: [&str; 24] = [
 ];
 
 // === === === === === === === === === === ===
-// Emptying the budget
+// What differs between the two targets
 // === === === === === === === === === === ===
 //
-// Written once because the five blocks below all need it. Copied out five
-// times, a register dropped from four and kept in the fifth leaves the test
-// named for it passing while its answer is about whichever other register held
-// something — the failure the sweep exists to catch, inside the sweep.
+// Everything below this section reads the same for both, and that is the point:
+// the tests are the same claims about two implementations of one thing, so a
+// case added to one target and not the other is a target that quietly has less
+// cover. Here the instructions differ; there the reasoning does not.
+//
+// The emptying is written once because every block below needs it. Copied out
+// per block, a register dropped from one of them and kept in the others leaves
+// the test named for it passing while its answer is about whichever other
+// register held something — the failure the sweep exists to catch, inside the
+// sweep.
 
 /// Every vector register in the budget, emptied.
 #[cfg(target_arch = "x86_64")]
@@ -340,6 +396,9 @@ mod dirty_register {
     test_dirty_vector_is_seen!(test_xmm13_is_seen, "xmm13");
     test_dirty_vector_is_seen!(test_xmm14_is_seen, "xmm14");
     test_dirty_vector_is_seen!(test_xmm15_is_seen, "xmm15");
+
+    pub(super) const GENERAL_TESTS: usize = 9;
+    pub(super) const VECTOR_TESTS: usize = 16;
 }
 
 #[cfg(target_arch = "aarch64")]
@@ -542,6 +601,20 @@ mod dirty_register {
     test_dirty_vector_is_seen!(test_v29_is_seen, "v29");
     test_dirty_vector_is_seen!(test_v30_is_seen, "v30");
     test_dirty_vector_is_seen!(test_v31_is_seen, "v31");
+
+    pub(super) const GENERAL_TESTS: usize = 18;
+    pub(super) const VECTOR_TESTS: usize = 24;
+}
+
+/// Every register the lists name has a test of its own.
+///
+/// A register named in a list and missing from the block above is a register
+/// the capture below reports filled while the verifier is never asked about it
+/// — green on both sides, and nobody looking at that register.
+#[test]
+fn test_the_lists_name_as_many_registers_as_there_are_tests() {
+    assert_eq!(GENERAL.len(), dirty_register::GENERAL_TESTS);
+    assert_eq!(VECTOR.len(), dirty_register::VECTOR_TESTS);
 }
 
 // === === === === === === === === === === ===
@@ -552,9 +625,9 @@ mod dirty_register {
 ///
 /// Every routine reads a verdict this gives, and a verdict about a byte it
 /// never looks at would be a clean bill of health for memory nobody inspected.
-/// Thirty-two calls are cheap and they are the only way to know it reads all of
-/// them — an off-by-one at either end, against the return address sitting next
-/// door, shows up here and nowhere else.
+/// A frame's worth of calls is cheap and it is the only way to know it reads
+/// all of them — an off-by-one at either end, against the return address
+/// sitting next door, shows up here and nowhere else.
 ///
 /// The pair is called with nothing in between, which is the other thing being
 /// measured: if anything ran there, the frame the verifier reads would not be
@@ -569,14 +642,18 @@ fn test_a_byte_left_anywhere_in_the_frame_is_seen() {
             redoubt_aegis128l_frame_is_zeroized()
         };
 
-        assert_ne!(dirty, 0, "byte {at} of the frame reads as empty");
+        assert_eq!(
+            dirty,
+            only_the_byte_at(at),
+            "byte {at} of the frame does not reach the answer"
+        );
     }
 }
 
 /// The other way round, and the reason the sweep above means anything.
 ///
 /// A verifier that answered "dirty" whatever it was handed would pass every
-/// one of those thirty-two.
+/// call of that sweep.
 #[test]
 fn test_a_frame_written_and_emptied_reads_as_empty() {
     // SAFETY: the target fills the frame it allocated and empties it again,
@@ -839,9 +916,532 @@ fn test_dirty_frame_clears_every_byte_except_the_requested_one() {
         for (byte, &value) in actual.iter().enumerate() {
             assert_eq!(
                 value,
-                if byte == at { 0x5c } else { 0 },
+                if byte == at { LEFT_BYTE } else { 0 },
                 "requested byte {at}, captured byte {byte}",
             );
         }
+    }
+}
+
+// === === === === === === === === === === ===
+// What the routines leave
+// === === === === === === === === === === ===
+//
+// Four cases per routine, the three negatives first and the real one last,
+// because the negatives are what make it mean anything. Two of them leave a
+// residue of their own; the third leaves the machine exactly as it arrived,
+// which is what says the reading is about the routine and not about the call
+// site having tidied up.
+//
+// The dirtying goes first. The selected routine and both verifiers then run in
+// one assembly block, so Rust cannot insert work before the measurement. The
+// register verdict is kept in a callee-saved register while the frame is
+// scanned; that move neither changes the stack pointer nor touches the frame.
+//
+// Whether a routine takes a frame at all is decided by its arguments and not by
+// the target: the stack is reached for a tail that does not fill a block, so an
+// AAD and a message that are both whole numbers of blocks never touch it. Both
+// halves are swept below, and the one that takes none asserts the poison
+// survives.
+//
+// These are not claims about kernel signal frames, swap, dumps, or the input
+// and output the caller owns.
+
+/// What both routines take, in the order they take it.
+type Routine =
+    unsafe extern "C" fn(*const u8, *const u8, *const u8, usize, *mut u8, usize, *mut u8);
+
+/// Three stand-ins for the routine, with its arguments and none of its work.
+///
+/// The tail branch keeps the caller's stack pointer and return address. A
+/// regular Rust wrapper could take another frame or change the registers on
+/// return, making the residue belong to the wrapper instead of the helper.
+///
+/// The first two leave a residue of their own, which is what says the verifier
+/// sees one across this call site. The third leaves none and does nothing at
+/// all: it is the only one that measures the gap, because the other two dirty
+/// the machine again from inside the call. What it answers is whether the
+/// *caller's* dirtying survives to the verifier — without it, the real routine
+/// reading clean could be the call site having cleaned rather than the routine.
+///
+/// Only the frame stand-in replaces the first argument with byte offset zero.
+/// These functions never dereference their pointer arguments.
+macro_rules! controls {
+    ($registers:ident, $frame:ident, $untouched:ident) => {
+        #[unsafe(naked)]
+        unsafe extern "C" fn $untouched(
+            _key: *const u8,
+            _nonce: *const u8,
+            _aad: *const u8,
+            _aad_len: usize,
+            _data: *mut u8,
+            _data_len: usize,
+            _tag: *mut u8,
+        ) {
+            core::arch::naked_asm!("ret");
+        }
+
+        #[unsafe(naked)]
+        unsafe extern "C" fn $registers(
+            _key: *const u8,
+            _nonce: *const u8,
+            _aad: *const u8,
+            _aad_len: usize,
+            _data: *mut u8,
+            _data_len: usize,
+            _tag: *mut u8,
+        ) {
+            #[cfg(target_arch = "x86_64")]
+            core::arch::naked_asm!(
+                "jmp {target}",
+                target = sym redoubt_aegis128l_dirty_registers,
+            );
+
+            #[cfg(target_arch = "aarch64")]
+            core::arch::naked_asm!(
+                "b {target}",
+                target = sym redoubt_aegis128l_dirty_registers,
+            );
+        }
+
+        #[unsafe(naked)]
+        unsafe extern "C" fn $frame(
+            _key: *const u8,
+            _nonce: *const u8,
+            _aad: *const u8,
+            _aad_len: usize,
+            _data: *mut u8,
+            _data_len: usize,
+            _tag: *mut u8,
+        ) {
+            #[cfg(target_arch = "x86_64")]
+            core::arch::naked_asm!(
+                "xor edi, edi",
+                "jmp {target}",
+                target = sym redoubt_aegis128l_dirty_frame,
+            );
+
+            #[cfg(target_arch = "aarch64")]
+            core::arch::naked_asm!(
+                "mov x0, xzr",
+                "b {target}",
+                target = sym redoubt_aegis128l_dirty_frame,
+            );
+        }
+    };
+}
+
+/// Call the selected routine with its ABI arguments and immediately measure it.
+///
+/// The caller must uphold the routine's pointer and length preconditions. Both
+/// verifiers preserve r12/x20, where the first verdict waits for the second.
+/// Declaring that output makes Rust preserve its caller's value.
+///
+/// Seven arguments is one more than SysV passes in registers, so on x86-64 the
+/// last goes on the stack and the stack pointer stays where it was put until
+/// both verifiers have run. Giving those sixteen bytes back any earlier would
+/// have the second verifier read sixteen bytes above the frame the routine
+/// used. AArch64 passes all seven in registers.
+macro_rules! measure {
+    ($routine:expr, $key:expr, $nonce:expr, $aad:expr, $aad_len:expr,
+     $data:expr, $data_len:expr, $tag:expr $(,)?) => {{
+        let registers: u64;
+        let frame: u64;
+
+        #[cfg(target_arch = "x86_64")]
+        core::arch::asm!(
+            "sub rsp, 16",
+            "mov [rsp], r10",
+            "call r11",
+            "call {register_probe}",
+            "mov r12, rax",
+            "call {frame_probe}",
+            "add rsp, 16",
+            register_probe = sym redoubt_aegis128l_registers_are_zeroized,
+            frame_probe = sym redoubt_aegis128l_frame_is_zeroized,
+            inlateout("r11") $routine => _,
+            inlateout("rdi") $key => _,
+            inlateout("rsi") $nonce => _,
+            inlateout("rdx") $aad => _,
+            inlateout("rcx") $aad_len => _,
+            inlateout("r8") $data => _,
+            inlateout("r9") $data_len => _,
+            inlateout("r10") $tag => _,
+            lateout("r12") registers,
+            lateout("rax") frame,
+            clobber_abi("C"),
+        );
+
+        #[cfg(target_arch = "aarch64")]
+        core::arch::asm!(
+            "blr x16",
+            "bl {register_probe}",
+            "mov x20, x0",
+            "bl {frame_probe}",
+            register_probe = sym redoubt_aegis128l_registers_are_zeroized,
+            frame_probe = sym redoubt_aegis128l_frame_is_zeroized,
+            inlateout("x16") $routine => _,
+            inlateout("x0") $key => frame,
+            inlateout("x1") $nonce => _,
+            inlateout("x2") $aad => _,
+            inlateout("x3") $aad_len => _,
+            inlateout("x4") $data => _,
+            inlateout("x5") $data_len => _,
+            inlateout("x6") $tag => _,
+            lateout("x20") registers,
+            clobber_abi("C"),
+        );
+
+        (registers, frame)
+    }};
+}
+
+/// Dirty the frame from inside the measurement, after its reservation.
+///
+/// On x86-64 the reservation that carries the seventh argument moves the stack
+/// pointer, so a writer called before the block fills a window sixteen bytes
+/// above the one the routine and the verifier then use. The offset arrives in
+/// r13, outside the budget, and the first argument waits in the reserved space
+/// while the writer runs — the writer takes its offset in the register that
+/// argument arrived in. AArch64 reserves nothing, so the stack pointer inside
+/// the block is the one Rust had.
+macro_rules! measure_the_window {
+    ($routine:expr, $at:expr, $key:expr, $nonce:expr, $aad:expr, $aad_len:expr,
+     $data:expr, $data_len:expr, $tag:expr $(,)?) => {{
+        #[cfg(target_arch = "x86_64")]
+        let measured = {
+            let registers: u64;
+            let frame: u64;
+
+            core::arch::asm!(
+                "sub rsp, 32",
+                "mov [rsp + 16], rdi",
+                "mov rdi, r13",
+                "call {frame_writer}",
+                "mov rdi, [rsp + 16]",
+                "mov [rsp], r10",
+                "call r11",
+                "call {register_probe}",
+                "mov r12, rax",
+                "call {frame_probe}",
+                "add rsp, 32",
+                register_probe = sym redoubt_aegis128l_registers_are_zeroized,
+                frame_probe = sym redoubt_aegis128l_frame_is_zeroized,
+                frame_writer = sym redoubt_aegis128l_dirty_frame,
+                inlateout("r11") $routine => _,
+                inlateout("rdi") $key => _,
+                inlateout("rsi") $nonce => _,
+                inlateout("rdx") $aad => _,
+                inlateout("rcx") $aad_len => _,
+                inlateout("r8") $data => _,
+                inlateout("r9") $data_len => _,
+                inlateout("r10") $tag => _,
+                inlateout("r13") $at => _,
+                lateout("r12") registers,
+                lateout("rax") frame,
+                clobber_abi("C"),
+            );
+
+            (registers, frame)
+        };
+
+        #[cfg(target_arch = "aarch64")]
+        let measured = {
+            redoubt_aegis128l_dirty_frame($at);
+            measure!(
+                $routine, $key, $nonce, $aad, $aad_len, $data, $data_len, $tag
+            )
+        };
+
+        measured
+    }};
+}
+
+/// Which residue the case deliberately leaves, or neither for the real call.
+#[derive(Clone, Copy)]
+enum Left {
+    Registers,
+    Frame,
+    Everything,
+    Nothing,
+}
+
+/// Each negative asks only about the residue it deliberately leaves.
+fn assert_residue(registers: u64, frame: u64, left: Left, takes_frame: bool) {
+    match left {
+        Left::Everything => {
+            // A call that did nothing at all. What the caller dirtied before it
+            // has to still be there afterwards, or a clean reading below says
+            // only that something between the calls tidied up.
+            assert_ne!(registers, 0, "a call that ran nothing emptied the registers");
+            assert_ne!(frame, 0, "a call that ran nothing emptied the frame");
+        }
+        Left::Registers => {
+            assert_ne!(
+                registers, 0,
+                "registers the replacement left full read as empty"
+            );
+        }
+        Left::Frame => {
+            assert_ne!(
+                frame, 0,
+                "the frame the replacement left full reads as empty"
+            );
+        }
+        Left::Nothing => {
+            // Assert zeroization!
+            assert_eq!(registers, 0, "the registers after the real routine");
+
+            if takes_frame {
+                assert_eq!(frame, 0, "the frame after the real routine");
+            } else {
+                assert_ne!(frame, 0, "a routine that takes no frame emptied one");
+            }
+        }
+    }
+}
+
+/// Whether these two lengths make a routine reach for its frame.
+///
+/// Zero counts as a whole number of blocks and takes none.
+fn takes_a_frame(aad_len: usize, data_len: usize) -> bool {
+    !aad_len.is_multiple_of(BLOCK_SIZE) || !data_len.is_multiple_of(BLOCK_SIZE)
+}
+
+/// Every way an AAD can sit against a block boundary, and one that spans
+/// several.
+const AAD_LENGTHS: [usize; 6] = [0, 1, 31, 32, 33, 64];
+
+/// Every way a message can sit against a block boundary, both sides of each.
+const DATA_LENGTHS: [usize; 9] = [0, 1, 15, 16, 17, 31, 32, 33, 65];
+
+/// A buffer of `length` bytes, none of them zero.
+///
+/// None of them zero on purpose: a tail of zeros copied into the frame would
+/// leave it reading as though it had already been emptied.
+fn said(length: usize) -> Vec<u8> {
+    (0..length).map(|at| ((at as u8) ^ 0x5a) | 1).collect()
+}
+
+// === === === === === === === === === === ===
+// encrypt
+// === === === === === === === === === === ===
+
+controls!(
+    dirty_encrypt_registers,
+    dirty_encrypt_frame,
+    untouched_encrypt
+);
+
+#[rstest]
+#[case::registers_left_full(dirty_encrypt_registers as Routine, Left::Registers)]
+#[case::frame_left_full(dirty_encrypt_frame as Routine, Left::Frame)]
+#[case::nothing_ran(untouched_encrypt as Routine, Left::Everything)]
+#[case::real(redoubt_aegis128l_encrypt as Routine, Left::Nothing)]
+fn test_encrypt_leaves_the_residue_its_case_declares(#[case] routine: Routine, #[case] left: Left) {
+    // All cases use this indirect call site, including under release/LTO.
+    // The controls exercise this caller; they do not certify other callers.
+    let routine = core::hint::black_box(routine);
+    let (key, nonce) = material();
+
+    for aad_len in AAD_LENGTHS {
+        for data_len in DATA_LENGTHS {
+            let aad = said(aad_len);
+            let mut data = said(data_len);
+            let mut tag = [0_u8; TAG_SIZE];
+
+            // SAFETY: every pointer is to storage of the width the routine
+            // reads or writes, and the buffers are distinct allocations.
+            let (registers, frame) = unsafe {
+                redoubt_aegis128l_dirty_registers();
+                redoubt_aegis128l_dirty_frame(0);
+                measure!(
+                    routine,
+                    key.as_ptr(),
+                    nonce.as_ptr(),
+                    aad.as_ptr(),
+                    aad_len,
+                    data.as_mut_ptr(),
+                    data_len,
+                    tag.as_mut_ptr(),
+                )
+            };
+
+            assert_residue(registers, frame, left, takes_a_frame(aad_len, data_len));
+        }
+    }
+}
+
+// === === === === === === === === === === ===
+// decrypt
+// === === === === === === === === === === ===
+
+controls!(
+    dirty_decrypt_registers,
+    dirty_decrypt_frame,
+    untouched_decrypt
+);
+
+#[rstest]
+#[case::registers_left_full(dirty_decrypt_registers as Routine, Left::Registers)]
+#[case::frame_left_full(dirty_decrypt_frame as Routine, Left::Frame)]
+#[case::nothing_ran(untouched_decrypt as Routine, Left::Everything)]
+#[case::real(redoubt_aegis128l_decrypt as Routine, Left::Nothing)]
+fn test_decrypt_leaves_the_residue_its_case_declares(#[case] routine: Routine, #[case] left: Left) {
+    let routine = core::hint::black_box(routine);
+    let (key, nonce) = material();
+
+    for aad_len in AAD_LENGTHS {
+        for data_len in DATA_LENGTHS {
+            let aad = said(aad_len);
+            let mut data = said(data_len);
+            let mut tag = [0_u8; TAG_SIZE];
+
+            // SAFETY: as above. What `data` holds on the way in is not a
+            // ciphertext anybody sealed, which changes the answer and not what
+            // is measured here.
+            let (registers, frame) = unsafe {
+                redoubt_aegis128l_dirty_registers();
+                redoubt_aegis128l_dirty_frame(0);
+                measure!(
+                    routine,
+                    key.as_ptr(),
+                    nonce.as_ptr(),
+                    aad.as_ptr(),
+                    aad_len,
+                    data.as_mut_ptr(),
+                    data_len,
+                    tag.as_mut_ptr(),
+                )
+            };
+
+            assert_residue(registers, frame, left, takes_a_frame(aad_len, data_len));
+        }
+    }
+}
+
+// === === === === === === === === === === ===
+// What the measurement reads
+// === === === === === === === === === === ===
+//
+// The window each measurement dirties has to be the window its verifier reads.
+//
+// The sweep over `dirty_frame` calls the writer and the verifier one after the
+// other with nothing between them, so it cannot see a call site that moved the
+// stack pointer between the two. These go through the measurement instead, and
+// against the stand-in that does nothing at all — so what the verifier reports
+// is the byte the writer left, at every offset it could be left at.
+//
+// A reservation a measurement forgot to account for shows up at whichever end
+// the window slid off, and nowhere else. The byte at offset zero survives a
+// slide in either direction, and offset zero is the only one the cases above
+// ask about.
+//
+// Every argument is settled before the writer runs. What is computed between
+// the writer and the block is Rust reaching for the stack the writer just
+// filled, and the verifier reads that back as residue the writer did not leave.
+//
+// The answer is asserted exactly and not merely as "something was found". The
+// verifier ORs the window a word at a time, so one byte left in it comes back
+// as that byte and nothing else — and a window that slid reads bytes nobody
+// wrote, which come back as whatever was there.
+
+/// What the verifier answers when the only thing left in the window is the byte
+/// the writer put at `at`.
+fn only_the_byte_at(at: usize) -> u64 {
+    u64::from(LEFT_BYTE) << (8 * (at % 8))
+}
+
+/// No offset expects an empty window.
+///
+/// Every sweep that names this asserts what it returns, and cannot check it:
+/// the only other thing that knows where the byte lands is the verifier, which
+/// is what those sweeps are asking about. So what is asked here is the one
+/// property that would make them lie rather than fail — an expected answer of
+/// zero turns "the verifier found the byte" into "the verifier found nothing",
+/// and that reads as a pass at exactly the offset the byte went missing.
+#[test]
+fn test_no_offset_expects_an_empty_window() {
+    for at in 0..FRAME {
+        assert_ne!(only_the_byte_at(at), 0, "offset {at}");
+    }
+}
+
+#[test]
+fn test_the_measurement_of_encrypt_reads_the_window_the_writer_filled() {
+    let (key, nonce) = material();
+    let aad = said(64);
+    let mut data = said(65);
+    let mut tag = [0_u8; TAG_SIZE];
+
+    let key = key.as_ptr();
+    let nonce = nonce.as_ptr();
+    let aad_len = aad.len();
+    let aad = aad.as_ptr();
+    let data_len = data.len();
+    let data = data.as_mut_ptr();
+    let tag = tag.as_mut_ptr();
+
+    for at in 0..FRAME {
+        // SAFETY: at is inside the writer's frame, and the stand-in never
+        // dereferences what it is handed.
+        let (_, frame) = unsafe {
+            measure_the_window!(
+                untouched_encrypt as Routine,
+                at,
+                key,
+                nonce,
+                aad,
+                aad_len,
+                data,
+                data_len,
+                tag,
+            )
+        };
+
+        assert_eq!(
+            frame,
+            only_the_byte_at(at),
+            "byte {at} of the frame does not reach the answer"
+        );
+    }
+}
+
+#[test]
+fn test_the_measurement_of_decrypt_reads_the_window_the_writer_filled() {
+    let (key, nonce) = material();
+    let aad = said(64);
+    let mut data = said(65);
+    let mut tag = [0_u8; TAG_SIZE];
+
+    let key = key.as_ptr();
+    let nonce = nonce.as_ptr();
+    let aad_len = aad.len();
+    let aad = aad.as_ptr();
+    let data_len = data.len();
+    let data = data.as_mut_ptr();
+    let tag = tag.as_mut_ptr();
+
+    for at in 0..FRAME {
+        // SAFETY: as above.
+        let (_, frame) = unsafe {
+            measure_the_window!(
+                untouched_decrypt as Routine,
+                at,
+                key,
+                nonce,
+                aad,
+                aad_len,
+                data,
+                data_len,
+                tag,
+            )
+        };
+
+        assert_eq!(
+            frame,
+            only_the_byte_at(at),
+            "byte {at} of the frame does not reach the answer"
+        );
     }
 }

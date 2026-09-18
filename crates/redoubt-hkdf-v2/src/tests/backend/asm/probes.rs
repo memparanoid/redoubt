@@ -273,10 +273,6 @@ macro_rules! empty_the_vector_registers {
     };
 }
 
-// === === === === === === === === === ===
-// redoubt_hkdf_registers_are_zeroized
-// === === === === === === === === === ===
-
 /// One test per general register: fill that one and nothing else, and ask.
 ///
 /// Every other test here reads a verdict the verifier gives. A verdict about a
@@ -443,6 +439,308 @@ macro_rules! test_dirty_vector_is_seen {
         }
     };
 }
+
+/// Three stand-ins for the routine, with its arguments and none of its work.
+///
+/// The tail branch keeps the caller's stack pointer and return address. A
+/// regular Rust wrapper could take another frame or change the registers on
+/// return, making the residue belong to the wrapper instead of the helper.
+///
+/// The first two leave a residue of their own, which is what says the verifier
+/// sees one across this call site. The third leaves none and does nothing at
+/// all: it is the only one that measures the gap, because the other two dirty
+/// the machine again from inside the call. What it answers is whether the
+/// *caller's* dirtying survives to the verifier — without it, the real routine
+/// reading clean could be the call site having cleaned rather than the routine.
+///
+/// Only the frame stand-in replaces the first argument with byte offset zero.
+/// These functions never dereference their pointer arguments.
+macro_rules! controls {
+    (
+        $registers:ident, $frame:ident, $untouched:ident,
+        $dirty_frame:path,
+        ($($argument:ident: $kind:ty),* $(,)?)
+    ) => {
+        #[unsafe(naked)]
+        unsafe extern "C" fn $untouched($($argument: $kind),*) {
+            core::arch::naked_asm!("ret");
+        }
+
+        #[unsafe(naked)]
+        unsafe extern "C" fn $registers($($argument: $kind),*) {
+            #[cfg(target_arch = "x86_64")]
+            core::arch::naked_asm!(
+                "jmp {target}",
+                target = sym redoubt_hkdf_dirty_registers,
+            );
+
+            #[cfg(target_arch = "aarch64")]
+            core::arch::naked_asm!(
+                "b {target}",
+                target = sym redoubt_hkdf_dirty_registers,
+            );
+        }
+
+        #[unsafe(naked)]
+        unsafe extern "C" fn $frame($($argument: $kind),*) {
+            #[cfg(target_arch = "x86_64")]
+            core::arch::naked_asm!(
+                "xor edi, edi",
+                "jmp {target}",
+                target = sym $dirty_frame,
+            );
+
+            #[cfg(target_arch = "aarch64")]
+            core::arch::naked_asm!(
+                "mov x0, xzr",
+                "b {target}",
+                target = sym $dirty_frame,
+            );
+        }
+    };
+}
+
+/// Call the selected routine with its ABI arguments and immediately measure it.
+///
+/// The arguments are given by position and never by register name. A call site
+/// that named registers would be a call site that differs per target, and the
+/// point of the section at the top of this file is that nothing below it does.
+///
+/// One arm per arity the routines here have. An arity nobody uses is an arm
+/// nobody writes, and an arity written wrong is a call site that does not
+/// compile rather than one that measures the wrong thing.
+///
+/// The caller must uphold the routine's pointer and length preconditions. Both
+/// verifiers preserve r12, where the first verdict waits for the second.
+/// Declaring that output makes Rust preserve its caller's value.
+#[cfg(target_arch = "x86_64")]
+macro_rules! measure {
+    ($routine:expr, $frame_probe:path, $a0:expr, $a1:expr $(,)?) => {
+        measure!(@call $routine, $frame_probe, [("rdi") $a0, ("rsi") $a1])
+    };
+    ($routine:expr, $frame_probe:path, $a0:expr, $a1:expr, $a2:expr $(,)?) => {
+        measure!(@call $routine, $frame_probe,
+                 [("rdi") $a0, ("rsi") $a1, ("rdx") $a2])
+    };
+    ($routine:expr, $frame_probe:path,
+     $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr $(,)?) => {
+        measure!(@call $routine, $frame_probe,
+                 [("rdi") $a0, ("rsi") $a1, ("rdx") $a2, ("rcx") $a3, ("r8") $a4])
+    };
+    (@call $routine:expr, $frame_probe:path, [$(($register:tt) $argument:expr),* $(,)?]) => {{
+        let registers: u64;
+        let frame: u64;
+
+        core::arch::asm!(
+            "call r11",
+            "call {register_probe}",
+            "mov r12, rax",
+            "call {frame_probe}",
+            register_probe = sym redoubt_hkdf_registers_are_zeroized,
+            frame_probe = sym $frame_probe,
+            inlateout("r11") $routine => _,
+            $(inlateout($register) $argument => _,)*
+            lateout("r12") registers,
+            lateout("rax") frame,
+            clobber_abi("C"),
+        );
+
+        (registers, frame)
+    }};
+}
+
+/// Call the selected routine with its ABI arguments and immediately measure it.
+///
+/// AAPCS hands eight arguments in registers, so the arity that needs stack words
+/// on x86-64 needs none here and is an arm like the others.
+///
+/// Both verdicts are moved out of the return register before they can be
+/// overwritten, into x20 and x21. Left in x0, the first would be gone by the
+/// second call and the second would collide with an argument.
+#[cfg(target_arch = "aarch64")]
+macro_rules! measure {
+    ($routine:expr, $frame_probe:path, $a0:expr, $a1:expr $(,)?) => {
+        measure!(@call $routine, $frame_probe, [("x0") $a0, ("x1") $a1])
+    };
+    ($routine:expr, $frame_probe:path, $a0:expr, $a1:expr, $a2:expr $(,)?) => {
+        measure!(@call $routine, $frame_probe,
+                 [("x0") $a0, ("x1") $a1, ("x2") $a2])
+    };
+    ($routine:expr, $frame_probe:path,
+     $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr $(,)?) => {
+        measure!(@call $routine, $frame_probe,
+                 [("x0") $a0, ("x1") $a1, ("x2") $a2, ("x3") $a3, ("x4") $a4])
+    };
+    ($routine:expr, $frame_probe:path,
+     $a0:expr, $a1:expr, $a2:expr, $a3:expr,
+     $a4:expr, $a5:expr, $a6:expr, $a7:expr $(,)?) => {
+        measure!(@call $routine, $frame_probe,
+                 [("x0") $a0, ("x1") $a1, ("x2") $a2, ("x3") $a3,
+                  ("x4") $a4, ("x5") $a5, ("x6") $a6, ("x7") $a7])
+    };
+    (@call $routine:expr, $frame_probe:path, [$(($register:tt) $argument:expr),* $(,)?]) => {{
+        let registers: u64;
+        let frame: u64;
+
+        core::arch::asm!(
+            "blr x16",
+            "bl {register_probe}",
+            "mov x20, x0",
+            "bl {frame_probe}",
+            "mov x21, x0",
+            register_probe = sym redoubt_hkdf_registers_are_zeroized,
+            frame_probe = sym $frame_probe,
+            inlateout("x16") $routine => _,
+            $(inlateout($register) $argument => _,)*
+            lateout("x20") registers,
+            lateout("x21") frame,
+            clobber_abi("C"),
+        );
+
+        (registers, frame)
+    }};
+}
+
+/// Call a routine whose last two arguments the ABI puts on the stack, and
+/// immediately measure it.
+///
+/// The reservation holding those two is made before the call and released after
+/// both verifiers, so all three run with the stack pointer the routine was
+/// entered from — which is what the frame verifier measures from. Releasing it
+/// in between would move the window off the frame.
+///
+/// The two words arrive in registers the assembly has no claim on, and are put
+/// where the ABI says to look for them from inside the block: handed over any
+/// other way, Rust would be free to spill them into the same stack the
+/// measurement is about.
+///
+/// The frame is dirtied from inside the block as well, and after the
+/// reservation. Dirtied before it, from Rust, the window the writer filled would
+/// sit above the one the routine and the verifier work from, and a clean reading
+/// would only mean the verifier was looking somewhere the writer never reached.
+/// The first argument waits on the stack while that runs, because the writer
+/// takes an offset in the register it arrived in. The offset itself arrives in
+/// r13, which is outside the budget and outside what the writer touches.
+#[cfg(target_arch = "x86_64")]
+macro_rules! measure_with_stack_arguments {
+    (
+        $routine:expr, $frame_probe:path, $frame_writer:path, $at:expr,
+        $first:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr, $a5:expr,
+        $seventh:expr, $eighth:expr $(,)?
+    ) => {{
+        let registers: u64;
+        let frame: u64;
+
+        core::arch::asm!(
+            "sub rsp, 32",
+            "mov [rsp + 16], rdi",
+            "mov rdi, r13",
+            "call {frame_writer}",
+            "mov rdi, [rsp + 16]",
+            "mov [rsp], r14",
+            "mov [rsp + 8], r15",
+            "call r11",
+            "call {register_probe}",
+            "mov r12, rax",
+            "call {frame_probe}",
+            "add rsp, 32",
+            register_probe = sym redoubt_hkdf_registers_are_zeroized,
+            frame_probe = sym $frame_probe,
+            frame_writer = sym $frame_writer,
+            inlateout("r11") $routine => _,
+            inlateout("rdi") $first => _,
+            inlateout("rsi") $a1 => _,
+            inlateout("rdx") $a2 => _,
+            inlateout("rcx") $a3 => _,
+            inlateout("r8") $a4 => _,
+            inlateout("r9") $a5 => _,
+            inlateout("r13") $at => _,
+            inlateout("r14") $seventh => _,
+            inlateout("r15") $eighth => _,
+            lateout("r12") registers,
+            lateout("rax") frame,
+            clobber_abi("C"),
+        );
+
+        (registers, frame)
+    }};
+}
+
+/// Measure a routine whose arguments all reach it in registers.
+///
+/// AAPCS hands eight of them that way, so there is no reservation, the stack
+/// pointer does not move, and the window the writer fills is already the window
+/// the routine takes. What the x86-64 version has to do from inside its assembly
+/// block this one does the way every other test here does it — a call, then the
+/// measurement.
+#[cfg(target_arch = "aarch64")]
+macro_rules! measure_with_stack_arguments {
+    (
+        $routine:expr, $frame_probe:path, $frame_writer:path, $at:expr,
+        $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr, $a5:expr,
+        $a6:expr, $a7:expr $(,)?
+    ) => {{
+        $frame_writer($at);
+        measure!(
+            $routine,
+            $frame_probe,
+            $a0,
+            $a1,
+            $a2,
+            $a3,
+            $a4,
+            $a5,
+            $a6,
+            $a7
+        )
+    }};
+}
+
+/// Which residue the case deliberately leaves, or neither for the real call.
+#[derive(Clone, Copy)]
+enum Left {
+    Registers,
+    Frame,
+    Everything,
+    Nothing,
+}
+
+/// Each negative asks only about the residue it deliberately leaves.
+fn assert_residue(registers: u64, frame: u64, left: Left) {
+    match left {
+        Left::Everything => {
+            // A call that did nothing at all. What the caller dirtied before it
+            // has to still be there afterwards, or a clean reading below says
+            // only that something between the calls tidied up.
+            assert_ne!(
+                registers, 0,
+                "a call that ran nothing emptied the registers"
+            );
+            assert_ne!(frame, 0, "a call that ran nothing emptied the frame");
+        }
+        Left::Registers => {
+            assert_ne!(
+                registers, 0,
+                "registers the replacement left full read as empty"
+            );
+        }
+        Left::Frame => {
+            assert_ne!(
+                frame, 0,
+                "the frame the replacement left full reads as empty"
+            );
+        }
+        Left::Nothing => {
+            // Assert zeroization!
+            assert_eq!(registers, 0, "the registers after the real routine");
+            assert_eq!(frame, 0, "the frame after the real routine");
+        }
+    }
+}
+
+// === === === === === === === === === ===
+// redoubt_hkdf_registers_are_zeroized
+// === === === === === === === === === ===
 
 /// The other way round, and the reason the rest mean anything.
 ///
@@ -982,304 +1280,6 @@ const MESSAGE: [u8; 150] = [0x5a; 150];
 /// padded.
 const KEY: [u8; 100] = [0x0b; 100];
 
-/// Three stand-ins for the routine, with its arguments and none of its work.
-///
-/// The tail branch keeps the caller's stack pointer and return address. A
-/// regular Rust wrapper could take another frame or change the registers on
-/// return, making the residue belong to the wrapper instead of the helper.
-///
-/// The first two leave a residue of their own, which is what says the verifier
-/// sees one across this call site. The third leaves none and does nothing at
-/// all: it is the only one that measures the gap, because the other two dirty
-/// the machine again from inside the call. What it answers is whether the
-/// *caller's* dirtying survives to the verifier — without it, the real routine
-/// reading clean could be the call site having cleaned rather than the routine.
-///
-/// Only the frame stand-in replaces the first argument with byte offset zero.
-/// These functions never dereference their pointer arguments.
-macro_rules! controls {
-    (
-        $registers:ident, $frame:ident, $untouched:ident,
-        $dirty_frame:path,
-        ($($argument:ident: $kind:ty),* $(,)?)
-    ) => {
-        #[unsafe(naked)]
-        unsafe extern "C" fn $untouched($($argument: $kind),*) {
-            core::arch::naked_asm!("ret");
-        }
-
-        #[unsafe(naked)]
-        unsafe extern "C" fn $registers($($argument: $kind),*) {
-            #[cfg(target_arch = "x86_64")]
-            core::arch::naked_asm!(
-                "jmp {target}",
-                target = sym redoubt_hkdf_dirty_registers,
-            );
-
-            #[cfg(target_arch = "aarch64")]
-            core::arch::naked_asm!(
-                "b {target}",
-                target = sym redoubt_hkdf_dirty_registers,
-            );
-        }
-
-        #[unsafe(naked)]
-        unsafe extern "C" fn $frame($($argument: $kind),*) {
-            #[cfg(target_arch = "x86_64")]
-            core::arch::naked_asm!(
-                "xor edi, edi",
-                "jmp {target}",
-                target = sym $dirty_frame,
-            );
-
-            #[cfg(target_arch = "aarch64")]
-            core::arch::naked_asm!(
-                "mov x0, xzr",
-                "b {target}",
-                target = sym $dirty_frame,
-            );
-        }
-    };
-}
-
-/// Call the selected routine with its ABI arguments and immediately measure it.
-///
-/// The arguments are given by position and never by register name. A call site
-/// that named registers would be a call site that differs per target, and the
-/// point of the section at the top of this file is that nothing below it does.
-///
-/// One arm per arity the routines here have. An arity nobody uses is an arm
-/// nobody writes, and an arity written wrong is a call site that does not
-/// compile rather than one that measures the wrong thing.
-///
-/// The caller must uphold the routine's pointer and length preconditions. Both
-/// verifiers preserve r12, where the first verdict waits for the second.
-/// Declaring that output makes Rust preserve its caller's value.
-#[cfg(target_arch = "x86_64")]
-macro_rules! measure {
-    ($routine:expr, $frame_probe:path, $a0:expr, $a1:expr $(,)?) => {
-        measure!(@call $routine, $frame_probe, [("rdi") $a0, ("rsi") $a1])
-    };
-    ($routine:expr, $frame_probe:path, $a0:expr, $a1:expr, $a2:expr $(,)?) => {
-        measure!(@call $routine, $frame_probe,
-                 [("rdi") $a0, ("rsi") $a1, ("rdx") $a2])
-    };
-    ($routine:expr, $frame_probe:path,
-     $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr $(,)?) => {
-        measure!(@call $routine, $frame_probe,
-                 [("rdi") $a0, ("rsi") $a1, ("rdx") $a2, ("rcx") $a3, ("r8") $a4])
-    };
-    (@call $routine:expr, $frame_probe:path, [$(($register:tt) $argument:expr),* $(,)?]) => {{
-        let registers: u64;
-        let frame: u64;
-
-        core::arch::asm!(
-            "call r11",
-            "call {register_probe}",
-            "mov r12, rax",
-            "call {frame_probe}",
-            register_probe = sym redoubt_hkdf_registers_are_zeroized,
-            frame_probe = sym $frame_probe,
-            inlateout("r11") $routine => _,
-            $(inlateout($register) $argument => _,)*
-            lateout("r12") registers,
-            lateout("rax") frame,
-            clobber_abi("C"),
-        );
-
-        (registers, frame)
-    }};
-}
-
-/// Call the selected routine with its ABI arguments and immediately measure it.
-///
-/// AAPCS hands eight arguments in registers, so the arity that needs stack words
-/// on x86-64 needs none here and is an arm like the others.
-///
-/// Both verdicts are moved out of the return register before they can be
-/// overwritten, into x20 and x21. Left in x0, the first would be gone by the
-/// second call and the second would collide with an argument.
-#[cfg(target_arch = "aarch64")]
-macro_rules! measure {
-    ($routine:expr, $frame_probe:path, $a0:expr, $a1:expr $(,)?) => {
-        measure!(@call $routine, $frame_probe, [("x0") $a0, ("x1") $a1])
-    };
-    ($routine:expr, $frame_probe:path, $a0:expr, $a1:expr, $a2:expr $(,)?) => {
-        measure!(@call $routine, $frame_probe,
-                 [("x0") $a0, ("x1") $a1, ("x2") $a2])
-    };
-    ($routine:expr, $frame_probe:path,
-     $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr $(,)?) => {
-        measure!(@call $routine, $frame_probe,
-                 [("x0") $a0, ("x1") $a1, ("x2") $a2, ("x3") $a3, ("x4") $a4])
-    };
-    ($routine:expr, $frame_probe:path,
-     $a0:expr, $a1:expr, $a2:expr, $a3:expr,
-     $a4:expr, $a5:expr, $a6:expr, $a7:expr $(,)?) => {
-        measure!(@call $routine, $frame_probe,
-                 [("x0") $a0, ("x1") $a1, ("x2") $a2, ("x3") $a3,
-                  ("x4") $a4, ("x5") $a5, ("x6") $a6, ("x7") $a7])
-    };
-    (@call $routine:expr, $frame_probe:path, [$(($register:tt) $argument:expr),* $(,)?]) => {{
-        let registers: u64;
-        let frame: u64;
-
-        core::arch::asm!(
-            "blr x16",
-            "bl {register_probe}",
-            "mov x20, x0",
-            "bl {frame_probe}",
-            "mov x21, x0",
-            register_probe = sym redoubt_hkdf_registers_are_zeroized,
-            frame_probe = sym $frame_probe,
-            inlateout("x16") $routine => _,
-            $(inlateout($register) $argument => _,)*
-            lateout("x20") registers,
-            lateout("x21") frame,
-            clobber_abi("C"),
-        );
-
-        (registers, frame)
-    }};
-}
-
-/// Call a routine whose last two arguments the ABI puts on the stack, and
-/// immediately measure it.
-///
-/// The reservation holding those two is made before the call and released after
-/// both verifiers, so all three run with the stack pointer the routine was
-/// entered from — which is what the frame verifier measures from. Releasing it
-/// in between would move the window off the frame.
-///
-/// The two words arrive in registers the assembly has no claim on, and are put
-/// where the ABI says to look for them from inside the block: handed over any
-/// other way, Rust would be free to spill them into the same stack the
-/// measurement is about.
-///
-/// The frame is dirtied from inside the block as well, and after the
-/// reservation. Dirtied before it, from Rust, the window the writer filled would
-/// sit above the one the routine and the verifier work from, and a clean reading
-/// would only mean the verifier was looking somewhere the writer never reached.
-/// The first argument waits on the stack while that runs, because the writer
-/// takes an offset in the register it arrived in. The offset itself arrives in
-/// r13, which is outside the budget and outside what the writer touches.
-#[cfg(target_arch = "x86_64")]
-macro_rules! measure_with_stack_arguments {
-    (
-        $routine:expr, $frame_probe:path, $frame_writer:path, $at:expr,
-        $first:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr, $a5:expr,
-        $seventh:expr, $eighth:expr $(,)?
-    ) => {{
-        let registers: u64;
-        let frame: u64;
-
-        core::arch::asm!(
-            "sub rsp, 32",
-            "mov [rsp + 16], rdi",
-            "mov rdi, r13",
-            "call {frame_writer}",
-            "mov rdi, [rsp + 16]",
-            "mov [rsp], r14",
-            "mov [rsp + 8], r15",
-            "call r11",
-            "call {register_probe}",
-            "mov r12, rax",
-            "call {frame_probe}",
-            "add rsp, 32",
-            register_probe = sym redoubt_hkdf_registers_are_zeroized,
-            frame_probe = sym $frame_probe,
-            frame_writer = sym $frame_writer,
-            inlateout("r11") $routine => _,
-            inlateout("rdi") $first => _,
-            inlateout("rsi") $a1 => _,
-            inlateout("rdx") $a2 => _,
-            inlateout("rcx") $a3 => _,
-            inlateout("r8") $a4 => _,
-            inlateout("r9") $a5 => _,
-            inlateout("r13") $at => _,
-            inlateout("r14") $seventh => _,
-            inlateout("r15") $eighth => _,
-            lateout("r12") registers,
-            lateout("rax") frame,
-            clobber_abi("C"),
-        );
-
-        (registers, frame)
-    }};
-}
-
-/// Measure a routine whose arguments all reach it in registers.
-///
-/// AAPCS hands eight of them that way, so there is no reservation, the stack
-/// pointer does not move, and the window the writer fills is already the window
-/// the routine takes. What the x86-64 version has to do from inside its assembly
-/// block this one does the way every other test here does it — a call, then the
-/// measurement.
-#[cfg(target_arch = "aarch64")]
-macro_rules! measure_with_stack_arguments {
-    (
-        $routine:expr, $frame_probe:path, $frame_writer:path, $at:expr,
-        $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr, $a5:expr,
-        $a6:expr, $a7:expr $(,)?
-    ) => {{
-        $frame_writer($at);
-        measure!(
-            $routine,
-            $frame_probe,
-            $a0,
-            $a1,
-            $a2,
-            $a3,
-            $a4,
-            $a5,
-            $a6,
-            $a7
-        )
-    }};
-}
-
-/// Which residue the case deliberately leaves, or neither for the real call.
-#[derive(Clone, Copy)]
-enum Left {
-    Registers,
-    Frame,
-    Everything,
-    Nothing,
-}
-
-/// Each negative asks only about the residue it deliberately leaves.
-fn assert_residue(registers: u64, frame: u64, left: Left) {
-    match left {
-        Left::Everything => {
-            // A call that did nothing at all. What the caller dirtied before it
-            // has to still be there afterwards, or a clean reading below says
-            // only that something between the calls tidied up.
-            assert_ne!(
-                registers, 0,
-                "a call that ran nothing emptied the registers"
-            );
-            assert_ne!(frame, 0, "a call that ran nothing emptied the frame");
-        }
-        Left::Registers => {
-            assert_ne!(
-                registers, 0,
-                "registers the replacement left full read as empty"
-            );
-        }
-        Left::Frame => {
-            assert_ne!(
-                frame, 0,
-                "the frame the replacement left full reads as empty"
-            );
-        }
-        Left::Nothing => {
-            // Assert zeroization!
-            assert_eq!(registers, 0, "the registers after the real routine");
-            assert_eq!(frame, 0, "the frame after the real routine");
-        }
-    }
-}
-
 // === === === === === === === === === ===
 // sha256_compress_block
 // === === === === === === === === === ===
@@ -1665,6 +1665,12 @@ fn test_hkdf_leaves_the_residue_its_case_declares(#[case] routine: Hkdf, #[case]
 // One per routine, because each measurement is its own call site and they do
 // not all reserve the same thing.
 //
+// Every argument is settled before the writer runs. What is computed between
+// the writer and the block is Rust reaching for the stack the writer just
+// filled, and the verifier reads that back as residue the writer did not leave.
+// An argument taken from a `const` hides this, because the compiler resolves
+// it; one taken from a local or a `Vec` does not.
+//
 // The answer is asserted exactly and not merely as "something was found". The
 // verifier ORs the window a word at a time, so one byte left in it comes back as
 // that byte and nothing else — and a window that slid reads bytes nobody wrote,
@@ -1703,6 +1709,9 @@ fn test_the_measurement_of_compress_block_reads_the_window_the_writer_filled() {
     let mut h = H0;
     let block = [0x42_u8; BLOCK_SIZE];
 
+    let h = h.as_mut_ptr();
+    let block = block.as_ptr();
+
     for at in 0..FRAME_COMPRESS_BLOCK {
         // SAFETY: at is inside the writer's frame, and the stand-in never
         // dereferences what it is handed.
@@ -1711,8 +1720,8 @@ fn test_the_measurement_of_compress_block_reads_the_window_the_writer_filled() {
             measure!(
                 untouched_compress as CompressBlock,
                 redoubt_hkdf_frame_is_zeroized_compress_block,
-                h.as_mut_ptr(),
-                block.as_ptr(),
+                h,
+                block,
             )
         };
 
@@ -1728,6 +1737,10 @@ fn test_the_measurement_of_compress_block_reads_the_window_the_writer_filled() {
 fn test_the_measurement_of_hash_reads_the_window_the_writer_filled() {
     let mut digest = [0_u8; HASH_SIZE];
 
+    let message = MESSAGE.as_ptr();
+    let length = MESSAGE.len();
+    let digest = digest.as_mut_ptr();
+
     for at in 0..FRAME_HASH {
         // SAFETY: as above.
         let (_, frame) = unsafe {
@@ -1735,9 +1748,9 @@ fn test_the_measurement_of_hash_reads_the_window_the_writer_filled() {
             measure!(
                 untouched_hash as Hash,
                 redoubt_hkdf_frame_is_zeroized_hash,
-                MESSAGE.as_ptr(),
-                MESSAGE.len(),
-                digest.as_mut_ptr(),
+                message,
+                length,
+                digest,
             )
         };
 
@@ -1754,6 +1767,11 @@ fn test_the_measurement_of_update_finalize_reads_the_window_the_writer_filled() 
     let mut h = H0;
     let mut digest = [0_u8; HASH_SIZE];
 
+    let h = h.as_mut_ptr();
+    let message = MESSAGE.as_ptr();
+    let length = MESSAGE.len();
+    let digest = digest.as_mut_ptr();
+
     for at in 0..FRAME_UPDATE_FINALIZE {
         // SAFETY: as above.
         let (_, frame) = unsafe {
@@ -1761,11 +1779,11 @@ fn test_the_measurement_of_update_finalize_reads_the_window_the_writer_filled() 
             measure!(
                 untouched_update as UpdateFinalize,
                 redoubt_hkdf_frame_is_zeroized_update_finalize,
-                h.as_mut_ptr(),
-                MESSAGE.as_ptr(),
-                MESSAGE.len(),
-                MESSAGE.len(),
-                digest.as_mut_ptr(),
+                h,
+                message,
+                length,
+                length,
+                digest,
             )
         };
 
@@ -1783,6 +1801,12 @@ fn test_the_measurement_of_absorb_reads_the_window_the_writer_filled() {
     let mut block = [0_u8; BLOCK_SIZE];
     let mut fill = 0_usize;
 
+    let h = h.as_mut_ptr();
+    let message = MESSAGE.as_ptr();
+    let length = MESSAGE.len();
+    let block = block.as_mut_ptr();
+    let fill = &raw mut fill;
+
     for at in 0..FRAME_ABSORB {
         // SAFETY: as above.
         let (_, frame) = unsafe {
@@ -1790,11 +1814,11 @@ fn test_the_measurement_of_absorb_reads_the_window_the_writer_filled() {
             measure!(
                 untouched_absorb as Absorb,
                 redoubt_hkdf_frame_is_zeroized_absorb,
-                h.as_mut_ptr(),
-                MESSAGE.as_ptr(),
-                MESSAGE.len(),
-                block.as_mut_ptr(),
-                &raw mut fill,
+                h,
+                message,
+                length,
+                block,
+                fill,
             )
         };
 
@@ -1810,6 +1834,12 @@ fn test_the_measurement_of_absorb_reads_the_window_the_writer_filled() {
 fn test_the_measurement_of_hmac_reads_the_window_the_writer_filled() {
     let mut mac = [0_u8; HASH_SIZE];
 
+    let key = KEY.as_ptr();
+    let key_len = KEY.len();
+    let message = MESSAGE.as_ptr();
+    let length = MESSAGE.len();
+    let mac = mac.as_mut_ptr();
+
     for at in 0..FRAME_HMAC {
         // SAFETY: as above.
         let (_, frame) = unsafe {
@@ -1817,11 +1847,11 @@ fn test_the_measurement_of_hmac_reads_the_window_the_writer_filled() {
             measure!(
                 untouched_hmac as Hmac,
                 redoubt_hkdf_frame_is_zeroized_hmac,
-                KEY.as_ptr(),
-                KEY.len(),
-                MESSAGE.as_ptr(),
-                MESSAGE.len(),
-                mac.as_mut_ptr(),
+                key,
+                key_len,
+                message,
+                length,
+                mac,
             )
         };
 
@@ -1837,6 +1867,13 @@ fn test_the_measurement_of_hmac_reads_the_window_the_writer_filled() {
 fn test_the_measurement_of_hkdf_reads_the_window_the_writer_filled() {
     let mut okm = [0_u8; 100];
 
+    let key = KEY.as_ptr();
+    let key_len = KEY.len();
+    let message = MESSAGE.as_ptr();
+    let length = MESSAGE.len();
+    let wanted = okm.len();
+    let okm = okm.as_mut_ptr();
+
     for at in 0..FRAME_HKDF {
         // SAFETY: as above. This measurement dirties from inside its own
         // reservation, so the offset goes in rather than the writer being
@@ -1847,14 +1884,14 @@ fn test_the_measurement_of_hkdf_reads_the_window_the_writer_filled() {
                 redoubt_hkdf_frame_is_zeroized_hkdf,
                 redoubt_hkdf_dirty_frame_hkdf,
                 at,
-                KEY.as_ptr(),
-                KEY.len(),
-                MESSAGE.as_ptr(),
-                MESSAGE.len(),
-                KEY.as_ptr(),
-                KEY.len(),
-                okm.as_mut_ptr(),
-                okm.len(),
+                key,
+                key_len,
+                message,
+                length,
+                key,
+                key_len,
+                okm,
+                wanted,
             )
         };
 
