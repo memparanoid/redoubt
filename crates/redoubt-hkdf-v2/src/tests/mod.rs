@@ -39,6 +39,55 @@ pub(crate) fn hex(of: &[u8]) -> String {
     said
 }
 
+/// The value of every `Name = value` line with that name.
+///
+/// The names that matter are distinct in their first characters, so a prefix is
+/// enough to tell them apart and the header lines match none of them.
+pub(crate) fn field<'a>(said: &'a str, name: &str) -> Vec<&'a str> {
+    said.lines()
+        .filter_map(|line| line.trim().strip_prefix(name))
+        .filter_map(|rest| rest.trim_start().strip_prefix('='))
+        .map(str::trim)
+        .collect()
+}
+
+/// Every message of one of the two message files with the answer published for
+/// it.
+pub(crate) fn messages(file: &str, counted: usize) -> Vec<(Vec<u8>, String)> {
+    let lengths = field(file, "Len");
+    let said = field(file, "Msg");
+    let digests = field(file, "MD");
+
+    assert_eq!(lengths.len(), counted, "the file is not all there");
+    assert_eq!(said.len(), counted, "a message has no length or no answer");
+    assert_eq!(digests.len(), counted, "a message has no answer");
+
+    lengths
+        .iter()
+        .zip(&said)
+        .zip(&digests)
+        .map(|((length, message), digest)| {
+            let bits: usize = length.parse().expect("a length is a number of bits");
+
+            // The file writes one zero byte where the message is no bytes at
+            // all.
+            let message = if bits == 0 {
+                Vec::new()
+            } else {
+                from_hex(message)
+            };
+
+            assert_eq!(
+                message.len() * 8,
+                bits,
+                "the message is not the length it says"
+            );
+
+            (message, String::from(*digest))
+        })
+        .collect()
+}
+
 /// The same read back.
 pub(crate) fn from_hex(said: &str) -> Vec<u8> {
     assert!(said.len().is_multiple_of(2), "hex comes in pairs: {said}");

@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! A file per standard the seam answers to, rather than per function: the
-//! compression and the digest are both FIPS 180-4 and share the answers that
-//! pin them.
+//! One file per function the seam declares, in the order it declares them.
 
-mod sha256;
+mod sha256_compress_block;
+mod sha256_hash;
