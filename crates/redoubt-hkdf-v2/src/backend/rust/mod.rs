@@ -15,10 +15,10 @@
 //! them of either implementation, and what makes the seam above a `match` and
 //! nothing else.
 
-mod hkdf;
-mod hmac;
-mod sha256;
-mod word32;
+pub(crate) mod hkdf;
+pub(crate) mod hmac;
+pub(crate) mod sha256;
+pub(crate) mod word32;
 
 use crate::consts::{BLOCK_SIZE, HASH_SIZE};
 
