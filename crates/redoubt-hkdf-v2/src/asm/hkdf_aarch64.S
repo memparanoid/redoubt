@@ -322,18 +322,29 @@ RODATA_SECTION
 // Behavior:
 //   Performs SHA-256 compression: H := H + SHA256_COMPRESS(block)
 //
-// Registers preserved:
-//   x12-x15 (and all callee-saved per ABI)
+// Registers: none callee-saved, and none preserved. Every caller-saved register
+//            is empty when this returns, which is what the callers here are
+//            written against — anything of theirs that has to survive the call
+//            is in their own frame.
 //
-// Stack usage:
-//   64 bytes for W[0..15] (zeroized before return)
+// Stack layout: FRAME_COMPRESS bytes, laid out by the COMPRESS_* constants
+//               above, and zeroized in full before return.
 //
 .global FUNC(redoubt_sha256_compress_block)
 HIDDEN_FUNC(redoubt_sha256_compress_block)
 .p2align 4
 FUNC(redoubt_sha256_compress_block):
-    // Allocate stack for W[0..15]
-    sub     sp, sp, #64
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: COMPRESS_W holds the message schedule, whose first
+// ║ sixteen words are the caller's block in the clear and whose rest is that
+// ║ block mixed with itself.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before sp is
+// ║ advanced.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
+    sub     sp, sp, #FRAME_COMPRESS
 
     // Load H[0..7] from memory into v16 (H[0..3]), v17 (H[4..7])
     ld1     {v16.4s, v17.4s}, [x0]
@@ -553,14 +564,10 @@ FUNC(redoubt_sha256_compress_block):
     // Store updated H back to memory
     st1     {v16.4s, v17.4s}, [x0]
 
-    // ⚠️ Zeroize stack (W[0..15] may contain sensitive message data)
-    stp     xzr, xzr, [sp]
-    stp     xzr, xzr, [sp, #16]
-    stp     xzr, xzr, [sp, #32]
-    stp     xzr, xzr, [sp, #48]
+    HKDF_EMPTY_FRAME FRAME_COMPRESS
+// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
 
-    // Deallocate stack
-    add     sp, sp, #64
+    HKDF_SHA256_ZEROIZE_ALL
     ret
 
 //============================================================================
@@ -593,22 +600,32 @@ FUNC(redoubt_sha256_compress_block):
 HIDDEN_FUNC(redoubt_sha256_hash)
 .p2align 4
 FUNC(redoubt_sha256_hash):
-    // Prologue: save frame pointer and link register (REQUIRED - we do bl!)
-    stp     x29, x30, [sp, #-16]!
-    mov     x29, sp
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: HASH_BLOCK1 and HASH_BLOCK2 hold the tail of the
+// ║ message with the padding written after it. That is message in the clear,
+// ║ and it is here rather than in the caller's buffer because a caller that
+// ║ handed over a whole message has no room to pad in. HASH_H holds the
+// ║ chaining state, which is every byte of the message folded together.
+// ║
+// ║ The slots past them hold pointers, lengths and the caller's return
+// ║ address. They are here because the compression empties every caller-saved
+// ║ register before it returns, so nothing that has to outlive the call can be
+// ║ left in one — and a prologue that saved a callee-saved register instead
+// ║ would write the caller's value to a stack this routine cannot wipe.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before sp is
+// ║ advanced.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
+    sub     sp, sp, #FRAME_HASH
 
-    // Allocate working space: 32 (H) + 64 (block1) + 64 (block2) = 160 bytes
-    sub     sp, sp, #160
-
-    // ⚠️ Pre-zeroize H state (SECRET)
-    stp     xzr, xzr, [sp]
-    stp     xzr, xzr, [sp, #16]
-
-    // Save parameters in x12-x15
-    mov     x12, x0             // msg_ptr_current
-    mov     x13, x1             // msg_remaining
-    mov     x14, x1             // original_msg_len (constant)
-    mov     x15, x2             // digest_ptr
+    // What has to survive a call to the compression.
+    str     x30, [sp, #HASH_LR]
+    str     x0, [sp, #HASH_MSG]
+    str     x1, [sp, #HASH_LEFT]
+    str     x1, [sp, #HASH_TOTAL]
+    str     x2, [sp, #HASH_DIGEST]
 
     // Initialize H with .LH256_INIT
 #if defined(__APPLE__)
@@ -619,36 +636,39 @@ FUNC(redoubt_sha256_hash):
     add     x0, x0, :lo12:.LH256_INIT
 #endif
     ld1     {v0.4s, v1.4s}, [x0]
-    st1     {v0.4s, v1.4s}, [sp]
+    add     x1, sp, #HASH_H
+    st1     {v0.4s, v1.4s}, [x1]
 
     // ========================================================================
     // Process complete 64-byte blocks
     // ========================================================================
 .Lhash_block_loop:
-    cmp     x13, #64
+    ldr     x2, [sp, #HASH_LEFT]
+    cmp     x2, #64
     b.lt    .Lhash_final_block
 
-    // Prepare parameters for sha256_compress_block
-    mov     x0, sp              // H_ptr
-    mov     x1, x12             // block_ptr
-
-    // No need to save/restore x12-x15: compress_block doesn't touch them!
+    add     x0, sp, #HASH_H
+    ldr     x1, [sp, #HASH_MSG]
     bl      FUNC(redoubt_sha256_compress_block)
 
     // Advance to next block
-    add     x12, x12, #64
-    sub     x13, x13, #64
+    ldr     x0, [sp, #HASH_MSG]
+    add     x0, x0, #64
+    str     x0, [sp, #HASH_MSG]
+    ldr     x0, [sp, #HASH_LEFT]
+    sub     x0, x0, #64
+    str     x0, [sp, #HASH_LEFT]
     b       .Lhash_block_loop
 
     // ========================================================================
     // Process final block(s) with SHA-256 padding
     // ========================================================================
 .Lhash_final_block:
-    // x13 = remainder (0 to 63 bytes)
-    // x14 = original_msg_len (for bit count in padding)
+    ldr     x13, [sp, #HASH_LEFT]
+    ldr     x12, [sp, #HASH_MSG]
 
     // Zero first block buffer
-    add     x16, sp, #32
+    add     x16, sp, #HASH_BLOCK1
     stp     xzr, xzr, [x16]
     stp     xzr, xzr, [x16, #16]
     stp     xzr, xzr, [x16, #32]
@@ -675,13 +695,14 @@ FUNC(redoubt_sha256_hash):
 
     // === ONE BLOCK CASE ===
     // Append 64-bit big-endian length at offset 56
+    ldr     x14, [sp, #HASH_TOTAL]
     lsl     x0, x14, #3         // bits = bytes * 8
     rev     x0, x0              // big-endian
     str     x0, [x16, #56]
 
     // Compress final block
-    mov     x0, sp              // H_ptr
-    add     x1, sp, #32         // block_ptr
+    add     x0, sp, #HASH_H
+    add     x1, sp, #HASH_BLOCK1
 
     bl      FUNC(redoubt_sha256_compress_block)
 
@@ -690,56 +711,49 @@ FUNC(redoubt_sha256_hash):
     // === TWO BLOCK CASE ===
 .Lhash_two_blocks:
     // First block: remainder + 0x80 + zeros (no length yet)
-    mov     x0, sp
-    add     x1, sp, #32
+    add     x0, sp, #HASH_H
+    add     x1, sp, #HASH_BLOCK1
 
     bl      FUNC(redoubt_sha256_compress_block)
 
     // Second block: all zeros except length at end
-    add     x16, sp, #96
+    add     x16, sp, #HASH_BLOCK2
     stp     xzr, xzr, [x16]
     stp     xzr, xzr, [x16, #16]
     stp     xzr, xzr, [x16, #32]
     stp     xzr, xzr, [x16, #48]
 
     // Append 64-bit big-endian length at offset 56
+    ldr     x14, [sp, #HASH_TOTAL]
     lsl     x0, x14, #3
     rev     x0, x0
     str     x0, [x16, #56]
 
     // Compress second block
-    mov     x0, sp
-    add     x1, sp, #96
+    add     x0, sp, #HASH_H
+    add     x1, sp, #HASH_BLOCK2
 
     bl      FUNC(redoubt_sha256_compress_block)
 
 .Lhash_finish:
     // Copy H state to digest (as big-endian bytes per SHA-256 spec)
-    ld1     {v0.4s, v1.4s}, [sp]
+    add     x0, sp, #HASH_H
+    ld1     {v0.4s, v1.4s}, [x0]
 
     // Convert to big-endian for output
     rev32   v0.16b, v0.16b
     rev32   v1.16b, v1.16b
 
+    ldr     x15, [sp, #HASH_DIGEST]
     st1     {v0.4s, v1.4s}, [x15]
 
-    // ⚠️ Zeroize entire stack (H state + block buffers)
-    stp     xzr, xzr, [sp]          // H state
-    stp     xzr, xzr, [sp, #16]
-    stp     xzr, xzr, [sp, #32]     // block buffer 1
-    stp     xzr, xzr, [sp, #48]
-    stp     xzr, xzr, [sp, #64]
-    stp     xzr, xzr, [sp, #80]
-    stp     xzr, xzr, [sp, #96]     // block buffer 2
-    stp     xzr, xzr, [sp, #112]
-    stp     xzr, xzr, [sp, #128]
-    stp     xzr, xzr, [sp, #144]
+    // The caller's return address, back out of the frame before the frame goes.
+    ldr     x30, [sp, #HASH_LR]
 
-    // Deallocate working space
-    add     sp, sp, #160
+    HKDF_EMPTY_FRAME FRAME_HASH
+// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
 
-    // Epilogue: restore frame pointer and link register
-    ldp     x29, x30, [sp], #16
+    HKDF_SHA256_ZEROIZE_ALL
     ret
 
 //============================================================================
@@ -788,51 +802,61 @@ FUNC(redoubt_sha256_hash):
 // linker resolves that without a word to anybody.
 .p2align 4
 .Lsha256_update_finalize:
-    // Prologue: save callee-saved registers and link register
-    stp     x29, x30, [sp, #-32]!
-    mov     x29, sp
-    str     x19, [sp, #16]
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: UPDATE_H holds the state the caller was carrying, which
+// ║ for HMAC is the inner pad already folded in — key material. UPDATE_BLOCK1
+// ║ and UPDATE_BLOCK2 hold the tail of the message with its padding, which is
+// ║ message in the clear.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before sp is
+// ║ advanced.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
+    sub     sp, sp, #FRAME_UPDATE
 
-    // Allocate working space
-    sub     sp, sp, #160
+    // The caller's state, copied in. Its pointer is not kept: nothing reads it
+    // again.
+    ld1     {v0.4s, v1.4s}, [x0]
+    add     x0, sp, #UPDATE_H
+    st1     {v0.4s, v1.4s}, [x0]
 
-    // Save H_ptr to callee-saved register (survives bl calls)
-    mov     x19, x0
-
-    // Load existing H state from H_ptr to stack
-    ld1     {v0.4s, v1.4s}, [x19]
-    st1     {v0.4s, v1.4s}, [sp]
-
-    // Save parameters to x12-x15
-    mov     x12, x1             // msg_ptr_current
-    mov     x13, x2             // msg_remaining
-    mov     x14, x3             // total_len (constant, for padding)
-    mov     x15, x4             // digest_ptr
+    // What has to survive a call to the compression.
+    str     x30, [sp, #UPDATE_LR]
+    str     x1, [sp, #UPDATE_MSG]
+    str     x2, [sp, #UPDATE_LEFT]
+    str     x3, [sp, #UPDATE_TOTAL]
+    str     x4, [sp, #UPDATE_DIGEST]
 
     // ========================================================================
     // Process complete 64-byte blocks
     // ========================================================================
 .Lupdate_block_loop:
-    cmp     x13, #64
+    ldr     x2, [sp, #UPDATE_LEFT]
+    cmp     x2, #64
     b.lt    .Lupdate_final_block
 
-    mov     x0, sp              // H_ptr (on stack)
-    mov     x1, x12             // block_ptr
+    add     x0, sp, #UPDATE_H
+    ldr     x1, [sp, #UPDATE_MSG]
     bl      FUNC(redoubt_sha256_compress_block)
 
-    add     x12, x12, #64
-    sub     x13, x13, #64
+    ldr     x0, [sp, #UPDATE_MSG]
+    add     x0, x0, #64
+    str     x0, [sp, #UPDATE_MSG]
+    ldr     x0, [sp, #UPDATE_LEFT]
+    sub     x0, x0, #64
+    str     x0, [sp, #UPDATE_LEFT]
     b       .Lupdate_block_loop
 
     // ========================================================================
     // Process final block(s) with SHA-256 padding
     // ========================================================================
 .Lupdate_final_block:
-    // x13 = remainder (0 to 63 bytes)
-    // x14 = total_len (TOTAL bytes for bit count in padding)
+    ldr     x13, [sp, #UPDATE_LEFT]
+    ldr     x12, [sp, #UPDATE_MSG]
 
     // Zero first block buffer
-    add     x16, sp, #32
+    add     x16, sp, #UPDATE_BLOCK1
     stp     xzr, xzr, [x16]
     stp     xzr, xzr, [x16, #16]
     stp     xzr, xzr, [x16, #32]
@@ -858,59 +882,55 @@ FUNC(redoubt_sha256_hash):
     b.ge    .Lupdate_two_blocks
 
     // === ONE BLOCK CASE ===
+    ldr     x14, [sp, #UPDATE_TOTAL]
     lsl     x0, x14, #3         // bits = bytes * 8
     rev     x0, x0              // big-endian
     str     x0, [x16, #56]
 
-    mov     x0, sp
-    add     x1, sp, #32
+    add     x0, sp, #UPDATE_H
+    add     x1, sp, #UPDATE_BLOCK1
     bl      FUNC(redoubt_sha256_compress_block)
 
     b       .Lupdate_finish
 
     // === TWO BLOCK CASE ===
 .Lupdate_two_blocks:
-    mov     x0, sp
-    add     x1, sp, #32
+    add     x0, sp, #UPDATE_H
+    add     x1, sp, #UPDATE_BLOCK1
     bl      FUNC(redoubt_sha256_compress_block)
 
     // Second block: zeros + length
-    add     x16, sp, #96
+    add     x16, sp, #UPDATE_BLOCK2
     stp     xzr, xzr, [x16]
     stp     xzr, xzr, [x16, #16]
     stp     xzr, xzr, [x16, #32]
     stp     xzr, xzr, [x16, #48]
 
+    ldr     x14, [sp, #UPDATE_TOTAL]
     lsl     x0, x14, #3
     rev     x0, x0
     str     x0, [x16, #56]
 
-    mov     x0, sp
-    add     x1, sp, #96
+    add     x0, sp, #UPDATE_H
+    add     x1, sp, #UPDATE_BLOCK2
     bl      FUNC(redoubt_sha256_compress_block)
 
 .Lupdate_finish:
     // Copy H state to digest (big-endian)
-    ld1     {v0.4s, v1.4s}, [sp]
+    add     x0, sp, #UPDATE_H
+    ld1     {v0.4s, v1.4s}, [x0]
     rev32   v0.16b, v0.16b
     rev32   v1.16b, v1.16b
+    ldr     x15, [sp, #UPDATE_DIGEST]
     st1     {v0.4s, v1.4s}, [x15]
 
-    // Zeroize entire stack
-    stp     xzr, xzr, [sp]
-    stp     xzr, xzr, [sp, #16]
-    stp     xzr, xzr, [sp, #32]
-    stp     xzr, xzr, [sp, #48]
-    stp     xzr, xzr, [sp, #64]
-    stp     xzr, xzr, [sp, #80]
-    stp     xzr, xzr, [sp, #96]
-    stp     xzr, xzr, [sp, #112]
-    stp     xzr, xzr, [sp, #128]
-    stp     xzr, xzr, [sp, #144]
+    // The caller's return address, back out of the frame before the frame goes.
+    ldr     x30, [sp, #UPDATE_LR]
 
-    add     sp, sp, #160
-    ldr     x19, [sp, #16]
-    ldp     x29, x30, [sp], #32
+    HKDF_EMPTY_FRAME FRAME_UPDATE
+// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
+
+    HKDF_SHA256_ZEROIZE_ALL
     ret
 
 //============================================================================
