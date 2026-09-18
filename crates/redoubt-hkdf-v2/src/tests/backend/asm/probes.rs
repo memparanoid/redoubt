@@ -122,27 +122,82 @@ const POISON: u64 = 0xa5a5_a5a5_a5a5_a5a5;
 /// register's worth of pattern that reached the stack some other way.
 const LEFT_BYTE: u8 = 0x5c;
 
+// === === === === === === === === === ===
+// What differs between the two targets
+// === === === === === === === === === ===
+//
+// Everything below this section reads the same for both, and that is the point:
+// the tests are the same claims about two implementations of one thing, so a
+// case added to one target and not the other is a target that quietly has less
+// cover. Here the instructions differ; there the reasoning does not.
+//
+// What belongs here is anything that names a register, a frame size or an
+// instruction. What does not is anything that says what is being asserted.
+
 /// The general registers of the budget, in the order the list at the top of the
 /// assembly names them.
 ///
 /// Both files have to say it, and only one of them can be the assembly: what
 /// this one buys is that a register missing from the wipe is named when the
 /// capture below fails, rather than reported as an index.
+#[cfg(target_arch = "x86_64")]
 const BUDGET: [&str; 9] = ["rax", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11"];
 
-/// Each routine's frame, as the constant beside its `sub rsp` in the assembly
-/// declares it.
-const FRAME_COMPRESS_BLOCK: usize = 72;
-const FRAME_HASH: usize = 200;
-const FRAME_UPDATE_FINALIZE: usize = 200;
-const FRAME_HMAC: usize = 328;
-const FRAME_ABSORB: usize = 40;
-const FRAME_HKDF: usize = 376;
+#[cfg(target_arch = "aarch64")]
+const BUDGET: [&str; 18] = [
+    "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14",
+    "x15", "x16", "x17",
+];
+
+/// The vector registers of the budget, in the same order and for the same
+/// reason.
+#[cfg(target_arch = "x86_64")]
+const VECTORS: [&str; 14] = [
+    "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10",
+    "xmm11", "xmm12", "xmm13",
+];
+
+#[cfg(target_arch = "aarch64")]
+const VECTORS: [&str; 11] = [
+    "v0", "v1", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24",
+];
+
+/// Each routine's frame, as the constant beside its `sub rsp` or `sub sp` in
+/// the assembly declares it.
+///
+/// The two targets do not agree, and there is no reason they should: x86-64
+/// steps over a return-address slot the other does not have, and each keeps a
+/// different set of values in registers.
+#[cfg(target_arch = "x86_64")]
+mod frames {
+    pub(super) const COMPRESS_BLOCK: usize = 72;
+    pub(super) const HASH: usize = 200;
+    pub(super) const UPDATE_FINALIZE: usize = 200;
+    pub(super) const HMAC: usize = 328;
+    pub(super) const ABSORB: usize = 40;
+    pub(super) const HKDF: usize = 376;
+}
+
+#[cfg(target_arch = "aarch64")]
+mod frames {
+    pub(super) const COMPRESS_BLOCK: usize = 64;
+    pub(super) const HASH: usize = 208;
+    pub(super) const UPDATE_FINALIZE: usize = 208;
+    pub(super) const HMAC: usize = 336;
+    pub(super) const ABSORB: usize = 48;
+    pub(super) const HKDF: usize = 384;
+}
+
+use frames::{
+    ABSORB as FRAME_ABSORB, COMPRESS_BLOCK as FRAME_COMPRESS_BLOCK, HASH as FRAME_HASH,
+    HKDF as FRAME_HKDF, HMAC as FRAME_HMAC, UPDATE_FINALIZE as FRAME_UPDATE_FINALIZE,
+};
 
 /// Empty every general register of the budget, in one line each.
 ///
 /// Written out rather than looped, because a loop needs a counter and the
 /// counter is one of the registers being emptied.
+#[cfg(target_arch = "x86_64")]
 macro_rules! empty_the_general_registers {
     () => {
         "xor rax, rax
@@ -157,7 +212,32 @@ macro_rules! empty_the_general_registers {
     };
 }
 
+#[cfg(target_arch = "aarch64")]
+macro_rules! empty_the_general_registers {
+    () => {
+        "mov x0, xzr
+         mov x1, xzr
+         mov x2, xzr
+         mov x3, xzr
+         mov x4, xzr
+         mov x5, xzr
+         mov x6, xzr
+         mov x7, xzr
+         mov x8, xzr
+         mov x9, xzr
+         mov x10, xzr
+         mov x11, xzr
+         mov x12, xzr
+         mov x13, xzr
+         mov x14, xzr
+         mov x15, xzr
+         mov x16, xzr
+         mov x17, xzr"
+    };
+}
+
 /// Empty every vector register of the budget.
+#[cfg(target_arch = "x86_64")]
 macro_rules! empty_the_vector_registers {
     () => {
         "pxor xmm0, xmm0
@@ -174,6 +254,23 @@ macro_rules! empty_the_vector_registers {
          pxor xmm11, xmm11
          pxor xmm12, xmm12
          pxor xmm13, xmm13"
+    };
+}
+
+#[cfg(target_arch = "aarch64")]
+macro_rules! empty_the_vector_registers {
+    () => {
+        "movi v0.16b, #0
+         movi v1.16b, #0
+         movi v16.16b, #0
+         movi v17.16b, #0
+         movi v18.16b, #0
+         movi v19.16b, #0
+         movi v20.16b, #0
+         movi v21.16b, #0
+         movi v22.16b, #0
+         movi v23.16b, #0
+         movi v24.16b, #0"
     };
 }
 
@@ -197,6 +294,7 @@ macro_rules! empty_the_vector_registers {
 /// compiler is free to pick one of the caller-saved ones — `lateout` says they
 /// are written late, not that they are unavailable before — and the emptying
 /// above would wipe it on the way past.
+#[cfg(target_arch = "x86_64")]
 macro_rules! test_dirty_register_is_seen {
     ($name:ident, $register:tt) => {
         #[test]
@@ -227,6 +325,47 @@ macro_rules! test_dirty_register_is_seen {
     };
 }
 
+/// One test per general register, where the pattern takes four instructions to
+/// build.
+///
+/// A sixty-four bit value does not fit in an immediate here, so it is assembled
+/// in place a quarter at a time — and still in place rather than in a register.
+/// Handed over in one, the compiler is free to pick a caller-saved register:
+/// `lateout` says they are written late, not that they are unavailable before,
+/// and the emptying above would wipe the pattern on the way past.
+#[cfg(target_arch = "aarch64")]
+macro_rules! test_dirty_register_is_seen {
+    ($name:ident, $register:tt) => {
+        #[test]
+        fn $name() {
+            let dirty: u64;
+
+            // SAFETY: the callee takes no argument and returns in the return
+            // register, so the only registers that matter are the ones named
+            // here, and every caller-saved one is declared clobbered.
+            unsafe {
+                core::arch::asm!(
+                    empty_the_vector_registers!(),
+                    empty_the_general_registers!(),
+                    concat!("movz ", $register, ", #0xa5a5"),
+                    concat!("movk ", $register, ", #0xa5a5, lsl #16"),
+                    concat!("movk ", $register, ", #0xa5a5, lsl #32"),
+                    concat!("movk ", $register, ", #0xa5a5, lsl #48"),
+                    "bl {verifier}",
+                    verifier = sym redoubt_hkdf_registers_are_zeroized,
+                    lateout("x0") dirty,
+                    clobber_abi("C"),
+                );
+            }
+
+            assert_eq!(
+                dirty, POISON,
+                concat!("a dirty ", $register, " does not reach the answer")
+            );
+        }
+    };
+}
+
 /// One test per vector register: fill that one and nothing else, and ask.
 ///
 /// A vector register is dirtied for the same reason a general one is, and asks
@@ -234,6 +373,7 @@ macro_rules! test_dirty_register_is_seen {
 /// in: a vector register cannot be loaded from an immediate, so it goes through
 /// rax, and rax is emptied again before the call — so what the verifier finds
 /// can only have come from the vector.
+#[cfg(target_arch = "x86_64")]
 macro_rules! test_dirty_vector_is_seen {
     ($name:ident, $register:tt) => {
         #[test]
@@ -266,6 +406,45 @@ macro_rules! test_dirty_vector_is_seen {
     };
 }
 
+/// One test per vector register, with the pattern spread to both halves.
+///
+/// `dup` writes the same word to every lane, so the register comes out full
+/// rather than half full — which is what the verifier gathers and what the
+/// assertion below compares against.
+#[cfg(target_arch = "aarch64")]
+macro_rules! test_dirty_vector_is_seen {
+    ($name:ident, $register:tt) => {
+        #[test]
+        fn $name() {
+            let dirty: u64;
+
+            // SAFETY: as for a general register. The pattern is carried through
+            // x0, which is emptied again before the call.
+            unsafe {
+                core::arch::asm!(
+                    empty_the_vector_registers!(),
+                    empty_the_general_registers!(),
+                    "movz x0, #0xa5a5",
+                    "movk x0, #0xa5a5, lsl #16",
+                    "movk x0, #0xa5a5, lsl #32",
+                    "movk x0, #0xa5a5, lsl #48",
+                    concat!("dup ", $register, ".2d, x0"),
+                    "mov x0, xzr",
+                    "bl {verifier}",
+                    verifier = sym redoubt_hkdf_registers_are_zeroized,
+                    lateout("x0") dirty,
+                    clobber_abi("C"),
+                );
+            }
+
+            assert_eq!(
+                dirty, POISON,
+                concat!("a dirty ", $register, " does not reach the answer")
+            );
+        }
+    };
+}
+
 /// The other way round, and the reason the rest mean anything.
 ///
 /// A verifier that answered "dirty" whatever it was handed would pass every
@@ -274,6 +453,7 @@ macro_rules! test_dirty_vector_is_seen {
 fn test_an_empty_register_file_reads_as_empty() {
     let dirty: u64;
 
+    #[cfg(target_arch = "x86_64")]
     // SAFETY: the callee takes no argument and returns in the return register.
     // Every caller-saved register is emptied here before the call and declared
     // clobbered after it.
@@ -288,33 +468,103 @@ fn test_an_empty_register_file_reads_as_empty() {
         );
     }
 
+    #[cfg(target_arch = "aarch64")]
+    // SAFETY: the same, with the answer arriving in x0 instead of rax.
+    unsafe {
+        core::arch::asm!(
+            empty_the_vector_registers!(),
+            empty_the_general_registers!(),
+            "bl {verifier}",
+            verifier = sym redoubt_hkdf_registers_are_zeroized,
+            lateout("x0") dirty,
+            clobber_abi("C"),
+        );
+    }
+
     assert_eq!(dirty, 0, "an empty register file reads as dirty");
 }
 
-test_dirty_register_is_seen!(test_rax_is_seen, "rax");
-test_dirty_register_is_seen!(test_rcx_is_seen, "rcx");
-test_dirty_register_is_seen!(test_rdx_is_seen, "rdx");
-test_dirty_register_is_seen!(test_rsi_is_seen, "rsi");
-test_dirty_register_is_seen!(test_rdi_is_seen, "rdi");
-test_dirty_register_is_seen!(test_r8_is_seen, "r8");
-test_dirty_register_is_seen!(test_r9_is_seen, "r9");
-test_dirty_register_is_seen!(test_r10_is_seen, "r10");
-test_dirty_register_is_seen!(test_r11_is_seen, "r11");
+/// One invocation per entry of `BUDGET` and `VECTORS`, written by hand.
+///
+/// A register named in a list and missing here is a register the capture below
+/// reports filled while the verifier is never asked about it — green on both
+/// sides, and nobody looking at that register. The count at the end of each
+/// block is what keeps the two together.
+#[cfg(target_arch = "x86_64")]
+mod every_register {
+    use super::{POISON, redoubt_hkdf_registers_are_zeroized};
 
-test_dirty_vector_is_seen!(test_xmm0_is_seen, "xmm0");
-test_dirty_vector_is_seen!(test_xmm1_is_seen, "xmm1");
-test_dirty_vector_is_seen!(test_xmm2_is_seen, "xmm2");
-test_dirty_vector_is_seen!(test_xmm3_is_seen, "xmm3");
-test_dirty_vector_is_seen!(test_xmm4_is_seen, "xmm4");
-test_dirty_vector_is_seen!(test_xmm5_is_seen, "xmm5");
-test_dirty_vector_is_seen!(test_xmm6_is_seen, "xmm6");
-test_dirty_vector_is_seen!(test_xmm7_is_seen, "xmm7");
-test_dirty_vector_is_seen!(test_xmm8_is_seen, "xmm8");
-test_dirty_vector_is_seen!(test_xmm9_is_seen, "xmm9");
-test_dirty_vector_is_seen!(test_xmm10_is_seen, "xmm10");
-test_dirty_vector_is_seen!(test_xmm11_is_seen, "xmm11");
-test_dirty_vector_is_seen!(test_xmm12_is_seen, "xmm12");
-test_dirty_vector_is_seen!(test_xmm13_is_seen, "xmm13");
+    test_dirty_register_is_seen!(test_rax_is_seen, "rax");
+    test_dirty_register_is_seen!(test_rcx_is_seen, "rcx");
+    test_dirty_register_is_seen!(test_rdx_is_seen, "rdx");
+    test_dirty_register_is_seen!(test_rsi_is_seen, "rsi");
+    test_dirty_register_is_seen!(test_rdi_is_seen, "rdi");
+    test_dirty_register_is_seen!(test_r8_is_seen, "r8");
+    test_dirty_register_is_seen!(test_r9_is_seen, "r9");
+    test_dirty_register_is_seen!(test_r10_is_seen, "r10");
+    test_dirty_register_is_seen!(test_r11_is_seen, "r11");
+
+    test_dirty_vector_is_seen!(test_xmm0_is_seen, "xmm0");
+    test_dirty_vector_is_seen!(test_xmm1_is_seen, "xmm1");
+    test_dirty_vector_is_seen!(test_xmm2_is_seen, "xmm2");
+    test_dirty_vector_is_seen!(test_xmm3_is_seen, "xmm3");
+    test_dirty_vector_is_seen!(test_xmm4_is_seen, "xmm4");
+    test_dirty_vector_is_seen!(test_xmm5_is_seen, "xmm5");
+    test_dirty_vector_is_seen!(test_xmm6_is_seen, "xmm6");
+    test_dirty_vector_is_seen!(test_xmm7_is_seen, "xmm7");
+    test_dirty_vector_is_seen!(test_xmm8_is_seen, "xmm8");
+    test_dirty_vector_is_seen!(test_xmm9_is_seen, "xmm9");
+    test_dirty_vector_is_seen!(test_xmm10_is_seen, "xmm10");
+    test_dirty_vector_is_seen!(test_xmm11_is_seen, "xmm11");
+    test_dirty_vector_is_seen!(test_xmm12_is_seen, "xmm12");
+    test_dirty_vector_is_seen!(test_xmm13_is_seen, "xmm13");
+
+    pub(super) const TESTS: usize = 9 + 14;
+}
+
+#[cfg(target_arch = "aarch64")]
+mod every_register {
+    use super::{POISON, redoubt_hkdf_registers_are_zeroized};
+
+    test_dirty_register_is_seen!(test_x0_is_seen, "x0");
+    test_dirty_register_is_seen!(test_x1_is_seen, "x1");
+    test_dirty_register_is_seen!(test_x2_is_seen, "x2");
+    test_dirty_register_is_seen!(test_x3_is_seen, "x3");
+    test_dirty_register_is_seen!(test_x4_is_seen, "x4");
+    test_dirty_register_is_seen!(test_x5_is_seen, "x5");
+    test_dirty_register_is_seen!(test_x6_is_seen, "x6");
+    test_dirty_register_is_seen!(test_x7_is_seen, "x7");
+    test_dirty_register_is_seen!(test_x8_is_seen, "x8");
+    test_dirty_register_is_seen!(test_x9_is_seen, "x9");
+    test_dirty_register_is_seen!(test_x10_is_seen, "x10");
+    test_dirty_register_is_seen!(test_x11_is_seen, "x11");
+    test_dirty_register_is_seen!(test_x12_is_seen, "x12");
+    test_dirty_register_is_seen!(test_x13_is_seen, "x13");
+    test_dirty_register_is_seen!(test_x14_is_seen, "x14");
+    test_dirty_register_is_seen!(test_x15_is_seen, "x15");
+    test_dirty_register_is_seen!(test_x16_is_seen, "x16");
+    test_dirty_register_is_seen!(test_x17_is_seen, "x17");
+
+    test_dirty_vector_is_seen!(test_v0_is_seen, "v0");
+    test_dirty_vector_is_seen!(test_v1_is_seen, "v1");
+    test_dirty_vector_is_seen!(test_v16_is_seen, "v16");
+    test_dirty_vector_is_seen!(test_v17_is_seen, "v17");
+    test_dirty_vector_is_seen!(test_v18_is_seen, "v18");
+    test_dirty_vector_is_seen!(test_v19_is_seen, "v19");
+    test_dirty_vector_is_seen!(test_v20_is_seen, "v20");
+    test_dirty_vector_is_seen!(test_v21_is_seen, "v21");
+    test_dirty_vector_is_seen!(test_v22_is_seen, "v22");
+    test_dirty_vector_is_seen!(test_v23_is_seen, "v23");
+    test_dirty_vector_is_seen!(test_v24_is_seen, "v24");
+
+    pub(super) const TESTS: usize = 18 + 11;
+}
+
+/// Every register the two lists name has a test of its own.
+#[test]
+fn test_the_lists_name_as_many_registers_as_there_are_tests() {
+    assert_eq!(BUDGET.len() + VECTORS.len(), every_register::TESTS);
+}
 
 // === === === === === === === === === ===
 // redoubt_hkdf_frame_is_zeroized_*
@@ -440,6 +690,7 @@ test_the_frame_verifier_reads_its_whole_window!(
 fn test_dirty_registers_fills_every_general_register_in_the_budget() {
     let mut actual = [0_u64; BUDGET.len()];
 
+    #[cfg(target_arch = "x86_64")]
     // SAFETY: the callee takes no argument, and r12 is outside the budget it
     // fills, so the destination survives the call. `actual` is as long as the
     // budget, and the stores below cover it exactly once each.
@@ -462,6 +713,27 @@ fn test_dirty_registers_fills_every_general_register_in_the_budget() {
         );
     }
 
+    #[cfg(target_arch = "aarch64")]
+    // SAFETY: the same, with x20 outside the budget instead of r12.
+    unsafe {
+        core::arch::asm!(
+            empty_the_general_registers!(),
+            "bl {writer}",
+            "stp x0, x1, [x20]",
+            "stp x2, x3, [x20, #16]",
+            "stp x4, x5, [x20, #32]",
+            "stp x6, x7, [x20, #48]",
+            "stp x8, x9, [x20, #64]",
+            "stp x10, x11, [x20, #80]",
+            "stp x12, x13, [x20, #96]",
+            "stp x14, x15, [x20, #112]",
+            "stp x16, x17, [x20, #128]",
+            writer = sym redoubt_hkdf_dirty_registers,
+            inlateout("x20") actual.as_mut_ptr() => _,
+            clobber_abi("C"),
+        );
+    }
+
     for (at, &value) in actual.iter().enumerate() {
         assert_eq!(
             value, POISON,
@@ -480,8 +752,9 @@ fn test_dirty_registers_fills_every_general_register_in_the_budget() {
 /// dirtied.
 #[test]
 fn test_dirty_registers_fills_every_vector_register_in_the_budget() {
-    let mut actual = [0_u64; 28];
+    let mut actual = [0_u64; VECTORS.len() * 2];
 
+    #[cfg(target_arch = "x86_64")]
     // SAFETY: the callee takes no argument, and r12 is outside the budget it
     // fills. `actual` is two words for each vector register, and the stores
     // below cover it exactly once each.
@@ -509,13 +782,36 @@ fn test_dirty_registers_fills_every_vector_register_in_the_budget() {
         );
     }
 
+    #[cfg(target_arch = "aarch64")]
+    // SAFETY: the same, with x20 outside the budget instead of r12.
+    unsafe {
+        core::arch::asm!(
+            empty_the_vector_registers!(),
+            "bl {writer}",
+            "str q0, [x20]",
+            "str q1, [x20, #16]",
+            "str q16, [x20, #32]",
+            "str q17, [x20, #48]",
+            "str q18, [x20, #64]",
+            "str q19, [x20, #80]",
+            "str q20, [x20, #96]",
+            "str q21, [x20, #112]",
+            "str q22, [x20, #128]",
+            "str q23, [x20, #144]",
+            "str q24, [x20, #160]",
+            writer = sym redoubt_hkdf_dirty_registers,
+            inlateout("x20") actual.as_mut_ptr() => _,
+            clobber_abi("C"),
+        );
+    }
+
     for (at, &value) in actual.iter().enumerate() {
         assert_eq!(
             value,
             POISON,
-            "word {} of xmm{} came back from the writer empty",
+            "word {} of {} came back from the writer empty",
             at % 2,
-            at / 2
+            VECTORS[at / 2],
         );
     }
 }
@@ -537,6 +833,7 @@ macro_rules! test_the_frame_writer_leaves_one_byte {
             for at in 0..$size {
                 let mut actual = [0xff_u8; $size];
 
+                #[cfg(target_arch = "x86_64")]
                 // SAFETY: at is inside the writer's frame, and actual covers
                 // every captured byte. r12 holds its pointer across the call;
                 // the writer preserves it. The reservation keeps call alignment
@@ -571,6 +868,44 @@ macro_rules! test_the_frame_writer_leaves_one_byte {
                         writer = sym $writer,
                         inlateout("rdi") at => _,
                         inlateout("r12") actual.as_mut_ptr() => _,
+                        clobber_abi("C"),
+                    );
+                }
+
+                #[cfg(target_arch = "aarch64")]
+                // SAFETY: at and actual satisfy the same bounds as above. x20
+                // holds the destination across the call and is preserved by the
+                // writer. `bl` uses x30, not a stack slot, so reserving the
+                // frame again gives exactly the writer's former frame.
+                unsafe {
+                    core::arch::asm!(
+                        "sub sp, sp, #{frame}",
+                        "movz x1, #0xa5a5",
+                        "movk x1, #0xa5a5, lsl #16",
+                        "movk x1, #0xa5a5, lsl #32",
+                        "movk x1, #0xa5a5, lsl #48",
+                        "mov x2, xzr",
+                        "2:",
+                        "str x1, [sp, x2]",
+                        "add x2, x2, #8",
+                        "cmp x2, #{frame}",
+                        "b.lo 2b",
+                        "add sp, sp, #{frame}",
+                        "bl {writer}",
+                        "sub sp, sp, #{frame}",
+                        "mov x2, xzr",
+                        "3:",
+                        "ldrb w1, [sp, x2]",
+                        "strb w1, [x20, x2]",
+                        "strb wzr, [sp, x2]",
+                        "add x2, x2, #1",
+                        "cmp x2, #{frame}",
+                        "b.lo 3b",
+                        "add sp, sp, #{frame}",
+                        frame = const $size,
+                        writer = sym $writer,
+                        inlateout("x0") at => _,
+                        inlateout("x20") actual.as_mut_ptr() => _,
                         clobber_abi("C"),
                     );
                 }
@@ -676,17 +1011,32 @@ macro_rules! controls {
 
         #[unsafe(naked)]
         unsafe extern "C" fn $registers($($argument: $kind),*) {
+            #[cfg(target_arch = "x86_64")]
             core::arch::naked_asm!(
                 "jmp {target}",
+                target = sym redoubt_hkdf_dirty_registers,
+            );
+
+            #[cfg(target_arch = "aarch64")]
+            core::arch::naked_asm!(
+                "b {target}",
                 target = sym redoubt_hkdf_dirty_registers,
             );
         }
 
         #[unsafe(naked)]
         unsafe extern "C" fn $frame($($argument: $kind),*) {
+            #[cfg(target_arch = "x86_64")]
             core::arch::naked_asm!(
                 "xor edi, edi",
                 "jmp {target}",
+                target = sym $dirty_frame,
+            );
+
+            #[cfg(target_arch = "aarch64")]
+            core::arch::naked_asm!(
+                "mov x0, xzr",
+                "b {target}",
                 target = sym $dirty_frame,
             );
         }
@@ -695,11 +1045,32 @@ macro_rules! controls {
 
 /// Call the selected routine with its ABI arguments and immediately measure it.
 ///
+/// The arguments are given by position and never by register name. A call site
+/// that named registers would be a call site that differs per target, and the
+/// point of the section at the top of this file is that nothing below it does.
+///
+/// One arm per arity the routines here have. An arity nobody uses is an arm
+/// nobody writes, and an arity written wrong is a call site that does not
+/// compile rather than one that measures the wrong thing.
+///
 /// The caller must uphold the routine's pointer and length preconditions. Both
 /// verifiers preserve r12, where the first verdict waits for the second.
 /// Declaring that output makes Rust preserve its caller's value.
+#[cfg(target_arch = "x86_64")]
 macro_rules! measure {
-    ($routine:expr, $frame_probe:path, $first:expr $(, ($register:tt, $argument:expr))* $(,)?) => {{
+    ($routine:expr, $frame_probe:path, $a0:expr, $a1:expr $(,)?) => {
+        measure!(@call $routine, $frame_probe, [("rdi") $a0, ("rsi") $a1])
+    };
+    ($routine:expr, $frame_probe:path, $a0:expr, $a1:expr, $a2:expr $(,)?) => {
+        measure!(@call $routine, $frame_probe,
+                 [("rdi") $a0, ("rsi") $a1, ("rdx") $a2])
+    };
+    ($routine:expr, $frame_probe:path,
+     $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr $(,)?) => {
+        measure!(@call $routine, $frame_probe,
+                 [("rdi") $a0, ("rsi") $a1, ("rdx") $a2, ("rcx") $a3, ("r8") $a4])
+    };
+    (@call $routine:expr, $frame_probe:path, [$(($register:tt) $argument:expr),* $(,)?]) => {{
         let registers: u64;
         let frame: u64;
 
@@ -711,10 +1082,61 @@ macro_rules! measure {
             register_probe = sym redoubt_hkdf_registers_are_zeroized,
             frame_probe = sym $frame_probe,
             inlateout("r11") $routine => _,
-            inlateout("rdi") $first => _,
             $(inlateout($register) $argument => _,)*
             lateout("r12") registers,
             lateout("rax") frame,
+            clobber_abi("C"),
+        );
+
+        (registers, frame)
+    }};
+}
+
+/// Call the selected routine with its ABI arguments and immediately measure it.
+///
+/// AAPCS hands eight arguments in registers, so the arity that needs stack words
+/// on x86-64 needs none here and is an arm like the others.
+///
+/// Both verdicts are moved out of the return register before they can be
+/// overwritten, into x20 and x21. Left in x0, the first would be gone by the
+/// second call and the second would collide with an argument.
+#[cfg(target_arch = "aarch64")]
+macro_rules! measure {
+    ($routine:expr, $frame_probe:path, $a0:expr, $a1:expr $(,)?) => {
+        measure!(@call $routine, $frame_probe, [("x0") $a0, ("x1") $a1])
+    };
+    ($routine:expr, $frame_probe:path, $a0:expr, $a1:expr, $a2:expr $(,)?) => {
+        measure!(@call $routine, $frame_probe,
+                 [("x0") $a0, ("x1") $a1, ("x2") $a2])
+    };
+    ($routine:expr, $frame_probe:path,
+     $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr $(,)?) => {
+        measure!(@call $routine, $frame_probe,
+                 [("x0") $a0, ("x1") $a1, ("x2") $a2, ("x3") $a3, ("x4") $a4])
+    };
+    ($routine:expr, $frame_probe:path,
+     $a0:expr, $a1:expr, $a2:expr, $a3:expr,
+     $a4:expr, $a5:expr, $a6:expr, $a7:expr $(,)?) => {
+        measure!(@call $routine, $frame_probe,
+                 [("x0") $a0, ("x1") $a1, ("x2") $a2, ("x3") $a3,
+                  ("x4") $a4, ("x5") $a5, ("x6") $a6, ("x7") $a7])
+    };
+    (@call $routine:expr, $frame_probe:path, [$(($register:tt) $argument:expr),* $(,)?]) => {{
+        let registers: u64;
+        let frame: u64;
+
+        core::arch::asm!(
+            "blr x16",
+            "bl {register_probe}",
+            "mov x20, x0",
+            "bl {frame_probe}",
+            "mov x21, x0",
+            register_probe = sym redoubt_hkdf_registers_are_zeroized,
+            frame_probe = sym $frame_probe,
+            inlateout("x16") $routine => _,
+            $(inlateout($register) $argument => _,)*
+            lateout("x20") registers,
+            lateout("x21") frame,
             clobber_abi("C"),
         );
 
@@ -742,11 +1164,12 @@ macro_rules! measure {
 /// The first argument waits on the stack while that runs, because the writer
 /// takes an offset in the register it arrived in. The offset itself arrives in
 /// r13, which is outside the budget and outside what the writer touches.
+#[cfg(target_arch = "x86_64")]
 macro_rules! measure_with_stack_arguments {
     (
-        $routine:expr, $frame_probe:path, $frame_writer:path, $at:expr, $first:expr,
-        $(($register:tt, $argument:expr),)*
-        stack: ($seventh:expr, $eighth:expr) $(,)?
+        $routine:expr, $frame_probe:path, $frame_writer:path, $at:expr,
+        $first:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr, $a5:expr,
+        $seventh:expr, $eighth:expr $(,)?
     ) => {{
         let registers: u64;
         let frame: u64;
@@ -769,7 +1192,11 @@ macro_rules! measure_with_stack_arguments {
             frame_writer = sym $frame_writer,
             inlateout("r11") $routine => _,
             inlateout("rdi") $first => _,
-            $(inlateout($register) $argument => _,)*
+            inlateout("rsi") $a1 => _,
+            inlateout("rdx") $a2 => _,
+            inlateout("rcx") $a3 => _,
+            inlateout("r8") $a4 => _,
+            inlateout("r9") $a5 => _,
             inlateout("r13") $at => _,
             inlateout("r14") $seventh => _,
             inlateout("r15") $eighth => _,
@@ -779,6 +1206,25 @@ macro_rules! measure_with_stack_arguments {
         );
 
         (registers, frame)
+    }};
+}
+
+/// Measure a routine whose arguments all reach it in registers.
+///
+/// AAPCS hands eight of them that way, so there is no reservation, the stack
+/// pointer does not move, and the window the writer fills is already the window
+/// the routine takes. What the x86-64 version has to do from inside its assembly
+/// block this one does the way every other test here does it — a call, then the
+/// measurement.
+#[cfg(target_arch = "aarch64")]
+macro_rules! measure_with_stack_arguments {
+    (
+        $routine:expr, $frame_probe:path, $frame_writer:path, $at:expr,
+        $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr, $a5:expr,
+        $a6:expr, $a7:expr $(,)?
+    ) => {{
+        $frame_writer($at);
+        measure!($routine, $frame_probe, $a0, $a1, $a2, $a3, $a4, $a5, $a6, $a7)
     }};
 }
 
@@ -859,7 +1305,7 @@ fn test_compress_block_leaves_the_residue_its_case_declares(
             routine,
             redoubt_hkdf_frame_is_zeroized_compress_block,
             h.as_mut_ptr(),
-            ("rsi", block.as_ptr()),
+            block.as_ptr(),
         )
     };
 
@@ -901,8 +1347,8 @@ fn test_hash_leaves_the_residue_its_case_declares(#[case] routine: Hash, #[case]
                 routine,
                 redoubt_hkdf_frame_is_zeroized_hash,
                 MESSAGE.as_ptr(),
-                ("rsi", length),
-                ("rdx", digest.as_mut_ptr()),
+                length,
+                digest.as_mut_ptr(),
             )
         };
 
@@ -953,10 +1399,10 @@ fn test_update_finalize_leaves_the_residue_its_case_declares(
             routine,
             redoubt_hkdf_frame_is_zeroized_update_finalize,
             h.as_mut_ptr(),
-            ("rsi", MESSAGE.as_ptr()),
-            ("rdx", MESSAGE.len()),
-            ("rcx", MESSAGE.len()),
-            ("r8", digest.as_mut_ptr()),
+            MESSAGE.as_ptr(),
+            MESSAGE.len(),
+            MESSAGE.len(),
+            digest.as_mut_ptr(),
         )
     };
 
@@ -1008,10 +1454,10 @@ fn test_absorb_leaves_the_residue_its_case_declares(#[case] routine: Absorb, #[c
                 routine,
                 redoubt_hkdf_frame_is_zeroized_absorb,
                 h.as_mut_ptr(),
-                ("rsi", MESSAGE.as_ptr()),
-                ("rdx", length),
-                ("rcx", block.as_mut_ptr()),
-                ("r8", &raw mut fill),
+                MESSAGE.as_ptr(),
+                length,
+                block.as_mut_ptr(),
+                &raw mut fill,
             )
         };
 
@@ -1060,10 +1506,10 @@ fn test_hmac_leaves_the_residue_its_case_declares(#[case] routine: Hmac, #[case]
                 routine,
                 redoubt_hkdf_frame_is_zeroized_hmac,
                 KEY.as_ptr(),
-                ("rsi", key_len),
-                ("rdx", MESSAGE.as_ptr()),
-                ("rcx", MESSAGE.len()),
-                ("r8", mac.as_mut_ptr()),
+                key_len,
+                MESSAGE.as_ptr(),
+                MESSAGE.len(),
+                mac.as_mut_ptr(),
             )
         };
 
@@ -1109,8 +1555,15 @@ unsafe extern "C" fn dirty_hkdf_registers(
     _okm: *mut u8,
     _okm_len: usize,
 ) {
+    #[cfg(target_arch = "x86_64")]
     core::arch::naked_asm!(
         "jmp {target}",
+        target = sym redoubt_hkdf_dirty_registers,
+    );
+
+    #[cfg(target_arch = "aarch64")]
+    core::arch::naked_asm!(
+        "b {target}",
         target = sym redoubt_hkdf_dirty_registers,
     );
 }
@@ -1126,9 +1579,17 @@ unsafe extern "C" fn dirty_hkdf_frame(
     _okm: *mut u8,
     _okm_len: usize,
 ) {
+    #[cfg(target_arch = "x86_64")]
     core::arch::naked_asm!(
         "xor edi, edi",
         "jmp {target}",
+        target = sym redoubt_hkdf_dirty_frame_hkdf,
+    );
+
+    #[cfg(target_arch = "aarch64")]
+    core::arch::naked_asm!(
+        "mov x0, xzr",
+        "b {target}",
         target = sym redoubt_hkdf_dirty_frame_hkdf,
     );
 }
@@ -1157,12 +1618,13 @@ fn test_hkdf_leaves_the_residue_its_case_declares(#[case] routine: Hkdf, #[case]
                 redoubt_hkdf_dirty_frame_hkdf,
                 0_usize,
                 KEY.as_ptr(),
-                ("rsi", KEY.len()),
-                ("rdx", MESSAGE.as_ptr()),
-                ("rcx", MESSAGE.len()),
-                ("r8", KEY.as_ptr()),
-                ("r9", KEY.len()),
-                stack: (okm.as_mut_ptr(), wanted),
+                KEY.len(),
+                MESSAGE.as_ptr(),
+                MESSAGE.len(),
+                KEY.as_ptr(),
+                KEY.len(),
+                okm.as_mut_ptr(),
+                wanted,
             )
         };
 
@@ -1237,7 +1699,7 @@ fn test_the_measurement_of_compress_block_reads_the_window_the_writer_filled() {
                 untouched_compress as CompressBlock,
                 redoubt_hkdf_frame_is_zeroized_compress_block,
                 h.as_mut_ptr(),
-                ("rsi", block.as_ptr()),
+                block.as_ptr(),
             )
         };
 
@@ -1261,8 +1723,8 @@ fn test_the_measurement_of_hash_reads_the_window_the_writer_filled() {
                 untouched_hash as Hash,
                 redoubt_hkdf_frame_is_zeroized_hash,
                 MESSAGE.as_ptr(),
-                ("rsi", MESSAGE.len()),
-                ("rdx", digest.as_mut_ptr()),
+                MESSAGE.len(),
+                digest.as_mut_ptr(),
             )
         };
 
@@ -1287,10 +1749,10 @@ fn test_the_measurement_of_update_finalize_reads_the_window_the_writer_filled() 
                 untouched_update as UpdateFinalize,
                 redoubt_hkdf_frame_is_zeroized_update_finalize,
                 h.as_mut_ptr(),
-                ("rsi", MESSAGE.as_ptr()),
-                ("rdx", MESSAGE.len()),
-                ("rcx", MESSAGE.len()),
-                ("r8", digest.as_mut_ptr()),
+                MESSAGE.as_ptr(),
+                MESSAGE.len(),
+                MESSAGE.len(),
+                digest.as_mut_ptr(),
             )
         };
 
@@ -1316,10 +1778,10 @@ fn test_the_measurement_of_absorb_reads_the_window_the_writer_filled() {
                 untouched_absorb as Absorb,
                 redoubt_hkdf_frame_is_zeroized_absorb,
                 h.as_mut_ptr(),
-                ("rsi", MESSAGE.as_ptr()),
-                ("rdx", MESSAGE.len()),
-                ("rcx", block.as_mut_ptr()),
-                ("r8", &raw mut fill),
+                MESSAGE.as_ptr(),
+                MESSAGE.len(),
+                block.as_mut_ptr(),
+                &raw mut fill,
             )
         };
 
@@ -1343,10 +1805,10 @@ fn test_the_measurement_of_hmac_reads_the_window_the_writer_filled() {
                 untouched_hmac as Hmac,
                 redoubt_hkdf_frame_is_zeroized_hmac,
                 KEY.as_ptr(),
-                ("rsi", KEY.len()),
-                ("rdx", MESSAGE.as_ptr()),
-                ("rcx", MESSAGE.len()),
-                ("r8", mac.as_mut_ptr()),
+                KEY.len(),
+                MESSAGE.as_ptr(),
+                MESSAGE.len(),
+                mac.as_mut_ptr(),
             )
         };
 
@@ -1373,12 +1835,13 @@ fn test_the_measurement_of_hkdf_reads_the_window_the_writer_filled() {
                 redoubt_hkdf_dirty_frame_hkdf,
                 at,
                 KEY.as_ptr(),
-                ("rsi", KEY.len()),
-                ("rdx", MESSAGE.as_ptr()),
-                ("rcx", MESSAGE.len()),
-                ("r8", KEY.as_ptr()),
-                ("r9", KEY.len()),
-                stack: (okm.as_mut_ptr(), okm.len()),
+                KEY.len(),
+                MESSAGE.as_ptr(),
+                MESSAGE.len(),
+                KEY.as_ptr(),
+                KEY.len(),
+                okm.as_mut_ptr(),
+                okm.len(),
             )
         };
 
