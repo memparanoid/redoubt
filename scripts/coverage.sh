@@ -85,17 +85,15 @@ fi
 
 rm -rf "$BUILT/doctestbins"
 
-# Three passes: doctests, then the tests, then one report over both.
+# Two passes: the tests, then the report. `--no-report` collects the profile
+# data without rendering; the second call renders it.
 #
-# They have to be separate runs. `cargo test --doc` builds and runs one binary
-# per doctest and `nextest` does not run doctests at all, so a single
-# invocation can only ever measure one of the two. `--no-report` collects the
-# profile data without rendering; the last call renders everything together.
+# `--branch` goes on the pass that builds and not only on the one that reports.
+# The counters are emitted by the compiler, so a report asked for branches
+# against a build that emitted none reads `0 0 -` rather than failing — a whole
+# column of a table saying nothing and looking like a result.
 #
-# Doctests go first: they are the cheapest thing that can be broken and the
-# fastest to say so.
-#
-# `nextest` and not the default runner for the rest, because it gives each test
+# `nextest` and not the default runner, because it gives each test
 # a process. `redoubt-forensics` reads the whole process's memory, so two of
 # its tests sharing one are two secrets in one process and each is the other's
 # needle. And when a test dies on a signal, `nextest` names it instead of
@@ -114,13 +112,17 @@ run_cov() {
   "$@"
 }
 
-echo "--- doctests ---"
-run_cov cargo +$NIGHTLY llvm-cov --no-report --doctests -p "$CRATE" \
-  "${FEATURE_ARGS[@]}" test --doc
+# A doctest is an example, and what it reaches it reaches to show a caller how
+# the thing is held, not to say the code was exercised. Counting it puts a
+# figure on the page that no test stands behind.
+#
+# echo "--- doctests ---"
+# run_cov cargo +$NIGHTLY llvm-cov --no-report --doctests -p "$CRATE" \
+#   "${FEATURE_ARGS[@]}" test --doc
 
 echo "--- tests ---"
-run_cov cargo +$NIGHTLY llvm-cov --no-report nextest -p "$CRATE" "${FEATURE_ARGS[@]}"
+run_cov cargo +$NIGHTLY llvm-cov --branch --no-report nextest -p "$CRATE" "${FEATURE_ARGS[@]}"
 
 echo "--- report ---"
-run_cov cargo +$NIGHTLY llvm-cov report --branch --doctests \
+run_cov cargo +$NIGHTLY llvm-cov report --branch \
   --html --output-dir "$CRATE_DIR"

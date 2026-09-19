@@ -1,0 +1,12 @@
+[package]
+edition.workspace = true
+license.workspace  = true
+name               = "test-b"
+publish            = false
+version.workspace  = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+test-a = { path = "../a" }

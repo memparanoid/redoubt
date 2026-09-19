@@ -43,6 +43,8 @@ members = [
   "examples/wallet",
   "benchmarks",
   "forensics/memory_analysis",
+  "canary/a",
+  "canary/b",
 ]
 resolver = "2"
 

@@ -35,7 +35,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
-COVERAGE_DIR = REPO_ROOT / "coverage"
+# Overridable so that a run can be rendered somewhere else and leave the one in
+# the tree alone, which is what comparing two runs needs.
+COVERAGE_DIR = Path(os.environ.get("REDOUBT_COVERAGE_DIR", REPO_ROOT / "coverage"))
 COV_CRATES_FILE = REPO_ROOT / ".cov_crates"
 
 
