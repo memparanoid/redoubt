@@ -5,7 +5,7 @@
 use core::mem::size_of;
 
 use crate::error::EntropyError;
-use crate::session::{Counter, NonceSessionGenerator};
+use crate::session::{Counter, NonceSessionGenerator, NonceSessionGeneratorBehaviour};
 use crate::support::test_utils::{MockEntropySource, MockEntropySourceBehaviour};
 use crate::traits::NonceGenerator;
 
@@ -114,6 +114,45 @@ fn test_nonce_session_generator_counter_wraps() {
 
         assert_eq!(counter, 0);
     }
+}
+
+#[test]
+fn test_nonce_session_generator_fail_at_generate_nonce_behaviour() {
+    let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
+    let mut session = NonceSessionGenerator::<_, 16>::new(entropy)
+        .with_behaviour(NonceSessionGeneratorBehaviour::FailAtGenerateNonce);
+
+    let result = session.generate_nonce();
+
+    assert!(matches!(result, Err(EntropyError::Injected)));
+}
+
+/// The check sits before `maybe_initialize`, so an injected failure costs no
+/// entropy and leaves the counter uninitialized.
+#[test]
+fn test_nonce_session_generator_fail_at_generate_nonce_behaviour_asks_no_entropy() {
+    let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
+    let mut session = NonceSessionGenerator::<_, 16>::new(entropy)
+        .with_behaviour(NonceSessionGeneratorBehaviour::FailAtGenerateNonce);
+
+    let result = session.generate_nonce();
+
+    assert!(matches!(result, Err(EntropyError::Injected)));
+    assert_eq!(session.entropy().call_count(), 0);
+}
+
+#[test]
+fn test_nonce_session_generator_none_behaviour() {
+    let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
+    let mut session = NonceSessionGenerator::<_, 16>::new(entropy)
+        .with_behaviour(NonceSessionGeneratorBehaviour::None);
+
+    let result = session.generate_nonce();
+
+    assert!(
+        result.is_ok(),
+        "a generator with nothing injected gave no nonce: {result:?}"
+    );
 }
 
 #[test]

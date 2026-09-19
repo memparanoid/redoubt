@@ -79,6 +79,9 @@ pub use system::SystemEntropySource;
 pub use traits::{EntropySource, NonceGenerator};
 
 #[cfg(any(test, feature = "test-utils"))]
+pub use session::NonceSessionGeneratorBehaviour;
+
+#[cfg(any(test, feature = "test-utils"))]
 pub use support::test_utils;
 
 /// Fills a buffer with cryptographically secure random bytes.

@@ -8,6 +8,26 @@ use crate::error::EntropyError;
 use crate::traits::{EntropySource, NonceGenerator};
 
 pub(crate) type Counter = u32;
+
+/// A failure injected into [`NonceSessionGenerator`], for a holder that names
+/// the concrete type.
+///
+/// [`MockNonceSessionGenerator`] covers the holder that is generic over
+/// [`NonceGenerator`]. One with a `NonceSessionGenerator<E, N>` field has
+/// nowhere to put a wrapper, so the injection lives on the type itself.
+///
+/// [`MockNonceSessionGenerator`]: crate::test_utils::MockNonceSessionGenerator
+#[cfg(any(test, feature = "test-utils"))]
+#[derive(Default, Clone, Copy, Eq, PartialEq, Debug)]
+pub enum NonceSessionGeneratorBehaviour {
+    /// Nothing injected.
+    #[default]
+    None,
+    /// [`NonceGenerator::generate_nonce`] answers [`EntropyError::Injected`]
+    /// without reaching the entropy source.
+    FailAtGenerateNonce,
+}
+
 /// Session-based nonce generator with configurable nonce size.
 ///
 /// Generates unique nonces using a hybrid approach:
@@ -55,6 +75,8 @@ pub(crate) type Counter = u32;
 /// let nonce = generator.generate_nonce()?;
 /// ```
 pub struct NonceSessionGenerator<E: EntropySource, const NONCE_SIZE: usize> {
+    #[cfg(any(test, feature = "test-utils"))]
+    behaviour: NonceSessionGeneratorBehaviour,
     entropy: E,
     counter: Counter,
     initialized: bool,
@@ -77,6 +99,8 @@ impl<E: EntropySource, const NONCE_SIZE: usize> NonceSessionGenerator<E, NONCE_S
             entropy,
             counter: 0,
             initialized: false,
+            #[cfg(any(test, feature = "test-utils"))]
+            behaviour: NonceSessionGeneratorBehaviour::default(),
         }
     }
 
@@ -93,6 +117,19 @@ impl<E: EntropySource, const NONCE_SIZE: usize> NonceSessionGenerator<E, NONCE_S
         Ok(())
     }
 
+    /// This generator, carrying `behaviour`.
+    #[cfg(any(test, feature = "test-utils"))]
+    #[must_use]
+    pub fn with_behaviour(mut self, behaviour: NonceSessionGeneratorBehaviour) -> Self {
+        self.behaviour = behaviour;
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn entropy(&self) -> &E {
+        &self.entropy
+    }
+
     #[cfg(test)]
     pub(crate) fn set_counter_for_test(&mut self, counter: Counter) {
         self.counter = counter;
@@ -104,6 +141,13 @@ impl<E: EntropySource, const NONCE_SIZE: usize> NonceGenerator<NONCE_SIZE>
     for NonceSessionGenerator<E, NONCE_SIZE>
 {
     fn generate_nonce(&mut self) -> Result<[u8; NONCE_SIZE], EntropyError> {
+        #[cfg(any(test, feature = "test-utils"))]
+        {
+            if self.behaviour == NonceSessionGeneratorBehaviour::FailAtGenerateNonce {
+                return Err(EntropyError::Injected);
+            }
+        }
+
         self.maybe_initialize()?;
 
         let mut nonce = [0u8; NONCE_SIZE];
