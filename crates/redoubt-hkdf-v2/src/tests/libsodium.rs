@@ -221,14 +221,38 @@ fn test_the_file_covers_the_lengths_the_walk_reaches() {
 // What libsodium answered
 // === === === === === === === === === ===
 
+/// How many ways the walk is split, so that the cores are.
+///
+/// Eight, against two backends, is one test per core on a machine with sixteen.
+/// The work is the same; what changes is that it stops being one process.
+///
+/// **This has to equal how many values `shard` is given below**, and nothing
+/// makes it. Fewer values than this and the rows in the shards nobody was given
+/// are never walked, and the ones that are walked still agree, so the suite
+/// stays green over a corpus it stopped reading. The `assert!` in the body
+/// catches the other direction only.
+const SHARDS: usize = 8;
+
 /// Nothing is asserted about an answer here that the corpora do not already
 /// pin; what is asserted is that a quarter of a million lengths agree with
 /// libsodium.
+///
+/// Each case takes every `SHARDS`th row, so the union of them is the file and
+/// no row is walked twice.
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_every_length_agrees_with_libsodium(#[case] backend: Backend) {
-    for (info_len, expected) in published() {
+fn test_every_length_agrees_with_libsodium(
+    #[case] backend: Backend,
+    #[values(0, 1, 2, 3, 4, 5, 6, 7)] shard: usize,
+) {
+    assert!(shard < SHARDS, "a shard the walk is not split into");
+
+    for (at, (info_len, expected)) in published().into_iter().enumerate() {
+        if at % SHARDS != shard {
+            continue;
+        }
+
         let info = material(Field::Info, info_len);
 
         assert_eq!(
