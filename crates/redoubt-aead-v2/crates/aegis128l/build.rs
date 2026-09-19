@@ -6,8 +6,9 @@
 //!
 //! There is no portable fallback: AEGIS is the AES round function used as a
 //! permutation, and written in Rust it would be a different algorithm with the
-//! same name. A target this compiles nothing for is one whose binaries will not
-//! find the symbols the crate calls, and the flag below is what says so.
+//! same name. A target this compiles nothing for is one whose routines panic
+//! rather than call anything, and the flag below is what the crate reads to
+//! know which it is.
 //!
 //! Windows is left out: the assembly is SysV and AAPCS, and Windows passes its
 //! arguments in other registers.

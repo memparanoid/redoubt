@@ -14,6 +14,7 @@
 
 use redoubt_aead_v2_core::consts::aegis::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
 
+#[cfg(aegis128l_asm)]
 unsafe extern "C" {
     fn redoubt_aegis128l_encrypt(
         key: *const u8,
@@ -35,8 +36,40 @@ unsafe extern "C" {
     );
 }
 
+/// What a call reaches where the build script compiled nothing.
+#[cfg(not(aegis128l_asm))]
+fn unbuilt() -> ! {
+    panic!("AEGIS-128L has no assembly on this target: ask HAS_ASM before calling")
+}
+
 /// `data` enciphered where it lies, and the tag that authenticates it and the
 /// AAD together.
+#[cfg(not(aegis128l_asm))]
+pub(crate) fn encrypt(
+    _key: &[u8; KEY_SIZE],
+    _nonce: &[u8; NONCE_SIZE],
+    _aad: &[u8],
+    _data: &mut [u8],
+    _tag: &mut [u8; TAG_SIZE],
+) {
+    unbuilt()
+}
+
+/// `data` deciphered where it lies, and the tag it would have had.
+#[cfg(not(aegis128l_asm))]
+pub(crate) fn decrypt(
+    _key: &[u8; KEY_SIZE],
+    _nonce: &[u8; NONCE_SIZE],
+    _aad: &[u8],
+    _data: &mut [u8],
+    _tag: &mut [u8; TAG_SIZE],
+) {
+    unbuilt()
+}
+
+/// `data` enciphered where it lies, and the tag that authenticates it and the
+/// AAD together.
+#[cfg(aegis128l_asm)]
 pub(crate) fn encrypt(
     key: &[u8; KEY_SIZE],
     nonce: &[u8; NONCE_SIZE],
@@ -64,6 +97,7 @@ pub(crate) fn encrypt(
 ///
 /// The caller compares. Until it has, what this leaves in `data` is a plaintext
 /// nothing has vouched for.
+#[cfg(aegis128l_asm)]
 pub(crate) fn decrypt(
     key: &[u8; KEY_SIZE],
     nonce: &[u8; NONCE_SIZE],

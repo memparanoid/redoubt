@@ -18,6 +18,10 @@
 //! first instruction rather than answering wrong, so that question is asked at
 //! runtime, where this AEAD is chosen over another.
 //!
+//! A target whose ABI does not fit gets the same refusal one step earlier: the
+//! routines are there, they panic, and nothing is left for a linker to look for
+//! and not find.
+//!
 //! ## License
 //!
 //! GPL-3.0-only
@@ -38,7 +42,8 @@ pub use aegis128l::Aegis128L;
 
 /// Whether the build script found assembly for this target.
 ///
-/// False means the symbols [`Aegis128L`] calls were never assembled, and
-/// anything that links this crate will not find them. It says nothing about
-/// whether the machine running the result has the AES instructions.
+/// False means [`Aegis128L`] has nothing to call and panics if it is asked to
+/// seal or open — the same answer a machine without the AES instructions gives,
+/// given before the first one rather than at it. It says nothing about whether
+/// the machine running the result has them.
 pub const HAS_ASM: bool = cfg!(aegis128l_asm);
