@@ -12,12 +12,14 @@ use redoubt_aead_aegis128l::Aegis128L;
 use redoubt_aead_v2_core::consts::{aegis, chacha, poly1305};
 use redoubt_aead_v2_core::{AeadDecrypt, AeadEncrypt, AeadError as AeadCoreError};
 use redoubt_aead_xchachapoly1305::XChaCha20Poly1305;
+use redoubt_rand::{
+    EntropyError, NonceSessionGenerator, NonceSessionGeneratorBehaviour, SystemEntropySource,
+};
 
-use crate::aead::Aead;
+use crate::aead::{Aead, Session};
 use crate::enums::AeadAlgorithm;
 use crate::errors::AeadError;
 use crate::feature_detector::{FeatureDetector, FeatureDetectorBehaviour};
-
 
 /// Past the widest either cipher takes, so a sweep reaches both sides of every
 /// boundary rather than sampling around them.
@@ -57,6 +59,23 @@ fn forced(behaviour: FeatureDetectorBehaviour) -> FeatureDetector {
     FeatureDetector::default().with_behaviour(behaviour)
 }
 
+/// A generator that answers a failure the machine itself never answers, so a
+/// case below cannot pass on a real shortage of entropy.
+fn refusing<const N: usize>() -> NonceSessionGenerator<SystemEntropySource, N> {
+    NonceSessionGenerator::new(SystemEntropySource {})
+        .with_behaviour(NonceSessionGeneratorBehaviour::FailAtGenerateNonce)
+}
+
+/// The counter a nonce opens with, which is the part two from one session
+/// cannot repeat.
+fn counter_of(nonce: &[u8]) -> u32 {
+    u32::from_le_bytes(
+        nonce[..size_of::<u32>()]
+            .try_into()
+            .expect("a nonce is wider than its counter"),
+    )
+}
+
 /// Without it, every case that asks for AEGIS gets the fallback and passes.
 #[test]
 #[cfg(aes_asm)]
@@ -77,6 +96,88 @@ fn test_algorithm_answers_what_the_constructor_chose() {
         Aead::new_chacha().algorithm(),
         AeadAlgorithm::XChachaPoly1305
     );
+}
+
+// === === === === === === === === === ===
+// generate_nonce_with
+// === === === === === === === === === ===
+
+#[test]
+fn test_generate_nonce_with_propagates_chacha_entropy_error() {
+    let mut session = Session::XChachaPoly1305(refusing());
+
+    let result = Aead::generate_nonce_with(&mut session);
+
+    assert!(
+        matches!(result, Err(AeadError::NonceEntropy(EntropyError::Injected))),
+        "a refused nonce came back as {result:?}"
+    );
+}
+
+#[test]
+fn test_generate_nonce_with_propagates_aegis_entropy_error() {
+    let mut session = Session::Aegis128L(refusing());
+
+    let result = Aead::generate_nonce_with(&mut session);
+
+    assert!(
+        matches!(result, Err(AeadError::NonceEntropy(EntropyError::Injected))),
+        "a refused nonce came back as {result:?}"
+    );
+}
+
+#[test]
+fn test_generate_nonce_with_answers_a_nonce_of_the_chacha_width() {
+    let mut session = Session::XChachaPoly1305(NonceSessionGenerator::new(SystemEntropySource {}));
+
+    let nonce = Aead::generate_nonce_with(&mut session).expect("this machine has entropy");
+
+    assert_eq!(nonce.len(), chacha::XNONCE_SIZE);
+}
+
+#[test]
+fn test_generate_nonce_with_answers_a_nonce_of_the_aegis_width() {
+    let mut session = Session::Aegis128L(NonceSessionGenerator::new(SystemEntropySource {}));
+
+    let nonce = Aead::generate_nonce_with(&mut session).expect("this machine has entropy");
+
+    assert_eq!(nonce.len(), aegis::NONCE_SIZE);
+}
+
+// === === === === === === === === === ===
+// generate_nonce
+// === === === === === === === === === ===
+
+#[test]
+fn test_generate_nonce_answers_a_nonce_of_the_chacha_width() {
+    let mut aead = Aead::new_chacha();
+
+    let nonce = aead.generate_nonce().expect("this machine has entropy");
+
+    assert_eq!(nonce.len(), chacha::XNONCE_SIZE);
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_generate_nonce_answers_a_nonce_of_the_aegis_width() {
+    let mut aead = Aead::from_algorithm(AeadAlgorithm::Aegis128L);
+
+    let nonce = aead.generate_nonce().expect("this machine has entropy");
+
+    assert_eq!(nonce.len(), aegis::NONCE_SIZE);
+}
+
+/// The counter is what makes two nonces unable to collide, and it only counts
+/// for an `Aead` that is kept: one built per message answers from a generator
+/// that has issued nothing.
+#[test]
+fn test_generate_nonce_answers_the_next_counter_each_time() {
+    let mut aead = Aead::new_chacha();
+
+    let first = counter_of(&aead.generate_nonce().expect("this machine has entropy"));
+    let second = counter_of(&aead.generate_nonce().expect("this machine has entropy"));
+
+    assert_eq!(second, first.wrapping_add(1));
 }
 
 // === === === === === === === === === ===
@@ -416,7 +517,13 @@ fn test_encrypt_refuses_invalid_inputs_for_aegis_variant() {
         let mut data = filled(64);
         let mut tag = filled(aegis::TAG_SIZE);
 
-        let result = aead.encrypt(&filled(aegis::KEY_SIZE), &filled(given), b"", &mut data, &mut tag);
+        let result = aead.encrypt(
+            &filled(aegis::KEY_SIZE),
+            &filled(given),
+            b"",
+            &mut data,
+            &mut tag,
+        );
 
         assert_width!(
             result,
@@ -678,8 +785,8 @@ fn test_decrypt_propagates_a_tag_mismatch_for_aegis_variant() {
     let mut data = filled(64);
     let tag = filled(aegis::TAG_SIZE);
 
-    let result = Aead::from_algorithm(AeadAlgorithm::Aegis128L)
-        .decrypt(&key, &nonce, b"", &mut data, &tag);
+    let result =
+        Aead::from_algorithm(AeadAlgorithm::Aegis128L).decrypt(&key, &nonce, b"", &mut data, &tag);
 
     assert_eq!(
         result,

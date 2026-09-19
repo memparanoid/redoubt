@@ -8,9 +8,11 @@ use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
 use redoubt_aead_aegis128l::Aegis128L;
+use redoubt_aead_v2_core::consts::{aegis, chacha};
 use redoubt_aead_v2_core::{AeadDecrypt, AeadEncrypt};
 use redoubt_aead_xchachapoly1305::XChaCha20Poly1305;
 use redoubt_codec::{BytesRequired, Decode, DecodeError, Encode, RedoubtCodec, RedoubtCodecBuffer};
+use redoubt_rand::{NonceGenerator, NonceSessionGenerator, SystemEntropySource};
 
 use crate::enums::AeadAlgorithm;
 use crate::errors::AeadError;
@@ -77,12 +79,25 @@ impl DerefMut for AeadAlgorithms {
     }
 }
 
+/// The counter this cipher's nonces are drawn from.
+///
+/// A variant each because the widths differ, so the generators are different
+/// types and no field can hold either.
+pub(crate) enum Session {
+    XChachaPoly1305(NonceSessionGenerator<SystemEntropySource, { chacha::XNONCE_SIZE }>),
+    Aegis128L(NonceSessionGenerator<SystemEntropySource, { aegis::NONCE_SIZE }>),
+}
+
 /// An authenticated cipher, chosen and ready to run.
 ///
-/// It holds which one and nothing else: the key and the nonce arrive with each
-/// call, so there is no state here for a caller to keep or to wipe.
+/// The key arrives with each call and leaves with it, so there is no secret
+/// here to keep or to wipe. What it does hold is where its nonces come from:
+/// nonces from one `Aead` cannot collide, and two `Aead`s know nothing of each
+/// other. A fresh one per message starts the counter again and gives that up,
+/// without anything saying so.
 pub struct Aead {
     algorithm: AeadAlgorithm,
+    session: Session,
 }
 
 impl Default for Aead {
@@ -95,6 +110,25 @@ impl Aead {
     /// Which cipher this one runs.
     pub fn algorithm(&self) -> AeadAlgorithm {
         self.algorithm
+    }
+
+    /// A nonce this `Aead` has not given before.
+    ///
+    /// # Errors
+    ///
+    /// [`AeadError::NonceEntropy`], where the machine has no randomness to
+    /// give.
+    pub fn generate_nonce(&mut self) -> Result<Vec<u8>, AeadError> {
+        Aead::generate_nonce_with(&mut self.session)
+    }
+
+    pub(crate) fn generate_nonce_with(session: &mut Session) -> Result<Vec<u8>, AeadError> {
+        let made = match session {
+            Session::XChachaPoly1305(nonces) => nonces.generate_nonce()?.to_vec(),
+            Session::Aegis128L(nonces) => nonces.generate_nonce()?.to_vec(),
+        };
+
+        Ok(made)
     }
 
     /// Seals `data` in place and writes the tag.
@@ -154,10 +188,8 @@ impl Aead {
     }
 
     pub(crate) fn new_with(feature_detector: &FeatureDetector) -> Self {
-        if feature_detector.supports_aes() {
-            return Self {
-                algorithm: AeadAlgorithm::Aegis128L,
-            };
+        if let Some(aegis) = Aead::new_aegis(feature_detector) {
+            return aegis;
         }
 
         Aead::new_chacha()
@@ -166,6 +198,7 @@ impl Aead {
     pub(crate) fn new_chacha() -> Self {
         Self {
             algorithm: AeadAlgorithm::XChachaPoly1305,
+            session: Session::XChachaPoly1305(NonceSessionGenerator::new(SystemEntropySource {})),
         }
     }
 
@@ -173,6 +206,7 @@ impl Aead {
         if feature_detector.supports_aes() {
             return Some(Self {
                 algorithm: AeadAlgorithm::Aegis128L,
+                session: Session::Aegis128L(NonceSessionGenerator::new(SystemEntropySource {})),
             });
         }
 

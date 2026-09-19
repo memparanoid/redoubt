@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_aead_v2_core::AeadError as AeadCoreError;
+use redoubt_rand::EntropyError;
 
 use crate::enums::AeadAlgorithm;
 
@@ -16,6 +17,10 @@ pub enum AeadError {
     /// What the primitive answered.
     #[error(transparent)]
     Primitive(#[from] AeadCoreError),
+
+    /// No nonce came back, so nothing was sealed with one.
+    #[error("the machine gave no randomness to draw a nonce from")]
+    NonceEntropy(#[from] EntropyError),
 
     /// The key is not the width this algorithm takes.
     #[error("{algorithm:?} seals with a key of {expected} bytes and was handed {given}")]
