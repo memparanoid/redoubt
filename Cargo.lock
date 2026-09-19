@@ -957,6 +957,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "redoubt-aead-v2"
+version = "0.1.0-rc.8"
+dependencies = [
+ "cpufeatures",
+ "proptest",
+ "redoubt-aead-aegis128l",
+ "redoubt-aead-v2-core",
+ "redoubt-aead-xchachapoly1305",
+ "redoubt-codec",
+ "redoubt-forensics",
+ "redoubt-util",
+ "redoubt-zero",
+ "rstest",
+ "thiserror",
+]
+
+[[package]]
 name = "redoubt-aead-v2-core"
 version = "0.1.0-rc.8"
 dependencies = [

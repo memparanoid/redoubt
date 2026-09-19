@@ -1,0 +1,775 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+mod algorithms;
+
+use alloc::vec::Vec;
+
+use proptest::prelude::*;
+
+use redoubt_aead_aegis128l::Aegis128L;
+use redoubt_aead_v2_core::consts::{aegis, chacha, poly1305};
+use redoubt_aead_v2_core::{AeadDecrypt, AeadEncrypt, AeadError as AeadCoreError};
+use redoubt_aead_xchachapoly1305::XChaCha20Poly1305;
+
+use crate::aead::Aead;
+use crate::enums::AeadAlgorithm;
+use crate::errors::AeadError;
+use crate::feature_detector::{FeatureDetector, FeatureDetectorBehaviour};
+
+
+/// Past the widest either cipher takes, so a sweep reaches both sides of every
+/// boundary rather than sampling around them.
+const WIDEST: usize = 48;
+
+fn filled(width: usize) -> Vec<u8> {
+    (0..width).map(|at| (at as u8) ^ 0x5a).collect()
+}
+
+/// Every width up to `WIDEST` except the one that fits.
+fn every_width_but(right: usize) -> impl Iterator<Item = usize> {
+    (0..=WIDEST).filter(move |given| *given != right)
+}
+
+/// The three fields, so that a width reported against the wrong cipher, or with
+/// the wrong number in either place, is a failure rather than a pass.
+macro_rules! assert_width {
+    ($result:expr, $variant:ident, $algorithm:expr, $expected:expr, $given:expr, $said:literal) => {
+        assert!(
+            matches!(
+                $result,
+                Err(AeadError::$variant {
+                    algorithm,
+                    expected,
+                    given,
+                }) if algorithm == $algorithm && expected == $expected && given == $given
+            ),
+            concat!($said, " of {} bytes against {} expected"),
+            $given,
+            $expected
+        )
+    };
+}
+
+/// A detector that answers the given thing whatever the machine is.
+fn forced(behaviour: FeatureDetectorBehaviour) -> FeatureDetector {
+    FeatureDetector::default().with_behaviour(behaviour)
+}
+
+/// Without it, every case that asks for AEGIS gets the fallback and passes.
+#[test]
+#[cfg(aes_asm)]
+fn test_this_machine_has_aes() {
+    assert!(
+        FeatureDetector::default().supports_aes(),
+        "this machine has no aes"
+    );
+}
+
+// === === === === === === === === === ===
+// algorithm
+// === === === === === === === === === ===
+
+#[test]
+fn test_algorithm_answers_what_the_constructor_chose() {
+    assert_eq!(
+        Aead::new_chacha().algorithm(),
+        AeadAlgorithm::XChachaPoly1305
+    );
+}
+
+// === === === === === === === === === ===
+// new_with
+// === === === === === === === === === ===
+
+#[test]
+fn test_new_with_takes_chacha_where_there_is_no_aes() {
+    let aead = Aead::new_with(&forced(FeatureDetectorBehaviour::ForceAesFalse));
+
+    assert_eq!(aead.algorithm(), AeadAlgorithm::XChachaPoly1305);
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_new_with_takes_aegis_where_there_is_aes() {
+    let aead = Aead::new_with(&forced(FeatureDetectorBehaviour::ForceAesTrue));
+
+    assert_eq!(aead.algorithm(), AeadAlgorithm::Aegis128L);
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_new_with_takes_aegis_on_this_machine() {
+    let aead = Aead::new_with(&FeatureDetector::default());
+
+    assert_eq!(aead.algorithm(), AeadAlgorithm::Aegis128L);
+}
+
+// === === === === === === === === === ===
+// default
+// === === === === === === === === === ===
+
+/// Resolving the detector is the one step a forced one cannot reach.
+#[test]
+#[cfg(aes_asm)]
+fn test_default_takes_what_this_machine_allows() {
+    assert_eq!(Aead::default().algorithm(), AeadAlgorithm::Aegis128L);
+}
+
+// === === === === === === === === === ===
+// new_chacha
+// === === === === === === === === === ===
+
+#[test]
+fn test_new_chacha_takes_chacha_whatever_the_machine_is() {
+    assert_eq!(
+        Aead::new_chacha().algorithm(),
+        AeadAlgorithm::XChachaPoly1305
+    );
+}
+
+// === === === === === === === === === ===
+// new_aegis
+// === === === === === === === === === ===
+
+#[test]
+fn test_new_aegis_answers_with_nothing_where_there_is_no_aes() {
+    let aead = Aead::new_aegis(&forced(FeatureDetectorBehaviour::ForceAesFalse));
+
+    assert!(aead.is_none());
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_new_aegis_takes_aegis_where_there_is_aes() {
+    let aead = Aead::new_aegis(&forced(FeatureDetectorBehaviour::ForceAesTrue))
+        .expect("Infallible: the detector was forced to say it has aes");
+
+    assert_eq!(aead.algorithm(), AeadAlgorithm::Aegis128L);
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_new_aegis_takes_aegis_on_this_machine() {
+    let aead =
+        Aead::new_aegis(&FeatureDetector::default()).expect("Infallible: this machine has aes");
+
+    assert_eq!(aead.algorithm(), AeadAlgorithm::Aegis128L);
+}
+
+// === === === === === === === === === ===
+// supported_algorithms_with
+// === === === === === === === === === ===
+
+#[test]
+fn test_supported_algorithms_with_names_chacha_where_there_is_no_aes() {
+    let supported =
+        Aead::supported_algorithms_with(&forced(FeatureDetectorBehaviour::ForceAesFalse));
+
+    assert_eq!(supported.as_slice(), [AeadAlgorithm::XChachaPoly1305]);
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_supported_algorithms_with_names_both_where_there_is_aes() {
+    let supported =
+        Aead::supported_algorithms_with(&forced(FeatureDetectorBehaviour::ForceAesTrue));
+
+    assert_eq!(
+        supported.as_slice(),
+        [AeadAlgorithm::XChachaPoly1305, AeadAlgorithm::Aegis128L]
+    );
+}
+
+/// The list is never empty, whatever the machine answers.
+///
+/// XChaCha20-Poly1305 needs nothing of the hardware, so it is in the list by
+/// construction rather than because some machine happened to allow it.
+#[test]
+fn test_supported_algorithms_with_always_names_chacha() {
+    for behaviour in [
+        FeatureDetectorBehaviour::ForceAesFalse,
+        FeatureDetectorBehaviour::ForceAesTrue,
+    ] {
+        let supported = Aead::supported_algorithms_with(&forced(behaviour));
+
+        assert!(supported.contains(&AeadAlgorithm::XChachaPoly1305));
+    }
+}
+
+// === === === === === === === === === ===
+// supported_algorithms
+// === === === === === === === === === ===
+
+#[test]
+#[cfg(aes_asm)]
+fn test_supported_algorithms_names_what_this_machine_allows() {
+    assert_eq!(
+        Aead::supported_algorithms().as_slice(),
+        [AeadAlgorithm::XChachaPoly1305, AeadAlgorithm::Aegis128L]
+    );
+}
+
+// === === === === === === === === === ===
+// variants_with
+// === === === === === === === === === ===
+
+#[test]
+fn test_variants_with_answers_with_chacha_where_there_is_no_aes() {
+    let variants = Aead::variants_with(&forced(FeatureDetectorBehaviour::ForceAesFalse));
+
+    assert_eq!(
+        variants.xchachapoly1305.algorithm(),
+        AeadAlgorithm::XChachaPoly1305
+    );
+    assert!(variants.aegis128l.is_none());
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_variants_with_answers_with_both_where_there_is_aes() {
+    let variants = Aead::variants_with(&forced(FeatureDetectorBehaviour::ForceAesTrue));
+
+    assert_eq!(
+        variants.xchachapoly1305.algorithm(),
+        AeadAlgorithm::XChachaPoly1305
+    );
+    assert_eq!(
+        variants
+            .aegis128l
+            .expect("Infallible: the detector was forced to say it has aes")
+            .algorithm(),
+        AeadAlgorithm::Aegis128L
+    );
+}
+
+#[test]
+fn test_variants_with_always_answers_with_chacha() {
+    for behaviour in [
+        FeatureDetectorBehaviour::ForceAesFalse,
+        FeatureDetectorBehaviour::ForceAesTrue,
+    ] {
+        let variants = Aead::variants_with(&forced(behaviour));
+
+        assert_eq!(
+            variants.xchachapoly1305.algorithm(),
+            AeadAlgorithm::XChachaPoly1305
+        );
+    }
+}
+
+// === === === === === === === === === ===
+// variants
+// === === === === === === === === === ===
+
+#[test]
+#[cfg(aes_asm)]
+fn test_variants_answers_with_what_this_machine_allows() {
+    let variants = Aead::variants();
+
+    assert_eq!(
+        variants.xchachapoly1305.algorithm(),
+        AeadAlgorithm::XChachaPoly1305
+    );
+    assert_eq!(
+        variants
+            .aegis128l
+            .expect("Infallible: this machine has aes")
+            .algorithm(),
+        AeadAlgorithm::Aegis128L
+    );
+}
+
+// === === === === === === === === === ===
+// from_algorithm
+// === === === === === === === === === ===
+
+#[test]
+fn test_from_algorithm_answers_with_the_one_it_was_named() {
+    assert_eq!(
+        Aead::from_algorithm(AeadAlgorithm::XChachaPoly1305).algorithm(),
+        AeadAlgorithm::XChachaPoly1305
+    );
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_from_algorithm_answers_with_aegis_when_it_is_named() {
+    assert_eq!(
+        Aead::from_algorithm(AeadAlgorithm::Aegis128L).algorithm(),
+        AeadAlgorithm::Aegis128L
+    );
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_from_algorithm_reaches_every_algorithm_this_machine_names() {
+    for &algorithm in Aead::supported_algorithms().iter() {
+        assert_eq!(Aead::from_algorithm(algorithm).algorithm(), algorithm);
+    }
+}
+
+// === === === === === === === === === ===
+// encrypt
+// === === === === === === === === === ===
+
+#[test]
+fn test_encrypt_refuses_invalid_inputs_for_xchacha_variant() {
+    let mut aead = Aead::from_algorithm(AeadAlgorithm::XChachaPoly1305);
+
+    for given in every_width_but(chacha::KEY_SIZE) {
+        let mut data = filled(64);
+        let mut tag = filled(poly1305::TAG_SIZE);
+
+        let result = aead.encrypt(
+            &filled(given),
+            &filled(chacha::XNONCE_SIZE),
+            b"",
+            &mut data,
+            &mut tag,
+        );
+
+        assert_width!(
+            result,
+            KeyWidth,
+            AeadAlgorithm::XChachaPoly1305,
+            chacha::KEY_SIZE,
+            given,
+            "a key"
+        );
+    }
+
+    for given in every_width_but(chacha::XNONCE_SIZE) {
+        let mut data = filled(64);
+        let mut tag = filled(poly1305::TAG_SIZE);
+
+        let result = aead.encrypt(
+            &filled(chacha::KEY_SIZE),
+            &filled(given),
+            b"",
+            &mut data,
+            &mut tag,
+        );
+
+        assert_width!(
+            result,
+            NonceWidth,
+            AeadAlgorithm::XChachaPoly1305,
+            chacha::XNONCE_SIZE,
+            given,
+            "a nonce"
+        );
+    }
+
+    for given in every_width_but(poly1305::TAG_SIZE) {
+        let mut data = filled(64);
+        let mut tag = filled(given);
+
+        let result = aead.encrypt(
+            &filled(chacha::KEY_SIZE),
+            &filled(chacha::XNONCE_SIZE),
+            b"",
+            &mut data,
+            &mut tag,
+        );
+
+        assert_width!(
+            result,
+            TagWidth,
+            AeadAlgorithm::XChachaPoly1305,
+            poly1305::TAG_SIZE,
+            given,
+            "a tag"
+        );
+    }
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_encrypt_refuses_invalid_inputs_for_aegis_variant() {
+    let mut aead = Aead::from_algorithm(AeadAlgorithm::Aegis128L);
+
+    for given in every_width_but(aegis::KEY_SIZE) {
+        let mut data = filled(64);
+        let mut tag = filled(aegis::TAG_SIZE);
+
+        let result = aead.encrypt(
+            &filled(given),
+            &filled(aegis::NONCE_SIZE),
+            b"",
+            &mut data,
+            &mut tag,
+        );
+
+        assert_width!(
+            result,
+            KeyWidth,
+            AeadAlgorithm::Aegis128L,
+            aegis::KEY_SIZE,
+            given,
+            "a key"
+        );
+    }
+
+    for given in every_width_but(aegis::NONCE_SIZE) {
+        let mut data = filled(64);
+        let mut tag = filled(aegis::TAG_SIZE);
+
+        let result = aead.encrypt(&filled(aegis::KEY_SIZE), &filled(given), b"", &mut data, &mut tag);
+
+        assert_width!(
+            result,
+            NonceWidth,
+            AeadAlgorithm::Aegis128L,
+            aegis::NONCE_SIZE,
+            given,
+            "a nonce"
+        );
+    }
+
+    for given in every_width_but(aegis::TAG_SIZE) {
+        let mut data = filled(64);
+        let mut tag = filled(given);
+
+        let result = aead.encrypt(
+            &filled(aegis::KEY_SIZE),
+            &filled(aegis::NONCE_SIZE),
+            b"",
+            &mut data,
+            &mut tag,
+        );
+
+        assert_width!(
+            result,
+            TagWidth,
+            AeadAlgorithm::Aegis128L,
+            aegis::TAG_SIZE,
+            given,
+            "a tag"
+        );
+    }
+}
+
+proptest! {
+    /// What the facade answers is what the cipher answers, byte for byte.
+    ///
+    /// It reads as though it asked the code about itself, and what it pins is
+    /// the wiring rather than the cipher: the arm the match takes, and the
+    /// order the five arguments arrive in. Two of them swapped is a cipher that
+    /// still runs and a ciphertext nobody else can open.
+    ///
+    /// The widths differ today, so a swap would not compile. That is a property
+    /// of these two ciphers and not of this function.
+    #[test]
+    fn test_encrypt_answers_what_xchacha_answers(
+        key in prop::array::uniform32(any::<u8>()),
+        nonce in prop::array::uniform24(any::<u8>()),
+        aad in prop::collection::vec(any::<u8>(), 0..96),
+        message in prop::collection::vec(any::<u8>(), 0..256),
+    ) {
+        let mut through = message.clone();
+        let mut through_tag = [0_u8; poly1305::TAG_SIZE];
+
+        Aead::from_algorithm(AeadAlgorithm::XChachaPoly1305)
+            .encrypt(&key, &nonce, &aad, &mut through, &mut through_tag)?;
+
+        let mut direct = message.clone();
+        let mut direct_tag = [0_u8; poly1305::TAG_SIZE];
+
+        XChaCha20Poly1305::new().encrypt(&key, &nonce, &aad, &mut direct, &mut direct_tag);
+
+        prop_assert_eq!(through, direct);
+        prop_assert_eq!(through_tag, direct_tag);
+    }
+}
+
+#[cfg(aes_asm)]
+proptest! {
+    #[test]
+    fn test_encrypt_answers_what_aegis_answers(
+        key in prop::array::uniform16(any::<u8>()),
+        nonce in prop::array::uniform16(any::<u8>()),
+        aad in prop::collection::vec(any::<u8>(), 0..96),
+        message in prop::collection::vec(any::<u8>(), 0..256),
+    ) {
+        let mut through = message.clone();
+        let mut through_tag = [0_u8; aegis::TAG_SIZE];
+
+        Aead::from_algorithm(AeadAlgorithm::Aegis128L)
+            .encrypt(&key, &nonce, &aad, &mut through, &mut through_tag)?;
+
+        let mut direct = message.clone();
+        let mut direct_tag = [0_u8; aegis::TAG_SIZE];
+
+        Aegis128L::new().encrypt(&key, &nonce, &aad, &mut direct, &mut direct_tag);
+
+        prop_assert_eq!(through, direct);
+        prop_assert_eq!(through_tag, direct_tag);
+    }
+}
+
+// === === === === === === === === === ===
+// decrypt
+// === === === === === === === === === ===
+
+#[test]
+fn test_decrypt_refuses_invalid_inputs_for_xchacha_variant() {
+    let mut aead = Aead::from_algorithm(AeadAlgorithm::XChachaPoly1305);
+
+    for given in every_width_but(chacha::KEY_SIZE) {
+        let mut data = filled(64);
+
+        let result = aead.decrypt(
+            &filled(given),
+            &filled(chacha::XNONCE_SIZE),
+            b"",
+            &mut data,
+            &filled(poly1305::TAG_SIZE),
+        );
+
+        assert_width!(
+            result,
+            KeyWidth,
+            AeadAlgorithm::XChachaPoly1305,
+            chacha::KEY_SIZE,
+            given,
+            "a key"
+        );
+    }
+
+    for given in every_width_but(chacha::XNONCE_SIZE) {
+        let mut data = filled(64);
+
+        let result = aead.decrypt(
+            &filled(chacha::KEY_SIZE),
+            &filled(given),
+            b"",
+            &mut data,
+            &filled(poly1305::TAG_SIZE),
+        );
+
+        assert_width!(
+            result,
+            NonceWidth,
+            AeadAlgorithm::XChachaPoly1305,
+            chacha::XNONCE_SIZE,
+            given,
+            "a nonce"
+        );
+    }
+
+    for given in every_width_but(poly1305::TAG_SIZE) {
+        let mut data = filled(64);
+
+        let result = aead.decrypt(
+            &filled(chacha::KEY_SIZE),
+            &filled(chacha::XNONCE_SIZE),
+            b"",
+            &mut data,
+            &filled(given),
+        );
+
+        assert_width!(
+            result,
+            TagWidth,
+            AeadAlgorithm::XChachaPoly1305,
+            poly1305::TAG_SIZE,
+            given,
+            "a tag"
+        );
+    }
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_decrypt_refuses_invalid_inputs_for_aegis_variant() {
+    let mut aead = Aead::from_algorithm(AeadAlgorithm::Aegis128L);
+
+    for given in every_width_but(aegis::KEY_SIZE) {
+        let mut data = filled(64);
+
+        let result = aead.decrypt(
+            &filled(given),
+            &filled(aegis::NONCE_SIZE),
+            b"",
+            &mut data,
+            &filled(aegis::TAG_SIZE),
+        );
+
+        assert_width!(
+            result,
+            KeyWidth,
+            AeadAlgorithm::Aegis128L,
+            aegis::KEY_SIZE,
+            given,
+            "a key"
+        );
+    }
+
+    for given in every_width_but(aegis::NONCE_SIZE) {
+        let mut data = filled(64);
+
+        let result = aead.decrypt(
+            &filled(aegis::KEY_SIZE),
+            &filled(given),
+            b"",
+            &mut data,
+            &filled(aegis::TAG_SIZE),
+        );
+
+        assert_width!(
+            result,
+            NonceWidth,
+            AeadAlgorithm::Aegis128L,
+            aegis::NONCE_SIZE,
+            given,
+            "a nonce"
+        );
+    }
+
+    for given in every_width_but(aegis::TAG_SIZE) {
+        let mut data = filled(64);
+
+        let result = aead.decrypt(
+            &filled(aegis::KEY_SIZE),
+            &filled(aegis::NONCE_SIZE),
+            b"",
+            &mut data,
+            &filled(given),
+        );
+
+        assert_width!(
+            result,
+            TagWidth,
+            AeadAlgorithm::Aegis128L,
+            aegis::TAG_SIZE,
+            given,
+            "a tag"
+        );
+    }
+}
+
+/// A tag the key never wrote does not open the message.
+///
+/// The width fits, so nothing this crate measures refuses it: what comes back
+/// is the cipher's own answer, carried out through the facade.
+#[test]
+fn test_decrypt_propagates_a_tag_mismatch_for_xchacha_variant() {
+    let key = filled(chacha::KEY_SIZE);
+    let nonce = filled(chacha::XNONCE_SIZE);
+    let mut data = filled(64);
+    let tag = filled(poly1305::TAG_SIZE);
+
+    let result = Aead::from_algorithm(AeadAlgorithm::XChachaPoly1305)
+        .decrypt(&key, &nonce, b"", &mut data, &tag);
+
+    assert_eq!(
+        result,
+        Err(AeadError::Primitive(AeadCoreError::AuthenticationFailed))
+    );
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_decrypt_propagates_a_tag_mismatch_for_aegis_variant() {
+    let key = filled(aegis::KEY_SIZE);
+    let nonce = filled(aegis::NONCE_SIZE);
+    let mut data = filled(64);
+    let tag = filled(aegis::TAG_SIZE);
+
+    let result = Aead::from_algorithm(AeadAlgorithm::Aegis128L)
+        .decrypt(&key, &nonce, b"", &mut data, &tag);
+
+    assert_eq!(
+        result,
+        Err(AeadError::Primitive(AeadCoreError::AuthenticationFailed))
+    );
+}
+
+proptest! {
+    /// What the facade opens is what the cipher opens, and it refuses where the
+    /// cipher refuses.
+    ///
+    /// The message is sealed by the cipher directly, so what is asked of the
+    /// facade is only whether it reaches the same one with the same arguments.
+    #[test]
+    fn test_decrypt_answers_what_xchacha_answers(
+        key in prop::array::uniform32(any::<u8>()),
+        nonce in prop::array::uniform24(any::<u8>()),
+        aad in prop::collection::vec(any::<u8>(), 0..96),
+        message in prop::collection::vec(any::<u8>(), 0..256),
+    ) {
+        let mut sealed = message.clone();
+        let mut tag = [0_u8; poly1305::TAG_SIZE];
+
+        XChaCha20Poly1305::new().encrypt(&key, &nonce, &aad, &mut sealed, &mut tag);
+
+        let mut through = sealed.clone();
+
+        Aead::from_algorithm(AeadAlgorithm::XChachaPoly1305)
+            .decrypt(&key, &nonce, &aad, &mut through, &tag)?;
+
+        let mut direct = sealed.clone();
+
+        XChaCha20Poly1305::new()
+            .decrypt(&key, &nonce, &aad, &mut direct, &tag)
+            .map_err(|why| TestCaseError::fail(alloc::format!("{why}")))?;
+
+        prop_assert_eq!(&through, &direct);
+        prop_assert_eq!(&through, &message);
+    }
+}
+
+#[cfg(aes_asm)]
+proptest! {
+    #[test]
+    fn test_decrypt_answers_what_aegis_answers(
+        key in prop::array::uniform16(any::<u8>()),
+        nonce in prop::array::uniform16(any::<u8>()),
+        aad in prop::collection::vec(any::<u8>(), 0..96),
+        message in prop::collection::vec(any::<u8>(), 0..256),
+    ) {
+        let mut sealed = message.clone();
+        let mut tag = [0_u8; aegis::TAG_SIZE];
+
+        Aegis128L::new().encrypt(&key, &nonce, &aad, &mut sealed, &mut tag);
+
+        let mut through = sealed.clone();
+
+        Aead::from_algorithm(AeadAlgorithm::Aegis128L)
+            .decrypt(&key, &nonce, &aad, &mut through, &tag)?;
+
+        let mut direct = sealed.clone();
+
+        Aegis128L::new()
+            .decrypt(&key, &nonce, &aad, &mut direct, &tag)
+            .map_err(|why| TestCaseError::fail(alloc::format!("{why}")))?;
+
+        prop_assert_eq!(&through, &direct);
+        prop_assert_eq!(&through, &message);
+    }
+}
+
+proptest! {
+    /// A tag the key never wrote is refused, through the facade as under it.
+    #[test]
+    fn test_decrypt_refuses_a_tag_that_sealed_nothing_for_xchacha(
+        key in prop::array::uniform32(any::<u8>()),
+        nonce in prop::array::uniform24(any::<u8>()),
+        tag in prop::array::uniform16(any::<u8>()),
+        message in prop::collection::vec(any::<u8>(), 1..256),
+    ) {
+        let mut through = message.clone();
+
+        let refused = Aead::from_algorithm(AeadAlgorithm::XChachaPoly1305)
+            .decrypt(&key, &nonce, b"", &mut through, &tag);
+
+        let mut direct = message.clone();
+
+        let underneath = XChaCha20Poly1305::new().decrypt(&key, &nonce, b"", &mut direct, &tag);
+
+        prop_assert_eq!(refused.is_err(), underneath.is_err());
+        prop_assert_eq!(&through, &direct);
+    }
+}
