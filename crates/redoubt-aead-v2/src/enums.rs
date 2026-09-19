@@ -65,7 +65,6 @@ impl AeadAlgorithm {
             _ => None,
         }
     }
-
 }
 
 impl ZeroizeMetadata for AeadAlgorithm {

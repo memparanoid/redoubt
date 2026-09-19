@@ -5,5 +5,5 @@
 mod aead;
 mod enums;
 mod errors;
-mod utils;
 mod forensics;
+mod utils;

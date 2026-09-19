@@ -133,7 +133,8 @@ fn test_deserialize_keeps_the_order_the_message_had() {
     let backwards = set(&[AeadAlgorithm::Aegis128L, AeadAlgorithm::XChachaPoly1305]);
     let mut bytes = backwards.clone().serialize();
 
-    let read = AeadAlgorithms::deserialize(&mut bytes).expect("Infallible: the message it just wrote");
+    let read =
+        AeadAlgorithms::deserialize(&mut bytes).expect("Infallible: the message it just wrote");
 
     assert_eq!(read.as_slice(), backwards.as_slice());
 }

@@ -116,12 +116,7 @@ fn published() -> Vec<(usize, &'static str)> {
     lengths
         .iter()
         .zip(&digests)
-        .map(|(length, digest)| {
-            (
-                length.parse().expect("an info length is a number"),
-                *digest,
-            )
-        })
+        .map(|(length, digest)| (length.parse().expect("an info length is a number"), *digest))
         .collect()
 }
 

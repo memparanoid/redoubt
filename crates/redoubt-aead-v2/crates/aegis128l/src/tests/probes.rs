@@ -1173,7 +1173,10 @@ fn assert_residue(registers: u64, frame: u64, left: Left, takes_frame: bool) {
             // A call that did nothing at all. What the caller dirtied before it
             // has to still be there afterwards, or a clean reading below says
             // only that something between the calls tidied up.
-            assert_ne!(registers, 0, "a call that ran nothing emptied the registers");
+            assert_ne!(
+                registers, 0,
+                "a call that ran nothing emptied the registers"
+            );
             assert_ne!(frame, 0, "a call that ran nothing emptied the frame");
         }
         Left::Registers => {

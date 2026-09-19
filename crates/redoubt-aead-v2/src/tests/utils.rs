@@ -31,7 +31,6 @@ fn every_width_but(right: usize) -> impl Iterator<Item = usize> {
     (0..=WIDEST).filter(move |given| *given != right)
 }
 
-
 /// The error a set of widths draws, with the buffers owned here so that what
 /// comes back borrows nothing.
 fn chacha_case(key: usize, nonce: usize, tag: usize) -> Option<AeadError> {
@@ -188,7 +187,10 @@ fn test_chacha_widths_borrows_rather_than_copies() {
         core::ptr::eq(with.as_ptr(), nonce.as_ptr()),
         "the nonce moved"
     );
-    assert!(core::ptr::eq(sealed.as_ptr(), tag.as_ptr()), "the tag moved");
+    assert!(
+        core::ptr::eq(sealed.as_ptr(), tag.as_ptr()),
+        "the tag moved"
+    );
 }
 
 #[test]
@@ -393,7 +395,10 @@ fn test_aegis_widths_borrows_rather_than_copies() {
         core::ptr::eq(with.as_ptr(), nonce.as_ptr()),
         "the nonce moved"
     );
-    assert!(core::ptr::eq(sealed.as_ptr(), tag.as_ptr()), "the tag moved");
+    assert!(
+        core::ptr::eq(sealed.as_ptr(), tag.as_ptr()),
+        "the tag moved"
+    );
 }
 
 #[test]

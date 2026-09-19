@@ -42,7 +42,11 @@ fn test_no_variant_says_zero() {
 fn test_no_two_variants_say_the_same_byte() {
     for (at, algorithm) in EVERY.iter().enumerate() {
         for other in &EVERY[at + 1..] {
-            assert_ne!(algorithm.said(), other.said(), "{algorithm:?} and {other:?}");
+            assert_ne!(
+                algorithm.said(),
+                other.said(),
+                "{algorithm:?} and {other:?}"
+            );
         }
     }
 }

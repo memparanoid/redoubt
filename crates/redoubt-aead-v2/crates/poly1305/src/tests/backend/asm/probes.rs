@@ -719,7 +719,10 @@ fn assert_residue(registers: u64, frame: u64, left: Left, takes_frame: bool) {
             // A call that did nothing at all. What the caller dirtied before it
             // has to still be there afterwards, or a clean reading below says
             // only that something between the calls tidied up.
-            assert_ne!(registers, 0, "a call that ran nothing emptied the registers");
+            assert_ne!(
+                registers, 0,
+                "a call that ran nothing emptied the registers"
+            );
             assert_ne!(frame, 0, "a call that ran nothing emptied the frame");
         }
         Left::Registers => {
@@ -990,7 +993,15 @@ fn test_the_measurement_of_update_reads_the_window_the_writer_filled() {
         // SAFETY: as above.
         let (_, frame) = unsafe {
             redoubt_poly1305_dirty_frame(at);
-            measure!(untouched_update as Update, acc, key, block, held, said, length)
+            measure!(
+                untouched_update as Update,
+                acc,
+                key,
+                block,
+                held,
+                said,
+                length
+            )
         };
 
         assert_eq!(
@@ -1019,7 +1030,15 @@ fn test_the_measurement_of_finalize_reads_the_window_the_writer_filled() {
         // SAFETY: as above.
         let (_, frame) = unsafe {
             redoubt_poly1305_dirty_frame(at);
-            measure!(untouched_finalize as Finalize, acc, key, block, said, length, tag)
+            measure!(
+                untouched_finalize as Finalize,
+                acc,
+                key,
+                block,
+                said,
+                length,
+                tag
+            )
         };
 
         assert_eq!(

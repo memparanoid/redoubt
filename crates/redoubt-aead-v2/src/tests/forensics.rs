@@ -110,8 +110,8 @@ fn test_chacha_widths_finds_the_key_while_it_is_held() -> Result<(), AnyError> {
     let tag = [0_u8; poly1305::TAG_SIZE];
 
     forensics!({
-        let held = chacha_widths(&key, &nonce, &tag)
-            .expect("Infallible: the widths are the cipher's own");
+        let held =
+            chacha_widths(&key, &nonce, &tag).expect("Infallible: the widths are the cipher's own");
 
         capture!();
 
@@ -142,8 +142,8 @@ fn test_chacha_widths_leaves_no_key_behind() -> Result<(), AnyError> {
     let tag = [0_u8; poly1305::TAG_SIZE];
 
     forensics!({
-        let held = chacha_widths(&key, &nonce, &tag)
-            .expect("Infallible: the widths are the cipher's own");
+        let held =
+            chacha_widths(&key, &nonce, &tag).expect("Infallible: the widths are the cipher's own");
 
         capture!();
 
