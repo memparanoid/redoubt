@@ -4,6 +4,7 @@
 
 mod algorithms;
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use proptest::prelude::*;
@@ -17,8 +18,8 @@ use redoubt_rand::{
 };
 
 use crate::aead::{Aead, Session};
-use crate::enums::AeadAlgorithm;
-use crate::errors::AeadError;
+use crate::enums::{AeadAlgorithm, AeadBehaviour};
+use crate::errors::{AeadError, AeadOperation};
 use crate::feature_detector::{FeatureDetector, FeatureDetectorBehaviour};
 
 /// Past the widest either cipher takes, so a sweep reaches both sides of every
@@ -147,6 +148,37 @@ fn test_generate_nonce_with_answers_a_nonce_of_the_aegis_width() {
 // === === === === === === === === === ===
 // generate_nonce
 // === === === === === === === === === ===
+
+#[test]
+fn test_generate_nonce_propagates_the_fuse_at_the_first_call() {
+    let mut aead = Aead::new_chacha().with_behaviour(AeadBehaviour::FailAtNthGenerateNonce(1));
+
+    let result = aead.generate_nonce();
+
+    assert!(
+        matches!(result, Err(AeadError::Injected(AeadOperation::GenerateNonce))),
+        "a refused nonce came back as {result:?}"
+    );
+}
+
+#[test]
+fn test_generate_nonce_propagates_the_fuse_at_the_nth_call()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut aead = Aead::new_chacha().with_behaviour(AeadBehaviour::FailAtNthGenerateNonce(2));
+
+    let first = aead.generate_nonce()?;
+
+    assert_eq!(first.len(), chacha::XNONCE_SIZE);
+
+    let result = aead.generate_nonce();
+
+    assert!(
+        matches!(result, Err(AeadError::Injected(AeadOperation::GenerateNonce))),
+        "a refused nonce came back as {result:?}"
+    );
+
+    Ok(())
+}
 
 #[test]
 fn test_generate_nonce_answers_a_nonce_of_the_chacha_width() {
@@ -416,6 +448,62 @@ fn test_from_algorithm_reaches_every_algorithm_this_machine_names() {
 // === === === === === === === === === ===
 
 #[test]
+fn test_encrypt_propagates_the_fuse_at_the_first_call() {
+    let mut aead = Aead::new_chacha().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut data = filled(64);
+    let mut tag = filled(poly1305::TAG_SIZE);
+    let sealed = data.clone();
+
+    let result = aead.encrypt(
+        &filled(chacha::KEY_SIZE),
+        &filled(chacha::XNONCE_SIZE),
+        b"",
+        &mut data,
+        &mut tag,
+    );
+
+    assert!(
+        matches!(result, Err(AeadError::Injected(AeadOperation::Encrypt))),
+        "a refused encrypt came back as {result:?}"
+    );
+    assert_eq!(data, sealed, "a refused encrypt still touched the message");
+}
+
+#[test]
+fn test_encrypt_propagates_the_fuse_at_the_nth_call()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut aead = Aead::new_chacha().with_behaviour(AeadBehaviour::FailAtNthEncrypt(2));
+    let mut data = filled(64);
+    let mut tag = filled(poly1305::TAG_SIZE);
+    let plain = data.clone();
+
+    aead.encrypt(
+        &filled(chacha::KEY_SIZE),
+        &filled(chacha::XNONCE_SIZE),
+        b"",
+        &mut data,
+        &mut tag,
+    )?;
+
+    assert_ne!(data, plain, "the first call sealed nothing");
+
+    let result = aead.encrypt(
+        &filled(chacha::KEY_SIZE),
+        &filled(chacha::XNONCE_SIZE),
+        b"",
+        &mut data,
+        &mut tag,
+    );
+
+    assert!(
+        matches!(result, Err(AeadError::Injected(AeadOperation::Encrypt))),
+        "a refused encrypt came back as {result:?}"
+    );
+
+    Ok(())
+}
+
+#[test]
 fn test_encrypt_refuses_invalid_inputs_for_xchacha_variant() {
     let mut aead = Aead::from_algorithm(AeadAlgorithm::XChachaPoly1305);
 
@@ -619,6 +707,72 @@ proptest! {
 // === === === === === === === === === ===
 // decrypt
 // === === === === === === === === === ===
+
+#[test]
+fn test_decrypt_propagates_the_fuse_at_the_first_call() {
+    let mut aead = Aead::new_chacha().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
+    let mut data = filled(64);
+    let sealed = data.clone();
+
+    let result = aead.decrypt(
+        &filled(chacha::KEY_SIZE),
+        &filled(chacha::XNONCE_SIZE),
+        b"",
+        &mut data,
+        &filled(poly1305::TAG_SIZE),
+    );
+
+    assert!(
+        matches!(result, Err(AeadError::Injected(AeadOperation::Decrypt))),
+        "a refused decrypt came back as {result:?}"
+    );
+    assert_eq!(
+        data, sealed,
+        "a refused decrypt still touched the ciphertext"
+    );
+}
+
+#[test]
+fn test_decrypt_propagates_the_fuse_at_the_nth_call()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut aead = Aead::new_chacha().with_behaviour(AeadBehaviour::FailAtNthDecrypt(2));
+    let mut data = filled(64);
+    let mut tag = filled(poly1305::TAG_SIZE);
+    let plain = data.clone();
+
+    aead.encrypt(
+        &filled(chacha::KEY_SIZE),
+        &filled(chacha::XNONCE_SIZE),
+        b"",
+        &mut data,
+        &mut tag,
+    )?;
+
+    aead.decrypt(
+        &filled(chacha::KEY_SIZE),
+        &filled(chacha::XNONCE_SIZE),
+        b"",
+        &mut data,
+        &tag,
+    )?;
+
+    assert_eq!(data, plain, "the first call opened nothing");
+
+    let result = aead.decrypt(
+        &filled(chacha::KEY_SIZE),
+        &filled(chacha::XNONCE_SIZE),
+        b"",
+        &mut data,
+        &tag,
+    );
+
+    assert!(
+        matches!(result, Err(AeadError::Injected(AeadOperation::Decrypt))),
+        "a refused decrypt came back as {result:?}"
+    );
+
+    Ok(())
+}
 
 #[test]
 fn test_decrypt_refuses_invalid_inputs_for_xchacha_variant() {

@@ -25,5 +25,13 @@ mod errors;
 mod feature_detector;
 mod utils;
 
-pub use aead::{Aead, AeadVariants};
+pub use aead::{Aead, AeadAlgorithms, AeadVariants};
 pub use enums::AeadAlgorithm;
+pub use errors::AeadError;
+
+#[cfg(any(test, feature = "test-utils"))]
+pub use enums::AeadBehaviour;
+#[cfg(any(test, feature = "test-utils"))]
+pub use errors::AeadOperation;
+#[cfg(any(test, feature = "test-utils"))]
+pub mod support;

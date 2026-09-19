@@ -27,6 +27,14 @@ pub enum AeadAlgorithm {
     Aegis128L = 2,
 }
 
+#[cfg(any(test, feature = "test-utils"))]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub enum AeadBehaviour {
+    FailAtNthEncrypt(usize),
+    FailAtNthDecrypt(usize),
+    FailAtNthGenerateNonce(usize),
+}
+
 impl AeadAlgorithm {
     pub(crate) const fn said(self) -> u8 {
         self as u8

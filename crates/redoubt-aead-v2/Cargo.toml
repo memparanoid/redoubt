@@ -26,6 +26,9 @@ thiserror.workspace                    = true
 [target.'cfg(any(target_arch = "x86_64", target_arch = "aarch64"))'.dependencies]
 cpufeatures.workspace = true
 
+[features]
+test-utils = ["redoubt-rand/test-utils"]
+
 [dev-dependencies]
 proptest.workspace          = true
 redoubt-forensics.workspace = true

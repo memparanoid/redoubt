@@ -19,6 +19,11 @@ use crate::errors::AeadError;
 use crate::feature_detector::FeatureDetector;
 use crate::utils::{aegis_widths, aegis_widths_mut, chacha_widths, chacha_widths_mut};
 
+#[cfg(any(test, feature = "test-utils"))]
+use crate::enums::AeadBehaviour;
+#[cfg(any(test, feature = "test-utils"))]
+use crate::support::test_utils::Fuse;
+
 /// What this machine can run, one field each.
 ///
 /// The shapes differ because the answers differ. XChaCha20-Poly1305 asks
@@ -98,6 +103,8 @@ pub(crate) enum Session {
 pub struct Aead {
     algorithm: AeadAlgorithm,
     session: Session,
+    #[cfg(any(test, feature = "test-utils"))]
+    fuse: Option<Fuse>,
 }
 
 impl Default for Aead {
@@ -119,6 +126,13 @@ impl Aead {
     /// [`AeadError::NonceEntropy`], where the machine has no randomness to
     /// give.
     pub fn generate_nonce(&mut self) -> Result<Vec<u8>, AeadError> {
+        #[cfg(any(test, feature = "test-utils"))]
+        {
+            if let Some(fuse) = self.fuse.as_mut() {
+                fuse.at_generate_nonce()?;
+            }
+        }
+
         Aead::generate_nonce_with(&mut self.session)
     }
 
@@ -145,6 +159,13 @@ impl Aead {
         data: &mut [u8],
         tag: &mut [u8],
     ) -> Result<(), AeadError> {
+        #[cfg(any(test, feature = "test-utils"))]
+        {
+            if let Some(fuse) = self.fuse.as_mut() {
+                fuse.at_encrypt()?;
+            }
+        }
+
         match self.algorithm {
             AeadAlgorithm::XChachaPoly1305 => {
                 let (key, nonce, tag) = chacha_widths_mut(key, nonce, tag)?;
@@ -173,6 +194,13 @@ impl Aead {
         data: &mut [u8],
         tag: &[u8],
     ) -> Result<(), AeadError> {
+        #[cfg(any(test, feature = "test-utils"))]
+        {
+            if let Some(fuse) = self.fuse.as_mut() {
+                fuse.at_decrypt()?;
+            }
+        }
+
         match self.algorithm {
             AeadAlgorithm::XChachaPoly1305 => {
                 let (key, nonce, tag) = chacha_widths(key, nonce, tag)?;
@@ -199,6 +227,8 @@ impl Aead {
         Self {
             algorithm: AeadAlgorithm::XChachaPoly1305,
             session: Session::XChachaPoly1305(NonceSessionGenerator::new(SystemEntropySource {})),
+            #[cfg(any(test, feature = "test-utils"))]
+            fuse: None,
         }
     }
 
@@ -207,10 +237,20 @@ impl Aead {
             return Some(Self {
                 algorithm: AeadAlgorithm::Aegis128L,
                 session: Session::Aegis128L(NonceSessionGenerator::new(SystemEntropySource {})),
+                #[cfg(any(test, feature = "test-utils"))]
+                fuse: None,
             });
         }
 
         None
+    }
+
+    #[cfg(any(test, feature = "test-utils"))]
+    #[must_use]
+    pub fn with_behaviour(mut self, behaviour: AeadBehaviour) -> Self {
+        self.fuse = Some(Fuse::new(behaviour));
+
+        self
     }
 
     /// Every algorithm this machine can run.
