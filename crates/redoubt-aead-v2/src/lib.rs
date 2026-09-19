@@ -4,6 +4,19 @@
 
 //! Authenticated encryption, with the algorithm chosen for the machine.
 //!
+//! # `aes_asm` says the symbols exist, not that they run
+//!
+//! The flag is set for the targets AEGIS has assembly for, so what it answers
+//! is a question about the build: whether there is anything to link. Whether
+//! the machine running the result has the AES instructions is a different
+//! question and no `cfg` can reach it — one binary runs on a CPU that has them
+//! and on one that does not.
+//!
+//! So the check the feature detector makes at run time is not an optimisation
+//! over gating, and no amount of gating replaces it: gating only spreads the
+//! build's question through every caller, and the caller would still have to
+//! ask the other one.
+//!
 //! ## License
 //!
 //! GPL-3.0-only
