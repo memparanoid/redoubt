@@ -9,13 +9,15 @@ use alloc::vec::Vec;
 
 use proptest::prelude::*;
 
-use redoubt_aead_aegis128l::Aegis128L;
 use redoubt_aead_v2_core::consts::{aegis, chacha, poly1305};
 use redoubt_aead_v2_core::{AeadDecrypt, AeadEncrypt, AeadError as AeadCoreError};
 use redoubt_aead_xchachapoly1305::XChaCha20Poly1305;
 use redoubt_rand::{
     EntropyError, NonceSessionGenerator, NonceSessionGeneratorBehaviour, SystemEntropySource,
 };
+
+#[cfg(aes_asm)]
+use redoubt_aead_aegis128l::Aegis128L;
 
 use crate::aead::{Aead, Session};
 use crate::enums::{AeadAlgorithm, AeadBehaviour};
@@ -58,6 +60,20 @@ macro_rules! assert_width {
 /// A detector that answers the given thing whatever the machine is.
 fn forced(behaviour: FeatureDetectorBehaviour) -> FeatureDetector {
     FeatureDetector::default().with_behaviour(behaviour)
+}
+
+/// Every answer a detector can be told to give on this target.
+///
+/// A target with no AEGIS assembly has no `ForceAesTrue` to be told, because
+/// forcing it would name a machine that cannot exist.
+fn every_behaviour() -> Vec<FeatureDetectorBehaviour> {
+    #[cfg_attr(not(aes_asm), allow(unused_mut))]
+    let mut behaviours = Vec::from([FeatureDetectorBehaviour::ForceAesFalse]);
+
+    #[cfg(aes_asm)]
+    behaviours.push(FeatureDetectorBehaviour::ForceAesTrue);
+
+    behaviours
 }
 
 /// A generator that answers a failure the machine itself never answers, so a
@@ -156,7 +172,10 @@ fn test_generate_nonce_propagates_the_fuse_at_the_first_call() {
     let result = aead.generate_nonce();
 
     assert!(
-        matches!(result, Err(AeadError::Injected(AeadOperation::GenerateNonce))),
+        matches!(
+            result,
+            Err(AeadError::Injected(AeadOperation::GenerateNonce))
+        ),
         "a refused nonce came back as {result:?}"
     );
 }
@@ -173,7 +192,10 @@ fn test_generate_nonce_propagates_the_fuse_at_the_nth_call()
     let result = aead.generate_nonce();
 
     assert!(
-        matches!(result, Err(AeadError::Injected(AeadOperation::GenerateNonce))),
+        matches!(
+            result,
+            Err(AeadError::Injected(AeadOperation::GenerateNonce))
+        ),
         "a refused nonce came back as {result:?}"
     );
 
@@ -321,10 +343,7 @@ fn test_supported_algorithms_with_names_both_where_there_is_aes() {
 /// construction rather than because some machine happened to allow it.
 #[test]
 fn test_supported_algorithms_with_always_names_chacha() {
-    for behaviour in [
-        FeatureDetectorBehaviour::ForceAesFalse,
-        FeatureDetectorBehaviour::ForceAesTrue,
-    ] {
+    for behaviour in every_behaviour() {
         let supported = Aead::supported_algorithms_with(&forced(behaviour));
 
         assert!(supported.contains(&AeadAlgorithm::XChachaPoly1305));
@@ -379,10 +398,7 @@ fn test_variants_with_answers_with_both_where_there_is_aes() {
 
 #[test]
 fn test_variants_with_always_answers_with_chacha() {
-    for behaviour in [
-        FeatureDetectorBehaviour::ForceAesFalse,
-        FeatureDetectorBehaviour::ForceAesTrue,
-    ] {
+    for behaviour in every_behaviour() {
         let variants = Aead::variants_with(&forced(behaviour));
 
         assert_eq!(

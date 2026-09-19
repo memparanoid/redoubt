@@ -21,11 +21,17 @@ pub(crate) struct FeatureDetector {
 }
 
 impl FeatureDetector {
+    /// Where the assembly was never built there is nothing to ask about, and
+    /// `cpufeatures` is not a dependency of every target this compiles for.
+    #[cfg(not(aes_asm))]
     pub(crate) fn platform_supports_aes(&self) -> bool {
-        #[cfg(not(aes_asm))]
-        return false;
+        false
+    }
 
+    #[cfg(aes_asm)]
+    pub(crate) fn platform_supports_aes(&self) -> bool {
         cpufeatures::new!(aes_detection, "aes");
+
         aes_detection::get()
     }
 
