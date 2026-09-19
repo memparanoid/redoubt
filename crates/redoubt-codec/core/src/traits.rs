@@ -32,7 +32,11 @@ pub trait Encode {
 /// Encode a slice of elements into the buffer.
 /// - Primitives: NO zeroize (collection handles it)
 /// - Collections: YES zeroize (handle their own cleanup)
-pub(crate) trait EncodeSlice: Encode + Sized {
+///
+/// Implement this to let a type be an element of `Vec<T>`, `[T; N]` or
+/// `AllockedVec<T>`. A type that only ever appears as a field needs nothing
+/// here — `#[derive(RedoubtCodec)]` covers that.
+pub trait EncodeSlice: Encode + Sized {
     fn encode_slice_into(
         slice: &mut [Self],
         buf: &mut RedoubtCodecBuffer,
@@ -60,7 +64,7 @@ pub trait Decode {
 /// Decode a slice of elements from the buffer.
 /// - Primitives: NO zeroize (collection handles it)
 /// - Collections: YES zeroize (handle their own cleanup)
-pub(crate) trait DecodeSlice: Decode + Sized {
+pub trait DecodeSlice: Decode + Sized {
     fn decode_slice_from(slice: &mut [Self], buf: &mut &mut [u8]) -> Result<(), DecodeError>;
 }
 
@@ -75,7 +79,15 @@ pub trait DecodeBuffer {
 /// `ZERO_INIT` indicates if the type can be safely initialized by zeroing memory.
 /// - `true`: Use fast memset + set_len (primitives)
 /// - `false`: Use Default::default() for each element (complex types)
-pub(crate) trait PreAlloc: Default {
+pub trait PreAlloc: Default {
+    /// Whether all-zeros is a value of this type.
+    ///
+    /// `true` sends the collection down a path that zeroes the memory and then
+    /// declares it initialized, without constructing anything. A type for which
+    /// all-zeros is not a value it admits — an enum with no zero discriminant,
+    /// a `NonZero`, anything with a niche — is then read back from a bit
+    /// pattern it never had, which is undefined. Answer `false` unless the type
+    /// is a primitive.
     const ZERO_INIT: bool;
     fn prealloc(&mut self, size: usize);
 }
