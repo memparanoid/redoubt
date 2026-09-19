@@ -37,10 +37,16 @@ pub struct AeadVariants {
     pub aegis128l: Option<Aead>,
 }
 
+/// A list of algorithms, on the wire and off it.
+///
+/// The `Deref` is to the `Vec` underneath, so it reads and is indexed like
+/// one; what it adds is the encoding, which is the crate's codec and not a
+/// format written here.
 #[derive(RedoubtCodec, Default, Clone, Eq, PartialEq, Debug)]
 pub struct AeadAlgorithms(Vec<AeadAlgorithm>);
 
 impl AeadAlgorithms {
+    /// The bytes of this list, with the buffer emptied behind them.
     pub fn serialize(&mut self) -> Vec<u8> {
         let bytes_required = self
             .encode_bytes_required()
@@ -53,6 +59,12 @@ impl AeadAlgorithms {
         buffer.export_as_vec()
     }
 
+    /// The list those bytes carry, with them emptied behind it.
+    ///
+    /// # Errors
+    ///
+    /// [`DecodeError`] where the bytes are not a list this crate wrote: a
+    /// length that overruns them, or a byte that is no algorithm.
     pub fn deserialize(mut bytes: &mut [u8]) -> Result<Self, DecodeError> {
         let mut made = AeadAlgorithms::default();
 
@@ -245,6 +257,7 @@ impl Aead {
         None
     }
 
+    /// This `Aead`, with one of its calls set to refuse.
     #[cfg(any(test, feature = "test-utils"))]
     #[must_use]
     pub fn with_behaviour(mut self, behaviour: AeadBehaviour) -> Self {

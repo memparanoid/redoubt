@@ -5,6 +5,11 @@
 use crate::enums::AeadBehaviour;
 use crate::errors::{AeadError, AeadOperation};
 
+/// One behaviour, and how many calls of each operation have gone past it.
+///
+/// It burns rather than blocks: every call but the one the behaviour names
+/// passes through untouched and the operation runs, and the named one is
+/// refused exactly once.
 pub struct Fuse {
     behaviour: AeadBehaviour,
     encrypted: usize,

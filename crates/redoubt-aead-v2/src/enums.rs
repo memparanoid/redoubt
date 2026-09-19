@@ -27,11 +27,24 @@ pub enum AeadAlgorithm {
     Aegis128L = 2,
 }
 
+/// Which call of an [`Aead`] refuses, for a caller that needs one to.
+///
+/// There is no variant for "nothing happens": that is an `Aead` built without
+/// one, so the state where a behaviour is present and inert cannot be reached.
+///
+/// The ordinals are one-based and each operation is counted on its own, so
+/// `FailAtNthEncrypt(2)` is about the second `encrypt` however many nonces or
+/// decryptions went past in between.
+///
+/// [`Aead`]: crate::Aead
 #[cfg(any(test, feature = "test-utils"))]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum AeadBehaviour {
+    /// Refuse this many encryptions in, and let the rest through.
     FailAtNthEncrypt(usize),
+    /// Refuse this many decryptions in, and let the rest through.
     FailAtNthDecrypt(usize),
+    /// Refuse this many nonces in, and let the rest through.
     FailAtNthGenerateNonce(usize),
 }
 
