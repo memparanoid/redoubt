@@ -324,7 +324,7 @@ fn expand(
         find_root_with_candidates(&["redoubt-vault-core", "redoubt-vault", "redoubt::vault"]);
     let redoubt_zero_root =
         find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero", "redoubt::zero"]);
-    let redoubt_aead_root = find_root_with_candidates(&["redoubt-aead-v2", "redoubt::aead"]);
+    let redoubt_aead_root = find_root_with_candidates(&["redoubt-aead", "redoubt::aead"]);
 
     // Generate the test cfg attribute based on testing_feature
     let test_cfg = if let Some(ref feature) = testing_feature {

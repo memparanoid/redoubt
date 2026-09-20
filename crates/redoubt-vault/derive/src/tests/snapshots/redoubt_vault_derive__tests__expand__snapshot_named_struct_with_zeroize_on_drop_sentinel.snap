@@ -26,7 +26,7 @@ impl redoubt_vault_core::CipherBoxDyns<2> for Epsilon {
 impl redoubt_vault_core::EncryptStruct<2> for Epsilon {
     fn encrypt_into(
         &mut self,
-        aead: &mut redoubt_aead_v2::Aead,
+        aead: &mut redoubt_aead::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<2>,
         tags: &mut redoubt_vault_core::Tags<2>,
@@ -43,7 +43,7 @@ impl redoubt_vault_core::EncryptStruct<2> for Epsilon {
 impl redoubt_vault_core::DecryptStruct<2> for Epsilon {
     fn decrypt_from(
         &mut self,
-        aead: &mut redoubt_aead_v2::Aead,
+        aead: &mut redoubt_aead::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<2>,
         tags: &mut redoubt_vault_core::Tags<2>,
@@ -75,7 +75,7 @@ impl EpsilonBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
-            inner: redoubt_vault_core::CipherBox::new(redoubt_aead_v2::Aead::default()),
+            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::default()),
             #[cfg(test)]
             failure_counter: 0,
         }

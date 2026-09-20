@@ -4,7 +4,7 @@
 
 use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
 
-use redoubt_aead_v2::Aead;
+use redoubt_aead::Aead;
 
 fn benchmark_aead_encrypt(c: &mut Criterion) {
     let mut aead = Aead::default();

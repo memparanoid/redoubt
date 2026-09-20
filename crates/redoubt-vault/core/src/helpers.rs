@@ -4,7 +4,7 @@
 
 use alloc::vec;
 
-use redoubt_aead_v2::Aead;
+use redoubt_aead::Aead;
 use redoubt_codec::RedoubtCodecBuffer;
 use redoubt_zero::{FastZeroizable, ZeroizationProbe};
 

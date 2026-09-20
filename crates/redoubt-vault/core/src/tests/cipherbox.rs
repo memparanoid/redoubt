@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_aead_v2::{Aead, AeadBehaviour, AeadError};
+use redoubt_aead::{Aead, AeadBehaviour, AeadError};
 use redoubt_rand::EntropyError;
 use redoubt_alloc::RedoubtVec;
 use redoubt_codec::RedoubtCodec;

@@ -6,7 +6,7 @@ use alloc::vec;
 
 use core::marker::PhantomData;
 
-use redoubt_aead_v2::{Aead, AeadError};
+use redoubt_aead::{Aead, AeadError};
 use redoubt_codec::{BytesRequired, Decode, Encode, RedoubtCodecBuffer};
 use redoubt_zero::{
     FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata, ZeroizingGuard,

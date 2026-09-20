@@ -27,7 +27,7 @@ syn                        = { workspace = true, features = ["full", "parsing"] 
 [dev-dependencies]
 dummy-vault                  = { path = "src/tests/test_fixture" }
 prettyplease.workspace       = true
-redoubt-aead-v2.workspace    = true
+redoubt-aead.workspace    = true
 redoubt-alloc.workspace      = true
 redoubt-codec.workspace      = true
 redoubt-secret.workspace     = true

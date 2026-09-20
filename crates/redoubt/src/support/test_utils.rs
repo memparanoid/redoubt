@@ -6,7 +6,7 @@
 
 #[cfg(feature = "test-utils")]
 pub mod aead {
-    pub use redoubt_aead_v2::support::test_utils::*;
+    pub use redoubt_aead::support::test_utils::*;
 }
 #[cfg(feature = "test-utils")]
 pub mod codec {

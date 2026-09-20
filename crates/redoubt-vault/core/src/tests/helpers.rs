@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_aead_v2::{Aead, AeadBehaviour};
+use redoubt_aead::{Aead, AeadBehaviour};
 use redoubt_codec::RedoubtCodecBuffer;
 use redoubt_codec::support::test_utils::{
     RedoubtCodecTestBreaker, RedoubtCodecTestBreakerBehaviour,

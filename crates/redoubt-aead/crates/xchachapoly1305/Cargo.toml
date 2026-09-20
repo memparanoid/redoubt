@@ -1,0 +1,34 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "no-std"]
+description          = "XChaCha20-Poly1305 with guaranteed zeroization"
+edition.workspace    = true
+keywords             = ["aead", "xchacha20poly1305", "encryption", "crypto", "zeroize"]
+license.workspace    = true
+name                 = "redoubt-aead-xchachapoly1305"
+readme.workspace     = true
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+redoubt-aead-core.workspace = true
+redoubt-alloc.workspace        = true
+redoubt-asm.workspace          = true
+redoubt-chacha.workspace       = true
+redoubt-mem.workspace          = true
+redoubt-poly1305.workspace     = true
+redoubt-zero.workspace         = true
+
+[dev-dependencies]
+# The cipher and the authenticator expose the choice of backend to whoever turns
+# their feature on, and this is the only place it is turned on — so what a
+# consumer builds does not have it.
+proptest.workspace          = true
+redoubt-chacha              = { workspace = true, features = ["test-utils"] }
+redoubt-forensics.workspace = true
+redoubt-poly1305            = { workspace = true, features = ["test-utils"] }
+redoubt-util                = { workspace = true, features = ["test-utils"] }
+rstest.workspace            = true

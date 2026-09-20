@@ -11,7 +11,7 @@ repository.workspace = true
 version.workspace    = true
 
 [dependencies]
-redoubt-aead-v2 = { workspace = true }
+redoubt-aead = { workspace = true }
 redoubt-alloc  = { workspace = true }
 redoubt-codec  = { workspace = true }
 redoubt-hkdf   = { workspace = true }
@@ -22,7 +22,7 @@ redoubt-vault  = { workspace = true }
 redoubt-zero   = { workspace = true }
 
 [dev-dependencies]
-redoubt-aead-v2.workspace = true
+redoubt-aead.workspace = true
 redoubt-codec.workspace = true
 
 [features]
@@ -33,6 +33,6 @@ internal-forensics = ["redoubt-vault/internal-forensics"]
 std = ["redoubt-vault/std"]
 test-utils = [
   "redoubt-codec/test-utils",
-  "redoubt-aead-v2/test-utils",
+  "redoubt-aead/test-utils",
   "redoubt-rand/test-utils",
 ]

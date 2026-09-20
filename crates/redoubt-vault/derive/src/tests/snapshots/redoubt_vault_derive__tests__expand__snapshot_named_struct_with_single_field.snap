@@ -23,7 +23,7 @@ impl redoubt_vault_core::CipherBoxDyns<1> for Gamma {
 impl redoubt_vault_core::EncryptStruct<1> for Gamma {
     fn encrypt_into(
         &mut self,
-        aead: &mut redoubt_aead_v2::Aead,
+        aead: &mut redoubt_aead::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<1>,
         tags: &mut redoubt_vault_core::Tags<1>,
@@ -40,7 +40,7 @@ impl redoubt_vault_core::EncryptStruct<1> for Gamma {
 impl redoubt_vault_core::DecryptStruct<1> for Gamma {
     fn decrypt_from(
         &mut self,
-        aead: &mut redoubt_aead_v2::Aead,
+        aead: &mut redoubt_aead::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<1>,
         tags: &mut redoubt_vault_core::Tags<1>,
@@ -72,7 +72,7 @@ impl GammaBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
-            inner: redoubt_vault_core::CipherBox::new(redoubt_aead_v2::Aead::default()),
+            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::default()),
             #[cfg(test)]
             failure_counter: 0,
         }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_aead_v2::Aead;
+use redoubt_aead::Aead;
 use redoubt_codec::{BytesRequired, DecodeZeroize, EncodeZeroize};
 
 use crate::error::CipherBoxError;

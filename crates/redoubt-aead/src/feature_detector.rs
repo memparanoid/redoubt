@@ -2,91 +2,52 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-#[cfg(test)]
-pub enum FeatureDetectorBehaviour {
+#[derive(Default)]
+pub(crate) enum FeatureDetectorBehaviour {
+    #[default]
     None,
-    #[cfg(all(
-        any(target_arch = "x86_64", target_arch = "aarch64"),
-        not(target_os = "windows")
-    ))]
+    /// Only where the assembly was built, so that no test can name a machine
+    /// that cannot exist: forcing this on a target with no AEGIS would hand out
+    /// an `Aead` whose assembly was never compiled.
+    #[cfg(all(test, aes_asm))]
     ForceAesTrue,
+    #[cfg(test)]
     ForceAesFalse,
 }
 
-pub struct FeatureDetector {
-    #[cfg(test)]
+#[derive(Default)]
+pub(crate) struct FeatureDetector {
     behaviour: FeatureDetectorBehaviour,
 }
 
 impl FeatureDetector {
-    #[inline(always)]
-    pub fn new() -> Self {
-        Self {
-            #[cfg(test)]
-            behaviour: FeatureDetectorBehaviour::None,
-        }
-    }
-
-    #[inline(always)]
-    #[cfg(all(
-        any(target_arch = "x86_64", target_arch = "aarch64"),
-        not(target_os = "windows")
-    ))]
-    pub fn platform_has_aes(&self) -> bool {
-        // Miri interprets MIR and cannot call into the linked AEGIS assembly,
-        // so under Miri the AEGIS backend is not merely slow — it is
-        // unreachable, and every test that constructs an `Aead` the ordinary
-        // way would abort on an unsupported operation.
-        //
-        // Reporting no AES support routes construction to XChaCha20-Poly1305,
-        // which is pure Rust with the `asm` feature off (its default) and
-        // therefore something Miri can actually check. That keeps the default
-        // path under scrutiny instead of skipping it; the tests that
-        // deliberately exercise AEGIS carry `#[cfg_attr(miri, ignore)]`.
-        #[cfg(miri)]
-        return false;
-
-        #[cfg(any(
-            target_arch = "x86_64",
-            target_arch = "x86",
-            target_arch = "aarch64",
-            target_arch = "loongarch64"
-        ))]
-        {
-            cpufeatures::new!(aes_detection, "aes");
-            aes_detection::get()
-        }
-
-        #[cfg(not(any(
-            target_arch = "x86_64",
-            target_arch = "x86",
-            target_arch = "aarch64",
-            target_arch = "loongarch64"
-        )))]
+    /// Where the assembly was never built there is nothing to ask about, and
+    /// `cpufeatures` is not a dependency of every target this compiles for.
+    #[cfg(not(aes_asm))]
+    pub(crate) fn platform_supports_aes(&self) -> bool {
         false
     }
 
-    #[inline(always)]
-    #[cfg(all(
-        any(target_arch = "x86_64", target_arch = "aarch64"),
-        not(target_os = "windows")
-    ))]
-    pub fn has_aes(&self) -> bool {
-        #[cfg(test)]
-        {
-            match self.behaviour {
-                FeatureDetectorBehaviour::None => self.platform_has_aes(),
-                FeatureDetectorBehaviour::ForceAesTrue => true,
-                FeatureDetectorBehaviour::ForceAesFalse => false,
-            }
-        }
+    #[cfg(aes_asm)]
+    pub(crate) fn platform_supports_aes(&self) -> bool {
+        cpufeatures::new!(aes_detection, "aes");
 
-        #[cfg(not(test))]
-        self.platform_has_aes()
+        aes_detection::get()
+    }
+
+    pub(crate) fn supports_aes(&self) -> bool {
+        match self.behaviour {
+            FeatureDetectorBehaviour::None => self.platform_supports_aes(),
+            #[cfg(all(test, aes_asm))]
+            FeatureDetectorBehaviour::ForceAesTrue => true,
+            #[cfg(test)]
+            FeatureDetectorBehaviour::ForceAesFalse => false,
+        }
     }
 
     #[cfg(test)]
-    pub fn change_behaviour(&mut self, behaviour: FeatureDetectorBehaviour) {
+    pub fn with_behaviour(mut self, behaviour: FeatureDetectorBehaviour) -> Self {
         self.behaviour = behaviour;
+        self
     }
 }
