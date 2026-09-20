@@ -69,14 +69,15 @@ The coverage system uses `rustc-nocov-deps.sh` as a `RUSTC_WRAPPER` to ensure:
 
 ```bash
 # All crates (aggregated report)
-./scripts/coverage.sh
+./scripts/coverage-docker.sh
 
 # Single crate only
-./scripts/coverage.sh redoubt-codec-core
-
-# Crate with features
-./scripts/coverage.sh redoubt-aead test_utils
+./scripts/coverage-docker.sh redoubt-codec-core
 ```
+
+This path builds each crate on its own behind the `rustc-nocov-deps` wrapper.
+The build emits no branch counters, so the branch column of its report reads
+`0 0 -`.
 
 **Output**: `coverage/index.html` (HTML report)
 

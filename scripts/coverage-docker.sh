@@ -2,13 +2,14 @@
 # Run coverage in Docker with required capabilities
 #
 # Usage:
-#   ./scripts/coverage.sh                         # All crates (aggregated report)
-#   ./scripts/coverage.sh redoubt-codec-core      # Single crate only
-#   ./scripts/coverage.sh redoubt-zero-core       # Another crate
-#   ./scripts/coverage.sh redoubt-aead test-utils # Crate with features
+#   ./scripts/coverage-docker.sh                    # All crates
+#   ./scripts/coverage-docker.sh redoubt-codec-core # Single crate only
 #
-# Note: Single-crate mode uses selective instrumentation to avoid
-# monomorphization pollution from workspace dependencies.
+# Each crate is built on its own behind the `rustc-nocov-deps` wrapper, which
+# strips instrumentation from every other crate.
+#
+# That build emits no branch counters, so the report over it reads `0 0 -` for
+# branches instead of failing — a column that looks measured and is not.
 
 set -euo pipefail
 
