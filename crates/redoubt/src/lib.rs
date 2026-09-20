@@ -300,7 +300,7 @@
 pub mod collections;
 pub mod support;
 
-pub use redoubt_aead as aead;
+pub use redoubt_aead_v2 as aead;
 pub use redoubt_alloc as alloc;
 pub use redoubt_codec as codec;
 pub use redoubt_hkdf as hkdf;

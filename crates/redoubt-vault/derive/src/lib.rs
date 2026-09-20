@@ -233,8 +233,14 @@ pub(crate) fn find_root_with_candidates(candidates: &[&'static str]) -> TokenStr
         }
     }
 
-    let msg = "cipherbox: could not find redoubt-vault or redoubt-vault-core. Add redoubt-vault to Cargo.toml.";
-    let lit = LitStr::new(msg, Span::call_site());
+    // The candidates that were looked for, and not a fixed sentence: this
+    // resolves several crates, and a message naming one of them sends whoever
+    // reads it to the wrong manifest line.
+    let msg = format!(
+        "cipherbox: none of {} is a dependency of this crate",
+        candidates.join(", ")
+    );
+    let lit = LitStr::new(&msg, Span::call_site());
     quote! { compile_error!(#lit); }
 }
 
@@ -318,7 +324,7 @@ fn expand(
         find_root_with_candidates(&["redoubt-vault-core", "redoubt-vault", "redoubt::vault"]);
     let redoubt_zero_root =
         find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero", "redoubt::zero"]);
-    let redoubt_aead_root = find_root_with_candidates(&["redoubt-aead", "redoubt::aead"]);
+    let redoubt_aead_root = find_root_with_candidates(&["redoubt-aead-v2", "redoubt::aead"]);
 
     // Generate the test cfg attribute based on testing_feature
     let test_cfg = if let Some(ref feature) = testing_feature {
@@ -805,10 +811,10 @@ fn expand(
         }
 
         // Implement EncryptStruct
-        impl<A: #redoubt_aead_root::AeadApi> #root::EncryptStruct<A, #num_fields_lit> for #struct_name #ty_generics #where_clause {
+        impl #root::EncryptStruct<#num_fields_lit> for #struct_name #ty_generics #where_clause {
             fn encrypt_into(
                 &mut self,
-                aead: &mut A,
+                aead: &mut #redoubt_aead_root::Aead,
                 aead_key: &[u8],
                 nonces: &mut #root::Nonces<#num_fields_lit>,
                 tags: &mut #root::Tags<#num_fields_lit>,
@@ -824,10 +830,10 @@ fn expand(
         }
 
         // Implement DecryptStruct
-        impl<A: #redoubt_aead_root::AeadApi> #root::DecryptStruct<A, #num_fields_lit> for #struct_name #ty_generics #where_clause {
+        impl #root::DecryptStruct<#num_fields_lit> for #struct_name #ty_generics #where_clause {
             fn decrypt_from(
                 &mut self,
-                aead: &mut A,
+                aead: &mut #redoubt_aead_root::Aead,
                 aead_key: &[u8],
                 nonces: &mut #root::Nonces<#num_fields_lit>,
                 tags: &mut #root::Tags<#num_fields_lit>,
@@ -850,7 +856,7 @@ fn expand(
         // Generate wrapper struct
         #[derive(#redoubt_zero_root::RedoubtZero)]
         pub struct #wrapper_name {
-            inner: #root::CipherBox<#struct_name, #redoubt_aead_root::Aead, #num_fields_lit>,
+            inner: #root::CipherBox<#struct_name, #num_fields_lit>,
             #test_cfg
             failure_counter: usize,
         }
@@ -859,7 +865,7 @@ fn expand(
             #[inline(always)]
             pub fn new() -> Self {
                 Self {
-                    inner: #root::CipherBox::new(#redoubt_aead_root::Aead::new()),
+                    inner: #root::CipherBox::new(#redoubt_aead_root::Aead::default()),
                     #test_cfg
                     failure_counter: 0,
                 }

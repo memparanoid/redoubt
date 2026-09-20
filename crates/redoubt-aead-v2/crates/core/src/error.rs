@@ -32,4 +32,13 @@ pub enum AeadError {
     /// The machine has no randomness to give.
     #[error("entropy not available")]
     EntropyNotAvailable,
+
+    /// A failure a test injected.
+    ///
+    /// Its own variant so that a case asserting an injected failure cannot be
+    /// satisfied by a real one, and gated so that nothing which ships can
+    /// answer with it.
+    #[cfg(any(test, feature = "test-utils"))]
+    #[error("a test behaviour refused this operation")]
+    Injected,
 }

@@ -21,11 +21,10 @@ impl redoubt_vault_core::CipherBoxDyns<1> for TestableSecrets {
         [&mut self.secret_key]
     }
 }
-impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 1>
-for TestableSecrets {
+impl redoubt_vault_core::EncryptStruct<1> for TestableSecrets {
     fn encrypt_into(
         &mut self,
-        aead: &mut A,
+        aead: &mut redoubt_aead_v2::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<1>,
         tags: &mut redoubt_vault_core::Tags<1>,
@@ -39,11 +38,10 @@ for TestableSecrets {
         )
     }
 }
-impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 1>
-for TestableSecrets {
+impl redoubt_vault_core::DecryptStruct<1> for TestableSecrets {
     fn decrypt_from(
         &mut self,
-        aead: &mut A,
+        aead: &mut redoubt_aead_v2::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<1>,
         tags: &mut redoubt_vault_core::Tags<1>,
@@ -67,7 +65,7 @@ pub enum TestableSecretsBoxFailureMode {
 }
 #[derive(redoubt_zero::RedoubtZero)]
 pub struct TestableSecretsBox {
-    inner: redoubt_vault_core::CipherBox<TestableSecrets, redoubt_aead::Aead, 1>,
+    inner: redoubt_vault_core::CipherBox<TestableSecrets, 1>,
     #[cfg(any(test, feature = "test-utils"))]
     failure_counter: usize,
 }
@@ -75,7 +73,7 @@ impl TestableSecretsBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
-            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+            inner: redoubt_vault_core::CipherBox::new(redoubt_aead_v2::Aead::default()),
             #[cfg(any(test, feature = "test-utils"))]
             failure_counter: 0,
         }

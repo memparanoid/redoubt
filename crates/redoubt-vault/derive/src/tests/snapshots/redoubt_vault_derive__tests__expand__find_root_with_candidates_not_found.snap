@@ -3,5 +3,5 @@ source: crates/redoubt-vault/derive/src/tests/expand.rs
 expression: pretty(ts_1)
 ---
 compile_error!(
-    "cipherbox: could not find redoubt-vault or redoubt-vault-core. Add redoubt-vault to Cargo.toml."
+    "cipherbox: none of not-a-dependency, also-not-a-dependency is a dependency of this crate"
 );

@@ -44,8 +44,6 @@ pub use errors::AeadError;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub use enums::AeadBehaviour;
-#[cfg(any(test, feature = "test-utils"))]
-pub use errors::AeadOperation;
 /// Support module including test utilities.
 #[cfg(any(test, feature = "test-utils"))]
 pub mod support;

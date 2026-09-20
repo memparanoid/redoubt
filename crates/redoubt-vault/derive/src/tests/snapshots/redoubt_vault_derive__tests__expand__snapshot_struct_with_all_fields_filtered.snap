@@ -23,10 +23,10 @@ impl redoubt_vault_core::CipherBoxDyns<0> for OnlyDefaults {
         []
     }
 }
-impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 0> for OnlyDefaults {
+impl redoubt_vault_core::EncryptStruct<0> for OnlyDefaults {
     fn encrypt_into(
         &mut self,
-        aead: &mut A,
+        aead: &mut redoubt_aead_v2::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<0>,
         tags: &mut redoubt_vault_core::Tags<0>,
@@ -40,10 +40,10 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 0> for OnlyD
         )
     }
 }
-impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 0> for OnlyDefaults {
+impl redoubt_vault_core::DecryptStruct<0> for OnlyDefaults {
     fn decrypt_from(
         &mut self,
-        aead: &mut A,
+        aead: &mut redoubt_aead_v2::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<0>,
         tags: &mut redoubt_vault_core::Tags<0>,
@@ -67,7 +67,7 @@ pub enum OnlyDefaultsBoxFailureMode {
 }
 #[derive(redoubt_zero::RedoubtZero)]
 pub struct OnlyDefaultsBox {
-    inner: redoubt_vault_core::CipherBox<OnlyDefaults, redoubt_aead::Aead, 0>,
+    inner: redoubt_vault_core::CipherBox<OnlyDefaults, 0>,
     #[cfg(test)]
     failure_counter: usize,
 }
@@ -75,7 +75,7 @@ impl OnlyDefaultsBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
-            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+            inner: redoubt_vault_core::CipherBox::new(redoubt_aead_v2::Aead::default()),
             #[cfg(test)]
             failure_counter: 0,
         }

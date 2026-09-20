@@ -6,7 +6,7 @@ use alloc::vec;
 
 use core::marker::PhantomData;
 
-use redoubt_aead::AeadApi;
+use redoubt_aead_v2::{Aead, AeadError};
 use redoubt_codec::{BytesRequired, Decode, Encode, RedoubtCodecBuffer};
 use redoubt_zero::{
     FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata, ZeroizingGuard,
@@ -20,17 +20,16 @@ use super::types::{Ciphertext, Ciphertexts, Nonces, Tags};
 
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
-pub struct CipherBox<T, A, const N: usize>
+pub struct CipherBox<T, const N: usize>
 where
     T: Default
         + FastZeroizable
         + ZeroizeMetadata
-        + EncryptStruct<A, N>
-        + DecryptStruct<A, N>
+        + EncryptStruct<N>
+        + DecryptStruct<N>
         + Encode
         + Decode
         + BytesRequired,
-    A: AeadApi,
 {
     initialized: bool,
     /// Starts as `true`, becomes `false` after `fast_zeroize()` (since false = 0x00).
@@ -55,23 +54,22 @@ where
     #[cfg(test)]
     __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
     #[fast_zeroize(skip)]
-    aead: A,
+    aead: Aead,
     #[fast_zeroize(skip)]
     _marker: PhantomData<T>,
 }
 
-impl<T, A, const N: usize> CipherBox<T, A, N>
+impl<T, const N: usize> CipherBox<T, N>
 where
     T: Default
         + FastZeroizable
         + ZeroizeMetadata
         + ZeroizationProbe
-        + EncryptStruct<A, N>
-        + DecryptStruct<A, N>
+        + EncryptStruct<N>
+        + DecryptStruct<N>
         + Encode
         + Decode
         + BytesRequired,
-    A: AeadApi,
 {
     #[cfg(test)]
     pub(crate) fn unzeroize(&mut self) {
@@ -103,10 +101,10 @@ where
         &self.ciphertexts[M]
     }
 
-    pub fn new(aead: A) -> Self {
-        let key_size = aead.api_key_size();
-        let nonce_size = aead.api_nonce_size();
-        let tag_size = aead.api_tag_size();
+    pub fn new(aead: Aead) -> Self {
+        let key_size = aead.key_size();
+        let nonce_size = aead.nonce_size();
+        let tag_size = aead.tag_size();
 
         let nonces: Nonces<N> = core::array::from_fn(|_| {
             let nonce = vec![0; nonce_size];
@@ -240,7 +238,7 @@ where
     {
         // Clone ciphertext so we don't drain the original
         self.tmp_field_cyphertext = self.ciphertexts[M].clone();
-        self.aead.api_decrypt(
+        self.aead.decrypt(
             aead_key,
             &self.nonces[M],
             AAD,
@@ -294,11 +292,11 @@ where
             })?;
 
         self.ciphertexts[M] = self.tmp_field_codec_buff.export_as_vec();
-        self.nonces[M] = self.aead.api_generate_nonce().inspect_err(|_| {
+        self.nonces[M] = self.aead.generate_nonce().inspect_err(|_| {
             self.ciphertexts[M].fast_zeroize();
         })?;
         self.aead
-            .api_encrypt(
+            .encrypt(
                 aead_key,
                 &self.nonces[M],
                 AAD,
@@ -327,6 +325,11 @@ where
             Ok(()) => Ok(()),
             Err(CipherBoxError::Overflow(err)) => Err(CipherBoxError::Overflow(err)),
             Err(CipherBoxError::Entropy(err)) => Err(CipherBoxError::Entropy(err)),
+            // No nonce came back, so nothing was sealed and nothing here was
+            // written over. A box that is intact is not poisoned.
+            Err(CipherBoxError::Aead(AeadError::NonceEntropy(err))) => {
+                Err(CipherBoxError::Aead(AeadError::NonceEntropy(err)))
+            }
             _ => {
                 self.poisoned = true;
                 Err(CipherBoxError::Poisoned)

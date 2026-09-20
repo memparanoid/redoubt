@@ -21,7 +21,7 @@ use redoubt_aead_aegis128l::Aegis128L;
 
 use crate::aead::{Aead, Session};
 use crate::enums::{AeadAlgorithm, AeadBehaviour};
-use crate::errors::{AeadError, AeadOperation};
+use crate::errors::AeadError;
 use crate::feature_detector::{FeatureDetector, FeatureDetectorBehaviour};
 
 /// Past the widest either cipher takes, so a sweep reaches both sides of every
@@ -262,7 +262,7 @@ fn test_generate_nonce_propagates_the_fuse_at_the_first_call() {
     assert!(
         matches!(
             result,
-            Err(AeadError::Injected(AeadOperation::GenerateNonce))
+            Err(AeadError::NonceEntropy(EntropyError::Injected))
         ),
         "a refused nonce came back as {result:?}"
     );
@@ -282,7 +282,7 @@ fn test_generate_nonce_propagates_the_fuse_at_the_nth_call()
     assert!(
         matches!(
             result,
-            Err(AeadError::Injected(AeadOperation::GenerateNonce))
+            Err(AeadError::NonceEntropy(EntropyError::Injected))
         ),
         "a refused nonce came back as {result:?}"
     );
@@ -567,7 +567,7 @@ fn test_encrypt_propagates_the_fuse_at_the_first_call() {
     );
 
     assert!(
-        matches!(result, Err(AeadError::Injected(AeadOperation::Encrypt))),
+        matches!(result, Err(AeadError::Primitive(AeadCoreError::Injected))),
         "a refused encrypt came back as {result:?}"
     );
     assert_eq!(data, sealed, "a refused encrypt still touched the message");
@@ -600,7 +600,7 @@ fn test_encrypt_propagates_the_fuse_at_the_nth_call()
     );
 
     assert!(
-        matches!(result, Err(AeadError::Injected(AeadOperation::Encrypt))),
+        matches!(result, Err(AeadError::Primitive(AeadCoreError::Injected))),
         "a refused encrypt came back as {result:?}"
     );
 
@@ -827,7 +827,7 @@ fn test_decrypt_propagates_the_fuse_at_the_first_call() {
     );
 
     assert!(
-        matches!(result, Err(AeadError::Injected(AeadOperation::Decrypt))),
+        matches!(result, Err(AeadError::Primitive(AeadCoreError::Injected))),
         "a refused decrypt came back as {result:?}"
     );
     assert_eq!(
@@ -871,7 +871,7 @@ fn test_decrypt_propagates_the_fuse_at_the_nth_call()
     );
 
     assert!(
-        matches!(result, Err(AeadError::Injected(AeadOperation::Decrypt))),
+        matches!(result, Err(AeadError::Primitive(AeadCoreError::Injected))),
         "a refused decrypt came back as {result:?}"
     );
 

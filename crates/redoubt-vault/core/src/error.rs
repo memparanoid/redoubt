@@ -6,7 +6,7 @@
 
 use thiserror::Error;
 
-use redoubt_aead::AeadError;
+use redoubt_aead_v2::AeadError;
 use redoubt_buffer::BufferError;
 use redoubt_codec::{DecodeError, EncodeError, OverflowError};
 use redoubt_rand::EntropyError;

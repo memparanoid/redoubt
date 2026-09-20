@@ -22,14 +22,6 @@ pub enum AeadError {
     #[error("the machine gave no randomness to draw a nonce from")]
     NonceEntropy(#[from] EntropyError),
 
-    /// A failure a test injected.
-    ///
-    /// Its own variant, naming the operation, so that a case asserting an
-    /// injected failure cannot be satisfied by a real one or by another call.
-    #[cfg(any(test, feature = "test-utils"))]
-    #[error("a test behaviour refused {0}")]
-    Injected(AeadOperation),
-
     /// The key is not the width this algorithm takes.
     #[error("{algorithm:?} seals with a key of {expected} bytes and was handed {given}")]
     KeyWidth {
@@ -64,29 +56,3 @@ pub enum AeadError {
     },
 }
 
-/// Which call a behaviour was told to refuse.
-///
-/// Named rather than counted, so that a case and the call it is about cannot
-/// drift apart: an ordinal says which call in a sequence, and says nothing
-/// about which operation that call was.
-#[cfg(any(test, feature = "test-utils"))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AeadOperation {
-    /// Sealing.
-    Encrypt,
-    /// Opening.
-    Decrypt,
-    /// Asking for a nonce.
-    GenerateNonce,
-}
-
-#[cfg(any(test, feature = "test-utils"))]
-impl core::fmt::Display for AeadOperation {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.write_str(match self {
-            Self::Encrypt => "encrypt",
-            Self::Decrypt => "decrypt",
-            Self::GenerateNonce => "generate_nonce",
-        })
-    }
-}

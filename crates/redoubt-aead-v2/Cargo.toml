@@ -27,7 +27,7 @@ thiserror.workspace                    = true
 cpufeatures.workspace = true
 
 [features]
-test-utils = ["redoubt-rand/test-utils"]
+test-utils = ["redoubt-aead-v2-core/test-utils", "redoubt-rand/test-utils"]
 
 [dev-dependencies]
 proptest.workspace          = true

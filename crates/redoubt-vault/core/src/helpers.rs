@@ -4,7 +4,7 @@
 
 use alloc::vec;
 
-use redoubt_aead::AeadApi;
+use redoubt_aead_v2::Aead;
 use redoubt_codec::RedoubtCodecBuffer;
 use redoubt_zero::{FastZeroizable, ZeroizationProbe};
 
@@ -40,7 +40,7 @@ pub fn get_sizes<const N: usize>(
 #[inline(always)]
 pub fn encrypt_into<const N: usize>(
     fields: [&mut dyn Encryptable; N],
-    aead: &mut dyn AeadApi,
+    aead: &mut Aead,
     aead_key: &[u8],
     nonces: &mut Nonces<N>,
     tags: &mut Tags<N>,
@@ -65,7 +65,7 @@ pub fn encrypt_into<const N: usize>(
 #[inline(always)]
 fn try_encrypt_into_buffers<const N: usize>(
     mut fields: [&mut dyn Encryptable; N],
-    aead: &mut dyn AeadApi,
+    aead: &mut Aead,
     aead_key: &[u8],
     nonces: &mut Nonces<N>,
     tags: &mut Tags<N>,
@@ -85,8 +85,8 @@ fn try_encrypt_into_buffers<const N: usize>(
 
     for (idx, buf) in buffers.iter_mut().enumerate() {
         ciphertexts[idx] = buf.export_as_vec();
-        nonces[idx] = aead.api_generate_nonce()?;
-        aead.api_encrypt(
+        nonces[idx] = aead.generate_nonce()?;
+        aead.encrypt(
             aead_key,
             &nonces[idx],
             AAD,
@@ -101,7 +101,7 @@ fn try_encrypt_into_buffers<const N: usize>(
 #[inline(always)]
 pub(crate) fn encrypt_into_buffers<const N: usize>(
     fields: [&mut dyn Encryptable; N],
-    aead: &mut dyn AeadApi,
+    aead: &mut Aead,
     aead_key: &[u8],
     nonces: &mut Nonces<N>,
     tags: &mut Tags<N>,
@@ -123,7 +123,7 @@ pub(crate) fn encrypt_into_buffers<const N: usize>(
 #[inline(always)]
 fn try_decrypt_from<const N: usize>(
     fields: &mut [&mut dyn Decryptable; N],
-    aead: &mut dyn AeadApi,
+    aead: &mut Aead,
     aead_key: &[u8],
     nonces: &mut Nonces<N>,
     tags: &mut Tags<N>,
@@ -134,7 +134,7 @@ fn try_decrypt_from<const N: usize>(
         let tag = &tags[idx];
         let ciphertext = &mut ciphertexts[idx];
 
-        aead.api_decrypt(aead_key, nonce, AAD, ciphertext, tag)?;
+        aead.decrypt(aead_key, nonce, AAD, ciphertext, tag)?;
         field.decode_from(&mut ciphertext.as_mut_slice())?;
     }
 
@@ -143,7 +143,7 @@ fn try_decrypt_from<const N: usize>(
 
 pub fn decrypt_from<const N: usize>(
     fields: &mut [&mut dyn Decryptable; N],
-    aead: &mut dyn AeadApi,
+    aead: &mut Aead,
     aead_key: &[u8],
     nonces: &mut Nonces<N>,
     tags: &mut Tags<N>,

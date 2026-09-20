@@ -34,10 +34,9 @@ name = "benchmarks"
 version = "0.1.0-rc.8"
 dependencies = [
  "criterion",
- "redoubt-aead",
  "redoubt-aead-aegis128l",
+ "redoubt-aead-v2",
  "redoubt-aead-v2-core",
- "redoubt-aead-xchacha",
  "redoubt-aead-xchachapoly1305",
  "redoubt-alloc",
  "redoubt-asm",
@@ -878,7 +877,7 @@ dependencies = [
 name = "redoubt"
 version = "0.1.0-rc.8"
 dependencies = [
- "redoubt-aead",
+ "redoubt-aead-v2",
  "redoubt-alloc",
  "redoubt-codec",
  "redoubt-hkdf",
@@ -1236,7 +1235,7 @@ dependencies = [
 name = "redoubt-vault"
 version = "0.1.0-rc.8"
 dependencies = [
- "redoubt-aead",
+ "redoubt-aead-v2",
  "redoubt-alloc",
  "redoubt-codec",
  "redoubt-forensics",
@@ -1252,7 +1251,7 @@ version = "0.1.0-rc.8"
 dependencies = [
  "libc",
  "libseccomp",
- "redoubt-aead",
+ "redoubt-aead-v2",
  "redoubt-alloc",
  "redoubt-buffer",
  "redoubt-codec",
@@ -1277,7 +1276,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "redoubt-aead",
+ "redoubt-aead-v2",
  "redoubt-alloc",
  "redoubt-codec",
  "redoubt-secret",

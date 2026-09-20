@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_aead::AeadApi;
-use redoubt_aead::support::test_utils::{AeadMock, AeadMockBehaviour};
+use redoubt_aead_v2::{Aead, AeadBehaviour, AeadError};
+use redoubt_rand::EntropyError;
 use redoubt_alloc::RedoubtVec;
 use redoubt_codec::RedoubtCodec;
 use redoubt_codec::support::test_utils::{
     RedoubtCodecTestBreaker, RedoubtCodecTestBreakerBehaviour,
 };
-use redoubt_rand::EntropyError;
 use redoubt_util::is_vec_fully_zeroized;
 use redoubt_zero::{
     AssertZeroizeOnDrop, FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel,
@@ -75,10 +74,19 @@ impl CipherBoxDyns<NUM_FIELDS> for RedoubtCodecTestBreakerBox {
     }
 }
 
-impl<A: AeadApi> EncryptStruct<A, NUM_FIELDS> for RedoubtCodecTestBreakerBox {
+/// A key of the width whichever cipher this machine chose takes.
+///
+/// Not a constant: `Aead::default()` picks AEGIS where the hardware has AES
+/// and XChaCha20-Poly1305 where it does not, and those take keys of different
+/// widths. A fixed one would be refused on half the machines this runs on.
+fn zero_key() -> Vec<u8> {
+    vec![0_u8; Aead::default().key_size()]
+}
+
+impl EncryptStruct<NUM_FIELDS> for RedoubtCodecTestBreakerBox {
     fn encrypt_into(
         &mut self,
-        aead: &mut A,
+        aead: &mut Aead,
         aead_key: &[u8],
         nonces: &mut [Vec<u8>; NUM_FIELDS],
         tags: &mut [Vec<u8>; NUM_FIELDS],
@@ -93,10 +101,10 @@ impl<A: AeadApi> EncryptStruct<A, NUM_FIELDS> for RedoubtCodecTestBreakerBox {
     }
 }
 
-impl<A: AeadApi> DecryptStruct<A, NUM_FIELDS> for RedoubtCodecTestBreakerBox {
+impl DecryptStruct<NUM_FIELDS> for RedoubtCodecTestBreakerBox {
     fn decrypt_from(
         &mut self,
-        aead: &mut A,
+        aead: &mut Aead,
         aead_key: &[u8],
         nonces: &mut [Vec<u8>; NUM_FIELDS],
         tags: &mut [Vec<u8>; NUM_FIELDS],
@@ -141,10 +149,10 @@ impl CipherBoxDyns<1> for RedoubtVecBox {
     }
 }
 
-impl<A: AeadApi> EncryptStruct<A, 1> for RedoubtVecBox {
+impl EncryptStruct<1> for RedoubtVecBox {
     fn encrypt_into(
         &mut self,
-        aead: &mut A,
+        aead: &mut Aead,
         aead_key: &[u8],
         nonces: &mut [Vec<u8>; 1],
         tags: &mut [Vec<u8>; 1],
@@ -159,10 +167,10 @@ impl<A: AeadApi> EncryptStruct<A, 1> for RedoubtVecBox {
     }
 }
 
-impl<A: AeadApi> DecryptStruct<A, 1> for RedoubtVecBox {
+impl DecryptStruct<1> for RedoubtVecBox {
     fn decrypt_from(
         &mut self,
-        aead: &mut A,
+        aead: &mut Aead,
         aead_key: &[u8],
         nonces: &mut [Vec<u8>; 1],
         tags: &mut [Vec<u8>; 1],
@@ -191,8 +199,8 @@ impl<A: AeadApi> DecryptStruct<A, 1> for RedoubtVecBox {
 
 #[test]
 fn test_cipher_box_zeroizes_on_drop() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     cb.unzeroize();
     assert!(!cb.is_zeroized());
@@ -206,9 +214,9 @@ fn test_cipher_box_zeroizes_on_drop() {
 
 #[test]
 fn test_encrypt_struct_propagates_encrypt_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();
 
     let result = cb.encrypt_struct(&aead_key, &mut value);
@@ -224,9 +232,9 @@ fn test_encrypt_struct_propagates_encrypt_error() {
 
 #[test]
 fn test_decrypt_struct_propagates_encrypt_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthDecrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
 
     let result = cb.decrypt_struct(&aead_key);
 
@@ -241,8 +249,8 @@ fn test_decrypt_struct_propagates_encrypt_error() {
 
 #[test]
 fn test_maybe_initialize_propagates_leak_master_key_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     cb.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
 
@@ -256,8 +264,8 @@ fn test_maybe_initialize_propagates_leak_master_key_error() {
 
 #[test]
 fn test_maybe_initialize_propagates_encrypt_struct_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     let result = cb.maybe_initialize();
 
@@ -272,9 +280,9 @@ fn test_maybe_initialize_propagates_encrypt_struct_error() {
 
 #[test]
 fn test_decrypt_field_propagates_decrypt_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthDecrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();
 
     cb.encrypt_struct(&aead_key, &mut value)
@@ -292,9 +300,9 @@ fn test_decrypt_field_propagates_decrypt_error() {
 
 #[test]
 fn test_decrypt_field_propagates_decode_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();
 
     cb.encrypt_struct(&aead_key, &mut value)
@@ -314,9 +322,9 @@ fn test_decrypt_field_propagates_decode_error() {
 
 #[test]
 fn test_decrypt_field_ok() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();
 
     cb.encrypt_struct(&aead_key, &mut value)
@@ -338,9 +346,9 @@ fn test_decrypt_field_ok() {
 
 #[test]
 fn test_encrypt_field_propagates_bytes_required_overflow() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();
 
     cb.encrypt_struct(&aead_key, &mut value)
@@ -359,9 +367,9 @@ fn test_encrypt_field_propagates_bytes_required_overflow() {
 
 #[test]
 fn test_encrypt_field_propagates_encode_into_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();
 
     cb.encrypt_struct(&aead_key, &mut value)
@@ -380,10 +388,10 @@ fn test_encrypt_field_propagates_encode_into_error() {
 }
 
 #[test]
-fn test_encrypt_field_propagates_entropy_unavailable_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthGenerateNonce(NUM_FIELDS + 1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+fn test_encrypt_field_propagates_generate_nonce_error() {
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthGenerateNonce(NUM_FIELDS + 1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();
 
     cb.encrypt_struct(&aead_key, &mut value)
@@ -392,12 +400,13 @@ fn test_encrypt_field_propagates_entropy_unavailable_error() {
     let mut field = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 0);
     let result = cb.encrypt_field::<RedoubtCodecTestBreaker, 1>(&aead_key, &mut field);
 
-    // SAFETY NOTE: Box shouldn't be POISONED if entropy is not available (it still can be read).
+    // SAFETY NOTE: Box shouldn't be POISONED if no nonce came back (it still can be read).
     assert!(cb.assert_healthy().is_ok());
-    assert!(result.is_err());
     assert!(matches!(
         result,
-        Err(CipherBoxError::Entropy(EntropyError::EntropyNotAvailable))
+        Err(CipherBoxError::Aead(AeadError::NonceEntropy(
+            EntropyError::Injected
+        )))
     ));
 
     // Assert zeroization!
@@ -406,9 +415,9 @@ fn test_encrypt_field_propagates_entropy_unavailable_error() {
 
 #[test]
 fn test_encrypt_field_propagates_api_encrypt_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(NUM_FIELDS + 1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(NUM_FIELDS + 1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();
 
     cb.encrypt_struct(&aead_key, &mut value)
@@ -427,9 +436,9 @@ fn test_encrypt_field_propagates_api_encrypt_error() {
 
 #[test]
 fn test_encrypt_field_ok() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();
 
     cb.encrypt_struct(&aead_key, &mut value)
@@ -450,9 +459,9 @@ fn test_encrypt_field_ok() {
 
 #[test]
 fn test_open_propagates_poison_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();
 
     assert!(cb.encrypt_struct(&aead_key, &mut value).is_err());
@@ -469,8 +478,8 @@ fn test_open_propagates_poison_error() {
 
 #[test]
 fn test_open_propagates_initialization_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     let result_1 = cb.open::<_, _, CipherBoxError>(|_| Ok(()));
     let result_2 = cb.open::<_, _, CipherBoxError>(|_| Ok(()));
@@ -485,8 +494,8 @@ fn test_open_propagates_initialization_error() {
 
 #[test]
 fn test_open_propagates_leak_master_key_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -505,8 +514,8 @@ fn test_open_propagates_leak_master_key_error() {
 
 #[test]
 fn test_open_propagates_decrypt_struct_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthDecrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -519,8 +528,8 @@ fn test_open_propagates_decrypt_struct_error() {
 
 #[test]
 fn test_open_propagates_encrypt_struct_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(NUM_FIELDS + 1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(NUM_FIELDS + 1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -533,8 +542,8 @@ fn test_open_propagates_encrypt_struct_error() {
 
 #[test]
 fn test_open_infers_result_type() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -548,8 +557,8 @@ fn test_open_infers_result_type() {
 
 #[test]
 fn test_open_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -579,9 +588,9 @@ fn test_open_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
 
 #[test]
 fn test_open_mut_propagates_poison_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();
 
     assert!(cb.encrypt_struct(&aead_key, &mut value).is_err());
@@ -598,8 +607,8 @@ fn test_open_mut_propagates_poison_error() {
 
 #[test]
 fn test_open_mut_propagates_initialization_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     let result_1 = cb.open_mut::<_, _, CipherBoxError>(|_| Ok(()));
     let result_2 = cb.open_mut::<_, _, CipherBoxError>(|_| Ok(()));
@@ -614,8 +623,8 @@ fn test_open_mut_propagates_initialization_error() {
 
 #[test]
 fn test_open_mut_propagates_leak_master_key_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -634,8 +643,8 @@ fn test_open_mut_propagates_leak_master_key_error() {
 
 #[test]
 fn test_open_mut_propagates_decrypt_struct_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthDecrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -648,8 +657,8 @@ fn test_open_mut_propagates_decrypt_struct_error() {
 
 #[test]
 fn test_open_mut_propagates_encrypt_struct_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(NUM_FIELDS + 1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(NUM_FIELDS + 1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -662,8 +671,8 @@ fn test_open_mut_propagates_encrypt_struct_error() {
 
 #[test]
 fn test_open_mut_infers_result_type() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -678,8 +687,8 @@ fn test_open_mut_infers_result_type() {
 
 #[test]
 fn test_open_mut_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -707,8 +716,8 @@ fn test_open_mut_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
 
 #[test]
 fn test_open_mut_zeroizes_tmp_ciphertexts_on_callback_failure() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -729,9 +738,9 @@ fn test_open_mut_zeroizes_tmp_ciphertexts_on_callback_failure() {
 
 #[test]
 fn test_open_field_propagates_poison_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();
 
     assert!(cb.encrypt_struct(&aead_key, &mut value).is_err());
@@ -748,8 +757,8 @@ fn test_open_field_propagates_poison_error() {
 
 #[test]
 fn test_open_field_propagates_initialization_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     let result_1 = cb.open_field::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
     let result_2 = cb.open_field::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
@@ -764,8 +773,8 @@ fn test_open_field_propagates_initialization_error() {
 
 #[test]
 fn test_open_field_propagates_leak_master_key_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -784,8 +793,8 @@ fn test_open_field_propagates_leak_master_key_error() {
 
 #[test]
 fn test_open_field_propagates_decrypt_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthDecrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -802,8 +811,8 @@ fn test_open_field_propagates_decrypt_error() {
 
 #[test]
 fn test_open_field_infers_result_type() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -817,8 +826,8 @@ fn test_open_field_infers_result_type() {
 
 #[test]
 fn test_open_field_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -851,9 +860,9 @@ fn test_open_field_when_callback_error_is_propagated_cipherbox_is_not_poisoned()
 
 #[test]
 fn test_open_field_mut_propagates_poison_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();
 
     assert!(cb.encrypt_struct(&aead_key, &mut value).is_err());
@@ -872,8 +881,8 @@ fn test_open_field_mut_propagates_poison_error() {
 
 #[test]
 fn test_open_field_mut_propagates_initialization_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     let result_1 =
         cb.open_field_mut::<RedoubtCodecTestBreaker, 1, _, _, CipherBoxError>(|_| Ok(()));
@@ -890,8 +899,8 @@ fn test_open_field_mut_propagates_initialization_error() {
 
 #[test]
 fn test_open_field_mut_propagates_leak_master_key_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -912,8 +921,8 @@ fn test_open_field_mut_propagates_leak_master_key_error() {
 
 #[test]
 fn test_open_field_mut_propagates_decrypt_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthDecrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -932,8 +941,8 @@ fn test_open_field_mut_propagates_decrypt_error() {
 
 #[test]
 fn test_open_field_mut_propagates_encrypt_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(NUM_FIELDS + 1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(NUM_FIELDS + 1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -946,8 +955,8 @@ fn test_open_field_mut_propagates_encrypt_error() {
 
 #[test]
 fn test_open_field_mut_infers_result_type() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -962,8 +971,8 @@ fn test_open_field_mut_infers_result_type() {
 
 #[test]
 fn test_open_field_mut_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -997,9 +1006,9 @@ fn test_open_field_mut_when_callback_error_is_propagated_cipherbox_is_not_poison
 
 #[test]
 fn test_leak_field_propagates_poison_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
-    let aead_key = [0u8; AeadMock::KEY_SIZE];
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
+    let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();
 
     assert!(cb.encrypt_struct(&aead_key, &mut value).is_err());
@@ -1016,8 +1025,8 @@ fn test_leak_field_propagates_poison_error() {
 
 #[test]
 fn test_leak_field_propagates_initialization_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthEncrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     let result_1 = cb.leak_field::<RedoubtCodecTestBreaker, 1, _>();
     let result_2 = cb.leak_field::<RedoubtCodecTestBreaker, 1, _>();
@@ -1032,8 +1041,8 @@ fn test_leak_field_propagates_initialization_error() {
 
 #[test]
 fn test_leak_field_propagates_leak_master_key_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -1052,8 +1061,8 @@ fn test_leak_field_propagates_leak_master_key_error() {
 
 #[test]
 fn test_leak_field_propagates_decrypt_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::FailAtNthDecrypt(1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     assert!(cb.maybe_initialize().is_ok());
 
@@ -1073,8 +1082,8 @@ fn test_leak_field_propagates_decrypt_error() {
 // =============================================================================
 #[test]
 fn test_cipherbox_happy_path_test() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     cb.open::<_, _, CipherBoxError>(|tb_box| {
         assert_eq!(tb_box.f0.usize.data, 1);
@@ -1209,8 +1218,8 @@ fn test_cipherbox_happy_path_test() {
 // =============================================================================
 #[test]
 fn test_after_fast_zeroize_operations_return_zeroized_error() {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, AeadMock, NUM_FIELDS>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
     // Verify CipherBox is usable before zeroize
     let result_0 = cb.open::<_, _, CipherBoxError>(|_| Ok(()));
@@ -1238,8 +1247,8 @@ fn test_after_fast_zeroize_operations_return_zeroized_error() {
 // =============================================================================
 
 fn stress_test_redoubt_vec_grow_shrink_cycles(size: usize) {
-    let aead = AeadMock::new(AeadMockBehaviour::None);
-    let mut cb = CipherBox::<RedoubtVecBox, AeadMock, 1>::new(aead);
+    let aead = Aead::default();
+    let mut cb = CipherBox::<RedoubtVecBox, 1>::new(aead);
 
     // Create original data
     let original: Vec<RedoubtCodecTestBreaker> = (0..size)

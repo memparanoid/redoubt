@@ -5,11 +5,10 @@ publish           = false
 version.workspace = true
 
 [features]
-asm = ["redoubt-aead/asm", "redoubt-hkdf/asm"]
+asm = ["redoubt-hkdf/asm"]
 
 [dependencies]
-redoubt-aead         = { path = "../crates/redoubt-aead" }
-redoubt-aead-xchacha = { path = "../crates/redoubt-aead/xchacha" }
+redoubt-aead-v2 = { path = "../crates/redoubt-aead-v2" }
 
 redoubt-aead-aegis128l = { path = "../crates/redoubt-aead-v2/crates/aegis128l" }
 redoubt-aead-v2-core = { path = "../crates/redoubt-aead-v2/crates/core" }
@@ -59,10 +58,6 @@ name    = "alloc"
 [[bench]]
 harness = false
 name    = "hkdf_sha256"
-
-[[bench]]
-harness = false
-name    = "chacha20_poly1305"
 
 [[bench]]
 harness = false

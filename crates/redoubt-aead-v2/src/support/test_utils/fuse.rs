@@ -2,14 +2,23 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use redoubt_aead_v2_core::AeadError as AeadCoreError;
+use redoubt_rand::EntropyError;
+
 use crate::enums::AeadBehaviour;
-use crate::errors::{AeadError, AeadOperation};
+use crate::errors::AeadError;
 
 /// One behaviour, and how many calls of each operation have gone past it.
 ///
 /// It burns rather than blocks: every call but the one the behaviour names
 /// passes through untouched and the operation runs, and the named one is
 /// refused exactly once.
+///
+/// What it refuses with is the shape that operation fails in for real, with an
+/// `Injected` inside it. A variant of its own would be a different error from
+/// the one it stands for; carrying the marker one level down keeps the shape
+/// and still leaves a real failure unable to satisfy a case that asserts the
+/// injected one.
 pub struct Fuse {
     behaviour: AeadBehaviour,
     encrypted: usize,
@@ -32,7 +41,7 @@ impl Fuse {
 
         match self.behaviour {
             AeadBehaviour::FailAtNthEncrypt(nth) if nth == self.encrypted => {
-                Err(AeadError::Injected(AeadOperation::Encrypt))
+                Err(AeadError::Primitive(AeadCoreError::Injected))
             }
             _ => Ok(()),
         }
@@ -43,7 +52,7 @@ impl Fuse {
 
         match self.behaviour {
             AeadBehaviour::FailAtNthDecrypt(nth) if nth == self.decrypted => {
-                Err(AeadError::Injected(AeadOperation::Decrypt))
+                Err(AeadError::Primitive(AeadCoreError::Injected))
             }
             _ => Ok(()),
         }
@@ -54,7 +63,7 @@ impl Fuse {
 
         match self.behaviour {
             AeadBehaviour::FailAtNthGenerateNonce(nth) if nth == self.nonces => {
-                Err(AeadError::Injected(AeadOperation::GenerateNonce))
+                Err(AeadError::NonceEntropy(EntropyError::Injected))
             }
             _ => Ok(()),
         }
