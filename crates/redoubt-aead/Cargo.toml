@@ -15,7 +15,7 @@ path = "src/lib.rs"
 
 [dependencies]
 redoubt-aead-aegis128l.workspace       = true
-redoubt-aead-core.workspace         = true
+redoubt-aead-core.workspace            = true
 redoubt-aead-xchachapoly1305.workspace = true
 redoubt-codec.workspace                = true
 redoubt-rand.workspace                 = true

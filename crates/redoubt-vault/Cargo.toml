@@ -24,7 +24,7 @@ redoubt-vault-core.workspace   = true
 redoubt-vault-derive.workspace = true
 
 [dev-dependencies]
-redoubt-aead.workspace   = true
+redoubt-aead.workspace      = true
 redoubt-alloc.workspace     = true
 redoubt-codec.workspace     = true
 redoubt-forensics.workspace = true

@@ -10,9 +10,7 @@ use std::vec::Vec;
 use proptest::prelude::*;
 use rstest::rstest;
 
-use redoubt_aead_core::consts::chacha::{
-    BERNSTEIN_NONCE_SIZE, BLOCK_SIZE, KEY_SIZE, NONCE_SIZE,
-};
+use redoubt_aead_core::consts::chacha::{BERNSTEIN_NONCE_SIZE, BLOCK_SIZE, KEY_SIZE, NONCE_SIZE};
 use redoubt_asm::Backend;
 
 use crate::chacha20::ChaCha20;

@@ -3,12 +3,12 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_aead::{Aead, AeadBehaviour, AeadError};
-use redoubt_rand::EntropyError;
 use redoubt_alloc::RedoubtVec;
 use redoubt_codec::RedoubtCodec;
 use redoubt_codec::support::test_utils::{
     RedoubtCodecTestBreaker, RedoubtCodecTestBreakerBehaviour,
 };
+use redoubt_rand::EntropyError;
 use redoubt_util::is_vec_fully_zeroized;
 use redoubt_zero::{
     AssertZeroizeOnDrop, FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel,
@@ -389,7 +389,8 @@ fn test_encrypt_field_propagates_encode_into_error() {
 
 #[test]
 fn test_encrypt_field_propagates_generate_nonce_error() {
-    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthGenerateNonce(NUM_FIELDS + 1));
+    let aead =
+        Aead::default().with_behaviour(AeadBehaviour::FailAtNthGenerateNonce(NUM_FIELDS + 1));
     let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
     let aead_key = zero_key();
     let mut value = RedoubtCodecTestBreakerBox::default();

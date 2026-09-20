@@ -15,12 +15,12 @@ path = "src/lib.rs"
 
 [dependencies]
 redoubt-aead-core.workspace = true
-redoubt-alloc.workspace        = true
-redoubt-asm.workspace          = true
-redoubt-chacha.workspace       = true
-redoubt-mem.workspace          = true
-redoubt-poly1305.workspace     = true
-redoubt-zero.workspace         = true
+redoubt-alloc.workspace     = true
+redoubt-asm.workspace       = true
+redoubt-chacha.workspace    = true
+redoubt-mem.workspace       = true
+redoubt-poly1305.workspace  = true
+redoubt-zero.workspace      = true
 
 [dev-dependencies]
 # The cipher and the authenticator expose the choice of backend to whoever turns

@@ -11,7 +11,7 @@ repository.workspace = true
 version.workspace    = true
 
 [dependencies]
-redoubt-aead = { workspace = true }
+redoubt-aead   = { workspace = true }
 redoubt-alloc  = { workspace = true }
 redoubt-codec  = { workspace = true }
 redoubt-hkdf   = { workspace = true }
@@ -22,7 +22,7 @@ redoubt-vault  = { workspace = true }
 redoubt-zero   = { workspace = true }
 
 [dev-dependencies]
-redoubt-aead.workspace = true
+redoubt-aead.workspace  = true
 redoubt-codec.workspace = true
 
 [features]

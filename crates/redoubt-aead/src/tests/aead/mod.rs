@@ -260,10 +260,7 @@ fn test_generate_nonce_propagates_the_fuse_at_the_first_call() {
     let result = aead.generate_nonce();
 
     assert!(
-        matches!(
-            result,
-            Err(AeadError::NonceEntropy(EntropyError::Injected))
-        ),
+        matches!(result, Err(AeadError::NonceEntropy(EntropyError::Injected))),
         "a refused nonce came back as {result:?}"
     );
 }
@@ -280,10 +277,7 @@ fn test_generate_nonce_propagates_the_fuse_at_the_nth_call()
     let result = aead.generate_nonce();
 
     assert!(
-        matches!(
-            result,
-            Err(AeadError::NonceEntropy(EntropyError::Injected))
-        ),
+        matches!(result, Err(AeadError::NonceEntropy(EntropyError::Injected))),
         "a refused nonce came back as {result:?}"
     );
 

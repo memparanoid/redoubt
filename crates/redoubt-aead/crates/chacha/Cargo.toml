@@ -20,8 +20,8 @@ test-utils = []
 
 [dependencies]
 redoubt-aead-core.workspace = true
-redoubt-asm.workspace          = true
-redoubt-zero.workspace         = true
+redoubt-asm.workspace       = true
+redoubt-zero.workspace      = true
 
 [build-dependencies]
 cc.workspace = true

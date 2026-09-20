@@ -20,7 +20,7 @@ internal-forensics = []
 std                = []
 
 [dependencies]
-redoubt-aead.workspace = true
+redoubt-aead.workspace   = true
 redoubt-alloc.workspace  = true
 redoubt-buffer.workspace = true
 redoubt-codec.workspace  = true
@@ -31,7 +31,7 @@ redoubt-zero.workspace   = true
 thiserror.workspace      = true
 
 [dev-dependencies]
-redoubt-aead              = { workspace = true, features = ["test-utils"] }
+redoubt-aead                 = { workspace = true, features = ["test-utils"] }
 redoubt-codec                = { workspace = true, features = ["test-utils"] }
 redoubt-forensics.workspace  = true
 redoubt-test-utils.workspace = true
