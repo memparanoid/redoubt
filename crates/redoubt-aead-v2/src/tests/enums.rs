@@ -9,6 +9,10 @@ use redoubt_codec::{
     RedoubtCodecBuffer,
 };
 
+use redoubt_aead_aegis128l::Aegis128L;
+use redoubt_aead_v2_core::AeadSizes;
+use redoubt_aead_xchachapoly1305::XChaCha20Poly1305;
+
 use crate::enums::AeadAlgorithm;
 
 const EVERY: [AeadAlgorithm; 2] = [AeadAlgorithm::Aegis128L, AeadAlgorithm::XChachaPoly1305];
@@ -76,6 +80,60 @@ fn test_a_byte_a_variant_said_reads_back_as_that_variant() {
     for algorithm in EVERY {
         assert_eq!(AeadAlgorithm::read(algorithm.said()), Some(algorithm));
     }
+}
+
+// === === === === === === === === === ===
+// key_size
+// === === === === === === === === === ===
+
+/// The oracle is the cipher's own type, not the number written twice.
+///
+/// A width read off the implementation agrees with it by construction and says
+/// nothing. What this asks is whether the width this crate tells a caller to
+/// prepare is the width the cipher's key actually is, which is declared
+/// somewhere else.
+#[test]
+fn test_key_size_is_the_width_the_cipher_takes() {
+    assert_eq!(
+        AeadAlgorithm::XChachaPoly1305.key_size(),
+        size_of::<<XChaCha20Poly1305 as AeadSizes>::Key>()
+    );
+    assert_eq!(
+        AeadAlgorithm::Aegis128L.key_size(),
+        size_of::<<Aegis128L as AeadSizes>::Key>()
+    );
+}
+
+// === === === === === === === === === ===
+// nonce_size
+// === === === === === === === === === ===
+
+#[test]
+fn test_nonce_size_is_the_width_the_cipher_takes() {
+    assert_eq!(
+        AeadAlgorithm::XChachaPoly1305.nonce_size(),
+        size_of::<<XChaCha20Poly1305 as AeadSizes>::Nonce>()
+    );
+    assert_eq!(
+        AeadAlgorithm::Aegis128L.nonce_size(),
+        size_of::<<Aegis128L as AeadSizes>::Nonce>()
+    );
+}
+
+// === === === === === === === === === ===
+// tag_size
+// === === === === === === === === === ===
+
+#[test]
+fn test_tag_size_is_the_width_the_cipher_writes() {
+    assert_eq!(
+        AeadAlgorithm::XChachaPoly1305.tag_size(),
+        size_of::<<XChaCha20Poly1305 as AeadSizes>::Tag>()
+    );
+    assert_eq!(
+        AeadAlgorithm::Aegis128L.tag_size(),
+        size_of::<<Aegis128L as AeadSizes>::Tag>()
+    );
 }
 
 // === === === === === === === === === ===

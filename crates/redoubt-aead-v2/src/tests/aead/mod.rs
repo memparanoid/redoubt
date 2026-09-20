@@ -62,6 +62,17 @@ fn forced(behaviour: FeatureDetectorBehaviour) -> FeatureDetector {
     FeatureDetector::default().with_behaviour(behaviour)
 }
 
+/// Every algorithm this target can run, which is every one a caller is handed.
+fn every_algorithm() -> Vec<AeadAlgorithm> {
+    #[cfg_attr(not(aes_asm), allow(unused_mut))]
+    let mut algorithms = Vec::from([AeadAlgorithm::XChachaPoly1305]);
+
+    #[cfg(aes_asm)]
+    algorithms.push(AeadAlgorithm::Aegis128L);
+
+    algorithms
+}
+
 /// Every answer a detector can be told to give on this target.
 ///
 /// A target with no AEGIS assembly has no `ForceAesTrue` to be told, because
@@ -113,6 +124,83 @@ fn test_algorithm_answers_what_the_constructor_chose() {
         Aead::new_chacha().algorithm(),
         AeadAlgorithm::XChachaPoly1305
     );
+}
+
+// === === === === === === === === === ===
+// key_size
+// === === === === === === === === === ===
+
+/// What an `Aead` reports is what the cipher it runs takes, and a caller that
+/// prepares a key of it is handed no `KeyWidth`.
+#[test]
+fn test_key_size_is_the_width_encrypt_accepts() {
+    for algorithm in every_algorithm() {
+        let mut aead = Aead::from_algorithm(algorithm);
+        let mut data = filled(64);
+        let mut tag = filled(aead.tag_size());
+
+        let result = aead.encrypt(
+            &filled(aead.key_size()),
+            &filled(aead.nonce_size()),
+            b"",
+            &mut data,
+            &mut tag,
+        );
+
+        assert!(
+            matches!(result, Ok(())),
+            "{algorithm:?} refused the widths it reports: {result:?}"
+        );
+    }
+}
+
+// === === === === === === === === === ===
+// nonce_size
+// === === === === === === === === === ===
+
+/// The nonce a caller is told to prepare is the one `generate_nonce` hands
+/// back, so asking and being given cannot disagree.
+#[test]
+fn test_nonce_size_is_the_width_generate_nonce_answers()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    for algorithm in every_algorithm() {
+        let mut aead = Aead::from_algorithm(algorithm);
+
+        let nonce = aead.generate_nonce()?;
+
+        assert_eq!(nonce.len(), aead.nonce_size(), "{algorithm:?}");
+    }
+
+    Ok(())
+}
+
+// === === === === === === === === === ===
+// tag_size
+// === === === === === === === === === ===
+
+/// A buffer of this width is one the sealing fills rather than refuses, which
+/// is what a caller sizing a tag from it is relying on.
+#[test]
+fn test_tag_size_is_the_width_encrypt_writes()
+-> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    for algorithm in every_algorithm() {
+        let mut aead = Aead::from_algorithm(algorithm);
+        let mut data = filled(64);
+        let mut tag = filled(aead.tag_size());
+        let before = tag.clone();
+
+        aead.encrypt(
+            &filled(aead.key_size()),
+            &filled(aead.nonce_size()),
+            b"",
+            &mut data,
+            &mut tag,
+        )?;
+
+        assert_ne!(tag, before, "{algorithm:?} wrote no tag");
+    }
+
+    Ok(())
 }
 
 // === === === === === === === === === ===

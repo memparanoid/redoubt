@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use redoubt_aead_v2_core::consts::{aegis, chacha, poly1305};
 use redoubt_codec::{
     BytesRequired, Decode, DecodeBuffer, DecodeError, DecodeSlice, Encode, EncodeError,
     EncodeSlice, OverflowError, PreAlloc, RedoubtCodecBuffer,
@@ -63,6 +64,34 @@ impl AeadAlgorithm {
             _ if said == Self::XChachaPoly1305.said() => Some(Self::XChachaPoly1305),
             _ if said == Self::Aegis128L.said() => Some(Self::Aegis128L),
             _ => None,
+        }
+    }
+
+    /// Bytes of key this cipher seals with.
+    #[must_use]
+    pub const fn key_size(self) -> usize {
+        match self {
+            Self::XChachaPoly1305 => chacha::KEY_SIZE,
+            Self::Aegis128L => aegis::KEY_SIZE,
+        }
+    }
+
+    /// Bytes of nonce this cipher seals with, which is what `generate_nonce`
+    /// answers with.
+    #[must_use]
+    pub const fn nonce_size(self) -> usize {
+        match self {
+            Self::XChachaPoly1305 => chacha::XNONCE_SIZE,
+            Self::Aegis128L => aegis::NONCE_SIZE,
+        }
+    }
+
+    /// Bytes of tag this cipher writes.
+    #[must_use]
+    pub const fn tag_size(self) -> usize {
+        match self {
+            Self::XChachaPoly1305 => poly1305::TAG_SIZE,
+            Self::Aegis128L => aegis::TAG_SIZE,
         }
     }
 }

@@ -131,6 +131,25 @@ impl Aead {
         self.algorithm
     }
 
+    /// Bytes of key this one takes.
+    #[must_use]
+    pub fn key_size(&self) -> usize {
+        self.algorithm.key_size()
+    }
+
+    /// Bytes of nonce this one takes, which is what [`Aead::generate_nonce`]
+    /// answers with.
+    #[must_use]
+    pub fn nonce_size(&self) -> usize {
+        self.algorithm.nonce_size()
+    }
+
+    /// Bytes of tag this one writes.
+    #[must_use]
+    pub fn tag_size(&self) -> usize {
+        self.algorithm.tag_size()
+    }
+
     /// A nonce this `Aead` has not given before.
     ///
     /// # Errors
