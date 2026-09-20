@@ -2,31 +2,48 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! AEGIS-128L and XChaCha20-Poly1305 AEAD with automatic backend selection.
+//! Authenticated encryption, with the algorithm chosen for the machine.
+//!
+//! # `aes_asm` says the symbols exist, not that they run
+//!
+//! The flag is set for the targets AEGIS has assembly for, so what it answers
+//! is a question about the build: whether there is anything to link. Whether
+//! the machine running the result has the AES instructions is a different
+//! question and no `cfg` can reach it — one binary runs on a CPU that has them
+//! and on one that does not.
+//!
+//! So the check the feature detector makes at run time is not an optimisation
+//! over gating, and no amount of gating replaces it: gating only spreads the
+//! build's question through every caller, and the caller would still have to
+//! ask the other one.
 //!
 //! ## License
 //!
 //! GPL-3.0-only
 
-#![cfg_attr(not(test), no_std)]
+#![no_std]
 #![warn(missing_docs)]
 
 extern crate alloc;
 
 #[cfg(test)]
+extern crate std;
+
+#[cfg(test)]
 mod tests;
 
 mod aead;
+mod enums;
+mod errors;
 mod feature_detector;
+mod utils;
 
+pub use aead::{Aead, AeadAlgorithms, AeadVariants};
+pub use enums::AeadAlgorithm;
+pub use errors::AeadError;
+
+#[cfg(any(test, feature = "test-utils"))]
+pub use enums::AeadBehaviour;
 /// Support module including test utilities.
+#[cfg(any(test, feature = "test-utils"))]
 pub mod support;
-
-pub use aead::{Aead, AeadVariant};
-pub use redoubt_aead_core::{AeadApi, AeadBackend, AeadError};
-pub use redoubt_aead_xchacha::{
-    CHACHA20_BERNSTEIN_NONCE_SIZE, CHACHA20_NONCE_SIZE, ChaCha20, HChaCha20, Poly1305, XChaCha20,
-};
-
-#[cfg(feature = "test-utils")]
-pub use support::test_utils;

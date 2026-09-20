@@ -16,10 +16,10 @@ impl redoubt_vault_core::CipherBoxDyns<0> for Unit {
         []
     }
 }
-impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 0> for Unit {
+impl redoubt_vault_core::EncryptStruct<0> for Unit {
     fn encrypt_into(
         &mut self,
-        aead: &mut A,
+        aead: &mut redoubt_aead::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<0>,
         tags: &mut redoubt_vault_core::Tags<0>,
@@ -33,10 +33,10 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 0> for Unit 
         )
     }
 }
-impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 0> for Unit {
+impl redoubt_vault_core::DecryptStruct<0> for Unit {
     fn decrypt_from(
         &mut self,
-        aead: &mut A,
+        aead: &mut redoubt_aead::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<0>,
         tags: &mut redoubt_vault_core::Tags<0>,
@@ -60,7 +60,7 @@ pub enum UnitBoxFailureMode {
 }
 #[derive(redoubt_zero::RedoubtZero)]
 pub struct UnitBox {
-    inner: redoubt_vault_core::CipherBox<Unit, redoubt_aead::Aead, 0>,
+    inner: redoubt_vault_core::CipherBox<Unit, 0>,
     #[cfg(test)]
     failure_counter: usize,
 }
@@ -68,7 +68,7 @@ impl UnitBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
-            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::default()),
             #[cfg(test)]
             failure_counter: 0,
         }

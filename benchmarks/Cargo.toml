@@ -5,24 +5,23 @@ publish           = false
 version.workspace = true
 
 [features]
-asm = ["redoubt-aead/asm", "redoubt-hkdf/asm"]
+asm = ["redoubt-hkdf/asm"]
 
 [dependencies]
-redoubt-aead         = { path = "../crates/redoubt-aead" }
-redoubt-aead-xchacha = { path = "../crates/redoubt-aead/xchacha" }
+redoubt-aead = { path = "../crates/redoubt-aead" }
 
-redoubt-aead-aegis128l = { path = "../crates/redoubt-aead-v2/crates/aegis128l" }
-redoubt-aead-v2-core = { path = "../crates/redoubt-aead-v2/crates/core" }
-redoubt-aead-xchachapoly1305 = { path = "../crates/redoubt-aead-v2/crates/xchachapoly1305" }
+redoubt-aead-aegis128l = { path = "../crates/redoubt-aead/crates/aegis128l" }
+redoubt-aead-core = { path = "../crates/redoubt-aead/crates/core" }
+redoubt-aead-xchachapoly1305 = { path = "../crates/redoubt-aead/crates/xchachapoly1305" }
 redoubt-alloc = { path = "../crates/redoubt-alloc" }
 redoubt-asm = { path = "../crates/redoubt-asm" }
 redoubt-buffer = { path = "../crates/redoubt-buffer" }
-redoubt-chacha = { path = "../crates/redoubt-aead-v2/crates/chacha", features = [
+redoubt-chacha = { path = "../crates/redoubt-aead/crates/chacha", features = [
   "test-utils",
 ] }
 redoubt-codec = { path = "../crates/redoubt-codec" }
 redoubt-hkdf = { path = "../crates/redoubt-hkdf" }
-redoubt-poly1305 = { path = "../crates/redoubt-aead-v2/crates/poly1305", features = [
+redoubt-poly1305 = { path = "../crates/redoubt-aead/crates/poly1305", features = [
   "test-utils",
 ] }
 redoubt-util = { path = "../crates/redoubt-util" }
@@ -59,10 +58,6 @@ name    = "alloc"
 [[bench]]
 harness = false
 name    = "hkdf_sha256"
-
-[[bench]]
-harness = false
-name    = "chacha20_poly1305"
 
 [[bench]]
 harness = false

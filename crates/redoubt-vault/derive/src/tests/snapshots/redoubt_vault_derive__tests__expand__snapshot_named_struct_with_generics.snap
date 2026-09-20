@@ -27,13 +27,13 @@ where
         [&mut self.value, &mut self.count]
     }
 }
-impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 2> for Container<T>
+impl redoubt_vault_core::EncryptStruct<2> for Container<T>
 where
     T: redoubt_codec::BytesRequired + redoubt_codec::Encode + redoubt_codec::Decode,
 {
     fn encrypt_into(
         &mut self,
-        aead: &mut A,
+        aead: &mut redoubt_aead::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<2>,
         tags: &mut redoubt_vault_core::Tags<2>,
@@ -47,13 +47,13 @@ where
         )
     }
 }
-impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 2> for Container<T>
+impl redoubt_vault_core::DecryptStruct<2> for Container<T>
 where
     T: redoubt_codec::BytesRequired + redoubt_codec::Encode + redoubt_codec::Decode,
 {
     fn decrypt_from(
         &mut self,
-        aead: &mut A,
+        aead: &mut redoubt_aead::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<2>,
         tags: &mut redoubt_vault_core::Tags<2>,
@@ -77,7 +77,7 @@ pub enum ContainerBoxFailureMode {
 }
 #[derive(redoubt_zero::RedoubtZero)]
 pub struct ContainerBox {
-    inner: redoubt_vault_core::CipherBox<Container, redoubt_aead::Aead, 2>,
+    inner: redoubt_vault_core::CipherBox<Container, 2>,
     #[cfg(test)]
     failure_counter: usize,
 }
@@ -85,7 +85,7 @@ impl ContainerBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
-            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::default()),
             #[cfg(test)]
             failure_counter: 0,
         }

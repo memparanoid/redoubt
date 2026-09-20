@@ -28,8 +28,8 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 
 use redoubt_aead_aegis128l::Aegis128L;
-use redoubt_aead_v2_core::consts::aegis::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
-use redoubt_aead_v2_core::{AeadDecrypt, AeadEncrypt};
+use redoubt_aead_core::consts::aegis::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
+use redoubt_aead_core::{AeadDecrypt, AeadEncrypt};
 
 /// One block, a page, and then sizes where the per-call cost has stopped
 /// mattering and the loop is all that is left.

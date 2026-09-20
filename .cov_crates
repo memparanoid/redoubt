@@ -17,19 +17,15 @@ redoubt-hkdf-arm
 redoubt-hkdf-x86
 redoubt-hkdf-rust
 redoubt-hkdf
-redoubt-aead-aegis-x86
-redoubt-aead-aegis-arm
-redoubt-aead-xchacha
-redoubt-aead
 
 redoubt-asm
-redoubt-aead-v2-core
+redoubt-aead-core
 redoubt-chacha
 redoubt-poly1305
 redoubt-hkdf-v2
 redoubt-aead-xchachapoly1305
 redoubt-aead-aegis128l
-redoubt-aead-v2
+redoubt-aead
 
 # Buffer
 redoubt-buffer

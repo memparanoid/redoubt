@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Test utilities for redoubt-aead.
+#[cfg(test)]
+mod tests;
 
-mod aead_mock;
+mod fuse;
 
-pub use aead_mock::{AeadMock, AeadMockBehaviour};
+pub use fuse::Fuse;

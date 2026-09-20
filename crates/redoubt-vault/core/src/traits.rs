@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_aead::AeadApi;
+use redoubt_aead::Aead;
 use redoubt_codec::{BytesRequired, DecodeZeroize, EncodeZeroize};
 
 use crate::error::CipherBoxError;
 use crate::types::{Ciphertexts, Nonces, Tags};
 
-pub trait EncryptStruct<A: AeadApi, const N: usize> {
+pub trait EncryptStruct<const N: usize> {
     fn encrypt_into(
         &mut self,
-        aead: &mut A,
+        aead: &mut Aead,
         aead_key: &[u8],
         nonces: &mut Nonces<N>,
         tags: &mut Tags<N>,
@@ -23,10 +23,10 @@ pub trait CipherBoxDyns<const N: usize> {
     fn to_encryptable_dyn_fields(&mut self) -> [&mut dyn Encryptable; N];
 }
 
-pub trait DecryptStruct<A: AeadApi, const N: usize> {
+pub trait DecryptStruct<const N: usize> {
     fn decrypt_from(
         &mut self,
-        aead: &mut A,
+        aead: &mut Aead,
         aead_key: &[u8],
         nonces: &mut Nonces<N>,
         tags: &mut Tags<N>,

@@ -23,10 +23,10 @@ impl redoubt_vault_core::CipherBoxDyns<2> for Epsilon {
         [&mut self.master_seed, &mut self.encryption_key]
     }
 }
-impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 2> for Epsilon {
+impl redoubt_vault_core::EncryptStruct<2> for Epsilon {
     fn encrypt_into(
         &mut self,
-        aead: &mut A,
+        aead: &mut redoubt_aead::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<2>,
         tags: &mut redoubt_vault_core::Tags<2>,
@@ -40,10 +40,10 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 2> for Epsil
         )
     }
 }
-impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 2> for Epsilon {
+impl redoubt_vault_core::DecryptStruct<2> for Epsilon {
     fn decrypt_from(
         &mut self,
-        aead: &mut A,
+        aead: &mut redoubt_aead::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<2>,
         tags: &mut redoubt_vault_core::Tags<2>,
@@ -67,7 +67,7 @@ pub enum EpsilonBoxFailureMode {
 }
 #[derive(redoubt_zero::RedoubtZero)]
 pub struct EpsilonBox {
-    inner: redoubt_vault_core::CipherBox<Epsilon, redoubt_aead::Aead, 2>,
+    inner: redoubt_vault_core::CipherBox<Epsilon, 2>,
     #[cfg(test)]
     failure_counter: usize,
 }
@@ -75,7 +75,7 @@ impl EpsilonBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
-            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::default()),
             #[cfg(test)]
             failure_counter: 0,
         }

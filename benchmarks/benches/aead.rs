@@ -7,12 +7,12 @@ use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_mai
 use redoubt_aead::Aead;
 
 fn benchmark_aead_encrypt(c: &mut Criterion) {
-    let mut aead = Aead::new();
-    let backend_name = aead.backend_name();
+    let mut aead = Aead::default();
+    let algorithm_name = format!("{:?}", aead.algorithm());
 
     let mut group = c.benchmark_group(format!(
         "{}_encrypt",
-        backend_name.to_lowercase().replace("-", "")
+        algorithm_name.to_lowercase().replace("-", "")
     ));
 
     for size in [64, 256, 1024, 4096, 16384].iter() {
@@ -39,12 +39,12 @@ fn benchmark_aead_encrypt(c: &mut Criterion) {
 }
 
 fn benchmark_aead_decrypt(c: &mut Criterion) {
-    let mut aead = Aead::new();
-    let backend_name = aead.backend_name();
+    let mut aead = Aead::default();
+    let algorithm_name = format!("{:?}", aead.algorithm());
 
     let mut group = c.benchmark_group(format!(
         "{}_decrypt",
-        backend_name.to_lowercase().replace("-", "")
+        algorithm_name.to_lowercase().replace("-", "")
     ));
 
     for size in [64, 256, 1024, 4096, 16384].iter() {
@@ -77,12 +77,12 @@ fn benchmark_aead_decrypt(c: &mut Criterion) {
 }
 
 fn benchmark_aead_roundtrip(c: &mut Criterion) {
-    let mut aead = Aead::new();
-    let backend_name = aead.backend_name();
+    let mut aead = Aead::default();
+    let algorithm_name = format!("{:?}", aead.algorithm());
 
     let mut group = c.benchmark_group(format!(
         "{}_roundtrip",
-        backend_name.to_lowercase().replace("-", "")
+        algorithm_name.to_lowercase().replace("-", "")
     ));
 
     for size in [64, 256, 1024, 4096, 16384].iter() {

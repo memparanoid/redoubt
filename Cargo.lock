@@ -36,8 +36,7 @@ dependencies = [
  "criterion",
  "redoubt-aead",
  "redoubt-aead-aegis128l",
- "redoubt-aead-v2-core",
- "redoubt-aead-xchacha",
+ "redoubt-aead-core",
  "redoubt-aead-xchachapoly1305",
  "redoubt-alloc",
  "redoubt-asm",
@@ -894,76 +893,9 @@ name = "redoubt-aead"
 version = "0.1.0-rc.8"
 dependencies = [
  "cpufeatures",
- "redoubt-aead-aegis-arm",
- "redoubt-aead-aegis-x86",
- "redoubt-aead-core",
- "redoubt-aead-xchacha",
- "redoubt-forensics",
- "redoubt-mem",
- "redoubt-rand",
- "redoubt-util",
- "redoubt-zero",
-]
-
-[[package]]
-name = "redoubt-aead-aegis-arm"
-version = "0.1.0-rc.8"
-dependencies = [
- "cc",
- "redoubt-aead-aegis-wycheproof",
- "redoubt-aead-core",
- "redoubt-rand",
- "redoubt-util",
-]
-
-[[package]]
-name = "redoubt-aead-aegis-wycheproof"
-version = "0.1.0-rc.8"
-dependencies = [
- "redoubt-aead-core",
- "redoubt-util",
-]
-
-[[package]]
-name = "redoubt-aead-aegis-x86"
-version = "0.1.0-rc.8"
-dependencies = [
- "cc",
- "redoubt-aead-aegis-wycheproof",
- "redoubt-aead-core",
- "redoubt-rand",
- "redoubt-util",
- "redoubt-zero",
-]
-
-[[package]]
-name = "redoubt-aead-aegis128l"
-version = "0.1.0-rc.8"
-dependencies = [
- "cc",
- "redoubt-aead-v2-core",
- "redoubt-forensics",
- "redoubt-util",
- "redoubt-zero",
- "rstest",
-]
-
-[[package]]
-name = "redoubt-aead-core"
-version = "0.1.0-rc.8"
-dependencies = [
- "redoubt-rand",
- "thiserror",
-]
-
-[[package]]
-name = "redoubt-aead-v2"
-version = "0.1.0-rc.8"
-dependencies = [
- "cpufeatures",
  "proptest",
  "redoubt-aead-aegis128l",
- "redoubt-aead-v2-core",
+ "redoubt-aead-core",
  "redoubt-aead-xchachapoly1305",
  "redoubt-codec",
  "redoubt-forensics",
@@ -975,7 +907,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "redoubt-aead-v2-core"
+name = "redoubt-aead-aegis128l"
+version = "0.1.0-rc.8"
+dependencies = [
+ "cc",
+ "redoubt-aead-core",
+ "redoubt-forensics",
+ "redoubt-util",
+ "redoubt-zero",
+ "rstest",
+]
+
+[[package]]
+name = "redoubt-aead-core"
 version = "0.1.0-rc.8"
 dependencies = [
  "cc",
@@ -985,21 +929,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "redoubt-aead-xchacha"
-version = "0.1.0-rc.8"
-dependencies = [
- "redoubt-aead-core",
- "redoubt-rand",
- "redoubt-util",
- "redoubt-zero",
-]
-
-[[package]]
 name = "redoubt-aead-xchachapoly1305"
 version = "0.1.0-rc.8"
 dependencies = [
  "proptest",
- "redoubt-aead-v2-core",
+ "redoubt-aead-core",
  "redoubt-alloc",
  "redoubt-asm",
  "redoubt-chacha",
@@ -1047,7 +981,7 @@ version = "0.1.0-rc.8"
 dependencies = [
  "cc",
  "proptest",
- "redoubt-aead-v2-core",
+ "redoubt-aead-core",
  "redoubt-asm",
  "redoubt-zero",
  "rstest",
@@ -1191,7 +1125,7 @@ dependencies = [
  "cc",
  "num-bigint",
  "proptest",
- "redoubt-aead-v2-core",
+ "redoubt-aead-core",
  "redoubt-asm",
  "redoubt-zero",
  "rstest",

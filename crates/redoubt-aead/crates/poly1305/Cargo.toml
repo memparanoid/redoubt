@@ -1,0 +1,32 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["cryptography", "no-std"]
+description          = "Poly1305 one-time authenticator with guaranteed zeroization"
+edition.workspace    = true
+keywords             = ["poly1305", "mac", "authenticator", "crypto", "zeroize"]
+license.workspace    = true
+name                 = "redoubt-poly1305"
+readme.workspace     = true
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+# Lets a crate above this one say which backend its whole chain runs on. Without
+# it the choice does not exist and every operation goes where the target says.
+test-utils = []
+
+[dependencies]
+redoubt-aead-core.workspace = true
+redoubt-asm.workspace       = true
+redoubt-zero.workspace      = true
+
+[build-dependencies]
+cc.workspace = true
+
+[dev-dependencies]
+num-bigint.workspace = true
+proptest.workspace   = true
+rstest.workspace     = true

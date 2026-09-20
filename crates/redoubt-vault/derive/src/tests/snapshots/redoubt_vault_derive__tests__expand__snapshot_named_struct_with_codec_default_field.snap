@@ -24,10 +24,10 @@ impl redoubt_vault_core::CipherBoxDyns<2> for Delta {
         [&mut self.alpha, &mut self.beta]
     }
 }
-impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 2> for Delta {
+impl redoubt_vault_core::EncryptStruct<2> for Delta {
     fn encrypt_into(
         &mut self,
-        aead: &mut A,
+        aead: &mut redoubt_aead::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<2>,
         tags: &mut redoubt_vault_core::Tags<2>,
@@ -41,10 +41,10 @@ impl<A: redoubt_aead::AeadApi> redoubt_vault_core::EncryptStruct<A, 2> for Delta
         )
     }
 }
-impl<A: redoubt_aead::AeadApi> redoubt_vault_core::DecryptStruct<A, 2> for Delta {
+impl redoubt_vault_core::DecryptStruct<2> for Delta {
     fn decrypt_from(
         &mut self,
-        aead: &mut A,
+        aead: &mut redoubt_aead::Aead,
         aead_key: &[u8],
         nonces: &mut redoubt_vault_core::Nonces<2>,
         tags: &mut redoubt_vault_core::Tags<2>,
@@ -68,7 +68,7 @@ pub enum DeltaBoxFailureMode {
 }
 #[derive(redoubt_zero::RedoubtZero)]
 pub struct DeltaBox {
-    inner: redoubt_vault_core::CipherBox<Delta, redoubt_aead::Aead, 2>,
+    inner: redoubt_vault_core::CipherBox<Delta, 2>,
     #[cfg(test)]
     failure_counter: usize,
 }
@@ -76,7 +76,7 @@ impl DeltaBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
-            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::new()),
+            inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::default()),
             #[cfg(test)]
             failure_counter: 0,
         }

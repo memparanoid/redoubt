@@ -22,9 +22,9 @@
 
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 
-use redoubt_aead_v2_core::consts::chacha::{KEY_SIZE, XNONCE_SIZE};
-use redoubt_aead_v2_core::consts::poly1305::{KEY_SIZE as POLY_KEY_SIZE, TAG_SIZE};
-use redoubt_aead_v2_core::{AeadDecrypt, AeadEncrypt};
+use redoubt_aead_core::consts::chacha::{KEY_SIZE, XNONCE_SIZE};
+use redoubt_aead_core::consts::poly1305::{KEY_SIZE as POLY_KEY_SIZE, TAG_SIZE};
+use redoubt_aead_core::{AeadDecrypt, AeadEncrypt};
 use redoubt_aead_xchachapoly1305::XChaCha20Poly1305;
 use redoubt_asm::Backend;
 use redoubt_chacha::xchacha20::XChaCha20;

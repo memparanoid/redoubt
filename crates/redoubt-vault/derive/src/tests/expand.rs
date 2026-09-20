@@ -21,11 +21,12 @@ fn pretty(ts: proc_macro2::TokenStream) -> String {
 
 #[test]
 fn test_find_root_with_candidates_not_found() {
-    // No candidates found -> compile_error
-    let ts_1 = find_root_with_candidates(&["a", "b"]);
+    // Names that cannot resolve, which is what this asks about: a real crate
+    // name here finds its root and the function answers with a path instead.
+    let ts_1 = find_root_with_candidates(&["not-a-dependency", "also-not-a-dependency"]);
     insta::assert_snapshot!(pretty(ts_1));
 
-    let ts_2 = find_root_with_candidates(&["a"]);
+    let ts_2 = find_root_with_candidates(&["not-a-dependency"]);
     insta::assert_snapshot!(pretty(ts_2));
 }
 
