@@ -33,5 +33,4 @@ redoubt-forensics.workspace = true
 redoubt-mem.workspace       = true
 
 [features]
-asm        = ["redoubt-hkdf/asm"]
 test-utils = []

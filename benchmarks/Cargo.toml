@@ -4,9 +4,6 @@ name              = "benchmarks"
 publish           = false
 version.workspace = true
 
-[features]
-asm = ["redoubt-hkdf/asm"]
-
 [dependencies]
 redoubt-aead = { path = "../crates/redoubt-aead" }
 

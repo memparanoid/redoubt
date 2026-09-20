@@ -14,7 +14,6 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [features]
-asm                = ["redoubt-rand/asm"]
 default            = []
 internal-forensics = []
 std                = []

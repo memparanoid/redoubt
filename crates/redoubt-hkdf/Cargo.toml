@@ -1,9 +1,9 @@
 [package]
 authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
 categories           = ["cryptography", "no-std"]
-description          = "HKDF-SHA256 implementation with secure memory handling"
+description          = "HKDF-SHA256, in Rust and by hand, with one seam between them"
 edition.workspace    = true
-keywords             = ["hkdf", "sha256", "kdf", "security"]
+keywords             = ["hkdf", "sha256", "crypto", "security"]
 license.workspace    = true
 name                 = "redoubt-hkdf"
 readme.workspace     = true
@@ -13,16 +13,16 @@ version.workspace    = true
 [lib]
 path = "src/lib.rs"
 
-[features]
-asm     = []
-default = []
+[build-dependencies]
+cc.workspace = true
 
 [dependencies]
-redoubt-hkdf-core.workspace = true
-redoubt-hkdf-rust.workspace = true
+redoubt-asm.workspace  = true
+redoubt-mem.workspace  = true
+redoubt-util.workspace = true
+redoubt-zero.workspace = true
+thiserror.workspace    = true
 
-[target.'cfg(all(target_arch = "x86_64", any(target_os = "linux", target_os = "macos")))'.dependencies]
-redoubt-hkdf-x86.workspace = true
-
-[target.'cfg(target_arch = "aarch64")'.dependencies]
-redoubt-hkdf-arm.workspace = true
+[dev-dependencies]
+proptest.workspace = true
+rstest.workspace   = true

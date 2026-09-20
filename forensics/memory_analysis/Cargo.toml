@@ -20,7 +20,7 @@ default            = []
 internal-forensics = ["redoubt/internal-forensics"]
 
 [dependencies]
-redoubt = { workspace = true, features = ["asm"] }
+redoubt.workspace = true
 
 # The dumper reads `/proc/self/{maps,mem}` through raw syscalls, so it only
 # exists on Linux. Keeping `libc` off every other target makes that explicit and

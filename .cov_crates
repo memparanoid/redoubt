@@ -12,17 +12,11 @@ redoubt-rand
 redoubt-util
 
 # Crypto
-redoubt-hkdf-core
-redoubt-hkdf-arm
-redoubt-hkdf-x86
-redoubt-hkdf-rust
-redoubt-hkdf
-
 redoubt-asm
 redoubt-aead-core
 redoubt-chacha
 redoubt-poly1305
-redoubt-hkdf-v2
+redoubt-hkdf
 redoubt-aead-xchachapoly1305
 redoubt-aead-aegis128l
 redoubt-aead

@@ -1037,43 +1037,6 @@ dependencies = [
 name = "redoubt-hkdf"
 version = "0.1.0-rc.8"
 dependencies = [
- "redoubt-hkdf-arm",
- "redoubt-hkdf-core",
- "redoubt-hkdf-rust",
- "redoubt-hkdf-x86",
-]
-
-[[package]]
-name = "redoubt-hkdf-arm"
-version = "0.1.0-rc.8"
-dependencies = [
- "cc",
- "redoubt-hkdf-core",
- "redoubt-hkdf-wycheproof",
-]
-
-[[package]]
-name = "redoubt-hkdf-core"
-version = "0.1.0-rc.8"
-dependencies = [
- "thiserror",
-]
-
-[[package]]
-name = "redoubt-hkdf-rust"
-version = "0.1.0-rc.8"
-dependencies = [
- "redoubt-hkdf-core",
- "redoubt-hkdf-wycheproof",
- "redoubt-mem",
- "redoubt-util",
- "redoubt-zero",
-]
-
-[[package]]
-name = "redoubt-hkdf-v2"
-version = "0.1.0-rc.8"
-dependencies = [
  "cc",
  "proptest",
  "redoubt-asm",
@@ -1082,23 +1045,6 @@ dependencies = [
  "redoubt-zero",
  "rstest",
  "thiserror",
-]
-
-[[package]]
-name = "redoubt-hkdf-wycheproof"
-version = "0.1.0-rc.8"
-dependencies = [
- "redoubt-hkdf-core",
- "redoubt-util",
-]
-
-[[package]]
-name = "redoubt-hkdf-x86"
-version = "0.1.0-rc.8"
-dependencies = [
- "cc",
- "redoubt-hkdf-core",
- "redoubt-hkdf-wycheproof",
 ]
 
 [[package]]

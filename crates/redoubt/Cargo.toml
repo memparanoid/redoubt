@@ -26,9 +26,8 @@ redoubt-aead.workspace  = true
 redoubt-codec.workspace = true
 
 [features]
-asm = ["redoubt-vault/asm"]
 default = []
-full = ["std", "asm"]
+full = ["std"]
 internal-forensics = ["redoubt-vault/internal-forensics"]
 std = ["redoubt-vault/std"]
 test-utils = [
