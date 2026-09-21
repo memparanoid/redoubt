@@ -16,7 +16,7 @@ fn test_decode_buffer_reports_out_of_bounds_error() {
 }
 
 #[test]
-fn test_decode_buffer_read_usize() {
+fn test_decode_buffer_read_usize() -> Result<(), Box<dyn std::error::Error>> {
     let values = [1usize, 2, 3, 4, 5, 6];
     let mut bytes = Vec::new();
 
@@ -30,9 +30,11 @@ fn test_decode_buffer_read_usize() {
     // Read back and verify
     for &expected in &values {
         let mut dst = 0;
-        slice.read_usize(&mut dst).expect("Failed to read_usize()");
+        slice.read_usize(&mut dst)?;
         assert_eq!(dst, expected);
     }
+
+    Ok(())
 }
 
 #[test]
