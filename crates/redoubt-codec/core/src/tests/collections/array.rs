@@ -344,7 +344,7 @@ fn perm_test_array_decode_from_propagates_error_at_any_position()
 }
 
 #[test]
-fn perm_test_array_encode_decode_roundtrip() {
+fn perm_test_array_encode_decode_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let arr = [
         [RedoubtCodecTestBreaker::new(
@@ -373,9 +373,7 @@ fn perm_test_array_encode_decode_roundtrip() {
         )],
     ];
 
-    let bytes_required = arr
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = arr.encode_bytes_required()?;
 
     index_permutations(arr.len(), |idx_perm| {
         let mut arr_clone = arr;
@@ -407,6 +405,8 @@ fn perm_test_array_encode_decode_roundtrip() {
         assert!(buf.is_zeroized());
         assert!(arr_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 // PreAlloc
