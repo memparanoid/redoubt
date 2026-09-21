@@ -45,7 +45,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cipherbox_wrapper_open_mut() {
+    fn test_cipherbox_wrapper_open_mut() -> Result<(), Box<dyn std::error::Error>> {
         let mut cb = WalletSecretsCipherBox::new();
 
         cb.open_mut(|ws| {
@@ -55,8 +55,7 @@ mod tests {
             ws.pin_hash = [0xEF; 32];
 
             Ok(())
-        })
-        .expect("Failed to open_mut(..)");
+        })?;
 
         cb.open(|ws| {
             assert_eq!(ws.master_seed, [0x42; 32]);
@@ -65,8 +64,9 @@ mod tests {
             assert_eq!(ws.pin_hash, [0xEF; 32]);
 
             Ok(())
-        })
-        .expect("Failed to open(..)");
+        })?;
+
+        Ok(())
     }
 
     #[test]
