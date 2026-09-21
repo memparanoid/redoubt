@@ -623,8 +623,8 @@ mod page_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_new_write_zeroize_verify() {
-        let mut page = Page::new().expect("Failed to new()");
+    fn test_new_write_zeroize_verify() -> Result<(), Box<dyn std::error::Error>> {
+        let mut page = Page::new()?;
 
         assert!(unsafe { page.as_slice() }.is_zeroized());
 
@@ -633,5 +633,7 @@ mod page_tests {
 
         unsafe { page.zeroize() };
         assert!(unsafe { page.as_slice() }.is_zeroized());
+
+        Ok(())
     }
 }
