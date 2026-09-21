@@ -264,16 +264,18 @@ mod page_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_protect_unprotect_roundtrip_preserves_data() {
-        let mut page = Page::new().expect("Failed to new()");
+    fn test_protect_unprotect_roundtrip_preserves_data() -> Result<(), Box<dyn std::error::Error>> {
+        let mut page = Page::new()?;
 
         unsafe { page.as_mut_slice()[0] = 0xFF };
 
-        page.protect().expect("Failed to protect()");
-        page.unprotect().expect("Failed to unprotect()");
+        page.protect()?;
+        page.unprotect()?;
 
         let value = unsafe { page.as_slice()[0] };
         assert_eq!(value, 0xFF);
+
+        Ok(())
     }
 
     #[test]
