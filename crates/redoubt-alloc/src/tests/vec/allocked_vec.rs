@@ -316,7 +316,7 @@ fn test_allocked_vec_truncate_zeroizes_removed_elements() -> Result<(), Box<dyn 
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_drain_from_success() {
+fn test_allocked_vec_drain_from_success() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
@@ -326,7 +326,7 @@ fn test_allocked_vec_drain_from_success() {
 
     assert_eq!(vec.len(), 0);
 
-    vec.drain_from(&mut data).expect("Failed to drain_from");
+    vec.drain_from(&mut data)?;
 
     assert_eq!(vec.len(), 5);
     assert_eq!(vec.as_slice(), &[1, 2, 3, 4, 5]);
@@ -336,6 +336,8 @@ fn test_allocked_vec_drain_from_success() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
