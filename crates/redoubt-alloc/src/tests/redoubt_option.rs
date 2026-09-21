@@ -74,7 +74,7 @@ fn test_redoubt_option_replace() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_redoubt_option_replace_zeroizes_old_value() {
+fn test_redoubt_option_replace_zeroizes_old_value() -> Result<(), Box<dyn std::error::Error>> {
     let mut opt = RedoubtOption::<u64>::default();
 
     let mut value1 = 42u64;
@@ -83,9 +83,11 @@ fn test_redoubt_option_replace_zeroizes_old_value() {
     let mut value2 = 99u64;
     opt.replace(&mut value2);
 
-    assert_eq!(*opt.as_ref().expect("Failed to get as_ref"), 99);
+    assert_eq!(*opt.as_ref()?, 99);
     assert!(value1.is_zeroized());
     assert!(value2.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
