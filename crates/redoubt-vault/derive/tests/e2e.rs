@@ -29,7 +29,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cipherbox_wrapper_open() {
+    fn test_cipherbox_wrapper_open() -> Result<(), Box<dyn std::error::Error>> {
         let mut cb = WalletSecretsCipherBox::new();
 
         cb.open(|ws| {
@@ -39,8 +39,9 @@ mod tests {
             assert!(ws.pin_hash.is_zeroized());
 
             Ok(())
-        })
-        .expect("Failed to open(..)");
+        })?;
+
+        Ok(())
     }
 
     #[test]
