@@ -83,15 +83,13 @@ fn test_is_zeroized() {
 // BytesRequired
 
 #[test]
-fn test_bytes_required_return_max() {
+fn test_bytes_required_return_max() -> Result<(), Box<dyn std::error::Error>> {
     let tb = RedoubtCodecTestBreaker::with_behaviour(
         RedoubtCodecTestBreakerBehaviour::BytesRequiredReturnMax,
     );
-    assert_eq!(
-        tb.encode_bytes_required()
-            .expect("Failed to get encode_bytes_required()"),
-        usize::MAX
-    );
+    assert_eq!(tb.encode_bytes_required()?, usize::MAX);
+
+    Ok(())
 }
 
 #[test]
