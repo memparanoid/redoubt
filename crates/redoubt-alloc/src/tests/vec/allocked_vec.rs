@@ -364,23 +364,25 @@ fn test_allocked_vec_drain_from_exceeds_capacity() {
 }
 
 #[test]
-fn test_allocked_vec_drain_from_partial_fill() {
+fn test_allocked_vec_drain_from_partial_fill() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(10);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     let mut data = vec![3u8, 4, 5];
-    vec.drain_from(&mut data).expect("Failed to drain_from");
+    vec.drain_from(&mut data)?;
 
     assert_eq!(vec.len(), 5);
     assert_eq!(vec.as_slice(), &[1, 2, 3, 4, 5]);
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
