@@ -50,14 +50,15 @@ fn test_create_buffer_returns_correct_length() -> Result<(), Box<dyn std::error:
 }
 
 #[test]
-fn test_create_initialized_buffer_returns_correct_length() {
+fn test_create_initialized_buffer_returns_correct_length() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut buffer = create_initialized_buffer();
-    buffer
-        .open(&mut |bytes| {
-            assert_eq!(bytes.len(), MASTER_KEY_LEN);
-            Ok(())
-        })
-        .expect("Failed to open buffer");
+    buffer.open(&mut |bytes| {
+        assert_eq!(bytes.len(), MASTER_KEY_LEN);
+        Ok(())
+    })?;
+
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
