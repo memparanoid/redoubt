@@ -474,13 +474,15 @@ mod page_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_write_read_full_page() {
-        let mut page = Page::new().expect("Failed to new()");
+    fn test_write_read_full_page() -> Result<(), Box<dyn std::error::Error>> {
+        let mut page = Page::new()?;
 
         unsafe { page.as_mut_slice().fill(0x55) };
         let slice = unsafe { page.as_slice() };
 
         assert!(slice.iter().all(|&b| b == 0x55));
+
+        Ok(())
     }
 
     // =============================================================================
