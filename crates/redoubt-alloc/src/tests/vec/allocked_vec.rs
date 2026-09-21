@@ -202,18 +202,20 @@ fn test_allocked_vec_push_carries_an_array_whole() -> Result<(), Box<dyn std::er
 /// copy of a value like this would leave two of them naming one buffer, and the
 /// second free of it is what this test would not survive.
 #[test]
-fn test_allocked_vec_push_carries_a_vec_by_its_buffer() {
+fn test_allocked_vec_push_carries_a_vec_by_its_buffer() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(1);
     let mut one = alloc::vec![1u8, 2, 3];
     let buffer = one.as_ptr();
 
-    vec.push(&mut one).expect("Failed to push");
+    vec.push(&mut one)?;
 
     assert_eq!(vec.as_slice(), &[alloc::vec![1u8, 2, 3]]);
     assert_eq!(vec.as_slice()[0].as_ptr(), buffer);
 
     // Assert zeroization!
     assert!(one.is_zeroized());
+
+    Ok(())
 }
 
 /// Filling to capacity leaves the allocation where it was.
