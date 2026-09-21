@@ -989,18 +989,20 @@ fn test_allocked_vec_partial_eq_different_data() -> Result<(), Box<dyn std::erro
 }
 
 #[test]
-fn test_allocked_vec_partial_eq_different_lengths() {
+fn test_allocked_vec_partial_eq_different_lengths() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec1 = AllockedVec::with_capacity(5);
-    vec1.push(&mut 1u8).expect("Failed to push");
-    vec1.push(&mut 2u8).expect("Failed to push");
+    vec1.push(&mut 1u8)?;
+    vec1.push(&mut 2u8)?;
 
     let mut vec2 = AllockedVec::with_capacity(5);
-    vec2.push(&mut 1u8).expect("Failed to push");
-    vec2.push(&mut 2u8).expect("Failed to push");
-    vec2.push(&mut 3u8).expect("Failed to push");
+    vec2.push(&mut 1u8)?;
+    vec2.push(&mut 2u8)?;
+    vec2.push(&mut 3u8)?;
 
     assert_ne!(vec1.as_slice(), vec2.as_slice());
     assert!(vec1 != vec2);
+
+    Ok(())
 }
 
 #[test]
