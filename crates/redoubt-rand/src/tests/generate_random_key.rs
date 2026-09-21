@@ -13,41 +13,43 @@ fn test_generate_random_key_supports_empty_key() {
 }
 
 #[test]
-fn test_generate_random_key_supports_common_key_sizes() {
+fn test_generate_random_key_supports_common_key_sizes() -> Result<(), Box<dyn std::error::Error>> {
     // Verify function succeeds for typical cryptographic key sizes
     let mut key16 = [0u8; 16];
-    generate_random_key(b"test.aes128", &mut key16).expect("16-byte key failed");
+    generate_random_key(b"test.aes128", &mut key16)?;
 
     let mut key32 = [0u8; 32];
-    generate_random_key(b"test.xchacha20", &mut key32).expect("32-byte key failed");
+    generate_random_key(b"test.xchacha20", &mut key32)?;
 
     let mut key64 = [0u8; 64];
-    generate_random_key(b"test.hmac512", &mut key64).expect("64-byte key failed");
+    generate_random_key(b"test.hmac512", &mut key64)?;
 
     // Edge cases
     let mut key1 = [0u8; 1];
-    generate_random_key(b"test.tiny", &mut key1).expect("1-byte key failed");
+    generate_random_key(b"test.tiny", &mut key1)?;
 
     let mut key128 = [0u8; 128];
-    generate_random_key(b"test.large", &mut key128).expect("128-byte key failed");
+    generate_random_key(b"test.large", &mut key128)?;
+
+    Ok(())
 }
 
 #[test]
-fn test_generate_random_key_info_provides_domain_separation() {
+fn test_generate_random_key_info_provides_domain_separation()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut master_key = [0u8; 32];
-    generate_random_key(b"app.master_key.v1", &mut master_key)
-        .expect("Failed to generate master key");
+    generate_random_key(b"app.master_key.v1", &mut master_key)?;
 
     let mut encryption_key = [0u8; 32];
-    generate_random_key(b"app.encryption_key.v1", &mut encryption_key)
-        .expect("Failed to generate encryption key");
+    generate_random_key(b"app.encryption_key.v1", &mut encryption_key)?;
 
     let mut signing_key = [0u8; 32];
-    generate_random_key(b"app.signing_key.v1", &mut signing_key)
-        .expect("Failed to generate signing key");
+    generate_random_key(b"app.signing_key.v1", &mut signing_key)?;
 
     // All keys must be different due to info parameter
     assert_ne!(master_key, encryption_key);
     assert_ne!(master_key, signing_key);
     assert_ne!(encryption_key, signing_key);
+
+    Ok(())
 }

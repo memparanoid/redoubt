@@ -126,18 +126,15 @@ fn test_allocked_vec_decode_from_propagates_process_header_err() {
 }
 
 #[test]
-fn test_allocked_vec_decode_propagates_decode_err() {
+fn test_allocked_vec_decode_propagates_decode_err() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = make_allocked_vec(&[
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
     ]);
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    vec.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    vec.encode_into(&mut buf)?;
 
     let mut recovered = make_allocked_vec(&[
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
@@ -155,24 +152,23 @@ fn test_allocked_vec_decode_propagates_decode_err() {
     assert!(decode_buf.is_zeroized());
     assert!(vec.is_zeroized());
     assert!(recovered.is_zeroized());
+
+    Ok(())
 }
 
 // Roundtrip
 
 #[test]
-fn test_allocked_vec_encode_decode_roundtrip() {
+fn test_allocked_vec_encode_decode_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let mut vec = make_allocked_vec(&[
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 7),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 37),
     ]);
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    vec.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    vec.encode_into(&mut buf)?;
 
     // Decode
     {
@@ -200,47 +196,42 @@ fn test_allocked_vec_encode_decode_roundtrip() {
     // Assert zeroization!
     assert!(buf.is_zeroized());
     assert!(vec.is_zeroized());
+
+    Ok(())
 }
 
 // Perm tests
 
 #[test]
-fn perm_test_allocked_vec_encode_into_propagates_error_at_any_position() {
+fn perm_test_allocked_vec_encode_into_propagates_error_at_any_position()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(6);
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         1,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         2,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         3,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         4,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         5,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::ForceEncodeError,
         6,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
 
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
 
     index_permutations(vec.len(), |idx_perm| {
         let mut vec_clone = vec.clone();
@@ -256,45 +247,40 @@ fn perm_test_allocked_vec_encode_into_propagates_error_at_any_position() {
         assert!(buf.is_zeroized());
         assert!(vec_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 #[test]
-fn perm_test_allocked_vec_decode_from_propagates_error_at_any_position() {
+fn perm_test_allocked_vec_decode_from_propagates_error_at_any_position()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(6);
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         1,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         2,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         3,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         4,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         5,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         6,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
 
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
 
     let recovered_vec = {
         let mut recovered_vec = vec.clone();
@@ -334,45 +320,39 @@ fn perm_test_allocked_vec_decode_from_propagates_error_at_any_position() {
         assert!(buf.is_zeroized());
         assert!(vec_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 #[test]
-fn perm_test_allocked_vec_encode_decode_roundtrip() {
+fn perm_test_allocked_vec_encode_decode_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec: AllockedVec<AllockedVec<RedoubtCodecTestBreaker>> = AllockedVec::with_capacity(6);
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         1,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         2,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         3,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         4,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         5,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
     vec.push(&mut make_allocked_vec(&[RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         6,
-    )]))
-    .expect("Failed to push(..)");
+    )]))?;
 
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
 
     index_permutations(vec.len(), |idx_perm| {
         let mut vec_clone = vec.clone();
@@ -396,6 +376,8 @@ fn perm_test_allocked_vec_encode_decode_roundtrip() {
         assert!(decode_buf.is_zeroized());
         assert!(vec_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 // PreAlloc

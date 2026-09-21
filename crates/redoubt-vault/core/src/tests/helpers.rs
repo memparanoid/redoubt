@@ -251,7 +251,8 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encode_failure() {
 /// Test zeroization when generate_nonce fails at each position.
 /// Flow: all encodes succeed → buffers have plaintext → nonce gen fails → must zeroize.
 #[test]
-fn test_encrypt_into_buffers_performs_zeroization_on_generate_nonce_failure() {
+fn test_encrypt_into_buffers_performs_zeroization_on_generate_nonce_failure()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut test_breakers =
         [RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100); NUM_FIELDS];
     let aead_key = zero_key();
@@ -261,7 +262,7 @@ fn test_encrypt_into_buffers_performs_zeroization_on_generate_nonce_failure() {
         let fields = test_breakers
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
-        let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
+        let sizes = get_sizes(&fields)?;
         let mut buffers: [RedoubtCodecBuffer; NUM_FIELDS] =
             sizes.map(RedoubtCodecBuffer::with_capacity);
         let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
@@ -302,12 +303,15 @@ fn test_encrypt_into_buffers_performs_zeroization_on_generate_nonce_failure() {
             i
         );
     }
+
+    Ok(())
 }
 
 /// Test zeroization when encrypt fails at each position.
 /// Flow: all encodes succeed → buffers have plaintext → encrypt fails → must zeroize.
 #[test]
-fn test_encrypt_into_buffers_performs_zeroization_on_encrypt_failure() {
+fn test_encrypt_into_buffers_performs_zeroization_on_encrypt_failure()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut test_breakers =
         [RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100); NUM_FIELDS];
     let aead_key = zero_key();
@@ -317,7 +321,7 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encrypt_failure() {
         let fields = test_breakers
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
-        let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
+        let sizes = get_sizes(&fields)?;
         let mut buffers: [RedoubtCodecBuffer; NUM_FIELDS] =
             sizes.map(RedoubtCodecBuffer::with_capacity);
         let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
@@ -358,10 +362,12 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encrypt_failure() {
             i
         );
     }
+
+    Ok(())
 }
 
 #[test]
-fn test_encrypt_into_buffers_ok() {
+fn test_encrypt_into_buffers_ok() -> Result<(), Box<dyn std::error::Error>> {
     let mut test_breakers =
         [RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100); NUM_FIELDS];
     let mut aead = Aead::default();
@@ -370,7 +376,7 @@ fn test_encrypt_into_buffers_ok() {
     let fields = test_breakers
         .each_mut()
         .map(|tb| to_encryptable_mut_dyn(tb));
-    let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
+    let sizes = get_sizes(&fields)?;
     let mut buffers: [RedoubtCodecBuffer; NUM_FIELDS] =
         sizes.map(RedoubtCodecBuffer::with_capacity);
     let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
@@ -395,6 +401,8 @@ fn test_encrypt_into_buffers_ok() {
 
     // Assert zeroization!
     assert!(buffers.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
@@ -404,7 +412,7 @@ fn test_encrypt_into_buffers_ok() {
 /// Test zeroization when AEAD decrypt fails at each position.
 /// Flow: api_decrypt fails → ciphertexts[0..i] may have plaintext → must zeroize all.
 #[test]
-fn test_decrypt_from_zeroizes_on_decrypt_failure() {
+fn test_decrypt_from_zeroizes_on_decrypt_failure() -> Result<(), Box<dyn std::error::Error>> {
     let mut test_breakers =
         [RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100); NUM_FIELDS];
     let mut aead = Aead::default();
@@ -417,8 +425,7 @@ fn test_decrypt_from_zeroizes_on_decrypt_failure() {
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
 
-        encrypt_into(fields, &mut aead, &aead_key, &mut nonces, &mut tags)
-            .expect("Failed to encrypt_into()")
+        encrypt_into(fields, &mut aead, &aead_key, &mut nonces, &mut tags)?
     };
 
     // Sanity check: decrypt works with no errors.
@@ -473,12 +480,14 @@ fn test_decrypt_from_zeroizes_on_decrypt_failure() {
             "postcondition failed: ciphertexts must be zeroized after decrypt failure"
         );
     }
+
+    Ok(())
 }
 
 /// Test zeroization when decode fails - exhaustive permutation test.
 /// Flow: api_decrypt succeeds → ciphertexts become plaintext → decode_from fails → must zeroize all.
 #[test]
-fn test_decrypt_from_zeroizes_on_decode_failure() {
+fn test_decrypt_from_zeroizes_on_decode_failure() -> Result<(), Box<dyn std::error::Error>> {
     let mut test_breakers: [RedoubtCodecTestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
         if i == 0 {
             RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::ForceDecodeError, i << 2)
@@ -496,8 +505,7 @@ fn test_decrypt_from_zeroizes_on_decode_failure() {
         let fields = test_breakers
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
-        encrypt_into(fields, &mut aead, &aead_key, &mut nonces, &mut tags)
-            .expect("Failed to encrypt_into()")
+        encrypt_into(fields, &mut aead, &aead_key, &mut nonces, &mut tags)?
     };
 
     // Sanity check: decrypt works with no errors.
@@ -563,4 +571,6 @@ fn test_decrypt_from_zeroizes_on_decode_failure() {
             perm
         );
     });
+
+    Ok(())
 }

@@ -60,19 +60,21 @@ fn test_redoubt_option_as_mut_empty() {
 }
 
 #[test]
-fn test_redoubt_option_replace() {
+fn test_redoubt_option_replace() -> Result<(), Box<dyn std::error::Error>> {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;
 
     opt.replace(&mut value);
 
     assert!(opt.is_some());
-    assert_eq!(*opt.as_ref().expect("Failed to get as_ref"), 42);
+    assert_eq!(*opt.as_ref()?, 42);
     assert!(value.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_redoubt_option_replace_zeroizes_old_value() {
+fn test_redoubt_option_replace_zeroizes_old_value() -> Result<(), Box<dyn std::error::Error>> {
     let mut opt = RedoubtOption::<u64>::default();
 
     let mut value1 = 42u64;
@@ -81,13 +83,15 @@ fn test_redoubt_option_replace_zeroizes_old_value() {
     let mut value2 = 99u64;
     opt.replace(&mut value2);
 
-    assert_eq!(*opt.as_ref().expect("Failed to get as_ref"), 99);
+    assert_eq!(*opt.as_ref()?, 99);
     assert!(value1.is_zeroized());
     assert!(value2.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_redoubt_option_take_some() {
+fn test_redoubt_option_take_some() -> Result<(), Box<dyn std::error::Error>> {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;
     opt.replace(&mut value);
@@ -95,8 +99,10 @@ fn test_redoubt_option_take_some() {
     let taken = opt.take();
 
     assert!(taken.is_ok());
-    assert_eq!(taken.expect("Failed to take"), 42);
+    assert_eq!(taken?, 42);
     assert!(opt.is_none());
+
+    Ok(())
 }
 
 #[test]
@@ -110,15 +116,17 @@ fn test_redoubt_option_take_none() {
 }
 
 #[test]
-fn test_redoubt_option_as_mut() {
+fn test_redoubt_option_as_mut() -> Result<(), Box<dyn std::error::Error>> {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;
     opt.replace(&mut value);
 
-    let val_mut = opt.as_mut().expect("Failed to get as_mut");
+    let val_mut = opt.as_mut()?;
     *val_mut = 99;
 
-    assert_eq!(*opt.as_ref().expect("Failed to get as_ref"), 99);
+    assert_eq!(*opt.as_ref()?, 99);
+
+    Ok(())
 }
 
 #[test]
@@ -135,12 +143,11 @@ fn test_redoubt_option_as_option() {
 
     let inner = opt.as_option();
 
-    assert!(inner.is_some());
-    assert_eq!(*inner.as_ref().expect("Failed to get inner"), 42);
+    assert_eq!(*inner, Some(42));
 }
 
 #[test]
-fn test_redoubt_option_as_mut_option() {
+fn test_redoubt_option_as_mut_option() -> Result<(), Box<dyn std::error::Error>> {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;
     opt.replace(&mut value);
@@ -153,5 +160,7 @@ fn test_redoubt_option_as_mut_option() {
         *v = 99;
     }
 
-    assert_eq!(*opt.as_ref().expect("Failed to get as_ref"), 99);
+    assert_eq!(*opt.as_ref()?, 99);
+
+    Ok(())
 }

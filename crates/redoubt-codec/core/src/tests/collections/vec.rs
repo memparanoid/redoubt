@@ -119,18 +119,15 @@ fn test_vec_decode_from_propagates_process_header_err() {
 }
 
 #[test]
-fn test_vec_decode_propagates_decode_err() {
+fn test_vec_decode_propagates_decode_err() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = vec![
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
     ];
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    vec.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    vec.encode_into(&mut buf)?;
 
     let mut recovered = vec![
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
@@ -148,24 +145,23 @@ fn test_vec_decode_propagates_decode_err() {
     assert!(decode_buf.is_zeroized());
     assert!(vec.is_zeroized());
     assert!(recovered.is_zeroized());
+
+    Ok(())
 }
 
 // Roundtrip
 
 #[test]
-fn test_vec_encode_decode_roundtrip() {
+fn test_vec_encode_decode_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let mut vec = vec![
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 7),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 37),
     ];
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    vec.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    vec.encode_into(&mut buf)?;
 
     // Decode
     {
@@ -193,12 +189,15 @@ fn test_vec_encode_decode_roundtrip() {
     // Assert zeroization!
     assert!(buf.is_zeroized());
     assert!(vec.is_zeroized());
+
+    Ok(())
 }
 
 // Perm tests
 
 #[test]
-fn perm_test_vec_encode_into_propagates_error_at_any_position() {
+fn perm_test_vec_encode_into_propagates_error_at_any_position()
+-> Result<(), Box<dyn std::error::Error>> {
     let vec = vec![
         vec![RedoubtCodecTestBreaker::new(
             RedoubtCodecTestBreakerBehaviour::None,
@@ -225,9 +224,7 @@ fn perm_test_vec_encode_into_propagates_error_at_any_position() {
             6,
         )],
     ];
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
 
     index_permutations(vec.len(), |idx_perm| {
         let mut vec_clone = vec.clone();
@@ -243,10 +240,13 @@ fn perm_test_vec_encode_into_propagates_error_at_any_position() {
         assert!(buf.is_zeroized());
         assert!(vec_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 #[test]
-fn perm_test_vec_decode_from_propagates_error_at_any_position() {
+fn perm_test_vec_decode_from_propagates_error_at_any_position()
+-> Result<(), Box<dyn std::error::Error>> {
     let vec = vec![
         vec![RedoubtCodecTestBreaker::new(
             RedoubtCodecTestBreakerBehaviour::None,
@@ -274,9 +274,7 @@ fn perm_test_vec_decode_from_propagates_error_at_any_position() {
         )],
     ];
 
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
 
     let mut recovered_vec = vec.clone();
     recovered_vec[0][0].set_behaviour(RedoubtCodecTestBreakerBehaviour::ForceDecodeError);
@@ -311,10 +309,12 @@ fn perm_test_vec_decode_from_propagates_error_at_any_position() {
         assert!(buf.is_zeroized());
         assert!(vec_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 #[test]
-fn perm_test_encode_decode_roundtrip() {
+fn perm_test_encode_decode_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let vec = vec![
         vec![RedoubtCodecTestBreaker::new(
@@ -343,9 +343,7 @@ fn perm_test_encode_decode_roundtrip() {
         )],
     ];
 
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
 
     index_permutations(vec.len(), |idx_perm| {
         let mut vec_clone = vec.clone();
@@ -375,6 +373,8 @@ fn perm_test_encode_decode_roundtrip() {
         assert!(buf.is_zeroized());
         assert!(vec_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 // Integration
@@ -499,7 +499,7 @@ fn test_vec_prealloc_grows() {
 
 // Stress tests
 #[test]
-fn stress_test_vec_clear_push_encode_decode_cycles() {
+fn stress_test_vec_clear_push_encode_decode_cycles() -> Result<(), Box<dyn std::error::Error>> {
     // The loop runs SIZE+1 cycles and each one builds a payload of length i,
     // so the work is quadratic: ~500k formatted characters plus an encode and a
     // decode of every intermediate size. Compiled that is a second; interpreted
@@ -524,17 +524,13 @@ fn stress_test_vec_clear_push_encode_decode_cycles() {
         vec.clear();
         vec.extend_from_slice(&original[0..i]);
 
-        let bytes_required = vec
-            .encode_bytes_required()
-            .expect("Failed encode_bytes_required");
+        let bytes_required = vec.encode_bytes_required()?;
         let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
-        vec.encode_into(&mut buf).expect("Failed encode_into");
+        vec.encode_into(&mut buf)?;
 
         let mut recovered: Vec<RedoubtCodecTestBreaker> = Vec::new();
         let mut decode_buf = buf.export_as_vec();
-        recovered
-            .decode_from(&mut decode_buf.as_mut_slice())
-            .expect("Failed decode_from");
+        recovered.decode_from(&mut decode_buf.as_mut_slice())?;
 
         assert_eq!(recovered, &original[0..i], "Cycle failed at i={}", i);
 
@@ -542,4 +538,6 @@ fn stress_test_vec_clear_push_encode_decode_cycles() {
         assert!(decode_buf.is_zeroized());
         assert!(vec.is_zeroized());
     }
+
+    Ok(())
 }

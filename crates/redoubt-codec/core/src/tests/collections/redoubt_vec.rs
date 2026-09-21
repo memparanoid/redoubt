@@ -10,24 +10,19 @@ use crate::support::test_utils::{RedoubtCodecTestBreaker, RedoubtCodecTestBreake
 use crate::traits::{BytesRequired, Decode, Encode};
 
 #[test]
-fn test_redoubt_vec_codec_roundtrip() {
+fn test_redoubt_vec_codec_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = RedoubtVec::<u8>::new();
     vec.extend_from_mut_slice(&mut [1, 2, 3, 4, 5]);
 
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    vec.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    vec.encode_into(&mut buf)?;
 
     let mut decode_buf = buf.export_as_vec();
     let mut recovered = RedoubtVec::<u8>::default();
 
-    recovered
-        .decode_from(&mut decode_buf.as_mut_slice())
-        .expect("Failed to decode_from(..)");
+    recovered.decode_from(&mut decode_buf.as_mut_slice())?;
 
     assert_eq!(recovered.as_slice(), [1, 2, 3, 4, 5]);
 
@@ -35,12 +30,15 @@ fn test_redoubt_vec_codec_roundtrip() {
     assert!(buf.is_zeroized());
     assert!(decode_buf.is_zeroized());
     assert!(vec.is_zeroized());
+
+    Ok(())
 }
 
 // Stress Tests
 
 #[test]
-fn stress_test_redoubt_vec_clear_push_encode_decode_cycles() {
+fn stress_test_redoubt_vec_clear_push_encode_decode_cycles()
+-> Result<(), Box<dyn std::error::Error>> {
     // The loop runs SIZE+1 cycles and each one builds a payload of length i,
     // so the work is quadratic: ~500k formatted characters plus an encode and a
     // decode of every intermediate size. Compiled that is a second; interpreted
@@ -68,19 +66,13 @@ fn stress_test_redoubt_vec_clear_push_encode_decode_cycles() {
         let mut vec = original[0..i].to_vec();
         redoubt_vec.extend_from_mut_slice(&mut vec);
 
-        let bytes_required = redoubt_vec
-            .encode_bytes_required()
-            .expect("Failed encode_bytes_required");
+        let bytes_required = redoubt_vec.encode_bytes_required()?;
         let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
-        redoubt_vec
-            .encode_into(&mut buf)
-            .expect("Failed encode_into");
+        redoubt_vec.encode_into(&mut buf)?;
 
         let mut recovered = RedoubtVec::<RedoubtCodecTestBreaker>::new();
         let mut decode_buf = buf.export_as_vec();
-        recovered
-            .decode_from(&mut decode_buf.as_mut_slice())
-            .expect("Failed decode_from");
+        recovered.decode_from(&mut decode_buf.as_mut_slice())?;
 
         assert_eq!(
             recovered.as_slice(),
@@ -95,4 +87,6 @@ fn stress_test_redoubt_vec_clear_push_encode_decode_cycles() {
         assert!(vec.is_zeroized());
         assert!(redoubt_vec.is_zeroized());
     }
+
+    Ok(())
 }

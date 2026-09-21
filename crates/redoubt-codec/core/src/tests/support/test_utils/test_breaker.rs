@@ -83,27 +83,23 @@ fn test_is_zeroized() {
 // BytesRequired
 
 #[test]
-fn test_bytes_required_return_max() {
+fn test_bytes_required_return_max() -> Result<(), Box<dyn std::error::Error>> {
     let tb = RedoubtCodecTestBreaker::with_behaviour(
         RedoubtCodecTestBreakerBehaviour::BytesRequiredReturnMax,
     );
-    assert_eq!(
-        tb.encode_bytes_required()
-            .expect("Failed to get encode_bytes_required()"),
-        usize::MAX
-    );
+    assert_eq!(tb.encode_bytes_required()?, usize::MAX);
+
+    Ok(())
 }
 
 #[test]
-fn test_bytes_required_return_specific() {
+fn test_bytes_required_return_specific() -> Result<(), Box<dyn std::error::Error>> {
     let tb = RedoubtCodecTestBreaker::with_behaviour(
         RedoubtCodecTestBreakerBehaviour::BytesRequiredReturn(42),
     );
-    assert_eq!(
-        tb.encode_bytes_required()
-            .expect("Failed to get encode_bytes_required()"),
-        42
-    );
+    assert_eq!(tb.encode_bytes_required()?, 42);
+
+    Ok(())
 }
 
 #[test]
@@ -134,14 +130,12 @@ fn test_force_encode_error() {
 // Decode
 
 #[test]
-fn test_force_decode_error() {
+fn test_force_decode_error() -> Result<(), Box<dyn std::error::Error>> {
     let mut tb = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
-    let bytes_required = tb
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = tb.encode_bytes_required()?;
 
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
-    tb.encode_into(&mut buf).expect("Failed to encode_into(..)");
+    tb.encode_into(&mut buf)?;
 
     let mut decode_buf = buf.export_as_vec();
     let mut tb_decode =
@@ -154,28 +148,24 @@ fn test_force_decode_error() {
     // Assert zeroization!
     assert!(buf.is_zeroized());
     assert!(decode_buf.is_zeroized());
+
+    Ok(())
 }
 
 // Roundtrip (Encode + Decode)
 
 #[test]
-fn test_roundtrip() {
+fn test_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     let mut original = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 256);
     let original_usize = original.usize;
 
-    let bytes_required = original
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = original.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
-    original
-        .encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    original.encode_into(&mut buf)?;
 
     let mut decode_buf = buf.export_as_vec();
     let mut decoded = RedoubtCodecTestBreaker::default();
-    decoded
-        .decode_from(&mut decode_buf.as_mut_slice())
-        .expect("Failed to decode_from(..)");
+    decoded.decode_from(&mut decode_buf.as_mut_slice())?;
 
     assert_eq!(decoded.usize, original_usize);
 
@@ -183,6 +173,8 @@ fn test_roundtrip() {
     assert!(buf.is_zeroized());
     assert!(decode_buf.is_zeroized());
     assert!(original.is_zeroized());
+
+    Ok(())
 }
 
 // EncodeSlice

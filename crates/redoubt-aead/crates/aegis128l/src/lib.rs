@@ -26,7 +26,7 @@
 //!
 //! GPL-3.0-only
 
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 #![warn(missing_docs)]
 
 #[cfg(test)]

@@ -13,24 +13,28 @@ use crate::error::AllockedVecError;
 // ╚════════════════════════════════════════════════════════════════════════════╝
 
 #[test]
-fn test_allocked_vec_is_zeroizable() {
+fn test_allocked_vec_is_zeroizable() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
+    vec.push(&mut 1u8)?;
     assert!(!vec.is_zeroized());
 
     vec.fast_zeroize();
     assert!(vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_zeroizes_on_drop() {
+fn test_allocked_vec_zeroizes_on_drop() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
+    vec.push(&mut 1u8)?;
     assert!(!vec.is_zeroized());
 
     vec.assert_zeroize_on_drop();
+
+    Ok(())
 }
 
 // =============================================================================
@@ -66,14 +70,14 @@ fn test_allocked_vec_with_capacity_seals_allocked_vec() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_reserve_exact_seals_vector() {
+fn test_allocked_vec_reserve_exact_seals_vector() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec: AllockedVec<u8> = AllockedVec::default();
 
     // Vec is zeroized since `has_been_sealed` is false.
     assert!(vec.is_zeroized());
 
     // First reserve succeeds
-    vec.reserve_exact(5).expect("Failed to reserve_exact");
+    vec.reserve_exact(5)?;
     assert_eq!(vec.capacity(), 5);
 
     // Vec is not zeroized since `has_been_sealed` is true after reserve_exact.
@@ -84,17 +88,19 @@ fn test_allocked_vec_reserve_exact_seals_vector() {
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AllockedVecError::AlreadySealed)));
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_capacity_is_zeroed_on_creation() {
+fn test_allocked_vec_capacity_is_zeroed_on_creation() -> Result<(), Box<dyn std::error::Error>> {
     // Test that spare capacity is zeroed when using reserve_exact
     let mut vec = AllockedVec::<u8>::new();
 
     // Vec is zeroized since `has_been_sealed` is false.
     assert!(vec.is_zeroized());
 
-    vec.reserve_exact(100).expect("Failed to reserve");
+    vec.reserve_exact(100)?;
 
     // Vec is not zeroized since `has_been_sealed` is true after reserve_exact.
     assert!(!vec.is_zeroized());
@@ -106,6 +112,8 @@ fn test_allocked_vec_capacity_is_zeroed_on_creation() {
 
     // Vec is not zeroized since `has_been_sealed` is true (even though all elements are 0).
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
@@ -113,32 +121,34 @@ fn test_allocked_vec_capacity_is_zeroed_on_creation() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_push_within_capacity() {
+fn test_allocked_vec_push_within_capacity() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(3);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
-    vec.push(&mut 3u8).expect("Failed to vec.push(3)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
+    vec.push(&mut 3u8)?;
 
     assert_eq!(vec.len(), 3);
     assert_eq!(vec.as_slice(), &[1, 2, 3]);
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_push_exceeds_capacity() {
+fn test_allocked_vec_push_exceeds_capacity() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(2);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     // Exceeding capacity fails
     let result = vec.push(&mut 3u8);
@@ -151,32 +161,38 @@ fn test_allocked_vec_push_exceeds_capacity() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_push_empties_what_it_was_handed() {
+fn test_allocked_vec_push_empties_what_it_was_handed() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(1);
     let mut one = 7u8;
 
-    vec.push(&mut one).expect("Failed to push");
+    vec.push(&mut one)?;
 
     assert_eq!(vec.as_slice(), &[7]);
 
     // Assert zeroization!
     assert!(one.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_push_carries_an_array_whole() {
+fn test_allocked_vec_push_carries_an_array_whole() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(1);
     let mut one = [9u8; 32];
 
-    vec.push(&mut one).expect("Failed to push");
+    vec.push(&mut one)?;
 
     assert_eq!(vec.as_slice(), &[[9u8; 32]]);
 
     // Assert zeroization!
     assert!(one.is_zeroized());
+
+    Ok(())
 }
 
 /// A `T` that owns an allocation crosses by its pointer.
@@ -186,18 +202,20 @@ fn test_allocked_vec_push_carries_an_array_whole() {
 /// copy of a value like this would leave two of them naming one buffer, and the
 /// second free of it is what this test would not survive.
 #[test]
-fn test_allocked_vec_push_carries_a_vec_by_its_buffer() {
+fn test_allocked_vec_push_carries_a_vec_by_its_buffer() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(1);
     let mut one = alloc::vec![1u8, 2, 3];
     let buffer = one.as_ptr();
 
-    vec.push(&mut one).expect("Failed to push");
+    vec.push(&mut one)?;
 
     assert_eq!(vec.as_slice(), &[alloc::vec![1u8, 2, 3]]);
     assert_eq!(vec.as_slice()[0].as_ptr(), buffer);
 
     // Assert zeroization!
     assert!(one.is_zeroized());
+
+    Ok(())
 }
 
 /// Filling to capacity leaves the allocation where it was.
@@ -206,18 +224,20 @@ fn test_allocked_vec_push_carries_a_vec_by_its_buffer() {
 /// what it holds into a new block and free the old one without emptying it, and
 /// what was in the old one is the whole of what this type exists to protect.
 #[test]
-fn test_allocked_vec_push_does_not_reallocate() {
+fn test_allocked_vec_push_does_not_reallocate() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<[u8; 32]>::with_capacity(8);
 
     let capacity = vec.capacity();
     let buffer = vec.as_slice().as_ptr();
 
     for at in 0..8 {
-        vec.push(&mut [at as u8; 32]).expect("Failed to push");
+        vec.push(&mut [at as u8; 32])?;
     }
 
     assert_eq!(vec.capacity(), capacity);
     assert_eq!(vec.as_slice().as_ptr(), buffer);
+
+    Ok(())
 }
 
 // =============================================================================
@@ -231,14 +251,14 @@ fn test_allocked_vec_push_does_not_reallocate() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_as_slice_and_as_mut_slice() {
+fn test_allocked_vec_as_slice_and_as_mut_slice() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(3);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     assert_eq!(vec.as_slice(), &[1, 2]);
 
@@ -247,6 +267,8 @@ fn test_allocked_vec_as_slice_and_as_mut_slice() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
@@ -260,17 +282,18 @@ fn test_allocked_vec_as_slice_and_as_mut_slice() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_truncate_zeroizes_removed_elements() {
+fn test_allocked_vec_truncate_zeroizes_removed_elements() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut vec = AllockedVec::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 0u8).expect("Failed to push");
-    vec.push(&mut 0u8).expect("Failed to push");
-    vec.push(&mut 0u8).expect("Failed to push");
-    vec.push(&mut 1u8).expect("Failed to push");
-    vec.push(&mut 2u8).expect("Failed to push");
+    vec.push(&mut 0u8)?;
+    vec.push(&mut 0u8)?;
+    vec.push(&mut 0u8)?;
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     vec.__unsafe_expose_inner_for_tests(|inner| {
         assert!(!is_vec_fully_zeroized(inner));
@@ -284,6 +307,8 @@ fn test_allocked_vec_truncate_zeroizes_removed_elements() {
 
     // Vec is not zeroized since `has_been_sealed` is true (even though all elements are 0).
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
@@ -291,7 +316,7 @@ fn test_allocked_vec_truncate_zeroizes_removed_elements() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_drain_from_success() {
+fn test_allocked_vec_drain_from_success() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
@@ -301,7 +326,7 @@ fn test_allocked_vec_drain_from_success() {
 
     assert_eq!(vec.len(), 0);
 
-    vec.drain_from(&mut data).expect("Failed to drain_from");
+    vec.drain_from(&mut data)?;
 
     assert_eq!(vec.len(), 5);
     assert_eq!(vec.as_slice(), &[1, 2, 3, 4, 5]);
@@ -311,6 +336,8 @@ fn test_allocked_vec_drain_from_success() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
@@ -337,36 +364,40 @@ fn test_allocked_vec_drain_from_exceeds_capacity() {
 }
 
 #[test]
-fn test_allocked_vec_drain_from_partial_fill() {
+fn test_allocked_vec_drain_from_partial_fill() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(10);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     let mut data = vec![3u8, 4, 5];
-    vec.drain_from(&mut data).expect("Failed to drain_from");
+    vec.drain_from(&mut data)?;
 
     assert_eq!(vec.len(), 5);
     assert_eq!(vec.as_slice(), &[1, 2, 3, 4, 5]);
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_drain_from_carries_arrays_whole() {
+fn test_allocked_vec_drain_from_carries_arrays_whole() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(2);
     let mut data = [[9u8; 32], [8u8; 32]];
 
-    vec.drain_from(&mut data).expect("Failed to drain_from");
+    vec.drain_from(&mut data)?;
 
     assert_eq!(vec.as_slice(), &[[9u8; 32], [8u8; 32]]);
 
     // Assert zeroization!
     assert!(data.is_zeroized());
+
+    Ok(())
 }
 
 /// Elements that own their blocks cross by their pointers.
@@ -376,13 +407,14 @@ fn test_allocked_vec_drain_from_carries_arrays_whole() {
 /// purpose: a length that stayed behind is then visible as a length rather than
 /// as bytes that happen to agree.
 #[test]
-fn test_allocked_vec_drain_from_carries_vecs_by_their_buffers() {
+fn test_allocked_vec_drain_from_carries_vecs_by_their_buffers()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(2);
     let mut data = [alloc::vec![1u8, 2, 3], alloc::vec![7u8; 64]];
 
     let buffers = [data[0].as_ptr(), data[1].as_ptr()];
 
-    vec.drain_from(&mut data).expect("Failed to drain_from");
+    vec.drain_from(&mut data)?;
 
     assert_eq!(
         vec.as_slice(),
@@ -394,6 +426,8 @@ fn test_allocked_vec_drain_from_carries_vecs_by_their_buffers() {
 
     // Assert zeroization!
     assert!(data.is_zeroized());
+
+    Ok(())
 }
 
 /// Draining to capacity leaves the allocation where it was.
@@ -402,7 +436,7 @@ fn test_allocked_vec_drain_from_carries_vecs_by_their_buffers() {
 /// what it holds into a new block and free the old one without emptying it, and
 /// what was in the old one is the whole of what this type exists to protect.
 #[test]
-fn test_allocked_vec_drain_from_does_not_reallocate() {
+fn test_allocked_vec_drain_from_does_not_reallocate() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<[u8; 32]>::with_capacity(8);
 
     let capacity = vec.capacity();
@@ -410,10 +444,12 @@ fn test_allocked_vec_drain_from_does_not_reallocate() {
 
     let mut data = [[5u8; 32]; 8];
 
-    vec.drain_from(&mut data).expect("Failed to drain_from");
+    vec.drain_from(&mut data)?;
 
     assert_eq!(vec.capacity(), capacity);
     assert_eq!(vec.as_slice().as_ptr(), buffer);
+
+    Ok(())
 }
 
 // =============================================================================
@@ -421,14 +457,14 @@ fn test_allocked_vec_drain_from_does_not_reallocate() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_realloc_with_noop_when_sufficient() {
+fn test_allocked_vec_realloc_with_noop_when_sufficient() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     let mut hook_has_been_called = false;
 
@@ -452,17 +488,20 @@ fn test_allocked_vec_realloc_with_noop_when_sufficient() {
 
     // Vec is still not zeroized since `has_been_sealed` is true and no realloc happened.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_realloc_with_zeroizes_old_allocation() {
+fn test_allocked_vec_realloc_with_zeroizes_old_allocation() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut vec = AllockedVec::with_capacity(2);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     let result = vec.push(&mut 3u8);
 
@@ -483,25 +522,28 @@ fn test_allocked_vec_realloc_with_zeroizes_old_allocation() {
     // Vec is not zeroized since new vec has `has_been_sealed` true after realloc.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 3u8).expect("Failed to vec.push(3)");
-    vec.push(&mut 4u8).expect("Failed to vec.push(4)");
-    vec.push(&mut 5u8).expect("Failed to vec.push(5)");
+    vec.push(&mut 3u8)?;
+    vec.push(&mut 4u8)?;
+    vec.push(&mut 5u8)?;
 
     assert_eq!(vec.as_slice(), [1u8, 2, 3, 4, 5]);
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_realloc_with_capacity_noop_when_sufficient() {
+fn test_allocked_vec_realloc_with_capacity_noop_when_sufficient()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     // Realloc with same capacity - should be no-op
     vec.realloc_with_capacity(5);
@@ -520,20 +562,23 @@ fn test_allocked_vec_realloc_with_capacity_noop_when_sufficient() {
 
     // Vec is still not zeroized since `has_been_sealed` is true and no realloc happened.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_realloc_with_capacity_preserves_len() {
+fn test_allocked_vec_realloc_with_capacity_preserves_len() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut vec = AllockedVec::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
-    vec.push(&mut 3u8).expect("Failed to vec.push(3)");
-    vec.push(&mut 4u8).expect("Failed to vec.push(4)");
-    vec.push(&mut 5u8).expect("Failed to vec.push(5)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
+    vec.push(&mut 3u8)?;
+    vec.push(&mut 4u8)?;
+    vec.push(&mut 5u8)?;
 
     vec.realloc_with_capacity(10);
 
@@ -542,10 +587,12 @@ fn test_allocked_vec_realloc_with_capacity_preserves_len() {
 
     // Vec is not zeroized since new vec has `has_been_sealed` true after realloc.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_realloc_with_capacity_ok() {
+fn test_allocked_vec_realloc_with_capacity_ok() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(0);
 
     // Vec is not zeroized since `has_been_sealed` is true (even with capacity 0).
@@ -556,16 +603,18 @@ fn test_allocked_vec_realloc_with_capacity_ok() {
     // Vec is not zeroized since new vec has `has_been_sealed` true after realloc.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
-    vec.push(&mut 3u8).expect("Failed to vec.push(3)");
-    vec.push(&mut 4u8).expect("Failed to vec.push(4)");
-    vec.push(&mut 5u8).expect("Failed to vec.push(5)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
+    vec.push(&mut 3u8)?;
+    vec.push(&mut 4u8)?;
+    vec.push(&mut 5u8)?;
 
     assert_eq!(vec.as_slice(), [1, 2, 3, 4, 5]);
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
@@ -591,14 +640,14 @@ fn test_allocked_vec_fill_with_default_empty_vec() {
 }
 
 #[test]
-fn test_allocked_vec_fill_with_default_partial_vec() {
+fn test_allocked_vec_fill_with_default_partial_vec() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<u8>::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1).expect("push failed");
-    vec.push(&mut 2).expect("push failed");
+    vec.push(&mut 1)?;
+    vec.push(&mut 2)?;
 
     assert_eq!(vec.len(), 2);
 
@@ -609,18 +658,20 @@ fn test_allocked_vec_fill_with_default_partial_vec() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains non-zero data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_fill_with_default_full_vec() {
+fn test_allocked_vec_fill_with_default_full_vec() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<u8>::with_capacity(3);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1).expect("push failed");
-    vec.push(&mut 2).expect("push failed");
-    vec.push(&mut 3).expect("push failed");
+    vec.push(&mut 1)?;
+    vec.push(&mut 2)?;
+    vec.push(&mut 3)?;
 
     assert_eq!(vec.len(), 3);
 
@@ -631,6 +682,8 @@ fn test_allocked_vec_fill_with_default_full_vec() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
@@ -638,7 +691,7 @@ fn test_allocked_vec_fill_with_default_full_vec() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_behaviour_fail_at_push() {
+fn test_allocked_vec_behaviour_fail_at_push() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(10);
 
     // Vec is not zeroized since `has_been_sealed` is true.
@@ -661,15 +714,17 @@ fn test_allocked_vec_behaviour_fail_at_push() {
     vec.change_behaviour(AllockedVecBehaviour::None);
 
     // Now push should work
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
+    vec.push(&mut 1u8)?;
     assert_eq!(vec.as_slice(), &[1]);
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_behaviour_fail_at_drain_from() {
+fn test_allocked_vec_behaviour_fail_at_drain_from() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(10);
 
     // Vec is not zeroized since `has_been_sealed` is true.
@@ -697,13 +752,15 @@ fn test_allocked_vec_behaviour_fail_at_drain_from() {
     vec.change_behaviour(AllockedVecBehaviour::None);
 
     // Now drain should work
-    vec.drain_from(&mut data).expect("Failed to drain_from");
+    vec.drain_from(&mut data)?;
 
     assert_eq!(vec.as_slice(), &[1, 2, 3]);
     assert!(data.iter().all(|&x| x == 0));
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
@@ -711,13 +768,13 @@ fn test_allocked_vec_behaviour_fail_at_drain_from() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_as_mut_ptr_write_single_byte() {
+fn test_allocked_vec_as_mut_ptr_write_single_byte() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<u8>::with_capacity(1);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 0u8).expect("Failed to push initial byte");
+    vec.push(&mut 0u8)?;
 
     let ptr = vec.as_mut_ptr();
 
@@ -729,6 +786,8 @@ fn test_allocked_vec_as_mut_ptr_write_single_byte() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
@@ -736,14 +795,15 @@ fn test_allocked_vec_as_mut_ptr_write_single_byte() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_as_capacity_slice_returns_full_capacity() {
+fn test_allocked_vec_as_capacity_slice_returns_full_capacity()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<u8>::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to push");
-    vec.push(&mut 2u8).expect("Failed to push");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     // len is 2, but capacity is 5
     assert_eq!(vec.len(), 2);
@@ -758,6 +818,8 @@ fn test_allocked_vec_as_capacity_slice_returns_full_capacity() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
@@ -765,14 +827,15 @@ fn test_allocked_vec_as_capacity_slice_returns_full_capacity() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_as_capacity_mut_slice_allows_writing_beyond_len() {
+fn test_allocked_vec_as_capacity_mut_slice_allows_writing_beyond_len()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<u8>::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to push");
-    vec.push(&mut 2u8).expect("Failed to push");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     // Write beyond len (but within capacity)
     let slice = unsafe { vec.as_capacity_mut_slice() };
@@ -789,6 +852,8 @@ fn test_allocked_vec_as_capacity_mut_slice_allows_writing_beyond_len() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
@@ -796,15 +861,15 @@ fn test_allocked_vec_as_capacity_mut_slice_allows_writing_beyond_len() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_set_len_can_shrink() {
+fn test_allocked_vec_set_len_can_shrink() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to push(1)");
-    vec.push(&mut 2u8).expect("Failed to push(2)");
-    vec.push(&mut 3u8).expect("Failed to push(3)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
+    vec.push(&mut 3u8)?;
 
     // SAFETY: 1 <= len, elements at 0..1 are initialized
     unsafe { vec.set_len(1) };
@@ -814,17 +879,19 @@ fn test_allocked_vec_set_len_can_shrink() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_set_len_can_grow_within_capacity() {
+fn test_allocked_vec_set_len_can_grow_within_capacity() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to push(1)");
-    vec.push(&mut 2u8).expect("Failed to push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     // Write to spare capacity first
     unsafe { vec.as_capacity_mut_slice()[2] = 3 };
@@ -838,6 +905,8 @@ fn test_allocked_vec_set_len_can_grow_within_capacity() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
@@ -861,14 +930,14 @@ fn test_allocked_vec_default() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_deref_to_slice() {
+fn test_allocked_vec_deref_to_slice() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(3);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     // Deref allows slice methods
     assert_eq!(vec[0], 1);
@@ -877,6 +946,8 @@ fn test_allocked_vec_deref_to_slice() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
@@ -884,63 +955,71 @@ fn test_allocked_vec_deref_to_slice() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_partial_eq_equal_vecs() {
+fn test_allocked_vec_partial_eq_equal_vecs() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec1 = AllockedVec::with_capacity(5);
-    vec1.push(&mut 1u8).expect("Failed to push");
-    vec1.push(&mut 2u8).expect("Failed to push");
-    vec1.push(&mut 3u8).expect("Failed to push");
+    vec1.push(&mut 1u8)?;
+    vec1.push(&mut 2u8)?;
+    vec1.push(&mut 3u8)?;
 
     let mut vec2 = AllockedVec::with_capacity(5);
-    vec2.push(&mut 1u8).expect("Failed to push");
-    vec2.push(&mut 2u8).expect("Failed to push");
-    vec2.push(&mut 3u8).expect("Failed to push");
+    vec2.push(&mut 1u8)?;
+    vec2.push(&mut 2u8)?;
+    vec2.push(&mut 3u8)?;
 
     assert_eq!(vec1.as_slice(), vec2.as_slice());
     assert!(vec1 == vec2);
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_partial_eq_different_data() {
+fn test_allocked_vec_partial_eq_different_data() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec1 = AllockedVec::with_capacity(5);
-    vec1.push(&mut 1u8).expect("Failed to push");
-    vec1.push(&mut 2u8).expect("Failed to push");
+    vec1.push(&mut 1u8)?;
+    vec1.push(&mut 2u8)?;
 
     let mut vec2 = AllockedVec::with_capacity(5);
-    vec2.push(&mut 1u8).expect("Failed to push");
-    vec2.push(&mut 3u8).expect("Failed to push");
+    vec2.push(&mut 1u8)?;
+    vec2.push(&mut 3u8)?;
 
     assert_ne!(vec1.as_slice(), vec2.as_slice());
     assert!(vec1 != vec2);
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_partial_eq_different_lengths() {
+fn test_allocked_vec_partial_eq_different_lengths() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec1 = AllockedVec::with_capacity(5);
-    vec1.push(&mut 1u8).expect("Failed to push");
-    vec1.push(&mut 2u8).expect("Failed to push");
+    vec1.push(&mut 1u8)?;
+    vec1.push(&mut 2u8)?;
 
     let mut vec2 = AllockedVec::with_capacity(5);
-    vec2.push(&mut 1u8).expect("Failed to push");
-    vec2.push(&mut 2u8).expect("Failed to push");
-    vec2.push(&mut 3u8).expect("Failed to push");
+    vec2.push(&mut 1u8)?;
+    vec2.push(&mut 2u8)?;
+    vec2.push(&mut 3u8)?;
 
     assert_ne!(vec1.as_slice(), vec2.as_slice());
     assert!(vec1 != vec2);
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_partial_eq_different_capacities() {
+fn test_allocked_vec_partial_eq_different_capacities() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec1 = AllockedVec::with_capacity(3);
-    vec1.push(&mut 1u8).expect("Failed to push");
-    vec1.push(&mut 2u8).expect("Failed to push");
+    vec1.push(&mut 1u8)?;
+    vec1.push(&mut 2u8)?;
 
     let mut vec2 = AllockedVec::with_capacity(5);
-    vec2.push(&mut 1u8).expect("Failed to push");
-    vec2.push(&mut 2u8).expect("Failed to push");
+    vec2.push(&mut 1u8)?;
+    vec2.push(&mut 2u8)?;
 
     // Same data, different capacity
     assert_eq!(vec1.as_slice(), vec2.as_slice());
     assert!(vec1 == vec2);
+
+    Ok(())
 }
 
 #[test]
@@ -957,11 +1036,11 @@ fn test_allocked_vec_partial_eq_empty_vecs() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_debug_redacted() {
+fn test_allocked_vec_debug_redacted() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
-    vec.push(&mut 41u8).expect("Failed to push");
-    vec.push(&mut 42u8).expect("Failed to push");
-    vec.push(&mut 43u8).expect("Failed to push");
+    vec.push(&mut 41u8)?;
+    vec.push(&mut 42u8)?;
+    vec.push(&mut 43u8)?;
 
     let debug_output = format!("{:?}", vec);
 
@@ -972,17 +1051,19 @@ fn test_allocked_vec_debug_redacted() {
     assert!(!debug_output.contains("41"));
     assert!(!debug_output.contains("42"));
     assert!(!debug_output.contains("43"));
+
+    Ok(())
 }
 
 #[test]
-fn test_allocked_vec_debug_snapshot() {
+fn test_allocked_vec_debug_snapshot() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     let debug_output = format!("{:?}", vec);
 
@@ -990,4 +1071,6 @@ fn test_allocked_vec_debug_snapshot() {
         debug_output,
         "AllockedVec { data: \"REDACTED\", len: 2, capacity: 5 }"
     );
+
+    Ok(())
 }

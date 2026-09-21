@@ -13,7 +13,7 @@ use crate::tests::utils::{
 };
 
 #[test]
-fn test_create_buffer_returns_correct_length() {
+fn test_create_buffer_returns_correct_length() -> Result<(), Box<dyn std::error::Error>> {
     let mut buffer = create_buffer();
 
     #[cfg(all(unix, not(target_os = "wasi")))]
@@ -38,26 +38,27 @@ fn test_create_buffer_returns_correct_length() {
         );
     }
 
-    buffer
-        .open(&mut |bytes| {
-            assert!(
-                bytes.is_zeroized(),
-                "Key is not initialized: should be zeroized"
-            );
-            Ok(())
-        })
-        .expect("Failed to open buffer");
+    buffer.open(&mut |bytes| {
+        assert!(
+            bytes.is_zeroized(),
+            "Key is not initialized: should be zeroized"
+        );
+        Ok(())
+    })?;
+
+    Ok(())
 }
 
 #[test]
-fn test_create_initialized_buffer_returns_correct_length() {
+fn test_create_initialized_buffer_returns_correct_length() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut buffer = create_initialized_buffer();
-    buffer
-        .open(&mut |bytes| {
-            assert_eq!(bytes.len(), MASTER_KEY_LEN);
-            Ok(())
-        })
-        .expect("Failed to open buffer");
+    buffer.open(&mut |bytes| {
+        assert_eq!(bytes.len(), MASTER_KEY_LEN);
+        Ok(())
+    })?;
+
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
@@ -84,7 +85,7 @@ fn test_create_buffer_falls_back_to_portable_on_protected_failure() {
 #[cfg(target_os = "linux")]
 #[test]
 #[ignore]
-fn subprocess_create_buffer_falls_back_to_portable() {
+fn subprocess_create_buffer_falls_back_to_portable() -> Result<(), Box<dyn std::error::Error>> {
     block_mprotect();
     block_mlock();
     block_munlock();
@@ -98,12 +99,12 @@ fn subprocess_create_buffer_falls_back_to_portable() {
         "Expected PortableBuffer fallback when mem syscalls are blocked"
     );
 
-    buffer
-        .open(&mut |bytes| {
-            assert_eq!(bytes.len(), MASTER_KEY_LEN);
-            Ok(())
-        })
-        .expect("Failed to open buffer");
+    buffer.open(&mut |bytes| {
+        assert_eq!(bytes.len(), MASTER_KEY_LEN);
+        Ok(())
+    })?;
+
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]

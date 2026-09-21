@@ -102,11 +102,9 @@ fn test_string_encode_into_propagates_try_encode_into_error() {
 }
 
 #[test]
-fn test_string_encode_ok() {
+fn test_string_encode_ok() -> Result<(), Box<dyn std::error::Error>> {
     let mut s = String::from("hello world");
-    let bytes_required = s
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = s.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
     let result = s.encode_into(&mut buf);
@@ -115,16 +113,16 @@ fn test_string_encode_ok() {
 
     // Assert zeroization!
     assert!(s.is_zeroized());
+
+    Ok(())
 }
 
 // EncodeSlice
 
 #[test]
-fn test_string_encode_slice_ok() {
+fn test_string_encode_slice_ok() -> Result<(), Box<dyn std::error::Error>> {
     let mut s_slice = [String::from("hello"), String::from("world")];
-    let buf_size = s_slice
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let buf_size = s_slice.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(buf_size);
 
     let result = String::encode_slice_into(&mut s_slice, &mut buf);
@@ -133,6 +131,8 @@ fn test_string_encode_slice_ok() {
 
     // Assert zeroization!
     assert!(s_slice.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
@@ -171,14 +171,12 @@ fn test_string_decode_from_propagates_process_header_error() {
 }
 
 #[test]
-fn test_string_decode_from_utf8_validation_error() {
+fn test_string_decode_from_utf8_validation_error() -> Result<(), Box<dyn std::error::Error>> {
     let mut s = String::from("hello");
-    let bytes_required = s
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = s.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    s.encode_into(&mut buf).expect("encode failed");
+    s.encode_into(&mut buf)?;
 
     // Corrupt buffer with invalid UTF-8 (0xFF is never valid)
     let data_start = header_size();
@@ -198,6 +196,8 @@ fn test_string_decode_from_utf8_validation_error() {
     assert!(decode_buf.is_zeroized());
     println!("DECODED: {:?}", decoded);
     // assert!(decoded.is_zeroized());
+
+    Ok(())
 }
 
 // Decode
@@ -223,15 +223,13 @@ fn test_string_decode_from_propagates_error() {
 // DecodeSlice
 
 #[test]
-fn test_string_slice_roundtrip_ok() {
+fn test_string_slice_roundtrip_ok() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let mut s_slice = [String::from("hello"), String::from("world")];
-    let bytes_required = s_slice
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = s_slice.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    String::encode_slice_into(&mut s_slice, &mut buf).expect("encode failed");
+    String::encode_slice_into(&mut s_slice, &mut buf)?;
 
     // Decode
     let mut decoded = [String::new(), String::new()];
@@ -246,6 +244,8 @@ fn test_string_slice_roundtrip_ok() {
     assert!(buf.is_zeroized());
     assert!(decode_buf.is_zeroized());
     assert!(s_slice.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
@@ -263,15 +263,13 @@ fn test_string_decode_slice_propagates_decode_from_error() {
 // Roundtrip (this includes test_string_decode_from_ok)
 
 #[test]
-fn test_string_roundtrip_ok() {
+fn test_string_roundtrip_ok() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let mut s = String::from("hello world");
-    let bytes_required = s
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = s.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    s.encode_into(&mut buf).expect("encode failed");
+    s.encode_into(&mut buf)?;
 
     // Decode
     {
@@ -291,6 +289,8 @@ fn test_string_roundtrip_ok() {
     // Assert zeroization!
     assert!(buf.is_zeroized());
     assert!(s.is_zeroized());
+
+    Ok(())
 }
 
 // Integration test

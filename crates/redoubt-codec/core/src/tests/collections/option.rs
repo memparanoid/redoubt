@@ -12,26 +12,26 @@ use redoubt_zero::ZeroizationProbe;
 // Bytes Required
 
 #[test]
-fn test_bytes_required_none() {
+fn test_bytes_required_none() -> Result<(), Box<dyn std::error::Error>> {
     let opt: Option<RedoubtCodecTestBreaker> = None;
-    let bytes_required = opt
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = opt.encode_bytes_required()?;
     assert_eq!(bytes_required, 2 * size_of::<usize>());
+
+    Ok(())
 }
 
 #[test]
-fn test_bytes_required_some() {
+fn test_bytes_required_some() -> Result<(), Box<dyn std::error::Error>> {
     let opt = Some(RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         42,
     ));
-    let bytes_required = opt
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = opt.encode_bytes_required()?;
     // Header (2 * usize) + RedoubtCodecTestBreaker (2 * usize)
     let expected = 4 * size_of::<usize>();
     assert_eq!(bytes_required, expected);
+
+    Ok(())
 }
 
 #[test]
@@ -147,7 +147,8 @@ fn test_option_decode_from_propagates_process_header_err() {
 }
 
 #[test]
-fn test_option_decode_from_propagates_invalid_size_value() {
+fn test_option_decode_from_propagates_invalid_size_value() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut opt: Option<RedoubtCodecTestBreaker> = None;
 
     // Create a buffer with invalid size value (2, should be 0 or 1)
@@ -155,10 +156,8 @@ fn test_option_decode_from_propagates_invalid_size_value() {
     let mut size = 2usize;
     let mut bytes_required = 2 * size_of::<usize>();
 
-    buf.write(&mut size)
-        .expect("Failed to write size to buffer");
-    buf.write(&mut bytes_required)
-        .expect("Failed to write bytes_required to buffer");
+    buf.write(&mut size)?;
+    buf.write(&mut bytes_required)?;
 
     let mut decode_buf = buf.export_as_vec();
     let result = opt.decode_from(&mut decode_buf.as_mut_slice());
@@ -169,6 +168,8 @@ fn test_option_decode_from_propagates_invalid_size_value() {
     // Assert zeroization!
     assert_eq!(opt, None);
     assert!(decode_buf.is_zeroized());
+
+    Ok(())
 }
 
 // Note: Unlike Vec, we cannot test `test_option_decode_from_propagates_decode_err` because
@@ -177,19 +178,15 @@ fn test_option_decode_from_propagates_invalid_size_value() {
 // the decode path.
 
 #[test]
-fn test_option_decode_from_truncated_buffer() {
+fn test_option_decode_from_truncated_buffer() -> Result<(), Box<dyn std::error::Error>> {
     let mut original = Some(RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         99,
     ));
 
-    let bytes_required = original
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = original.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
-    original
-        .encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    original.encode_into(&mut buf)?;
 
     let mut decoded: Option<RedoubtCodecTestBreaker> = None;
     let mut decode_buf = buf.export_as_vec();
@@ -202,21 +199,20 @@ fn test_option_decode_from_truncated_buffer() {
     // Assert zeroization!
     assert_eq!(decoded, None);
     assert!(slice.is_zeroized());
+
+    Ok(())
 }
 
 // Roundtrip
 
 #[test]
-fn test_option_encode_decode_roundtrip_none() {
+fn test_option_encode_decode_roundtrip_none() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let mut opt: Option<RedoubtCodecTestBreaker> = None;
-    let bytes_required = opt
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = opt.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    opt.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    opt.encode_into(&mut buf)?;
 
     // Decode
     {
@@ -238,22 +234,21 @@ fn test_option_encode_decode_roundtrip_none() {
     // Assert zeroization!
     assert!(buf.is_zeroized());
     assert_eq!(opt, None);
+
+    Ok(())
 }
 
 #[test]
-fn test_option_encode_decode_roundtrip_some() {
+fn test_option_encode_decode_roundtrip_some() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let mut opt = Some(RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         42,
     ));
-    let bytes_required = opt
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = opt.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    opt.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    opt.encode_into(&mut buf)?;
 
     // Decode
     {
@@ -278,4 +273,6 @@ fn test_option_encode_decode_roundtrip_some() {
     // Assert zeroization!
     assert!(buf.is_zeroized());
     assert_eq!(opt, None);
+
+    Ok(())
 }

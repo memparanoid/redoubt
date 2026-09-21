@@ -120,18 +120,15 @@ fn test_array_decode_from_propagates_process_header_err() {
 }
 
 #[test]
-fn test_array_decode_from_propagates_size_mismatch_err() {
+fn test_array_decode_from_propagates_size_mismatch_err() -> Result<(), Box<dyn std::error::Error>> {
     // Encode array of size 2
     let mut arr = [
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
     ];
-    let bytes_required = arr
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = arr.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
-    arr.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    arr.encode_into(&mut buf)?;
 
     // Try to decode into array of size 1
     let mut decode_buf = buf.export_as_vec();
@@ -146,21 +143,20 @@ fn test_array_decode_from_propagates_size_mismatch_err() {
     assert!(decode_buf.is_zeroized());
     assert!(arr.is_zeroized());
     assert!(arr_wrong_size.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
-fn test_array_decode_propagates_decode_err() {
+fn test_array_decode_propagates_decode_err() -> Result<(), Box<dyn std::error::Error>> {
     let mut arr = [
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
     ];
-    let bytes_required = arr
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = arr.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    arr.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    arr.encode_into(&mut buf)?;
 
     let mut recovered = [
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
@@ -178,24 +174,23 @@ fn test_array_decode_propagates_decode_err() {
     assert!(decode_buf.is_zeroized());
     assert!(arr.is_zeroized());
     assert!(recovered.is_zeroized());
+
+    Ok(())
 }
 
 // Roundtrip
 
 #[test]
-fn test_array_encode_decode_roundtrip() {
+fn test_array_encode_decode_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let mut arr = [
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 7),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 37),
     ];
-    let bytes_required = arr
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = arr.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    arr.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    arr.encode_into(&mut buf)?;
 
     // Decode
     {
@@ -223,12 +218,15 @@ fn test_array_encode_decode_roundtrip() {
     // Assert zeroization!
     assert!(buf.is_zeroized());
     assert!(arr.is_zeroized());
+
+    Ok(())
 }
 
 // Perm tests
 
 #[test]
-fn perm_test_array_encode_into_propagates_error_at_any_position() {
+fn perm_test_array_encode_into_propagates_error_at_any_position()
+-> Result<(), Box<dyn std::error::Error>> {
     let arr = [
         [RedoubtCodecTestBreaker::new(
             RedoubtCodecTestBreakerBehaviour::None,
@@ -255,9 +253,7 @@ fn perm_test_array_encode_into_propagates_error_at_any_position() {
             6,
         )],
     ];
-    let bytes_required = arr
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = arr.encode_bytes_required()?;
 
     index_permutations(arr.len(), |idx_perm| {
         let mut arr_clone = arr;
@@ -273,10 +269,13 @@ fn perm_test_array_encode_into_propagates_error_at_any_position() {
         assert!(buf.is_zeroized());
         assert!(arr_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 #[test]
-fn perm_test_array_decode_from_propagates_error_at_any_position() {
+fn perm_test_array_decode_from_propagates_error_at_any_position()
+-> Result<(), Box<dyn std::error::Error>> {
     let arr = [
         [RedoubtCodecTestBreaker::new(
             RedoubtCodecTestBreakerBehaviour::None,
@@ -304,9 +303,7 @@ fn perm_test_array_decode_from_propagates_error_at_any_position() {
         )],
     ];
 
-    let bytes_required = arr
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = arr.encode_bytes_required()?;
 
     let mut recovered_arr = arr;
     recovered_arr[0][0].set_behaviour(RedoubtCodecTestBreakerBehaviour::ForceDecodeError);
@@ -342,10 +339,12 @@ fn perm_test_array_decode_from_propagates_error_at_any_position() {
         assert!(buf.is_zeroized());
         assert!(arr_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 #[test]
-fn perm_test_array_encode_decode_roundtrip() {
+fn perm_test_array_encode_decode_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let arr = [
         [RedoubtCodecTestBreaker::new(
@@ -374,9 +373,7 @@ fn perm_test_array_encode_decode_roundtrip() {
         )],
     ];
 
-    let bytes_required = arr
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = arr.encode_bytes_required()?;
 
     index_permutations(arr.len(), |idx_perm| {
         let mut arr_clone = arr;
@@ -408,6 +405,8 @@ fn perm_test_array_encode_decode_roundtrip() {
         assert!(buf.is_zeroized());
         assert!(arr_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 // PreAlloc

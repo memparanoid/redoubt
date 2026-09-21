@@ -39,107 +39,95 @@ fn test_portable_buffer_zeroizes_on_drop() {
 // create
 
 #[test]
-fn test_portable_buffer_happypath() {
+fn test_portable_buffer_happypath() -> Result<(), Box<dyn std::error::Error>> {
     let mut portable_buffer = PortableBuffer::create(10);
 
     // Fill with pattern
     {
         let callback_executed = Cell::new(false);
-        portable_buffer
-            .open_mut(&mut |bytes| {
-                callback_executed.set(true);
-                fill_bytes_with_pattern(bytes, 0);
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        portable_buffer.open_mut(&mut |bytes| {
+            callback_executed.set(true);
+            fill_bytes_with_pattern(bytes, 0);
+            Ok(())
+        })?;
         assert!(callback_executed.get());
     }
 
     // Zero initialized
     {
         let callback_executed = Cell::new(false);
-        portable_buffer
-            .open_mut(&mut |bytes| {
-                callback_executed.set(true);
-                assert!(bytes.is_zeroized());
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        portable_buffer.open_mut(&mut |bytes| {
+            callback_executed.set(true);
+            assert!(bytes.is_zeroized());
+            Ok(())
+        })?;
         assert!(callback_executed.get());
     }
 
     // Fill with pattern
     {
         let callback_executed = Cell::new(false);
-        portable_buffer
-            .open_mut(&mut |bytes| {
-                callback_executed.set(true);
-                fill_bytes_with_pattern(bytes, 1);
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        portable_buffer.open_mut(&mut |bytes| {
+            callback_executed.set(true);
+            fill_bytes_with_pattern(bytes, 1);
+            Ok(())
+        })?;
         assert!(callback_executed.get());
     }
 
     // Not zeroized
     {
         let callback_executed = Cell::new(false);
-        portable_buffer
-            .open_mut(&mut |bytes| {
-                callback_executed.set(true);
-                assert!(!bytes.is_zeroized());
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        portable_buffer.open_mut(&mut |bytes| {
+            callback_executed.set(true);
+            assert!(!bytes.is_zeroized());
+            Ok(())
+        })?;
         assert!(callback_executed.get());
     }
 
     // Zeroize
     {
         let callback_executed = Cell::new(false);
-        portable_buffer
-            .open_mut(&mut |bytes| {
-                callback_executed.set(true);
-                bytes.fast_zeroize();
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        portable_buffer.open_mut(&mut |bytes| {
+            callback_executed.set(true);
+            bytes.fast_zeroize();
+            Ok(())
+        })?;
         assert!(callback_executed.get());
     }
 
     // Assert zeroization!
     {
         let callback_executed = Cell::new(false);
-        portable_buffer
-            .open_mut(&mut |bytes| {
-                callback_executed.set(true);
-                assert!(bytes.is_zeroized());
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        portable_buffer.open_mut(&mut |bytes| {
+            callback_executed.set(true);
+            assert!(bytes.is_zeroized());
+            Ok(())
+        })?;
         assert!(callback_executed.get());
     }
+
+    Ok(())
 }
 
 // open
 
 #[test]
-fn test_portable_buffer_open_happypath() {
+fn test_portable_buffer_open_happypath() -> Result<(), Box<dyn std::error::Error>> {
     let mut portable_buffer = PortableBuffer::create(10);
 
-    portable_buffer
-        .open_mut(&mut |bytes| {
-            fill_bytes_with_pattern(bytes, 0);
-            Ok(())
-        })
-        .expect("Failed to open_mut(..)");
+    portable_buffer.open_mut(&mut |bytes| {
+        fill_bytes_with_pattern(bytes, 0);
+        Ok(())
+    })?;
 
-    portable_buffer
-        .open(&mut |bytes| {
-            assert!(bytes.is_zeroized());
-            Ok(())
-        })
-        .expect("Failed to open(..)");
+    portable_buffer.open(&mut |bytes| {
+        assert!(bytes.is_zeroized());
+        Ok(())
+    })?;
+
+    Ok(())
 }
 
 #[test]

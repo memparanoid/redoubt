@@ -9,29 +9,31 @@ use crate::master_key::storage::portable::open;
 use crate::tests::utils::run_test_as_subprocess;
 
 #[test]
-fn test_portable_storage_open_returns_correct_length() {
+fn test_portable_storage_open_returns_correct_length() -> Result<(), Box<dyn std::error::Error>> {
     open(&mut |bytes| {
         assert_eq!(bytes.len(), MASTER_KEY_LEN);
         Ok(())
-    })
-    .expect("Failed to open portable buffer");
+    })?;
+
+    Ok(())
 }
 
 #[test]
-fn test_portable_storage_open_returns_same_bytes_on_subsequent_calls() {
+fn test_portable_storage_open_returns_same_bytes_on_subsequent_calls()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut first_bytes = [0u8; MASTER_KEY_LEN];
 
     open(&mut |bytes| {
         first_bytes.copy_from_slice(bytes);
         Ok(())
-    })
-    .expect("Failed to open portable buffer");
+    })?;
 
     open(&mut |bytes| {
         assert_eq!(bytes, &first_bytes);
         Ok(())
-    })
-    .expect("Failed to open portable buffer");
+    })?;
+
+    Ok(())
 }
 
 #[test]
@@ -58,11 +60,12 @@ fn test_portable_storage_open_propagates_callback_error() {
 
 #[test]
 #[ignore]
-fn portable_storage_subprocess_concurrent_access() {
+fn portable_storage_subprocess_concurrent_access() -> Result<(), Box<dyn std::error::Error>> {
     use std::sync::{Arc, Mutex};
     use std::thread;
 
     const NUM_THREADS: usize = 256;
+    const POISONED: &str = "the keys mutex was poisoned";
 
     let keys = Arc::new(Mutex::new(Vec::<[u8; MASTER_KEY_LEN]>::new()));
 
@@ -72,21 +75,30 @@ fn portable_storage_subprocess_concurrent_access() {
 
             thread::spawn(move || {
                 open(&mut |bytes| {
-                    let mut guard = keys_clone.lock().expect("Failed to lock mutex");
-                    let master_key: [u8; MASTER_KEY_LEN] = bytes.try_into().expect("Wrong length");
+                    let mut guard = keys_clone
+                        .lock()
+                        .map_err(|_| BufferError::callback_error(POISONED))?;
+
+                    let master_key: [u8; MASTER_KEY_LEN] = bytes
+                        .try_into()
+                        .map_err(|_| BufferError::callback_error("the key is not that wide"))?;
+
                     guard.push(master_key);
 
                     Ok(())
                 })
-                .expect("Failed to open std buffer");
             })
         })
         .collect();
 
+    // Twice: once for the thread having finished at all, once for what it was
+    // doing in there.
     for handle in handles {
-        handle.join().expect("Thread panicked");
+        handle.join().map_err(|_| "a thread panicked")??;
     }
 
-    let guard = keys.lock().expect("Failed to lock mutex");
+    let guard = keys.lock().map_err(|_| POISONED)?;
     assert!(guard.iter().all(|x| *x == guard[0]));
+
+    Ok(())
 }

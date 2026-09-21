@@ -21,10 +21,10 @@ mod storage_portable {
     }
 
     #[test]
-    fn test_fast_zeroize_then_open_returns_zeroized_error() {
+    fn test_fast_zeroize_then_open_returns_zeroized_error() -> Result<(), Box<dyn std::error::Error>>
+    {
         // First open should succeed
-        ZEROIZE_TEST_BOX::open(|_| Ok::<(), CipherBoxError>(()))
-            .expect("open should succeed before zeroize");
+        ZEROIZE_TEST_BOX::open(|_| Ok::<(), CipherBoxError>(()))?;
 
         // Zeroize the global instance
         ZEROIZE_TEST_BOX::fast_zeroize();
@@ -44,6 +44,8 @@ mod storage_portable {
 
         let result = ZEROIZE_TEST_BOX::leak_secret();
         assert!(matches!(result, Err(CipherBoxError::Zeroized)));
+
+        Ok(())
     }
 
     #[cipherbox(TestBox, global = true, storage = "portable")]
@@ -55,7 +57,7 @@ mod storage_portable {
     static ACCESS_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     #[test]
-    fn test_concurrent_global_access() {
+    fn test_concurrent_global_access() -> Result<(), Box<dyn std::error::Error>> {
         const NUM_THREADS: u64 = 300;
 
         let handles: Vec<_> = (0..NUM_THREADS)
@@ -103,7 +105,8 @@ mod storage_portable {
                 "Final counter value should match expected sum"
             );
             Ok::<(), CipherBoxError>(())
-        })
-        .expect("final verification should succeed");
+        })?;
+
+        Ok(())
     }
 }

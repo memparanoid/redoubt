@@ -27,10 +27,10 @@ mod storage_std {
     }
 
     #[test]
-    fn test_fast_zeroize_then_open_returns_zeroized_error() {
+    fn test_fast_zeroize_then_open_returns_zeroized_error() -> Result<(), Box<dyn std::error::Error>>
+    {
         // First open should succeed
-        ZEROIZE_TEST_BOX::open(|_| Ok::<(), CipherBoxError>(()))
-            .expect("open should succeed before zeroize");
+        ZEROIZE_TEST_BOX::open(|_| Ok::<(), CipherBoxError>(()))?;
 
         // Zeroize the global instance
         ZEROIZE_TEST_BOX::fast_zeroize();
@@ -50,6 +50,8 @@ mod storage_std {
 
         let result = ZEROIZE_TEST_BOX::leak_secret();
         assert!(matches!(result, Err(CipherBoxError::Zeroized)));
+
+        Ok(())
     }
 
     #[cipherbox(TestBox, global = true, storage = "std")]
@@ -61,7 +63,7 @@ mod storage_std {
     static ACCESS_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     #[test]
-    fn test_concurrent_global_access() {
+    fn test_concurrent_global_access() -> Result<(), Box<dyn std::error::Error>> {
         const NUM_THREADS: u64 = 2;
 
         let handles: Vec<_> = (0..NUM_THREADS)
@@ -109,17 +111,17 @@ mod storage_std {
                 "Final counter value should match expected sum"
             );
             Ok::<(), CipherBoxError>(())
-        })
-        .expect("final verification should succeed");
+        })?;
+
+        Ok(())
     }
 
     #[test]
-    fn test_mutex_poison_recovery() {
+    fn test_mutex_poison_recovery() -> Result<(), Box<dyn std::error::Error>> {
         POISONED_MUTEX_RECOVERY_BOX::open_secret(|v| {
             assert_eq!(*v.as_ref(), 0);
             Ok::<(), CipherBoxError>(())
-        })
-        .expect("open should succeed");
+        })?;
 
         let result = std::panic::catch_unwind(|| {
             POISONED_MUTEX_RECOVERY_BOX::open_secret_mut(|_| -> Result<(), CipherBoxError> {
@@ -137,13 +139,13 @@ mod storage_std {
         POISONED_MUTEX_RECOVERY_BOX::open_secret_mut(|v| {
             v.replace(&mut 42);
             Ok::<(), CipherBoxError>(())
-        })
-        .expect("should modify after recovery");
+        })?;
 
         POISONED_MUTEX_RECOVERY_BOX::open_secret(|v| {
             assert_eq!(*v.as_ref(), 42);
             Ok::<(), CipherBoxError>(())
-        })
-        .expect("modified value should persist");
+        })?;
+
+        Ok(())
     }
 }

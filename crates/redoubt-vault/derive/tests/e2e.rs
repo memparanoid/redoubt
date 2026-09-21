@@ -29,7 +29,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cipherbox_wrapper_open() {
+    fn test_cipherbox_wrapper_open() -> Result<(), Box<dyn std::error::Error>> {
         let mut cb = WalletSecretsCipherBox::new();
 
         cb.open(|ws| {
@@ -39,12 +39,13 @@ mod tests {
             assert!(ws.pin_hash.is_zeroized());
 
             Ok(())
-        })
-        .expect("Failed to open(..)");
+        })?;
+
+        Ok(())
     }
 
     #[test]
-    fn test_cipherbox_wrapper_open_mut() {
+    fn test_cipherbox_wrapper_open_mut() -> Result<(), Box<dyn std::error::Error>> {
         let mut cb = WalletSecretsCipherBox::new();
 
         cb.open_mut(|ws| {
@@ -54,8 +55,7 @@ mod tests {
             ws.pin_hash = [0xEF; 32];
 
             Ok(())
-        })
-        .expect("Failed to open_mut(..)");
+        })?;
 
         cb.open(|ws| {
             assert_eq!(ws.master_seed, [0x42; 32]);
@@ -64,12 +64,13 @@ mod tests {
             assert_eq!(ws.pin_hash, [0xEF; 32]);
 
             Ok(())
-        })
-        .expect("Failed to open(..)");
+        })?;
+
+        Ok(())
     }
 
     #[test]
-    fn test_cipherbox_wrapper_open_field() {
+    fn test_cipherbox_wrapper_open_field() -> Result<(), Box<dyn std::error::Error>> {
         let mut cb = WalletSecretsCipherBox::new();
 
         // Set values
@@ -80,63 +81,56 @@ mod tests {
             ws.pin_hash = [0xEF; 32];
 
             Ok(())
-        })
-        .expect("Failed to open_mut(..)");
+        })?;
 
         // Read individual fields
         cb.open_master_seed(|seed| {
             assert_eq!(*seed, [0x42; 32]);
             Ok(())
-        })
-        .expect("Failed to open_master_seed(..)");
+        })?;
 
         cb.open_encryption_key(|key| {
             assert_eq!(*key, [0xAB; 32]);
             Ok(())
-        })
-        .expect("Failed to open_encryption_key(..)");
+        })?;
 
         cb.open_signing_key(|key| {
             assert_eq!(*key, [0xCD; 32]);
             Ok(())
-        })
-        .expect("Failed to open_signing_key(..)");
+        })?;
 
         cb.open_pin_hash(|hash| {
             assert_eq!(*hash, [0xEF; 32]);
             Ok(())
-        })
-        .expect("Failed to open_pin_hash(..)");
+        })?;
+
+        Ok(())
     }
 
     #[test]
-    fn test_cipherbox_wrapper_open_field_mut() {
+    fn test_cipherbox_wrapper_open_field_mut() -> Result<(), Box<dyn std::error::Error>> {
         let mut cb = WalletSecretsCipherBox::new();
 
         // Modify individual fields
         cb.open_master_seed_mut(|seed| {
             *seed = [0x42; 32];
             Ok(())
-        })
-        .expect("Failed to open_master_seed_mut(..)");
+        })?;
 
         cb.open_encryption_key_mut(|key| {
             *key = [0xAB; 32];
             Ok(())
-        })
-        .expect("Failed to open_encryption_key_mut(..)");
+        })?;
 
         cb.open_signing_key_mut(|key| {
             *key = [0xCD; 32];
             Ok(())
-        })
-        .expect("Failed to open_signing_key_mut(..)");
+        })?;
 
         cb.open_pin_hash_mut(|hash| {
             *hash = [0xEF; 32];
             Ok(())
-        })
-        .expect("Failed to open_pin_hash_mut(..)");
+        })?;
 
         // Verify all fields
         cb.open(|ws| {
@@ -146,12 +140,13 @@ mod tests {
             assert_eq!(ws.pin_hash, [0xEF; 32]);
 
             Ok(())
-        })
-        .expect("Failed to open(..)");
+        })?;
+
+        Ok(())
     }
 
     #[test]
-    fn test_cipherbox_wrapper_leak_field() {
+    fn test_cipherbox_wrapper_leak_field() -> Result<(), Box<dyn std::error::Error>> {
         let mut cb = WalletSecretsCipherBox::new();
 
         // Set values
@@ -160,18 +155,13 @@ mod tests {
             ws.encryption_key = [0xAB; 32];
 
             Ok(())
-        })
-        .expect("Failed to open_mut(..)");
+        })?;
 
         // Leak individual fields
-        let seed = cb
-            .leak_master_seed()
-            .expect("Failed to leak_master_seed(..)");
+        let seed = cb.leak_master_seed()?;
         assert_eq!(*seed, [0x42; 32]);
 
-        let key = cb
-            .leak_encryption_key()
-            .expect("Failed to leak_encryption_key(..)");
+        let key = cb.leak_encryption_key()?;
         assert_eq!(*key, [0xAB; 32]);
 
         // Verify original cipherbox is unchanged
@@ -180,12 +170,13 @@ mod tests {
             assert_eq!(ws.encryption_key, [0xAB; 32]);
 
             Ok(())
-        })
-        .expect("Failed to open(..)");
+        })?;
+
+        Ok(())
     }
 
     #[test]
-    fn test_cipherbox_api() {
+    fn test_cipherbox_api() -> Result<(), Box<dyn std::error::Error>> {
         let mut cb = WalletSecretsCipherBox::new();
 
         // Set values
@@ -194,19 +185,16 @@ mod tests {
             ws.encryption_key = [0xAB; 32];
 
             Ok(())
-        })
-        .expect("Failed to open_mut(..)");
+        })?;
 
         // Extract the first byte from each field
-        let first_master_seed_byte = cb
-            .open(|ws| Ok(ws.master_seed[0]))
-            .expect("Failed to open(..)");
-        let first_encryption_key_byte = cb
-            .open(|ws| Ok(ws.encryption_key[0]))
-            .expect("Failed to open(..)");
+        let first_master_seed_byte = cb.open(|ws| Ok(ws.master_seed[0]))?;
+        let first_encryption_key_byte = cb.open(|ws| Ok(ws.encryption_key[0]))?;
 
         assert_eq!(*first_master_seed_byte, 0x42);
         assert_eq!(*first_encryption_key_byte, 0xAB);
+
+        Ok(())
     }
 
     // Custom error type for testing

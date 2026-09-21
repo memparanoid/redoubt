@@ -54,16 +54,18 @@ fn test_zeroizing_mut_guard_guared_trait() {
 }
 
 #[test]
-fn test_zeroizing_mut_guard_debug() {
+fn test_zeroizing_mut_guard_debug() -> Result<(), Box<dyn std::error::Error>> {
     let mut inner = vec![1u8, 2, 3];
     let guard = ZeroizingMutGuard::from(&mut inner);
 
     let mut buf = String::new();
-    write!(&mut buf, "{:?}", guard).expect("Failed to write!(..)");
+    write!(&mut buf, "{:?}", guard)?;
     assert_eq!(
         buf, "[REDACTED ZeroizingMutGuard]",
         "Debug should redact ZeroizingMutGuard"
     );
+
+    Ok(())
 }
 
 #[test]

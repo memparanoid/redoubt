@@ -252,21 +252,27 @@ fn test_generate_nonce_with_propagates_aegis_entropy_error() {
 }
 
 #[test]
-fn test_generate_nonce_with_answers_a_nonce_of_the_chacha_width() {
+fn test_generate_nonce_with_answers_a_nonce_of_the_chacha_width()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut session = Session::XChachaPoly1305(NonceSessionGenerator::new(SystemEntropySource {}));
 
-    let nonce = Aead::generate_nonce_with(&mut session).expect("this machine has entropy");
+    let nonce = Aead::generate_nonce_with(&mut session)?;
 
     assert_eq!(nonce.len(), chacha::XNONCE_SIZE);
+
+    Ok(())
 }
 
 #[test]
-fn test_generate_nonce_with_answers_a_nonce_of_the_aegis_width() {
+fn test_generate_nonce_with_answers_a_nonce_of_the_aegis_width()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut session = Session::Aegis128L(NonceSessionGenerator::new(SystemEntropySource {}));
 
-    let nonce = Aead::generate_nonce_with(&mut session).expect("this machine has entropy");
+    let nonce = Aead::generate_nonce_with(&mut session)?;
 
     assert_eq!(nonce.len(), aegis::NONCE_SIZE);
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
@@ -305,35 +311,44 @@ fn test_generate_nonce_propagates_the_fuse_at_the_nth_call()
 }
 
 #[test]
-fn test_generate_nonce_answers_a_nonce_of_the_chacha_width() {
+fn test_generate_nonce_answers_a_nonce_of_the_chacha_width()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut aead = Aead::new_chacha();
 
-    let nonce = aead.generate_nonce().expect("this machine has entropy");
+    let nonce = aead.generate_nonce()?;
 
     assert_eq!(nonce.len(), chacha::XNONCE_SIZE);
+
+    Ok(())
 }
 
 #[test]
 #[cfg(aes_asm)]
-fn test_generate_nonce_answers_a_nonce_of_the_aegis_width() {
+fn test_generate_nonce_answers_a_nonce_of_the_aegis_width() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut aead = Aead::from_algorithm(AeadAlgorithm::Aegis128L);
 
-    let nonce = aead.generate_nonce().expect("this machine has entropy");
+    let nonce = aead.generate_nonce()?;
 
     assert_eq!(nonce.len(), aegis::NONCE_SIZE);
+
+    Ok(())
 }
 
 /// The counter is what makes two nonces unable to collide, and it only counts
 /// for an `Aead` that is kept: one built per message answers from a generator
 /// that has issued nothing.
 #[test]
-fn test_generate_nonce_answers_the_next_counter_each_time() {
+fn test_generate_nonce_answers_the_next_counter_each_time() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut aead = Aead::new_chacha();
 
-    let first = counter_of(&aead.generate_nonce().expect("this machine has entropy"));
-    let second = counter_of(&aead.generate_nonce().expect("this machine has entropy"));
+    let first = counter_of(&aead.generate_nonce()?);
+    let second = counter_of(&aead.generate_nonce()?);
 
     assert_eq!(second, first.wrapping_add(1));
+
+    Ok(())
 }
 
 // === === === === === === === === === ===

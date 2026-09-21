@@ -44,11 +44,12 @@ mod page_buffer_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_new_mem_non_protected() {
-        let buffer =
-            PageBuffer::new(ProtectionStrategy::MemNonProtected, 32).expect("Failed to new(..)");
+    fn test_new_mem_non_protected() -> Result<(), Box<dyn std::error::Error>> {
+        let buffer = PageBuffer::new(ProtectionStrategy::MemNonProtected, 32)?;
         let debug_output = format!("{:?}", buffer);
         assert!(debug_output.contains("MemNonProtected"));
+
+        Ok(())
     }
 
     // TODO: Run this test in a subprocess to safely cover the MAP_FAILED branch
@@ -178,58 +179,53 @@ mod page_buffer_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_reads_data() {
-        let mut buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+    fn test_open_reads_data() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
 
-        buffer
-            .open_mut(&mut |bytes| {
-                bytes[0] = 0xAB;
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        buffer.open_mut(&mut |bytes| {
+            bytes[0] = 0xAB;
+            Ok(())
+        })?;
 
-        buffer
-            .open(&mut |bytes| {
-                assert_eq!(bytes[0], 0xAB);
-                Ok(())
-            })
-            .expect("Failed to open(..)");
+        buffer.open(&mut |bytes| {
+            assert_eq!(bytes[0], 0xAB);
+            Ok(())
+        })?;
+
+        Ok(())
     }
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_mem_non_protected() {
-        let mut buffer =
-            PageBuffer::new(ProtectionStrategy::MemNonProtected, 32).expect("Failed to new(..)");
+    fn test_open_mem_non_protected() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = PageBuffer::new(ProtectionStrategy::MemNonProtected, 32)?;
 
-        buffer
-            .open_mut(&mut |bytes| {
-                bytes[0] = 0xCD;
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        buffer.open_mut(&mut |bytes| {
+            bytes[0] = 0xCD;
+            Ok(())
+        })?;
 
-        buffer
-            .open(&mut |bytes| {
-                assert_eq!(bytes[0], 0xCD);
-                Ok(())
-            })
-            .expect("Failed to open(..)");
+        buffer.open(&mut |bytes| {
+            assert_eq!(bytes[0], 0xCD);
+            Ok(())
+        })?;
+
+        Ok(())
     }
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_propagates_callback_error() {
+    fn test_open_propagates_callback_error() -> Result<(), Box<dyn std::error::Error>> {
         use crate::error::BufferError;
 
-        let mut buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
 
         let result = buffer.open(&mut |_| Err(BufferError::callback_error("test error")));
 
         assert!(result.is_err());
         assert!(matches!(result, Err(BufferError::CallbackError(_))));
+
+        Ok(())
     }
 
     #[cfg(target_os = "linux")]
@@ -239,12 +235,14 @@ mod page_buffer_tests {
 
         #[test]
         #[ignore]
-        fn subprocess_test_open_aborts_on_unprotect_failure() {
-            let mut buffer =
-                PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+        fn subprocess_test_open_aborts_on_unprotect_failure()
+        -> Result<(), Box<dyn std::error::Error>> {
+            let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
 
             block_mprotect();
             let _ = buffer.open(&mut |_bytes| Ok(()));
+
+            Ok(())
         }
 
         #[test]
@@ -262,14 +260,16 @@ mod page_buffer_tests {
 
         #[test]
         #[ignore]
-        fn subprocess_test_open_aborts_on_protect_failure() {
-            let mut buffer =
-                PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+        fn subprocess_test_open_aborts_on_protect_failure() -> Result<(), Box<dyn std::error::Error>>
+        {
+            let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
 
             let _ = buffer.open(&mut |_bytes| {
                 block_mprotect();
                 Ok(())
             });
+
+            Ok(())
         }
 
         #[test]
@@ -292,65 +292,58 @@ mod page_buffer_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_mut_writes_data() {
-        let mut buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+    fn test_open_mut_writes_data() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
 
-        buffer
-            .open_mut(&mut |bytes| {
-                bytes.fill(0xFF);
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        buffer.open_mut(&mut |bytes| {
+            bytes.fill(0xFF);
+            Ok(())
+        })?;
 
-        buffer
-            .open(&mut |bytes| {
-                assert!(bytes.iter().all(|&b| b == 0xFF));
-                Ok(())
-            })
-            .expect("Failed to open(..)");
+        buffer.open(&mut |bytes| {
+            assert!(bytes.iter().all(|&b| b == 0xFF));
+            Ok(())
+        })?;
+
+        Ok(())
     }
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_mut_zeroize() {
-        let mut buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+    fn test_open_mut_zeroize() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
 
-        buffer
-            .open_mut(&mut |bytes| {
-                bytes.fill(0xFF);
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        buffer.open_mut(&mut |bytes| {
+            bytes.fill(0xFF);
+            Ok(())
+        })?;
 
-        buffer
-            .open_mut(&mut |bytes| {
-                bytes.fill(0);
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        buffer.open_mut(&mut |bytes| {
+            bytes.fill(0);
+            Ok(())
+        })?;
 
-        buffer
-            .open(&mut |bytes| {
-                assert!(bytes.is_zeroized());
-                Ok(())
-            })
-            .expect("Failed to open(..)");
+        buffer.open(&mut |bytes| {
+            assert!(bytes.is_zeroized());
+            Ok(())
+        })?;
+
+        Ok(())
     }
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_mut_propagates_callback_error() {
+    fn test_open_mut_propagates_callback_error() -> Result<(), Box<dyn std::error::Error>> {
         use crate::error::BufferError;
 
-        let mut buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
 
         let result = buffer.open_mut(&mut |_| Err(BufferError::callback_error("test error")));
 
         assert!(result.is_err());
         assert!(matches!(result, Err(BufferError::CallbackError(_))));
+
+        Ok(())
     }
 
     #[cfg(target_os = "linux")]
@@ -360,12 +353,14 @@ mod page_buffer_tests {
 
         #[test]
         #[ignore]
-        fn subprocess_test_open_mut_aborts_on_unprotect_failure() {
-            let mut buffer =
-                PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+        fn subprocess_test_open_mut_aborts_on_unprotect_failure()
+        -> Result<(), Box<dyn std::error::Error>> {
+            let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
 
             block_mprotect();
             let _ = buffer.open_mut(&mut |_bytes| Ok(()));
+
+            Ok(())
         }
 
         #[test]
@@ -383,14 +378,16 @@ mod page_buffer_tests {
 
         #[test]
         #[ignore]
-        fn subprocess_test_open_mut_aborts_on_protect_failure() {
-            let mut buffer =
-                PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+        fn subprocess_test_open_mut_aborts_on_protect_failure()
+        -> Result<(), Box<dyn std::error::Error>> {
+            let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
 
             let _ = buffer.open_mut(&mut |_bytes| {
                 block_mprotect();
                 Ok(())
             });
+
+            Ok(())
         }
 
         #[test]
@@ -413,26 +410,29 @@ mod page_buffer_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_len() {
-        let buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 64).expect("Failed to new(..)");
+    fn test_len() -> Result<(), Box<dyn std::error::Error>> {
+        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 64)?;
         assert_eq!(buffer.len(), 64);
+
+        Ok(())
     }
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_is_empty_false() {
-        let buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+    fn test_is_empty_false() -> Result<(), Box<dyn std::error::Error>> {
+        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
         assert!(!buffer.is_empty());
+
+        Ok(())
     }
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_is_empty_true() {
-        let buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 0).expect("Failed to new(..)");
+    fn test_is_empty_true() -> Result<(), Box<dyn std::error::Error>> {
+        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 0)?;
         assert!(buffer.is_empty());
+
+        Ok(())
     }
 
     // =============================================================================
@@ -441,18 +441,17 @@ mod page_buffer_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_dispose() {
-        let mut buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+    fn test_dispose() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
 
-        buffer
-            .open_mut(&mut |bytes| {
-                bytes.fill(0xFF);
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        buffer.open_mut(&mut |bytes| {
+            bytes.fill(0xFF);
+            Ok(())
+        })?;
 
         buffer.dispose();
+
+        Ok(())
     }
 
     // =============================================================================
@@ -461,9 +460,8 @@ mod page_buffer_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_page_buffer_debug_does_not_expose_contents() {
-        let buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+    fn test_page_buffer_debug_does_not_expose_contents() -> Result<(), Box<dyn std::error::Error>> {
+        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
         let debug_output = format!("{:?}", buffer);
 
         // Should contain struct name, length, and strategy
@@ -472,6 +470,8 @@ mod page_buffer_tests {
         assert!(debug_output.contains("32"));
         assert!(debug_output.contains("strategy"));
         assert!(debug_output.contains("MemProtected"));
+
+        Ok(())
     }
 
     // =============================================================================

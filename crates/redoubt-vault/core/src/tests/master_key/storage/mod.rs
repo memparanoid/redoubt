@@ -5,12 +5,18 @@
 mod portable;
 mod std;
 
+// From the root: the `std` above is a module of this crate, and it shadows the
+// one this name would otherwise reach.
+use ::std::error::Error;
+
 use crate::master_key::{consts::MASTER_KEY_LEN, leak_master_key};
 
 #[test]
-fn test_leak_master_key_ok() {
-    let key = leak_master_key(16).expect("Failed to leak_master_key(..)");
+fn test_leak_master_key_ok() -> Result<(), Box<dyn Error>> {
+    let key = leak_master_key(16)?;
     assert_eq!(key.len(), 16);
+
+    Ok(())
 }
 
 #[test]

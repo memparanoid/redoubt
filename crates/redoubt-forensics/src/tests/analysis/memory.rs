@@ -1272,7 +1272,7 @@ fn wrote_nothing(_state: &mut ForensicState, _subject: &Subject) -> Result<(), R
 /// write is a word the last sweep wrote. The dirtying happens before the fork,
 /// which is what makes the child inherit it.
 #[test]
-fn test_answer_clears_what_the_last_photograph_left() {
+fn test_answer_clears_what_the_last_photograph_left() -> Result<(), Box<dyn std::error::Error>> {
     let mut state = ForensicState::default();
     let (reading, writing) = piped();
 
@@ -1305,16 +1305,14 @@ fn test_answer_clears_what_the_last_photograph_left() {
     assert!(heard, "the analyst said nothing");
 
     for word in 0..SHIPPED {
-        let read = u64::from_ne_bytes(
-            into[word * 8..word * 8 + 8]
-                .try_into()
-                .expect("eight bytes of the result"),
-        );
+        let read = u64::from_ne_bytes(into[word * 8..word * 8 + 8].try_into()?);
 
         let expected = if word == OK { DONE } else { 0 };
 
         assert_eq!(read, expected, "word {word} came back from the last sweep");
     }
+
+    Ok(())
 }
 
 // ============================================================================

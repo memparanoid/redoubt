@@ -10,19 +10,16 @@ use crate::support::test_utils::{RedoubtCodecTestBreaker, RedoubtCodecTestBreake
 use crate::{BytesRequired, Decode, Encode};
 
 #[test]
-fn test_tamper_encoded_bytes_for_tests() {
+fn test_tamper_encoded_bytes_for_tests() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = vec![
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 200),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 300),
     ];
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    vec.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    vec.encode_into(&mut buf)?;
 
     tamper_encoded_bytes_for_tests(buf.as_mut_slice());
 
@@ -37,4 +34,6 @@ fn test_tamper_encoded_bytes_for_tests() {
     assert!(decode_buf.is_zeroized());
     assert!(vec.is_zeroized());
     assert!(recovered.is_zeroized());
+
+    Ok(())
 }

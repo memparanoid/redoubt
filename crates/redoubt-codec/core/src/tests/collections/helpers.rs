@@ -79,7 +79,7 @@ fn test_process_header_buffer_too_small_for_header() {
 }
 
 #[test]
-fn test_process_header_buffer_too_small_for_data() {
+fn test_process_header_buffer_too_small_for_data() -> Result<(), Box<dyn std::error::Error>> {
     // Second precondition violated: buf.len() < *expected_len
     let mut buf = RedoubtCodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
 
@@ -87,21 +87,23 @@ fn test_process_header_buffer_too_small_for_data() {
     let mut excessive_bytes_required: usize = 1024;
     let mut data: u8 = 1;
 
-    buf.write(&mut size).expect("Failed to write size");
-    buf.write(&mut excessive_bytes_required)
-        .expect("Failed to write bytes_required");
+    buf.write(&mut size)?;
+    buf.write(&mut excessive_bytes_required)?;
     // Write some data
-    buf.write(&mut data).expect("Failed to write data");
+    buf.write(&mut data)?;
 
     let mut read_buf = buf.as_mut_slice();
     let result = process_header(&mut read_buf, &mut 0);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+
+    Ok(())
 }
 
 #[test]
-fn test_process_header_buffer_header_size_gt_bytes_required() {
+fn test_process_header_buffer_header_size_gt_bytes_required()
+-> Result<(), Box<dyn std::error::Error>> {
     // Third precondition violated: *bytes_required > *header_size
     let mut buf = RedoubtCodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
 
@@ -109,32 +111,32 @@ fn test_process_header_buffer_header_size_gt_bytes_required() {
     let mut insufficient_bytes_required: usize = header_size() - 1;
     let mut data: u8 = 1;
 
-    buf.write(&mut size).expect("Failed to write size");
-    buf.write(&mut insufficient_bytes_required)
-        .expect("Failed to write bytes_required");
+    buf.write(&mut size)?;
+    buf.write(&mut insufficient_bytes_required)?;
     // Write some data
-    buf.write(&mut data).expect("Failed to write data");
+    buf.write(&mut data)?;
 
     let mut read_buf = buf.as_mut_slice();
     let result = process_header(&mut read_buf, &mut 0);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+
+    Ok(())
 }
 
 #[test]
-fn test_process_header_ok() {
+fn test_process_header_ok() -> Result<(), Box<dyn std::error::Error>> {
     let mut buf = RedoubtCodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
 
     let mut size: usize = 1;
     let mut data: u8 = 1;
     let mut bytes_required: usize = header_size() + data.to_le_bytes().len();
 
-    buf.write(&mut size).expect("Failed to write size");
-    buf.write(&mut bytes_required)
-        .expect("Failed to write bytes_required");
+    buf.write(&mut size)?;
+    buf.write(&mut bytes_required)?;
     // Write some data
-    buf.write(&mut data).expect("Failed to write data");
+    buf.write(&mut data)?;
 
     let mut output_size = 0;
     let mut read_buf = buf.as_mut_slice();
@@ -142,19 +144,23 @@ fn test_process_header_ok() {
 
     assert!(result.is_ok());
     assert_eq!(output_size, 1);
+
+    Ok(())
 }
 
 // to_bytes_required_dyn_ref
 
 #[test]
-fn test_to_bytes_required_dyn_ref() {
+fn test_to_bytes_required_dyn_ref() -> Result<(), Box<dyn std::error::Error>> {
     let tb = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
     let dyn_ref: &dyn BytesRequired = to_bytes_required_dyn_ref(&tb);
 
     assert_eq!(
-        dyn_ref.encode_bytes_required().expect("Failed"),
-        tb.encode_bytes_required().expect("Failed")
+        dyn_ref.encode_bytes_required()?,
+        tb.encode_bytes_required()?
     );
+
+    Ok(())
 }
 
 // to_encode_dyn_mut
@@ -173,12 +179,12 @@ fn test_to_encode_dyn_mut() {
 // to_decode_dyn_mut
 
 #[test]
-fn test_to_decode_dyn_mut() {
+fn test_to_decode_dyn_mut() -> Result<(), Box<dyn std::error::Error>> {
     // First encode
     let mut tb = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
-    let bytes_required = tb.encode_bytes_required().expect("Failed");
+    let bytes_required = tb.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
-    tb.encode_into(&mut buf).expect("Failed to encode");
+    tb.encode_into(&mut buf)?;
 
     // Decode
     {
@@ -198,6 +204,8 @@ fn test_to_decode_dyn_mut() {
     // Assert zeroization!
     assert!(buf.is_zeroized());
     assert!(tb.is_zeroized());
+
+    Ok(())
 }
 
 // bytes_required_sum
@@ -263,7 +271,8 @@ fn test_bytes_required_sum_overflow() {
 // encode_fields / decode_fields
 
 #[test]
-fn perm_test_encode_fields_propagates_error_at_any_position() {
+fn perm_test_encode_fields_propagates_error_at_any_position()
+-> Result<(), Box<dyn std::error::Error>> {
     let fields = [
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 1),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 2),
@@ -272,9 +281,7 @@ fn perm_test_encode_fields_propagates_error_at_any_position() {
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 5),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::ForceEncodeError, 6),
     ];
-    let bytes_required = fields
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = fields.encode_bytes_required()?;
 
     index_permutations(fields.len(), |idx_perm| {
         let mut fields_clone = fields;
@@ -293,6 +300,8 @@ fn perm_test_encode_fields_propagates_error_at_any_position() {
         assert!(buf.is_zeroized());
         assert!(fields_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 #[test]
@@ -356,7 +365,7 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
 // Roundtrip
 
 #[test]
-fn test_fields_roundtrip_ok() {
+fn test_fields_roundtrip_ok() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let mut tb1 = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
     let mut tb2 = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 200);
@@ -366,7 +375,7 @@ fn test_fields_roundtrip_ok() {
         to_encode_zeroize_dyn_mut(&mut tb1),
         to_encode_zeroize_dyn_mut(&mut tb2),
     ];
-    encode_fields(encode_refs.into_iter(), &mut buf).expect("Failed to encode");
+    encode_fields(encode_refs.into_iter(), &mut buf)?;
 
     // Assert src zeroization after encode!
     assert!(tb1.is_zeroized());
@@ -391,4 +400,6 @@ fn test_fields_roundtrip_ok() {
     // Assert buf zeroization after decode!
     assert!(buf.is_zeroized());
     assert!(decode_buf.is_zeroized());
+
+    Ok(())
 }
