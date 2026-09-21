@@ -30,25 +30,6 @@ use crate::xchachapoly1305::XChaCha20Poly1305;
 use super::support::wycheproof::{TestCase, TestResult};
 use super::support::wycheproof_vectors::test_vectors;
 
-/// The vectors, sampled with a fixed stride under Miri.
-///
-/// They are not interchangeable: each targets a distinct edge, so a prefix
-/// would drop whole families and a stride lands across all of them.
-///
-/// Sampling is sound for what Miri is doing. It looks for undefined behaviour
-/// on a code path, and the path is the same for vector three and vector three
-/// hundred; what changes between them is the arithmetic, which Miri does not
-/// check and which the ordinary run verifies exhaustively in seconds.
-fn corpus(vectors: &[TestCase]) -> impl Iterator<Item = &TestCase> {
-    #[cfg(miri)]
-    let step = (vectors.len() / 16).max(1);
-
-    #[cfg(not(miri))]
-    let step = 1;
-
-    vectors.iter().step_by(step)
-}
-
 /// The key and the nonce at the widths this construction takes, or nothing.
 ///
 /// A vector whose nonce is not twenty-four bytes cannot be handed over at all —
@@ -72,7 +53,7 @@ fn test_encrypt_returns_the_ciphertext_and_tag_the_corpus_publishes(#[case] back
     let mut aead = XChaCha20Poly1305::with_backend(backend);
     let vectors = test_vectors();
 
-    for case in corpus(&vectors) {
+    for case in vectors.iter() {
         // An invalid vector says nothing about enciphering: what it is invalid
         // about is the tag, which is the other direction.
         if matches!(case.result, TestResult::Invalid) {
@@ -120,7 +101,7 @@ fn test_decrypt_accepts_what_the_corpus_calls_valid(#[case] backend: Backend) {
     let mut aead = XChaCha20Poly1305::with_backend(backend);
     let vectors = test_vectors();
 
-    for case in corpus(&vectors) {
+    for case in vectors.iter() {
         if matches!(case.result, TestResult::Invalid) {
             continue;
         }
@@ -161,7 +142,7 @@ fn test_decrypt_refuses_what_the_corpus_calls_invalid(#[case] backend: Backend) 
     let mut aead = XChaCha20Poly1305::with_backend(backend);
     let vectors = test_vectors();
 
-    for case in corpus(&vectors) {
+    for case in vectors.iter() {
         if matches!(case.result, TestResult::Valid) {
             continue;
         }
@@ -202,7 +183,7 @@ fn test_decrypt_refuses_a_tag_with_one_bit_turned_over(#[case] backend: Backend)
     let mut aead = XChaCha20Poly1305::with_backend(backend);
     let vectors = test_vectors();
 
-    for case in corpus(&vectors) {
+    for case in vectors.iter() {
         if matches!(case.result, TestResult::Invalid) {
             continue;
         }
@@ -255,7 +236,7 @@ fn test_decrypt_then_encrypt_returns_the_corpus_to_itself(#[case] backend: Backe
     let mut aead = XChaCha20Poly1305::with_backend(backend);
     let vectors = test_vectors();
 
-    for case in corpus(&vectors) {
+    for case in vectors.iter() {
         if matches!(case.result, TestResult::Invalid) {
             continue;
         }

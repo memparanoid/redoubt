@@ -5,19 +5,11 @@
 use crate::collections::{slice_fast_zeroize, vec_fast_zeroize};
 use crate::traits::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
-/// Three tests below zeroize one element at a time and re-check the whole
-/// collection after each one, which is quadratic in `SIZE`. At 16,383 that is
-/// ~268 million element checks: milliseconds when compiled, but days under
-/// Miri, which interprets every access and tracks borrow state per location.
+/// How many elements the collections under test hold.
 ///
-/// The property under test — that a partially zeroized collection is never
-/// reported as zeroized, i.e. that `is_zeroized` has no short circuit that
-/// lies — does not depend on the size. Sixty-four elements prove it exactly as
-/// well, and the full size still runs on every ordinary `cargo test`.
-#[cfg(miri)]
-const SIZE: usize = 64;
-
-#[cfg(not(miri))]
+/// The tests that zeroize one element at a time and re-check the whole
+/// collection after each one are quadratic in it: at 16,383 that is ~268
+/// million element checks.
 const SIZE: usize = (u16::MAX / 4) as usize;
 
 // === === === === === === === === === ===

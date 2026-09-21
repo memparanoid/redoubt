@@ -26,25 +26,6 @@ use crate::aegis128l::Aegis128L;
 use super::support::wycheproof::{TestCase, TestResult};
 use super::support::wycheproof_vectors::test_vectors;
 
-/// The vectors, sampled with a fixed stride under Miri.
-///
-/// They are not interchangeable: each targets a distinct edge, so a prefix
-/// would drop whole families and a stride lands across all of them.
-///
-/// Sampling is sound for what Miri is doing. It looks for undefined behaviour
-/// on a code path, and the path is the same for vector three and vector four
-/// hundred; what changes between them is the arithmetic, which Miri does not
-/// check and which the ordinary run verifies exhaustively in seconds.
-fn corpus(vectors: &[TestCase]) -> impl Iterator<Item = &TestCase> {
-    #[cfg(miri)]
-    let step = (vectors.len() / 16).max(1);
-
-    #[cfg(not(miri))]
-    let step = 1;
-
-    vectors.iter().step_by(step)
-}
-
 /// The key, the nonce and the tag at the widths this construction takes.
 ///
 /// Every vector in the corpus has all three, which the last test in this file
@@ -67,7 +48,7 @@ fn test_encrypt_returns_the_ciphertext_and_tag_the_corpus_publishes() {
     let mut aead = Aegis128L::new();
     let vectors = test_vectors();
 
-    for case in corpus(&vectors) {
+    for case in vectors.iter() {
         // An invalid vector says nothing about enciphering: what it is invalid
         // about is the tag, which is the other direction.
         if matches!(case.result, TestResult::Invalid) {
@@ -113,7 +94,7 @@ fn test_decrypt_accepts_what_the_corpus_calls_valid() {
     let mut aead = Aegis128L::new();
     let vectors = test_vectors();
 
-    for case in corpus(&vectors) {
+    for case in vectors.iter() {
         if matches!(case.result, TestResult::Invalid) {
             continue;
         }
@@ -149,7 +130,7 @@ fn test_decrypt_refuses_what_the_corpus_calls_invalid() {
     let mut aead = Aegis128L::new();
     let vectors = test_vectors();
 
-    for case in corpus(&vectors) {
+    for case in vectors.iter() {
         if matches!(case.result, TestResult::Valid) {
             continue;
         }
@@ -189,7 +170,7 @@ fn test_decrypt_empties_the_buffer_of_what_the_corpus_refuses() {
     let mut aead = Aegis128L::new();
     let vectors = test_vectors();
 
-    for case in corpus(&vectors) {
+    for case in vectors.iter() {
         if matches!(case.result, TestResult::Valid) {
             continue;
         }
@@ -237,7 +218,7 @@ fn test_decrypt_refuses_a_tag_with_one_bit_turned_over() {
     let mut aead = Aegis128L::new();
     let vectors = test_vectors();
 
-    for case in corpus(&vectors) {
+    for case in vectors.iter() {
         if matches!(case.result, TestResult::Invalid) {
             continue;
         }
@@ -285,7 +266,7 @@ fn test_decrypt_then_encrypt_returns_the_corpus_to_itself() {
     let mut aead = Aegis128L::new();
     let vectors = test_vectors();
 
-    for case in corpus(&vectors) {
+    for case in vectors.iter() {
         if matches!(case.result, TestResult::Invalid) {
             continue;
         }
