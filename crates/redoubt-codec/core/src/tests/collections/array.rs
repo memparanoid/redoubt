@@ -120,18 +120,15 @@ fn test_array_decode_from_propagates_process_header_err() {
 }
 
 #[test]
-fn test_array_decode_from_propagates_size_mismatch_err() {
+fn test_array_decode_from_propagates_size_mismatch_err() -> Result<(), Box<dyn std::error::Error>> {
     // Encode array of size 2
     let mut arr = [
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
     ];
-    let bytes_required = arr
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = arr.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
-    arr.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    arr.encode_into(&mut buf)?;
 
     // Try to decode into array of size 1
     let mut decode_buf = buf.export_as_vec();
@@ -146,6 +143,8 @@ fn test_array_decode_from_propagates_size_mismatch_err() {
     assert!(decode_buf.is_zeroized());
     assert!(arr.is_zeroized());
     assert!(arr_wrong_size.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
