@@ -35,21 +35,21 @@ fn test_generate_random_key_supports_common_key_sizes() -> Result<(), Box<dyn st
 }
 
 #[test]
-fn test_generate_random_key_info_provides_domain_separation() {
+fn test_generate_random_key_info_provides_domain_separation()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut master_key = [0u8; 32];
-    generate_random_key(b"app.master_key.v1", &mut master_key)
-        .expect("Failed to generate master key");
+    generate_random_key(b"app.master_key.v1", &mut master_key)?;
 
     let mut encryption_key = [0u8; 32];
-    generate_random_key(b"app.encryption_key.v1", &mut encryption_key)
-        .expect("Failed to generate encryption key");
+    generate_random_key(b"app.encryption_key.v1", &mut encryption_key)?;
 
     let mut signing_key = [0u8; 32];
-    generate_random_key(b"app.signing_key.v1", &mut signing_key)
-        .expect("Failed to generate signing key");
+    generate_random_key(b"app.signing_key.v1", &mut signing_key)?;
 
     // All keys must be different due to info parameter
     assert_ne!(master_key, encryption_key);
     assert_ne!(master_key, signing_key);
     assert_ne!(encryption_key, signing_key);
+
+    Ok(())
 }
