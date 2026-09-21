@@ -181,19 +181,16 @@ fn test_array_decode_propagates_decode_err() -> Result<(), Box<dyn std::error::E
 // Roundtrip
 
 #[test]
-fn test_array_encode_decode_roundtrip() {
+fn test_array_encode_decode_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let mut arr = [
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 7),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 37),
     ];
-    let bytes_required = arr
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = arr.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    arr.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    arr.encode_into(&mut buf)?;
 
     // Decode
     {
@@ -221,6 +218,8 @@ fn test_array_encode_decode_roundtrip() {
     // Assert zeroization!
     assert!(buf.is_zeroized());
     assert!(arr.is_zeroized());
+
+    Ok(())
 }
 
 // Perm tests
