@@ -181,16 +181,18 @@ fn test_allocked_vec_push_empties_what_it_was_handed() -> Result<(), Box<dyn std
 }
 
 #[test]
-fn test_allocked_vec_push_carries_an_array_whole() {
+fn test_allocked_vec_push_carries_an_array_whole() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(1);
     let mut one = [9u8; 32];
 
-    vec.push(&mut one).expect("Failed to push");
+    vec.push(&mut one)?;
 
     assert_eq!(vec.as_slice(), &[[9u8; 32]]);
 
     // Assert zeroization!
     assert!(one.is_zeroized());
+
+    Ok(())
 }
 
 /// A `T` that owns an allocation crosses by its pointer.
