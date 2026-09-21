@@ -141,14 +141,14 @@ fn test_allocked_vec_push_within_capacity() -> Result<(), Box<dyn std::error::Er
 }
 
 #[test]
-fn test_allocked_vec_push_exceeds_capacity() {
+fn test_allocked_vec_push_exceeds_capacity() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(2);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     // Exceeding capacity fails
     let result = vec.push(&mut 3u8);
@@ -161,6 +161,8 @@ fn test_allocked_vec_push_exceeds_capacity() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
