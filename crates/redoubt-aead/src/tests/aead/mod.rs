@@ -324,12 +324,15 @@ fn test_generate_nonce_answers_a_nonce_of_the_chacha_width()
 
 #[test]
 #[cfg(aes_asm)]
-fn test_generate_nonce_answers_a_nonce_of_the_aegis_width() {
+fn test_generate_nonce_answers_a_nonce_of_the_aegis_width() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut aead = Aead::from_algorithm(AeadAlgorithm::Aegis128L);
 
-    let nonce = aead.generate_nonce().expect("this machine has entropy");
+    let nonce = aead.generate_nonce()?;
 
     assert_eq!(nonce.len(), aegis::NONCE_SIZE);
+
+    Ok(())
 }
 
 /// The counter is what makes two nonces unable to collide, and it only counts
