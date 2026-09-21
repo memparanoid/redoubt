@@ -100,11 +100,13 @@ mod page_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_lock_then_munlock() {
-        let page = Page::new().expect("Failed to new()");
+    fn test_lock_then_munlock() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new()?;
 
-        page.lock().expect("Failed to lock()");
+        page.lock()?;
         page.munlock();
+
+        Ok(())
     }
 
     #[test]
