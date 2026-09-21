@@ -274,7 +274,8 @@ fn perm_test_array_encode_into_propagates_error_at_any_position()
 }
 
 #[test]
-fn perm_test_array_decode_from_propagates_error_at_any_position() {
+fn perm_test_array_decode_from_propagates_error_at_any_position()
+-> Result<(), Box<dyn std::error::Error>> {
     let arr = [
         [RedoubtCodecTestBreaker::new(
             RedoubtCodecTestBreakerBehaviour::None,
@@ -302,9 +303,7 @@ fn perm_test_array_decode_from_propagates_error_at_any_position() {
         )],
     ];
 
-    let bytes_required = arr
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = arr.encode_bytes_required()?;
 
     let mut recovered_arr = arr;
     recovered_arr[0][0].set_behaviour(RedoubtCodecTestBreakerBehaviour::ForceDecodeError);
@@ -340,6 +339,8 @@ fn perm_test_array_decode_from_propagates_error_at_any_position() {
         assert!(buf.is_zeroized());
         assert!(arr_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 #[test]
