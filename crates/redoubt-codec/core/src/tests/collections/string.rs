@@ -263,15 +263,13 @@ fn test_string_decode_slice_propagates_decode_from_error() {
 // Roundtrip (this includes test_string_decode_from_ok)
 
 #[test]
-fn test_string_roundtrip_ok() {
+fn test_string_roundtrip_ok() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let mut s = String::from("hello world");
-    let bytes_required = s
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = s.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    s.encode_into(&mut buf).expect("encode failed");
+    s.encode_into(&mut buf)?;
 
     // Decode
     {
@@ -291,6 +289,8 @@ fn test_string_roundtrip_ok() {
     // Assert zeroization!
     assert!(buf.is_zeroized());
     assert!(s.is_zeroized());
+
+    Ok(())
 }
 
 // Integration test
