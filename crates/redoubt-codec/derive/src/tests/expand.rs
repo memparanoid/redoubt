@@ -15,6 +15,17 @@ fn pretty(ts: proc_macro2::TokenStream) -> String {
     prettyplease::unparse(&file)
 }
 
+/// The expansion, pretty-printed, with a refusal carried as its own text.
+///
+/// What `expand` refuses with is the `compile_error!` it would have emitted,
+/// which is a `TokenStream` and so not an error `?` can carry. Its text is
+/// what a reader wants anyway.
+fn expanded(input: syn::DeriveInput) -> Result<String, Box<dyn std::error::Error>> {
+    expand(input)
+        .map(pretty)
+        .map_err(|refusal| refusal.to_string().into())
+}
+
 #[test]
 fn test_find_root_with_candidates_not_found() {
     // No candidates found -> compile_error
@@ -83,7 +94,7 @@ fn test_find_root_with_candidates_path_itself_invalid() {
 }
 
 #[test]
-fn snapshot_named_struct_ok() {
+fn snapshot_named_struct_ok() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtCodec)]
         struct Data {
@@ -92,34 +103,37 @@ fn snapshot_named_struct_ok() {
         }
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_tuple_struct_ok() {
+fn snapshot_tuple_struct_ok() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtCodec)]
         struct Data(Vec<u8>, u64, u32);
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_unit_struct_ok() {
+fn snapshot_unit_struct_ok() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtCodec)]
         struct Empty;
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_struct_with_generics_ok() {
+fn snapshot_struct_with_generics_ok() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtCodec)]
         struct Container<T> where T: redoubt_codec::BytesRequired + redoubt_codec::Encode + redoubt_codec::Decode {
@@ -128,8 +142,9 @@ fn snapshot_struct_with_generics_ok() {
         }
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
@@ -149,7 +164,7 @@ fn snapshot_enum_fails() {
 // #[codec(default)]
 
 #[test]
-fn snapshot_named_struct_ok_with_codec_default() {
+fn snapshot_named_struct_ok_with_codec_default() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtCodec)]
         struct Sigma {
@@ -160,23 +175,25 @@ fn snapshot_named_struct_ok_with_codec_default() {
         }
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_tuple_struct_ok_with_codec_default() {
+fn snapshot_tuple_struct_ok_with_codec_default() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtCodec)]
         struct Sigma(Vec<u8>, [u8; 32], #[codec(default)] [u8; 16]);
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_named_struct_with_non_default_codec_attr() {
+fn snapshot_named_struct_with_non_default_codec_attr() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtCodec)]
         struct Sigma {
@@ -186,12 +203,13 @@ fn snapshot_named_struct_with_non_default_codec_attr() {
         }
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_named_struct_with_other_list_attr() {
+fn snapshot_named_struct_with_other_list_attr() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtCodec)]
         struct Sigma {
@@ -201,6 +219,7 @@ fn snapshot_named_struct_with_other_list_attr() {
         }
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
