@@ -691,7 +691,7 @@ fn test_allocked_vec_fill_with_default_full_vec() -> Result<(), Box<dyn std::err
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_behaviour_fail_at_push() {
+fn test_allocked_vec_behaviour_fail_at_push() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(10);
 
     // Vec is not zeroized since `has_been_sealed` is true.
@@ -714,11 +714,13 @@ fn test_allocked_vec_behaviour_fail_at_push() {
     vec.change_behaviour(AllockedVecBehaviour::None);
 
     // Now push should work
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
+    vec.push(&mut 1u8)?;
     assert_eq!(vec.as_slice(), &[1]);
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
