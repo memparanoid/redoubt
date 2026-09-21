@@ -407,13 +407,14 @@ fn test_allocked_vec_drain_from_carries_arrays_whole() -> Result<(), Box<dyn std
 /// purpose: a length that stayed behind is then visible as a length rather than
 /// as bytes that happen to agree.
 #[test]
-fn test_allocked_vec_drain_from_carries_vecs_by_their_buffers() {
+fn test_allocked_vec_drain_from_carries_vecs_by_their_buffers()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(2);
     let mut data = [alloc::vec![1u8, 2, 3], alloc::vec![7u8; 64]];
 
     let buffers = [data[0].as_ptr(), data[1].as_ptr()];
 
-    vec.drain_from(&mut data).expect("Failed to drain_from");
+    vec.drain_from(&mut data)?;
 
     assert_eq!(
         vec.as_slice(),
@@ -425,6 +426,8 @@ fn test_allocked_vec_drain_from_carries_vecs_by_their_buffers() {
 
     // Assert zeroization!
     assert!(data.is_zeroized());
+
+    Ok(())
 }
 
 /// Draining to capacity leaves the allocation where it was.
