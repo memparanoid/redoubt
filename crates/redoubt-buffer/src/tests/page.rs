@@ -396,14 +396,16 @@ mod page_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_unprotect_allows_write() {
-        let mut page = Page::new().expect("Failed to new()");
+    fn test_unprotect_allows_write() -> Result<(), Box<dyn std::error::Error>> {
+        let mut page = Page::new()?;
 
-        page.protect().expect("Failed to protect()");
-        page.unprotect().expect("Failed to unprotect()");
+        page.protect()?;
+        page.unprotect()?;
 
         unsafe { page.as_mut_slice()[0] = 0x42 };
         assert_eq!(unsafe { page.as_slice()[0] }, 0x42);
+
+        Ok(())
     }
 
     #[cfg(target_os = "linux")]
