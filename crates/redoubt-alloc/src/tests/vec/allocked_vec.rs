@@ -930,14 +930,14 @@ fn test_allocked_vec_default() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_deref_to_slice() {
+fn test_allocked_vec_deref_to_slice() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(3);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     // Deref allows slice methods
     assert_eq!(vec[0], 1);
@@ -946,6 +946,8 @@ fn test_allocked_vec_deref_to_slice() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
