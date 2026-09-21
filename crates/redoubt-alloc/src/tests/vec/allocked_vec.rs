@@ -121,21 +121,23 @@ fn test_allocked_vec_capacity_is_zeroed_on_creation() -> Result<(), Box<dyn std:
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_push_within_capacity() {
+fn test_allocked_vec_push_within_capacity() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(3);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
-    vec.push(&mut 3u8).expect("Failed to vec.push(3)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
+    vec.push(&mut 3u8)?;
 
     assert_eq!(vec.len(), 3);
     assert_eq!(vec.as_slice(), &[1, 2, 3]);
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
