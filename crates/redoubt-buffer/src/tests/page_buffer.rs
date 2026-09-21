@@ -419,10 +419,11 @@ mod page_buffer_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_is_empty_false() {
-        let buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+    fn test_is_empty_false() -> Result<(), Box<dyn std::error::Error>> {
+        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
         assert!(!buffer.is_empty());
+
+        Ok(())
     }
 
     #[test]
