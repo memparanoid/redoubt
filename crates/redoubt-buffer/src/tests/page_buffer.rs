@@ -460,9 +460,8 @@ mod page_buffer_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_page_buffer_debug_does_not_expose_contents() {
-        let buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+    fn test_page_buffer_debug_does_not_expose_contents() -> Result<(), Box<dyn std::error::Error>> {
+        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
         let debug_output = format!("{:?}", buffer);
 
         // Should contain struct name, length, and strategy
@@ -471,6 +470,8 @@ mod page_buffer_tests {
         assert!(debug_output.contains("32"));
         assert!(debug_output.contains("strategy"));
         assert!(debug_output.contains("MemProtected"));
+
+        Ok(())
     }
 
     // =============================================================================
