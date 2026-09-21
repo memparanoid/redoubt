@@ -44,11 +44,12 @@ mod page_buffer_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_new_mem_non_protected() {
-        let buffer =
-            PageBuffer::new(ProtectionStrategy::MemNonProtected, 32).expect("Failed to new(..)");
+    fn test_new_mem_non_protected() -> Result<(), Box<dyn std::error::Error>> {
+        let buffer = PageBuffer::new(ProtectionStrategy::MemNonProtected, 32)?;
         let debug_output = format!("{:?}", buffer);
         assert!(debug_output.contains("MemNonProtected"));
+
+        Ok(())
     }
 
     // TODO: Run this test in a subprocess to safely cover the MAP_FAILED branch
