@@ -176,7 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cipherbox_api() {
+    fn test_cipherbox_api() -> Result<(), Box<dyn std::error::Error>> {
         let mut cb = WalletSecretsCipherBox::new();
 
         // Set values
@@ -185,19 +185,16 @@ mod tests {
             ws.encryption_key = [0xAB; 32];
 
             Ok(())
-        })
-        .expect("Failed to open_mut(..)");
+        })?;
 
         // Extract the first byte from each field
-        let first_master_seed_byte = cb
-            .open(|ws| Ok(ws.master_seed[0]))
-            .expect("Failed to open(..)");
-        let first_encryption_key_byte = cb
-            .open(|ws| Ok(ws.encryption_key[0]))
-            .expect("Failed to open(..)");
+        let first_master_seed_byte = cb.open(|ws| Ok(ws.master_seed[0]))?;
+        let first_encryption_key_byte = cb.open(|ws| Ok(ws.encryption_key[0]))?;
 
         assert_eq!(*first_master_seed_byte, 0x42);
         assert_eq!(*first_encryption_key_byte, 0xAB);
+
+        Ok(())
     }
 
     // Custom error type for testing
