@@ -245,7 +245,8 @@ fn perm_test_vec_encode_into_propagates_error_at_any_position()
 }
 
 #[test]
-fn perm_test_vec_decode_from_propagates_error_at_any_position() {
+fn perm_test_vec_decode_from_propagates_error_at_any_position()
+-> Result<(), Box<dyn std::error::Error>> {
     let vec = vec![
         vec![RedoubtCodecTestBreaker::new(
             RedoubtCodecTestBreakerBehaviour::None,
@@ -273,9 +274,7 @@ fn perm_test_vec_decode_from_propagates_error_at_any_position() {
         )],
     ];
 
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
 
     let mut recovered_vec = vec.clone();
     recovered_vec[0][0].set_behaviour(RedoubtCodecTestBreakerBehaviour::ForceDecodeError);
@@ -310,6 +309,8 @@ fn perm_test_vec_decode_from_propagates_error_at_any_position() {
         assert!(buf.is_zeroized());
         assert!(vec_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 #[test]
