@@ -338,8 +338,9 @@ mod page_tests {
 
         #[test]
         #[ignore]
-        fn subprocess_test_protect_failure_zeroizes_page() {
-            let mut page = Page::new().expect("Failed to new()");
+        fn subprocess_test_protect_failure_zeroizes_page() -> Result<(), Box<dyn std::error::Error>>
+        {
+            let mut page = Page::new()?;
 
             // Write sensitive data
             unsafe { page.as_mut_slice().fill(0xFF) };
@@ -356,6 +357,8 @@ mod page_tests {
             // Page should be zeroized by dispose()
             // Note: dispose() also unmaps, so we can't check directly
             // But we verified the error path calls dispose()
+
+            Ok(())
         }
 
         #[test]
