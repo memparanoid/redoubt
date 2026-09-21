@@ -9,23 +9,19 @@ use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::traits::{BytesRequired, Decode, Encode};
 
 #[test]
-fn test_redoubt_string_codec_roundtrip() {
+fn test_redoubt_string_codec_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     let mut s = RedoubtString::new();
     s.extend_from_mut_string(&mut String::from("REDOUBT"));
 
-    let bytes_required = s
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = s.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    s.encode_into(&mut buf).expect("Failed to encode_into(..)");
+    s.encode_into(&mut buf)?;
 
     let mut decode_buf = buf.export_as_vec();
     let mut recovered = RedoubtString::default();
 
-    recovered
-        .decode_from(&mut decode_buf.as_mut_slice())
-        .expect("Failed to decode_from(..)");
+    recovered.decode_from(&mut decode_buf.as_mut_slice())?;
 
     assert_eq!(recovered.as_str(), "REDOUBT");
 
@@ -33,6 +29,8 @@ fn test_redoubt_string_codec_roundtrip() {
     assert!(buf.is_zeroized());
     assert!(decode_buf.is_zeroized());
     assert!(s.is_zeroized());
+
+    Ok(())
 }
 
 // Stress Tests
