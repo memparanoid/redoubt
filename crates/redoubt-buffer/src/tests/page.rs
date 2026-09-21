@@ -540,13 +540,15 @@ mod page_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_dispose_on_protected_page() {
-        let mut page = Page::new().expect("Failed to new()");
+    fn test_dispose_on_protected_page() -> Result<(), Box<dyn std::error::Error>> {
+        let mut page = Page::new()?;
 
         unsafe { page.as_mut_slice().fill(0xFF) };
 
-        page.protect().expect("Failed to protect()");
+        page.protect()?;
         page.dispose();
+
+        Ok(())
     }
 
     #[cfg(target_os = "linux")]
