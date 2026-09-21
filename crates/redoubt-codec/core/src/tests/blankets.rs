@@ -10,24 +10,18 @@ use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::traits::{BytesRequired, Decode, Encode};
 
 #[test]
-fn test_box_codec_roundtrip() {
+fn test_box_codec_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     let mut boxed = Box::new(42u64);
 
-    let bytes_required = boxed
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = boxed.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    boxed
-        .encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    boxed.encode_into(&mut buf)?;
 
     let mut decode_buf = buf.export_as_vec();
     let mut recovered = Box::new(0u64);
 
-    recovered
-        .decode_from(&mut decode_buf.as_mut_slice())
-        .expect("Failed to decode_from(..)");
+    recovered.decode_from(&mut decode_buf.as_mut_slice())?;
 
     assert_eq!(*recovered, 42);
 
@@ -37,6 +31,8 @@ fn test_box_codec_roundtrip() {
         assert!(decode_buf.is_zeroized());
         assert!(boxed.is_zeroized());
     }
+
+    Ok(())
 }
 
 #[test]
