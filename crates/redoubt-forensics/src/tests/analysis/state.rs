@@ -349,7 +349,8 @@ fn test_hold_that_refuses_leaves_the_last_needle_alone() {
 /// different stretches of the block, every photograph would come back as zeros
 /// — which is also what "the secret is nowhere" looks like.
 #[test]
-fn test_shipped_is_the_bytes_of_the_result_the_analysis_writes() {
+fn test_shipped_is_the_bytes_of_the_result_the_analysis_writes()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut state = ForensicState::default();
 
     state.parts().result[FOUND] = 1;
@@ -360,13 +361,11 @@ fn test_shipped_is_the_bytes_of_the_result_the_analysis_writes() {
     assert_eq!(shipped.len(), SHIPPED * 8);
     assert_eq!(shipped[0], 1, "the first counter is at the front");
     assert_eq!(
-        u64::from_ne_bytes(
-            shipped[COUNT * 8..COUNT * 8 + 8]
-                .try_into()
-                .expect("eight bytes"),
-        ),
+        u64::from_ne_bytes(shipped[COUNT * 8..COUNT * 8 + 8].try_into()?,),
         0x0102_0304_0506_0708,
     );
+
+    Ok(())
 }
 
 // ============================================================================
