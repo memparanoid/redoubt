@@ -598,25 +598,27 @@ mod page_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_full_lifecycle() {
-        let mut page = Page::new().expect("Failed to new()");
+    fn test_full_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
+        let mut page = Page::new()?;
 
         // Lock in RAM
-        page.lock().expect("Failed to lock()");
+        page.lock()?;
 
         // Write sensitive data
         unsafe { page.as_mut_slice().fill(0xDE) };
 
         // Protect
-        page.protect().expect("Failed to protect()");
+        page.protect()?;
 
         // Unprotect, read, protect again
-        page.unprotect().expect("Failed to unprotect()");
+        page.unprotect()?;
         assert_eq!(unsafe { page.as_slice()[0] }, 0xDE);
-        page.protect().expect("Failed to protect()");
+        page.protect()?;
 
         // Cleanup
         page.dispose();
+
+        Ok(())
     }
 
     #[test]
