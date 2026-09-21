@@ -253,11 +253,13 @@ mod page_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_protect_then_unprotect() {
-        let page = Page::new().expect("Failed to new()");
+    fn test_protect_then_unprotect() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new()?;
 
-        page.protect().expect("Failed to protect()");
-        page.unprotect().expect("Failed to unprotect()");
+        page.protect()?;
+        page.unprotect()?;
+
+        Ok(())
     }
 
     #[test]
