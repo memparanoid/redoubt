@@ -21,17 +21,17 @@ fn test_bytes_required_none() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_bytes_required_some() {
+fn test_bytes_required_some() -> Result<(), Box<dyn std::error::Error>> {
     let opt = Some(RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         42,
     ));
-    let bytes_required = opt
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = opt.encode_bytes_required()?;
     // Header (2 * usize) + RedoubtCodecTestBreaker (2 * usize)
     let expected = 4 * size_of::<usize>();
     assert_eq!(bytes_required, expected);
+
+    Ok(())
 }
 
 #[test]
