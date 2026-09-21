@@ -126,18 +126,17 @@ fn test_process_header_buffer_header_size_gt_bytes_required()
 }
 
 #[test]
-fn test_process_header_ok() {
+fn test_process_header_ok() -> Result<(), Box<dyn std::error::Error>> {
     let mut buf = RedoubtCodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
 
     let mut size: usize = 1;
     let mut data: u8 = 1;
     let mut bytes_required: usize = header_size() + data.to_le_bytes().len();
 
-    buf.write(&mut size).expect("Failed to write size");
-    buf.write(&mut bytes_required)
-        .expect("Failed to write bytes_required");
+    buf.write(&mut size)?;
+    buf.write(&mut bytes_required)?;
     // Write some data
-    buf.write(&mut data).expect("Failed to write data");
+    buf.write(&mut data)?;
 
     let mut output_size = 0;
     let mut read_buf = buf.as_mut_slice();
@@ -145,6 +144,8 @@ fn test_process_header_ok() {
 
     assert!(result.is_ok());
     assert_eq!(output_size, 1);
+
+    Ok(())
 }
 
 // to_bytes_required_dyn_ref
