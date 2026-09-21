@@ -102,7 +102,8 @@ fn test_process_header_buffer_too_small_for_data() -> Result<(), Box<dyn std::er
 }
 
 #[test]
-fn test_process_header_buffer_header_size_gt_bytes_required() {
+fn test_process_header_buffer_header_size_gt_bytes_required()
+-> Result<(), Box<dyn std::error::Error>> {
     // Third precondition violated: *bytes_required > *header_size
     let mut buf = RedoubtCodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
 
@@ -110,17 +111,18 @@ fn test_process_header_buffer_header_size_gt_bytes_required() {
     let mut insufficient_bytes_required: usize = header_size() - 1;
     let mut data: u8 = 1;
 
-    buf.write(&mut size).expect("Failed to write size");
-    buf.write(&mut insufficient_bytes_required)
-        .expect("Failed to write bytes_required");
+    buf.write(&mut size)?;
+    buf.write(&mut insufficient_bytes_required)?;
     // Write some data
-    buf.write(&mut data).expect("Failed to write data");
+    buf.write(&mut data)?;
 
     let mut read_buf = buf.as_mut_slice();
     let result = process_header(&mut read_buf, &mut 0);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeError::PreconditionViolated)));
+
+    Ok(())
 }
 
 #[test]
