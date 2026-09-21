@@ -70,7 +70,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cipherbox_wrapper_open_field() {
+    fn test_cipherbox_wrapper_open_field() -> Result<(), Box<dyn std::error::Error>> {
         let mut cb = WalletSecretsCipherBox::new();
 
         // Set values
@@ -81,33 +81,30 @@ mod tests {
             ws.pin_hash = [0xEF; 32];
 
             Ok(())
-        })
-        .expect("Failed to open_mut(..)");
+        })?;
 
         // Read individual fields
         cb.open_master_seed(|seed| {
             assert_eq!(*seed, [0x42; 32]);
             Ok(())
-        })
-        .expect("Failed to open_master_seed(..)");
+        })?;
 
         cb.open_encryption_key(|key| {
             assert_eq!(*key, [0xAB; 32]);
             Ok(())
-        })
-        .expect("Failed to open_encryption_key(..)");
+        })?;
 
         cb.open_signing_key(|key| {
             assert_eq!(*key, [0xCD; 32]);
             Ok(())
-        })
-        .expect("Failed to open_signing_key(..)");
+        })?;
 
         cb.open_pin_hash(|hash| {
             assert_eq!(*hash, [0xEF; 32]);
             Ok(())
-        })
-        .expect("Failed to open_pin_hash(..)");
+        })?;
+
+        Ok(())
     }
 
     #[test]
