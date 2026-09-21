@@ -146,7 +146,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cipherbox_wrapper_leak_field() {
+    fn test_cipherbox_wrapper_leak_field() -> Result<(), Box<dyn std::error::Error>> {
         let mut cb = WalletSecretsCipherBox::new();
 
         // Set values
@@ -155,18 +155,13 @@ mod tests {
             ws.encryption_key = [0xAB; 32];
 
             Ok(())
-        })
-        .expect("Failed to open_mut(..)");
+        })?;
 
         // Leak individual fields
-        let seed = cb
-            .leak_master_seed()
-            .expect("Failed to leak_master_seed(..)");
+        let seed = cb.leak_master_seed()?;
         assert_eq!(*seed, [0x42; 32]);
 
-        let key = cb
-            .leak_encryption_key()
-            .expect("Failed to leak_encryption_key(..)");
+        let key = cb.leak_encryption_key()?;
         assert_eq!(*key, [0xAB; 32]);
 
         // Verify original cipherbox is unchanged
@@ -175,8 +170,9 @@ mod tests {
             assert_eq!(ws.encryption_key, [0xAB; 32]);
 
             Ok(())
-        })
-        .expect("Failed to open(..)");
+        })?;
+
+        Ok(())
     }
 
     #[test]
