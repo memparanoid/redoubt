@@ -487,7 +487,7 @@ fn test_decrypt_from_zeroizes_on_decrypt_failure() -> Result<(), Box<dyn std::er
 /// Test zeroization when decode fails - exhaustive permutation test.
 /// Flow: api_decrypt succeeds → ciphertexts become plaintext → decode_from fails → must zeroize all.
 #[test]
-fn test_decrypt_from_zeroizes_on_decode_failure() {
+fn test_decrypt_from_zeroizes_on_decode_failure() -> Result<(), Box<dyn std::error::Error>> {
     let mut test_breakers: [RedoubtCodecTestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
         if i == 0 {
             RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::ForceDecodeError, i << 2)
@@ -505,8 +505,7 @@ fn test_decrypt_from_zeroizes_on_decode_failure() {
         let fields = test_breakers
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
-        encrypt_into(fields, &mut aead, &aead_key, &mut nonces, &mut tags)
-            .expect("Failed to encrypt_into()")
+        encrypt_into(fields, &mut aead, &aead_key, &mut nonces, &mut tags)?
     };
 
     // Sanity check: decrypt works with no errors.
@@ -572,4 +571,6 @@ fn test_decrypt_from_zeroizes_on_decode_failure() {
             perm
         );
     });
+
+    Ok(())
 }
