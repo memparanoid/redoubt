@@ -12,12 +12,12 @@ use redoubt_zero::ZeroizationProbe;
 // Bytes Required
 
 #[test]
-fn test_bytes_required_none() {
+fn test_bytes_required_none() -> Result<(), Box<dyn std::error::Error>> {
     let opt: Option<RedoubtCodecTestBreaker> = None;
-    let bytes_required = opt
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = opt.encode_bytes_required()?;
     assert_eq!(bytes_required, 2 * size_of::<usize>());
+
+    Ok(())
 }
 
 #[test]
