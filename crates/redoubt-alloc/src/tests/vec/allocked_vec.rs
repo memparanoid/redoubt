@@ -282,17 +282,18 @@ fn test_allocked_vec_as_slice_and_as_mut_slice() -> Result<(), Box<dyn std::erro
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_truncate_zeroizes_removed_elements() {
+fn test_allocked_vec_truncate_zeroizes_removed_elements() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut vec = AllockedVec::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 0u8).expect("Failed to push");
-    vec.push(&mut 0u8).expect("Failed to push");
-    vec.push(&mut 0u8).expect("Failed to push");
-    vec.push(&mut 1u8).expect("Failed to push");
-    vec.push(&mut 2u8).expect("Failed to push");
+    vec.push(&mut 0u8)?;
+    vec.push(&mut 0u8)?;
+    vec.push(&mut 0u8)?;
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     vec.__unsafe_expose_inner_for_tests(|inner| {
         assert!(!is_vec_fully_zeroized(inner));
@@ -306,6 +307,8 @@ fn test_allocked_vec_truncate_zeroizes_removed_elements() {
 
     // Vec is not zeroized since `has_been_sealed` is true (even though all elements are 0).
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
