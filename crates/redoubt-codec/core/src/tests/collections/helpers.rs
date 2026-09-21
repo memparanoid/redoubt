@@ -179,12 +179,12 @@ fn test_to_encode_dyn_mut() {
 // to_decode_dyn_mut
 
 #[test]
-fn test_to_decode_dyn_mut() {
+fn test_to_decode_dyn_mut() -> Result<(), Box<dyn std::error::Error>> {
     // First encode
     let mut tb = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
-    let bytes_required = tb.encode_bytes_required().expect("Failed");
+    let bytes_required = tb.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
-    tb.encode_into(&mut buf).expect("Failed to encode");
+    tb.encode_into(&mut buf)?;
 
     // Decode
     {
@@ -204,6 +204,8 @@ fn test_to_decode_dyn_mut() {
     // Assert zeroization!
     assert!(buf.is_zeroized());
     assert!(tb.is_zeroized());
+
+    Ok(())
 }
 
 // bytes_required_sum
