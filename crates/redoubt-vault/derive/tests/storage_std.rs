@@ -27,10 +27,10 @@ mod storage_std {
     }
 
     #[test]
-    fn test_fast_zeroize_then_open_returns_zeroized_error() {
+    fn test_fast_zeroize_then_open_returns_zeroized_error() -> Result<(), Box<dyn std::error::Error>>
+    {
         // First open should succeed
-        ZEROIZE_TEST_BOX::open(|_| Ok::<(), CipherBoxError>(()))
-            .expect("open should succeed before zeroize");
+        ZEROIZE_TEST_BOX::open(|_| Ok::<(), CipherBoxError>(()))?;
 
         // Zeroize the global instance
         ZEROIZE_TEST_BOX::fast_zeroize();
@@ -50,6 +50,8 @@ mod storage_std {
 
         let result = ZEROIZE_TEST_BOX::leak_secret();
         assert!(matches!(result, Err(CipherBoxError::Zeroized)));
+
+        Ok(())
     }
 
     #[cipherbox(TestBox, global = true, storage = "std")]
