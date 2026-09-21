@@ -436,7 +436,7 @@ fn test_allocked_vec_drain_from_carries_vecs_by_their_buffers()
 /// what it holds into a new block and free the old one without emptying it, and
 /// what was in the old one is the whole of what this type exists to protect.
 #[test]
-fn test_allocked_vec_drain_from_does_not_reallocate() {
+fn test_allocked_vec_drain_from_does_not_reallocate() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<[u8; 32]>::with_capacity(8);
 
     let capacity = vec.capacity();
@@ -444,10 +444,12 @@ fn test_allocked_vec_drain_from_does_not_reallocate() {
 
     let mut data = [[5u8; 32]; 8];
 
-    vec.drain_from(&mut data).expect("Failed to drain_from");
+    vec.drain_from(&mut data)?;
 
     assert_eq!(vec.capacity(), capacity);
     assert_eq!(vec.as_slice().as_ptr(), buffer);
+
+    Ok(())
 }
 
 // =============================================================================
