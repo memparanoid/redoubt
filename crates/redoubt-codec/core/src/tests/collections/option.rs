@@ -178,19 +178,15 @@ fn test_option_decode_from_propagates_invalid_size_value() -> Result<(), Box<dyn
 // the decode path.
 
 #[test]
-fn test_option_decode_from_truncated_buffer() {
+fn test_option_decode_from_truncated_buffer() -> Result<(), Box<dyn std::error::Error>> {
     let mut original = Some(RedoubtCodecTestBreaker::new(
         RedoubtCodecTestBreakerBehaviour::None,
         99,
     ));
 
-    let bytes_required = original
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = original.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
-    original
-        .encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    original.encode_into(&mut buf)?;
 
     let mut decoded: Option<RedoubtCodecTestBreaker> = None;
     let mut decode_buf = buf.export_as_vec();
@@ -203,6 +199,8 @@ fn test_option_decode_from_truncated_buffer() {
     // Assert zeroization!
     assert_eq!(decoded, None);
     assert!(slice.is_zeroized());
+
+    Ok(())
 }
 
 // Roundtrip
