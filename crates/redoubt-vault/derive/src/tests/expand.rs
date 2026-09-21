@@ -15,6 +15,13 @@ fn pretty(ts: proc_macro2::TokenStream) -> String {
     prettyplease::unparse(&file)
 }
 
+/// What `expand` refuses with is the `compile_error!` it would have emitted:
+/// a `TokenStream`, which is not an error `?` can carry. Its text is what a
+/// reader wants anyway.
+fn refusal(it: proc_macro2::TokenStream) -> Box<dyn std::error::Error> {
+    it.to_string().into()
+}
+
 // === === === === === === === === === ===
 // Helper function tests
 // === === === === === === === === === ===
@@ -92,7 +99,7 @@ fn test_find_root_with_candidates_path_itself_invalid() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_named_struct_ok() {
+fn snapshot_named_struct_ok() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero, RedoubtCodec)]
         struct Data {
@@ -109,12 +116,14 @@ fn snapshot_named_struct_ok() {
         None,
         derive_input,
     )
-    .expect("expand failed");
+    .map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_named_struct_with_single_field() {
+fn snapshot_named_struct_with_single_field() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         struct Gamma {
             pub value: [u8; 32],
@@ -129,12 +138,14 @@ fn snapshot_named_struct_with_single_field() {
         None,
         derive_input,
     )
-    .expect("expand failed");
+    .map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_named_struct_with_generics() {
+fn snapshot_named_struct_with_generics() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         struct Container<T> where T: redoubt_codec::BytesRequired + redoubt_codec::Encode + redoubt_codec::Decode {
             pub value: T,
@@ -150,12 +161,14 @@ fn snapshot_named_struct_with_generics() {
         None,
         derive_input,
     )
-    .expect("expand failed");
+    .map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_named_struct_with_custom_error() {
+fn snapshot_named_struct_with_custom_error() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero, RedoubtCodec)]
         struct WithCustomError {
@@ -173,8 +186,10 @@ fn snapshot_named_struct_with_custom_error() {
         None,
         derive_input,
     )
-    .expect("expand failed");
+    .map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
@@ -182,7 +197,7 @@ fn snapshot_named_struct_with_custom_error() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_named_struct_with_codec_default_field() {
+fn snapshot_named_struct_with_codec_default_field() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero, RedoubtCodec)]
         struct Delta {
@@ -201,12 +216,14 @@ fn snapshot_named_struct_with_codec_default_field() {
         None,
         derive_input,
     )
-    .expect("expand failed");
+    .map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_named_struct_with_zeroize_on_drop_sentinel() {
+fn snapshot_named_struct_with_zeroize_on_drop_sentinel() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero, RedoubtCodec)]
         #[fast_zeroize(drop)]
@@ -226,12 +243,14 @@ fn snapshot_named_struct_with_zeroize_on_drop_sentinel() {
         None,
         derive_input,
     )
-    .expect("expand failed");
+    .map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_named_struct_with_multiple_filtered_fields() {
+fn snapshot_named_struct_with_multiple_filtered_fields() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero, RedoubtCodec)]
         struct Zeta {
@@ -253,8 +272,10 @@ fn snapshot_named_struct_with_multiple_filtered_fields() {
         None,
         derive_input,
     )
-    .expect("expand failed");
+    .map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
@@ -262,7 +283,7 @@ fn snapshot_named_struct_with_multiple_filtered_fields() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_empty_struct_with_only_sentinel() {
+fn snapshot_empty_struct_with_only_sentinel() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         struct Empty {
@@ -279,12 +300,14 @@ fn snapshot_empty_struct_with_only_sentinel() {
         None,
         derive_input,
     )
-    .expect("expand failed");
+    .map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_struct_with_all_fields_filtered() {
+fn snapshot_struct_with_all_fields_filtered() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         struct OnlyDefaults {
             #[codec(default)]
@@ -302,8 +325,10 @@ fn snapshot_struct_with_all_fields_filtered() {
         None,
         derive_input,
     )
-    .expect("expand failed");
+    .map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
@@ -311,7 +336,7 @@ fn snapshot_struct_with_all_fields_filtered() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_unit_struct_ok() {
+fn snapshot_unit_struct_ok() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         struct Unit;
     };
@@ -324,8 +349,10 @@ fn snapshot_unit_struct_ok() {
         None,
         derive_input,
     )
-    .expect("expand failed");
+    .map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
@@ -420,7 +447,7 @@ fn test_parse_testing_feature() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_named_struct_with_testing_feature() {
+fn snapshot_named_struct_with_testing_feature() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero, RedoubtCodec)]
         struct TestableSecrets {
@@ -436,6 +463,8 @@ fn snapshot_named_struct_with_testing_feature() {
         Some("test-utils".to_string()),
         derive_input,
     )
-    .expect("expand failed");
+    .map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
+
+    Ok(())
 }
