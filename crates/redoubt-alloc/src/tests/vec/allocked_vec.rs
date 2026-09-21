@@ -386,16 +386,18 @@ fn test_allocked_vec_drain_from_partial_fill() -> Result<(), Box<dyn std::error:
 }
 
 #[test]
-fn test_allocked_vec_drain_from_carries_arrays_whole() {
+fn test_allocked_vec_drain_from_carries_arrays_whole() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(2);
     let mut data = [[9u8; 32], [8u8; 32]];
 
-    vec.drain_from(&mut data).expect("Failed to drain_from");
+    vec.drain_from(&mut data)?;
 
     assert_eq!(vec.as_slice(), &[[9u8; 32], [8u8; 32]]);
 
     // Assert zeroization!
     assert!(data.is_zeroized());
+
+    Ok(())
 }
 
 /// Elements that own their blocks cross by their pointers.
