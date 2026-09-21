@@ -260,14 +260,16 @@ mod page_buffer_tests {
 
         #[test]
         #[ignore]
-        fn subprocess_test_open_aborts_on_protect_failure() {
-            let mut buffer =
-                PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+        fn subprocess_test_open_aborts_on_protect_failure() -> Result<(), Box<dyn std::error::Error>>
+        {
+            let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
 
             let _ = buffer.open(&mut |_bytes| {
                 block_mprotect();
                 Ok(())
             });
+
+            Ok(())
         }
 
         #[test]
