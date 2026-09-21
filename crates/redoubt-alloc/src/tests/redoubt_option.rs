@@ -91,7 +91,7 @@ fn test_redoubt_option_replace_zeroizes_old_value() -> Result<(), Box<dyn std::e
 }
 
 #[test]
-fn test_redoubt_option_take_some() {
+fn test_redoubt_option_take_some() -> Result<(), Box<dyn std::error::Error>> {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;
     opt.replace(&mut value);
@@ -99,8 +99,10 @@ fn test_redoubt_option_take_some() {
     let taken = opt.take();
 
     assert!(taken.is_ok());
-    assert_eq!(taken.expect("Failed to take"), 42);
+    assert_eq!(taken?, 42);
     assert!(opt.is_none());
+
+    Ok(())
 }
 
 #[test]
