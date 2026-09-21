@@ -93,14 +93,14 @@ fn test_allocked_vec_reserve_exact_seals_vector() -> Result<(), Box<dyn std::err
 }
 
 #[test]
-fn test_allocked_vec_capacity_is_zeroed_on_creation() {
+fn test_allocked_vec_capacity_is_zeroed_on_creation() -> Result<(), Box<dyn std::error::Error>> {
     // Test that spare capacity is zeroed when using reserve_exact
     let mut vec = AllockedVec::<u8>::new();
 
     // Vec is zeroized since `has_been_sealed` is false.
     assert!(vec.is_zeroized());
 
-    vec.reserve_exact(100).expect("Failed to reserve");
+    vec.reserve_exact(100)?;
 
     // Vec is not zeroized since `has_been_sealed` is true after reserve_exact.
     assert!(!vec.is_zeroized());
@@ -112,6 +112,8 @@ fn test_allocked_vec_capacity_is_zeroed_on_creation() {
 
     // Vec is not zeroized since `has_been_sealed` is true (even though all elements are 0).
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
