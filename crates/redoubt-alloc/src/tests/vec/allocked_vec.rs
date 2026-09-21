@@ -13,14 +13,16 @@ use crate::error::AllockedVecError;
 // ╚════════════════════════════════════════════════════════════════════════════╝
 
 #[test]
-fn test_allocked_vec_is_zeroizable() {
+fn test_allocked_vec_is_zeroizable() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
+    vec.push(&mut 1u8)?;
     assert!(!vec.is_zeroized());
 
     vec.fast_zeroize();
     assert!(vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
