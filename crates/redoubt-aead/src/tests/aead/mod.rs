@@ -311,12 +311,15 @@ fn test_generate_nonce_propagates_the_fuse_at_the_nth_call()
 }
 
 #[test]
-fn test_generate_nonce_answers_a_nonce_of_the_chacha_width() {
+fn test_generate_nonce_answers_a_nonce_of_the_chacha_width()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut aead = Aead::new_chacha();
 
-    let nonce = aead.generate_nonce().expect("this machine has entropy");
+    let nonce = aead.generate_nonce()?;
 
     assert_eq!(nonce.len(), chacha::XNONCE_SIZE);
+
+    Ok(())
 }
 
 #[test]
