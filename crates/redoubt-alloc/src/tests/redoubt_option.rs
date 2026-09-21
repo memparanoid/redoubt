@@ -116,15 +116,17 @@ fn test_redoubt_option_take_none() {
 }
 
 #[test]
-fn test_redoubt_option_as_mut() {
+fn test_redoubt_option_as_mut() -> Result<(), Box<dyn std::error::Error>> {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;
     opt.replace(&mut value);
 
-    let val_mut = opt.as_mut().expect("Failed to get as_mut");
+    let val_mut = opt.as_mut()?;
     *val_mut = 99;
 
-    assert_eq!(*opt.as_ref().expect("Failed to get as_ref"), 99);
+    assert_eq!(*opt.as_ref()?, 99);
+
+    Ok(())
 }
 
 #[test]
