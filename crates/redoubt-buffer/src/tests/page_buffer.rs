@@ -310,30 +310,25 @@ mod page_buffer_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_mut_zeroize() {
-        let mut buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+    fn test_open_mut_zeroize() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
 
-        buffer
-            .open_mut(&mut |bytes| {
-                bytes.fill(0xFF);
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        buffer.open_mut(&mut |bytes| {
+            bytes.fill(0xFF);
+            Ok(())
+        })?;
 
-        buffer
-            .open_mut(&mut |bytes| {
-                bytes.fill(0);
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        buffer.open_mut(&mut |bytes| {
+            bytes.fill(0);
+            Ok(())
+        })?;
 
-        buffer
-            .open(&mut |bytes| {
-                assert!(bytes.is_zeroized());
-                Ok(())
-            })
-            .expect("Failed to open(..)");
+        buffer.open(&mut |bytes| {
+            assert!(bytes.is_zeroized());
+            Ok(())
+        })?;
+
+        Ok(())
     }
 
     #[test]
