@@ -264,12 +264,15 @@ fn test_generate_nonce_with_answers_a_nonce_of_the_chacha_width()
 }
 
 #[test]
-fn test_generate_nonce_with_answers_a_nonce_of_the_aegis_width() {
+fn test_generate_nonce_with_answers_a_nonce_of_the_aegis_width()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut session = Session::Aegis128L(NonceSessionGenerator::new(SystemEntropySource {}));
 
-    let nonce = Aead::generate_nonce_with(&mut session).expect("this machine has entropy");
+    let nonce = Aead::generate_nonce_with(&mut session)?;
 
     assert_eq!(nonce.len(), aegis::NONCE_SIZE);
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
