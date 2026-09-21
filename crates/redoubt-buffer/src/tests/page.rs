@@ -558,16 +558,19 @@ mod page_tests {
 
         #[test]
         #[ignore]
-        fn subprocess_test_dispose_when_unprotect_fails() {
-            let mut page = Page::new().expect("Failed to new()");
+        fn subprocess_test_dispose_when_unprotect_fails() -> Result<(), Box<dyn std::error::Error>>
+        {
+            let mut page = Page::new()?;
 
-            page.protect().expect("Failed to protect()");
+            page.protect()?;
 
             // Block mprotect, so unprotect() in dispose() will fail
             // Page stays protected = safe (can't be read)
             block_mprotect();
 
             page.dispose();
+
+            Ok(())
         }
 
         #[test]
