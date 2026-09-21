@@ -861,15 +861,15 @@ fn test_allocked_vec_as_capacity_mut_slice_allows_writing_beyond_len()
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_set_len_can_shrink() {
+fn test_allocked_vec_set_len_can_shrink() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to push(1)");
-    vec.push(&mut 2u8).expect("Failed to push(2)");
-    vec.push(&mut 3u8).expect("Failed to push(3)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
+    vec.push(&mut 3u8)?;
 
     // SAFETY: 1 <= len, elements at 0..1 are initialized
     unsafe { vec.set_len(1) };
@@ -879,6 +879,8 @@ fn test_allocked_vec_set_len_can_shrink() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
