@@ -339,13 +339,16 @@ fn test_generate_nonce_answers_a_nonce_of_the_aegis_width() -> Result<(), Box<dy
 /// for an `Aead` that is kept: one built per message answers from a generator
 /// that has issued nothing.
 #[test]
-fn test_generate_nonce_answers_the_next_counter_each_time() {
+fn test_generate_nonce_answers_the_next_counter_each_time() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut aead = Aead::new_chacha();
 
-    let first = counter_of(&aead.generate_nonce().expect("this machine has entropy"));
-    let second = counter_of(&aead.generate_nonce().expect("this machine has entropy"));
+    let first = counter_of(&aead.generate_nonce()?);
+    let second = counter_of(&aead.generate_nonce()?);
 
     assert_eq!(second, first.wrapping_add(1));
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
