@@ -38,7 +38,7 @@ fn test_decode_buffer_read_usize() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_decode_buffer_read_slice() {
+fn test_decode_buffer_read_slice() -> Result<(), Box<dyn std::error::Error>> {
     let values = [1usize, 2, 3, 4, 5, 6];
     let mut bytes = Vec::new();
 
@@ -51,8 +51,10 @@ fn test_decode_buffer_read_slice() {
     let mut dst = [0usize; 6];
 
     // Read all values at once
-    slice.read_slice(&mut dst).expect("Failed to read_slice()");
+    slice.read_slice(&mut dst)?;
 
     // Verify
     assert_eq!(dst, values);
+
+    Ok(())
 }
