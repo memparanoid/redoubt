@@ -130,14 +130,12 @@ fn test_force_encode_error() {
 // Decode
 
 #[test]
-fn test_force_decode_error() {
+fn test_force_decode_error() -> Result<(), Box<dyn std::error::Error>> {
     let mut tb = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
-    let bytes_required = tb
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = tb.encode_bytes_required()?;
 
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
-    tb.encode_into(&mut buf).expect("Failed to encode_into(..)");
+    tb.encode_into(&mut buf)?;
 
     let mut decode_buf = buf.export_as_vec();
     let mut tb_decode =
@@ -150,6 +148,8 @@ fn test_force_decode_error() {
     // Assert zeroization!
     assert!(buf.is_zeroized());
     assert!(decode_buf.is_zeroized());
+
+    Ok(())
 }
 
 // Roundtrip (Encode + Decode)
