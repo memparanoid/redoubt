@@ -69,11 +69,12 @@ fn test_std_storage_mutex_poisoned() {
 
 #[test]
 #[ignore]
-fn std_storage_subprocess_concurrent_access() {
+fn std_storage_subprocess_concurrent_access() -> Result<(), Box<dyn std::error::Error>> {
     use std::sync::{Arc, Mutex};
     use std::thread;
 
     const NUM_THREADS: usize = 256;
+    const POISONED: &str = "the keys mutex was poisoned";
 
     let keys = Arc::new(Mutex::new(Vec::<[u8; MASTER_KEY_LEN]>::new()));
 
@@ -83,23 +84,32 @@ fn std_storage_subprocess_concurrent_access() {
 
             thread::spawn(move || {
                 open(&mut |bytes| {
-                    let mut guard = keys_clone.lock().expect("Failed to lock mutex");
-                    let master_key: [u8; MASTER_KEY_LEN] = bytes.try_into().expect("Wrong length");
+                    let mut guard = keys_clone
+                        .lock()
+                        .map_err(|_| BufferError::callback_error(POISONED))?;
+
+                    let master_key: [u8; MASTER_KEY_LEN] = bytes
+                        .try_into()
+                        .map_err(|_| BufferError::callback_error("the key is not that wide"))?;
+
                     guard.push(master_key);
 
                     Ok(())
                 })
-                .expect("Failed to open std buffer");
             })
         })
         .collect();
 
+    // Twice: once for the thread having finished at all, once for what it was
+    // doing in there.
     for handle in handles {
-        handle.join().expect("Thread panicked");
+        handle.join().map_err(|_| "a thread panicked")??;
     }
 
-    let guard = keys.lock().expect("Failed to lock mutex");
+    let guard = keys.lock().map_err(|_| POISONED)?;
     assert!(guard.iter().all(|x| *x == guard[0]));
+
+    Ok(())
 }
 
 #[test]
