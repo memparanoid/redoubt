@@ -70,14 +70,14 @@ fn test_allocked_vec_with_capacity_seals_allocked_vec() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_reserve_exact_seals_vector() {
+fn test_allocked_vec_reserve_exact_seals_vector() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec: AllockedVec<u8> = AllockedVec::default();
 
     // Vec is zeroized since `has_been_sealed` is false.
     assert!(vec.is_zeroized());
 
     // First reserve succeeds
-    vec.reserve_exact(5).expect("Failed to reserve_exact");
+    vec.reserve_exact(5)?;
     assert_eq!(vec.capacity(), 5);
 
     // Vec is not zeroized since `has_been_sealed` is true after reserve_exact.
@@ -88,6 +88,8 @@ fn test_allocked_vec_reserve_exact_seals_vector() {
 
     assert!(result.is_err());
     assert!(matches!(result, Err(AllockedVecError::AlreadySealed)));
+
+    Ok(())
 }
 
 #[test]
