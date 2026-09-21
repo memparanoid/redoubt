@@ -9,12 +9,13 @@ use crate::master_key::storage::std::open;
 use crate::tests::utils::run_test_as_subprocess;
 
 #[test]
-fn test_std_storage_open_returns_correct_length() {
+fn test_std_storage_open_returns_correct_length() -> Result<(), Box<dyn std::error::Error>> {
     open(&mut |bytes| {
         assert_eq!(bytes.len(), MASTER_KEY_LEN);
         Ok(())
-    })
-    .expect("Failed to open std buffer");
+    })?;
+
+    Ok(())
 }
 
 #[test]
