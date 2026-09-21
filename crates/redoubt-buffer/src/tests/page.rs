@@ -122,10 +122,12 @@ mod page_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_munlock_without_lock_succeeds() {
-        let page = Page::new().expect("Failed to new()");
+    fn test_munlock_without_lock_succeeds() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new()?;
 
         page.munlock();
+
+        Ok(())
     }
 
     #[cfg(target_os = "linux")]
