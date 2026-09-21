@@ -215,16 +215,17 @@ mod page_buffer_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_propagates_callback_error() {
+    fn test_open_propagates_callback_error() -> Result<(), Box<dyn std::error::Error>> {
         use crate::error::BufferError;
 
-        let mut buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
 
         let result = buffer.open(&mut |_| Err(BufferError::callback_error("test error")));
 
         assert!(result.is_err());
         assert!(matches!(result, Err(BufferError::CallbackError(_))));
+
+        Ok(())
     }
 
     #[cfg(target_os = "linux")]
