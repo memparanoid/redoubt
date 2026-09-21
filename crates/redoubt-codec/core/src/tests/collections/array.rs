@@ -148,18 +148,15 @@ fn test_array_decode_from_propagates_size_mismatch_err() -> Result<(), Box<dyn s
 }
 
 #[test]
-fn test_array_decode_propagates_decode_err() {
+fn test_array_decode_propagates_decode_err() -> Result<(), Box<dyn std::error::Error>> {
     let mut arr = [
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
     ];
-    let bytes_required = arr
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = arr.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    arr.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    arr.encode_into(&mut buf)?;
 
     let mut recovered = [
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
@@ -177,6 +174,8 @@ fn test_array_decode_propagates_decode_err() {
     assert!(decode_buf.is_zeroized());
     assert!(arr.is_zeroized());
     assert!(recovered.is_zeroized());
+
+    Ok(())
 }
 
 // Roundtrip
