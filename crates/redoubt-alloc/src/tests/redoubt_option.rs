@@ -143,8 +143,7 @@ fn test_redoubt_option_as_option() {
 
     let inner = opt.as_option();
 
-    assert!(inner.is_some());
-    assert_eq!(*inner.as_ref().expect("Failed to get inner"), 42);
+    assert_eq!(*inner, Some(42));
 }
 
 #[test]
