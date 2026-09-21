@@ -151,14 +151,16 @@ fn test_process_header_ok() -> Result<(), Box<dyn std::error::Error>> {
 // to_bytes_required_dyn_ref
 
 #[test]
-fn test_to_bytes_required_dyn_ref() {
+fn test_to_bytes_required_dyn_ref() -> Result<(), Box<dyn std::error::Error>> {
     let tb = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
     let dyn_ref: &dyn BytesRequired = to_bytes_required_dyn_ref(&tb);
 
     assert_eq!(
-        dyn_ref.encode_bytes_required().expect("Failed"),
-        tb.encode_bytes_required().expect("Failed")
+        dyn_ref.encode_bytes_required()?,
+        tb.encode_bytes_required()?
     );
+
+    Ok(())
 }
 
 // to_encode_dyn_mut
