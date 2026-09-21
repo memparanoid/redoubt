@@ -15,6 +15,17 @@ fn pretty(ts: proc_macro2::TokenStream) -> String {
     prettyplease::unparse(&file)
 }
 
+/// The expansion, pretty-printed, with a refusal carried as its own text.
+///
+/// What `expand` refuses with is the `compile_error!` it would have emitted,
+/// which is a `TokenStream` and so not an error `?` can carry. Its text is
+/// what a reader wants anyway.
+fn expanded(input: syn::DeriveInput) -> Result<String, Box<dyn std::error::Error>> {
+    expand(input)
+        .map(pretty)
+        .map_err(|refusal| refusal.to_string().into())
+}
+
 // === === === === === === === === === ===
 // Helper function tests
 // === === === === === === === === === ===
@@ -91,7 +102,7 @@ fn test_find_root_with_candidates_path_itself_invalid() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_named_struct_ok() {
+fn snapshot_named_struct_ok() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         struct Delta {
@@ -100,12 +111,13 @@ fn snapshot_named_struct_ok() {
         }
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_empty_struct_ok() {
+fn snapshot_empty_struct_ok() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         struct Epsilon {
@@ -113,12 +125,13 @@ fn snapshot_empty_struct_ok() {
         }
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_named_struct_with_lifetime_generics_ok() {
+fn snapshot_named_struct_with_lifetime_generics_ok() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         struct Sigma<'alpha, Tau> where Tau: Clone {
@@ -129,8 +142,9 @@ fn snapshot_named_struct_with_lifetime_generics_ok() {
         }
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
@@ -138,7 +152,7 @@ fn snapshot_named_struct_with_lifetime_generics_ok() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_named_struct_with_memzer_skip_on_one_field() {
+fn snapshot_named_struct_with_memzer_skip_on_one_field() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         struct Mu {
@@ -149,12 +163,13 @@ fn snapshot_named_struct_with_memzer_skip_on_one_field() {
         }
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_named_struct_with_memzer_skip_on_immut_ref() {
+fn snapshot_named_struct_with_memzer_skip_on_immut_ref() -> Result<(), Box<dyn std::error::Error>> {
     // Test that #[fast_zeroize(skip)] works with immutable references
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
@@ -166,8 +181,9 @@ fn snapshot_named_struct_with_memzer_skip_on_immut_ref() {
         }
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
@@ -175,7 +191,7 @@ fn snapshot_named_struct_with_memzer_skip_on_immut_ref() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_named_struct_with_memzer_drop() {
+fn snapshot_named_struct_with_memzer_drop() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         #[fast_zeroize(drop)]
@@ -186,12 +202,13 @@ fn snapshot_named_struct_with_memzer_drop() {
         }
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_named_struct_with_generics_and_memzer_drop() {
+fn snapshot_named_struct_with_generics_and_memzer_drop() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         #[fast_zeroize(drop)]
@@ -202,8 +219,9 @@ fn snapshot_named_struct_with_generics_and_memzer_drop() {
         }
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
@@ -211,7 +229,7 @@ fn snapshot_named_struct_with_generics_and_memzer_drop() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_named_struct_with_multiple_memzer_attrs() {
+fn snapshot_named_struct_with_multiple_memzer_attrs() -> Result<(), Box<dyn std::error::Error>> {
     // Comprehensive test with multiple attribute types:
     // - #[fast_zeroize(drop)] on struct
     // - Meta::Path (#[repr(C)]) and Meta::NameValue (#[doc = "..."]) at struct level
@@ -241,8 +259,9 @@ fn snapshot_named_struct_with_multiple_memzer_attrs() {
         }
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
@@ -250,18 +269,20 @@ fn snapshot_named_struct_with_multiple_memzer_attrs() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_tuple_struct_ok() {
+fn snapshot_tuple_struct_ok() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         struct Zeta(u8, u16, u32, ZeroizeOnDropSentinel);
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_tuple_struct_with_non_zeroize_on_drop_sentinel_types() {
+fn snapshot_tuple_struct_with_non_zeroize_on_drop_sentinel_types()
+-> Result<(), Box<dyn std::error::Error>> {
     // Test que el tipo detection funciona con tipos complejos
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
@@ -272,19 +293,21 @@ fn snapshot_tuple_struct_with_non_zeroize_on_drop_sentinel_types() {
         );
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_tuple_struct_with_mut_ref() {
+fn snapshot_tuple_struct_with_mut_ref() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         struct Upsilon<'a>(u8, &'a mut Vec<u8>, ZeroizeOnDropSentinel);
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
@@ -292,7 +315,7 @@ fn snapshot_tuple_struct_with_mut_ref() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_tuple_struct_with_memzer_skip() {
+fn snapshot_tuple_struct_with_memzer_skip() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         struct Nu(
@@ -303,8 +326,9 @@ fn snapshot_tuple_struct_with_memzer_skip() {
         );
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
@@ -312,15 +336,16 @@ fn snapshot_tuple_struct_with_memzer_skip() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_tuple_struct_with_memzer_drop() {
+fn snapshot_tuple_struct_with_memzer_drop() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         #[fast_zeroize(drop)]
         struct Sigma(Vec<u8>, [u8; 32], ZeroizeOnDropSentinel);
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
@@ -328,7 +353,7 @@ fn snapshot_tuple_struct_with_memzer_drop() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_tuple_struct_with_multiple_memzer_attrs() {
+fn snapshot_tuple_struct_with_multiple_memzer_attrs() -> Result<(), Box<dyn std::error::Error>> {
     // Comprehensive test with multiple attribute types:
     // - #[fast_zeroize(drop)] on struct
     // - Meta::Path (#[repr(C)]) and Meta::NameValue (#[doc = "..."]) at struct level
@@ -355,8 +380,9 @@ fn snapshot_tuple_struct_with_multiple_memzer_attrs() {
         );
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
@@ -407,7 +433,8 @@ fn test_fast_zeroize_routes_through_zeroize_collection() {
 // === === === === === === === === === ===
 
 #[test]
-fn snapshot_named_struct_without_sentinel_no_assert_zeroize_on_drop_impl() {
+fn snapshot_named_struct_without_sentinel_no_assert_zeroize_on_drop_impl()
+-> Result<(), Box<dyn std::error::Error>> {
     // Without sentinel: should NOT implement AssertZeroizeOnDrop
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
@@ -416,32 +443,36 @@ fn snapshot_named_struct_without_sentinel_no_assert_zeroize_on_drop_impl() {
         }
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_tuple_struct_without_sentinel_no_assert_zeroize_on_drop_impl() {
+fn snapshot_tuple_struct_without_sentinel_no_assert_zeroize_on_drop_impl()
+-> Result<(), Box<dyn std::error::Error>> {
     // Without sentinel: should NOT implement AssertZeroizeOnDrop
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         struct Theta(u8, u16, u32);
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
-fn snapshot_unit_struct_no_assert_zeroize_on_drop_impl() {
+fn snapshot_unit_struct_no_assert_zeroize_on_drop_impl() -> Result<(), Box<dyn std::error::Error>> {
     // Unit struct without sentinel: should NOT implement AssertZeroizeOnDrop
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         struct Iota;
     };
 
-    let token_stream = expand(derive_input).expect("expand failed");
-    insta::assert_snapshot!(pretty(token_stream));
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
 }
 
 #[test]
