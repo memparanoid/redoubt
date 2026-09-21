@@ -36,24 +36,18 @@ fn test_box_codec_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_box_large_array_codec_roundtrip() {
+fn test_box_large_array_codec_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     let mut boxed = Box::new([0xAAu8; 1024]);
 
-    let bytes_required = boxed
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = boxed.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    boxed
-        .encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    boxed.encode_into(&mut buf)?;
 
     let mut decode_buf = buf.export_as_vec();
     let mut recovered = Box::new([0u8; 1024]);
 
-    recovered
-        .decode_from(&mut decode_buf.as_mut_slice())
-        .expect("Failed to decode_from(..)");
+    recovered.decode_from(&mut decode_buf.as_mut_slice())?;
 
     assert_eq!(*recovered, [0xAAu8; 1024]);
 
@@ -63,4 +57,6 @@ fn test_box_large_array_codec_roundtrip() {
         assert!(decode_buf.is_zeroized());
         assert!(boxed.is_zeroized());
     }
+
+    Ok(())
 }
