@@ -46,12 +46,14 @@ mod page_tests {
     #[test]
     #[cfg_attr(not(miri), serial(page))]
     #[cfg(unix)]
-    fn test_slice_len_matches_page_size() {
-        let page = Page::new().expect("Failed to new()");
+    fn test_slice_len_matches_page_size() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new()?;
         let system_page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
         let slice = unsafe { page.as_slice() };
 
         assert_eq!(slice.len(), system_page_size);
+
+        Ok(())
     }
 
     // TODO: Run this test in a subprocess to safely cover the MAP_FAILED branch
