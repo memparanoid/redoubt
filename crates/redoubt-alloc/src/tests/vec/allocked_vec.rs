@@ -795,14 +795,15 @@ fn test_allocked_vec_as_mut_ptr_write_single_byte() -> Result<(), Box<dyn std::e
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_as_capacity_slice_returns_full_capacity() {
+fn test_allocked_vec_as_capacity_slice_returns_full_capacity()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<u8>::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to push");
-    vec.push(&mut 2u8).expect("Failed to push");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     // len is 2, but capacity is 5
     assert_eq!(vec.len(), 2);
@@ -817,6 +818,8 @@ fn test_allocked_vec_as_capacity_slice_returns_full_capacity() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
