@@ -1006,18 +1006,20 @@ fn test_allocked_vec_partial_eq_different_lengths() -> Result<(), Box<dyn std::e
 }
 
 #[test]
-fn test_allocked_vec_partial_eq_different_capacities() {
+fn test_allocked_vec_partial_eq_different_capacities() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec1 = AllockedVec::with_capacity(3);
-    vec1.push(&mut 1u8).expect("Failed to push");
-    vec1.push(&mut 2u8).expect("Failed to push");
+    vec1.push(&mut 1u8)?;
+    vec1.push(&mut 2u8)?;
 
     let mut vec2 = AllockedVec::with_capacity(5);
-    vec2.push(&mut 1u8).expect("Failed to push");
-    vec2.push(&mut 2u8).expect("Failed to push");
+    vec2.push(&mut 1u8)?;
+    vec2.push(&mut 2u8)?;
 
     // Same data, different capacity
     assert_eq!(vec1.as_slice(), vec2.as_slice());
     assert!(vec1 == vec2);
+
+    Ok(())
 }
 
 #[test]
