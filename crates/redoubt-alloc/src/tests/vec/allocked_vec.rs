@@ -640,14 +640,14 @@ fn test_allocked_vec_fill_with_default_empty_vec() {
 }
 
 #[test]
-fn test_allocked_vec_fill_with_default_partial_vec() {
+fn test_allocked_vec_fill_with_default_partial_vec() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<u8>::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1).expect("push failed");
-    vec.push(&mut 2).expect("push failed");
+    vec.push(&mut 1)?;
+    vec.push(&mut 2)?;
 
     assert_eq!(vec.len(), 2);
 
@@ -658,6 +658,8 @@ fn test_allocked_vec_fill_with_default_partial_vec() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains non-zero data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
