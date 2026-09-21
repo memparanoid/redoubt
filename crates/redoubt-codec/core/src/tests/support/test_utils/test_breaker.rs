@@ -155,23 +155,17 @@ fn test_force_decode_error() -> Result<(), Box<dyn std::error::Error>> {
 // Roundtrip (Encode + Decode)
 
 #[test]
-fn test_roundtrip() {
+fn test_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     let mut original = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 256);
     let original_usize = original.usize;
 
-    let bytes_required = original
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = original.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
-    original
-        .encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    original.encode_into(&mut buf)?;
 
     let mut decode_buf = buf.export_as_vec();
     let mut decoded = RedoubtCodecTestBreaker::default();
-    decoded
-        .decode_from(&mut decode_buf.as_mut_slice())
-        .expect("Failed to decode_from(..)");
+    decoded.decode_from(&mut decode_buf.as_mut_slice())?;
 
     assert_eq!(decoded.usize, original_usize);
 
@@ -179,6 +173,8 @@ fn test_roundtrip() {
     assert!(buf.is_zeroized());
     assert!(decode_buf.is_zeroized());
     assert!(original.is_zeroized());
+
+    Ok(())
 }
 
 // EncodeSlice
