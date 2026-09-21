@@ -175,10 +175,10 @@ fn test_the_page_itself_is_out_of_the_sweep_s_reach() -> Result<(), AnyError> {
         capture!();
         wrote?;
 
-        // Alive past the photograph: the page being asked about is one that
-        // still holds the secret. Nothing empties it on the way out of scope —
-        // the type has no `Drop` — so keeping the binding is all it takes.
-        core::hint::black_box(&held);
+        // CORRECTNESS: the page is left holding the secret, which is what the
+        // absence below is about. Releasing it here empties and unmaps it, and
+        // the absence is then about a page that is not there.
+        core::mem::forget(held);
     });
 
     let report_after = watch.snapshot()?;
@@ -232,6 +232,80 @@ fn test_reading_a_page_out_leaves_nothing_behind() -> Result<(), AnyError> {
     );
 
     core::hint::black_box(&buffer);
+
+    Ok(())
+}
+
+// ============================================================================
+// Drop for PageBuffer
+// ============================================================================
+
+#[test]
+fn test_dropping_a_page_leaves_nothing_behind() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    forensics!({
+        let held = filled()?;
+
+        // CORRECTNESS: before the capture. The release is the subject, so what
+        // the photograph reads is the stack and the registers it left on its
+        // way through.
+        drop(held);
+
+        capture!();
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        &report_after,
+        "nothing written yet",
+        "a page dropped",
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// PageBuffer, moved
+// ============================================================================
+
+/// Takes the buffer by value, so the caller is left holding the slot it was
+/// moved out of.
+fn let_go(buffer: PageBuffer) {
+    drop(buffer);
+}
+
+/// What a move copies is the mapping's address and not its contents, so the
+/// slot left behind holds no secret. Read a failure as the page having grown
+/// into the struct, where a move carries the bytes and empties nothing.
+#[test]
+fn test_moving_a_page_leaves_nothing_behind() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    forensics!({
+        let held = filled()?;
+
+        // CORRECTNESS: before the capture. The move is the subject, so what
+        // the photograph reads is the slot it was moved out of.
+        let_go(held);
+
+        capture!();
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        &report_after,
+        "nothing written yet",
+        "a page moved",
+    );
 
     Ok(())
 }

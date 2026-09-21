@@ -8,22 +8,21 @@ use thiserror::Error;
 
 /// Errors from page syscalls.
 #[derive(Debug, Error, Clone, Copy, Eq, PartialEq)]
-#[repr(u8)]
 pub enum PageError {
     #[error("mmap failed")]
-    Create = 0,
+    Create,
 
     #[error("mlock failed")]
-    Lock = 1,
+    Lock,
 
     #[error("mprotect(PROT_NONE) failed")]
-    Protect = 2,
+    Protect,
 
     #[error("mprotect(PROT_WRITE) failed")]
-    Unprotect = 3,
+    Unprotect,
 
     #[error("madvise(MADV_DONTDUMP) failed")]
-    Madvise = 4,
+    Madvise,
 }
 
 /// Errors that can occur when working with buffers.

@@ -69,58 +69,36 @@ impl Page {
     }
 
     /// Locks page in RAM (prevents swapping to disk).
-    // Miri models `mmap` but not the operations that change a mapping's
-    // properties. `mlock`, `mprotect`, `madvise` and `munlock` all abort the
-    // interpreter as unsupported foreign calls, which puts every consumer of
-    // this crate — the vault, and therefore the whole cipherbox — out of
-    // Miri's reach.
-    //
-    // Reporting success without performing them keeps the pointer arithmetic,
-    // the slice construction and the zeroization under scrutiny, which is the
-    // part Miri can actually check. The syscalls themselves are the kernel's
-    // contract, not this crate's, and no interpreter was going to verify them.
     pub fn lock(&self) -> Result<(), PageError> {
-        #[cfg(miri)]
-        return Ok(());
+        // SAFETY: the address and the length are the mapping's own, so the
+        // range is one this process owns.
+        let failed = unsafe { libc::mlock(self.ptr as *const _, self.capacity) } != 0;
 
-        #[cfg(not(miri))]
-        {
-            // SAFETY: the address and the length are the mapping's own, so the
-            // range is one this process owns.
-            let failed = unsafe { libc::mlock(self.ptr as *const _, self.capacity) } != 0;
-
-            if failed {
-                return Err(PageError::Lock);
-            }
-
-            Ok(())
+        if failed {
+            return Err(PageError::Lock);
         }
+
+        Ok(())
     }
 
     /// Marks page as non-dumpable (excludes from core dumps).
     #[cfg(target_os = "linux")]
     pub fn mark_dontdump(&self) -> Result<(), PageError> {
-        #[cfg(miri)]
-        return Ok(());
+        // SAFETY: the address and the length are the mapping's own, so the
+        // range is one this process owns.
+        let failed = unsafe {
+            libc::madvise(
+                self.ptr as *mut libc::c_void,
+                self.capacity,
+                libc::MADV_DONTDUMP,
+            )
+        } != 0;
 
-        #[cfg(not(miri))]
-        {
-            // SAFETY: the address and the length are the mapping's own, so the
-            // range is one this process owns.
-            let failed = unsafe {
-                libc::madvise(
-                    self.ptr as *mut libc::c_void,
-                    self.capacity,
-                    libc::MADV_DONTDUMP,
-                )
-            } != 0;
-
-            if failed {
-                return Err(PageError::Madvise);
-            }
-
-            Ok(())
+        if failed {
+            return Err(PageError::Madvise);
         }
+
+        Ok(())
     }
 
     /// No-op on non-Linux platforms.
@@ -131,18 +109,15 @@ impl Page {
 
     /// Sets page to PROT_NONE (no read/write access).
     pub fn protect(&self) -> Result<(), PageError> {
-        #[cfg(not(miri))]
-        {
-            // SAFETY: the address and the length are the mapping's own, so the
-            // range is one this process owns. Every way of reaching the bytes
-            // is an `unsafe fn` asking the caller for a page it may read, so a
-            // slice held across this is the caller's to answer for.
-            let failed =
-                unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_NONE) } != 0;
+        // SAFETY: the address and the length are the mapping's own, so the
+        // range is one this process owns. Every way of reaching the bytes is an
+        // `unsafe fn` asking the caller for a page it may read, so a slice held
+        // across this is the caller's to answer for.
+        let failed =
+            unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_NONE) } != 0;
 
-            if failed {
-                return Err(PageError::Protect);
-            }
+        if failed {
+            return Err(PageError::Protect);
         }
 
         self.is_protected.store(true, Ordering::Release);
@@ -152,16 +127,13 @@ impl Page {
 
     /// Sets page to PROT_WRITE (allows write access).
     pub fn unprotect(&self) -> Result<(), PageError> {
-        #[cfg(not(miri))]
-        {
-            // SAFETY: the address and the length are the mapping's own, so the
-            // range is one this process owns.
-            let failed =
-                unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_WRITE) } != 0;
+        // SAFETY: the address and the length are the mapping's own, so the
+        // range is one this process owns.
+        let failed =
+            unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_WRITE) } != 0;
 
-            if failed {
-                return Err(PageError::Unprotect);
-            }
+        if failed {
+            return Err(PageError::Unprotect);
         }
 
         self.is_protected.store(false, Ordering::Release);
@@ -203,39 +175,36 @@ impl Page {
         unsafe { self.as_mut_slice().fast_zeroize() };
     }
 
-    /// Unlocks page (allows swapping). Called in Drop.
+    /// Unlocks page (allows swapping).
     pub fn munlock(&self) {
         // SAFETY: the address and the length are the mapping's own. Unlocking
         // one that was never locked is not an error, so this needs no caller to
         // have locked it.
-        #[cfg(not(miri))]
-        unsafe {
-            libc::munlock(self.ptr as *const _, self.capacity)
-        };
+        unsafe { libc::munlock(self.ptr as *const _, self.capacity) };
     }
 
-    pub fn dispose(&mut self) {
-        // Best effort: try to unprotect and zeroize before unmapping
-        // If unprotect fails, page stays protected (safe)
-        if self.is_protected.load(Ordering::Acquire) {
-            let _ = self.unprotect();
-        }
+    /// Unmaps the page.
+    fn munmap(&self) {
+        // SAFETY: the address and the length are the ones `mmap` gave back,
+        // which is the pair `munmap` takes.
+        unsafe { libc::munmap(self.ptr as *mut libc::c_void, self.capacity) };
+    }
+}
 
-        // If we can write, zeroize
+impl Drop for Page {
+    fn drop(&mut self) {
+        let _ = self.unprotect();
+
+        // Writing to a `PROT_NONE` mapping faults, so a page still protected
+        // here is one that cannot be emptied. It is unmapped as it is, and what
+        // the kernel hands the next process is zeroes whatever it held.
         if !self.is_protected.load(Ordering::Acquire) {
-            // SAFETY: what `zeroize` asks is that the page be writable, and the
-            // branch above is only entered where nothing has protected it.
+            // SAFETY: what `zeroize` asks is that the page be writable, which
+            // is the state the flag read above reports.
             unsafe { self.zeroize() };
         }
 
         self.munlock();
         self.munmap();
-    }
-
-    /// Unmaps the page. Called in Drop.
-    fn munmap(&self) {
-        // SAFETY: the address and the length are the ones `mmap` gave back,
-        // which is the pair `munmap` takes.
-        unsafe { libc::munmap(self.ptr as *mut libc::c_void, self.capacity) };
     }
 }

@@ -6,61 +6,26 @@
 
 #[cfg(all(test, unix))]
 mod page_buffer_tests {
-    use serial_test::serial;
-
     use redoubt_zero::ZeroizationProbe;
 
+    use crate::error::BufferError;
     use crate::page_buffer::{PageBuffer, ProtectionStrategy};
     use crate::traits::Buffer;
+
+    fn protected() -> Result<PageBuffer, Box<dyn std::error::Error>> {
+        Ok(PageBuffer::new(ProtectionStrategy::MemProtected, 32)?)
+    }
 
     // =============================================================================
     // new()
     // =============================================================================
 
+    /// A process of its own: the limit is the whole address space, so every
+    /// other test sharing the process would fail its next allocation too.
     #[test]
-    // `not(miri)`: `serial_test` keeps a process-global registry of reentrant
-    // mutexes, one per lock name, and never frees it — nine leaked allocations that
-    // are not ours and that would have to be silenced with `-Zmiri-ignore-leaks`.
-    // Turning leak detection off in *this* crate is the worst possible place for
-    // it: `redoubt-buffer` is the one doing raw `mmap`, so a leak here means a page
-    // holding secrets that was never unmapped.
-    //
-    // Dropping the serialization instead is sound, because what it serializes does
-    // not exist under Miri. The lock guards contention over process-wide resources
-    // — `RLIMIT_MEMLOCK`, shared by the 21 page buffers these tests instantiate,
-    // and the irreversible seccomp filters — and under Miri `mlock` is a no-op and
-    // the seccomp tests are ignored, since they need a subprocess.
-    //
-    // Note this attribute is already inert under `cargo nextest`, which runs one
-    // process per test: `serial_test`'s registry is per process, so there is
-    // nothing to contend with. It only does anything under `cargo test`.
-    #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_new_mem_protected() {
-        let buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
-        let debug_output = format!("{:?}", buffer);
-        assert!(debug_output.contains("MemProtected"));
-    }
-
-    #[test]
-    #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_new_mem_non_protected() -> Result<(), Box<dyn std::error::Error>> {
-        let buffer = PageBuffer::new(ProtectionStrategy::MemNonProtected, 32)?;
-        let debug_output = format!("{:?}", buffer);
-        assert!(debug_output.contains("MemNonProtected"));
-
-        Ok(())
-    }
-
-    // TODO: Run this test in a subprocess to safely cover the MAP_FAILED branch
-    // without causing stack allocation failures in the main test process.
-    // This would allow including it in coverage reports without flakiness.
-    // See: Page::new() line 47 - branch coverage for ptr == libc::MAP_FAILED
-    #[test]
-    #[ignore] // Exhausts address space, run explicitly with --ignored
-    #[cfg_attr(not(miri), serial(page_buffer))]
+    #[ignore]
     #[cfg(target_os = "linux")]
-    fn test_new_returns_creation_failed() {
+    fn subprocess_test_new_propagates_page_create_error() {
         use crate::error::PageError;
 
         let mut original = libc::rlimit {
@@ -77,10 +42,28 @@ mod page_buffer_tests {
 
         let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
 
-        assert!(result.is_err());
-        assert!(matches!(result, Err(PageError::Create)));
-
+        // CORRECTNESS: before the assertion. A failing `assert!` formats its
+        // message, and there is no address space to allocate that in while the
+        // limit stands.
         unsafe { libc::setrlimit(libc::RLIMIT_AS, &original) };
+
+        assert!(matches!(result, Err(PageError::Create)));
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_new_propagates_page_create_error() {
+        use crate::tests::utils::run_test_as_subprocess;
+
+        let exit_code = run_test_as_subprocess(
+            "tests::page_buffer::page_buffer_tests::subprocess_test_new_propagates_page_create_error",
+        );
+
+        assert_eq!(
+            exit_code,
+            Some(0),
+            "Subprocess should exit cleanly after assertion"
+        );
     }
 
     #[cfg(target_os = "linux")]
@@ -93,24 +76,20 @@ mod page_buffer_tests {
 
         #[test]
         #[ignore]
-        fn subprocess_test_new_returns_lock_failed() {
+        fn subprocess_test_new_propagates_page_lock_error() {
             block_mlock();
+
             let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
 
-            assert!(result.is_err());
             assert!(matches!(result, Err(PageError::Lock)));
         }
 
         #[test]
-        #[cfg_attr(
-            miri,
-            ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither"
-        )]
-        #[cfg_attr(not(miri), serial(page_buffer))]
-        fn test_new_returns_lock_failed() {
+        fn test_new_propagates_page_lock_error() {
             let exit_code = run_test_as_subprocess(
-                "tests::page_buffer::page_buffer_tests::seccomp_new::subprocess_test_new_returns_lock_failed",
+                "tests::page_buffer::page_buffer_tests::seccomp_new::subprocess_test_new_propagates_page_lock_error",
             );
+
             assert_eq!(
                 exit_code,
                 Some(0),
@@ -120,51 +99,43 @@ mod page_buffer_tests {
 
         #[test]
         #[ignore]
-        fn subprocess_test_new_returns_protection_failed() {
-            block_mprotect();
-            let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
-
-            assert!(result.is_err());
-            assert!(matches!(result, Err(PageError::Protect)));
-        }
-
-        #[test]
-        #[cfg_attr(
-            miri,
-            ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither"
-        )]
-        #[cfg_attr(not(miri), serial(page_buffer))]
-        fn test_new_returns_protection_failed() {
-            let exit_code = run_test_as_subprocess(
-                "tests::page_buffer::page_buffer_tests::seccomp_new::subprocess_test_new_returns_protection_failed",
-            );
-            assert_eq!(
-                exit_code,
-                Some(0),
-                "Subprocess should exit cleanly after assertion"
-            );
-        }
-
-        #[test]
-        #[ignore]
-        fn subprocess_test_new_returns_madvise_failed() {
+        fn subprocess_test_new_propagates_page_madvise_error() {
             block_madvise();
+
             let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
 
-            assert!(result.is_err());
             assert!(matches!(result, Err(PageError::Madvise)));
         }
 
         #[test]
-        #[cfg_attr(
-            miri,
-            ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither"
-        )]
-        #[cfg_attr(not(miri), serial(page_buffer))]
-        fn test_new_returns_madvise_failed() {
+        fn test_new_propagates_page_madvise_error() {
             let exit_code = run_test_as_subprocess(
-                "tests::page_buffer::page_buffer_tests::seccomp_new::subprocess_test_new_returns_madvise_failed",
+                "tests::page_buffer::page_buffer_tests::seccomp_new::subprocess_test_new_propagates_page_madvise_error",
             );
+
+            assert_eq!(
+                exit_code,
+                Some(0),
+                "Subprocess should exit cleanly after assertion"
+            );
+        }
+
+        #[test]
+        #[ignore]
+        fn subprocess_test_new_propagates_page_protect_error() {
+            block_mprotect();
+
+            let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
+
+            assert!(matches!(result, Err(PageError::Protect)));
+        }
+
+        #[test]
+        fn test_new_propagates_page_protect_error() {
+            let exit_code = run_test_as_subprocess(
+                "tests::page_buffer::page_buffer_tests::seccomp_new::subprocess_test_new_propagates_page_protect_error",
+            );
+
             assert_eq!(
                 exit_code,
                 Some(0),
@@ -173,14 +144,306 @@ mod page_buffer_tests {
         }
     }
 
+    #[test]
+    fn test_new_returns_a_protected_buffer() -> Result<(), Box<dyn std::error::Error>> {
+        let buffer = protected()?;
+
+        assert!(format!("{:?}", buffer).contains("MemProtected"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_new_returns_a_non_protected_buffer() -> Result<(), Box<dyn std::error::Error>> {
+        let buffer = PageBuffer::new(ProtectionStrategy::MemNonProtected, 32)?;
+
+        assert!(format!("{:?}", buffer).contains("MemNonProtected"));
+
+        Ok(())
+    }
+
+    // =============================================================================
+    // unseal()
+    // =============================================================================
+
+    #[test]
+    fn test_unseal_reports_page_no_longer_available() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
+
+        buffer.poisoned = true;
+
+        assert!(matches!(
+            buffer.unseal(),
+            Err(BufferError::PageNoLongerAvailable)
+        ));
+
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
+    mod seccomp_unseal {
+        use super::*;
+        use crate::error::PageError;
+        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
+
+        #[test]
+        #[ignore]
+        fn subprocess_test_unseal_propagates_unprotect_error()
+        -> Result<(), Box<dyn std::error::Error>> {
+            let mut buffer = protected()?;
+
+            block_mprotect();
+
+            assert!(matches!(
+                buffer.unseal(),
+                Err(BufferError::Page(PageError::Unprotect))
+            ));
+
+            assert!(
+                buffer.poisoned,
+                "a page that would not open left the buffer usable"
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn test_unseal_propagates_unprotect_error() {
+            let exit_code = run_test_as_subprocess(
+                "tests::page_buffer::page_buffer_tests::seccomp_unseal::subprocess_test_unseal_propagates_unprotect_error",
+            );
+
+            assert_eq!(
+                exit_code,
+                Some(0),
+                "Subprocess should exit cleanly after assertion"
+            );
+        }
+    }
+
+    /// The oracle is the MMU: reading a page at `PROT_NONE` raises `SIGSEGV`,
+    /// so the read returning at all is what says the page opened.
+    #[test]
+    fn test_unseal_opens_the_page() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
+
+        buffer.unseal()?;
+
+        assert!(unsafe { buffer.page.as_slice() }.is_zeroized());
+
+        buffer.seal()?;
+
+        Ok(())
+    }
+
+    // =============================================================================
+    // seal()
+    // =============================================================================
+
+    #[cfg(target_os = "linux")]
+    mod seccomp_seal {
+        use super::*;
+        use crate::error::PageError;
+        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
+
+        #[test]
+        #[ignore]
+        fn subprocess_test_seal_propagates_protect_error() -> Result<(), Box<dyn std::error::Error>>
+        {
+            let mut buffer = protected()?;
+
+            buffer.unseal()?;
+            unsafe { buffer.page.as_mut_slice().fill(0xFF) };
+
+            block_mprotect();
+
+            assert!(matches!(
+                buffer.seal(),
+                Err(BufferError::Page(PageError::Protect))
+            ));
+
+            assert!(
+                buffer.poisoned,
+                "a page that would not close left the buffer usable"
+            );
+
+            assert!(
+                unsafe { buffer.page.as_slice() }.is_zeroized(),
+                "a page left readable kept its contents"
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn test_seal_propagates_protect_error() {
+            let exit_code = run_test_as_subprocess(
+                "tests::page_buffer::page_buffer_tests::seccomp_seal::subprocess_test_seal_propagates_protect_error",
+            );
+
+            assert_eq!(
+                exit_code,
+                Some(0),
+                "Subprocess should exit cleanly after assertion"
+            );
+        }
+    }
+
+    #[test]
+    fn test_seal_leaves_the_buffer_usable() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
+
+        buffer.unseal()?;
+        buffer.seal()?;
+
+        assert!(!buffer.poisoned);
+
+        Ok(())
+    }
+
+    // =============================================================================
+    // is_empty()
+    // =============================================================================
+
+    #[test]
+    fn test_is_empty_returns_false() -> Result<(), Box<dyn std::error::Error>> {
+        assert!(!protected()?.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_is_empty_returns_true() -> Result<(), Box<dyn std::error::Error>> {
+        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 0)?;
+
+        assert!(buffer.is_empty());
+
+        Ok(())
+    }
+
+    // =============================================================================
+    // Debug
+    // =============================================================================
+
+    #[test]
+    fn test_debug_does_not_expose_contents() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
+
+        buffer.open_mut(&mut |bytes| {
+            bytes.fill(0xAB);
+            Ok(())
+        })?;
+
+        let debug_output = format!("{:?}", buffer);
+
+        assert!(debug_output.contains("PageBuffer"));
+        assert!(debug_output.contains("len"));
+        assert!(debug_output.contains("32"));
+        assert!(debug_output.contains("MemProtected"));
+        assert!(!debug_output.contains("ab"));
+
+        Ok(())
+    }
+
     // =============================================================================
     // open()
     // =============================================================================
 
     #[test]
-    #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_reads_data() -> Result<(), Box<dyn std::error::Error>> {
-        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
+    fn test_open_propagates_unseal_error() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
+
+        buffer.poisoned = true;
+
+        let result = buffer.open(&mut |_| Ok(()));
+
+        assert!(matches!(result, Err(BufferError::PageNoLongerAvailable)));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_open_propagates_callback_error() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
+
+        let result = buffer.open(&mut |_| Err(BufferError::callback_error("test error")));
+
+        assert!(matches!(result, Err(BufferError::CallbackError(_))));
+
+        Ok(())
+    }
+
+    /// The oracle is the MMU: reading a page at `PROT_NONE` raises `SIGSEGV`,
+    /// so being killed by a signal is what says the page was closed. A clean
+    /// exit means the callback's error carried the page out still readable,
+    /// for the rest of the process.
+    #[test]
+    #[ignore]
+    #[cfg(target_os = "linux")]
+    fn subprocess_test_open_seals_the_page_when_the_callback_errors()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
+
+        let _ = buffer.open(&mut |_| Err(BufferError::callback_error("test error")));
+
+        core::hint::black_box(unsafe { buffer.page.as_slice() }[0]);
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_open_seals_the_page_when_the_callback_errors() {
+        use crate::tests::utils::run_test_as_subprocess;
+
+        let exit_code = run_test_as_subprocess(
+            "tests::page_buffer::page_buffer_tests::subprocess_test_open_seals_the_page_when_the_callback_errors",
+        );
+
+        assert_eq!(
+            exit_code, None,
+            "the page stayed readable after the callback failed"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    mod seccomp_open {
+        use super::*;
+        use crate::error::PageError;
+        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
+
+        #[test]
+        #[ignore]
+        fn subprocess_test_open_propagates_seal_error() -> Result<(), Box<dyn std::error::Error>> {
+            let mut buffer = protected()?;
+
+            let result = buffer.open(&mut |_| {
+                block_mprotect();
+                Ok(())
+            });
+
+            assert!(matches!(result, Err(BufferError::Page(PageError::Protect))));
+
+            Ok(())
+        }
+
+        #[test]
+        fn test_open_propagates_seal_error() {
+            let exit_code = run_test_as_subprocess(
+                "tests::page_buffer::page_buffer_tests::seccomp_open::subprocess_test_open_propagates_seal_error",
+            );
+
+            assert_eq!(
+                exit_code,
+                Some(0),
+                "Subprocess should exit cleanly after assertion"
+            );
+        }
+    }
+
+    #[test]
+    fn test_open_returns_the_page_contents() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
 
         buffer.open_mut(&mut |bytes| {
             bytes[0] = 0xAB;
@@ -189,6 +452,7 @@ mod page_buffer_tests {
 
         buffer.open(&mut |bytes| {
             assert_eq!(bytes[0], 0xAB);
+            assert_eq!(bytes.len(), 32);
             Ok(())
         })?;
 
@@ -196,8 +460,8 @@ mod page_buffer_tests {
     }
 
     #[test]
-    #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_mem_non_protected() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_open_returns_the_page_contents_when_non_protected()
+    -> Result<(), Box<dyn std::error::Error>> {
         let mut buffer = PageBuffer::new(ProtectionStrategy::MemNonProtected, 32)?;
 
         buffer.open_mut(&mut |bytes| {
@@ -213,87 +477,106 @@ mod page_buffer_tests {
         Ok(())
     }
 
-    #[test]
-    #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_propagates_callback_error() -> Result<(), Box<dyn std::error::Error>> {
-        use crate::error::BufferError;
-
-        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
-
-        let result = buffer.open(&mut |_| Err(BufferError::callback_error("test error")));
-
-        assert!(result.is_err());
-        assert!(matches!(result, Err(BufferError::CallbackError(_))));
-
-        Ok(())
-    }
-
-    #[cfg(target_os = "linux")]
-    mod seccomp_open {
-        use super::*;
-        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
-
-        #[test]
-        #[ignore]
-        fn subprocess_test_open_aborts_on_unprotect_failure()
-        -> Result<(), Box<dyn std::error::Error>> {
-            let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
-
-            block_mprotect();
-            let _ = buffer.open(&mut |_bytes| Ok(()));
-
-            Ok(())
-        }
-
-        #[test]
-        #[cfg_attr(
-            miri,
-            ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither"
-        )]
-        #[cfg_attr(not(miri), serial(page_buffer))]
-        fn test_open_aborts_on_unprotect_failure() {
-            let exit_code = run_test_as_subprocess(
-                "tests::page_buffer::page_buffer_tests::seccomp_open::subprocess_test_open_aborts_on_unprotect_failure",
-            );
-            assert_eq!(exit_code, Some(3), "Expected UnprotectionFailed abort");
-        }
-
-        #[test]
-        #[ignore]
-        fn subprocess_test_open_aborts_on_protect_failure() -> Result<(), Box<dyn std::error::Error>>
-        {
-            let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
-
-            let _ = buffer.open(&mut |_bytes| {
-                block_mprotect();
-                Ok(())
-            });
-
-            Ok(())
-        }
-
-        #[test]
-        #[cfg_attr(
-            miri,
-            ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither"
-        )]
-        #[cfg_attr(not(miri), serial(page_buffer))]
-        fn test_open_aborts_on_protect_failure() {
-            let exit_code = run_test_as_subprocess(
-                "tests::page_buffer::page_buffer_tests::seccomp_open::subprocess_test_open_aborts_on_protect_failure",
-            );
-            assert_eq!(exit_code, Some(2), "Expected ProtectionFailed abort");
-        }
-    }
-
     // =============================================================================
     // open_mut()
     // =============================================================================
 
     #[test]
-    #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_mut_writes_data() -> Result<(), Box<dyn std::error::Error>> {
-        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
+    fn test_open_mut_propagates_unseal_error() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
+
+        buffer.poisoned = true;
+
+        let result = buffer.open_mut(&mut |_| Ok(()));
+
+        assert!(matches!(result, Err(BufferError::PageNoLongerAvailable)));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_open_mut_propagates_callback_error() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
+
+        let result = buffer.open_mut(&mut |_| Err(BufferError::callback_error("test error")));
+
+        assert!(matches!(result, Err(BufferError::CallbackError(_))));
+
+        Ok(())
+    }
+
+    /// The oracle is the MMU: writing to a page at `PROT_NONE` raises
+    /// `SIGSEGV`, so being killed by a signal is what says the page was closed.
+    /// A clean exit means the callback's error carried the page out still
+    /// writable, for the rest of the process.
+    #[test]
+    #[ignore]
+    #[cfg(target_os = "linux")]
+    fn subprocess_test_open_mut_seals_the_page_when_the_callback_errors()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
+
+        let _ = buffer.open_mut(&mut |_| Err(BufferError::callback_error("test error")));
+
+        unsafe { buffer.page.as_mut_slice()[0] = 0xFF };
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_open_mut_seals_the_page_when_the_callback_errors() {
+        use crate::tests::utils::run_test_as_subprocess;
+
+        let exit_code = run_test_as_subprocess(
+            "tests::page_buffer::page_buffer_tests::subprocess_test_open_mut_seals_the_page_when_the_callback_errors",
+        );
+
+        assert_eq!(
+            exit_code, None,
+            "the page stayed writable after the callback failed"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    mod seccomp_open_mut {
+        use super::*;
+        use crate::error::PageError;
+        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
+
+        #[test]
+        #[ignore]
+        fn subprocess_test_open_mut_propagates_seal_error() -> Result<(), Box<dyn std::error::Error>>
+        {
+            let mut buffer = protected()?;
+
+            let result = buffer.open_mut(&mut |_| {
+                block_mprotect();
+                Ok(())
+            });
+
+            assert!(matches!(result, Err(BufferError::Page(PageError::Protect))));
+
+            Ok(())
+        }
+
+        #[test]
+        fn test_open_mut_propagates_seal_error() {
+            let exit_code = run_test_as_subprocess(
+                "tests::page_buffer::page_buffer_tests::seccomp_open_mut::subprocess_test_open_mut_propagates_seal_error",
+            );
+
+            assert_eq!(
+                exit_code,
+                Some(0),
+                "Subprocess should exit cleanly after assertion"
+            );
+        }
+    }
+
+    #[test]
+    fn test_open_mut_writes_the_page() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
 
         buffer.open_mut(&mut |bytes| {
             bytes.fill(0xFF);
@@ -309,9 +592,8 @@ mod page_buffer_tests {
     }
 
     #[test]
-    #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_mut_zeroize() -> Result<(), Box<dyn std::error::Error>> {
-        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
+    fn test_open_mut_zeroizes_the_page() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
 
         buffer.open_mut(&mut |bytes| {
             bytes.fill(0xFF);
@@ -331,150 +613,16 @@ mod page_buffer_tests {
         Ok(())
     }
 
-    #[test]
-    #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_mut_propagates_callback_error() -> Result<(), Box<dyn std::error::Error>> {
-        use crate::error::BufferError;
-
-        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
-
-        let result = buffer.open_mut(&mut |_| Err(BufferError::callback_error("test error")));
-
-        assert!(result.is_err());
-        assert!(matches!(result, Err(BufferError::CallbackError(_))));
-
-        Ok(())
-    }
-
-    #[cfg(target_os = "linux")]
-    mod seccomp_open_mut {
-        use super::*;
-        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
-
-        #[test]
-        #[ignore]
-        fn subprocess_test_open_mut_aborts_on_unprotect_failure()
-        -> Result<(), Box<dyn std::error::Error>> {
-            let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
-
-            block_mprotect();
-            let _ = buffer.open_mut(&mut |_bytes| Ok(()));
-
-            Ok(())
-        }
-
-        #[test]
-        #[cfg_attr(
-            miri,
-            ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither"
-        )]
-        #[cfg_attr(not(miri), serial(page_buffer))]
-        fn test_open_mut_aborts_on_unprotect_failure() {
-            let exit_code = run_test_as_subprocess(
-                "tests::page_buffer::page_buffer_tests::seccomp_open_mut::subprocess_test_open_mut_aborts_on_unprotect_failure",
-            );
-            assert_eq!(exit_code, Some(3), "Expected UnprotectionFailed abort");
-        }
-
-        #[test]
-        #[ignore]
-        fn subprocess_test_open_mut_aborts_on_protect_failure()
-        -> Result<(), Box<dyn std::error::Error>> {
-            let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
-
-            let _ = buffer.open_mut(&mut |_bytes| {
-                block_mprotect();
-                Ok(())
-            });
-
-            Ok(())
-        }
-
-        #[test]
-        #[cfg_attr(
-            miri,
-            ignore = "spawns a subprocess to install a seccomp filter; Miri supports neither"
-        )]
-        #[cfg_attr(not(miri), serial(page_buffer))]
-        fn test_open_mut_aborts_on_protect_failure() {
-            let exit_code = run_test_as_subprocess(
-                "tests::page_buffer::page_buffer_tests::seccomp_open_mut::subprocess_test_open_mut_aborts_on_protect_failure",
-            );
-            assert_eq!(exit_code, Some(2), "Expected ProtectionFailed abort");
-        }
-    }
-
     // =============================================================================
-    // len() / is_empty()
+    // len()
     // =============================================================================
 
     #[test]
-    #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_len() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_len_returns_the_requested_length() -> Result<(), Box<dyn std::error::Error>> {
         let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 64)?;
+
         assert_eq!(buffer.len(), 64);
 
         Ok(())
     }
-
-    #[test]
-    #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_is_empty_false() -> Result<(), Box<dyn std::error::Error>> {
-        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
-        assert!(!buffer.is_empty());
-
-        Ok(())
-    }
-
-    #[test]
-    #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_is_empty_true() -> Result<(), Box<dyn std::error::Error>> {
-        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 0)?;
-        assert!(buffer.is_empty());
-
-        Ok(())
-    }
-
-    // =============================================================================
-    // dispose()
-    // =============================================================================
-
-    #[test]
-    #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_dispose() -> Result<(), Box<dyn std::error::Error>> {
-        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
-
-        buffer.open_mut(&mut |bytes| {
-            bytes.fill(0xFF);
-            Ok(())
-        })?;
-
-        buffer.dispose();
-
-        Ok(())
-    }
-
-    // =============================================================================
-    // Debug
-    // =============================================================================
-
-    #[test]
-    #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_page_buffer_debug_does_not_expose_contents() -> Result<(), Box<dyn std::error::Error>> {
-        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
-        let debug_output = format!("{:?}", buffer);
-
-        // Should contain struct name, length, and strategy
-        assert!(debug_output.contains("PageBuffer"));
-        assert!(debug_output.contains("len"));
-        assert!(debug_output.contains("32"));
-        assert!(debug_output.contains("strategy"));
-        assert!(debug_output.contains("MemProtected"));
-
-        Ok(())
-    }
-
-    // =============================================================================
-    // acquire() / release() - spinlock contention
-    // =============================================================================
 }

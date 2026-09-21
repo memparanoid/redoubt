@@ -5,7 +5,8 @@
 //! PageBuffer - High-level buffer over a protected Page.
 //!
 //! Provides open/open_mut access pattern with automatic protect/unprotect.
-//! On protection errors, the page is disposed and the process aborts.
+//! A page that cannot be closed again is emptied and the buffer refuses every
+//! later open.
 
 use crate::error::{BufferError, PageError};
 use crate::page::Page;
@@ -22,27 +23,13 @@ pub enum ProtectionStrategy {
 
 /// A buffer backed by a memory-locked page with optional memory protection.
 pub struct PageBuffer {
-    page: Page,
+    pub(crate) page: Page,
     len: usize,
     strategy: ProtectionStrategy,
+    pub(crate) poisoned: bool,
 }
 
 impl PageBuffer {
-    fn abort(error: PageError) -> ! {
-        // Use libc::_exit to avoid any cleanup that might need blocked syscalls
-        #[cfg(test)]
-        std::process::exit(error as i32);
-
-        #[cfg(not(test))]
-        {
-            let _ = error;
-
-            // SAFETY: it takes no argument and never returns, so there is
-            // nothing to get wrong and nothing after it to reach.
-            unsafe { libc::abort() }
-        }
-    }
-
     /// Creates a new PageBuffer with the specified protection strategy and length.
     pub fn new(strategy: ProtectionStrategy, len: usize) -> Result<Self, PageError> {
         let page = Page::new()?;
@@ -58,6 +45,7 @@ impl PageBuffer {
             page,
             len,
             strategy,
+            poisoned: false,
         })
     }
 
@@ -77,54 +65,48 @@ impl PageBuffer {
         Ok(())
     }
 
-    fn try_open(
-        &mut self,
-        f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
-    ) -> Result<(), BufferError> {
-        self.maybe_unprotect()?;
+    /// Opens the page, or reports that it will not open again.
+    pub(crate) fn unseal(&mut self) -> Result<(), BufferError> {
+        if self.poisoned {
+            return Err(BufferError::PageNoLongerAvailable);
+        }
 
-        // SAFETY: what `as_slice` asks is that the page be readable, which is
-        // what `maybe_unprotect` left it. `maybe_protect` closes it again once
-        // the callback has been and gone.
-        let slice = unsafe { self.page.as_slice() };
-        f(&slice[..self.len])?;
+        let Err(error) = self.maybe_unprotect() else {
+            return Ok(());
+        };
 
-        self.maybe_protect()?;
+        // Nothing was read, so the page is still `PROT_NONE` and there is
+        // nothing to erase. It is refused from here on because what stops an
+        // `mprotect` is a seccomp filter, and a filter cannot be lifted.
+        self.poisoned = true;
 
-        Ok(())
+        Err(error.into())
     }
 
-    fn try_open_mut(
-        &mut self,
-        f: &mut dyn FnMut(&mut [u8]) -> Result<(), BufferError>,
-    ) -> Result<(), BufferError> {
-        self.maybe_unprotect()?;
+    /// Closes the page, and empties it where it will not close.
+    pub(crate) fn seal(&mut self) -> Result<(), BufferError> {
+        let Err(error) = self.maybe_protect() else {
+            return Ok(());
+        };
 
-        // SAFETY: what `as_mut_slice` asks is that the page be writable, which
-        // is what `maybe_unprotect` left it, and `&mut self` is what makes
-        // this the only reference to it. `maybe_protect` closes it again once
-        // the callback has been and gone.
-        let slice = unsafe { self.page.as_mut_slice() };
-        f(&mut slice[..self.len])?;
+        self.poisoned = true;
 
-        self.maybe_protect()?;
+        // The failure left the page readable, which is the state this buffer
+        // exists to prevent — and the only one in which the contents can still
+        // be erased.
+        //
+        // SAFETY: what `zeroize` asks is that the page be writable, which is
+        // what `unseal` left it and what a refused `mprotect` did not change.
+        unsafe { self.page.zeroize() };
 
-        Ok(())
+        Err(error.into())
     }
 
     /// Returns true if the buffer has zero length.
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
-
-    /// Disposes of the underlying page, releasing all resources.
-    pub fn dispose(&mut self) {
-        self.page.dispose();
-    }
 }
-
-// Safety: PageBuffer can be shared between threads (though mutation requires &mut)
-unsafe impl Sync for PageBuffer {}
 
 impl core::fmt::Debug for PageBuffer {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -141,14 +123,18 @@ impl Buffer for PageBuffer {
         &mut self,
         f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>,
     ) -> Result<(), BufferError> {
-        let result = self.try_open(f);
+        self.unseal()?;
 
-        if let Err(BufferError::Page(e)) = &result {
-            self.page.dispose();
-            Self::abort(*e);
-        }
+        // SAFETY: what `as_slice` asks is that the page be readable, which is
+        // what `unseal` left it, and `seal` below closes it again.
+        let slice = unsafe { self.page.as_slice() };
+        let read = f(&slice[..self.len]);
 
-        result
+        // Not a `?` on the callback: a page the error skipped past is a page
+        // left readable for the rest of the process.
+        self.seal()?;
+
+        read
     }
 
     #[inline(always)]
@@ -156,14 +142,19 @@ impl Buffer for PageBuffer {
         &mut self,
         f: &mut dyn FnMut(&mut [u8]) -> Result<(), BufferError>,
     ) -> Result<(), BufferError> {
-        let result = self.try_open_mut(f);
+        self.unseal()?;
 
-        if let Err(BufferError::Page(e)) = &result {
-            self.page.dispose();
-            Self::abort(*e);
-        }
+        // SAFETY: what `as_mut_slice` asks is that the page be writable, which
+        // is what `unseal` left it, and `&mut self` is what makes this the only
+        // reference to it. `seal` below closes it again.
+        let slice = unsafe { self.page.as_mut_slice() };
+        let written = f(&mut slice[..self.len]);
 
-        result
+        // Not a `?` on the callback: a page the error skipped past is a page
+        // left writable for the rest of the process.
+        self.seal()?;
+
+        written
     }
 
     fn len(&self) -> usize {
