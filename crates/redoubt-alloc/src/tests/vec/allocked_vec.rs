@@ -884,14 +884,14 @@ fn test_allocked_vec_set_len_can_shrink() -> Result<(), Box<dyn std::error::Erro
 }
 
 #[test]
-fn test_allocked_vec_set_len_can_grow_within_capacity() {
+fn test_allocked_vec_set_len_can_grow_within_capacity() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to push(1)");
-    vec.push(&mut 2u8).expect("Failed to push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     // Write to spare capacity first
     unsafe { vec.as_capacity_mut_slice()[2] = 3 };
@@ -905,6 +905,8 @@ fn test_allocked_vec_set_len_can_grow_within_capacity() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
