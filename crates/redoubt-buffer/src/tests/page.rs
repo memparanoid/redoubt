@@ -455,8 +455,8 @@ mod page_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_as_mut_slice_allows_writes() {
-        let mut page = Page::new().expect("Failed to new()");
+    fn test_as_mut_slice_allows_writes() -> Result<(), Box<dyn std::error::Error>> {
+        let mut page = Page::new()?;
 
         unsafe {
             let slice = page.as_mut_slice();
@@ -468,6 +468,8 @@ mod page_tests {
 
         assert_eq!(slice[0], 0xAB);
         assert_eq!(slice[1], 0xCD);
+
+        Ok(())
     }
 
     #[test]
