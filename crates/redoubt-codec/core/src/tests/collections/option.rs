@@ -206,16 +206,13 @@ fn test_option_decode_from_truncated_buffer() -> Result<(), Box<dyn std::error::
 // Roundtrip
 
 #[test]
-fn test_option_encode_decode_roundtrip_none() {
+fn test_option_encode_decode_roundtrip_none() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let mut opt: Option<RedoubtCodecTestBreaker> = None;
-    let bytes_required = opt
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = opt.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    opt.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    opt.encode_into(&mut buf)?;
 
     // Decode
     {
@@ -237,6 +234,8 @@ fn test_option_encode_decode_roundtrip_none() {
     // Assert zeroization!
     assert!(buf.is_zeroized());
     assert_eq!(opt, None);
+
+    Ok(())
 }
 
 #[test]
