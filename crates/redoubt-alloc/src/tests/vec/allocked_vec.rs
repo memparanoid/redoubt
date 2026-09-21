@@ -1036,11 +1036,11 @@ fn test_allocked_vec_partial_eq_empty_vecs() {
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_debug_redacted() {
+fn test_allocked_vec_debug_redacted() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
-    vec.push(&mut 41u8).expect("Failed to push");
-    vec.push(&mut 42u8).expect("Failed to push");
-    vec.push(&mut 43u8).expect("Failed to push");
+    vec.push(&mut 41u8)?;
+    vec.push(&mut 42u8)?;
+    vec.push(&mut 43u8)?;
 
     let debug_output = format!("{:?}", vec);
 
@@ -1051,6 +1051,8 @@ fn test_allocked_vec_debug_redacted() {
     assert!(!debug_output.contains("41"));
     assert!(!debug_output.contains("42"));
     assert!(!debug_output.contains("43"));
+
+    Ok(())
 }
 
 #[test]
