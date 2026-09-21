@@ -252,12 +252,15 @@ fn test_generate_nonce_with_propagates_aegis_entropy_error() {
 }
 
 #[test]
-fn test_generate_nonce_with_answers_a_nonce_of_the_chacha_width() {
+fn test_generate_nonce_with_answers_a_nonce_of_the_chacha_width()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut session = Session::XChachaPoly1305(NonceSessionGenerator::new(SystemEntropySource {}));
 
-    let nonce = Aead::generate_nonce_with(&mut session).expect("this machine has entropy");
+    let nonce = Aead::generate_nonce_with(&mut session)?;
 
     assert_eq!(nonce.len(), chacha::XNONCE_SIZE);
+
+    Ok(())
 }
 
 #[test]
