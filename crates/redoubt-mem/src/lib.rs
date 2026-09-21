@@ -49,7 +49,7 @@
 //! [`core::ptr::copy_nonoverlapping`] and **there is no erasure**. The call
 //! compiles and the guarantee does not travel with it.
 
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 
 #[cfg(test)]
 extern crate std;
