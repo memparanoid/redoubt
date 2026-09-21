@@ -91,9 +91,11 @@ mod page_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_lock_succeeds() {
-        let page = Page::new().expect("Failed to new()");
-        page.lock().expect("Failed to lock()");
+    fn test_lock_succeeds() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new()?;
+        page.lock()?;
+
+        Ok(())
     }
 
     #[test]
