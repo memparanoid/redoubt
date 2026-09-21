@@ -31,6 +31,7 @@ test-utils = ["redoubt-aead-core/test-utils", "redoubt-rand/test-utils"]
 
 [dev-dependencies]
 proptest.workspace          = true
+redoubt-aead-core           = { workspace = true, features = ["test-utils"] }
 redoubt-forensics.workspace = true
 redoubt-rand                = { workspace = true, features = ["test-utils"] }
 rstest.workspace            = true
