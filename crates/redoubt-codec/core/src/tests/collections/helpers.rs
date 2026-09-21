@@ -365,7 +365,7 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
 // Roundtrip
 
 #[test]
-fn test_fields_roundtrip_ok() {
+fn test_fields_roundtrip_ok() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let mut tb1 = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
     let mut tb2 = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 200);
@@ -375,7 +375,7 @@ fn test_fields_roundtrip_ok() {
         to_encode_zeroize_dyn_mut(&mut tb1),
         to_encode_zeroize_dyn_mut(&mut tb2),
     ];
-    encode_fields(encode_refs.into_iter(), &mut buf).expect("Failed to encode");
+    encode_fields(encode_refs.into_iter(), &mut buf)?;
 
     // Assert src zeroization after encode!
     assert!(tb1.is_zeroized());
@@ -400,4 +400,6 @@ fn test_fields_roundtrip_ok() {
     // Assert buf zeroization after decode!
     assert!(buf.is_zeroized());
     assert!(decode_buf.is_zeroized());
+
+    Ok(())
 }
