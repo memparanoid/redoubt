@@ -93,15 +93,13 @@ fn test_bytes_required_return_max() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_bytes_required_return_specific() {
+fn test_bytes_required_return_specific() -> Result<(), Box<dyn std::error::Error>> {
     let tb = RedoubtCodecTestBreaker::with_behaviour(
         RedoubtCodecTestBreakerBehaviour::BytesRequiredReturn(42),
     );
-    assert_eq!(
-        tb.encode_bytes_required()
-            .expect("Failed to get encode_bytes_required()"),
-        42
-    );
+    assert_eq!(tb.encode_bytes_required()?, 42);
+
+    Ok(())
 }
 
 #[test]
