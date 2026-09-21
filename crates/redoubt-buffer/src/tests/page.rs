@@ -137,8 +137,9 @@ mod page_tests {
 
         #[test]
         #[ignore]
-        fn subprocess_test_lock_fails_when_mlock_blocked() {
-            let page = Page::new().expect("Failed to new()");
+        fn subprocess_test_lock_fails_when_mlock_blocked() -> Result<(), Box<dyn std::error::Error>>
+        {
+            let page = Page::new()?;
 
             block_mlock();
 
@@ -146,6 +147,8 @@ mod page_tests {
 
             assert!(result.is_err());
             assert!(matches!(result, Err(PageError::Lock)));
+
+            Ok(())
         }
 
         #[test]
