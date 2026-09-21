@@ -243,10 +243,12 @@ mod page_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_protect_succeeds() {
-        let page = Page::new().expect("Failed to new()");
+    fn test_protect_succeeds() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new()?;
 
-        page.protect().expect("Failed to protect()");
+        page.protect()?;
+
+        Ok(())
     }
 
     #[test]
