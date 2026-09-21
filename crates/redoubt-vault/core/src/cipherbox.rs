@@ -332,8 +332,8 @@ where
 
     /// Provides read-only access to the entire struct via a callback.
     ///
-    /// The struct is resealed once the callback returns, with a nonce per
-    /// field that the box has not used before, so a read costs an encrypt.
+    /// The sealed fields are not touched: the callback is handed a clone, and
+    /// nothing is written back, so a read costs a decrypt and no encrypt.
     ///
     /// Reading one field goes through `leak_field` instead, which clones and
     /// decrypts that field alone.
@@ -359,8 +359,6 @@ where
             // wipe asap
             value.fast_zeroize();
         })?;
-
-        self.encrypt_struct(&master_key, &mut value)?;
 
         Ok(ZeroizingGuard::from_mut(&mut result))
     }

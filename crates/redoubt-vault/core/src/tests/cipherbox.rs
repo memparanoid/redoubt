@@ -528,20 +528,6 @@ fn test_open_propagates_decrypt_struct_error() {
 }
 
 #[test]
-fn test_open_propagates_encrypt_struct_error() {
-    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(NUM_FIELDS + 1));
-    let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
-
-    assert!(cb.maybe_initialize().is_ok());
-
-    let result = cb.open::<_, _, CipherBoxError>(|_| Ok(()));
-
-    assert!(result.is_err());
-    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
-    assert!(cb.assert_healthy().is_err());
-}
-
-#[test]
 fn test_open_infers_result_type() {
     let aead = Aead::default();
     let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
