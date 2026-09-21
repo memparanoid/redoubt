@@ -493,14 +493,15 @@ fn test_allocked_vec_realloc_with_noop_when_sufficient() -> Result<(), Box<dyn s
 }
 
 #[test]
-fn test_allocked_vec_realloc_with_zeroizes_old_allocation() {
+fn test_allocked_vec_realloc_with_zeroizes_old_allocation() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut vec = AllockedVec::with_capacity(2);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     let result = vec.push(&mut 3u8);
 
@@ -521,14 +522,16 @@ fn test_allocked_vec_realloc_with_zeroizes_old_allocation() {
     // Vec is not zeroized since new vec has `has_been_sealed` true after realloc.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 3u8).expect("Failed to vec.push(3)");
-    vec.push(&mut 4u8).expect("Failed to vec.push(4)");
-    vec.push(&mut 5u8).expect("Failed to vec.push(5)");
+    vec.push(&mut 3u8)?;
+    vec.push(&mut 4u8)?;
+    vec.push(&mut 5u8)?;
 
     assert_eq!(vec.as_slice(), [1u8, 2, 3, 4, 5]);
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
