@@ -102,11 +102,9 @@ fn test_string_encode_into_propagates_try_encode_into_error() {
 }
 
 #[test]
-fn test_string_encode_ok() {
+fn test_string_encode_ok() -> Result<(), Box<dyn std::error::Error>> {
     let mut s = String::from("hello world");
-    let bytes_required = s
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = s.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
     let result = s.encode_into(&mut buf);
@@ -115,6 +113,8 @@ fn test_string_encode_ok() {
 
     // Assert zeroization!
     assert!(s.is_zeroized());
+
+    Ok(())
 }
 
 // EncodeSlice
