@@ -126,18 +126,15 @@ fn test_allocked_vec_decode_from_propagates_process_header_err() {
 }
 
 #[test]
-fn test_allocked_vec_decode_propagates_decode_err() {
+fn test_allocked_vec_decode_propagates_decode_err() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = make_allocked_vec(&[
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
     ]);
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    vec.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    vec.encode_into(&mut buf)?;
 
     let mut recovered = make_allocked_vec(&[
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100),
@@ -155,6 +152,8 @@ fn test_allocked_vec_decode_propagates_decode_err() {
     assert!(decode_buf.is_zeroized());
     assert!(vec.is_zeroized());
     assert!(recovered.is_zeroized());
+
+    Ok(())
 }
 
 // Roundtrip
