@@ -223,9 +223,14 @@ for crate in "${MEASURED[@]}"; do
 
   # `<crate>/html/index.html` is where the renderer reads a crate's totals
   # from.
+  # `--show-instantiations=false`: a generic function is rendered once, with
+  # its instantiations summed, instead of once per instantiation. Rendered
+  # apart, a line reads zero in every instantiation that did not reach it and
+  # the page has to be read N times to find out the line runs.
   "$LLVM_BIN/llvm-cov" show \
     --format=html \
     --show-branch-summary \
+    --show-instantiations=false \
     "--output-dir=$OUT/$crate/html" \
     "--instr-profile=$MERGED" \
     "--ignore-filename-regex=$IGNORE" \
