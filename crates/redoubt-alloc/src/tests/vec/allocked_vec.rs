@@ -166,16 +166,18 @@ fn test_allocked_vec_push_exceeds_capacity() -> Result<(), Box<dyn std::error::E
 }
 
 #[test]
-fn test_allocked_vec_push_empties_what_it_was_handed() {
+fn test_allocked_vec_push_empties_what_it_was_handed() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(1);
     let mut one = 7u8;
 
-    vec.push(&mut one).expect("Failed to push");
+    vec.push(&mut one)?;
 
     assert_eq!(vec.as_slice(), &[7]);
 
     // Assert zeroization!
     assert!(one.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
