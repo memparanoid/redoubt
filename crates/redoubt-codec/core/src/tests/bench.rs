@@ -135,7 +135,7 @@ impl Decode for MixedData {
 /// Run manually with: `cargo test -p redoubt-codec-core --release --features benchmark -- benchmark_codec_roundtrip --ignored --nocapture`
 #[test]
 #[ignore]
-fn benchmark_codec_roundtrip() {
+fn benchmark_codec_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     use std::time::Instant;
 
     let iterations = 10000usize;
@@ -143,27 +143,20 @@ fn benchmark_codec_roundtrip() {
 
     // Setup: encode initial data
     let mut data = MixedData::new();
-    let buf_size = data
-        .encode_bytes_required()
-        .expect("Failed to encode_bytes_required()");
+    let buf_size = data.encode_bytes_required()?;
     let mut global_buf = RedoubtCodecBuffer::with_capacity(buf_size);
-    data.encode_into(&mut global_buf)
-        .expect("Failed to encode_into(..)");
+    data.encode_into(&mut global_buf)?;
 
     let start = Instant::now();
 
     for i in 0..iterations {
         let mut data = MixedData::empty();
         // Decode: fills data from buf
-        data.decode_from(&mut global_buf.as_mut_slice())
-            .expect("Failed to decode_from(..)");
+        data.decode_from(&mut global_buf.as_mut_slice())?;
         // Encode: writes data back to buf
-        let cap = data
-            .encode_bytes_required()
-            .expect("Failed to encode_bytes_required()");
+        let cap = data.encode_bytes_required()?;
         let mut buf = RedoubtCodecBuffer::with_capacity(cap);
-        data.encode_into(&mut buf)
-            .expect("Failed to encode_into(..)");
+        data.encode_into(&mut buf)?;
         global_buf = buf;
 
         if i == 0 {
@@ -181,4 +174,6 @@ fn benchmark_codec_roundtrip() {
         "RedoubtCodec roundtrip - Total: {:?}, Per iter: {:?}, Throughput: {:.2} GB/s",
         elapsed, per_iter, throughput_gbps
     );
+
+    Ok(())
 }
