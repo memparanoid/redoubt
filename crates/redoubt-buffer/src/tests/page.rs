@@ -204,8 +204,9 @@ mod page_tests {
 
         #[test]
         #[ignore]
-        fn subprocess_test_mark_dontdump_fails_when_madvise_blocked() {
-            let page = Page::new().expect("Failed to new()");
+        fn subprocess_test_mark_dontdump_fails_when_madvise_blocked()
+        -> Result<(), Box<dyn std::error::Error>> {
+            let page = Page::new()?;
 
             block_madvise();
 
@@ -213,6 +214,8 @@ mod page_tests {
 
             assert!(result.is_err());
             assert!(matches!(result, Err(PageError::Madvise)));
+
+            Ok(())
         }
 
         #[test]
