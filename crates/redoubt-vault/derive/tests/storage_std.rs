@@ -63,7 +63,7 @@ mod storage_std {
     static ACCESS_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     #[test]
-    fn test_concurrent_global_access() {
+    fn test_concurrent_global_access() -> Result<(), Box<dyn std::error::Error>> {
         const NUM_THREADS: u64 = 2;
 
         let handles: Vec<_> = (0..NUM_THREADS)
@@ -111,8 +111,9 @@ mod storage_std {
                 "Final counter value should match expected sum"
             );
             Ok::<(), CipherBoxError>(())
-        })
-        .expect("final verification should succeed");
+        })?;
+
+        Ok(())
     }
 
     #[test]
