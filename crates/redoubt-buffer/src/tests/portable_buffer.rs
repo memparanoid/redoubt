@@ -114,22 +114,20 @@ fn test_portable_buffer_happypath() -> Result<(), Box<dyn std::error::Error>> {
 // open
 
 #[test]
-fn test_portable_buffer_open_happypath() {
+fn test_portable_buffer_open_happypath() -> Result<(), Box<dyn std::error::Error>> {
     let mut portable_buffer = PortableBuffer::create(10);
 
-    portable_buffer
-        .open_mut(&mut |bytes| {
-            fill_bytes_with_pattern(bytes, 0);
-            Ok(())
-        })
-        .expect("Failed to open_mut(..)");
+    portable_buffer.open_mut(&mut |bytes| {
+        fill_bytes_with_pattern(bytes, 0);
+        Ok(())
+    })?;
 
-    portable_buffer
-        .open(&mut |bytes| {
-            assert!(bytes.is_zeroized());
-            Ok(())
-        })
-        .expect("Failed to open(..)");
+    portable_buffer.open(&mut |bytes| {
+        assert!(bytes.is_zeroized());
+        Ok(())
+    })?;
+
+    Ok(())
 }
 
 #[test]
