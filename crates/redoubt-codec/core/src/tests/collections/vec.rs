@@ -314,7 +314,7 @@ fn perm_test_vec_decode_from_propagates_error_at_any_position()
 }
 
 #[test]
-fn perm_test_encode_decode_roundtrip() {
+fn perm_test_encode_decode_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let vec = vec![
         vec![RedoubtCodecTestBreaker::new(
@@ -343,9 +343,7 @@ fn perm_test_encode_decode_roundtrip() {
         )],
     ];
 
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
 
     index_permutations(vec.len(), |idx_perm| {
         let mut vec_clone = vec.clone();
@@ -375,6 +373,8 @@ fn perm_test_encode_decode_roundtrip() {
         assert!(buf.is_zeroized());
         assert!(vec_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 // Integration
