@@ -99,7 +99,6 @@ resolver = "2"
   prettyplease = "0.2.37"
   proptest     = "1.9.0"
   rstest       = "0.27.0"
-  serial_test  = "3.2.0"
   trybuild     = "1.0"
 
 # The SHAVS Monte Carlo is a hundred thousand chained digests per backend, and
