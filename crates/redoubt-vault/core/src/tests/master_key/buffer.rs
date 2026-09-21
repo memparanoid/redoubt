@@ -13,7 +13,7 @@ use crate::tests::utils::{
 };
 
 #[test]
-fn test_create_buffer_returns_correct_length() {
+fn test_create_buffer_returns_correct_length() -> Result<(), Box<dyn std::error::Error>> {
     let mut buffer = create_buffer();
 
     #[cfg(all(unix, not(target_os = "wasi")))]
@@ -38,15 +38,15 @@ fn test_create_buffer_returns_correct_length() {
         );
     }
 
-    buffer
-        .open(&mut |bytes| {
-            assert!(
-                bytes.is_zeroized(),
-                "Key is not initialized: should be zeroized"
-            );
-            Ok(())
-        })
-        .expect("Failed to open buffer");
+    buffer.open(&mut |bytes| {
+        assert!(
+            bytes.is_zeroized(),
+            "Key is not initialized: should be zeroized"
+        );
+        Ok(())
+    })?;
+
+    Ok(())
 }
 
 #[test]
