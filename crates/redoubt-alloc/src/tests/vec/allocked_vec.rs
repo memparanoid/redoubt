@@ -768,13 +768,13 @@ fn test_allocked_vec_behaviour_fail_at_drain_from() -> Result<(), Box<dyn std::e
 // =============================================================================
 
 #[test]
-fn test_allocked_vec_as_mut_ptr_write_single_byte() {
+fn test_allocked_vec_as_mut_ptr_write_single_byte() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<u8>::with_capacity(1);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 0u8).expect("Failed to push initial byte");
+    vec.push(&mut 0u8)?;
 
     let ptr = vec.as_mut_ptr();
 
@@ -786,6 +786,8 @@ fn test_allocked_vec_as_mut_ptr_write_single_byte() {
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
