@@ -177,10 +177,12 @@ mod page_tests {
     #[cfg(target_os = "linux")]
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_mark_dontdump_succeeds() {
-        let page = Page::new().expect("Failed to new()");
+    fn test_mark_dontdump_succeeds() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new()?;
 
-        page.mark_dontdump().expect("Failed to mark_dontdump()");
+        page.mark_dontdump()?;
+
+        Ok(())
     }
 
     #[cfg(target_os = "linux")]
