@@ -10,7 +10,7 @@ use crate::support::test_utils::{MockEntropySource, MockEntropySourceBehaviour};
 use crate::traits::NonceGenerator;
 
 #[test]
-fn test_nonce_session_generator_counter_increments() {
+fn test_nonce_session_generator_counter_increments() -> Result<(), Box<dyn std::error::Error>> {
     let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
 
     let mut session = NonceSessionGenerator::<_, 16>::new(entropy);
@@ -18,48 +18,32 @@ fn test_nonce_session_generator_counter_increments() {
 
     // Counter at: 0
     {
-        let nonce = session
-            .generate_nonce()
-            .expect("Failed to generate_nonce() (#0)");
+        let nonce = session.generate_nonce()?;
         // Counter part (first bytes) should increment
-        let counter = Counter::from_le_bytes(
-            nonce[0..size_of::<Counter>()]
-                .try_into()
-                .expect("Failed to convert bytes to Counter"),
-        );
+        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into()?);
 
         assert_eq!(counter, 0);
     }
 
     // Counter at: 1
     {
-        let nonce = session
-            .generate_nonce()
-            .expect("Failed to generate_nonce() (#1)");
+        let nonce = session.generate_nonce()?;
         // Counter part (first bytes) should increment
-        let counter = Counter::from_le_bytes(
-            nonce[0..size_of::<Counter>()]
-                .try_into()
-                .expect("Failed to convert bytes to Counter"),
-        );
+        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into()?);
 
         assert_eq!(counter, 1);
     }
 
     // Counter at: 2
     {
-        let nonce = session
-            .generate_nonce()
-            .expect("Failed to generate_nonce() (#2)");
+        let nonce = session.generate_nonce()?;
         // Counter part (first bytes) should increment
-        let counter = Counter::from_le_bytes(
-            nonce[0..size_of::<Counter>()]
-                .try_into()
-                .expect("Failed to convert bytes to Counter"),
-        );
+        let counter = Counter::from_le_bytes(nonce[0..size_of::<Counter>()].try_into()?);
 
         assert_eq!(counter, 2);
     }
+
+    Ok(())
 }
 
 #[test]
