@@ -179,23 +179,20 @@ mod page_buffer_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_open_reads_data() {
-        let mut buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 32).expect("Failed to new(..)");
+    fn test_open_reads_data() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
 
-        buffer
-            .open_mut(&mut |bytes| {
-                bytes[0] = 0xAB;
-                Ok(())
-            })
-            .expect("Failed to open_mut(..)");
+        buffer.open_mut(&mut |bytes| {
+            bytes[0] = 0xAB;
+            Ok(())
+        })?;
 
-        buffer
-            .open(&mut |bytes| {
-                assert_eq!(bytes[0], 0xAB);
-                Ok(())
-            })
-            .expect("Failed to open(..)");
+        buffer.open(&mut |bytes| {
+            assert_eq!(bytes[0], 0xAB);
+            Ok(())
+        })?;
+
+        Ok(())
     }
 
     #[test]
