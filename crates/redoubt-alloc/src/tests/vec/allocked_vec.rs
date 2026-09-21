@@ -724,7 +724,7 @@ fn test_allocked_vec_behaviour_fail_at_push() -> Result<(), Box<dyn std::error::
 }
 
 #[test]
-fn test_allocked_vec_behaviour_fail_at_drain_from() {
+fn test_allocked_vec_behaviour_fail_at_drain_from() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(10);
 
     // Vec is not zeroized since `has_been_sealed` is true.
@@ -752,13 +752,15 @@ fn test_allocked_vec_behaviour_fail_at_drain_from() {
     vec.change_behaviour(AllockedVecBehaviour::None);
 
     // Now drain should work
-    vec.drain_from(&mut data).expect("Failed to drain_from");
+    vec.drain_from(&mut data)?;
 
     assert_eq!(vec.as_slice(), &[1, 2, 3]);
     assert!(data.iter().all(|&x| x == 0));
 
     // Vec is not zeroized since `has_been_sealed` is true and contains data.
     assert!(!vec.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
