@@ -19,20 +19,21 @@ fn test_portable_storage_open_returns_correct_length() -> Result<(), Box<dyn std
 }
 
 #[test]
-fn test_portable_storage_open_returns_same_bytes_on_subsequent_calls() {
+fn test_portable_storage_open_returns_same_bytes_on_subsequent_calls()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut first_bytes = [0u8; MASTER_KEY_LEN];
 
     open(&mut |bytes| {
         first_bytes.copy_from_slice(bytes);
         Ok(())
-    })
-    .expect("Failed to open portable buffer");
+    })?;
 
     open(&mut |bytes| {
         assert_eq!(bytes, &first_bytes);
         Ok(())
-    })
-    .expect("Failed to open portable buffer");
+    })?;
+
+    Ok(())
 }
 
 #[test]
