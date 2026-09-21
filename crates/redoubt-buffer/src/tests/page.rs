@@ -304,8 +304,9 @@ mod page_tests {
 
         #[test]
         #[ignore]
-        fn subprocess_test_protect_fails_when_mprotect_blocked() {
-            let page = Page::new().expect("Failed to new()");
+        fn subprocess_test_protect_fails_when_mprotect_blocked()
+        -> Result<(), Box<dyn std::error::Error>> {
+            let page = Page::new()?;
 
             block_mprotect();
 
@@ -313,6 +314,8 @@ mod page_tests {
 
             assert!(result.is_err());
             assert!(matches!(result, Err(PageError::Protect)));
+
+            Ok(())
         }
 
         #[test]
