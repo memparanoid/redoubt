@@ -16,7 +16,7 @@ use super::consts::AAD;
 use super::error::CipherBoxError;
 use super::master_key::leak_master_key;
 use super::traits::{DecryptStruct, Decryptable, EncryptStruct, Encryptable};
-use super::types::{Ciphertext, Ciphertexts, Nonces, Tags};
+use super::types::{Ciphertexts, Data, DataBuffers, Nonces, Tags};
 
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
@@ -39,10 +39,10 @@ where
     poisoned: bool,
     key_size: usize,
     ciphertexts: Ciphertexts<N>,
-    tmp_ciphertexts: Ciphertexts<N>,
+    tmp_data: DataBuffers<N>,
     nonces: Nonces<N>,
     tags: Tags<N>,
-    tmp_field_cyphertext: Ciphertext,
+    tmp_field_data: Data,
     tmp_field_codec_buff: RedoubtCodecBuffer,
     /// Runtime verification that zeroization happened, for the tests that
     /// read it.
@@ -82,8 +82,8 @@ where
     }
 
     #[cfg(test)]
-    pub(crate) fn __unsafe_get_tmp_ciphertext(&mut self) -> &Ciphertext {
-        &self.tmp_field_cyphertext
+    pub(crate) fn __unsafe_get_tmp_field_data(&mut self) -> &Data {
+        &self.tmp_field_data
     }
 
     #[cfg(test)]
@@ -92,12 +92,14 @@ where
     }
 
     #[cfg(test)]
-    pub(crate) fn __unsafe_get_tmp_ciphertexts(&self) -> &Ciphertexts<N> {
-        &self.tmp_ciphertexts
+    pub(crate) fn __unsafe_get_tmp_data(&self) -> &DataBuffers<N> {
+        &self.tmp_data
     }
 
     #[cfg(test)]
-    pub(crate) fn __unsafe_get_field_ciphertext<const M: usize>(&mut self) -> &Ciphertext {
+    pub(crate) fn __unsafe_get_field_ciphertext<const M: usize>(
+        &mut self,
+    ) -> &super::types::Ciphertext {
         &self.ciphertexts[M]
     }
 
@@ -117,7 +119,7 @@ where
         });
 
         let ciphertexts: Ciphertexts<N> = core::array::from_fn(|_| vec![]);
-        let tmp_ciphertexts: Ciphertexts<N> = core::array::from_fn(|_| vec![]);
+        let tmp_data: DataBuffers<N> = core::array::from_fn(|_| vec![]);
 
         Self {
             aead,
@@ -125,11 +127,11 @@ where
             tags,
             nonces,
             ciphertexts,
-            tmp_ciphertexts,
+            tmp_data,
             initialized: false,
             pristine: true,
             poisoned: false,
-            tmp_field_cyphertext: Ciphertext::default(),
+            tmp_field_data: Data::default(),
             tmp_field_codec_buff: RedoubtCodecBuffer::default(),
             #[cfg(test)]
             __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
@@ -171,7 +173,7 @@ where
     pub fn decrypt_struct(&mut self, aead_key: &[u8]) -> Result<ZeroizingGuard<T>, CipherBoxError> {
         // Clone ciphertexts for rollback capability
         for i in 0..N {
-            self.tmp_ciphertexts[i] = self.ciphertexts[i].clone();
+            self.tmp_data[i] = self.ciphertexts[i].clone();
         }
 
         let mut value = ZeroizingGuard::<T>::from_default();
@@ -180,7 +182,7 @@ where
             aead_key,
             &mut self.nonces,
             &mut self.tags,
-            &mut self.tmp_ciphertexts,
+            &mut self.tmp_data,
         );
 
         match result {
@@ -211,22 +213,13 @@ where
         Ok(())
     }
 
-    /// Decrypts a single field by cloning the ciphertext first.
+    /// Decrypts field `M` into `tmp_field_data`, leaving `ciphertexts[M]`
+    /// intact.
     ///
-    /// # Design Note
-    ///
-    /// This method CLONES `ciphertexts[M]` into `tmp_field_cyphertext` before decryption.
-    /// This is critical because:
-    /// - Decryption is in-place and destructive (drains the buffer)
-    /// - By operating on a copy, the original ciphertext remains intact
-    /// - This enables `leak_field` to return ownership without re-encryption
-    /// - The temporary buffer is zeroized by `decode_from` (line 202)
-    ///
-    /// # Memory Safety
-    ///
-    /// Zeroization of `tmp_field_cyphertext` is verified in:
-    /// - Happy path: `test_decrypt_field_ok`
-    /// - Error path: `test_decrypt_field_propagates_decode_error`
+    /// Decryption drains the buffer it works on, so it works on a clone: the
+    /// sealed field survives the read, and a caller can be handed the
+    /// plaintext without the box having to seal it again. What is left in the
+    /// clone is zeros, because `decode_from` wipes each range as it reads it.
     #[inline(always)]
     fn try_decrypt_field<F, const M: usize>(
         &mut self,
@@ -237,17 +230,17 @@ where
         F: Default + Decryptable + ZeroizationProbe,
     {
         // Clone ciphertext so we don't drain the original
-        self.tmp_field_cyphertext = self.ciphertexts[M].clone();
+        self.tmp_field_data = self.ciphertexts[M].clone();
         self.aead.decrypt(
             aead_key,
             &self.nonces[M],
             AAD,
-            &mut self.tmp_field_cyphertext,
+            &mut self.tmp_field_data,
             &self.tags[M],
         )?;
 
-        // tmp_field_cyphertext is guaranteed to be zeroized by `decode_from`
-        field.decode_from(&mut self.tmp_field_cyphertext.as_mut_slice())?;
+        // tmp_field_data is guaranteed to be zeroized by `decode_from`
+        field.decode_from(&mut self.tmp_field_data.as_mut_slice())?;
 
         Ok(())
     }
@@ -339,23 +332,11 @@ where
 
     /// Provides read-only access to the entire struct via a callback.
     ///
-    /// # Design Note: Why decrypt → encrypt?
+    /// The struct is resealed once the callback returns, with a nonce per
+    /// field that the box has not used before, so a read costs an encrypt.
     ///
-    /// This method performs a full decrypt-encrypt cycle even for read-only access.
-    /// This seems wasteful but is necessary because:
-    ///
-    /// 1. `decrypt_struct` operates on `tmp_ciphertexts[]` (cloned from `ciphertexts[]`)
-    /// 2. Without re-encryption, the ciphertexts would be permanently lost
-    ///
-    /// 3. The alternative (duplicating logic between `open` and `open_mut`) is worse:
-    ///    - More code to maintain
-    ///    - Higher risk of divergence
-    ///    - `open` is rarely used in practice (most code uses `leak_field`)
-    ///
-    /// # Usage Note
-    ///
-    /// For better performance when reading a single field, prefer `leak_field` which
-    /// avoids the full struct decrypt-encrypt cycle by cloning only the field's ciphertext.
+    /// Reading one field goes through `leak_field` instead, which clones and
+    /// decrypts that field alone.
     #[inline(always)]
     fn open_dyn<R, E>(
         &mut self,
@@ -386,27 +367,9 @@ where
 
     /// Provides mutable access to the entire struct via a callback.
     ///
-    /// # Design Note
-    ///
-    /// This method performs decrypt → callback → encrypt:
-    /// 1. `decrypt_struct` clones `ciphertexts[]` into `tmp_ciphertexts[]`
-    /// 2. Decrypts `tmp_ciphertexts[]` into plaintext `value`
-    /// 3. Callback modifies `value` and returns `Result<R, E>`
-    /// 4. If callback succeeds: re-encrypts `value` and commits changes
-    /// 5. If callback fails: discards changes, original `ciphertexts[]` remain intact
-    ///
-    /// # Rollback Capability
-    ///
-    /// Unlike the old design, callbacks CAN now return `Result`:
-    /// - `decrypt_struct` operates on `tmp_ciphertexts[]` (cloned from `ciphertexts[]`)
-    /// - If callback fails, original `ciphertexts[]` are preserved (rollback)
-    /// - If callback succeeds, changes are committed via `encrypt_struct`
-    ///
-    /// # Error Handling
-    ///
-    /// The error type `E` must implement `From<CipherBoxError>` to handle both:
-    /// - CipherBox internal errors (decrypt/encrypt failures)
-    /// - User callback errors
+    /// A callback that returns `Err` leaves the sealed fields as they were:
+    /// what it was handed is a clone, and only a callback that returns `Ok` is
+    /// followed by the reseal that commits it.
     #[inline(always)]
     fn open_mut_dyn<R, E>(
         &mut self,

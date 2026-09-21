@@ -316,7 +316,7 @@ fn test_decrypt_field_propagates_decode_error() {
     assert!(cb.assert_healthy().is_err());
 
     // Assert zeroization!
-    let tmp = cb.__unsafe_get_tmp_ciphertext();
+    let tmp = cb.__unsafe_get_tmp_field_data();
     assert!(is_vec_fully_zeroized(tmp));
 }
 
@@ -336,7 +336,7 @@ fn test_decrypt_field_ok() {
     assert!(result.is_ok());
 
     // Assert zeroization!
-    let tmp = cb.__unsafe_get_tmp_ciphertext();
+    let tmp = cb.__unsafe_get_tmp_field_data();
     assert!(is_vec_fully_zeroized(tmp));
 }
 
@@ -716,7 +716,7 @@ fn test_open_mut_when_callback_error_is_propagated_cipherbox_is_not_poisoned() {
 }
 
 #[test]
-fn test_open_mut_zeroizes_tmp_ciphertexts_on_callback_failure() {
+fn test_open_mut_zeroizes_tmp_data_on_callback_failure() {
     let aead = Aead::default();
     let mut cb = CipherBox::<RedoubtCodecTestBreakerBox, NUM_FIELDS>::new(aead);
 
@@ -728,9 +728,9 @@ fn test_open_mut_zeroizes_tmp_ciphertexts_on_callback_failure() {
 
     assert!(result.is_err());
 
-    // Verify tmp_ciphertexts are zeroized
-    let tmp_ciphertexts = cb.__unsafe_get_tmp_ciphertexts();
-    assert!(tmp_ciphertexts.is_zeroized());
+    // Verify tmp_data is zeroized
+    let tmp_data = cb.__unsafe_get_tmp_data();
+    assert!(tmp_data.is_zeroized());
 }
 
 // =============================================================================
