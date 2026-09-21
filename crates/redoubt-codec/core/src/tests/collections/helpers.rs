@@ -271,7 +271,8 @@ fn test_bytes_required_sum_overflow() {
 // encode_fields / decode_fields
 
 #[test]
-fn perm_test_encode_fields_propagates_error_at_any_position() {
+fn perm_test_encode_fields_propagates_error_at_any_position()
+-> Result<(), Box<dyn std::error::Error>> {
     let fields = [
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 1),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 2),
@@ -280,9 +281,7 @@ fn perm_test_encode_fields_propagates_error_at_any_position() {
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 5),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::ForceEncodeError, 6),
     ];
-    let bytes_required = fields
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = fields.encode_bytes_required()?;
 
     index_permutations(fields.len(), |idx_perm| {
         let mut fields_clone = fields;
@@ -301,6 +300,8 @@ fn perm_test_encode_fields_propagates_error_at_any_position() {
         assert!(buf.is_zeroized());
         assert!(fields_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 #[test]
