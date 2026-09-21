@@ -171,14 +171,12 @@ fn test_string_decode_from_propagates_process_header_error() {
 }
 
 #[test]
-fn test_string_decode_from_utf8_validation_error() {
+fn test_string_decode_from_utf8_validation_error() -> Result<(), Box<dyn std::error::Error>> {
     let mut s = String::from("hello");
-    let bytes_required = s
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = s.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    s.encode_into(&mut buf).expect("encode failed");
+    s.encode_into(&mut buf)?;
 
     // Corrupt buffer with invalid UTF-8 (0xFF is never valid)
     let data_start = header_size();
@@ -198,6 +196,8 @@ fn test_string_decode_from_utf8_validation_error() {
     assert!(decode_buf.is_zeroized());
     println!("DECODED: {:?}", decoded);
     // assert!(decoded.is_zeroized());
+
+    Ok(())
 }
 
 // Decode
