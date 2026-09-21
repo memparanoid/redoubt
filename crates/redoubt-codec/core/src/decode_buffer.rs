@@ -15,6 +15,9 @@ impl DecodeBuffer for &mut [u8] {
         }
 
         // Native endian copy - no conversion
+        // SAFETY: the refusal above is what leaves the source at least `size`
+        // bytes long, and the destination is one `usize`, which is that many.
+        // `dst` is the caller's own value, not part of this slice.
         unsafe {
             redoubt_mem::copy_nonoverlapping(self.as_ptr(), dst as *mut usize as *mut u8, size);
         }
@@ -38,6 +41,10 @@ impl DecodeBuffer for &mut [u8] {
             return Err(DecodeBufferError::OutOfBounds);
         }
 
+        // SAFETY: the refusal above is what leaves the source at least `len`
+        // bytes long, and `len` is the size of one `T`, which is what the
+        // destination is. `dst` is the caller's own value, not part of this
+        // slice.
         unsafe {
             redoubt_mem::copy_nonoverlapping(self.as_ptr(), dst as *mut T as *mut u8, len);
         }
@@ -61,6 +68,9 @@ impl DecodeBuffer for &mut [u8] {
             return Err(DecodeBufferError::OutOfBounds);
         }
 
+        // SAFETY: the refusal above is what leaves the source at least
+        // `byte_len` bytes long, and `byte_len` is the destination's own size.
+        // `dst` is the caller's own slice, not part of this one.
         unsafe {
             redoubt_mem::copy_nonoverlapping(self.as_ptr(), dst.as_mut_ptr() as *mut u8, byte_len);
         }

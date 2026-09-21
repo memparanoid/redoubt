@@ -155,8 +155,12 @@ where
 
         // 1. Allocate temp and copy current data
         let mut tmp = Vec::with_capacity(current_len);
+
+        // SAFETY: the count is the source's own length, so it is inside both
+        // that allocation and `tmp`, which was reserved for exactly it. `tmp`
+        // is a local, so neither range reaches the other, and the copy is what
+        // initializes the elements the length below declares.
         unsafe {
-            // SAFETY (PRECONDITIONS ARE MET): copying exactly len() elements from valid Vec
             redoubt_mem::copy_nonoverlapping(self.inner.as_ptr(), tmp.as_mut_ptr(), current_len);
             tmp.set_len(current_len);
         }
@@ -170,8 +174,12 @@ where
         self.inner.reserve_exact(new_capacity);
 
         // 4. Copy data back from tmp
+        // SAFETY: `tmp` holds exactly `current_len`, and `reserve_exact` above
+        // is what leaves room for at least that many — `new_capacity` is a
+        // power of two at or past it. `tmp` is a local, so neither range
+        // reaches the other, and the copy is what initializes the elements the
+        // length below declares.
         unsafe {
-            // SAFETY (PRECONDITIONS ARE MET): tmp has exactly current_len elements, self has sufficient capacity from reserve_exact
             redoubt_mem::copy_nonoverlapping(tmp.as_ptr(), self.inner.as_mut_ptr(), current_len);
             self.inner.set_len(current_len);
         }
@@ -203,8 +211,12 @@ where
     {
         self.maybe_grow_to(self.len() + src.len());
 
+        // SAFETY: `maybe_grow_to` above is what leaves room for `len` plus the
+        // source, so the offset and the elements written from it are both in
+        // the allocation. `src` is the caller's own slice, a different one,
+        // and the copy is what initializes the elements the length below
+        // declares.
         unsafe {
-            // SAFETY (PRECONDITIONS ARE MET): src has exactly src.len() elements, self has sufficient capacity from maybe_grow_to
             let src_ptr = src.as_ptr();
             let dst_ptr = self.inner.as_mut_ptr().add(self.len());
             redoubt_mem::copy_nonoverlapping(src_ptr, dst_ptr, src.len());

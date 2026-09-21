@@ -75,16 +75,25 @@ impl RedoubtCodecBuffer {
 
     #[inline(always)]
     pub fn as_slice(&self) -> &[u8] {
+        // SAFETY: what it asks is that the bytes past `len` be ones a `u8` may
+        // be read out of, and reserving the capacity wrote zeros over all of
+        // it, so every byte in the range is one this buffer put there.
         unsafe { self.allocked_vec.as_capacity_slice() }
     }
 
     #[inline(always)]
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
+        // SAFETY: what it asks is that the bytes past `len` be ones a `u8` may
+        // be reached through, and reserving the capacity wrote zeros over all
+        // of it. `&mut self` is what makes this the only reference to them.
         unsafe { self.allocked_vec.as_capacity_mut_slice() }
     }
 
     #[inline(always)]
     pub fn len(&self) -> usize {
+        // SAFETY: what it asks is that the bytes past `len` be ones a `u8` may
+        // be read out of, and reserving the capacity wrote zeros over all of
+        // it. Only the length of what comes back is taken.
         unsafe { self.allocked_vec.as_capacity_slice().len() }
     }
 
@@ -101,6 +110,9 @@ impl RedoubtCodecBuffer {
             return Err(RedoubtCodecBufferError::CapacityExceeded);
         }
 
+        // SAFETY: the refusal above is what puts `cursor + len` inside the
+        // capacity, so the offset and the bytes written from it are both in
+        // the allocation. `src` is the caller's own value, a different one.
         unsafe {
             let ptr = self.allocked_vec.as_mut_ptr().add(self.cursor);
             redoubt_mem::copy_nonoverlapping(src as *const T as *const u8, ptr, len);
@@ -121,6 +133,9 @@ impl RedoubtCodecBuffer {
             return Err(RedoubtCodecBufferError::CapacityExceeded);
         }
 
+        // SAFETY: the refusal above is what puts `cursor + byte_len` inside
+        // the capacity, so the offset and the bytes written from it are both
+        // in the allocation. `src` is the caller's own slice, a different one.
         unsafe {
             let ptr = self.allocked_vec.as_mut_ptr().add(self.cursor);
             redoubt_mem::copy_nonoverlapping(src.as_ptr() as *const u8, ptr, byte_len);

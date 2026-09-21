@@ -860,6 +860,16 @@ fn test_allocked_vec_as_capacity_mut_slice_allows_writing_beyond_len()
 // set_len() (unsafe feature)
 // =============================================================================
 
+/// A length past the capacity is refused where it is asked for, rather than
+/// handed to `Vec::set_len` for which it is undefined behaviour.
+#[test]
+#[should_panic(expected = "a length of 6 past a capacity of 5")]
+fn test_allocked_vec_set_len_refuses_a_length_past_the_capacity() {
+    let mut vec: AllockedVec<u8> = AllockedVec::with_capacity(5);
+
+    unsafe { vec.set_len(6) };
+}
+
 #[test]
 fn test_allocked_vec_set_len_can_shrink() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);

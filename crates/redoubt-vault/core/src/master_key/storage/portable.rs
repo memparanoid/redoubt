@@ -41,6 +41,10 @@ fn init_slow() {
         Ordering::Relaxed,
     ) {
         Ok(_) => {
+            // SAFETY: the exchange above is what makes this the one thread
+            // that took `STATE_UNINIT`, so no other writes the cell. None
+            // reads it either: a reader waits for `STATE_DONE`, which is
+            // published after the fence below.
             unsafe {
                 *BUFFER.0.get() = Some(create_initialized_buffer());
             }
@@ -88,6 +92,9 @@ pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), B
 
     acquire();
 
+    // SAFETY: `init_slow` has run or the state was already `STATE_DONE`, so
+    // the cell holds a buffer, and `acquire` is what makes this the only
+    // reference to it until `release` gives it up.
     let result = unsafe {
         (*BUFFER.0.get())
             .as_mut()
@@ -121,6 +128,9 @@ pub fn reset() {
 
     acquire();
 
+    // SAFETY: the assertion above is what says the cell already holds one, and
+    // `acquire` is what makes this the only reference to it while it is
+    // replaced, until `release` gives it up.
     unsafe {
         *BUFFER.0.get() = Some(create_initialized_buffer());
     }

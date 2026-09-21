@@ -247,6 +247,9 @@ impl Sha256State {
     /// Compress one block (internal - works on self.h)
     fn compress_internal(&mut self) {
         // Initialize wv from h
+        // SAFETY: both are `[Word32; 8]`, which is eight `u32` wide and
+        // aligned for one, so the count is right for either read as the other.
+        // They are separate fields, so neither range reaches the other.
         unsafe {
             redoubt_mem::copy_nonoverlapping(
                 &self.h as *const [Word32; 8] as *const u32,

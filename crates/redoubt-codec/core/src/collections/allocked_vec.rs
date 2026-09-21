@@ -163,6 +163,9 @@ where
         self.realloc_with_capacity(size);
         self.fill_with_default();
 
+        // SAFETY: what `set_len` asks of the caller is that the elements up to
+        // the length be initialized, and `fill_with_default` above is what
+        // puts one in each of them. The length itself it refuses on its own.
         unsafe {
             self.set_len(size);
         }

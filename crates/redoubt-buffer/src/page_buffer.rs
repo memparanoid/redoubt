@@ -36,6 +36,9 @@ impl PageBuffer {
         #[cfg(not(test))]
         {
             let _ = error;
+
+            // SAFETY: it takes no argument and never returns, so there is
+            // nothing to get wrong and nothing after it to reach.
             unsafe { libc::abort() }
         }
     }
@@ -80,6 +83,9 @@ impl PageBuffer {
     ) -> Result<(), BufferError> {
         self.maybe_unprotect()?;
 
+        // SAFETY: what `as_slice` asks is that the page be readable, which is
+        // what `maybe_unprotect` left it. `maybe_protect` closes it again once
+        // the callback has been and gone.
         let slice = unsafe { self.page.as_slice() };
         f(&slice[..self.len])?;
 
@@ -94,6 +100,10 @@ impl PageBuffer {
     ) -> Result<(), BufferError> {
         self.maybe_unprotect()?;
 
+        // SAFETY: what `as_mut_slice` asks is that the page be writable, which
+        // is what `maybe_unprotect` left it, and `&mut self` is what makes
+        // this the only reference to it. `maybe_protect` closes it again once
+        // the callback has been and gone.
         let slice = unsafe { self.page.as_mut_slice() };
         f(&mut slice[..self.len])?;
 

@@ -275,6 +275,9 @@ where
         // reading garbage via as_capacity_slice() / as_capacity_mut_slice()
         #[cfg(any(test, feature = "unsafe"))]
         if capacity > 0 {
+            // SAFETY: what the slice is handed to writes zeros over its bytes
+            // and reads no `T` out of it, so the spare capacity this reaches
+            // past `len` is written before anything could observe it.
             redoubt_util::fast_zeroize_slice(unsafe { self.as_capacity_mut_slice() });
         }
 
@@ -677,6 +680,9 @@ where
     #[cfg(any(test, feature = "unsafe"))]
     #[inline(always)]
     pub unsafe fn as_capacity_slice(&self) -> &[T] {
+        // SAFETY: the pointer and the count come from the same `Vec`, so the
+        // range is one allocation. That what is past `len` in it may be read
+        // is what this function's own contract asks of the caller.
         unsafe { core::slice::from_raw_parts(self.inner.as_ptr(), self.inner.capacity()) }
     }
 
@@ -690,17 +696,25 @@ where
     #[cfg(any(test, feature = "unsafe"))]
     #[inline(always)]
     pub unsafe fn as_capacity_mut_slice(&mut self) -> &mut [T] {
+        // SAFETY: the pointer and the count come from the same `Vec`, so the
+        // range is one allocation, and `&mut self` is what makes it the only
+        // reference to it. That what is past `len` in it may be reached is
+        // what this function's own contract asks of the caller.
         unsafe { core::slice::from_raw_parts_mut(self.inner.as_mut_ptr(), self.inner.capacity()) }
     }
 
-    /// Sets the length of the vector without any checks.
+    /// Declares how much of the vector is live, without touching what is in
+    /// it.
     ///
     /// This is useful after operations like `zeroize()` that clear the vector's
     /// length but preserve the underlying data, allowing the length to be restored.
     ///
+    /// # Panics
+    ///
+    /// Where `new_len` is past `capacity()`.
+    ///
     /// # Safety
     ///
-    /// - `new_len` must be less than or equal to `capacity()`.
     /// - Elements at indices `0..new_len` must be properly initialized.
     /// - This method is only available with the `unsafe` feature.
     ///
@@ -724,7 +738,18 @@ where
     #[cfg(any(test, feature = "unsafe"))]
     #[inline(always)]
     pub unsafe fn set_len(&mut self, new_len: usize) {
-        debug_assert!(new_len <= self.capacity());
+        // Not a `debug_assert!`: a length past the capacity is undefined
+        // behaviour, and a release build is where that costs something. One
+        // comparison against a caller declaring a length nothing owns.
+        assert!(
+            new_len <= self.capacity(),
+            "a length of {new_len} past a capacity of {}",
+            self.capacity()
+        );
+
+        // SAFETY: `Vec::set_len` asks for a length inside the capacity, which
+        // is refused above, and for elements initialized up to it, which is
+        // what this function's own contract asks of the caller.
         unsafe { self.inner.set_len(new_len) };
     }
 }

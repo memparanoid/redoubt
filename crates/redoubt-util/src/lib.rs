@@ -241,6 +241,9 @@ pub fn is_vec_fully_zeroized(vec: &Vec<u8>) -> bool {
     let base = vec.as_ptr();
 
     for i in 0..cap {
+        // SAFETY: the bound is the `Vec`'s own capacity, so every offset is
+        // inside its allocation, and what is read is a `u8`, for which every
+        // bit pattern is a value.
         unsafe {
             if *base.add(i) != 0 {
                 return false;
@@ -251,19 +254,13 @@ pub fn is_vec_fully_zeroized(vec: &Vec<u8>) -> bool {
     true
 }
 
-/// Zeroizes a single primitive value using volatile write.
+/// Writes one value's own default over it, by a store the optimizer may not
+/// remove.
 ///
-/// Works for all primitive types where all-zeros is a valid representation:
-/// - Integers (u8-u128, i8-i128, usize, isize): zeroed to 0
-/// - Bool: zeroed to `false`
-/// - Floats (f32, f64): zeroed to 0.0
-/// - Char: zeroed to null character '\0'
-///
-/// # Safety
-///
-/// This function is safe because it uses `mem::zeroed()` which is valid
-/// for all primitive types. The volatile write ensures the compiler cannot
-/// optimize away the zeroization.
+/// For a primitive that default is its zero: `0` for the integers and the
+/// floats, `false`, and `'\0'`. Asking the type for it rather than assembling
+/// one out of zero bytes is what keeps a type whose zero is not a value — a
+/// reference, a `NonZero` — from being written one.
 ///
 /// # Example
 ///
@@ -283,9 +280,12 @@ pub fn is_vec_fully_zeroized(vec: &Vec<u8>) -> bool {
 /// assert_eq!(pi, 0.0);
 /// ```
 #[inline(always)]
-pub fn zeroize_primitive<T>(val: &mut T) {
+pub fn zeroize_primitive<T: Default>(val: &mut T) {
+    // SAFETY: `val` is a live, aligned `&mut T`, which is what a volatile
+    // write needs. What is written is a `T` the type made itself, so no bit
+    // pattern arrives that `T` does not have.
     unsafe {
-        core::ptr::write_volatile(val, core::mem::zeroed());
+        core::ptr::write_volatile(val, T::default());
     }
 }
 
@@ -317,6 +317,10 @@ pub fn fast_zeroize_slice<T>(slice: &mut [T]) {
     }
 
     let byte_len = core::mem::size_of_val(slice);
+
+    // SAFETY: the length is the slice's own size in bytes, so the write stays
+    // inside it, and `&mut [T]` is what makes it the only reference. The read
+    // is of one byte the write just set.
     unsafe {
         core::ptr::write_bytes(slice.as_mut_ptr() as *mut u8, 0, byte_len);
         // Volatile read prevents the optimizer from removing the write_bytes
@@ -350,6 +354,11 @@ pub fn fast_zeroize_vec<T>(vec: &mut Vec<T>) {
     }
 
     let byte_len = vec.capacity() * core::mem::size_of::<T>();
+
+    // SAFETY: the length is the `Vec`'s own capacity in bytes, so the write
+    // stays inside its allocation — the spare past `len` included, which is
+    // the point — and `&mut Vec<T>` is what makes it the only reference. The
+    // read is of one byte the write just set.
     unsafe {
         core::ptr::write_bytes(vec.as_mut_ptr() as *mut u8, 0, byte_len);
         // Volatile read prevents the optimizer from removing the write_bytes
@@ -384,6 +393,11 @@ pub fn zeroize_spare_capacity<T>(vec: &mut Vec<T>) {
     }
 
     let byte_len = spare * core::mem::size_of::<T>();
+
+    // SAFETY: `len` is inside the capacity, so offsetting by it lands in the
+    // allocation, and what is written from there is the difference between the
+    // two — the spare, and no element the `Vec` is holding. The read is of one
+    // byte the write just set.
     unsafe {
         let spare_ptr = vec.as_mut_ptr().add(vec.len()) as *mut u8;
         core::ptr::write_bytes(spare_ptr, 0, byte_len);
@@ -430,6 +444,9 @@ pub fn is_spare_capacity_zeroized<T>(vec: &Vec<T>) -> bool {
     let len_bytes = len * core::mem::size_of::<T>();
     let cap_bytes = cap * core::mem::size_of::<T>();
 
+    // SAFETY: both offsets come from the `Vec`'s own `len` and capacity, so
+    // the range is the spare inside its allocation, and it is read as `u8`,
+    // for which every bit pattern is a value — no `T` is built out of it.
     unsafe {
         let spare_ptr = vec.as_ptr().cast::<u8>().add(len_bytes);
         let spare_len = cap_bytes - len_bytes;

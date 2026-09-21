@@ -129,8 +129,9 @@ where
         #[cfg(test)]
         self.__sentinel.reset();
 
+        // SAFETY: both arrays are `[T; N]`, so each is N elements long and
+        // aligned for one, and `src` is a separate value from `self`.
         unsafe {
-            // SAFETY: Both arrays have exactly N elements and are properly aligned
             redoubt_mem::copy_nonoverlapping(src.as_ptr(), self.inner.as_mut_ptr(), N);
         }
 

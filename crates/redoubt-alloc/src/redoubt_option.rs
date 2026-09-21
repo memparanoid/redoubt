@@ -51,8 +51,10 @@ where
 
         // Move new value from source
         let mut new_value = T::default();
+
+        // SAFETY: both are `&mut T`, so each is live and aligned for one, and
+        // `new_value` is a local the caller cannot also be holding.
         unsafe {
-            // SAFETY: Both pointers are valid and properly aligned
             core::ptr::swap_nonoverlapping(value, &mut new_value, 1);
         }
         self.inner = Some(new_value);

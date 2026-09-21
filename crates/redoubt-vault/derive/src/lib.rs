@@ -629,6 +629,11 @@ fn expand(
                         ) {
                             Ok(_) => {
                                 // We won the race, initialize
+                                // SAFETY: the exchange above is what makes this
+                                // the one thread that took `STATE_UNINIT`, so no
+                                // other writes the cell. None reads it either: a
+                                // reader waits for `STATE_DONE`, which is
+                                // published after the fence below.
                                 unsafe {
                                     let ptr = #static_name.get();
                                     *ptr = Some(#wrapper_name::new());
@@ -674,6 +679,10 @@ fn expand(
                             init_slow();
                         }
 
+                        // SAFETY: `init_slow` has run or the state was already
+                        // `STATE_DONE`, so the cell holds one. What comes back
+                        // is `&'static mut`, and the caller reaching it through
+                        // `lock` is what keeps it the only reference.
                         unsafe {
                             (*#static_name.get())
                                 .as_mut()

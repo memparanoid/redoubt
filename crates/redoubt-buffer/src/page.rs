@@ -31,8 +31,14 @@ unsafe impl Sync for Page {}
 impl Page {
     /// Allocates a new page via mmap. Does NOT lock or protect.
     pub fn new() -> Result<Self, PageError> {
+        // SAFETY: it reads a number the C library holds, takes no pointer and
+        // writes nowhere.
         let capacity = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
 
+        // SAFETY: a null address asks the kernel to choose one, and the fd is
+        // -1 under `MAP_ANONYMOUS`, so nothing is mapped from a file. What
+        // comes back is checked against `MAP_FAILED` below before it is used
+        // as a pointer.
         let ptr = unsafe {
             libc::mmap(
                 ptr::null_mut(),
@@ -54,6 +60,9 @@ impl Page {
             is_protected: AtomicBool::new(false),
         };
 
+        // SAFETY: what `zeroize` asks is that the page be writable, and the
+        // mapping was just made `PROT_READ | PROT_WRITE` with nothing since to
+        // protect it.
         unsafe { page.zeroize() };
 
         Ok(page)
@@ -76,6 +85,8 @@ impl Page {
 
         #[cfg(not(miri))]
         {
+            // SAFETY: the address and the length are the mapping's own, so the
+            // range is one this process owns.
             let failed = unsafe { libc::mlock(self.ptr as *const _, self.capacity) } != 0;
 
             if failed {
@@ -94,6 +105,8 @@ impl Page {
 
         #[cfg(not(miri))]
         {
+            // SAFETY: the address and the length are the mapping's own, so the
+            // range is one this process owns.
             let failed = unsafe {
                 libc::madvise(
                     self.ptr as *mut libc::c_void,
@@ -120,6 +133,10 @@ impl Page {
     pub fn protect(&self) -> Result<(), PageError> {
         #[cfg(not(miri))]
         {
+            // SAFETY: the address and the length are the mapping's own, so the
+            // range is one this process owns. Every way of reaching the bytes
+            // is an `unsafe fn` asking the caller for a page it may read, so a
+            // slice held across this is the caller's to answer for.
             let failed =
                 unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_NONE) } != 0;
 
@@ -137,6 +154,8 @@ impl Page {
     pub fn unprotect(&self) -> Result<(), PageError> {
         #[cfg(not(miri))]
         {
+            // SAFETY: the address and the length are the mapping's own, so the
+            // range is one this process owns.
             let failed =
                 unsafe { libc::mprotect(self.ptr as *mut _, self.capacity, libc::PROT_WRITE) } != 0;
 
@@ -155,6 +174,10 @@ impl Page {
     /// # Safety
     /// Page must be unprotected (PROT_READ or PROT_WRITE), otherwise SIGSEGV.
     pub unsafe fn as_slice(&self) -> &[u8] {
+        // SAFETY: the address and the length are the mapping's own, and every
+        // byte of it is initialized — `new` zeroes the whole page before
+        // handing one out. That the page is readable is what this function's
+        // own contract asks of the caller.
         unsafe { core::slice::from_raw_parts(self.ptr, self.capacity) }
     }
 
@@ -163,6 +186,10 @@ impl Page {
     /// # Safety
     /// Page must be unprotected (PROT_WRITE), otherwise SIGSEGV.
     pub unsafe fn as_mut_slice(&mut self) -> &mut [u8] {
+        // SAFETY: the address and the length are the mapping's own, every byte
+        // of it is initialized by `new`, and `&mut self` is what makes this the
+        // only reference to it. That the page is writable is what this
+        // function's own contract asks of the caller.
         unsafe { core::slice::from_raw_parts_mut(self.ptr, self.capacity) }
     }
 
@@ -171,11 +198,16 @@ impl Page {
     /// # Safety
     /// Page must be unprotected (PROT_WRITE), otherwise SIGSEGV.
     pub unsafe fn zeroize(&mut self) {
+        // SAFETY: what `as_mut_slice` asks is that the page be writable, which
+        // is what this function's own contract asks of the caller.
         unsafe { self.as_mut_slice().fast_zeroize() };
     }
 
     /// Unlocks page (allows swapping). Called in Drop.
     pub fn munlock(&self) {
+        // SAFETY: the address and the length are the mapping's own. Unlocking
+        // one that was never locked is not an error, so this needs no caller to
+        // have locked it.
         #[cfg(not(miri))]
         unsafe {
             libc::munlock(self.ptr as *const _, self.capacity)
@@ -191,6 +223,8 @@ impl Page {
 
         // If we can write, zeroize
         if !self.is_protected.load(Ordering::Acquire) {
+            // SAFETY: what `zeroize` asks is that the page be writable, and the
+            // branch above is only entered where nothing has protected it.
             unsafe { self.zeroize() };
         }
 
@@ -200,6 +234,8 @@ impl Page {
 
     /// Unmaps the page. Called in Drop.
     fn munmap(&self) {
+        // SAFETY: the address and the length are the ones `mmap` gave back,
+        // which is the pair `munmap` takes.
         unsafe { libc::munmap(self.ptr as *mut libc::c_void, self.capacity) };
     }
 }

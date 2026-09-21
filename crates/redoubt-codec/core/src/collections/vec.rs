@@ -166,6 +166,10 @@ pub(crate) fn vec_prealloc<T: PreAlloc + FastZeroizable + ZeroizeMetadata>(
 
     if zero_init {
         vec.fast_zeroize();
+
+        // SAFETY: `reserve_exact` above is what puts `size` inside the
+        // capacity, and `fast_zeroize` wrote zeros over all of it. That
+        // all-zeros is a value of `T` is what this branch is chosen by.
         unsafe { vec.set_len(size) };
     } else {
         vec.resize_with(size, Default::default);

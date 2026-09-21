@@ -61,6 +61,9 @@ impl TryEncode for String {
 
         write_header(buf, &mut size, &mut bytes_required)?;
 
+        // SAFETY: what `as_bytes_mut` asks is that the bytes still spell UTF-8
+        // when it is done with them, and the only thing done with them below
+        // is a copy out into the buffer. Not one is written back.
         let bytes = unsafe { self.as_bytes_mut() };
         u8::encode_slice_into(bytes, buf)
     }
