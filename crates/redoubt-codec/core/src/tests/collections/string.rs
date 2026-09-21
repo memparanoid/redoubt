@@ -223,15 +223,13 @@ fn test_string_decode_from_propagates_error() {
 // DecodeSlice
 
 #[test]
-fn test_string_slice_roundtrip_ok() {
+fn test_string_slice_roundtrip_ok() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let mut s_slice = [String::from("hello"), String::from("world")];
-    let bytes_required = s_slice
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = s_slice.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    String::encode_slice_into(&mut s_slice, &mut buf).expect("encode failed");
+    String::encode_slice_into(&mut s_slice, &mut buf)?;
 
     // Decode
     let mut decoded = [String::new(), String::new()];
@@ -246,6 +244,8 @@ fn test_string_slice_roundtrip_ok() {
     assert!(buf.is_zeroized());
     assert!(decode_buf.is_zeroized());
     assert!(s_slice.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
