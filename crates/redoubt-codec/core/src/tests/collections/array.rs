@@ -225,7 +225,8 @@ fn test_array_encode_decode_roundtrip() -> Result<(), Box<dyn std::error::Error>
 // Perm tests
 
 #[test]
-fn perm_test_array_encode_into_propagates_error_at_any_position() {
+fn perm_test_array_encode_into_propagates_error_at_any_position()
+-> Result<(), Box<dyn std::error::Error>> {
     let arr = [
         [RedoubtCodecTestBreaker::new(
             RedoubtCodecTestBreakerBehaviour::None,
@@ -252,9 +253,7 @@ fn perm_test_array_encode_into_propagates_error_at_any_position() {
             6,
         )],
     ];
-    let bytes_required = arr
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = arr.encode_bytes_required()?;
 
     index_permutations(arr.len(), |idx_perm| {
         let mut arr_clone = arr;
@@ -270,6 +269,8 @@ fn perm_test_array_encode_into_propagates_error_at_any_position() {
         assert!(buf.is_zeroized());
         assert!(arr_clone.is_zeroized());
     });
+
+    Ok(())
 }
 
 #[test]
