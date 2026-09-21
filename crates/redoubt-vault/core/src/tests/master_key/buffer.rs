@@ -85,7 +85,7 @@ fn test_create_buffer_falls_back_to_portable_on_protected_failure() {
 #[cfg(target_os = "linux")]
 #[test]
 #[ignore]
-fn subprocess_create_buffer_falls_back_to_portable() {
+fn subprocess_create_buffer_falls_back_to_portable() -> Result<(), Box<dyn std::error::Error>> {
     block_mprotect();
     block_mlock();
     block_munlock();
@@ -99,12 +99,12 @@ fn subprocess_create_buffer_falls_back_to_portable() {
         "Expected PortableBuffer fallback when mem syscalls are blocked"
     );
 
-    buffer
-        .open(&mut |bytes| {
-            assert_eq!(bytes.len(), MASTER_KEY_LEN);
-            Ok(())
-        })
-        .expect("Failed to open buffer");
+    buffer.open(&mut |bytes| {
+        assert_eq!(bytes.len(), MASTER_KEY_LEN);
+        Ok(())
+    })?;
+
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
