@@ -505,8 +505,8 @@ mod page_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_zeroize_after_partial_write() {
-        let mut page = Page::new().expect("Failed to new()");
+    fn test_zeroize_after_partial_write() -> Result<(), Box<dyn std::error::Error>> {
+        let mut page = Page::new()?;
 
         unsafe {
             page.as_mut_slice()[0] = 0x42;
@@ -518,6 +518,8 @@ mod page_tests {
         unsafe { page.zeroize() };
 
         assert!(unsafe { page.as_slice() }.is_zeroized());
+
+        Ok(())
     }
 
     // =============================================================================
