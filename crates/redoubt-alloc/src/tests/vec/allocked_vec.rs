@@ -1056,14 +1056,14 @@ fn test_allocked_vec_debug_redacted() -> Result<(), Box<dyn std::error::Error>> 
 }
 
 #[test]
-fn test_allocked_vec_debug_snapshot() {
+fn test_allocked_vec_debug_snapshot() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
     // Vec is not zeroized since `has_been_sealed` is true.
     assert!(!vec.is_zeroized());
 
-    vec.push(&mut 1u8).expect("Failed to vec.push(1)");
-    vec.push(&mut 2u8).expect("Failed to vec.push(2)");
+    vec.push(&mut 1u8)?;
+    vec.push(&mut 2u8)?;
 
     let debug_output = format!("{:?}", vec);
 
@@ -1071,4 +1071,6 @@ fn test_allocked_vec_debug_snapshot() {
         debug_output,
         "AllockedVec { data: \"REDACTED\", len: 2, capacity: 5 }"
     );
+
+    Ok(())
 }
