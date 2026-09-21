@@ -410,10 +410,11 @@ mod page_buffer_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page_buffer))]
-    fn test_len() {
-        let buffer =
-            PageBuffer::new(ProtectionStrategy::MemProtected, 64).expect("Failed to new(..)");
+    fn test_len() -> Result<(), Box<dyn std::error::Error>> {
+        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 64)?;
         assert_eq!(buffer.len(), 64);
+
+        Ok(())
     }
 
     #[test]
