@@ -147,7 +147,8 @@ fn test_option_decode_from_propagates_process_header_err() {
 }
 
 #[test]
-fn test_option_decode_from_propagates_invalid_size_value() {
+fn test_option_decode_from_propagates_invalid_size_value() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut opt: Option<RedoubtCodecTestBreaker> = None;
 
     // Create a buffer with invalid size value (2, should be 0 or 1)
@@ -155,10 +156,8 @@ fn test_option_decode_from_propagates_invalid_size_value() {
     let mut size = 2usize;
     let mut bytes_required = 2 * size_of::<usize>();
 
-    buf.write(&mut size)
-        .expect("Failed to write size to buffer");
-    buf.write(&mut bytes_required)
-        .expect("Failed to write bytes_required to buffer");
+    buf.write(&mut size)?;
+    buf.write(&mut bytes_required)?;
 
     let mut decode_buf = buf.export_as_vec();
     let result = opt.decode_from(&mut decode_buf.as_mut_slice());
@@ -169,6 +168,8 @@ fn test_option_decode_from_propagates_invalid_size_value() {
     // Assert zeroization!
     assert_eq!(opt, None);
     assert!(decode_buf.is_zeroized());
+
+    Ok(())
 }
 
 // Note: Unlike Vec, we cannot test `test_option_decode_from_propagates_decode_err` because
