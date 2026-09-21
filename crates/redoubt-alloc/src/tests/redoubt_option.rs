@@ -60,15 +60,17 @@ fn test_redoubt_option_as_mut_empty() {
 }
 
 #[test]
-fn test_redoubt_option_replace() {
+fn test_redoubt_option_replace() -> Result<(), Box<dyn std::error::Error>> {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;
 
     opt.replace(&mut value);
 
     assert!(opt.is_some());
-    assert_eq!(*opt.as_ref().expect("Failed to get as_ref"), 42);
+    assert_eq!(*opt.as_ref()?, 42);
     assert!(value.is_zeroized());
+
+    Ok(())
 }
 
 #[test]
