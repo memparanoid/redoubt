@@ -36,7 +36,8 @@ fn test_redoubt_string_codec_roundtrip() -> Result<(), Box<dyn std::error::Error
 // Stress Tests
 
 #[test]
-fn stress_test_redoubt_string_clear_push_encode_decode_cycles() {
+fn stress_test_redoubt_string_clear_push_encode_decode_cycles()
+-> Result<(), Box<dyn std::error::Error>> {
     // The loop runs SIZE+1 cycles and each one builds a payload of length i,
     // so the work is quadratic: ~500k formatted characters plus an encode and a
     // decode of every intermediate size. Compiled that is a second; interpreted
@@ -61,19 +62,13 @@ fn stress_test_redoubt_string_clear_push_encode_decode_cycles() {
         let mut src = expected.clone();
         redoubt_string.extend_from_mut_string(&mut src);
 
-        let bytes_required = redoubt_string
-            .encode_bytes_required()
-            .expect("Failed encode_bytes_required");
+        let bytes_required = redoubt_string.encode_bytes_required()?;
         let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
-        redoubt_string
-            .encode_into(&mut buf)
-            .expect("Failed encode_into");
+        redoubt_string.encode_into(&mut buf)?;
 
         let mut recovered = RedoubtString::new();
         let mut decode_buf = buf.export_as_vec();
-        recovered
-            .decode_from(&mut decode_buf.as_mut_slice())
-            .expect("Failed decode_from");
+        recovered.decode_from(&mut decode_buf.as_mut_slice())?;
 
         assert_eq!(recovered.as_str(), &expected, "Cycle failed at i={}", i);
 
@@ -83,4 +78,6 @@ fn stress_test_redoubt_string_clear_push_encode_decode_cycles() {
         assert!(src.is_zeroized());
         assert!(redoubt_string.is_zeroized());
     }
+
+    Ok(())
 }
