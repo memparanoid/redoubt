@@ -117,12 +117,11 @@ mod storage_std {
     }
 
     #[test]
-    fn test_mutex_poison_recovery() {
+    fn test_mutex_poison_recovery() -> Result<(), Box<dyn std::error::Error>> {
         POISONED_MUTEX_RECOVERY_BOX::open_secret(|v| {
             assert_eq!(*v.as_ref(), 0);
             Ok::<(), CipherBoxError>(())
-        })
-        .expect("open should succeed");
+        })?;
 
         let result = std::panic::catch_unwind(|| {
             POISONED_MUTEX_RECOVERY_BOX::open_secret_mut(|_| -> Result<(), CipherBoxError> {
@@ -140,13 +139,13 @@ mod storage_std {
         POISONED_MUTEX_RECOVERY_BOX::open_secret_mut(|v| {
             v.replace(&mut 42);
             Ok::<(), CipherBoxError>(())
-        })
-        .expect("should modify after recovery");
+        })?;
 
         POISONED_MUTEX_RECOVERY_BOX::open_secret(|v| {
             assert_eq!(*v.as_ref(), 42);
             Ok::<(), CipherBoxError>(())
-        })
-        .expect("modified value should persist");
+        })?;
+
+        Ok(())
     }
 }
