@@ -9,7 +9,6 @@ use thiserror::Error;
 use redoubt_aead::AeadError;
 use redoubt_buffer::BufferError;
 use redoubt_codec::{DecodeError, EncodeError, OverflowError};
-use redoubt_rand::EntropyError;
 
 #[derive(Debug, Error)]
 pub enum CipherBoxError {
@@ -21,9 +20,6 @@ pub enum CipherBoxError {
 
     #[error(transparent)]
     Decode(#[from] DecodeError),
-
-    #[error(transparent)]
-    Entropy(#[from] EntropyError),
 
     #[error(transparent)]
     Buffer(#[from] BufferError),

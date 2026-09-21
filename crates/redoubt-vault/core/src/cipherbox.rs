@@ -5,6 +5,7 @@
 use alloc::vec;
 
 use core::marker::PhantomData;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use redoubt_aead::{Aead, AeadError};
 use redoubt_codec::{BytesRequired, Decode, Encode, RedoubtCodecBuffer};
@@ -36,13 +37,16 @@ where
     /// Used to distinguish intentional zeroization from corruption.
     pristine: bool,
     /// Starts as `false`, becomes `true` when an operation fails.
-    poisoned: bool,
+    ///
+    /// Atomic because a read takes the box by shared reference, and a read is
+    /// one of the operations that can fail. `Relaxed` throughout: the flag
+    /// only ever latches one way and publishes nothing behind it, so a reader
+    /// that misses it by a moment refuses a moment later instead.
+    poisoned: AtomicBool,
     key_size: usize,
     ciphertexts: Ciphertexts<N>,
-    tmp_data: DataBuffers<N>,
     nonces: Nonces<N>,
     tags: Tags<N>,
-    tmp_field_data: Data,
     tmp_field_codec_buff: RedoubtCodecBuffer,
     /// Runtime verification that zeroization happened, for the tests that
     /// read it.
@@ -82,23 +86,18 @@ where
     }
 
     #[cfg(test)]
-    pub(crate) fn __unsafe_get_tmp_field_data(&mut self) -> &Data {
-        &self.tmp_field_data
-    }
-
-    #[cfg(test)]
-    pub(crate) fn __unsafe_get_tmp_codec_buff(&mut self) -> &RedoubtCodecBuffer {
+    pub(crate) fn __unsafe_get_tmp_codec_buff(&self) -> &RedoubtCodecBuffer {
         &self.tmp_field_codec_buff
     }
 
     #[cfg(test)]
-    pub(crate) fn __unsafe_get_tmp_data(&self) -> &DataBuffers<N> {
-        &self.tmp_data
+    pub(crate) fn __unsafe_get_ciphertexts(&self) -> &Ciphertexts<N> {
+        &self.ciphertexts
     }
 
     #[cfg(test)]
     pub(crate) fn __unsafe_get_field_ciphertext<const M: usize>(
-        &mut self,
+        &self,
     ) -> &super::types::Ciphertext {
         &self.ciphertexts[M]
     }
@@ -119,7 +118,6 @@ where
         });
 
         let ciphertexts: Ciphertexts<N> = core::array::from_fn(|_| vec![]);
-        let tmp_data: DataBuffers<N> = core::array::from_fn(|_| vec![]);
 
         Self {
             aead,
@@ -127,11 +125,9 @@ where
             tags,
             nonces,
             ciphertexts,
-            tmp_data,
             initialized: false,
             pristine: true,
-            poisoned: false,
-            tmp_field_data: Data::default(),
+            poisoned: AtomicBool::new(false),
             tmp_field_codec_buff: RedoubtCodecBuffer::default(),
             #[cfg(test)]
             __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
@@ -146,13 +142,18 @@ where
             return Err(CipherBoxError::Zeroized);
         }
 
-        if self.poisoned {
+        if self.poisoned.load(Ordering::Relaxed) {
             return Err(CipherBoxError::Poisoned);
         }
 
         Ok(())
     }
 
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[inline(always)]
     pub fn encrypt_struct(&mut self, aead_key: &[u8], value: &mut T) -> Result<(), CipherBoxError> {
         let result = value.encrypt_into(&mut self.aead, aead_key, &mut self.nonces, &mut self.tags);
@@ -160,40 +161,57 @@ where
         match result {
             Ok(ciphertexts) => {
                 self.ciphertexts = ciphertexts;
+                // Sealing every field at once is what a box is initialized by,
+                // so this is the only place that can say so.
+                self.initialized = true;
                 Ok(())
             }
             Err(_) => {
-                self.poisoned = true;
+                self.poisoned.store(true, Ordering::Relaxed);
                 Err(CipherBoxError::Poisoned)
             }
         }
     }
 
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[inline(always)]
-    pub fn decrypt_struct(&mut self, aead_key: &[u8]) -> Result<ZeroizingGuard<T>, CipherBoxError> {
-        // Clone ciphertexts for rollback capability
-        for i in 0..N {
-            self.tmp_data[i] = self.ciphertexts[i].clone();
-        }
+    pub fn decrypt_struct(&self, aead_key: &[u8]) -> Result<ZeroizingGuard<T>, CipherBoxError> {
+        // Decryption drains what it works on, so it works on a clone and the
+        // sealed fields survive the read.
+        let mut data: DataBuffers<N> = core::array::from_fn(|i| self.ciphertexts[i].clone());
 
+        self.decrypt_struct_from(aead_key, &mut data)
+    }
+
+    #[inline(always)]
+    pub(crate) fn decrypt_struct_from(
+        &self,
+        aead_key: &[u8],
+        data: &mut DataBuffers<N>,
+    ) -> Result<ZeroizingGuard<T>, CipherBoxError> {
         let mut value = ZeroizingGuard::<T>::from_default();
-        let result = value.decrypt_from(
-            &mut self.aead,
-            aead_key,
-            &mut self.nonces,
-            &mut self.tags,
-            &mut self.tmp_data,
-        );
+        let result = value.decrypt_from(&self.aead, aead_key, &self.nonces, &self.tags, data);
 
         match result {
             Ok(_) => Ok(value),
             Err(_) => {
-                self.poisoned = true;
+                self.poisoned.store(true, Ordering::Relaxed);
                 Err(CipherBoxError::Poisoned)
             }
         }
     }
 
+    /// Seals every field with its default, where nothing has sealed the box
+    /// yet.
+    ///
+    /// What needs this is a write that reaches one field: it seals that one
+    /// and leaves the rest as they were, so on a box where the rest are empty
+    /// it would return having sealed a single field, with the box still
+    /// reading as unsealed and the write it just took lost at the next read.
     #[cold]
     #[inline(never)]
     pub(crate) fn maybe_initialize(&mut self) -> Result<(), CipherBoxError> {
@@ -201,63 +219,68 @@ where
             return Ok(());
         }
 
-        let master_key = leak_master_key(self.key_size).map_err(|_| {
-            self.poisoned = true;
-            CipherBoxError::Poisoned
-        })?;
+        let master_key = leak_master_key(self.key_size).map_err(CipherBoxError::from)?;
         let mut value = ZeroizingGuard::<T>::from_default();
 
-        self.encrypt_struct(&master_key, &mut value)?;
-        self.initialized = true;
-
-        Ok(())
+        self.encrypt_struct(&master_key, &mut value)
     }
 
-    /// Decrypts field `M` into `tmp_field_data`, leaving `ciphertexts[M]`
-    /// intact.
+    /// Decrypts field `M`, leaving `ciphertexts[M]` intact.
     ///
     /// Decryption drains the buffer it works on, so it works on a clone: the
     /// sealed field survives the read, and a caller can be handed the
     /// plaintext without the box having to seal it again. What is left in the
     /// clone is zeros, because `decode_from` wipes each range as it reads it.
     #[inline(always)]
-    fn try_decrypt_field<F, const M: usize>(
-        &mut self,
+    pub(crate) fn try_decrypt_field<F, const M: usize>(
+        &self,
         aead_key: &[u8],
         field: &mut F,
+        data: &mut Data,
     ) -> Result<(), CipherBoxError>
     where
         F: Default + Decryptable + ZeroizationProbe,
     {
         // Clone ciphertext so we don't drain the original
-        self.tmp_field_data = self.ciphertexts[M].clone();
-        self.aead.decrypt(
-            aead_key,
-            &self.nonces[M],
-            AAD,
-            &mut self.tmp_field_data,
-            &self.tags[M],
-        )?;
+        *data = self.ciphertexts[M].clone();
+        self.aead
+            .decrypt(aead_key, &self.nonces[M], AAD, data, &self.tags[M])?;
 
-        // tmp_field_data is guaranteed to be zeroized by `decode_from`
-        field.decode_from(&mut self.tmp_field_data.as_mut_slice())?;
+        // `data` is guaranteed to be zeroized by `decode_from`
+        field.decode_from(&mut data.as_mut_slice())?;
 
         Ok(())
     }
 
     #[inline(always)]
     pub(crate) fn decrypt_field<F, const M: usize>(
-        &mut self,
+        &self,
         aead_key: &[u8],
         field: &mut F,
     ) -> Result<(), CipherBoxError>
     where
         F: Default + Decryptable + ZeroizationProbe,
     {
-        let result = self.try_decrypt_field::<F, M>(aead_key, field);
+        let mut data = Data::default();
+
+        self.decrypt_field_into::<F, M>(aead_key, field, &mut data)
+    }
+
+    #[inline(always)]
+    pub(crate) fn decrypt_field_into<F, const M: usize>(
+        &self,
+        aead_key: &[u8],
+        field: &mut F,
+        data: &mut Data,
+    ) -> Result<(), CipherBoxError>
+    where
+        F: Default + Decryptable + ZeroizationProbe,
+    {
+        let result = self.try_decrypt_field::<F, M>(aead_key, field, data);
 
         if result.is_err() {
-            self.poisoned = true;
+            data.fast_zeroize();
+            self.poisoned.store(true, Ordering::Relaxed);
             return Err(CipherBoxError::Poisoned);
         }
 
@@ -265,7 +288,7 @@ where
     }
 
     #[inline(always)]
-    fn try_encrypt_field<F, const M: usize>(
+    pub(crate) fn try_encrypt_field<F, const M: usize>(
         &mut self,
         aead_key: &[u8],
         field: &mut F,
@@ -317,14 +340,13 @@ where
         match result {
             Ok(()) => Ok(()),
             Err(CipherBoxError::Overflow(err)) => Err(CipherBoxError::Overflow(err)),
-            Err(CipherBoxError::Entropy(err)) => Err(CipherBoxError::Entropy(err)),
             // No nonce came back, so nothing was sealed and nothing here was
             // written over. A box that is intact is not poisoned.
             Err(CipherBoxError::Aead(AeadError::NonceEntropy(err))) => {
                 Err(CipherBoxError::Aead(AeadError::NonceEntropy(err)))
             }
             _ => {
-                self.poisoned = true;
+                self.poisoned.store(true, Ordering::Relaxed);
                 Err(CipherBoxError::Poisoned)
             }
         }
@@ -338,8 +360,8 @@ where
     /// Reading one field goes through `leak_field` instead, which clones and
     /// decrypts that field alone.
     #[inline(always)]
-    fn open_dyn<R, E>(
-        &mut self,
+    pub(crate) fn open_dyn<R, E>(
+        &self,
         f: &mut dyn FnMut(&T) -> Result<R, E>,
     ) -> Result<ZeroizingGuard<R>, E>
     where
@@ -347,13 +369,8 @@ where
         E: From<CipherBoxError>,
     {
         self.assert_healthy().map_err(E::from)?;
-        self.maybe_initialize().map_err(E::from)?;
 
-        let master_key = leak_master_key(self.key_size).map_err(|_| {
-            self.poisoned = true;
-            E::from(CipherBoxError::Poisoned)
-        })?;
-        let mut value = self.decrypt_struct(&master_key).map_err(E::from)?;
+        let mut value = self.open_value().map_err(E::from)?;
 
         let mut result = f(&value).inspect_err(|_| {
             // wipe asap
@@ -363,13 +380,29 @@ where
         Ok(ZeroizingGuard::from_mut(&mut result))
     }
 
+    /// The struct a read sees, which is `T::default()` where nothing has
+    /// sealed the box yet.
+    ///
+    /// An unsealed box holds no ciphertexts, so there is nothing to open and
+    /// the master key is never asked for.
+    #[inline(always)]
+    pub(crate) fn open_value(&self) -> Result<ZeroizingGuard<T>, CipherBoxError> {
+        if !self.initialized {
+            return Ok(ZeroizingGuard::<T>::from_default());
+        }
+
+        let master_key = leak_master_key(self.key_size).map_err(CipherBoxError::from)?;
+
+        self.decrypt_struct(&master_key)
+    }
+
     /// Provides mutable access to the entire struct via a callback.
     ///
     /// A callback that returns `Err` leaves the sealed fields as they were:
     /// what it was handed is a clone, and only a callback that returns `Ok` is
     /// followed by the reseal that commits it.
     #[inline(always)]
-    fn open_mut_dyn<R, E>(
+    pub(crate) fn open_mut_dyn<R, E>(
         &mut self,
         f: &mut dyn FnMut(&mut T) -> Result<R, E>,
     ) -> Result<ZeroizingGuard<R>, E>
@@ -378,13 +411,16 @@ where
         E: From<CipherBoxError>,
     {
         self.assert_healthy().map_err(E::from)?;
-        self.maybe_initialize().map_err(E::from)?;
 
-        let master_key = leak_master_key(self.key_size).map_err(|_| {
-            self.poisoned = true;
-            E::from(CipherBoxError::Poisoned)
-        })?;
-        let mut value = self.decrypt_struct(&master_key).map_err(E::from)?;
+        let master_key = leak_master_key(self.key_size).map_err(CipherBoxError::from)?;
+
+        // An unsealed box has no ciphertexts to open, and the reseal below is
+        // what first seals it.
+        let mut value = if !self.initialized {
+            ZeroizingGuard::<T>::from_default()
+        } else {
+            self.decrypt_struct(&master_key).map_err(E::from)?
+        };
 
         let mut result = f(&mut value).inspect_err(|_| {
             // wipe asap
@@ -397,8 +433,8 @@ where
     }
 
     #[inline(always)]
-    pub fn open_field_dyn<Field, const M: usize, R, E>(
-        &mut self,
+    pub(crate) fn open_field_dyn<Field, const M: usize, R, E>(
+        &self,
         f: &mut dyn FnMut(&Field) -> Result<R, E>,
     ) -> Result<ZeroizingGuard<R>, E>
     where
@@ -407,15 +443,8 @@ where
         E: From<CipherBoxError>,
     {
         self.assert_healthy()?;
-        self.maybe_initialize()?;
 
-        let master_key = leak_master_key(self.key_size).map_err(|_| {
-            self.poisoned = true;
-            CipherBoxError::Poisoned
-        })?;
-        let mut field = ZeroizingGuard::<Field>::from_default();
-
-        self.decrypt_field::<Field, M>(&master_key, &mut field)?;
+        let mut field = self.open_field_value::<Field, M>()?;
 
         let mut result = f(&field).inspect_err(|_| {
             // wipe asap
@@ -425,8 +454,33 @@ where
         Ok(ZeroizingGuard::from_mut(&mut result))
     }
 
+    /// The field a read sees, which is `Field::default()` where nothing has
+    /// sealed the box yet.
+    ///
+    /// An unsealed box holds no ciphertexts, so there is nothing to open and
+    /// the master key is never asked for.
     #[inline(always)]
-    pub fn open_field_mut_dyn<Field, const M: usize, R, E>(
+    pub(crate) fn open_field_value<Field, const M: usize>(
+        &self,
+    ) -> Result<ZeroizingGuard<Field>, CipherBoxError>
+    where
+        Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
+    {
+        let mut field = ZeroizingGuard::<Field>::from_default();
+
+        if !self.initialized {
+            return Ok(field);
+        }
+
+        let master_key = leak_master_key(self.key_size).map_err(CipherBoxError::from)?;
+
+        self.decrypt_field::<Field, M>(&master_key, &mut field)?;
+
+        Ok(field)
+    }
+
+    #[inline(always)]
+    pub(crate) fn open_field_mut_dyn<Field, const M: usize, R, E>(
         &mut self,
         f: &mut dyn FnMut(&mut Field) -> Result<R, E>,
     ) -> Result<ZeroizingGuard<R>, E>
@@ -438,10 +492,7 @@ where
         self.assert_healthy()?;
         self.maybe_initialize()?;
 
-        let master_key = leak_master_key(self.key_size).map_err(|_| {
-            self.poisoned = true;
-            CipherBoxError::Poisoned
-        })?;
+        let master_key = leak_master_key(self.key_size).map_err(CipherBoxError::from)?;
         let mut field = ZeroizingGuard::<Field>::from_default();
 
         self.decrypt_field::<Field, M>(&master_key, &mut field)?;
@@ -457,7 +508,7 @@ where
     }
 
     #[inline(always)]
-    pub fn open<F, R, E>(&mut self, mut f: F) -> Result<ZeroizingGuard<R>, E>
+    pub fn open<F, R, E>(&self, mut f: F) -> Result<ZeroizingGuard<R>, E>
     where
         F: FnMut(&T) -> Result<R, E>,
         R: Default + FastZeroizable + ZeroizationProbe,
@@ -478,7 +529,7 @@ where
 
     #[inline(always)]
     pub fn open_field<Field, const M: usize, F, R, E>(
-        &mut self,
+        &self,
         mut f: F,
     ) -> Result<ZeroizingGuard<R>, E>
     where
@@ -531,22 +582,13 @@ where
     /// - Use the field data across multiple statements
     /// - Implement the leak-operate-commit pattern for fallible operations
     #[inline(always)]
-    pub fn leak_field<Field, const M: usize, E>(&mut self) -> Result<ZeroizingGuard<Field>, E>
+    pub fn leak_field<Field, const M: usize, E>(&self) -> Result<ZeroizingGuard<Field>, E>
     where
         Field: Default + FastZeroizable + Decryptable + ZeroizationProbe,
         E: From<CipherBoxError>,
     {
         self.assert_healthy()?;
-        self.maybe_initialize()?;
 
-        let master_key = leak_master_key(self.key_size).map_err(|_| {
-            self.poisoned = true;
-            CipherBoxError::Poisoned
-        })?;
-        let mut field = ZeroizingGuard::<Field>::from_default();
-
-        self.decrypt_field::<Field, M>(&master_key, &mut field)?;
-
-        Ok(field)
+        self.open_field_value::<Field, M>().map_err(E::from)
     }
 }

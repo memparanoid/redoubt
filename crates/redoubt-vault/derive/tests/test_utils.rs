@@ -34,6 +34,9 @@ mod test_utils {
     /// Macro to test callback-based methods
     macro_rules! test_callback_method {
         ($method:ident) => {
+            // Both kinds of method come through here: a read takes `&self`
+            // and only the `_mut` half needs the binding to be mutable.
+            #[allow(unused_mut)]
             let mut test_box = TestBox::new();
 
             for i in 1..=MAX_ITERATIONS {
@@ -69,7 +72,7 @@ mod test_utils {
     /// Macro to test leak methods
     macro_rules! test_leak_method {
         ($method:ident) => {
-            let mut test_box = TestBox::new();
+            let test_box = TestBox::new();
 
             for i in 1..=MAX_ITERATIONS {
                 test_box.set_failure_mode(TestBoxFailureMode::FailOnNthOperation(i));

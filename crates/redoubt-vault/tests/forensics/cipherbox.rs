@@ -537,7 +537,7 @@ fn test_filling_every_field_many_times_leaves_nothing() -> Result<(), AnyError> 
 /// and needs saying separately.
 #[test]
 fn test_the_secret_is_found_while_one_field_is_open() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watch, _) = filled()?;
 
     let mut inside = None;
 
@@ -560,7 +560,7 @@ fn test_the_secret_is_found_while_one_field_is_open() -> Result<(), AnyError> {
 /// twice over.
 #[test]
 fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watch, report_before) = filled()?;
 
     forensics!({
         for _ in 0..ROUNDS {
@@ -656,7 +656,7 @@ fn test_open_field_mut_leaves_nothing() -> Result<(), AnyError> {
 /// where the absence below says nothing is left.
 #[test]
 fn test_what_a_leaked_vec_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watch, _) = filled()?;
 
     forensics!({
         let taken = secrets_box.leak_in_a_vec()?;
@@ -683,7 +683,7 @@ fn test_what_a_leaked_vec_handed_back_is_found_while_it_is_held() -> Result<(), 
 /// is after, and the photograph reads the allocation live.
 #[test]
 fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watch, report_before) = filled()?;
 
     forensics!({
         for _ in 0..ROUNDS - 1 {
@@ -718,7 +718,7 @@ fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
 /// What a leaked array handed back is found while it is held.
 #[test]
 fn test_what_a_leaked_array_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watch, _) = filled()?;
 
     forensics!({
         let taken = secrets_box.leak_in_an_array()?;
@@ -740,7 +740,7 @@ fn test_what_a_leaked_array_handed_back_is_found_while_it_is_held() -> Result<()
 /// An array, whose bytes live in a box that never moves.
 #[test]
 fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watch, report_before) = filled()?;
 
     forensics!({
         for _ in 0..ROUNDS - 1 {
@@ -775,7 +775,7 @@ fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
 /// What a leaked option handed back is found while it is held.
 #[test]
 fn test_what_a_leaked_option_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watch, _) = filled()?;
 
     forensics!({
         let taken = secrets_box.leak_in_an_option()?;
@@ -797,7 +797,7 @@ fn test_what_a_leaked_option_handed_back_is_found_while_it_is_held() -> Result<(
 /// An option around a vec, which has to take the value out and put it back.
 #[test]
 fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watch, report_before) = filled()?;
 
     forensics!({
         for _ in 0..ROUNDS - 1 {
@@ -832,7 +832,7 @@ fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
 /// What two leaked options handed back is found while it is held.
 #[test]
 fn test_what_two_leaked_options_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watch, _) = filled()?;
 
     forensics!({
         let taken = secrets_box.leak_in_two_options()?;
@@ -855,7 +855,7 @@ fn test_what_two_leaked_options_handed_back_is_found_while_it_is_held() -> Resul
 /// twice over.
 #[test]
 fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watch, report_before) = filled()?;
 
     forensics!({
         for _ in 0..ROUNDS - 1 {

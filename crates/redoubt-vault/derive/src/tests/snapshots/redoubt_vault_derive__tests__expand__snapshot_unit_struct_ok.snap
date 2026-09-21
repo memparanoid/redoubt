@@ -36,10 +36,10 @@ impl redoubt_vault_core::EncryptStruct<0> for Unit {
 impl redoubt_vault_core::DecryptStruct<0> for Unit {
     fn decrypt_from(
         &mut self,
-        aead: &mut redoubt_aead::Aead,
+        aead: &redoubt_aead::Aead,
         aead_key: &[u8],
-        nonces: &mut redoubt_vault_core::Nonces<0>,
-        tags: &mut redoubt_vault_core::Tags<0>,
+        nonces: &redoubt_vault_core::Nonces<0>,
+        tags: &redoubt_vault_core::Tags<0>,
         ciphertexts: &mut redoubt_vault_core::Ciphertexts<0>,
     ) -> Result<(), redoubt_vault_core::CipherBoxError> {
         redoubt_vault_core::decrypt_from(
@@ -61,8 +61,10 @@ pub enum UnitBoxFailureMode {
 #[derive(redoubt_zero::RedoubtZero)]
 pub struct UnitBox {
     inner: redoubt_vault_core::CipherBox<Unit, 0>,
+    /// Atomic so that the check below can sit in a method taking
+    /// `&self`, which is what a read is.
     #[cfg(test)]
-    failure_counter: usize,
+    failure_counter: core::sync::atomic::AtomicUsize,
 }
 impl UnitBox {
     #[inline(always)]
@@ -70,7 +72,7 @@ impl UnitBox {
         Self {
             inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::default()),
             #[cfg(test)]
-            failure_counter: 0,
+            failure_counter: core::sync::atomic::AtomicUsize::new(0),
         }
     }
     #[inline(always)]
@@ -84,9 +86,11 @@ impl UnitBox {
     {
         #[cfg(test)]
         {
-            if self.failure_counter > 0 {
-                self.failure_counter -= 1;
-                if self.failure_counter == 0 {
+            use core::sync::atomic::Ordering;
+            let left = self.failure_counter.load(Ordering::Relaxed);
+            if left > 0 {
+                self.failure_counter.store(left - 1, Ordering::Relaxed);
+                if left - 1 == 0 {
                     return Err(
                         redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
                             .into(),
@@ -107,9 +111,11 @@ impl UnitBox {
     {
         #[cfg(test)]
         {
-            if self.failure_counter > 0 {
-                self.failure_counter -= 1;
-                if self.failure_counter == 0 {
+            use core::sync::atomic::Ordering;
+            let left = self.failure_counter.load(Ordering::Relaxed);
+            if left > 0 {
+                self.failure_counter.store(left - 1, Ordering::Relaxed);
+                if left - 1 == 0 {
                     return Err(
                         redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
                             .into(),
@@ -120,13 +126,14 @@ impl UnitBox {
         self.inner.open_mut(f)
     }
     #[cfg(test)]
-    pub fn set_failure_mode(&mut self, mode: UnitBoxFailureMode) {
+    pub fn set_failure_mode(&self, mode: UnitBoxFailureMode) {
+        use core::sync::atomic::Ordering;
         match mode {
             UnitBoxFailureMode::None => {
-                self.failure_counter = 0;
+                self.failure_counter.store(0, Ordering::Relaxed);
             }
             UnitBoxFailureMode::FailOnNthOperation(n) => {
-                self.failure_counter = n;
+                self.failure_counter.store(n, Ordering::Relaxed);
             }
         }
     }

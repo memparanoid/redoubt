@@ -397,9 +397,14 @@ fn expand(
     let failure_check = quote! {
         #test_cfg
         {
-            if self.failure_counter > 0 {
-                self.failure_counter -= 1;
-                if self.failure_counter == 0 {
+            use core::sync::atomic::Ordering;
+
+            let left = self.failure_counter.load(Ordering::Relaxed);
+
+            if left > 0 {
+                self.failure_counter.store(left - 1, Ordering::Relaxed);
+
+                if left - 1 == 0 {
                     return Err(#root::CipherBoxError::IntentionalCipherBoxError.into());
                 }
             }
@@ -437,7 +442,7 @@ fn expand(
 
         leak_methods.push(quote! {
             #[inline(always)]
-            pub fn #leak_name(&mut self) -> Result<#redoubt_zero_root::ZeroizingGuard<#field_type>, #error_type> {
+            pub fn #leak_name(&self) -> Result<#redoubt_zero_root::ZeroizingGuard<#field_type>, #error_type> {
                 #failure_check
                 self.inner.leak_field::<#field_type, #idx_lit, #error_type>()
             }
@@ -445,7 +450,7 @@ fn expand(
 
         open_methods.push(quote! {
             #[inline(always)]
-            pub fn #open_name<F, R>(&mut self, f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
+            pub fn #open_name<F, R>(&self, f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
             where
                 F: FnMut(&#field_type) -> Result<R, #error_type>,
                 R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
@@ -833,10 +838,10 @@ fn expand(
         impl #root::DecryptStruct<#num_fields_lit> for #struct_name #ty_generics #where_clause {
             fn decrypt_from(
                 &mut self,
-                aead: &mut #redoubt_aead_root::Aead,
+                aead: &#redoubt_aead_root::Aead,
                 aead_key: &[u8],
-                nonces: &mut #root::Nonces<#num_fields_lit>,
-                tags: &mut #root::Tags<#num_fields_lit>,
+                nonces: &#root::Nonces<#num_fields_lit>,
+                tags: &#root::Tags<#num_fields_lit>,
                 ciphertexts: &mut #root::Ciphertexts<#num_fields_lit>,
             ) -> Result<(), #root::CipherBoxError> {
                 #root::decrypt_from(
@@ -857,8 +862,10 @@ fn expand(
         #[derive(#redoubt_zero_root::RedoubtZero)]
         pub struct #wrapper_name {
             inner: #root::CipherBox<#struct_name, #num_fields_lit>,
+            /// Atomic so that the check below can sit in a method taking
+            /// `&self`, which is what a read is.
             #test_cfg
-            failure_counter: usize,
+            failure_counter: core::sync::atomic::AtomicUsize,
         }
 
         impl #wrapper_name {
@@ -867,7 +874,7 @@ fn expand(
                 Self {
                     inner: #root::CipherBox::new(#redoubt_aead_root::Aead::default()),
                     #test_cfg
-                    failure_counter: 0,
+                    failure_counter: core::sync::atomic::AtomicUsize::new(0),
                 }
             }
 
@@ -892,13 +899,15 @@ fn expand(
             }
 
             #test_cfg
-            pub fn set_failure_mode(&mut self, mode: #failure_mode_enum_name) {
+            pub fn set_failure_mode(&self, mode: #failure_mode_enum_name) {
+                use core::sync::atomic::Ordering;
+
                 match mode {
                     #failure_mode_enum_name::None => {
-                        self.failure_counter = 0;
+                        self.failure_counter.store(0, Ordering::Relaxed);
                     }
                     #failure_mode_enum_name::FailOnNthOperation(n) => {
-                        self.failure_counter = n;
+                        self.failure_counter.store(n, Ordering::Relaxed);
                     }
                 }
             }

@@ -24,12 +24,15 @@ pub trait CipherBoxDyns<const N: usize> {
 }
 
 pub trait DecryptStruct<const N: usize> {
+    /// Opening reads the nonce and the tag it was sealed with and writes
+    /// neither, so a box can be read through a shared reference while another
+    /// thread reads it too.
     fn decrypt_from(
         &mut self,
-        aead: &mut Aead,
+        aead: &Aead,
         aead_key: &[u8],
-        nonces: &mut Nonces<N>,
-        tags: &mut Tags<N>,
+        nonces: &Nonces<N>,
+        tags: &Tags<N>,
         ciphertexts: &mut Ciphertexts<N>,
     ) -> Result<(), CipherBoxError>;
 }

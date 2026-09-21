@@ -115,6 +115,26 @@ fn test_this_machine_has_aes() {
 }
 
 // === === === === === === === === === ===
+// Shared use
+// === === === === === === === === === ===
+
+fn assert_sync<T: Sync>() {}
+fn assert_send<T: Send>() {}
+
+/// Opening takes the cipher by shared reference, so one of these can be held
+/// by several threads that read through it at once.
+///
+/// Nothing declares that: it holds because every field is plain data or an
+/// atomic, the nonce counter included. A `Cell` in any of them — the session,
+/// the fuse — takes it away, and the consumer that can no longer share it is
+/// where that would otherwise be found.
+#[test]
+fn test_a_cipher_can_be_held_by_several_threads() {
+    assert_sync::<Aead>();
+    assert_send::<Aead>();
+}
+
+// === === === === === === === === === ===
 // algorithm
 // === === === === === === === === === ===
 
@@ -808,7 +828,7 @@ proptest! {
 
 #[test]
 fn test_decrypt_propagates_the_fuse_at_the_first_call() {
-    let mut aead = Aead::new_chacha().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
+    let aead = Aead::new_chacha().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
     let mut data = filled(64);
     let sealed = data.clone();
 
@@ -874,7 +894,7 @@ fn test_decrypt_propagates_the_fuse_at_the_nth_call()
 
 #[test]
 fn test_decrypt_refuses_invalid_inputs_for_xchacha_variant() {
-    let mut aead = Aead::from_algorithm(AeadAlgorithm::XChachaPoly1305);
+    let aead = Aead::from_algorithm(AeadAlgorithm::XChachaPoly1305);
 
     for given in every_width_but(chacha::KEY_SIZE) {
         let mut data = filled(64);
@@ -943,7 +963,7 @@ fn test_decrypt_refuses_invalid_inputs_for_xchacha_variant() {
 #[test]
 #[cfg(aes_asm)]
 fn test_decrypt_refuses_invalid_inputs_for_aegis_variant() {
-    let mut aead = Aead::from_algorithm(AeadAlgorithm::Aegis128L);
+    let aead = Aead::from_algorithm(AeadAlgorithm::Aegis128L);
 
     for given in every_width_but(aegis::KEY_SIZE) {
         let mut data = filled(64);

@@ -43,10 +43,10 @@ impl redoubt_vault_core::EncryptStruct<2> for Epsilon {
 impl redoubt_vault_core::DecryptStruct<2> for Epsilon {
     fn decrypt_from(
         &mut self,
-        aead: &mut redoubt_aead::Aead,
+        aead: &redoubt_aead::Aead,
         aead_key: &[u8],
-        nonces: &mut redoubt_vault_core::Nonces<2>,
-        tags: &mut redoubt_vault_core::Tags<2>,
+        nonces: &redoubt_vault_core::Nonces<2>,
+        tags: &redoubt_vault_core::Tags<2>,
         ciphertexts: &mut redoubt_vault_core::Ciphertexts<2>,
     ) -> Result<(), redoubt_vault_core::CipherBoxError> {
         redoubt_vault_core::decrypt_from(
@@ -68,8 +68,10 @@ pub enum EpsilonBoxFailureMode {
 #[derive(redoubt_zero::RedoubtZero)]
 pub struct EpsilonBox {
     inner: redoubt_vault_core::CipherBox<Epsilon, 2>,
+    /// Atomic so that the check below can sit in a method taking
+    /// `&self`, which is what a read is.
     #[cfg(test)]
-    failure_counter: usize,
+    failure_counter: core::sync::atomic::AtomicUsize,
 }
 impl EpsilonBox {
     #[inline(always)]
@@ -77,7 +79,7 @@ impl EpsilonBox {
         Self {
             inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::default()),
             #[cfg(test)]
-            failure_counter: 0,
+            failure_counter: core::sync::atomic::AtomicUsize::new(0),
         }
     }
     #[inline(always)]
@@ -91,9 +93,11 @@ impl EpsilonBox {
     {
         #[cfg(test)]
         {
-            if self.failure_counter > 0 {
-                self.failure_counter -= 1;
-                if self.failure_counter == 0 {
+            use core::sync::atomic::Ordering;
+            let left = self.failure_counter.load(Ordering::Relaxed);
+            if left > 0 {
+                self.failure_counter.store(left - 1, Ordering::Relaxed);
+                if left - 1 == 0 {
                     return Err(
                         redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
                             .into(),
@@ -114,9 +118,11 @@ impl EpsilonBox {
     {
         #[cfg(test)]
         {
-            if self.failure_counter > 0 {
-                self.failure_counter -= 1;
-                if self.failure_counter == 0 {
+            use core::sync::atomic::Ordering;
+            let left = self.failure_counter.load(Ordering::Relaxed);
+            if left > 0 {
+                self.failure_counter.store(left - 1, Ordering::Relaxed);
+                if left - 1 == 0 {
                     return Err(
                         redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
                             .into(),
@@ -127,28 +133,31 @@ impl EpsilonBox {
         self.inner.open_mut(f)
     }
     #[cfg(test)]
-    pub fn set_failure_mode(&mut self, mode: EpsilonBoxFailureMode) {
+    pub fn set_failure_mode(&self, mode: EpsilonBoxFailureMode) {
+        use core::sync::atomic::Ordering;
         match mode {
             EpsilonBoxFailureMode::None => {
-                self.failure_counter = 0;
+                self.failure_counter.store(0, Ordering::Relaxed);
             }
             EpsilonBoxFailureMode::FailOnNthOperation(n) => {
-                self.failure_counter = n;
+                self.failure_counter.store(n, Ordering::Relaxed);
             }
         }
     }
     #[inline(always)]
     pub fn leak_master_seed(
-        &mut self,
+        &self,
     ) -> Result<
         redoubt_zero::ZeroizingGuard<[u8; 32]>,
         redoubt_vault_core::CipherBoxError,
     > {
         #[cfg(test)]
         {
-            if self.failure_counter > 0 {
-                self.failure_counter -= 1;
-                if self.failure_counter == 0 {
+            use core::sync::atomic::Ordering;
+            let left = self.failure_counter.load(Ordering::Relaxed);
+            if left > 0 {
+                self.failure_counter.store(left - 1, Ordering::Relaxed);
+                if left - 1 == 0 {
                     return Err(
                         redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
                             .into(),
@@ -160,16 +169,18 @@ impl EpsilonBox {
     }
     #[inline(always)]
     pub fn leak_encryption_key(
-        &mut self,
+        &self,
     ) -> Result<
         redoubt_zero::ZeroizingGuard<[u8; 32]>,
         redoubt_vault_core::CipherBoxError,
     > {
         #[cfg(test)]
         {
-            if self.failure_counter > 0 {
-                self.failure_counter -= 1;
-                if self.failure_counter == 0 {
+            use core::sync::atomic::Ordering;
+            let left = self.failure_counter.load(Ordering::Relaxed);
+            if left > 0 {
+                self.failure_counter.store(left - 1, Ordering::Relaxed);
+                if left - 1 == 0 {
                     return Err(
                         redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
                             .into(),
@@ -181,7 +192,7 @@ impl EpsilonBox {
     }
     #[inline(always)]
     pub fn open_master_seed<F, R>(
-        &mut self,
+        &self,
         f: F,
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
@@ -190,9 +201,11 @@ impl EpsilonBox {
     {
         #[cfg(test)]
         {
-            if self.failure_counter > 0 {
-                self.failure_counter -= 1;
-                if self.failure_counter == 0 {
+            use core::sync::atomic::Ordering;
+            let left = self.failure_counter.load(Ordering::Relaxed);
+            if left > 0 {
+                self.failure_counter.store(left - 1, Ordering::Relaxed);
+                if left - 1 == 0 {
                     return Err(
                         redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
                             .into(),
@@ -204,7 +217,7 @@ impl EpsilonBox {
     }
     #[inline(always)]
     pub fn open_encryption_key<F, R>(
-        &mut self,
+        &self,
         f: F,
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
@@ -213,9 +226,11 @@ impl EpsilonBox {
     {
         #[cfg(test)]
         {
-            if self.failure_counter > 0 {
-                self.failure_counter -= 1;
-                if self.failure_counter == 0 {
+            use core::sync::atomic::Ordering;
+            let left = self.failure_counter.load(Ordering::Relaxed);
+            if left > 0 {
+                self.failure_counter.store(left - 1, Ordering::Relaxed);
+                if left - 1 == 0 {
                     return Err(
                         redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
                             .into(),
@@ -236,9 +251,11 @@ impl EpsilonBox {
     {
         #[cfg(test)]
         {
-            if self.failure_counter > 0 {
-                self.failure_counter -= 1;
-                if self.failure_counter == 0 {
+            use core::sync::atomic::Ordering;
+            let left = self.failure_counter.load(Ordering::Relaxed);
+            if left > 0 {
+                self.failure_counter.store(left - 1, Ordering::Relaxed);
+                if left - 1 == 0 {
                     return Err(
                         redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
                             .into(),
@@ -260,9 +277,11 @@ impl EpsilonBox {
     {
         #[cfg(test)]
         {
-            if self.failure_counter > 0 {
-                self.failure_counter -= 1;
-                if self.failure_counter == 0 {
+            use core::sync::atomic::Ordering;
+            let left = self.failure_counter.load(Ordering::Relaxed);
+            if left > 0 {
+                self.failure_counter.store(left - 1, Ordering::Relaxed);
+                if left - 1 == 0 {
                     return Err(
                         redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
                             .into(),

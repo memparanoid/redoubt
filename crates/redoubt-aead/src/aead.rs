@@ -218,7 +218,7 @@ impl Aead {
     /// [`AeadError::Primitive`] where the tag is not the one that sealed this
     /// ciphertext, and a width that is not the one this cipher takes.
     pub fn decrypt(
-        &mut self,
+        &self,
         key: &[u8],
         nonce: &[u8],
         aad: &[u8],
@@ -227,7 +227,7 @@ impl Aead {
     ) -> Result<(), AeadError> {
         #[cfg(any(test, feature = "test-utils"))]
         {
-            if let Some(fuse) = self.fuse.as_mut() {
+            if let Some(fuse) = self.fuse.as_ref() {
                 fuse.at_decrypt()?;
             }
         }

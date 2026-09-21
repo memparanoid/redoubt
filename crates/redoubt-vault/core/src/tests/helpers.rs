@@ -193,7 +193,6 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encode_failure() {
         }
     });
 
-    let aead = Aead::default();
     let aead_key = zero_key();
 
     // Test ALL permutations (NUM_FIELDS! = 720).
@@ -214,13 +213,13 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encode_failure() {
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
 
-        let mut aead_mock = Aead::default();
+        let mut aead = Aead::default();
         let mut nonces = create_nonces(&aead);
         let mut tags = create_tags(&aead);
 
         let result = encrypt_into_buffers(
             fields,
-            &mut aead_mock,
+            &mut aead,
             &aead_key,
             &mut nonces,
             &mut tags,
@@ -255,7 +254,6 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encode_failure() {
 fn test_encrypt_into_buffers_performs_zeroization_on_generate_nonce_failure() {
     let mut test_breakers =
         [RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100); NUM_FIELDS];
-    let aead = Aead::default();
     let aead_key = zero_key();
 
     // Test failure at each position.
@@ -271,14 +269,13 @@ fn test_encrypt_into_buffers_performs_zeroization_on_generate_nonce_failure() {
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
 
-        let mut aead_mock =
-            Aead::default().with_behaviour(AeadBehaviour::FailAtNthGenerateNonce(i + 1));
+        let mut aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthGenerateNonce(i + 1));
         let mut nonces = create_nonces(&aead);
         let mut tags = create_tags(&aead);
 
         let result = encrypt_into_buffers(
             fields,
-            &mut aead_mock,
+            &mut aead,
             &aead_key,
             &mut nonces,
             &mut tags,
@@ -313,7 +310,6 @@ fn test_encrypt_into_buffers_performs_zeroization_on_generate_nonce_failure() {
 fn test_encrypt_into_buffers_performs_zeroization_on_encrypt_failure() {
     let mut test_breakers =
         [RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100); NUM_FIELDS];
-    let aead = Aead::default();
     let aead_key = zero_key();
 
     // Test failure at each position.
@@ -329,13 +325,13 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encrypt_failure() {
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
 
-        let mut aead_mock = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(i + 1));
+        let mut aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(i + 1));
         let mut nonces = create_nonces(&aead);
         let mut tags = create_tags(&aead);
 
         let result = encrypt_into_buffers(
             fields,
-            &mut aead_mock,
+            &mut aead,
             &aead_key,
             &mut nonces,
             &mut tags,
@@ -427,17 +423,17 @@ fn test_decrypt_from_zeroizes_on_decrypt_failure() {
 
     // Sanity check: decrypt works with no errors.
     {
-        let mut aead_mock = Aead::default();
+        let aead = Aead::default();
         let mut ciphertexts_clone = ciphertexts.clone();
         let mut fields = test_breakers
             .each_mut()
             .map(|tb| to_decryptable_mut_dyn(tb));
         let result = decrypt_from(
             &mut fields,
-            &mut aead_mock,
+            &aead,
             &aead_key,
-            &mut nonces,
-            &mut tags,
+            &nonces,
+            &tags,
             &mut ciphertexts_clone,
         );
         assert!(result.is_ok(), "sanity check: decrypt should succeed");
@@ -445,7 +441,7 @@ fn test_decrypt_from_zeroizes_on_decrypt_failure() {
 
     // Test failure at each position i.
     for i in 0..NUM_FIELDS {
-        let mut aead_mock = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(i + 1));
+        let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(i + 1));
         let mut ciphertexts_clone = ciphertexts.clone();
         let mut fields = test_breakers
             .each_mut()
@@ -462,10 +458,10 @@ fn test_decrypt_from_zeroizes_on_decrypt_failure() {
 
         let result = decrypt_from(
             &mut fields,
-            &mut aead_mock,
+            &aead,
             &aead_key,
-            &mut nonces,
-            &mut tags,
+            &nonces,
+            &tags,
             &mut ciphertexts_clone,
         );
         assert!(result.is_err());
@@ -508,17 +504,17 @@ fn test_decrypt_from_zeroizes_on_decode_failure() {
     {
         let mut test_breakers =
             [RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100); NUM_FIELDS];
-        let mut aead_mock = Aead::default();
+        let aead = Aead::default();
         let mut ciphertexts_clone = ciphertexts.clone();
         let mut fields = test_breakers
             .each_mut()
             .map(|tb| to_decryptable_mut_dyn(tb));
         let result = decrypt_from(
             &mut fields,
-            &mut aead_mock,
+            &aead,
             &aead_key,
-            &mut nonces,
-            &mut tags,
+            &nonces,
+            &tags,
             &mut ciphertexts_clone,
         );
         assert!(result.is_ok(), "sanity check: decrypt should succeed");
@@ -531,7 +527,7 @@ fn test_decrypt_from_zeroizes_on_decode_failure() {
         let mut test_breakers_cpy = test_breakers;
         apply_permutation(&mut test_breakers_cpy, perm);
 
-        let mut aead_mock = Aead::default();
+        let aead = Aead::default();
         let mut ciphertexts_clone = ciphertexts.clone();
         let mut fields = test_breakers_cpy
             .each_mut()
@@ -546,10 +542,10 @@ fn test_decrypt_from_zeroizes_on_decode_failure() {
 
         let result = decrypt_from(
             &mut fields,
-            &mut aead_mock,
+            &aead,
             &aead_key,
-            &mut nonces,
-            &mut tags,
+            &nonces,
+            &tags,
             &mut ciphertexts_clone,
         );
 

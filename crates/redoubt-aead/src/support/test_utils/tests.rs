@@ -49,14 +49,14 @@ macro_rules! assert_passes {
 
 #[test]
 fn test_at_encrypt_reports_injected_at_the_first_call() {
-    let mut fuse = Fuse::new(AeadBehaviour::FailAtNthEncrypt(1));
+    let fuse = Fuse::new(AeadBehaviour::FailAtNthEncrypt(1));
 
     assert_injected!(fuse.at_encrypt());
 }
 
 #[test]
 fn test_at_encrypt_reports_injected_at_the_nth_call() {
-    let mut fuse = Fuse::new(AeadBehaviour::FailAtNthEncrypt(3));
+    let fuse = Fuse::new(AeadBehaviour::FailAtNthEncrypt(3));
 
     assert_passes!(fuse.at_encrypt(), "the first call");
     assert_passes!(fuse.at_encrypt(), "the second call");
@@ -66,7 +66,7 @@ fn test_at_encrypt_reports_injected_at_the_nth_call() {
 
 #[test]
 fn test_at_encrypt_lets_the_calls_after_the_nth_through() {
-    let mut fuse = Fuse::new(AeadBehaviour::FailAtNthEncrypt(1));
+    let fuse = Fuse::new(AeadBehaviour::FailAtNthEncrypt(1));
 
     assert_injected!(fuse.at_encrypt());
 
@@ -75,7 +75,7 @@ fn test_at_encrypt_lets_the_calls_after_the_nth_through() {
 
 #[test]
 fn test_at_encrypt_lets_another_operations_behaviour_through() {
-    let mut fuse = Fuse::new(AeadBehaviour::FailAtNthDecrypt(1));
+    let fuse = Fuse::new(AeadBehaviour::FailAtNthDecrypt(1));
 
     assert_passes!(fuse.at_encrypt(), "an encrypt under a decrypt behaviour");
 }
@@ -86,14 +86,14 @@ fn test_at_encrypt_lets_another_operations_behaviour_through() {
 
 #[test]
 fn test_at_decrypt_reports_injected_at_the_first_call() {
-    let mut fuse = Fuse::new(AeadBehaviour::FailAtNthDecrypt(1));
+    let fuse = Fuse::new(AeadBehaviour::FailAtNthDecrypt(1));
 
     assert_injected!(fuse.at_decrypt());
 }
 
 #[test]
 fn test_at_decrypt_reports_injected_at_the_nth_call() {
-    let mut fuse = Fuse::new(AeadBehaviour::FailAtNthDecrypt(3));
+    let fuse = Fuse::new(AeadBehaviour::FailAtNthDecrypt(3));
 
     assert_passes!(fuse.at_decrypt(), "the first call");
     assert_passes!(fuse.at_decrypt(), "the second call");
@@ -103,7 +103,7 @@ fn test_at_decrypt_reports_injected_at_the_nth_call() {
 
 #[test]
 fn test_at_decrypt_lets_the_calls_after_the_nth_through() {
-    let mut fuse = Fuse::new(AeadBehaviour::FailAtNthDecrypt(1));
+    let fuse = Fuse::new(AeadBehaviour::FailAtNthDecrypt(1));
 
     assert_injected!(fuse.at_decrypt());
 
@@ -112,7 +112,7 @@ fn test_at_decrypt_lets_the_calls_after_the_nth_through() {
 
 #[test]
 fn test_at_decrypt_lets_another_operations_behaviour_through() {
-    let mut fuse = Fuse::new(AeadBehaviour::FailAtNthEncrypt(1));
+    let fuse = Fuse::new(AeadBehaviour::FailAtNthEncrypt(1));
 
     assert_passes!(fuse.at_decrypt(), "a decrypt under an encrypt behaviour");
 }
@@ -123,14 +123,14 @@ fn test_at_decrypt_lets_another_operations_behaviour_through() {
 
 #[test]
 fn test_at_generate_nonce_reports_injected_at_the_first_call() {
-    let mut fuse = Fuse::new(AeadBehaviour::FailAtNthGenerateNonce(1));
+    let fuse = Fuse::new(AeadBehaviour::FailAtNthGenerateNonce(1));
 
     assert_no_nonce!(fuse.at_generate_nonce());
 }
 
 #[test]
 fn test_at_generate_nonce_reports_injected_at_the_nth_call() {
-    let mut fuse = Fuse::new(AeadBehaviour::FailAtNthGenerateNonce(3));
+    let fuse = Fuse::new(AeadBehaviour::FailAtNthGenerateNonce(3));
 
     assert_passes!(fuse.at_generate_nonce(), "the first call");
     assert_passes!(fuse.at_generate_nonce(), "the second call");
@@ -140,7 +140,7 @@ fn test_at_generate_nonce_reports_injected_at_the_nth_call() {
 
 #[test]
 fn test_at_generate_nonce_lets_the_calls_after_the_nth_through() {
-    let mut fuse = Fuse::new(AeadBehaviour::FailAtNthGenerateNonce(1));
+    let fuse = Fuse::new(AeadBehaviour::FailAtNthGenerateNonce(1));
 
     assert_no_nonce!(fuse.at_generate_nonce());
 
@@ -152,7 +152,7 @@ fn test_at_generate_nonce_lets_the_calls_after_the_nth_through() {
 
 #[test]
 fn test_at_generate_nonce_lets_another_operations_behaviour_through() {
-    let mut fuse = Fuse::new(AeadBehaviour::FailAtNthEncrypt(1));
+    let fuse = Fuse::new(AeadBehaviour::FailAtNthEncrypt(1));
 
     assert_passes!(
         fuse.at_generate_nonce(),

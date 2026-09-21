@@ -123,10 +123,10 @@ pub(crate) fn encrypt_into_buffers<const N: usize>(
 #[inline(always)]
 fn try_decrypt_from<const N: usize>(
     fields: &mut [&mut dyn Decryptable; N],
-    aead: &mut Aead,
+    aead: &Aead,
     aead_key: &[u8],
-    nonces: &mut Nonces<N>,
-    tags: &mut Tags<N>,
+    nonces: &Nonces<N>,
+    tags: &Tags<N>,
     ciphertexts: &mut Ciphertexts<N>,
 ) -> Result<(), CipherBoxError> {
     for (idx, field) in fields.iter_mut().enumerate() {
@@ -143,10 +143,10 @@ fn try_decrypt_from<const N: usize>(
 
 pub fn decrypt_from<const N: usize>(
     fields: &mut [&mut dyn Decryptable; N],
-    aead: &mut Aead,
+    aead: &Aead,
     aead_key: &[u8],
-    nonces: &mut Nonces<N>,
-    tags: &mut Tags<N>,
+    nonces: &Nonces<N>,
+    tags: &Tags<N>,
     ciphertexts: &mut Ciphertexts<N>,
 ) -> Result<(), CipherBoxError> {
     let result = try_decrypt_from(fields, aead, aead_key, nonces, tags, ciphertexts);
