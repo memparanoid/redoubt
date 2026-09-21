@@ -280,19 +280,21 @@ mod page_tests {
 
     #[test]
     #[cfg_attr(not(miri), serial(page))]
-    fn test_multiple_protect_unprotect_cycles() {
-        let mut page = Page::new().expect("Failed to new()");
+    fn test_multiple_protect_unprotect_cycles() -> Result<(), Box<dyn std::error::Error>> {
+        let mut page = Page::new()?;
 
         for i in 0..5u8 {
             unsafe { page.as_mut_slice()[0] = i };
 
-            page.protect().expect("Failed to protect()");
-            page.unprotect().expect("Failed to unprotect()");
+            page.protect()?;
+            page.unprotect()?;
 
             let value = unsafe { page.as_slice()[0] };
 
             assert_eq!(value, i);
         }
+
+        Ok(())
     }
 
     #[cfg(target_os = "linux")]
