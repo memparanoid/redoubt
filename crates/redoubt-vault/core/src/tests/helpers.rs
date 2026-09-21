@@ -367,7 +367,7 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encrypt_failure()
 }
 
 #[test]
-fn test_encrypt_into_buffers_ok() {
+fn test_encrypt_into_buffers_ok() -> Result<(), Box<dyn std::error::Error>> {
     let mut test_breakers =
         [RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100); NUM_FIELDS];
     let mut aead = Aead::default();
@@ -376,7 +376,7 @@ fn test_encrypt_into_buffers_ok() {
     let fields = test_breakers
         .each_mut()
         .map(|tb| to_encryptable_mut_dyn(tb));
-    let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
+    let sizes = get_sizes(&fields)?;
     let mut buffers: [RedoubtCodecBuffer; NUM_FIELDS] =
         sizes.map(RedoubtCodecBuffer::with_capacity);
     let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
@@ -401,6 +401,8 @@ fn test_encrypt_into_buffers_ok() {
 
     // Assert zeroization!
     assert!(buffers.is_zeroized());
+
+    Ok(())
 }
 
 // =============================================================================
