@@ -152,19 +152,16 @@ fn test_vec_decode_propagates_decode_err() -> Result<(), Box<dyn std::error::Err
 // Roundtrip
 
 #[test]
-fn test_vec_encode_decode_roundtrip() {
+fn test_vec_encode_decode_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     // Encode
     let mut vec = vec![
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 7),
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 37),
     ];
-    let bytes_required = vec
-        .encode_bytes_required()
-        .expect("Failed to get encode_bytes_required()");
+    let bytes_required = vec.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
 
-    vec.encode_into(&mut buf)
-        .expect("Failed to encode_into(..)");
+    vec.encode_into(&mut buf)?;
 
     // Decode
     {
@@ -192,6 +189,8 @@ fn test_vec_encode_decode_roundtrip() {
     // Assert zeroization!
     assert!(buf.is_zeroized());
     assert!(vec.is_zeroized());
+
+    Ok(())
 }
 
 // Perm tests
