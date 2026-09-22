@@ -30,7 +30,7 @@ mod tests {
 
     #[test]
     fn test_cipherbox_wrapper_open() -> Result<(), Box<dyn std::error::Error>> {
-        let mut cb = WalletSecretsCipherBox::new();
+        let cb = WalletSecretsCipherBox::new();
 
         cb.open(|ws| {
             assert!(ws.master_seed.is_zeroized());
@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn test_custom_error_intentional_failure() {
-        let mut cb = CustomErrorBox::new();
+        let cb = CustomErrorBox::new();
         let result: Result<ZeroizingGuard<()>, CustomError> =
             cb.open(|_| Err(CustomError::IntentionalCustomError));
 

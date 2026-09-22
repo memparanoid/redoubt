@@ -84,7 +84,7 @@ impl EpsilonBox {
     }
     #[inline(always)]
     pub fn open<F, R>(
-        &mut self,
+        &self,
         f: F,
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where

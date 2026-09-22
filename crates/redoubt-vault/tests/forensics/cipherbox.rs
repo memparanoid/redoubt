@@ -340,7 +340,7 @@ fn test_a_box_given_away_leaves_nothing() -> Result<(), AnyError> {
 /// secret and turn this red, and cannot invent one.
 #[test]
 fn test_the_secret_is_found_while_the_box_is_open() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watch, _) = filled()?;
 
     let mut inside = None;
 
@@ -362,7 +362,7 @@ fn test_the_secret_is_found_while_the_box_is_open() -> Result<(), AnyError> {
 /// Reading the whole struct, which decrypts all four shapes at once.
 #[test]
 fn test_open_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watch, report_before) = filled()?;
 
     forensics!({
         for _ in 0..ROUNDS {

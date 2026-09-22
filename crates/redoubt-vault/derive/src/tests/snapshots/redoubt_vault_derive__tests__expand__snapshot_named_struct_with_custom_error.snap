@@ -84,7 +84,7 @@ impl WithCustomErrorBox {
     }
     #[inline(always)]
     pub fn open<F, R>(
-        &mut self,
+        &self,
         f: F,
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, MyCustomError>
     where

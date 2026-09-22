@@ -22,7 +22,7 @@ fn test_failure_injection() {
     // Failure injection works with all open methods:
     // open, open_mut, open_seed, open_seed_mut, leak_seed, etc.
 
-    let mut wallet = WalletBox::new();
+    let wallet = WalletBox::new();
 
     // Fail on first call
     wallet.set_failure_mode(WalletBoxFailureMode::FailOnNthOperation(1));

@@ -891,7 +891,7 @@ fn expand(
             }
 
             #[inline(always)]
-            pub fn open<F, R>(&mut self, f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
+            pub fn open<F, R>(&self, f: F) -> Result<#redoubt_zero_root::ZeroizingGuard<R>, #error_type>
             where
                 F: FnMut(&#struct_name) -> Result<R, #error_type>,
                 R: Default + #redoubt_zero_root::FastZeroizable + #redoubt_zero_root::ZeroizationProbe,
