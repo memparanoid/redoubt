@@ -137,6 +137,45 @@ jobs:
         run: cargo test --workspace --all-features --doc
 
   # ==========================================================================
+  # Constant time
+  # ==========================================================================
+
+  # Linux alone, because Memcheck is what answers and Valgrind runs nowhere
+  # else. What it reads is `release`: the question is which instructions branch
+  # on the secret, and those are the optimiser's.
+  #
+  # Both architectures, because the comparison is a different file on each —
+  # `ct_eq_x86_64.S` and `ct_eq_aarch64.S` — and a run on one says nothing
+  # about the other.
+  constant-time:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Constant time x86_64
+          - os: ubuntu-24.04-arm
+            name: Constant time aarch64
+
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # `libclang-dev` for `bindgen`, which `crabgrind` generates its bindings
+      # with. The Valgrind headers arrive with `valgrind` itself and land where
+      # clang already looks, so nothing here names a path.
+      - name: Install valgrind
+        run: sudo apt-get update && sudo apt-get install -y valgrind libclang-dev
+
+      - name: scripts/constant-time.sh
+        run: ./scripts/constant-time.sh
+
+  # ==========================================================================
   # The other C library
   # ==========================================================================
 

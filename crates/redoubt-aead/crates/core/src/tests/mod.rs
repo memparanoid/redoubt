@@ -6,3 +6,6 @@
 mod asm;
 
 mod backend;
+
+#[cfg(feature = "constant-time")]
+mod constant_time;
