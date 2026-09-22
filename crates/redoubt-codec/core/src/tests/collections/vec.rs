@@ -384,7 +384,7 @@ fn test_vec_with_varying_capacities() {
     const COUNT: usize = 250;
 
     let set: Vec<_> = (0..COUNT)
-        .map(|i| RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i))
+        .map(|i| RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i as u32))
         .collect();
 
     test_collection_varying_capacities(
@@ -448,7 +448,7 @@ fn test_vec_prealloc_zeroizes_large_vec() {
     const COUNT: usize = 10_000;
 
     let mut vec: Vec<RedoubtCodecTestBreaker> = (0..COUNT)
-        .map(|i| RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i))
+        .map(|i| RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i as u32))
         .collect();
 
     vec_prealloc(&mut vec, COUNT / 2, false);
@@ -486,7 +486,7 @@ fn stress_test_vec_clear_push_encode_decode_cycles() -> Result<(), Box<dyn std::
     const SIZE: usize = 1000;
 
     let original: Vec<RedoubtCodecTestBreaker> = (0..SIZE)
-        .map(|i| RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i))
+        .map(|i| RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i as u32))
         .collect();
 
     let mut vec = Vec::new();

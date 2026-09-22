@@ -6,6 +6,7 @@ use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError, RedoubtCodecBufferError};
 use crate::support::test_utils::{RedoubtCodecTestBreaker, RedoubtCodecTestBreakerBehaviour};
 use crate::traits::{BytesRequired, Decode, Encode};
+use crate::types::Len;
 
 use redoubt_zero::ZeroizationProbe;
 
@@ -15,7 +16,7 @@ use redoubt_zero::ZeroizationProbe;
 fn test_bytes_required_none() -> Result<(), Box<dyn std::error::Error>> {
     let opt: Option<RedoubtCodecTestBreaker> = None;
     let bytes_required = opt.encode_bytes_required()?;
-    assert_eq!(bytes_required, 2 * size_of::<usize>());
+    assert_eq!(bytes_required, 2 * size_of::<Len>());
 
     Ok(())
 }
@@ -27,8 +28,7 @@ fn test_bytes_required_some() -> Result<(), Box<dyn std::error::Error>> {
         42,
     ));
     let bytes_required = opt.encode_bytes_required()?;
-    // Header (2 * usize) + RedoubtCodecTestBreaker (2 * usize)
-    let expected = 4 * size_of::<usize>();
+    let expected = 2 * size_of::<Len>() + 2 * size_of::<u32>();
     assert_eq!(bytes_required, expected);
 
     Ok(())
@@ -153,8 +153,8 @@ fn test_option_decode_from_propagates_invalid_size_value() -> Result<(), Box<dyn
 
     // Create a buffer with invalid size value (2, should be 0 or 1)
     let mut buf = RedoubtCodecBuffer::with_capacity(1024);
-    let mut size = 2usize;
-    let mut bytes_required = 2 * size_of::<usize>();
+    let mut size: Len = 2;
+    let mut bytes_required = 2 * size_of::<Len>() as Len;
 
     buf.write(&mut size)?;
     buf.write(&mut bytes_required)?;

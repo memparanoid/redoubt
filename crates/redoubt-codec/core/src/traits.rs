@@ -69,7 +69,6 @@ pub trait DecodeSlice: Decode + Sized {
 }
 
 pub trait DecodeBuffer {
-    fn read_usize(&mut self, dst: &mut usize) -> Result<(), DecodeBufferError>;
     fn read<T>(&mut self, dst: &mut T) -> Result<(), DecodeBufferError>;
     fn read_slice<T>(&mut self, dst: &mut [T]) -> Result<(), DecodeBufferError>;
 }

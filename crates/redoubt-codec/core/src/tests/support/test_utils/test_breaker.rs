@@ -23,7 +23,7 @@ fn test_behaviour_default() {
 fn test_default() {
     let tb = RedoubtCodecTestBreaker::default();
     assert_eq!(tb.behaviour, RedoubtCodecTestBreakerBehaviour::None);
-    assert_eq!(tb.usize.data, 104729);
+    assert_eq!(tb.number.data, 104729);
 }
 
 #[test]
@@ -33,7 +33,7 @@ fn test_new() {
         tb.behaviour,
         RedoubtCodecTestBreakerBehaviour::ForceEncodeError
     );
-    assert_eq!(tb.usize.data, 512);
+    assert_eq!(tb.number.data, 512);
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn test_with_behaviour() {
         tb.behaviour,
         RedoubtCodecTestBreakerBehaviour::ForceEncodeError
     );
-    assert_eq!(tb.usize.data, 104729);
+    assert_eq!(tb.number.data, 104729);
 }
 
 #[test]
@@ -152,12 +152,39 @@ fn test_force_decode_error() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[test]
+fn test_decode_reports_a_tampered_magic() -> Result<(), Box<dyn std::error::Error>> {
+    let mut tb = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 100);
+    let bytes_required = tb.encode_bytes_required()?;
+
+    let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
+    tb.encode_into(&mut buf)?;
+
+    let mut decode_buf = buf.export_as_vec();
+
+    // The magic goes in last, so the final byte is one of its own. Taken from
+    // the end rather than at an offset, which would have to be kept in step
+    // with the fields before it.
+    let last = decode_buf.len() - 1;
+    decode_buf[last] ^= 0xFF;
+
+    let mut decoded = RedoubtCodecTestBreaker::default();
+    let result = decoded.decode_from(&mut decode_buf.as_mut_slice());
+
+    assert!(matches!(result, Err(DecodeError::IntentionalDecodeError)));
+
+    // Assert zeroization!
+    assert!(decode_buf.is_zeroized());
+
+    Ok(())
+}
+
 // Roundtrip (Encode + Decode)
 
 #[test]
 fn test_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     let mut original = RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, 256);
-    let original_usize = original.usize;
+    let original_number = original.number;
 
     let bytes_required = original.encode_bytes_required()?;
     let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
@@ -167,7 +194,7 @@ fn test_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
     let mut decoded = RedoubtCodecTestBreaker::default();
     decoded.decode_from(&mut decode_buf.as_mut_slice())?;
 
-    assert_eq!(decoded.usize, original_usize);
+    assert_eq!(decoded.number, original_number);
 
     // Assert zeroization!
     assert!(buf.is_zeroized());
@@ -219,12 +246,12 @@ fn test_zero_init_is_false() {
 #[test]
 fn test_prealloc() {
     let mut tb = RedoubtCodecTestBreaker::default();
-    assert_eq!(tb.usize.data, 104729);
+    assert_eq!(tb.number.data, 104729);
 
     // PreAlloc is no-op for RedoubtCodecTestBreaker (ZERO_INIT = false)
     tb.prealloc(999);
 
     // Data should remain unchanged
-    assert_eq!(tb.usize.data, 104729);
+    assert_eq!(tb.number.data, 104729);
     assert_eq!(tb.behaviour, RedoubtCodecTestBreakerBehaviour::None);
 }

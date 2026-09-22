@@ -8,16 +8,16 @@ use crate::traits::DecodeBuffer;
 #[test]
 fn test_decode_buffer_reports_out_of_bounds_error() {
     let mut bytes = [0u8; 1];
-    let mut dst = 0;
-    let result = bytes.as_mut_slice().read_usize(&mut dst);
+    let mut dst = 0u64;
+    let result = bytes.as_mut_slice().read(&mut dst);
 
     assert!(result.is_err());
     assert!(matches!(result, Err(DecodeBufferError::OutOfBounds)))
 }
 
 #[test]
-fn test_decode_buffer_read_usize() -> Result<(), Box<dyn std::error::Error>> {
-    let values = [1usize, 2, 3, 4, 5, 6];
+fn test_decode_buffer_read() -> Result<(), Box<dyn std::error::Error>> {
+    let values = [1u64, 2, 3, 4, 5, 6];
     let mut bytes = Vec::new();
 
     // Push each value as native endian bytes
@@ -29,8 +29,8 @@ fn test_decode_buffer_read_usize() -> Result<(), Box<dyn std::error::Error>> {
 
     // Read back and verify
     for &expected in &values {
-        let mut dst = 0;
-        slice.read_usize(&mut dst)?;
+        let mut dst = 0u64;
+        slice.read(&mut dst)?;
         assert_eq!(dst, expected);
     }
 
@@ -39,7 +39,7 @@ fn test_decode_buffer_read_usize() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn test_decode_buffer_read_slice() -> Result<(), Box<dyn std::error::Error>> {
-    let values = [1usize, 2, 3, 4, 5, 6];
+    let values = [1u64, 2, 3, 4, 5, 6];
     let mut bytes = Vec::new();
 
     // Push each value as native endian bytes
@@ -48,7 +48,7 @@ fn test_decode_buffer_read_slice() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let mut slice = bytes.as_mut_slice();
-    let mut dst = [0usize; 6];
+    let mut dst = [0u64; 6];
 
     // Read all values at once
     slice.read_slice(&mut dst)?;

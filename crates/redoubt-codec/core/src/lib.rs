@@ -21,6 +21,7 @@ mod decode_buffer;
 mod error;
 mod primitives;
 mod traits;
+mod types;
 
 pub mod collections;
 

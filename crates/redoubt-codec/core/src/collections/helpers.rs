@@ -2,18 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use core::sync::atomic::{Ordering, compiler_fence};
+
 use smallvec::SmallVec;
 
-use core::sync::atomic::{Ordering, compiler_fence};
 use redoubt_zero::FastZeroizable;
+use redoubt_zero::ZeroizingGuard;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::error::{DecodeError, EncodeError, OverflowError, RedoubtCodecBufferError};
 use crate::traits::{BytesRequired, Decode, DecodeBuffer, DecodeZeroize, Encode, EncodeZeroize};
-use redoubt_zero::ZeroizingGuard;
+use crate::types::Len;
 
 pub fn header_size() -> usize {
-    2 * size_of::<usize>()
+    2 * size_of::<Len>()
 }
 
 #[inline(always)]
@@ -22,8 +24,8 @@ pub fn write_header(
     size: &mut usize,
     bytes_required: &mut usize,
 ) -> Result<(), RedoubtCodecBufferError> {
-    buf.write(size)?;
-    buf.write(bytes_required)?;
+    buf.write(&mut (*size as Len))?;
+    buf.write(&mut (*bytes_required as Len))?;
 
     Ok(())
 }
@@ -36,26 +38,35 @@ pub fn process_header(buf: &mut &mut [u8], output_size: &mut usize) -> Result<()
         return Err(DecodeError::PreconditionViolated);
     }
 
-    // Infallible: precondition ensures buf.len() >= header_size (2 * usize)
+    // Infallible: precondition ensures buf.len() >= header_size
     // Error branch kept for panic-free guarantees, cannot be tested
-    buf.read_usize(output_size)?;
+    let mut size = ZeroizingGuard::from_mut(&mut Len::default());
+    buf.read(&mut *size)?;
 
     // bytes_required is only used internally for validation
-    let mut bytes_required = ZeroizingGuard::from_mut(&mut 0usize);
+    let mut bytes_required = ZeroizingGuard::from_mut(&mut Len::default());
 
-    // Infallible: precondition ensures buf.len() >= header_size (2 * usize)
+    // Infallible: precondition ensures buf.len() >= header_size
     // Error branch kept for panic-free guarantees, cannot be tested
-    buf.read_usize(&mut bytes_required)?;
+    buf.read(&mut *bytes_required)?;
 
-    if *header_size > *bytes_required {
+    // Compared as they were written, so nothing has to fit in a `usize` before
+    // it has been found to be inside the payload that is here.
+    let header_size_on_the_wire = *header_size as Len;
+
+    if header_size_on_the_wire > *bytes_required {
         return Err(DecodeError::PreconditionViolated);
     }
 
-    let expected_len = ZeroizingGuard::from_mut(&mut (*bytes_required - *header_size));
+    let expected_len = ZeroizingGuard::from_mut(&mut (*bytes_required - header_size_on_the_wire));
 
-    if buf.len() < *expected_len {
+    if (buf.len() as Len) < *expected_len {
         return Err(DecodeError::PreconditionViolated);
     }
+
+    // Uncovered: the `Err`. A `Len` is eight bytes and so is a `usize` on every
+    // target this runs on; the branch is what a sixteen-bit one would take.
+    *output_size = usize::try_from(*size).map_err(|_| DecodeError::PreconditionViolated)?;
 
     Ok(())
 }

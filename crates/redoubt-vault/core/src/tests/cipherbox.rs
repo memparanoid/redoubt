@@ -725,7 +725,7 @@ fn test_open_dyn_propagates_assert_healthy_error() -> Result<(), BoxError> {
 
     boxed.fast_zeroize();
 
-    let result = boxed.open_dyn::<usize, CipherBoxError>(&mut |it| Ok(it.f0.usize.data));
+    let result = boxed.open_dyn::<u32, CipherBoxError>(&mut |it| Ok(it.f0.number.data));
 
     assert!(matches!(result, Err(CipherBoxError::Zeroized)));
 
@@ -737,7 +737,7 @@ fn test_open_dyn_propagates_open_value_error() -> Result<(), BoxError> {
     let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
     let boxed = sealed(aead)?;
 
-    let result = boxed.open_dyn::<usize, CipherBoxError>(&mut |it| Ok(it.f0.usize.data));
+    let result = boxed.open_dyn::<u32, CipherBoxError>(&mut |it| Ok(it.f0.number.data));
 
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
 
@@ -749,7 +749,7 @@ fn test_open_dyn_propagates_callback_error() -> Result<(), BoxError> {
     let boxed = sealed(Aead::default())?;
 
     let result = boxed
-        .open_dyn::<usize, CipherBoxError>(&mut |_| Err(CipherBoxError::IntentionalCipherBoxError));
+        .open_dyn::<u32, CipherBoxError>(&mut |_| Err(CipherBoxError::IntentionalCipherBoxError));
 
     assert!(matches!(
         result,
@@ -766,7 +766,7 @@ fn test_open_dyn_leaves_the_box_healthy_after_a_callback_error() -> Result<(), B
     let boxed = sealed(Aead::default())?;
 
     let result = boxed
-        .open_dyn::<usize, CipherBoxError>(&mut |_| Err(CipherBoxError::IntentionalCipherBoxError));
+        .open_dyn::<u32, CipherBoxError>(&mut |_| Err(CipherBoxError::IntentionalCipherBoxError));
 
     assert!(result.is_err());
     assert!(boxed.assert_healthy().is_ok());
@@ -777,9 +777,9 @@ fn test_open_dyn_leaves_the_box_healthy_after_a_callback_error() -> Result<(), B
 #[test]
 fn test_open_dyn_returns_what_the_callback_returned() -> Result<(), BoxError> {
     let boxed = sealed(Aead::default())?;
-    let expected = TestBox::default().f0.usize.data;
+    let expected = TestBox::default().f0.number.data;
 
-    let result = boxed.open_dyn::<usize, CipherBoxError>(&mut |it| Ok(it.f0.usize.data))?;
+    let result = boxed.open_dyn::<u32, CipherBoxError>(&mut |it| Ok(it.f0.number.data))?;
 
     assert_eq!(*result, expected);
 
@@ -801,7 +801,7 @@ fn test_open_value_returns_the_default_without_reaching_the_master_key() -> Resu
 
     let value = boxed.open_value()?;
 
-    assert_eq!(value.f0.usize.data, TestBox::default().f0.usize.data);
+    assert_eq!(value.f0.number.data, TestBox::default().f0.number.data);
 
     Ok(())
 }
@@ -834,11 +834,11 @@ fn test_open_value_propagates_decrypt_struct_error() -> Result<(), BoxError> {
 #[test]
 fn test_open_value_returns_what_was_sealed() -> Result<(), BoxError> {
     let boxed = sealed(Aead::default())?;
-    let expected = TestBox::default().f5.usize.data;
+    let expected = TestBox::default().f5.number.data;
 
     let value = boxed.open_value()?;
 
-    assert_eq!(value.f5.usize.data, expected);
+    assert_eq!(value.f5.number.data, expected);
 
     Ok(())
 }
@@ -853,7 +853,7 @@ fn test_open_mut_dyn_propagates_assert_healthy_error() -> Result<(), BoxError> {
 
     boxed.fast_zeroize();
 
-    let result = boxed.open_mut_dyn::<usize, CipherBoxError>(&mut |it| Ok(it.f0.usize.data));
+    let result = boxed.open_mut_dyn::<u32, CipherBoxError>(&mut |it| Ok(it.f0.number.data));
 
     assert!(matches!(result, Err(CipherBoxError::Zeroized)));
 
@@ -868,7 +868,7 @@ fn test_open_mut_dyn_propagates_leak_master_key_error() -> Result<(), BoxError> 
 
     boxed.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
 
-    let result = boxed.open_mut_dyn::<usize, CipherBoxError>(&mut |it| Ok(it.f0.usize.data));
+    let result = boxed.open_mut_dyn::<u32, CipherBoxError>(&mut |it| Ok(it.f0.number.data));
 
     assert!(matches!(result, Err(CipherBoxError::Buffer(_))));
     assert!(boxed.assert_healthy().is_ok());
@@ -881,7 +881,7 @@ fn test_open_mut_dyn_propagates_decrypt_struct_error() -> Result<(), BoxError> {
     let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
     let mut boxed = sealed(aead)?;
 
-    let result = boxed.open_mut_dyn::<usize, CipherBoxError>(&mut |it| Ok(it.f0.usize.data));
+    let result = boxed.open_mut_dyn::<u32, CipherBoxError>(&mut |it| Ok(it.f0.number.data));
 
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
 
@@ -892,7 +892,7 @@ fn test_open_mut_dyn_propagates_decrypt_struct_error() -> Result<(), BoxError> {
 fn test_open_mut_dyn_propagates_callback_error() -> Result<(), BoxError> {
     let mut boxed = sealed(Aead::default())?;
 
-    let result = boxed.open_mut_dyn::<usize, CipherBoxError>(&mut |_| {
+    let result = boxed.open_mut_dyn::<u32, CipherBoxError>(&mut |_| {
         Err(CipherBoxError::IntentionalCipherBoxError)
     });
 
@@ -911,8 +911,8 @@ fn test_open_mut_dyn_rolls_back_a_callback_error() -> Result<(), BoxError> {
     let mut boxed = sealed(Aead::default())?;
     let before = boxed.__unsafe_get_ciphertexts().clone();
 
-    let result = boxed.open_mut_dyn::<usize, CipherBoxError>(&mut |it| {
-        it.f0.usize.data = 999;
+    let result = boxed.open_mut_dyn::<u32, CipherBoxError>(&mut |it| {
+        it.f0.number.data = 999;
 
         Err(CipherBoxError::IntentionalCipherBoxError)
     });
@@ -931,8 +931,8 @@ fn test_open_mut_dyn_propagates_encrypt_struct_error() -> Result<(), BoxError> {
     let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(NUM_FIELDS + 1));
     let mut boxed = sealed(aead)?;
 
-    let result = boxed.open_mut_dyn::<usize, CipherBoxError>(&mut |it| {
-        it.f0.usize.data = 999;
+    let result = boxed.open_mut_dyn::<u32, CipherBoxError>(&mut |it| {
+        it.f0.number.data = 999;
 
         Ok(0)
     });
@@ -949,15 +949,15 @@ fn test_open_mut_dyn_propagates_encrypt_struct_error() -> Result<(), BoxError> {
 fn test_open_mut_dyn_seals_an_unsealed_box_with_what_the_callback_wrote() -> Result<(), BoxError> {
     let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(Aead::default());
 
-    boxed.open_mut_dyn::<usize, CipherBoxError>(&mut |it| {
-        it.f0.usize.data = 999;
+    boxed.open_mut_dyn::<u32, CipherBoxError>(&mut |it| {
+        it.f0.number.data = 999;
 
         Ok(0)
     })?;
 
     let value = boxed.open_value()?;
 
-    assert_eq!(value.f0.usize.data, 999);
+    assert_eq!(value.f0.number.data, 999);
 
     Ok(())
 }
@@ -966,15 +966,15 @@ fn test_open_mut_dyn_seals_an_unsealed_box_with_what_the_callback_wrote() -> Res
 fn test_open_mut_dyn_commits_what_the_callback_wrote() -> Result<(), BoxError> {
     let mut boxed = sealed(Aead::default())?;
 
-    boxed.open_mut_dyn::<usize, CipherBoxError>(&mut |it| {
-        it.f3.usize.data = 12345;
+    boxed.open_mut_dyn::<u32, CipherBoxError>(&mut |it| {
+        it.f3.number.data = 12345;
 
         Ok(0)
     })?;
 
     let value = boxed.open_value()?;
 
-    assert_eq!(value.f3.usize.data, 12345);
+    assert_eq!(value.f3.number.data, 12345);
 
     Ok(())
 }
@@ -990,8 +990,8 @@ fn test_open_field_dyn_propagates_assert_healthy_error() -> Result<(), BoxError>
     boxed.fast_zeroize();
 
     let result =
-        boxed.open_field_dyn::<RedoubtCodecTestBreaker, 1, usize, CipherBoxError>(&mut |it| {
-            Ok(it.usize.data)
+        boxed.open_field_dyn::<RedoubtCodecTestBreaker, 1, u32, CipherBoxError>(&mut |it| {
+            Ok(it.number.data)
         });
 
     assert!(matches!(result, Err(CipherBoxError::Zeroized)));
@@ -1005,8 +1005,8 @@ fn test_open_field_dyn_propagates_open_field_value_error() -> Result<(), BoxErro
     let boxed = sealed(aead)?;
 
     let result =
-        boxed.open_field_dyn::<RedoubtCodecTestBreaker, 1, usize, CipherBoxError>(&mut |it| {
-            Ok(it.usize.data)
+        boxed.open_field_dyn::<RedoubtCodecTestBreaker, 1, u32, CipherBoxError>(&mut |it| {
+            Ok(it.number.data)
         });
 
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
@@ -1019,7 +1019,7 @@ fn test_open_field_dyn_propagates_callback_error() -> Result<(), BoxError> {
     let boxed = sealed(Aead::default())?;
 
     let result =
-        boxed.open_field_dyn::<RedoubtCodecTestBreaker, 1, usize, CipherBoxError>(&mut |_| {
+        boxed.open_field_dyn::<RedoubtCodecTestBreaker, 1, u32, CipherBoxError>(&mut |_| {
             Err(CipherBoxError::IntentionalCipherBoxError)
         });
 
@@ -1034,11 +1034,11 @@ fn test_open_field_dyn_propagates_callback_error() -> Result<(), BoxError> {
 #[test]
 fn test_open_field_dyn_returns_what_the_callback_returned() -> Result<(), BoxError> {
     let boxed = sealed(Aead::default())?;
-    let expected = TestBox::default().f1.usize.data;
+    let expected = TestBox::default().f1.number.data;
 
     let result =
-        boxed.open_field_dyn::<RedoubtCodecTestBreaker, 1, usize, CipherBoxError>(&mut |it| {
-            Ok(it.usize.data)
+        boxed.open_field_dyn::<RedoubtCodecTestBreaker, 1, u32, CipherBoxError>(&mut |it| {
+            Ok(it.number.data)
         })?;
 
     assert_eq!(*result, expected);
@@ -1063,8 +1063,8 @@ fn test_open_field_value_returns_the_default_without_reaching_the_master_key()
     let field = boxed.open_field_value::<RedoubtCodecTestBreaker, 1>()?;
 
     assert_eq!(
-        field.usize.data,
-        RedoubtCodecTestBreaker::default().usize.data
+        field.number.data,
+        RedoubtCodecTestBreaker::default().number.data
     );
 
     Ok(())
@@ -1102,11 +1102,11 @@ fn test_open_field_value_propagates_decrypt_field_error() -> Result<(), BoxError
 #[test]
 fn test_open_field_value_returns_what_was_sealed() -> Result<(), BoxError> {
     let boxed = sealed(Aead::default())?;
-    let expected = TestBox::default().f4.usize.data;
+    let expected = TestBox::default().f4.number.data;
 
     let field = boxed.open_field_value::<RedoubtCodecTestBreaker, 4>()?;
 
-    assert_eq!(field.usize.data, expected);
+    assert_eq!(field.number.data, expected);
 
     Ok(())
 }
@@ -1122,8 +1122,8 @@ fn test_open_field_mut_dyn_propagates_assert_healthy_error() -> Result<(), BoxEr
     boxed.fast_zeroize();
 
     let result =
-        boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 1, usize, CipherBoxError>(&mut |it| {
-            Ok(it.usize.data)
+        boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 1, u32, CipherBoxError>(&mut |it| {
+            Ok(it.number.data)
         });
 
     assert!(matches!(result, Err(CipherBoxError::Zeroized)));
@@ -1137,8 +1137,8 @@ fn test_open_field_mut_dyn_propagates_maybe_initialize_error() -> Result<(), Box
     let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(aead);
 
     let result =
-        boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 1, usize, CipherBoxError>(&mut |it| {
-            Ok(it.usize.data)
+        boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 1, u32, CipherBoxError>(&mut |it| {
+            Ok(it.number.data)
         });
 
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
@@ -1158,8 +1158,8 @@ fn test_open_field_mut_dyn_propagates_leak_master_key_error() -> Result<(), BoxE
     boxed.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
 
     let result =
-        boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 1, usize, CipherBoxError>(&mut |it| {
-            Ok(it.usize.data)
+        boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 1, u32, CipherBoxError>(&mut |it| {
+            Ok(it.number.data)
         });
 
     assert!(matches!(result, Err(CipherBoxError::Buffer(_))));
@@ -1174,8 +1174,8 @@ fn test_open_field_mut_dyn_propagates_decrypt_field_error() -> Result<(), BoxErr
     let mut boxed = sealed(aead)?;
 
     let result =
-        boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 1, usize, CipherBoxError>(&mut |it| {
-            Ok(it.usize.data)
+        boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 1, u32, CipherBoxError>(&mut |it| {
+            Ok(it.number.data)
         });
 
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
@@ -1189,7 +1189,7 @@ fn test_open_field_mut_dyn_propagates_callback_error() -> Result<(), BoxError> {
     let mut boxed = sealed(Aead::default())?;
 
     let result =
-        boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 1, usize, CipherBoxError>(&mut |_| {
+        boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 1, u32, CipherBoxError>(&mut |_| {
             Err(CipherBoxError::IntentionalCipherBoxError)
         });
 
@@ -1209,8 +1209,8 @@ fn test_open_field_mut_dyn_propagates_encrypt_field_error() -> Result<(), BoxErr
     let mut boxed = sealed(aead)?;
 
     let result =
-        boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 1, usize, CipherBoxError>(&mut |it| {
-            it.usize.data = 999;
+        boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 1, u32, CipherBoxError>(&mut |it| {
+            it.number.data = 999;
 
             Ok(0)
         });
@@ -1228,8 +1228,8 @@ fn test_open_field_mut_dyn_propagates_encrypt_field_error() -> Result<(), BoxErr
 fn test_open_field_mut_dyn_seals_every_field_of_an_unsealed_box() -> Result<(), BoxError> {
     let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(Aead::default());
 
-    boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 1, usize, CipherBoxError>(&mut |it| {
-        it.usize.data = 777;
+    boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 1, u32, CipherBoxError>(&mut |it| {
+        it.number.data = 777;
 
         Ok(0)
     })?;
@@ -1243,7 +1243,7 @@ fn test_open_field_mut_dyn_seals_every_field_of_an_unsealed_box() -> Result<(), 
 
     let value = boxed.open_value()?;
 
-    assert_eq!(value.f1.usize.data, 777);
+    assert_eq!(value.f1.number.data, 777);
 
     Ok(())
 }
@@ -1252,15 +1252,15 @@ fn test_open_field_mut_dyn_seals_every_field_of_an_unsealed_box() -> Result<(), 
 fn test_open_field_mut_dyn_commits_what_the_callback_wrote() -> Result<(), BoxError> {
     let mut boxed = sealed(Aead::default())?;
 
-    boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 2, usize, CipherBoxError>(&mut |it| {
-        it.usize.data = 4242;
+    boxed.open_field_mut_dyn::<RedoubtCodecTestBreaker, 2, u32, CipherBoxError>(&mut |it| {
+        it.number.data = 4242;
 
         Ok(0)
     })?;
 
     let field = boxed.open_field_value::<RedoubtCodecTestBreaker, 2>()?;
 
-    assert_eq!(field.usize.data, 4242);
+    assert_eq!(field.number.data, 4242);
 
     Ok(())
 }
@@ -1274,9 +1274,9 @@ fn test_open_field_mut_dyn_commits_what_the_callback_wrote() -> Result<(), BoxEr
 #[test]
 fn test_open_hands_the_struct_to_the_closure() -> Result<(), BoxError> {
     let boxed = sealed(Aead::default())?;
-    let expected = TestBox::default().f2.usize.data;
+    let expected = TestBox::default().f2.number.data;
 
-    let result = boxed.open::<_, usize, CipherBoxError>(|it| Ok(it.f2.usize.data))?;
+    let result = boxed.open::<_, u32, CipherBoxError>(|it| Ok(it.f2.number.data))?;
 
     assert_eq!(*result, expected);
 
@@ -1289,7 +1289,7 @@ fn test_open_propagates_open_dyn_error() -> Result<(), BoxError> {
 
     boxed.fast_zeroize();
 
-    let result = boxed.open::<_, usize, CipherBoxError>(|it| Ok(it.f2.usize.data));
+    let result = boxed.open::<_, u32, CipherBoxError>(|it| Ok(it.f2.number.data));
 
     assert!(matches!(result, Err(CipherBoxError::Zeroized)));
 
@@ -1304,15 +1304,15 @@ fn test_open_propagates_open_dyn_error() -> Result<(), BoxError> {
 fn test_open_mut_hands_the_struct_to_the_closure() -> Result<(), BoxError> {
     let mut boxed = sealed(Aead::default())?;
 
-    boxed.open_mut::<_, usize, CipherBoxError>(|it| {
-        it.f2.usize.data = 31337;
+    boxed.open_mut::<_, u32, CipherBoxError>(|it| {
+        it.f2.number.data = 31337;
 
         Ok(0)
     })?;
 
     let value = boxed.open_value()?;
 
-    assert_eq!(value.f2.usize.data, 31337);
+    assert_eq!(value.f2.number.data, 31337);
 
     Ok(())
 }
@@ -1323,7 +1323,7 @@ fn test_open_mut_propagates_open_mut_dyn_error() -> Result<(), BoxError> {
 
     boxed.fast_zeroize();
 
-    let result = boxed.open_mut::<_, usize, CipherBoxError>(|it| Ok(it.f2.usize.data));
+    let result = boxed.open_mut::<_, u32, CipherBoxError>(|it| Ok(it.f2.number.data));
 
     assert!(matches!(result, Err(CipherBoxError::Zeroized)));
 
@@ -1337,12 +1337,11 @@ fn test_open_mut_propagates_open_mut_dyn_error() -> Result<(), BoxError> {
 #[test]
 fn test_open_field_hands_the_field_to_the_closure() -> Result<(), BoxError> {
     let boxed = sealed(Aead::default())?;
-    let expected = TestBox::default().f3.usize.data;
+    let expected = TestBox::default().f3.number.data;
 
-    let result =
-        boxed.open_field::<RedoubtCodecTestBreaker, 3, _, usize, CipherBoxError>(|it| {
-            Ok(it.usize.data)
-        })?;
+    let result = boxed.open_field::<RedoubtCodecTestBreaker, 3, _, u32, CipherBoxError>(|it| {
+        Ok(it.number.data)
+    })?;
 
     assert_eq!(*result, expected);
 
@@ -1356,7 +1355,7 @@ fn test_open_field_propagates_open_field_dyn_error() -> Result<(), BoxError> {
     boxed.fast_zeroize();
 
     let result = boxed
-        .open_field::<RedoubtCodecTestBreaker, 3, _, usize, CipherBoxError>(|it| Ok(it.usize.data));
+        .open_field::<RedoubtCodecTestBreaker, 3, _, u32, CipherBoxError>(|it| Ok(it.number.data));
 
     assert!(matches!(result, Err(CipherBoxError::Zeroized)));
 
@@ -1371,15 +1370,15 @@ fn test_open_field_propagates_open_field_dyn_error() -> Result<(), BoxError> {
 fn test_open_field_mut_hands_the_field_to_the_closure() -> Result<(), BoxError> {
     let mut boxed = sealed(Aead::default())?;
 
-    boxed.open_field_mut::<RedoubtCodecTestBreaker, 3, _, usize, CipherBoxError>(|it| {
-        it.usize.data = 5150;
+    boxed.open_field_mut::<RedoubtCodecTestBreaker, 3, _, u32, CipherBoxError>(|it| {
+        it.number.data = 5150;
 
         Ok(0)
     })?;
 
     let field = boxed.open_field_value::<RedoubtCodecTestBreaker, 3>()?;
 
-    assert_eq!(field.usize.data, 5150);
+    assert_eq!(field.number.data, 5150);
 
     Ok(())
 }
@@ -1390,10 +1389,9 @@ fn test_open_field_mut_propagates_open_field_mut_dyn_error() -> Result<(), BoxEr
 
     boxed.fast_zeroize();
 
-    let result =
-        boxed.open_field_mut::<RedoubtCodecTestBreaker, 3, _, usize, CipherBoxError>(|it| {
-            Ok(it.usize.data)
-        });
+    let result = boxed.open_field_mut::<RedoubtCodecTestBreaker, 3, _, u32, CipherBoxError>(|it| {
+        Ok(it.number.data)
+    });
 
     assert!(matches!(result, Err(CipherBoxError::Zeroized)));
 
@@ -1434,12 +1432,12 @@ fn test_leak_field_propagates_open_field_value_error() -> Result<(), BoxError> {
 #[test]
 fn test_leak_field_returns_the_field_and_keeps_it_sealed() -> Result<(), BoxError> {
     let boxed = sealed(Aead::default())?;
-    let expected = TestBox::default().f4.usize.data;
+    let expected = TestBox::default().f4.number.data;
     let before = boxed.__unsafe_get_field_ciphertext::<4>().clone();
 
     let field = boxed.leak_field::<RedoubtCodecTestBreaker, 4, CipherBoxError>()?;
 
-    assert_eq!(field.usize.data, expected);
+    assert_eq!(field.number.data, expected);
     assert_eq!(boxed.__unsafe_get_field_ciphertext::<4>(), &before);
 
     Ok(())

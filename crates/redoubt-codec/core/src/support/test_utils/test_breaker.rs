@@ -15,7 +15,7 @@ use crate::traits::{
 };
 
 // Test breaker for redoubt-codec
-const MAGIC: usize = 0xDEADBEEF;
+const MAGIC: u32 = 0xDEADBEEF;
 
 /// Behavior control for error injection testing in redoubt-codec.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -36,15 +36,15 @@ pub enum RedoubtCodecTestBreakerBehaviour {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Usize {
+pub struct Number {
     /// Controls error injection behavior.
     pub behaviour: RedoubtCodecTestBreakerBehaviour,
     /// Test data.
-    pub data: usize,
+    pub data: u32,
 }
 
-impl Usize {
-    pub fn new(behaviour: RedoubtCodecTestBreakerBehaviour, data: usize) -> Self {
+impl Number {
+    pub fn new(behaviour: RedoubtCodecTestBreakerBehaviour, data: u32) -> Self {
         Self { behaviour, data }
     }
 
@@ -53,7 +53,7 @@ impl Usize {
     }
 }
 
-impl BytesRequired for Usize {
+impl BytesRequired for Number {
     fn encode_bytes_required(&self) -> Result<usize, OverflowError> {
         let fields: [&dyn BytesRequired; 1] = [to_bytes_required_dyn_ref(&self.data)];
 
@@ -61,7 +61,7 @@ impl BytesRequired for Usize {
     }
 }
 
-impl Encode for Usize {
+impl Encode for Number {
     fn encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
         if self.behaviour == RedoubtCodecTestBreakerBehaviour::ForceEncodeError {
             return Err(EncodeError::IntentionalEncodeError);
@@ -75,7 +75,7 @@ impl Encode for Usize {
     }
 }
 
-impl Decode for Usize {
+impl Decode for Number {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         if self.behaviour == RedoubtCodecTestBreakerBehaviour::ForceDecodeError {
             return Err(DecodeError::IntentionalDecodeError);
@@ -89,17 +89,17 @@ impl Decode for Usize {
     }
 }
 
-impl ZeroizeMetadata for Usize {
+impl ZeroizeMetadata for Number {
     const CAN_BE_BULK_ZEROIZED: bool = true;
 }
 
-impl FastZeroizable for Usize {
+impl FastZeroizable for Number {
     fn fast_zeroize(&mut self) {
         self.data.fast_zeroize();
     }
 }
 
-impl ZeroizationProbe for Usize {
+impl ZeroizationProbe for Number {
     fn is_zeroized(&self) -> bool {
         self.data.is_zeroized()
     }
@@ -111,16 +111,16 @@ pub struct RedoubtCodecTestBreaker {
     /// Controls error injection behavior.
     pub behaviour: RedoubtCodecTestBreakerBehaviour,
     /// Test data.
-    pub usize: Usize,
+    pub number: Number,
     /// Magic data, if tampered, decode will fail
-    magic: usize,
+    magic: u32,
 }
 
 impl Default for RedoubtCodecTestBreaker {
     fn default() -> Self {
         Self {
             behaviour: RedoubtCodecTestBreakerBehaviour::None,
-            usize: Usize::new(RedoubtCodecTestBreakerBehaviour::None, 104729),
+            number: Number::new(RedoubtCodecTestBreakerBehaviour::None, 104729),
             magic: MAGIC,
         }
     }
@@ -128,10 +128,10 @@ impl Default for RedoubtCodecTestBreaker {
 
 impl RedoubtCodecTestBreaker {
     /// Creates a new test breaker with the specified behavior and data value.
-    pub fn new(behaviour: RedoubtCodecTestBreakerBehaviour, data: usize) -> Self {
+    pub fn new(behaviour: RedoubtCodecTestBreakerBehaviour, data: u32) -> Self {
         Self {
             behaviour,
-            usize: Usize::new(behaviour, data),
+            number: Number::new(behaviour, data),
             magic: MAGIC,
         }
     }
@@ -140,7 +140,7 @@ impl RedoubtCodecTestBreaker {
     pub fn with_behaviour(behaviour: RedoubtCodecTestBreakerBehaviour) -> Self {
         Self {
             behaviour,
-            usize: Usize::new(behaviour, 104729),
+            number: Number::new(behaviour, 104729),
             magic: MAGIC,
         }
     }
@@ -148,7 +148,7 @@ impl RedoubtCodecTestBreaker {
     /// Changes the error injection behavior.
     pub fn set_behaviour(&mut self, behaviour: RedoubtCodecTestBreakerBehaviour) {
         self.behaviour = behaviour;
-        self.usize.set_behaviour(behaviour);
+        self.number.set_behaviour(behaviour);
     }
 }
 
@@ -162,7 +162,7 @@ impl BytesRequired for RedoubtCodecTestBreaker {
             }),
             _ => {
                 let fields: [&dyn BytesRequired; 2] = [
-                    to_bytes_required_dyn_ref(&self.usize),
+                    to_bytes_required_dyn_ref(&self.number),
                     to_bytes_required_dyn_ref(&self.magic),
                 ];
 
@@ -175,7 +175,7 @@ impl BytesRequired for RedoubtCodecTestBreaker {
 impl Encode for RedoubtCodecTestBreaker {
     fn encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
         let fields: [&mut dyn EncodeZeroize; 2] = [
-            to_encode_zeroize_dyn_mut(&mut self.usize),
+            to_encode_zeroize_dyn_mut(&mut self.number),
             to_encode_zeroize_dyn_mut(&mut self.magic),
         ];
 
@@ -188,7 +188,7 @@ impl Encode for RedoubtCodecTestBreaker {
 impl Decode for RedoubtCodecTestBreaker {
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
         let fields: [&mut dyn DecodeZeroize; 2] = [
-            to_decode_zeroize_dyn_mut(&mut self.usize),
+            to_decode_zeroize_dyn_mut(&mut self.number),
             to_decode_zeroize_dyn_mut(&mut self.magic),
         ];
 
@@ -238,13 +238,13 @@ impl ZeroizeMetadata for RedoubtCodecTestBreaker {
 
 impl FastZeroizable for RedoubtCodecTestBreaker {
     fn fast_zeroize(&mut self) {
-        self.usize.fast_zeroize();
+        self.number.fast_zeroize();
         self.magic.fast_zeroize();
     }
 }
 
 impl ZeroizationProbe for RedoubtCodecTestBreaker {
     fn is_zeroized(&self) -> bool {
-        (self.usize.is_zeroized()) & (self.magic.is_zeroized())
+        (self.number.is_zeroized()) & (self.magic.is_zeroized())
     }
 }

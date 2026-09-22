@@ -37,23 +37,6 @@ fn test_u128_all_pairs() {
     test_all_pairs(&set);
 }
 
-#[test]
-fn test_usize_all_pairs() {
-    #[cfg(target_pointer_width = "64")]
-    let set: Vec<usize> = equidistant_unsigned::<u64>(EQUIDISTANT_SAMPLE_SIZE)
-        .into_iter()
-        .map(|x| x as usize)
-        .collect();
-
-    #[cfg(target_pointer_width = "32")]
-    let set: Vec<usize> = equidistant_unsigned::<u32>(EQUIDISTANT_SAMPLE_SIZE)
-        .into_iter()
-        .map(|x| x as usize)
-        .collect();
-
-    test_all_pairs(&set);
-}
-
 // decode_from empty buffers
 
 #[test]
@@ -79,5 +62,4 @@ fn test_unsigned_decode_from_empty_buffer() {
     test_type!(u32);
     test_type!(u64);
     test_type!(u128);
-    test_type!(usize);
 }

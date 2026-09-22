@@ -13,13 +13,14 @@ use crate::collections::helpers::{
 use crate::error::{DecodeError, OverflowError, RedoubtCodecBufferError};
 use crate::support::test_utils::{RedoubtCodecTestBreaker, RedoubtCodecTestBreakerBehaviour};
 use crate::traits::{BytesRequired, Decode, DecodeZeroize, Encode, EncodeZeroize};
+use crate::types::Len;
 use redoubt_test_utils::{apply_permutation, index_permutations};
 
 // header_size
 
 #[test]
 fn test_header_size() {
-    assert_eq!(header_size(), 2 * size_of::<usize>());
+    assert_eq!(header_size(), 2 * size_of::<Len>());
 }
 
 // write_header
@@ -54,7 +55,7 @@ fn test_write_header_capacity_exceeded_for_size() {
 fn test_write_header_capacity_exceeded_for_bytes_required() {
     let mut size = 42usize;
     let mut bytes_required = 128usize;
-    let mut buf = RedoubtCodecBuffer::with_capacity(size_of::<usize>()); // Enough for size, too small for bytes_required
+    let mut buf = RedoubtCodecBuffer::with_capacity(size_of::<Len>()); // Enough for size, too small for bytes_required
 
     let result = write_header(&mut buf, &mut size, &mut bytes_required);
 
@@ -83,8 +84,8 @@ fn test_process_header_buffer_too_small_for_data() -> Result<(), Box<dyn std::er
     // Second precondition violated: buf.len() < *expected_len
     let mut buf = RedoubtCodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
 
-    let mut size: usize = 20;
-    let mut excessive_bytes_required: usize = 1024;
+    let mut size: Len = 20;
+    let mut excessive_bytes_required: Len = 1024;
     let mut data: u8 = 1;
 
     buf.write(&mut size)?;
@@ -107,8 +108,8 @@ fn test_process_header_buffer_header_size_gt_bytes_required()
     // Third precondition violated: *bytes_required > *header_size
     let mut buf = RedoubtCodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
 
-    let mut size: usize = 1;
-    let mut insufficient_bytes_required: usize = header_size() - 1;
+    let mut size: Len = 1;
+    let mut insufficient_bytes_required = header_size() as Len - 1;
     let mut data: u8 = 1;
 
     buf.write(&mut size)?;
@@ -129,9 +130,9 @@ fn test_process_header_buffer_header_size_gt_bytes_required()
 fn test_process_header_ok() -> Result<(), Box<dyn std::error::Error>> {
     let mut buf = RedoubtCodecBuffer::with_capacity(header_size() + size_of::<u8>()); // only capacity for size.
 
-    let mut size: usize = 1;
+    let mut size: Len = 1;
     let mut data: u8 = 1;
-    let mut bytes_required: usize = header_size() + data.to_le_bytes().len();
+    let mut bytes_required = (header_size() + data.to_le_bytes().len()) as Len;
 
     buf.write(&mut size)?;
     buf.write(&mut bytes_required)?;
@@ -194,7 +195,7 @@ fn test_to_decode_dyn_mut() -> Result<(), Box<dyn std::error::Error>> {
         let result = dyn_mut.decode_from(&mut decode_buf.as_mut_slice());
 
         assert!(result.is_ok());
-        assert_eq!(decoded.usize.data, 100);
+        assert_eq!(decoded.number.data, 100);
 
         // Assert zeroization!
         assert!(buf.is_zeroized());
@@ -394,8 +395,8 @@ fn test_fields_roundtrip_ok() -> Result<(), Box<dyn std::error::Error>> {
     let result = decode_fields(decode_refs.into_iter(), &mut decode_buf.as_mut_slice());
 
     assert!(result.is_ok());
-    assert_eq!(decoded1.usize.data, 100);
-    assert_eq!(decoded2.usize.data, 200);
+    assert_eq!(decoded1.number.data, 100);
+    assert_eq!(decoded2.number.data, 200);
 
     // Assert buf zeroization after decode!
     assert!(buf.is_zeroized());

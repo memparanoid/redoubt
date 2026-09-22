@@ -37,23 +37,6 @@ fn test_i128_all_pairs() {
     test_all_pairs(&set);
 }
 
-#[test]
-fn test_isize_all_pairs() {
-    #[cfg(target_pointer_width = "64")]
-    let set: Vec<isize> = equidistant_signed::<i64>(EQUIDISTANT_SAMPLE_SIZE)
-        .into_iter()
-        .map(|x| x as isize)
-        .collect();
-
-    #[cfg(target_pointer_width = "32")]
-    let set: Vec<isize> = equidistant_signed::<i32>(EQUIDISTANT_SAMPLE_SIZE)
-        .into_iter()
-        .map(|x| x as isize)
-        .collect();
-
-    test_all_pairs(&set);
-}
-
 // decode_from empty buffers
 
 #[test]
@@ -79,5 +62,4 @@ fn test_signed_decode_from_empty_buffer() {
     test_type!(i32);
     test_type!(i64);
     test_type!(i128);
-    test_type!(isize);
 }

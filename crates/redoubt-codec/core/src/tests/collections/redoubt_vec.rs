@@ -43,7 +43,7 @@ fn stress_test_redoubt_vec_clear_push_encode_decode_cycles()
 
     // Create original array (clonable)
     let original: Vec<RedoubtCodecTestBreaker> = (0..SIZE)
-        .map(|i| RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i))
+        .map(|i| RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i as u32))
         .collect();
 
     let mut redoubt_vec = RedoubtVec::<RedoubtCodecTestBreaker>::new();

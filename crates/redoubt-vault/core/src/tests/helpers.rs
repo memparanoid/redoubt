@@ -63,7 +63,7 @@ fn test_encrypt_into_propagates_bytes_required_overflow() {
                 10,
             )
         } else {
-            RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i << 2)
+            RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, (i as u32) << 2)
         }
     });
 
@@ -110,7 +110,7 @@ fn test_encrypt_into_propagates_errors() {
         if i == 0 {
             RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::ForceEncodeError, 10)
         } else {
-            RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i << 2)
+            RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, (i as u32) << 2)
         }
     });
 
@@ -133,25 +133,22 @@ fn test_encrypt_into_propagates_errors() {
 // encrypt_into_buffers tests
 // =============================================================================
 
+/// What `encode_bytes_required` answers is asked one level up, in `get_sizes`,
+/// so the only thing that fails here is the encode itself.
 #[test]
-fn test_encrypt_into_buffers_propagates_bytes_required_overflow() {
+fn test_encrypt_into_buffers_reports_poisoned_when_a_buffer_is_too_small() {
     let mut test_breakers: [RedoubtCodecTestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
-        if i == 0 {
-            RedoubtCodecTestBreaker::new(
-                RedoubtCodecTestBreakerBehaviour::ForceBytesRequiredOverflow,
-                10,
-            )
-        } else {
-            RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i << 2)
-        }
+        RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, (i as u32) << 2)
     });
 
     let mut aead = Aead::default();
     let aead_key = zero_key();
     let mut nonces = create_nonces(&aead);
     let mut tags = create_tags(&aead);
+
+    // One byte: nothing this encodes ever fits, whatever its fields are.
     let mut buffers: [RedoubtCodecBuffer; NUM_FIELDS] =
-        core::array::from_fn(|_| RedoubtCodecBuffer::with_capacity(10));
+        core::array::from_fn(|_| RedoubtCodecBuffer::with_capacity(1));
     let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
 
     let fields = test_breakers
@@ -187,9 +184,12 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encode_failure() {
     // RedoubtCodecTestBreakers: one with ForceEncodeError at index 0, rest None.
     let test_breakers: [RedoubtCodecTestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
         if i == 0 {
-            RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::ForceEncodeError, i << 2)
+            RedoubtCodecTestBreaker::new(
+                RedoubtCodecTestBreakerBehaviour::ForceEncodeError,
+                (i as u32) << 2,
+            )
         } else {
-            RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i << 2)
+            RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, (i as u32) << 2)
         }
     });
 
@@ -490,9 +490,12 @@ fn test_decrypt_from_zeroizes_on_decrypt_failure() -> Result<(), Box<dyn std::er
 fn test_decrypt_from_zeroizes_on_decode_failure() -> Result<(), Box<dyn std::error::Error>> {
     let mut test_breakers: [RedoubtCodecTestBreaker; NUM_FIELDS] = core::array::from_fn(|i| {
         if i == 0 {
-            RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::ForceDecodeError, i << 2)
+            RedoubtCodecTestBreaker::new(
+                RedoubtCodecTestBreakerBehaviour::ForceDecodeError,
+                (i as u32) << 2,
+            )
         } else {
-            RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, i << 2)
+            RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::None, (i as u32) << 2)
         }
     });
     let mut aead = Aead::default();
