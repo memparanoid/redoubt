@@ -15,11 +15,17 @@ redoubt-aead   = { workspace = true }
 redoubt-alloc  = { workspace = true }
 redoubt-codec  = { workspace = true }
 redoubt-hkdf   = { workspace = true }
+redoubt-mem    = { workspace = true }
 redoubt-rand   = { workspace = true }
 redoubt-secret = { workspace = true }
 redoubt-util   = { workspace = true }
 redoubt-vault  = { workspace = true }
 redoubt-zero   = { workspace = true }
+
+# Every item this crate has is `cfg(target_os = "linux")`, so anywhere else it
+# is an empty module, a `libc` and a build script for nothing.
+[target.'cfg(target_os = "linux")'.dependencies]
+redoubt-forensics = { workspace = true, optional = true }
 
 [dev-dependencies]
 redoubt-aead.workspace  = true
@@ -27,6 +33,7 @@ redoubt-codec.workspace = true
 
 [features]
 default = []
+forensics = ["dep:redoubt-forensics"]
 full = ["std"]
 internal-forensics = ["redoubt-vault/internal-forensics"]
 std = ["redoubt-vault/std"]

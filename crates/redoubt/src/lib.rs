@@ -303,8 +303,17 @@ pub use redoubt_aead as aead;
 pub use redoubt_alloc as alloc;
 pub use redoubt_codec as codec;
 pub use redoubt_hkdf as hkdf;
+pub use redoubt_mem as mem;
 pub use redoubt_rand as rand;
 pub use redoubt_secret as secret;
 pub use redoubt_util as util;
 pub use redoubt_vault as vault;
 pub use redoubt_zero as zero;
+
+/// The sweeps a test writes to say what an operation left behind.
+///
+/// Behind a feature because it reads `/proc` and holds a second process, so it
+/// is `std` where everything else here is `no_std`. Linux, because that is
+/// where every item it has is compiled.
+#[cfg(all(feature = "forensics", target_os = "linux"))]
+pub use redoubt_forensics as forensics;
