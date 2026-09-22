@@ -266,6 +266,7 @@ For detailed information about testing methodology and other interesting technic
 To run benchmarks:
 
 ```bash
+cargo bench -p benchmarks --bench aead
 cargo bench -p benchmarks --bench aegis128l
 cargo bench -p benchmarks --bench alloc
 cargo bench -p benchmarks --bench cipherbox
