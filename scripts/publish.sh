@@ -1,59 +1,70 @@
 #!/usr/bin/env bash
-set -e
+# Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+# See LICENSE in the repository root for full license text.
+#
+# Every publishable crate, in an order where each one's dependencies are on
+# crates.io before it is.
+#
+# # Why the list is written out
+#
+# It could be computed from `cargo metadata`, and then a mistake in the
+# computation would be a release rather than a failed script. Written out, the
+# order is a thing a reader checks against the manifests before anything is
+# uploaded, and an upload cannot be taken back.
+#
+# # What the order is, and what is not in it
+#
+# Dependencies, and build dependencies. Not dev-dependencies: those form
+# genuine cycles here — `redoubt-vault-derive` builds its tests against
+# `redoubt-vault`, which depends on it — and they resolve against what is
+# already on crates.io rather than against this run.
+#
+# The crates carrying `publish = false` are absent: the fixtures, the
+# examples, the benchmarks and the memory analysis.
 
-# Publish order based on dependency graph
-# Uses --no-verify to skip local rebuild (already tested in CI)
+set -euo pipefail
+
+# Each line's crates depend on earlier lines and on nothing below.
 CRATES=(
-  # No dependencies
-  redoubt-util
+  # Nothing in the workspace
+  redoubt-asm
+  redoubt-codec-derive
+  redoubt-forensics
+  redoubt-mem
   redoubt-test-utils
+  redoubt-util
+  redoubt-vault-derive
 
-  # redoubt-zero stack
-  redoubt-zero-core    # deps: redoubt-util
-  redoubt-zero-derive  # deps: redoubt-zero-core
-  redoubt-zero         # deps: redoubt-zero-core, redoubt-zero-derive
+  redoubt-aead-core
+  redoubt-zero-core
+  redoubt-zero-derive
+  redoubt-zero
 
-  # redoubt-hkdf stack
-  redoubt-hkdf-core       # deps: thiserror
-  redoubt-hkdf-wycheproof # deps: redoubt-hkdf-core, redoubt-util
-  redoubt-hkdf-rust       # deps: redoubt-hkdf-core, redoubt-zero, redoubt-util (dev: redoubt-hkdf-wycheproof)
-  redoubt-hkdf-x86        # deps: redoubt-hkdf-core, cc (dev: redoubt-hkdf-wycheproof)
-  redoubt-hkdf-arm        # deps: redoubt-hkdf-core, cc (dev: redoubt-hkdf-wycheproof)
-  redoubt-hkdf            # deps: redoubt-hkdf-core, redoubt-hkdf-rust, redoubt-hkdf-x86, redoubt-hkdf-arm
+  redoubt-aead-aegis128l
+  redoubt-alloc
+  redoubt-buffer
+  redoubt-chacha
+  redoubt-hkdf
+  redoubt-poly1305
 
-  # Core utilities
-  redoubt-rand         # deps: redoubt-hkdf, redoubt-zero
-  redoubt-alloc        # deps: redoubt-util, redoubt-zero
+  redoubt-aead-xchachapoly1305
+  redoubt-codec-core
+  redoubt-rand
+  redoubt-codec
+  redoubt-aead
+  redoubt-secret
 
-  # redoubt-aead stack
-  redoubt-aead-core          # deps: redoubt-rand, thiserror
-  redoubt-aead-aegis-wycheproof # deps: redoubt-aead-core, redoubt-util
-  redoubt-aead-xchacha       # deps: redoubt-aead-core, redoubt-rand, redoubt-util, redoubt-zero
-  redoubt-aead-aegis-x86     # deps: redoubt-aead-core, redoubt-rand, redoubt-util, cc (dev: redoubt-aead-aegis-wycheproof)
-  redoubt-aead-aegis-arm     # deps: redoubt-aead-core, redoubt-rand, redoubt-util, cc (dev: redoubt-aead-aegis-wycheproof)
-  redoubt-aead               # deps: redoubt-aead-core, redoubt-aead-xchacha, redoubt-aead-aegis-x86, redoubt-aead-aegis-arm
-
-  redoubt-buffer       # deps: redoubt-util, redoubt-zero, redoubt-rand
-
-  # redoubt-codec stack
-  redoubt-codec-core   # deps: redoubt-alloc, redoubt-util, redoubt-zero, redoubt-test-utils
-  redoubt-codec-derive # deps: redoubt-codec-core, redoubt-zero
-  redoubt-codec        # deps: redoubt-codec-core, redoubt-codec-derive
-
-  # Higher level
-  redoubt-secret       # deps: redoubt-alloc, redoubt-codec, redoubt-util, redoubt-zero
-
-  # redoubt-vault stack
-  redoubt-vault-core   # deps: redoubt-aead, redoubt-alloc, redoubt-buffer, redoubt-codec, redoubt-mem, redoubt-rand, redoubt-secret, redoubt-zero
-  redoubt-vault-derive # deps: redoubt-aead, redoubt-alloc, redoubt-codec, redoubt-secret, redoubt-vault-core, redoubt-zero
-  redoubt-vault        # deps: redoubt-vault-core, redoubt-vault-derive
-
-  # Main crate
-  redoubt              # deps: everything
+  redoubt-vault-core
+  redoubt-vault
+  redoubt
 )
 
+# `--no-verify` skips the rebuild each publish would otherwise do, which CI has
+# already done for every target this ships to.
 for crate in "${CRATES[@]}"; do
   echo "Publishing $crate..."
+
   if ! cargo publish -p "$crate" --no-verify 2>&1 | tee /tmp/publish_output; then
     if grep -q "already uploaded" /tmp/publish_output; then
       echo "  (already published, skipping)"
@@ -62,8 +73,12 @@ for crate in "${CRATES[@]}"; do
       exit 1
     fi
   fi
+
   echo ""
-  sleep 5  # Wait for crates.io index to update
+
+  # The index is what the next crate resolves its dependencies against, and it
+  # is written after the upload answers.
+  sleep 5
 done
 
 echo "Done! All crates published."
