@@ -7,6 +7,39 @@ use redoubt_zero::FastZeroizable;
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::error::{DecodeBufferError, DecodeError, EncodeError, OverflowError};
 
+mod sealed {
+    pub trait Sealed {}
+}
+
+/// A type a buffer may carry as its own bytes.
+///
+/// The buffer copies one in and out raw, so what the type owes is: no padding,
+/// whose bytes are uninitialized and would go out as whatever was there; no
+/// pointer, which would go out as an address; and a value for every bit
+/// pattern of its width, because what comes back is not checked.
+///
+/// `bool` owes the last of those and cannot pay it, and neither can a struct.
+///
+/// Sealed, so that the list is settled here.
+pub trait Primitive: sealed::Sealed + Copy {}
+
+macro_rules! impl_primitive {
+    ($($ty:ty),* $(,)?) => {
+        $(
+            impl sealed::Sealed for $ty {}
+            impl Primitive for $ty {}
+        )*
+    };
+}
+
+impl_primitive!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, f32, f64);
+
+// An array owes what its element owes: laid end to end with nothing between
+// them, so no padding arrives with the array that did not arrive with one of
+// these.
+impl<T: Primitive, const N: usize> sealed::Sealed for [T; N] {}
+impl<T: Primitive, const N: usize> Primitive for [T; N] {}
+
 pub trait BytesRequired {
     fn encode_bytes_required(&self) -> Result<usize, OverflowError>;
 }
@@ -69,8 +102,8 @@ pub trait DecodeSlice: Decode + Sized {
 }
 
 pub trait DecodeBuffer {
-    fn read<T>(&mut self, dst: &mut T) -> Result<(), DecodeBufferError>;
-    fn read_slice<T>(&mut self, dst: &mut [T]) -> Result<(), DecodeBufferError>;
+    fn read<T: Primitive>(&mut self, dst: &mut T) -> Result<(), DecodeBufferError>;
+    fn read_slice<T: Primitive>(&mut self, dst: &mut [T]) -> Result<(), DecodeBufferError>;
 }
 
 /// Pre-allocation trait for collections.

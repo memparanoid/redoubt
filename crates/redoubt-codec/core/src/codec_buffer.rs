@@ -10,6 +10,7 @@ use redoubt_alloc::AllockedVec;
 use redoubt_zero::{FastZeroizable, RedoubtZero};
 
 use crate::error::RedoubtCodecBufferError;
+use crate::traits::Primitive;
 
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
@@ -103,7 +104,7 @@ impl RedoubtCodecBuffer {
     }
 
     #[inline(always)]
-    pub fn write<T>(&mut self, src: &mut T) -> Result<(), RedoubtCodecBufferError> {
+    pub fn write<T: Primitive>(&mut self, src: &mut T) -> Result<(), RedoubtCodecBufferError> {
         let len = core::mem::size_of::<T>();
 
         if self.cursor + len > self.capacity {
@@ -126,7 +127,10 @@ impl RedoubtCodecBuffer {
     }
 
     #[inline(always)]
-    pub fn write_slice<T>(&mut self, src: &mut [T]) -> Result<(), RedoubtCodecBufferError> {
+    pub fn write_slice<T: Primitive>(
+        &mut self,
+        src: &mut [T],
+    ) -> Result<(), RedoubtCodecBufferError> {
         let byte_len = core::mem::size_of_val(src);
 
         if self.cursor + byte_len > self.capacity {

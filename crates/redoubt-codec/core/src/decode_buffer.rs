@@ -3,11 +3,11 @@
 // See LICENSE in the repository root for full license text.
 
 use super::error::DecodeBufferError;
-use super::traits::DecodeBuffer;
+use super::traits::{DecodeBuffer, Primitive};
 
 impl DecodeBuffer for &mut [u8] {
     #[inline(always)]
-    fn read<T>(&mut self, dst: &mut T) -> Result<(), DecodeBufferError> {
+    fn read<T: Primitive>(&mut self, dst: &mut T) -> Result<(), DecodeBufferError> {
         let len = core::mem::size_of::<T>();
 
         if self.len() < len {
@@ -34,7 +34,7 @@ impl DecodeBuffer for &mut [u8] {
     }
 
     #[inline(always)]
-    fn read_slice<T>(&mut self, dst: &mut [T]) -> Result<(), DecodeBufferError> {
+    fn read_slice<T: Primitive>(&mut self, dst: &mut [T]) -> Result<(), DecodeBufferError> {
         let byte_len = core::mem::size_of_val(dst);
 
         if self.len() < byte_len {

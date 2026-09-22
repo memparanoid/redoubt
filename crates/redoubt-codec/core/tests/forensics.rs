@@ -338,12 +338,11 @@ decoded!(test_decoding_32768_bytes_leaves_nothing, 32768);
 // A module that moves a secret and has no sweep of its own is not a module
 // that leaves nothing; it is a module nobody asked.
 //
-// # Why `read_usize` is not swept here
+// # Why the value swept is thirty-two bytes wide
 //
-// It moves eight bytes, which is `QUIET` — the width memory reaches by
-// accident. An absence at that width is not evidence, and a length is public
-// anyway. What the other two do at a width that means something is what says
-// the shortening is clean, and `read_usize` shortens the same way.
+// Eight is `QUIET` — the width memory reaches by accident — so an absence over
+// a value that narrow is not evidence. The reads below take a width that means
+// something, and every other width shortens the same way.
 
 /// The secret is in the buffer before anything has read from it.
 #[test]
