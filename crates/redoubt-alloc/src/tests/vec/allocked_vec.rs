@@ -9,6 +9,17 @@ use crate::allocked_vec::{AllockedVec, AllockedVecBehaviour};
 use crate::error::AllockedVecError;
 
 // ╔════════════════════════════════════════════════════════════════════════════╗
+// ║ BEHAVIOUR                                                                  ║
+// ╚════════════════════════════════════════════════════════════════════════════╝
+
+/// A `#[default]` that moved would leave everything constructed without a
+/// behaviour injecting a failure instead of nothing.
+#[test]
+fn test_behaviour_default_returns_none() {
+    assert_eq!(AllockedVecBehaviour::default(), AllockedVecBehaviour::None);
+}
+
+// ╔════════════════════════════════════════════════════════════════════════════╗
 // ║ ZEROIZATION                                                                ║
 // ╚════════════════════════════════════════════════════════════════════════════╝
 

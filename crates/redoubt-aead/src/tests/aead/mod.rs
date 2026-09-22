@@ -115,6 +115,21 @@ fn test_this_machine_has_aes() {
 }
 
 // === === === === === === === === === ===
+// FeatureDetectorBehaviour
+// === === === === === === === === === ===
+
+/// A `#[default]` that moved would leave every detector forcing an answer
+/// instead of asking the machine, and the cases that force one would agree
+/// with it.
+#[test]
+fn test_behaviour_default_returns_none() {
+    assert!(matches!(
+        FeatureDetectorBehaviour::default(),
+        FeatureDetectorBehaviour::None
+    ));
+}
+
+// === === === === === === === === === ===
 // Shared use
 // === === === === === === === === === ===
 

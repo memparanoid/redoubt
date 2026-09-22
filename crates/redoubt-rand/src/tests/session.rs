@@ -9,6 +9,20 @@ use crate::session::{Counter, NonceSessionGenerator, NonceSessionGeneratorBehavi
 use crate::support::test_utils::{MockEntropySource, MockEntropySourceBehaviour};
 use crate::traits::NonceGenerator;
 
+// NonceSessionGeneratorBehaviour
+
+/// A `#[default]` that moved would leave everything constructed without a
+/// behaviour injecting a failure instead of nothing.
+#[test]
+fn test_behaviour_default_returns_none() {
+    assert_eq!(
+        NonceSessionGeneratorBehaviour::default(),
+        NonceSessionGeneratorBehaviour::None
+    );
+}
+
+// NonceSessionGenerator
+
 #[test]
 fn test_nonce_session_generator_counter_increments() -> Result<(), Box<dyn std::error::Error>> {
     let entropy = MockEntropySource::new(MockEntropySourceBehaviour::None);
