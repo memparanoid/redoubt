@@ -46,7 +46,8 @@ fn test_portable_storage_concurrent_access() {
 
 #[test]
 fn test_portable_storage_open_propagates_callback_error() {
-    #[derive(Debug)]
+    #[derive(Debug, thiserror::Error)]
+    #[error("a test callback refused")]
     struct CustomCallbackError {}
 
     let result = open(&mut |_| Err(BufferError::callback_error(CustomCallbackError {})));
@@ -66,6 +67,11 @@ fn portable_storage_subprocess_concurrent_access() -> Result<(), Box<dyn std::er
     const NUM_THREADS: usize = 256;
     const POISONED: &str = "the keys mutex was poisoned";
 
+    /// What the callback hands back, which takes an error and not a string.
+    #[derive(Debug, thiserror::Error)]
+    #[error("{0}")]
+    struct Refused(&'static str);
+
     let keys = Arc::new(Mutex::new(Vec::<[u8; MASTER_KEY_LEN]>::new()));
 
     let handles: Vec<_> = (0..NUM_THREADS)
@@ -76,11 +82,11 @@ fn portable_storage_subprocess_concurrent_access() -> Result<(), Box<dyn std::er
                 open(&mut |bytes| {
                     let mut guard = keys_clone
                         .lock()
-                        .map_err(|_| BufferError::callback_error(POISONED))?;
+                        .map_err(|_| BufferError::callback_error(Refused(POISONED)))?;
 
-                    let master_key: [u8; MASTER_KEY_LEN] = bytes
-                        .try_into()
-                        .map_err(|_| BufferError::callback_error("the key is not that wide"))?;
+                    let master_key: [u8; MASTER_KEY_LEN] = bytes.try_into().map_err(|_| {
+                        BufferError::callback_error(Refused("the key is not that wide"))
+                    })?;
 
                     guard.push(master_key);
 

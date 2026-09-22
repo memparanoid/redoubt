@@ -16,6 +16,12 @@ mod page_buffer_tests {
         Ok(PageBuffer::new(ProtectionStrategy::MemProtected, 32)?)
     }
 
+    /// What a callback hands back where the test is about the refusal rather
+    /// than about what it says.
+    #[derive(Debug, thiserror::Error)]
+    #[error("a test callback refused")]
+    struct Refused;
+
     // =============================================================================
     // new()
     // =============================================================================
@@ -366,7 +372,7 @@ mod page_buffer_tests {
     fn test_open_propagates_callback_error() -> Result<(), Box<dyn std::error::Error>> {
         let mut buffer = protected()?;
 
-        let result = buffer.open(&mut |_| Err(BufferError::callback_error("test error")));
+        let result = buffer.open(&mut |_| Err(BufferError::callback_error(Refused)));
 
         assert!(matches!(result, Err(BufferError::CallbackError(_))));
 
@@ -384,7 +390,7 @@ mod page_buffer_tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let mut buffer = protected()?;
 
-        let _ = buffer.open(&mut |_| Err(BufferError::callback_error("test error")));
+        let _ = buffer.open(&mut |_| Err(BufferError::callback_error(Refused)));
 
         core::hint::black_box(unsafe { buffer.page.as_slice() }[0]);
 
@@ -498,7 +504,7 @@ mod page_buffer_tests {
     fn test_open_mut_propagates_callback_error() -> Result<(), Box<dyn std::error::Error>> {
         let mut buffer = protected()?;
 
-        let result = buffer.open_mut(&mut |_| Err(BufferError::callback_error("test error")));
+        let result = buffer.open_mut(&mut |_| Err(BufferError::callback_error(Refused)));
 
         assert!(matches!(result, Err(BufferError::CallbackError(_))));
 
@@ -516,7 +522,7 @@ mod page_buffer_tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let mut buffer = protected()?;
 
-        let _ = buffer.open_mut(&mut |_| Err(BufferError::callback_error("test error")));
+        let _ = buffer.open_mut(&mut |_| Err(BufferError::callback_error(Refused)));
 
         unsafe { buffer.page.as_mut_slice()[0] = 0xFF };
 

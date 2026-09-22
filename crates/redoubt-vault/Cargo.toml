@@ -28,7 +28,7 @@ redoubt-vault-derive.workspace = true
 # `tests/failure_injection.rs` name `test-utils` as their testing feature, and
 # a feature named there is read against this package — so nothing but this
 # turns it on for a test target.
-redoubt-vault               = { path = ".", features = ["test-utils"] }
+redoubt-vault = { path = ".", features = ["test-utils"] }
 
 redoubt-aead.workspace      = true
 redoubt-alloc.workspace     = true

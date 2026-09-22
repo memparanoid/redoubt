@@ -93,10 +93,10 @@ resolver = "2"
   cc = "1.2.49"
 
   # Dev dependencies (used via [dev-dependencies] in individual crates)
-  crabgrind    = "0.3.1"
-  criterion    = "0.5"
-  libseccomp   = "0.4.0"
-  num-bigint   = "0.5.1"
+  crabgrind  = "0.3.1"
+  criterion  = "0.5"
+  libseccomp = "0.4.0"
+  num-bigint = "0.5.1"
   # `verbatim` asked for here, because something else in the graph asks for it
   # too: `bindgen` depends on `prettyplease` with it, and a feature any unit
   # enables is enabled for every unit that shares the build. It is what decides

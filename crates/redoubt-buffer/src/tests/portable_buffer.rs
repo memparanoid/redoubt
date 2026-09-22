@@ -132,19 +132,20 @@ fn test_portable_buffer_open_happypath() -> Result<(), Box<dyn std::error::Error
 
 #[test]
 fn test_portable_buffer_open_propagates_callback_error() {
-    #[derive(Debug)]
+    #[derive(Debug, thiserror::Error)]
+    #[error("a test callback refused with code {code}")]
     struct TestCallbackError {
-        _code: u32,
+        code: u32,
     }
 
     let mut portable_buffer = PortableBuffer::create(10);
 
     let result = portable_buffer
-        .open(&mut |_bytes| Err(BufferError::callback_error(TestCallbackError { _code: 42 })));
+        .open(&mut |_bytes| Err(BufferError::callback_error(TestCallbackError { code: 42 })));
 
     match result {
         Err(BufferError::CallbackError(inner)) => {
-            let expected_inner = TestCallbackError { _code: 42 };
+            let expected_inner = TestCallbackError { code: 42 };
             let debug_str = format!("{:?}", inner);
             let expected_debug_str = format!("{:?}", expected_inner);
 
@@ -159,19 +160,20 @@ fn test_portable_buffer_open_propagates_callback_error() {
 
 #[test]
 fn test_portable_buffer_open_mut_propagates_callback_error() {
-    #[derive(Debug)]
+    #[derive(Debug, thiserror::Error)]
+    #[error("a test callback refused with code {code}")]
     struct TestCallbackError {
-        _code: u32,
+        code: u32,
     }
 
     let mut portable_buffer = PortableBuffer::create(10);
 
     let result = portable_buffer
-        .open_mut(&mut |_bytes| Err(BufferError::callback_error(TestCallbackError { _code: 42 })));
+        .open_mut(&mut |_bytes| Err(BufferError::callback_error(TestCallbackError { code: 42 })));
 
     match result {
         Err(BufferError::CallbackError(inner)) => {
-            let expected_inner = TestCallbackError { _code: 42 };
+            let expected_inner = TestCallbackError { code: 42 };
             let debug_str = format!("{:?}", inner);
             let expected_debug_str = format!("{:?}", expected_inner);
 

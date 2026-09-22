@@ -36,9 +36,12 @@ pub enum BufferError {
     #[error("page is no longer available")]
     PageNoLongerAvailable,
 
-    /// An error occurred in a callback function.
-    #[error("callback error: {0:?}")]
-    CallbackError(Box<dyn core::fmt::Debug + Send + Sync + 'static>),
+    /// What a callback handed back instead of finishing.
+    ///
+    /// Transparent, so the caller reads its own error rather than this crate's
+    /// name wrapped around it, and `source` reaches the thing itself.
+    #[error(transparent)]
+    CallbackError(Box<dyn core::error::Error + Send + Sync + 'static>),
 
     /// A mutex was poisoned.
     #[error("mutex poisoned")]
@@ -46,8 +49,8 @@ pub enum BufferError {
 }
 
 impl BufferError {
-    /// Creates a CallbackError from any Debug + Send + Sync error.
-    pub fn callback_error<E: core::fmt::Debug + Send + Sync + 'static>(e: E) -> Self {
+    /// Boxes an error a callback returned, so it travels as this one.
+    pub fn callback_error<E: core::error::Error + Send + Sync + 'static>(e: E) -> Self {
         Self::CallbackError(Box::new(e))
     }
 }

@@ -15,6 +15,17 @@ pub mod storage;
 
 use consts::MASTER_KEY_LEN;
 
+/// A caller asking for more of the master key than there is.
+#[derive(Debug, thiserror::Error)]
+#[error(
+    "a master key of {} bytes cannot be truncated to {asked}",
+    MASTER_KEY_LEN
+)]
+pub struct TruncationTooWide {
+    /// The width that was asked for.
+    pub asked: usize,
+}
+
 pub fn leak_master_key(truncate_at: usize) -> Result<ZeroizingGuard<Vec<u8>>, BufferError> {
     let mut master_key = vec![0u8; truncate_at];
 
@@ -23,9 +34,9 @@ pub fn leak_master_key(truncate_at: usize) -> Result<ZeroizingGuard<Vec<u8>>, Bu
         // The `?` operator needs to be covered, and having it only inside the closure ensures
         // it can be tested. In practice, truncate_at is always 16 or 32 bytes (never fails).
         if truncate_at > MASTER_KEY_LEN {
-            return Err(BufferError::callback_error(
-                "truncate_at must be less than MASTER_KEY_LEN",
-            ));
+            return Err(BufferError::callback_error(TruncationTooWide {
+                asked: truncate_at,
+            }));
         }
 
         // Not `copy_from_slice`, which is `core::ptr::copy_nonoverlapping`
