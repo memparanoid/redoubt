@@ -6,6 +6,7 @@ expression: pretty(token_stream)
 struct WithCustomError {
     pub field1: Vec<u8>,
     pub field2: u64,
+    #[cfg(test)]
     #[codec(default)]
     __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }

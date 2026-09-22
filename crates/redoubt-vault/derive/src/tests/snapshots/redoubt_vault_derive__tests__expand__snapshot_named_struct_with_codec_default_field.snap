@@ -8,6 +8,7 @@ struct Delta {
     pub beta: [u8; 32],
     #[codec(default)]
     pub gamma: [u8; 16],
+    #[cfg(test)]
     #[codec(default)]
     __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }

@@ -294,8 +294,11 @@ fn inject_zeroize_on_drop_sentinel(mut input: DeriveInput) -> DeriveInput {
         return input;
     }
 
-    // Create the __sentinel field
+    // Gated in the crate that writes the struct, not in this one: what reads
+    // the sentinel is that crate's own tests, and a release build of it carries
+    // an `Arc<AtomicBool>` per box for nothing.
     let sentinel_field: Field = syn::parse_quote! {
+        #[cfg(test)]
         #[codec(default)]
         __sentinel: #root::ZeroizeOnDropSentinel
     };

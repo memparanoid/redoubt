@@ -4,6 +4,7 @@ expression: pretty(token_stream)
 ---
 struct Gamma {
     pub value: [u8; 32],
+    #[cfg(test)]
     #[codec(default)]
     __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }

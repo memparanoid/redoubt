@@ -5,6 +5,7 @@ expression: pretty(token_stream)
 #[derive(RedoubtZero, RedoubtCodec)]
 struct TestableSecrets {
     pub secret_key: [u8; 32],
+    #[cfg(test)]
     #[codec(default)]
     __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
