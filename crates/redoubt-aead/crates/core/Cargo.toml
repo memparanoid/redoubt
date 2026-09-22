@@ -28,7 +28,7 @@ cc.workspace = true
 redoubt-asm.workspace = true
 thiserror.workspace   = true
 
-[target.'cfg(target_os = "linux")'.dependencies]
+[target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
 crabgrind = { workspace = true, optional = true }
 
 [dev-dependencies]

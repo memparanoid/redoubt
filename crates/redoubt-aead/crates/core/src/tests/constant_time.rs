@@ -26,7 +26,10 @@
 //! by hand and it passes while measuring nothing, which is what the `ignore`
 //! keeps it from doing under an ordinary suite.
 
-#![cfg(target_os = "linux")]
+// glibc and not musl: `crabgrind` generates its bindings with `bindgen`, which
+// opens libclang with `dlopen`, and a musl build script is a static binary
+// where that call fails at run time rather than at link.
+#![cfg(all(target_os = "linux", target_env = "gnu"))]
 
 use crabgrind::memcheck::{MemState, mark_memory};
 use redoubt_asm::Backend;
