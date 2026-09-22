@@ -97,7 +97,13 @@ resolver = "2"
   criterion    = "0.5"
   libseccomp   = "0.4.0"
   num-bigint   = "0.5.1"
-  prettyplease = "0.2.37"
+  # `verbatim` asked for here, because something else in the graph asks for it
+  # too: `bindgen` depends on `prettyplease` with it, and a feature any unit
+  # enables is enabled for every unit that shares the build. It is what decides
+  # whether `compile_error!("...")` is printed as the tokens it holds or as a
+  # call with a trailing comma, so the snapshots below it read one way under
+  # `--all-features` and the other way without.
+  prettyplease = { version = "0.2.37", features = ["verbatim"] }
   proptest     = "1.9.0"
   rstest       = "0.27.0"
   trybuild     = "1.0"
