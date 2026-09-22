@@ -18,14 +18,13 @@
 //!
 //! # Features
 //!
-//! - ✨ **Zero boilerplate** — One macro, full protection
-//! - 🔐 **Ephemeral decryption** — Secrets live encrypted, exist in plaintext only for the duration of access
-//! - 🔒 **No surprises** — Allocation-free decryption with explicit zeroization on every path
-//! - 🧹 **Automatic zeroization** — Memory is wiped when secrets go out of scope
-//! - ⚡ **Amazingly fast** — Powered by AEGIS-128L encryption, bit-level encoding, and decrypt-only-what-you-need
-//! - 🛡️ **OS-level protection** — Memory locking and protection against dumps
-//! - 🎯 **Field-level access** — Decrypt only the field you need, not the entire struct
-//! - 📦 **`no_std` compatible** — Works in embedded and WASI environments
+//! - **Zero boilerplate** — One macro, full protection
+//! - **Ephemeral decryption** — Secrets live encrypted, exist in plaintext only for the duration of access
+//! - **Automatic zeroization** — Memory is wiped when secrets go out of scope
+//! - **Amazingly fast** — Powered by AEGIS-128L encryption, bit-level encoding, and decrypt-only-what-you-need
+//! - **Page-level protection** — The master key every CipherBox is sealed with lives in its own mapping, mlocked and excluded from core dumps
+//! - **Field-level access** — Decrypt only the field you need, not the entire struct
+//! - **`no_std` compatible** — Works in embedded and WASI environments
 //!
 //! # Installation
 //!
@@ -160,7 +159,7 @@
 //! # #[cipherbox(Wallet)]
 //! # #[derive(Default, RedoubtCodec, RedoubtZero)]
 //! # struct WalletData { seed: RedoubtArray<u8, 32> }
-//! # let mut wallet = Wallet::new();
+//! # let wallet = Wallet::new();
 //! let seed = wallet.leak_seed()?;
 //! // use seed...
 //! // seed is zeroized when dropped
@@ -218,11 +217,11 @@
 //! - **`RedoubtString`**: Variable-length UTF-8 strings (passwords, mnemonics, API keys).
 //! - **`RedoubtSecret<T>`**: Primitive types (u64, i32, bool) that need protection. Prevents accidental copies via controlled access.
 //!
-//! ## ⚠️ Critical: CipherBox fields MUST come from these types
+//! ## Critical: CipherBox fields MUST come from these types
 //!
 //! **All sensitive data in `#[cipherbox]` structs MUST ultimately come from: `RedoubtArray`, `RedoubtVec`, `RedoubtString`, or `RedoubtSecret`.**
 //!
-//! These types were forensically validated to leave no traces during the encryption-at-rest workflow.
+//! Every one of these types, and every CipherBox, carries its own forensic tests. They read the process's mappings from `/proc/<pid>/maps`, sweep the memory behind them with `process_vm_readv`, and capture the registers and the stack frames each operation released.
 //! You can compose them into nested structures, but the leaf values containing sensitive data must be these types.
 //! Using standard types (`Vec<u8>`, `String`, `[u8; 32]`, `u64`) would leave unzeroized copies during encoding/decoding, defeating the security guarantees.
 //!
@@ -269,7 +268,7 @@
 //! struct Wallet { /* ... */ }
 //!
 //! // In tests:
-//! let mut wallet = WalletBox::new();
+//! let wallet = WalletBox::new();
 //! wallet.set_failure_mode(WalletBoxFailureMode::FailOnNthOperation(2));
 //!
 //! assert!(wallet.open(|_| Ok(())).is_ok());  // 1st succeeds

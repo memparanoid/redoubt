@@ -12,7 +12,7 @@
     <a href="https://github.com/memparanoid/redoubt/actions/workflows/ci.yml"><img src="https://github.com/memparanoid/redoubt/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <a href="https://crates.io/crates/redoubt"><img src="https://img.shields.io/crates/v/redoubt.svg" alt="crates.io"></a>
     <a href="https://docs.rs/redoubt"><img src="https://docs.rs/redoubt/badge.svg" alt="docs.rs"></a>
-    <a href="#"><img src="https://img.shields.io/badge/coverage-99.08%25-2de500" alt="coverage"></a>
+    <a href="#"><img src="https://img.shields.io/badge/coverage-99.32%25-22e500" alt="coverage"></a>
     <a href="#"><img src="https://img.shields.io/badge/vulnerabilities-0-brightgreen" alt="security"></a>
     <a href="#license"><img src="https://img.shields.io/badge/license-GPL--3.0--only-blue" alt="license"></a>
 </p>
@@ -23,14 +23,13 @@ Redoubt is a Rust library for storing secrets in memory. Encrypted at rest, zero
 
 ## Features
 
-- ✨ **Zero boilerplate** — One macro, full protection
-- 🔐 **Ephemeral decryption** — Secrets live encrypted, exist in plaintext only for the duration of access
-- 🔒 **No surprises** — Allocation-free decryption with explicit zeroization on every path
-- 🧹 **Automatic zeroization** — Memory is wiped when secrets go out of scope
-- ⚡ **Amazingly fast** — Powered by AEGIS-128L encryption, bit-level encoding, and decrypt-only-what-you-need
-- 🛡️ **OS-level protection** — Memory locking and protection against dumps
-- 🎯 **Field-level access** — Decrypt only the field you need, not the entire struct
-- 📦 **`no_std` compatible** — Works in embedded and WASI environments
+- **Zero boilerplate** — One macro, full protection
+- **Ephemeral decryption** — Secrets live encrypted, exist in plaintext only for the duration of access
+- **Automatic zeroization** — Memory is wiped when secrets go out of scope
+- **Amazingly fast** — Powered by AEGIS-128L encryption, bit-level encoding, and decrypt-only-what-you-need
+- **Page-level protection** — The master key every CipherBox is sealed with lives in its own mapping, mlocked and excluded from core dumps
+- **Field-level access** — Decrypt only the field you need, not the entire struct
+- **`no_std` compatible** — Works in embedded and WASI environments
 
 ## Installation
 ```bash
@@ -187,11 +186,11 @@ let mut timestamp = RedoubtSecret::from(&mut 0i64);
 - **`RedoubtString`**: Variable-length UTF-8 strings (passwords, mnemonics, API keys).
 - **`RedoubtSecret<T>`**: Primitive types (u64, i32, bool) that need protection. Prevents accidental copies via controlled access.
 
-### ⚠️ Critical: CipherBox fields MUST come from these types
+### Critical: CipherBox fields MUST come from these types
 
 **All sensitive data in `#[cipherbox]` structs MUST ultimately come from: `RedoubtArray`, `RedoubtVec`, `RedoubtString`, or `RedoubtSecret`.**
 
-These types were forensically validated (see [forensics/README.md](forensics/README.md)) to leave no traces during the encryption-at-rest workflow. You can compose them into nested structures, but the leaf values containing sensitive data must be these types. Using standard types (`Vec<u8>`, `String`, `[u8; 32]`, `u64`) would leave unzeroized copies during encoding/decoding, defeating the security guarantees.
+Every one of these types, and every CipherBox, carries its own forensic tests. They read the process's mappings from `/proc/<pid>/maps`, sweep the memory behind them with `process_vm_readv`, and capture the registers and the stack frames each operation released. You can compose them into nested structures, but the leaf values containing sensitive data must be these types. Using standard types (`Vec<u8>`, `String`, `[u8; 32]`, `u64`) would leave unzeroized copies during encoding/decoding, defeating the security guarantees.
 
 ### How they prevent traces
 
@@ -236,7 +235,7 @@ CipherBox generates failure injection methods for testing error handling:
 struct Wallet { /* ... */ }
 
 // In tests:
-let mut wallet = WalletBox::new();
+let wallet = WalletBox::new();
 wallet.set_failure_mode(WalletBoxFailureMode::FailOnNthOperation(2));
 
 assert!(wallet.open(|_| Ok(())).is_ok());  // 1st succeeds
