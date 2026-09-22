@@ -148,11 +148,17 @@ where
     where
         T: Default,
     {
-        // Take value from source, leaving it zeroized (Default replaces with zeros)
-        let value = core::mem::take(sensitive_data);
+        let mut boxed = Box::new(T::default());
+
+        // Not `mem::take`, which moves the value through whatever registers
+        // and slots the compiler picked and leaves it in them, and then moves
+        // it again into the box. This one exchanges in place and erases what
+        // it used, so the only copy that ever exists is the one on the heap.
+        redoubt_mem::swap(&mut *boxed, sensitive_data);
+        sensitive_data.fast_zeroize();
 
         Self {
-            inner: Box::new(value),
+            inner: boxed,
             #[cfg(test)]
             __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
@@ -184,14 +190,12 @@ where
     where
         T: Default,
     {
-        // Zeroize old value
         self.inner.fast_zeroize();
 
-        // Take new value from source (leaving it with Default/zeros)
-        let new_value = core::mem::take(value);
-
-        // Replace Box content
-        *self.inner = new_value;
+        // Not `mem::take`, for the reason `from` gives: what it moves through
+        // it does not empty.
+        redoubt_mem::swap(&mut *self.inner, value);
+        value.fast_zeroize();
     }
 }
 
