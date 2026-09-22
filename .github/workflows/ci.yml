@@ -43,9 +43,13 @@ jobs:
         with:
           components: clippy, rustfmt
 
-      - name: Install libseccomp
+      # `libclang-dev` is for `bindgen`, which `crabgrind` generates its
+      # bindings with: `--all-features` below turns on the feature that carries
+      # it, and the feature exists on every Linux whether or not that runner is
+      # the one that measures anything with it.
+      - name: Install libseccomp and libclang
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libseccomp-dev
+        run: sudo apt-get update && sudo apt-get install -y libseccomp-dev libclang-dev
 
       # Formatting reads the same on every runner, so it is asked once rather
       # than on each.
@@ -213,11 +217,17 @@ jobs:
     steps:
       # `libseccomp-static` beside the headers: a musl build links statically,
       # and the shared library alone leaves the link with nothing to put in.
+      #
+      # `clang-dev` for `bindgen`, which `crabgrind` generates its bindings
+      # with. Nothing here measures anything with it — `--all-features` turns
+      # on the feature that carries it, and the feature is there on every
+      # Linux.
       - name: Prepare the container
         run: |
           apk add --no-cache \
             build-base musl-dev \
             libseccomp-dev libseccomp-static \
+            clang-dev \
             git curl bash tar
 
       # `actions/checkout` by hand. The token is the one the run already has,
