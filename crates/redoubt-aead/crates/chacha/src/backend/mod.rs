@@ -20,6 +20,7 @@
 //! `chacha_asm` is set by the build script for a target it compiled assembly
 //! for, and is named nowhere but the alias below.
 
+pub(crate) mod helpers;
 pub(crate) mod rust;
 
 #[cfg(chacha_asm)]

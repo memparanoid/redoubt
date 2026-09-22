@@ -4,9 +4,9 @@
 
 //! The rounds by hand, where a target has them.
 
-use redoubt_aead_core::consts::chacha::{
-    BLOCK_SIZE, HNONCE_SIZE, KEY_SIZE, NONCE_SIZE, XNONCE_SIZE,
-};
+use redoubt_aead_core::consts::chacha::{HNONCE_SIZE, KEY_SIZE, NONCE_SIZE, XNONCE_SIZE};
+
+use super::helpers::{check_counter, last_counter};
 
 #[cfg(test)]
 use crate::consts::WORDS;
@@ -49,13 +49,7 @@ pub(crate) fn xor(key: &[u8; KEY_SIZE], nonce: &[u8], counter: u64, data: &mut [
         nonce.len() == 8 || nonce.len() == NONCE_SIZE,
         "invalid ChaCha20 nonce length"
     );
-    let last = if nonce.len() == NONCE_SIZE {
-        u64::from(u32::MAX)
-    } else {
-        u64::MAX
-    };
-
-    check_counter(counter, last, data.len());
+    check_counter(counter, last_counter(nonce.len()), data.len());
 
     // SAFETY: the nonce layout and counter range were checked above; the key
     // and data references cover every accessed byte and do not overlap.
@@ -72,7 +66,7 @@ pub(crate) fn xor(key: &[u8; KEY_SIZE], nonce: &[u8], counter: u64, data: &mut [
 }
 
 pub(crate) fn xxor(key: &[u8; KEY_SIZE], nonce: &[u8; XNONCE_SIZE], counter: u64, data: &mut [u8]) {
-    check_counter(counter, u64::from(u32::MAX), data.len());
+    check_counter(counter, last_counter(NONCE_SIZE), data.len());
 
     // SAFETY: the arrays have the required lengths, the counter cannot wrap,
     // and data is exclusive. The subkey is made and used inside this call.
@@ -85,14 +79,4 @@ pub(crate) fn xxor(key: &[u8; KEY_SIZE], nonce: &[u8; XNONCE_SIZE], counter: u64
             data.len(),
         );
     }
-}
-
-/// Reject an exhausted counter before assembly reads a secret or writes data.
-fn check_counter(counter: u64, last: u64, len: usize) {
-    let blocks = len.div_ceil(BLOCK_SIZE) as u64;
-
-    assert!(
-        counter <= last && (blocks == 0 || blocks - 1 <= last - counter),
-        "the message runs past the end of the counter"
-    );
 }

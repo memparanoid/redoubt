@@ -19,6 +19,8 @@ use redoubt_aead_core::consts::chacha::{
 
 use crate::consts::{COUNTER_AT, DOUBLE_ROUNDS, KEY_AT, PREAMBLE, WORDS};
 
+use super::helpers::{check_counter, last_counter};
+
 /// One block's worth of everything an operation needs.
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
@@ -74,17 +76,7 @@ pub(crate) fn subkey(out: &mut [u8; KEY_SIZE], key: &[u8; KEY_SIZE], nonce: &[u8
 /// counter of thirty-two bits, and eight is Bernstein's original with a counter
 /// of sixty-four.
 pub(crate) fn xor(key: &[u8; KEY_SIZE], nonce: &[u8], counter: u64, data: &mut [u8]) {
-    let blocks = data.len().div_ceil(BLOCK_SIZE) as u64;
-    let last = if nonce.len() == NONCE_SIZE {
-        u64::from(u32::MAX)
-    } else {
-        u64::MAX
-    };
-
-    assert!(
-        counter <= last && (blocks == 0 || blocks - 1 <= last - counter),
-        "the message runs past the end of the counter"
-    );
+    check_counter(counter, last_counter(nonce.len()), data.len());
 
     let mut work = Work::default();
 

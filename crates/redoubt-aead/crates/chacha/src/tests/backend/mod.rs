@@ -11,6 +11,7 @@
 
 #[cfg(chacha_asm)]
 mod asm;
+mod helpers;
 mod rust;
 mod seam;
 
