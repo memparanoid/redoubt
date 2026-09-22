@@ -9,20 +9,19 @@ mod test_utils {
     use redoubt_alloc::{RedoubtArray, RedoubtOption, RedoubtString};
     use redoubt_codec::RedoubtCodec;
     use redoubt_secret::RedoubtSecret;
-    use redoubt_vault_core::CipherBoxError;
-    use redoubt_vault_derive::cipherbox;
+    use redoubt_vault::{CipherBoxError, cipherbox};
     use redoubt_zero::RedoubtZero;
 
     const MAX_ITERATIONS: usize = 100;
 
     // Global CipherBox for testing global failure injection
-    #[cipherbox(TestGlobalBox, global = true)]
+    #[cipherbox(TestGlobalBox, global = true, testing_feature = "test-utils")]
     #[derive(Default, RedoubtCodec, RedoubtZero)]
     struct TestGlobalData {
         field_a: RedoubtArray<u8, 32>,
     }
 
-    #[cipherbox(TestBox)]
+    #[cipherbox(TestBox, testing_feature = "test-utils")]
     #[derive(Default, RedoubtCodec, RedoubtZero)]
     struct TestData {
         field_a: RedoubtArray<u8, 32>,

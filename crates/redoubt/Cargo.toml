@@ -34,4 +34,5 @@ test-utils = [
   "redoubt-codec/test-utils",
   "redoubt-aead/test-utils",
   "redoubt-rand/test-utils",
+  "redoubt-vault/test-utils",
 ]

@@ -1116,6 +1116,8 @@ dependencies = [
  "redoubt-codec",
  "redoubt-forensics",
  "redoubt-mem",
+ "redoubt-secret",
+ "redoubt-vault",
  "redoubt-vault-core",
  "redoubt-vault-derive",
  "redoubt-zero",
@@ -1601,6 +1603,7 @@ name = "wallet-example"
 version = "0.1.0-rc.8"
 dependencies = [
  "redoubt",
+ "wallet-example",
 ]
 
 [[package]]

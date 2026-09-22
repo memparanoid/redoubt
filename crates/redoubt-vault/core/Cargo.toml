@@ -17,6 +17,7 @@ path = "src/lib.rs"
 default            = []
 internal-forensics = []
 std                = []
+test-utils         = []
 
 [dependencies]
 redoubt-aead.workspace   = true

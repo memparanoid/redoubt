@@ -53,15 +53,12 @@ pub enum CipherBoxError {
     #[error("zeroized: box was intentionally zeroized and cannot be used")]
     Zeroized,
 
-    /// Test-only error indicating an intentional failure.
+    /// What the failure mode of a derived box answers with, once its counter
+    /// reaches the operation it was told to fail on.
     ///
-    /// This error is used in test environments to signal that a failure was deliberate,
-    /// allowing test assertions to verify that the error was intentional rather than
-    /// a bug or unexpected condition.
-    ///
-    /// One use case is failure injection testing, where operations are made to fail
-    /// at specific points to verify error handling and state consistency under adverse
-    /// conditions.
+    /// Available only with the `test-utils` feature enabled. A crate that
+    /// names a `testing_feature` on its box has to enable it from there.
+    #[cfg(any(test, feature = "test-utils"))]
     #[error("IntentionalCipherBoxError")]
     IntentionalCipherBoxError,
 }

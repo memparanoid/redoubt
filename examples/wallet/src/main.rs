@@ -4,29 +4,10 @@
 
 // Example: Minimal crypto wallet using Redoubt
 //
-// Demonstrates the four core Redoubt types:
-// - RedoubtArray: Fixed-size sensitive data (seed)
-// - RedoubtString: Variable-length strings (mnemonic)
-// - RedoubtVec: Variable-length bytes (encrypted backup)
-// - RedoubtSecret: Protected primitives (account index)
+// The box itself is in `lib.rs`, which is the shape a crate consuming Redoubt
+// has: `tests/failure_injection.rs` opens the same one.
 
-use redoubt::alloc::{RedoubtArray, RedoubtString, RedoubtVec};
-use redoubt::codec::RedoubtCodec;
-use redoubt::secret::RedoubtSecret;
-use redoubt::vault::cipherbox;
-use redoubt::zero::RedoubtZero;
-
-// testing_feature enables failure injection (set_failure_mode, WalletBoxFailureMode).
-// In the same crate, test utilities are always available under #[cfg(test)].
-// For external crates, gate with testing_feature to export them conditionally.
-#[cipherbox(WalletBox, testing_feature = "test-utils")]
-#[derive(Default, RedoubtCodec, RedoubtZero)]
-struct Wallet {
-    seed: RedoubtArray<u8, 32>,
-    mnemonic: RedoubtString,
-    backup: RedoubtVec<u8>,
-    account_index: RedoubtSecret<u64>,
-}
+use wallet_example::WalletBox;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut wallet = WalletBox::new();

@@ -59,27 +59,15 @@ impl redoubt_vault_core::DecryptStruct<2> for Data {
         )
     }
 }
-#[cfg(test)]
-#[derive(Debug, Clone, Copy)]
-pub enum DataBoxFailureMode {
-    None,
-    FailOnNthOperation(usize),
-}
 #[derive(redoubt_zero::RedoubtZero)]
 pub struct DataBox {
     inner: redoubt_vault_core::CipherBox<Data, 2>,
-    /// Atomic so that the check below can sit in a method taking
-    /// `&self`, which is what a read is.
-    #[cfg(test)]
-    failure_counter: core::sync::atomic::AtomicUsize,
 }
 impl DataBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
             inner: redoubt_vault_core::CipherBox::new(redoubt_aead::Aead::default()),
-            #[cfg(test)]
-            failure_counter: core::sync::atomic::AtomicUsize::new(0),
         }
     }
     #[inline(always)]
@@ -91,20 +79,6 @@ impl DataBox {
         F: FnMut(&Data) -> Result<R, redoubt_vault_core::CipherBoxError>,
         R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
-        #[cfg(test)]
-        {
-            use core::sync::atomic::Ordering;
-            let left = self.failure_counter.load(Ordering::Relaxed);
-            if left > 0 {
-                self.failure_counter.store(left - 1, Ordering::Relaxed);
-                if left - 1 == 0 {
-                    return Err(
-                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
-                            .into(),
-                    );
-                }
-            }
-        }
         self.inner.open(f)
     }
     #[inline(always)]
@@ -116,33 +90,7 @@ impl DataBox {
         F: FnMut(&mut Data) -> Result<R, redoubt_vault_core::CipherBoxError>,
         R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
-        #[cfg(test)]
-        {
-            use core::sync::atomic::Ordering;
-            let left = self.failure_counter.load(Ordering::Relaxed);
-            if left > 0 {
-                self.failure_counter.store(left - 1, Ordering::Relaxed);
-                if left - 1 == 0 {
-                    return Err(
-                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
-                            .into(),
-                    );
-                }
-            }
-        }
         self.inner.open_mut(f)
-    }
-    #[cfg(test)]
-    pub fn set_failure_mode(&self, mode: DataBoxFailureMode) {
-        use core::sync::atomic::Ordering;
-        match mode {
-            DataBoxFailureMode::None => {
-                self.failure_counter.store(0, Ordering::Relaxed);
-            }
-            DataBoxFailureMode::FailOnNthOperation(n) => {
-                self.failure_counter.store(n, Ordering::Relaxed);
-            }
-        }
     }
     #[inline(always)]
     pub fn leak_alpha(
@@ -151,40 +99,12 @@ impl DataBox {
         redoubt_zero::ZeroizingGuard<Vec<u8>>,
         redoubt_vault_core::CipherBoxError,
     > {
-        #[cfg(test)]
-        {
-            use core::sync::atomic::Ordering;
-            let left = self.failure_counter.load(Ordering::Relaxed);
-            if left > 0 {
-                self.failure_counter.store(left - 1, Ordering::Relaxed);
-                if left - 1 == 0 {
-                    return Err(
-                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
-                            .into(),
-                    );
-                }
-            }
-        }
         self.inner.leak_field::<Vec<u8>, 0, redoubt_vault_core::CipherBoxError>()
     }
     #[inline(always)]
     pub fn leak_beta(
         &self,
     ) -> Result<redoubt_zero::ZeroizingGuard<u64>, redoubt_vault_core::CipherBoxError> {
-        #[cfg(test)]
-        {
-            use core::sync::atomic::Ordering;
-            let left = self.failure_counter.load(Ordering::Relaxed);
-            if left > 0 {
-                self.failure_counter.store(left - 1, Ordering::Relaxed);
-                if left - 1 == 0 {
-                    return Err(
-                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
-                            .into(),
-                    );
-                }
-            }
-        }
         self.inner.leak_field::<u64, 1, redoubt_vault_core::CipherBoxError>()
     }
     #[inline(always)]
@@ -196,20 +116,6 @@ impl DataBox {
         F: FnMut(&Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
         R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
-        #[cfg(test)]
-        {
-            use core::sync::atomic::Ordering;
-            let left = self.failure_counter.load(Ordering::Relaxed);
-            if left > 0 {
-                self.failure_counter.store(left - 1, Ordering::Relaxed);
-                if left - 1 == 0 {
-                    return Err(
-                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
-                            .into(),
-                    );
-                }
-            }
-        }
         self.inner.open_field::<Vec<u8>, 0, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
     #[inline(always)]
@@ -221,20 +127,6 @@ impl DataBox {
         F: FnMut(&u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
         R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
-        #[cfg(test)]
-        {
-            use core::sync::atomic::Ordering;
-            let left = self.failure_counter.load(Ordering::Relaxed);
-            if left > 0 {
-                self.failure_counter.store(left - 1, Ordering::Relaxed);
-                if left - 1 == 0 {
-                    return Err(
-                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
-                            .into(),
-                    );
-                }
-            }
-        }
         self.inner.open_field::<u64, 1, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
     #[inline(always)]
@@ -246,20 +138,6 @@ impl DataBox {
         F: FnMut(&mut Vec<u8>) -> Result<R, redoubt_vault_core::CipherBoxError>,
         R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
-        #[cfg(test)]
-        {
-            use core::sync::atomic::Ordering;
-            let left = self.failure_counter.load(Ordering::Relaxed);
-            if left > 0 {
-                self.failure_counter.store(left - 1, Ordering::Relaxed);
-                if left - 1 == 0 {
-                    return Err(
-                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
-                            .into(),
-                    );
-                }
-            }
-        }
         self.inner
             .open_field_mut::<Vec<u8>, 0, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
@@ -272,20 +150,6 @@ impl DataBox {
         F: FnMut(&mut u64) -> Result<R, redoubt_vault_core::CipherBoxError>,
         R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
-        #[cfg(test)]
-        {
-            use core::sync::atomic::Ordering;
-            let left = self.failure_counter.load(Ordering::Relaxed);
-            if left > 0 {
-                self.failure_counter.store(left - 1, Ordering::Relaxed);
-                if left - 1 == 0 {
-                    return Err(
-                        redoubt_vault_core::CipherBoxError::IntentionalCipherBoxError
-                            .into(),
-                    );
-                }
-            }
-        }
         self.inner.open_field_mut::<u64, 1, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
 }

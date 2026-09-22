@@ -3,14 +3,14 @@ source: crates/redoubt-vault/derive/src/tests/expand.rs
 expression: pretty(token_stream)
 ---
 #[derive(RedoubtZero, RedoubtCodec)]
-struct TestableSecrets {
+struct TestableGlobalSecrets {
     pub secret_key: [u8; 32],
     #[cfg(test)]
     #[codec(default)]
     __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 use redoubt_vault_core::CipherBoxDyns as _;
-impl redoubt_vault_core::CipherBoxDyns<1> for TestableSecrets {
+impl redoubt_vault_core::CipherBoxDyns<1> for TestableGlobalSecrets {
     fn to_encryptable_dyn_fields(
         &mut self,
     ) -> [&mut dyn redoubt_vault_core::Encryptable; 1] {
@@ -22,7 +22,7 @@ impl redoubt_vault_core::CipherBoxDyns<1> for TestableSecrets {
         [&mut self.secret_key]
     }
 }
-impl redoubt_vault_core::EncryptStruct<1> for TestableSecrets {
+impl redoubt_vault_core::EncryptStruct<1> for TestableGlobalSecrets {
     fn encrypt_into(
         &mut self,
         aead: &mut redoubt_aead::Aead,
@@ -39,7 +39,7 @@ impl redoubt_vault_core::EncryptStruct<1> for TestableSecrets {
         )
     }
 }
-impl redoubt_vault_core::DecryptStruct<1> for TestableSecrets {
+impl redoubt_vault_core::DecryptStruct<1> for TestableGlobalSecrets {
     fn decrypt_from(
         &mut self,
         aead: &redoubt_aead::Aead,
@@ -60,19 +60,19 @@ impl redoubt_vault_core::DecryptStruct<1> for TestableSecrets {
 }
 #[cfg(feature = "test-utils")]
 #[derive(Debug, Clone, Copy)]
-pub enum TestableSecretsBoxFailureMode {
+pub enum TestableGlobalSecretsBoxFailureMode {
     None,
     FailOnNthOperation(usize),
 }
 #[derive(redoubt_zero::RedoubtZero)]
-pub struct TestableSecretsBox {
-    inner: redoubt_vault_core::CipherBox<TestableSecrets, 1>,
+pub struct TestableGlobalSecretsBox {
+    inner: redoubt_vault_core::CipherBox<TestableGlobalSecrets, 1>,
     /// Atomic so that the check below can sit in a method taking
     /// `&self`, which is what a read is.
     #[cfg(feature = "test-utils")]
     failure_counter: core::sync::atomic::AtomicUsize,
 }
-impl TestableSecretsBox {
+impl TestableGlobalSecretsBox {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
@@ -87,7 +87,9 @@ impl TestableSecretsBox {
         f: F,
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
-        F: FnMut(&TestableSecrets) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        F: FnMut(
+            &TestableGlobalSecrets,
+        ) -> Result<R, redoubt_vault_core::CipherBoxError>,
         R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(feature = "test-utils")]
@@ -112,7 +114,9 @@ impl TestableSecretsBox {
         f: F,
     ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
     where
-        F: FnMut(&mut TestableSecrets) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        F: FnMut(
+            &mut TestableGlobalSecrets,
+        ) -> Result<R, redoubt_vault_core::CipherBoxError>,
         R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
     {
         #[cfg(feature = "test-utils")]
@@ -132,13 +136,13 @@ impl TestableSecretsBox {
         self.inner.open_mut(f)
     }
     #[cfg(feature = "test-utils")]
-    pub fn set_failure_mode(&self, mode: TestableSecretsBoxFailureMode) {
+    pub fn set_failure_mode(&self, mode: TestableGlobalSecretsBoxFailureMode) {
         use core::sync::atomic::Ordering;
         match mode {
-            TestableSecretsBoxFailureMode::None => {
+            TestableGlobalSecretsBoxFailureMode::None => {
                 self.failure_counter.store(0, Ordering::Relaxed);
             }
-            TestableSecretsBoxFailureMode::FailOnNthOperation(n) => {
+            TestableGlobalSecretsBoxFailureMode::FailOnNthOperation(n) => {
                 self.failure_counter.store(n, Ordering::Relaxed);
             }
         }
@@ -218,8 +222,91 @@ impl TestableSecretsBox {
             .open_field_mut::<[u8; 32], 0, F, R, redoubt_vault_core::CipherBoxError>(f)
     }
 }
-impl Default for TestableSecretsBox {
+impl Default for TestableGlobalSecretsBox {
     fn default() -> Self {
         Self::new()
+    }
+}
+mod __testable_global_secrets_box_internal {
+    use super::*;
+    pub(super) static STATIC_TESTABLE_GLOBAL_SECRETS_BOX: std::sync::OnceLock<
+        std::sync::Mutex<TestableGlobalSecretsBox>,
+    > = std::sync::OnceLock::new();
+    pub(super) fn get_or_init() -> &'static std::sync::Mutex<TestableGlobalSecretsBox> {
+        STATIC_TESTABLE_GLOBAL_SECRETS_BOX
+            .get_or_init(|| std::sync::Mutex::new(TestableGlobalSecretsBox::new()))
+    }
+}
+pub struct TESTABLE_GLOBAL_SECRETS_BOX;
+impl TESTABLE_GLOBAL_SECRETS_BOX {
+    pub fn open<F, R>(
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
+    where
+        F: FnMut(
+            &TestableGlobalSecrets,
+        ) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+    {
+        let mutex = __testable_global_secrets_box_internal::get_or_init();
+        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
+        guard.open(f)
+    }
+    pub fn open_mut<F, R>(
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
+    where
+        F: FnMut(
+            &mut TestableGlobalSecrets,
+        ) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+    {
+        let mutex = __testable_global_secrets_box_internal::get_or_init();
+        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
+        guard.open_mut(f)
+    }
+    #[cfg(feature = "test-utils")]
+    pub fn set_failure_mode(mode: TestableGlobalSecretsBoxFailureMode) {
+        let mutex = __testable_global_secrets_box_internal::get_or_init();
+        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
+        guard.set_failure_mode(mode);
+    }
+    pub fn leak_secret_key() -> Result<
+        redoubt_zero::ZeroizingGuard<[u8; 32]>,
+        redoubt_vault_core::CipherBoxError,
+    > {
+        let mutex = __testable_global_secrets_box_internal::get_or_init();
+        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
+        guard.leak_secret_key()
+    }
+    pub fn open_secret_key<F, R>(
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
+    where
+        F: FnMut(&[u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+    {
+        let mutex = __testable_global_secrets_box_internal::get_or_init();
+        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
+        guard.open_secret_key(f)
+    }
+    pub fn open_secret_key_mut<F, R>(
+        f: F,
+    ) -> Result<redoubt_zero::ZeroizingGuard<R>, redoubt_vault_core::CipherBoxError>
+    where
+        F: FnMut(&mut [u8; 32]) -> Result<R, redoubt_vault_core::CipherBoxError>,
+        R: Default + redoubt_zero::FastZeroizable + redoubt_zero::ZeroizationProbe,
+    {
+        let mutex = __testable_global_secrets_box_internal::get_or_init();
+        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
+        guard.open_secret_key_mut(f)
+    }
+}
+impl redoubt_zero::StaticFastZeroizable for TESTABLE_GLOBAL_SECRETS_BOX {
+    fn fast_zeroize() {
+        use redoubt_zero::FastZeroizable;
+        let mutex = __testable_global_secrets_box_internal::get_or_init();
+        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
+        guard.fast_zeroize();
     }
 }

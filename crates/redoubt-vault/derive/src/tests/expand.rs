@@ -468,3 +468,51 @@ fn snapshot_named_struct_with_testing_feature() -> Result<(), Box<dyn std::error
 
     Ok(())
 }
+
+#[test]
+fn snapshot_global_struct_with_testing_feature_on_portable_storage()
+-> Result<(), Box<dyn std::error::Error>> {
+    let derive_input = parse_quote! {
+        #[derive(RedoubtZero, RedoubtCodec)]
+        struct TestableGlobalSecrets {
+            pub secret_key: [u8; 32],
+        }
+    };
+
+    let token_stream = expand(
+        syn::parse_quote!(TestableGlobalSecretsBox),
+        None,
+        true,
+        Some(crate::StorageStrategy::Portable),
+        Some("test-utils".to_string()),
+        derive_input,
+    )
+    .map_err(refusal)?;
+    insta::assert_snapshot!(pretty(token_stream));
+
+    Ok(())
+}
+
+#[test]
+fn snapshot_global_struct_with_testing_feature_on_std_storage()
+-> Result<(), Box<dyn std::error::Error>> {
+    let derive_input = parse_quote! {
+        #[derive(RedoubtZero, RedoubtCodec)]
+        struct TestableGlobalSecrets {
+            pub secret_key: [u8; 32],
+        }
+    };
+
+    let token_stream = expand(
+        syn::parse_quote!(TestableGlobalSecretsBox),
+        None,
+        true,
+        Some(crate::StorageStrategy::Std),
+        Some("test-utils".to_string()),
+        derive_input,
+    )
+    .map_err(refusal)?;
+    insta::assert_snapshot!(pretty(token_stream));
+
+    Ok(())
+}

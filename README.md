@@ -242,8 +242,19 @@ assert!(wallet.open(|_| Ok(())).is_ok());  // 1st succeeds
 assert!(wallet.open(|_| Ok(())).is_err()); // 2nd fails
 ```
 
-- In the same crate, test utilities are always available under `#[cfg(test)]`
-- For external crates, use `testing_feature` to export them conditionally
+The methods exist only where `testing_feature` names a feature, and that feature has to be on while the tests compile. Two lines in the consuming crate's `Cargo.toml` do it:
+
+```toml
+[features]
+test-utils = ["redoubt/test-utils"]
+
+[dev-dependencies]
+my-crate = { path = ".", features = ["test-utils"] }
+```
+
+The first because `CipherBoxError::IntentionalCipherBoxError`, which the injection returns, lives behind `redoubt/test-utils`. The second because a feature named in `testing_feature` is read against the crate the macro expands in, and a test target takes its features from the build root rather than from any dependency edge — so nothing else turns it on without a flag on every run.
+
+A binary-only crate has no lib target to depend on and so cannot write the second line. Give it a lib and keep the box there, which is what [examples/wallet](examples/wallet) does.
 
 See [examples/wallet/tests](examples/wallet/tests) for a complete example.
 

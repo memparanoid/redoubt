@@ -17,15 +17,23 @@ path = "src/lib.rs"
 default            = []
 internal-forensics = ["redoubt-vault-core/internal-forensics"]
 std                = ["redoubt-vault-core/std", "redoubt-vault-derive/std"]
+test-utils         = ["redoubt-vault-core/test-utils"]
 
 [dependencies]
 redoubt-vault-core.workspace   = true
 redoubt-vault-derive.workspace = true
 
 [dev-dependencies]
+# Itself, with the failure injection on. The boxes in
+# `tests/failure_injection.rs` name `test-utils` as their testing feature, and
+# a feature named there is read against this package — so nothing but this
+# turns it on for a test target.
+redoubt-vault               = { path = ".", features = ["test-utils"] }
+
 redoubt-aead.workspace      = true
 redoubt-alloc.workspace     = true
 redoubt-codec.workspace     = true
 redoubt-forensics.workspace = true
 redoubt-mem.workspace       = true
+redoubt-secret.workspace    = true
 redoubt-zero.workspace      = true

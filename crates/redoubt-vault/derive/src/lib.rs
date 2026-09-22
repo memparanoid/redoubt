@@ -329,12 +329,14 @@ fn expand(
         find_root_with_candidates(&["redoubt-zero-core", "redoubt-zero", "redoubt::zero"]);
     let redoubt_aead_root = find_root_with_candidates(&["redoubt-aead", "redoubt::aead"]);
 
-    // Generate the test cfg attribute based on testing_feature
-    let test_cfg = if let Some(ref feature) = testing_feature {
-        quote! { #[cfg(any(test, feature = #feature))] }
-    } else {
-        quote! { #[cfg(test)] }
-    };
+    // What the failure injection is gated on, where there is any. The error it
+    // returns lives in `redoubt-vault-core` behind `test-utils`, and the
+    // feature named here is the one switch that can carry both — so a box that
+    // names none gets no injection emitted at all, rather than an attribute
+    // that is always false.
+    let test_cfg = testing_feature
+        .as_ref()
+        .map(|feature| quote! { #[cfg(feature = #feature)] });
 
     // Get fields
     let fields: Vec<(usize, &syn::Field)> = match &input.data {
@@ -386,33 +388,71 @@ fn expand(
     // Generate failure mode enum name
     let failure_mode_enum_name = format_ident!("{}FailureMode", wrapper_name);
 
-    // Generate failure mode enum (test-only or with testing_feature)
-    let failure_mode_enum = quote! {
-        #test_cfg
-        #[derive(Debug, Clone, Copy)]
-        pub enum #failure_mode_enum_name {
-            None,
-            FailOnNthOperation(usize),
+    // Generate failure mode enum (only with testing_feature)
+    let failure_mode_enum = test_cfg.as_ref().map(|cfg| {
+        quote! {
+            #cfg
+            #[derive(Debug, Clone, Copy)]
+            pub enum #failure_mode_enum_name {
+                None,
+                FailOnNthOperation(usize),
+            }
         }
-    };
+    });
 
-    // Helper to generate failure check code
-    let failure_check = quote! {
-        #test_cfg
-        {
-            use core::sync::atomic::Ordering;
+    let failure_counter_field = test_cfg.as_ref().map(|cfg| {
+        quote! {
+            /// Atomic so that the check below can sit in a method taking
+            /// `&self`, which is what a read is.
+            #cfg
+            failure_counter: core::sync::atomic::AtomicUsize,
+        }
+    });
 
-            let left = self.failure_counter.load(Ordering::Relaxed);
+    let failure_counter_init = test_cfg.as_ref().map(|cfg| {
+        quote! {
+            #cfg
+            failure_counter: core::sync::atomic::AtomicUsize::new(0),
+        }
+    });
 
-            if left > 0 {
-                self.failure_counter.store(left - 1, Ordering::Relaxed);
+    let set_failure_mode = test_cfg.as_ref().map(|cfg| {
+        quote! {
+            #cfg
+            pub fn set_failure_mode(&self, mode: #failure_mode_enum_name) {
+                use core::sync::atomic::Ordering;
 
-                if left - 1 == 0 {
-                    return Err(#root::CipherBoxError::IntentionalCipherBoxError.into());
+                match mode {
+                    #failure_mode_enum_name::None => {
+                        self.failure_counter.store(0, Ordering::Relaxed);
+                    }
+                    #failure_mode_enum_name::FailOnNthOperation(n) => {
+                        self.failure_counter.store(n, Ordering::Relaxed);
+                    }
                 }
             }
         }
-    };
+    });
+
+    // Helper to generate failure check code
+    let failure_check = test_cfg.as_ref().map(|cfg| {
+        quote! {
+            #cfg
+            {
+                use core::sync::atomic::Ordering;
+
+                let left = self.failure_counter.load(Ordering::Relaxed);
+
+                if left > 0 {
+                    self.failure_counter.store(left - 1, Ordering::Relaxed);
+
+                    if left - 1 == 0 {
+                        return Err(#root::CipherBoxError::IntentionalCipherBoxError.into());
+                    }
+                }
+            }
+        }
+    });
 
     // Generate per-field methods
     let mut leak_methods = Vec::new();
@@ -578,6 +618,30 @@ fn expand(
         let static_name =
             format_ident!("STATIC_{}", wrapper_name.to_string().to_shouty_snake_case());
 
+        // One per storage, because reaching the instance is what differs.
+        let portable_set_failure_mode = test_cfg.as_ref().map(|cfg| {
+            quote! {
+                #cfg
+                pub fn set_failure_mode(mode: #failure_mode_enum_name) {
+                    #internal_module_name::lock();
+                    let _guard = #internal_module_name::PanicGuard;
+                    let instance = #internal_module_name::get_or_init();
+                    instance.set_failure_mode(mode);
+                }
+            }
+        });
+
+        let std_set_failure_mode = test_cfg.as_ref().map(|cfg| {
+            quote! {
+                #cfg
+                pub fn set_failure_mode(mode: #failure_mode_enum_name) {
+                    let mutex = #internal_module_name::get_or_init();
+                    let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
+                    guard.set_failure_mode(mode);
+                }
+            }
+        });
+
         if use_portable_storage {
             // Portable storage (no_std compatible)
             let init_static_name = format_ident!(
@@ -719,13 +783,7 @@ fn expand(
                         instance.open_mut(f)
                     }
 
-                    #test_cfg
-                    pub fn set_failure_mode(mode: #failure_mode_enum_name) {
-                        #internal_module_name::lock();
-                        let _guard = #internal_module_name::PanicGuard;
-                        let instance = #internal_module_name::get_or_init();
-                        instance.set_failure_mode(mode);
-                    }
+                    #portable_set_failure_mode
 
                     #( #global_leak_methods )*
                     #( #global_open_methods )*
@@ -779,12 +837,7 @@ fn expand(
                         guard.open_mut(f)
                     }
 
-                    #test_cfg
-                    pub fn set_failure_mode(mode: #failure_mode_enum_name) {
-                        let mutex = #internal_module_name::get_or_init();
-                        let mut guard = mutex.lock().unwrap_or_else(|p| p.into_inner());
-                        guard.set_failure_mode(mode);
-                    }
+                    #std_set_failure_mode
 
                     #( #global_leak_methods )*
                     #( #global_open_methods )*
@@ -874,10 +927,7 @@ fn expand(
         #[derive(#redoubt_zero_root::RedoubtZero)]
         pub struct #wrapper_name {
             inner: #root::CipherBox<#struct_name, #num_fields_lit>,
-            /// Atomic so that the check below can sit in a method taking
-            /// `&self`, which is what a read is.
-            #test_cfg
-            failure_counter: core::sync::atomic::AtomicUsize,
+            #failure_counter_field
         }
 
         impl #wrapper_name {
@@ -885,8 +935,7 @@ fn expand(
             pub fn new() -> Self {
                 Self {
                     inner: #root::CipherBox::new(#redoubt_aead_root::Aead::default()),
-                    #test_cfg
-                    failure_counter: core::sync::atomic::AtomicUsize::new(0),
+                    #failure_counter_init
                 }
             }
 
@@ -910,19 +959,7 @@ fn expand(
                 self.inner.open_mut(f)
             }
 
-            #test_cfg
-            pub fn set_failure_mode(&self, mode: #failure_mode_enum_name) {
-                use core::sync::atomic::Ordering;
-
-                match mode {
-                    #failure_mode_enum_name::None => {
-                        self.failure_counter.store(0, Ordering::Relaxed);
-                    }
-                    #failure_mode_enum_name::FailOnNthOperation(n) => {
-                        self.failure_counter.store(n, Ordering::Relaxed);
-                    }
-                }
-            }
+            #set_failure_mode
 
             #( #leak_methods )*
 

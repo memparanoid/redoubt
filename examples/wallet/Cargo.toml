@@ -11,7 +11,14 @@ repository.workspace = true
 version.workspace    = true
 
 [features]
-test-utils = []
+# What `#[cipherbox(WalletBox, testing_feature = "test-utils")]` is gated on.
+# It carries `redoubt/test-utils` because the error the injection returns is
+# behind it, and a box whose feature does not reach there compiles to a
+# variant that is not built.
+test-utils = ["redoubt/test-utils"]
 
 [dependencies]
 redoubt = { workspace = true, features = ["full"] }
+
+[dev-dependencies]
+wallet-example = { path = ".", features = ["test-utils"] }

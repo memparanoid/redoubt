@@ -17,6 +17,7 @@ proc-macro = true
 [features]
 std = []
 
+
 [dependencies]
 heck.workspace             = true
 proc-macro-crate.workspace = true
