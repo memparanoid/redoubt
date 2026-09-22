@@ -11,10 +11,20 @@ use redoubt_aead_core::consts::poly1305::{KEY_SIZE, TAG_SIZE};
 use redoubt_asm::Backend;
 
 use crate::poly1305::Poly1305;
+use crate::tests::support::vectors::{VECTORS, Vector};
+
+/// One keyed under the backend named, which is the order the clamp needs.
+pub(crate) fn keyed(backend: Backend, key: &[u8; KEY_SIZE]) -> Poly1305 {
+    let mut poly = Poly1305::new().with_backend(backend);
+
+    poly.init(key);
+
+    poly
+}
 
 /// One message through one authenticator, whole.
 pub(crate) fn tag_of(backend: Backend, key: &[u8; KEY_SIZE], message: &[u8]) -> [u8; TAG_SIZE] {
-    let mut poly = Poly1305::new(key).with_backend(backend);
+    let mut poly = keyed(backend, key);
     let mut tag = [0u8; TAG_SIZE];
 
     poly.update(message);
@@ -30,7 +40,7 @@ pub(crate) fn tag_of_split(
     message: &[u8],
     at: usize,
 ) -> [u8; TAG_SIZE] {
-    let mut poly = Poly1305::new(key).with_backend(backend);
+    let mut poly = keyed(backend, key);
     let mut tag = [0u8; TAG_SIZE];
     let (head, rest) = message.split_at(at);
 
@@ -39,4 +49,26 @@ pub(crate) fn tag_of_split(
     poly.finalize_mut(&mut tag);
 
     tag
+}
+
+/// Every published vector through `compute`, which is the one thing that
+/// differs between the ways of reaching a tag.
+pub(crate) fn against_the_appendix(compute: impl Fn(&[u8; KEY_SIZE], &[u8], &mut [u8; TAG_SIZE])) {
+    for Vector {
+        number,
+        asks,
+        key,
+        message,
+        tag: expected,
+    } in VECTORS
+    {
+        let mut out = [0u8; TAG_SIZE];
+
+        compute(key, message, &mut out);
+
+        assert_eq!(
+            &out, expected,
+            "RFC 8439 A.3 vector #{number} asks about {asks}"
+        );
+    }
 }

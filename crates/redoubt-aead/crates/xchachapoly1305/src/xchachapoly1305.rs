@@ -129,8 +129,10 @@ impl XChaCha20Poly1305 {
         ciphertext: &[u8],
         out: &mut [u8; TAG_SIZE],
     ) {
-        let mut authenticator = Poly1305::new(one_time_key.as_array());
+        let mut authenticator = Poly1305::new();
+
         self.point_at_backend(&mut authenticator);
+        authenticator.init(one_time_key.as_array());
 
         self.tag_with(&mut authenticator, aad, ciphertext);
 

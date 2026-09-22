@@ -134,7 +134,9 @@ fn test_the_pad_is_found_while_the_authenticator_holds_it() -> Result<(), AnyErr
     let mut watch = Forensics::watching(&backwards())?;
 
     let ciphertext = vec![0x5A_u8; 1024];
-    let mut held = Poly1305::new(&ONE_TIME_KEY);
+    let mut held = Poly1305::new();
+
+    held.init(&ONE_TIME_KEY);
 
     forensics!({
         aead.tag_with(&mut held, AAD, &ciphertext);
@@ -164,8 +166,10 @@ macro_rules! a_tag_taken {
             let report_before = watch.snapshot()?;
 
             let ciphertext = vec![0x5A_u8; $of];
-            let mut authenticator = Poly1305::new(&ONE_TIME_KEY);
+            let mut authenticator = Poly1305::new();
             let mut tag = [0_u8; TAG_SIZE];
+
+            authenticator.init(&ONE_TIME_KEY);
 
             forensics!({
                 aead.tag_with(&mut authenticator, AAD, &ciphertext);

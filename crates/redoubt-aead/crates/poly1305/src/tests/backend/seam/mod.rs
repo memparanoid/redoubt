@@ -13,10 +13,10 @@ use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 use redoubt_asm::Backend;
 use redoubt_zero::ZeroizationProbe;
 
-use crate::poly1305::{Poly1305, tag_with_backend};
+use crate::poly1305::tag_with_backend;
 
 use crate::tests::support::oracle;
-use crate::tests::support::{tag_of, tag_of_split};
+use crate::tests::support::{keyed, tag_of, tag_of_split};
 
 // === === === === === === === === === ===
 // update
@@ -68,7 +68,7 @@ proptest! {
         offsets.dedup();
 
         for backend in [Backend::Rust, Backend::Auto] {
-            let mut poly = Poly1305::new(&key).with_backend(backend);
+            let mut poly = keyed(backend, &key);
             let mut tag = [0u8; TAG_SIZE];
             let mut from = 0;
 
@@ -104,7 +104,7 @@ fn test_update_padded_returns_the_tag_of_the_message_and_its_zeros(#[case] backe
         let mut padded = message.clone();
         padded.resize(length.next_multiple_of(BLOCK_SIZE), 0);
 
-        let mut poly = Poly1305::new(&key).with_backend(backend);
+        let mut poly = keyed(backend, &key);
         let mut tag = [0u8; TAG_SIZE];
 
         poly.update_padded(&message);
@@ -128,7 +128,7 @@ fn test_finalize_mut_empties_the_state_it_answered_from(#[case] backend: Backend
     let key = [0x3f; KEY_SIZE];
     let message = b"long enough to leave a tail in the buffer at the end";
 
-    let mut poly = Poly1305::new(&key).with_backend(backend);
+    let mut poly = keyed(backend, &key);
     let mut tag = [0u8; TAG_SIZE];
 
     poly.update(message);

@@ -60,23 +60,23 @@ pub struct Poly1305 {
 }
 
 impl Poly1305 {
-    /// One that will authenticate one message under `key`.
+    /// One with no key yet, which [`Self::init`] is what gives it.
     #[must_use]
-    pub fn new(key: &[u8; KEY_SIZE]) -> Self {
-        let mut poly = Self {
-            backend: Backend::default(),
-            r: [0; LIMBS],
-            s: [0; BLOCK_SIZE],
-            acc: [0; LIMBS],
-            block: [0; BLOCK_SIZE],
-            filled: 0,
-            #[cfg(test)]
-            __sentinel: ZeroizeOnDropSentinel::default(),
-        };
+    pub fn new() -> Self {
+        Self::default()
+    }
 
-        init(Backend::default(), &mut poly.r, &mut poly.s, key);
-
-        poly
+    /// Splits `key` into the pair the message is authenticated under.
+    ///
+    /// Apart from construction because the split is the first operation that
+    /// goes to a backend, and the backend has to be chosen before it rather
+    /// than after: nothing later can reach back and clamp again.
+    ///
+    /// Takes `&mut self` and hands nothing back. A value returned by move is a
+    /// copy the compiler places where it likes and empties nowhere, and what
+    /// would leave here is the clamped pair.
+    pub fn init(&mut self, key: &[u8; KEY_SIZE]) {
+        init(self.backend, &mut self.r, &mut self.s, key);
     }
 
     /// As much of the message as the caller has. Any number of calls says the
@@ -140,10 +140,8 @@ impl Poly1305 {
     /// the whole of it in Rust has to be able to say so to both. Nothing that
     /// ships asks — what ships takes the assembly where the target has it.
     ///
-    /// The clamp is not one of the operations after this one. It ran when the
-    /// key arrived, on whatever [`Self::new`] was given, and it is the same
-    /// answer either way — a caller that needs it named too wants
-    /// [`tag_with_backend`], which has the key and the choice at once.
+    /// [`Self::init`] is one of them, so an authenticator whose clamp has to
+    /// go to the named backend as well is told this before it is given a key.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn set_backend(&mut self, backend: Backend) {
         self.backend = backend;
@@ -183,10 +181,12 @@ pub(crate) fn tag_with_backend(
     said: &[u8],
     out: &mut [u8; TAG_SIZE],
 ) {
-    let mut poly = Poly1305::new(key);
+    let mut poly = Poly1305::new();
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-utils"))]
     poly.set_backend(backend);
+
+    poly.init(key);
 
     finalize(backend, &mut poly.acc, &poly.r, &poly.s, said, out);
 }

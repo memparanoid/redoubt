@@ -92,8 +92,10 @@ fn bench_poly1305_tag(c: &mut Criterion) {
         for (name, backend) in BACKENDS {
             group.bench_with_input(BenchmarkId::new(name, of), &of, |b, _| {
                 b.iter(|| {
-                    let mut poly = Poly1305::new(black_box(&key)).with_backend(backend);
+                    let mut poly = Poly1305::new().with_backend(backend);
                     let mut tag = [0_u8; TAG_SIZE];
+
+                    poly.init(black_box(&key));
 
                     poly.update(black_box(&message));
                     poly.finalize_mut(&mut tag);

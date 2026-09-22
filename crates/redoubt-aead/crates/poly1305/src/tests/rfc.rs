@@ -2,65 +2,36 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Every tag RFC 8439 publishes for Poly1305, against every backend.
+//! The vectors RFC 8439 prints in appendix A.3, through every way of reaching
+//! a tag.
 //!
-//! Appendix A.3 is the whole of it: the key and the message go in and the tag
-//! comes out, and the eleven vectors differ in what they push — a small `r`
-//! that forces the reduction, a message that ends on a block boundary, one that
-//! does not.
-//!
-//! Both entry points are asked, because a caller reaches the tag either by
-//! driving the state or by handing over the whole message at once, and nothing
-//! makes the two agree except that both are held to this.
+//! The expected tags are the specification's and not this crate's, so what
+//! they answer is whether the code agrees with the document rather than with
+//! itself.
 
 use rstest::rstest;
 
-use redoubt_aead_core::consts::poly1305::TAG_SIZE;
 use redoubt_asm::Backend;
 
-use crate::poly1305::tag_with_backend;
+use crate::poly1305::{tag, tag_with_backend};
 
-use crate::tests::support::tag_of;
-use crate::tests::support::vectors::{VECTORS, Vector};
+use crate::tests::support::{against_the_appendix, tag_of};
 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_finalize_mut_returns_the_appendix_tag(#[case] backend: Backend) {
-    for Vector {
-        number,
-        asks,
-        key,
-        message,
-        tag: expected,
-    } in VECTORS
-    {
-        assert_eq!(
-            &tag_of(backend, key, message),
-            expected,
-            "RFC 8439 A.3 vector #{number} asks about {asks}"
-        );
-    }
+    against_the_appendix(|key, message, out| *out = tag_of(backend, key, message));
 }
 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_tag_with_backend_returns_the_appendix_tag(#[case] backend: Backend) {
-    for Vector {
-        number,
-        asks,
-        key,
-        message,
-        tag: expected,
-    } in VECTORS
-    {
-        let mut tag = [0u8; TAG_SIZE];
-        tag_with_backend(backend, key, message, &mut tag);
+    against_the_appendix(|key, message, out| tag_with_backend(backend, key, message, out));
+}
 
-        assert_eq!(
-            &tag, expected,
-            "RFC 8439 A.3 vector #{number} asks about {asks}"
-        );
-    }
+#[test]
+fn test_tag_returns_the_appendix_tag() {
+    against_the_appendix(tag);
 }
