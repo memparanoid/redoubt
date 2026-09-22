@@ -8,8 +8,13 @@ use core::fmt;
 use core::ops::{Deref, DerefMut};
 use core::sync::atomic::{Ordering, compiler_fence};
 
+use super::traits::{FastZeroizable, ZeroizationProbe};
+
+#[cfg(test)]
 use super::assert::assert_zeroize_on_drop;
-use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+#[cfg(test)]
+use super::traits::AssertZeroizeOnDrop;
+#[cfg(test)]
 use super::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 
 /// RAII guard for mutable references that automatically zeroizes on drop.
@@ -77,6 +82,7 @@ where
     T: FastZeroizable + ZeroizationProbe + ?Sized,
 {
     inner: &'a mut T,
+    #[cfg(test)]
     __sentinel: ZeroizeOnDropSentinel,
 }
 
@@ -111,6 +117,7 @@ where
     pub fn from(inner: &'a mut T) -> Self {
         Self {
             inner,
+            #[cfg(test)]
             __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
@@ -144,11 +151,15 @@ where
         self.inner.fast_zeroize();
         compiler_fence(Ordering::SeqCst);
 
-        self.__sentinel.fast_zeroize();
-        compiler_fence(Ordering::SeqCst);
+        #[cfg(test)]
+        {
+            self.__sentinel.fast_zeroize();
+            compiler_fence(Ordering::SeqCst);
+        }
     }
 }
 
+#[cfg(test)]
 impl<'a, T> AssertZeroizeOnDrop for ZeroizingMutGuard<'a, T>
 where
     T: FastZeroizable + ZeroizationProbe + ?Sized,

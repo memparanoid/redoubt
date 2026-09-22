@@ -11,8 +11,13 @@ use core::sync::atomic::{Ordering, compiler_fence};
 
 use crate::collections::{collection_zeroed, to_zeroization_probe_dyn_ref};
 
+use super::traits::{FastZeroizable, ZeroizationProbe};
+
+#[cfg(test)]
 use super::assert::assert_zeroize_on_drop;
-use super::traits::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
+#[cfg(test)]
+use super::traits::AssertZeroizeOnDrop;
+#[cfg(test)]
 use super::zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 
 /// RAII guard for owned values that automatically zeroizes on drop.
@@ -60,6 +65,7 @@ where
     T: FastZeroizable + ZeroizationProbe + Default,
 {
     inner: Box<T>,
+    #[cfg(test)]
     __sentinel: ZeroizeOnDropSentinel,
 }
 
@@ -111,6 +117,7 @@ where
 
         Self {
             inner: boxed,
+            #[cfg(test)]
             __sentinel: ZeroizeOnDropSentinel::default(),
         }
     }
@@ -166,11 +173,15 @@ where
         self.inner.fast_zeroize();
         compiler_fence(Ordering::SeqCst);
 
-        self.__sentinel.fast_zeroize();
-        compiler_fence(Ordering::SeqCst);
+        #[cfg(test)]
+        {
+            self.__sentinel.fast_zeroize();
+            compiler_fence(Ordering::SeqCst);
+        }
     }
 }
 
+#[cfg(test)]
 impl<T> AssertZeroizeOnDrop for ZeroizingGuard<T>
 where
     T: FastZeroizable + ZeroizationProbe + Default,
