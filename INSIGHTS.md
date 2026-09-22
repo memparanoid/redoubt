@@ -8,7 +8,7 @@
 
 <h1 align="center">Project Insights</h1>
 
-<p align="center"><em>Generated on 2026-07-28 14:58</em></p>
+<p align="center"><em>Generated on 2026-09-22 00:30</em></p>
 
 ---
 
@@ -16,43 +16,43 @@
 
 | Metric | Coverage | Covered | Total |
 |--------|----------|---------|-------|
-| **Function** | **99.52%** | 625 | 628 |
-| **Line** | **99.08%** | 4,735 | 4,779 |
-| **Region** | **99.06%** | 6,455 | 6,516 |
-| **Branch** | **97.55%** | 318 | 326 |
+| **Function** | **99.87%** | 766 | 767 |
+| **Line** | **99.32%** | 5,870 | 5,910 |
+| **Region** | **99.24%** | 8,201 | 8,264 |
+| **Branch** | **96.85%** | 492 | 508 |
 
 ## Security Audit
 
-**No vulnerabilities found** — scanned 196 crates against 1170 advisories
+**No vulnerabilities found** — scanned 187 crates against 1258 advisories
 
 ## Code Statistics
 
 | Metric | Production | Tests | Total |
 |--------|------------|-------|-------|
-| **Code Lines** | 17,556 | 16,875 | 34,431 |
-| **Total Lines** | 20,567 | 22,291 | 42,858 |
-| **Files** | 134 | 130 | 264 |
-| **Comments** | 912 | - | 2,780 |
+| **Code Lines** | 10,216 | 40,941 | 51,157 |
+| **Total Lines** | 14,140 | 53,283 | 67,423 |
+| **Files** | 156 | 207 | 363 |
+| **Comments** | 1,358 | - | 5,302 |
 
-> **Test/Code Ratio:** `0.96x` — 16,875 test lines / 17,556 production lines
+> **Test/Code Ratio:** `4.01x` — 40,941 test lines / 10,216 production lines
 
 ## Tests
 
 | Metric | Count |
 |--------|-------|
-| **Total Tests** | 774 |
-| **Total Assertions** | 2,102 |
-| **Assertions/Test** | 2.7 |
-| **Lines/Test** | 22.7 |
+| **Total Tests** | 2,097 |
+| **Total Assertions** | 2,715 |
+| **Assertions/Test** | 1.3 |
+| **Lines/Test** | 4.9 |
 
 <details>
 <summary>Assertion Breakdown</summary>
 
 | Macro | Count |
 |-------|-------|
-| `assert!` | 1,423 |
-| `assert_eq!` | 671 |
-| `debug_assert!` | 5 |
+| `assert!` | 1,562 |
+| `assert_eq!` | 1,144 |
+| `debug_assert!` | 6 |
 | `debug_assert_eq!` | 3 |
 
 </details>
@@ -61,33 +61,28 @@
 
 | Crate | Production Code | Tests |
 |-------|-----------------|-------|
-| `redoubt` | 29 | 0 |
-| `redoubt-aead` | 7,807 | 51 |
-| `redoubt-aead/core` | 66 | 0 |
-| `redoubt-aead/xchacha` | 983 | 47 |
-| `redoubt-alloc` | 769 | 128 |
-| `redoubt-buffer` | 374 | 58 |
-| `redoubt-codec` | 1,609 | 0 |
-| `redoubt-codec/core` | 1,488 | 162 |
+| `redoubt` | 28 | 0 |
+| `redoubt-aead` | 2,167 | 146 |
+| `redoubt-alloc` | 795 | 137 |
+| `redoubt-asm` | 12 | 1 |
+| `redoubt-buffer` | 320 | 64 |
+| `redoubt-codec` | 1,675 | 0 |
+| `redoubt-codec/core` | 1,554 | 165 |
 | `redoubt-codec/derive` | 118 | 17 |
-| `redoubt-guard` | 195 | 1 |
-| `redoubt-hkdf` | 3,768 | 3 |
-| `redoubt-hkdf/arm` | 129 | 1 |
-| `redoubt-hkdf/core` | 32 | 1 |
-| `redoubt-hkdf/rust` | 599 | 20 |
-| `redoubt-hkdf/wycheproof` | 2,838 | 0 |
-| `redoubt-hkdf/x86` | 140 | 6 |
-| `redoubt-rand` | 258 | 26 |
-| `redoubt-secret` | 81 | 8 |
-| `redoubt-test-utils` | 107 | 5 |
+| `redoubt-forensics` | 1,377 | 0 |
+| `redoubt-hkdf` | 788 | 135 |
+| `redoubt-mem` | 86 | 39 |
+| `redoubt-rand` | 230 | 24 |
+| `redoubt-secret` | 84 | 8 |
+| `redoubt-test-utils` | 87 | 5 |
 | `redoubt-util` | 171 | 19 |
-| `redoubt-vault` | 1,528 | 0 |
-| `redoubt-vault/core` | 842 | 77 |
-| `redoubt-vault/derive` | 683 | 38 |
-| `redoubt-zero` | 860 | 0 |
-| `redoubt-zero/core` | 573 | 43 |
+| `redoubt-vault` | 1,517 | 0 |
+| `redoubt-vault/core` | 824 | 106 |
+| `redoubt-vault/derive` | 690 | 38 |
+| `redoubt-zero` | 879 | 0 |
+| `redoubt-zero/core` | 592 | 45 |
 | `redoubt-zero/derive` | 281 | 43 |
-| **Total** | **26,328** | **754** |
+| **Total** | **14,275** | **992** |
 
 ---
 
