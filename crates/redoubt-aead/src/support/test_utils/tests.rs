@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_aead_core::AeadError as AeadCoreError;
+use redoubt_aead_core::AeadCoreError;
 use redoubt_rand::EntropyError;
 
 use crate::enums::AeadBehaviour;
@@ -16,7 +16,7 @@ macro_rules! assert_injected {
         let got = $result;
 
         assert!(
-            matches!(got, Err(AeadError::Primitive(AeadCoreError::Injected))),
+            matches!(got, Err(AeadError::Core(AeadCoreError::Injected))),
             "expected a refusal, got {got:?}"
         );
     }};

@@ -21,7 +21,7 @@ use rstest::rstest;
 
 use redoubt_aead_core::consts::chacha::{KEY_SIZE, XNONCE_SIZE};
 use redoubt_aead_core::consts::poly1305::TAG_SIZE;
-use redoubt_aead_core::{AeadDecrypt, AeadEncrypt, AeadError};
+use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt};
 use redoubt_asm::Backend;
 use redoubt_util::hex_to_bytes;
 
@@ -161,7 +161,7 @@ fn test_decrypt_refuses_what_the_corpus_calls_invalid(#[case] backend: Backend) 
 
         assert_eq!(
             refused,
-            Err(AeadError::AuthenticationFailed),
+            Err(AeadCoreError::AuthenticationFailed),
             "vector {} {:?} ({}) is one the corpus calls invalid",
             case.tc_id,
             case.flags,
@@ -208,7 +208,7 @@ fn test_decrypt_refuses_a_tag_with_one_bit_turned_over(#[case] backend: Backend)
 
             assert_eq!(
                 refused,
-                Err(AeadError::AuthenticationFailed),
+                Err(AeadCoreError::AuthenticationFailed),
                 "vector {} {:?} ({}): bit {bit} of the tag turned over and it was taken",
                 case.tc_id,
                 case.flags,

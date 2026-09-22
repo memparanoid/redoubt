@@ -9,7 +9,7 @@
 //! difference between a decryption and an opening.
 
 use redoubt_aead_core::consts::aegis::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
-use redoubt_aead_core::{AeadDecrypt, AeadEncrypt, AeadError, AeadSizes, constant_time_eq};
+use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt, AeadSizes, constant_time_eq};
 use redoubt_zero::FastZeroizable;
 
 use crate::asm;
@@ -53,8 +53,9 @@ impl AeadEncrypt for Aegis128L {
 impl AeadDecrypt for Aegis128L {
     /// # Errors
     ///
-    /// [`AeadError::AuthenticationFailed`] where the tag is not the one that
-    /// sealed this ciphertext, and `data` is emptied before it is returned.
+    /// [`AeadCoreError::AuthenticationFailed`] where the tag is not the one
+    /// that sealed this ciphertext, and `data` is emptied before it is
+    /// returned.
     ///
     /// That wipe is load-bearing rather than hygiene. AEGIS is one pass:
     /// deciphering and computing the tag are the same walk of the state, so the
@@ -68,7 +69,7 @@ impl AeadDecrypt for Aegis128L {
         aad: &[u8],
         data: &mut [u8],
         tag: &Self::Tag,
-    ) -> Result<(), AeadError> {
+    ) -> Result<(), AeadCoreError> {
         let mut expected = [0u8; TAG_SIZE];
 
         asm::decrypt(key, nonce, aad, data, &mut expected);
@@ -82,7 +83,7 @@ impl AeadDecrypt for Aegis128L {
         if !same {
             data.fast_zeroize();
 
-            return Err(AeadError::AuthenticationFailed);
+            return Err(AeadCoreError::AuthenticationFailed);
         }
 
         Ok(())

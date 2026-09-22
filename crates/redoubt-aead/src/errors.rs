@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_aead_core::AeadError as AeadCoreError;
+use redoubt_aead_core::AeadCoreError;
 use redoubt_rand::EntropyError;
 
 use crate::enums::AeadAlgorithm;
@@ -16,7 +16,7 @@ use crate::enums::AeadAlgorithm;
 pub enum AeadError {
     /// What the primitive answered.
     #[error(transparent)]
-    Primitive(#[from] AeadCoreError),
+    Core(#[from] AeadCoreError),
 
     /// No nonce came back, so nothing was sealed with one.
     #[error("the machine gave no randomness to draw a nonce from")]

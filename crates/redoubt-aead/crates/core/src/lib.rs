@@ -35,5 +35,5 @@ mod traits;
 pub mod consts;
 
 pub use backend::constant_time_eq;
-pub use error::AeadError;
+pub use error::AeadCoreError;
 pub use traits::{AeadBackend, AeadDecrypt, AeadEncrypt, AeadSizes};

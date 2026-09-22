@@ -17,7 +17,7 @@
 //! Sealing and opening are two traits so that a caller can be given one and
 //! not the other. [`AeadBackend`] is both.
 
-use crate::AeadError;
+use crate::AeadCoreError;
 
 /// The three widths an AEAD works in.
 ///
@@ -57,7 +57,7 @@ pub trait AeadDecrypt: AeadSizes {
     ///
     /// # Errors
     ///
-    /// [`AeadError::AuthenticationFailed`], and only that: the widths are
+    /// [`AeadCoreError::AuthenticationFailed`], and only that: the widths are
     /// settled by the types.
     fn decrypt(
         &mut self,
@@ -66,7 +66,7 @@ pub trait AeadDecrypt: AeadSizes {
         aad: &[u8],
         data: &mut [u8],
         tag: &Self::Tag,
-    ) -> Result<(), AeadError>;
+    ) -> Result<(), AeadCoreError>;
 }
 
 /// A sealing and an opening, and the nonce to ask for one.
@@ -75,7 +75,7 @@ pub trait AeadBackend: AeadEncrypt + AeadDecrypt {
     ///
     /// # Errors
     ///
-    /// [`AeadError::EntropyNotAvailable`], where the machine has no
+    /// [`AeadCoreError::EntropyNotAvailable`], where the machine has no
     /// randomness to give.
-    fn generate_nonce(&mut self, out: &mut Self::Nonce) -> Result<(), AeadError>;
+    fn generate_nonce(&mut self, out: &mut Self::Nonce) -> Result<(), AeadCoreError>;
 }

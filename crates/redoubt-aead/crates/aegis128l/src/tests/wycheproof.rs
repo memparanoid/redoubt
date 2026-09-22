@@ -18,7 +18,7 @@
 use std::vec::Vec;
 
 use redoubt_aead_core::consts::aegis::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
-use redoubt_aead_core::{AeadDecrypt, AeadEncrypt, AeadError};
+use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt};
 use redoubt_util::hex_to_bytes;
 
 use crate::aegis128l::Aegis128L;
@@ -146,7 +146,7 @@ fn test_decrypt_refuses_what_the_corpus_calls_invalid() {
 
         assert_eq!(
             refused,
-            Err(AeadError::AuthenticationFailed),
+            Err(AeadCoreError::AuthenticationFailed),
             "vector {} {:?} ({}) is one the corpus calls invalid",
             case.tc_id,
             case.flags,
@@ -240,7 +240,7 @@ fn test_decrypt_refuses_a_tag_with_one_bit_turned_over() {
 
             assert_eq!(
                 refused,
-                Err(AeadError::AuthenticationFailed),
+                Err(AeadCoreError::AuthenticationFailed),
                 "vector {} {:?} ({}): bit {bit} of the tag turned over and it was taken",
                 case.tc_id,
                 case.flags,

@@ -4,7 +4,7 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use redoubt_aead_core::AeadError as AeadCoreError;
+use redoubt_aead_core::AeadCoreError;
 use redoubt_rand::EntropyError;
 
 use crate::enums::AeadBehaviour;
@@ -46,7 +46,7 @@ impl Fuse {
     pub(crate) fn at_encrypt(&self) -> Result<(), AeadError> {
         match self.behaviour {
             AeadBehaviour::FailAtNthEncrypt(nth) if nth == count(&self.encrypted) => {
-                Err(AeadError::Primitive(AeadCoreError::Injected))
+                Err(AeadError::Core(AeadCoreError::Injected))
             }
             _ => Ok(()),
         }
@@ -55,7 +55,7 @@ impl Fuse {
     pub(crate) fn at_decrypt(&self) -> Result<(), AeadError> {
         match self.behaviour {
             AeadBehaviour::FailAtNthDecrypt(nth) if nth == count(&self.decrypted) => {
-                Err(AeadError::Primitive(AeadCoreError::Injected))
+                Err(AeadError::Core(AeadCoreError::Injected))
             }
             _ => Ok(()),
         }

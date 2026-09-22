@@ -30,7 +30,7 @@ use redoubt_forensics::{AnyError, Forensics, QUIET, Report, capture, forensics};
 use redoubt_zero::FastZeroizable;
 
 use redoubt_aead_core::consts::aegis::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
-use redoubt_aead_core::{AeadDecrypt, AeadEncrypt, AeadError};
+use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt};
 
 use redoubt_aead_aegis128l::Aegis128L;
 
@@ -238,7 +238,7 @@ fn test_a_refused_message_leaves_no_computed_tag_behind() -> Result<(), AnyError
 
     let report_after = watch.snapshot()?;
 
-    assert_eq!(refused, Err(AeadError::AuthenticationFailed));
+    assert_eq!(refused, Err(AeadCoreError::AuthenticationFailed));
 
     leaves_nothing(
         &report_before,

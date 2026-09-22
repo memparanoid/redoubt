@@ -12,7 +12,7 @@
 use std::vec;
 
 use redoubt_aead_core::consts::aegis::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
-use redoubt_aead_core::{AeadDecrypt, AeadEncrypt, AeadError};
+use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt};
 use redoubt_zero::ZeroizationProbe;
 
 use crate::aegis128l::Aegis128L;
@@ -62,7 +62,7 @@ fn test_decrypt_empties_the_buffer_when_the_tag_does_not_match() {
 
         assert_eq!(
             refused,
-            Err(AeadError::AuthenticationFailed),
+            Err(AeadCoreError::AuthenticationFailed),
             "a turned-over tag was taken, {length} bytes in"
         );
 
@@ -114,7 +114,7 @@ fn test_decrypt_leaves_the_associated_data_when_it_refuses() {
 
         assert_eq!(
             refused,
-            Err(AeadError::AuthenticationFailed),
+            Err(AeadCoreError::AuthenticationFailed),
             "a turned-over tag was taken, {length} bytes in"
         );
 

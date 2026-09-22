@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use proptest::prelude::*;
 
 use redoubt_aead_core::consts::{aegis, chacha, poly1305};
-use redoubt_aead_core::{AeadDecrypt, AeadEncrypt, AeadError as AeadCoreError};
+use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt};
 use redoubt_aead_xchachapoly1305::XChaCha20Poly1305;
 use redoubt_rand::{
     EntropyError, NonceSessionGenerator, NonceSessionGeneratorBehaviour, SystemEntropySource,
@@ -611,7 +611,7 @@ fn test_encrypt_propagates_the_fuse_at_the_first_call() {
     );
 
     assert!(
-        matches!(result, Err(AeadError::Primitive(AeadCoreError::Injected))),
+        matches!(result, Err(AeadError::Core(AeadCoreError::Injected))),
         "a refused encrypt came back as {result:?}"
     );
     assert_eq!(data, sealed, "a refused encrypt still touched the message");
@@ -644,7 +644,7 @@ fn test_encrypt_propagates_the_fuse_at_the_nth_call()
     );
 
     assert!(
-        matches!(result, Err(AeadError::Primitive(AeadCoreError::Injected))),
+        matches!(result, Err(AeadError::Core(AeadCoreError::Injected))),
         "a refused encrypt came back as {result:?}"
     );
 
@@ -871,7 +871,7 @@ fn test_decrypt_propagates_the_fuse_at_the_first_call() {
     );
 
     assert!(
-        matches!(result, Err(AeadError::Primitive(AeadCoreError::Injected))),
+        matches!(result, Err(AeadError::Core(AeadCoreError::Injected))),
         "a refused decrypt came back as {result:?}"
     );
     assert_eq!(
@@ -915,7 +915,7 @@ fn test_decrypt_propagates_the_fuse_at_the_nth_call()
     );
 
     assert!(
-        matches!(result, Err(AeadError::Primitive(AeadCoreError::Injected))),
+        matches!(result, Err(AeadError::Core(AeadCoreError::Injected))),
         "a refused decrypt came back as {result:?}"
     );
 
@@ -1075,7 +1075,7 @@ fn test_decrypt_propagates_a_tag_mismatch_for_xchacha_variant() {
 
     assert_eq!(
         result,
-        Err(AeadError::Primitive(AeadCoreError::AuthenticationFailed))
+        Err(AeadError::Core(AeadCoreError::AuthenticationFailed))
     );
 }
 
@@ -1092,7 +1092,7 @@ fn test_decrypt_propagates_a_tag_mismatch_for_aegis_variant() {
 
     assert_eq!(
         result,
-        Err(AeadError::Primitive(AeadCoreError::AuthenticationFailed))
+        Err(AeadError::Core(AeadCoreError::AuthenticationFailed))
     );
 }
 

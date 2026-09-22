@@ -215,7 +215,7 @@ impl Aead {
     ///
     /// # Errors
     ///
-    /// [`AeadError::Primitive`] where the tag is not the one that sealed this
+    /// [`AeadError::Core`] where the tag is not the one that sealed this
     /// ciphertext, and a width that is not the one this cipher takes.
     pub fn decrypt(
         &self,

@@ -12,7 +12,7 @@
 /// happen — and splitting them across two error types buys a second `From`
 /// impl at every call site and nothing else.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
-pub enum AeadError {
+pub enum AeadCoreError {
     /// The tag is not the one that sealed this ciphertext.
     #[error("authentication failed: tag mismatch")]
     AuthenticationFailed,

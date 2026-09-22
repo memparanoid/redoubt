@@ -15,7 +15,7 @@
 use rstest::rstest;
 
 use redoubt_aead_core::consts::aegis::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
-use redoubt_aead_core::{AeadDecrypt, AeadEncrypt, AeadError};
+use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt};
 use redoubt_util::hex_to_bytes;
 
 use crate::aegis128l::Aegis128L;
@@ -201,7 +201,7 @@ fn test_decrypt_rejects_what_the_draft_says_it_must(
 
     assert_eq!(
         answer,
-        Err(AeadError::AuthenticationFailed),
+        Err(AeadCoreError::AuthenticationFailed),
         "a vector the draft says must be rejected was accepted"
     );
 }

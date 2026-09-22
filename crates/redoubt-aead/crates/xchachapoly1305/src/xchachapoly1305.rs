@@ -10,7 +10,7 @@
 
 use redoubt_aead_core::consts::chacha::{KEY_SIZE, XNONCE_SIZE};
 use redoubt_aead_core::consts::poly1305::{KEY_SIZE as POLY_KEY_SIZE, TAG_SIZE};
-use redoubt_aead_core::{AeadDecrypt, AeadEncrypt, AeadError, AeadSizes, constant_time_eq};
+use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt, AeadSizes, constant_time_eq};
 use redoubt_alloc::RedoubtArray;
 use redoubt_chacha::xchacha20::XChaCha20;
 use redoubt_mem::copy_nonoverlapping;
@@ -217,7 +217,7 @@ impl AeadDecrypt for XChaCha20Poly1305 {
         aad: &[u8],
         data: &mut [u8],
         tag: &Self::Tag,
-    ) -> Result<(), AeadError> {
+    ) -> Result<(), AeadCoreError> {
         let mut one_time_key = OneTimeKey::from_default();
         self.one_time_key(key, nonce, &mut one_time_key);
 
@@ -236,7 +236,7 @@ impl AeadDecrypt for XChaCha20Poly1305 {
             // nothing will.
             data.fast_zeroize();
 
-            return Err(AeadError::AuthenticationFailed);
+            return Err(AeadCoreError::AuthenticationFailed);
         }
 
         self.cipher.xor(key, nonce, MESSAGE_COUNTER, data);

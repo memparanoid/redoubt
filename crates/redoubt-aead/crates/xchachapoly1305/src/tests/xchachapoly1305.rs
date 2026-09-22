@@ -10,7 +10,7 @@ use rstest::rstest;
 
 use redoubt_aead_core::consts::chacha::{KEY_SIZE, XNONCE_SIZE};
 use redoubt_aead_core::consts::poly1305::TAG_SIZE;
-use redoubt_aead_core::{AeadDecrypt, AeadEncrypt, AeadError};
+use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt};
 use redoubt_asm::Backend;
 use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
@@ -91,7 +91,7 @@ fn test_decrypt_empties_the_buffer_when_the_tag_does_not_match(#[case] backend: 
 
         assert_eq!(
             refused,
-            Err(AeadError::AuthenticationFailed),
+            Err(AeadCoreError::AuthenticationFailed),
             "a turned-over tag was taken, {length} bytes in"
         );
 
