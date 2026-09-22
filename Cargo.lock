@@ -31,7 +31,7 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
 name = "benchmarks"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "criterion",
  "redoubt-aead",
@@ -868,7 +868,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "redoubt-aead",
  "redoubt-alloc",
@@ -885,7 +885,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-aead"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "cpufeatures",
  "proptest",
@@ -903,7 +903,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-aead-aegis128l"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "cc",
  "redoubt-aead-core",
@@ -915,7 +915,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-aead-core"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "cc",
  "crabgrind",
@@ -926,7 +926,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-aead-xchachapoly1305"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "proptest",
  "redoubt-aead-core",
@@ -943,7 +943,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-alloc"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "redoubt-forensics",
  "redoubt-mem",
@@ -954,11 +954,11 @@ dependencies = [
 
 [[package]]
 name = "redoubt-asm"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 
 [[package]]
 name = "redoubt-buffer"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "libc",
  "libseccomp",
@@ -972,7 +972,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-chacha"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "cc",
  "proptest",
@@ -984,7 +984,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-codec"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "redoubt-codec-core",
  "redoubt-codec-derive",
@@ -992,7 +992,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-codec-core"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "redoubt-alloc",
  "redoubt-forensics",
@@ -1006,7 +1006,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-codec-derive"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "dummy-codec",
  "insta",
@@ -1021,7 +1021,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-forensics"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "cc",
  "libc",
@@ -1030,7 +1030,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-hkdf"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "cc",
  "proptest",
@@ -1044,7 +1044,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-mem"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "cc",
  "libc",
@@ -1053,7 +1053,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-memory-analysis"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "libc",
  "redoubt",
@@ -1061,7 +1061,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-poly1305"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "cc",
  "num-bigint",
@@ -1074,7 +1074,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-rand"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "getrandom",
  "libc",
@@ -1088,7 +1088,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-secret"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "redoubt-alloc",
  "redoubt-codec",
@@ -1100,18 +1100,18 @@ dependencies = [
 
 [[package]]
 name = "redoubt-test-utils"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 
 [[package]]
 name = "redoubt-util"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "redoubt-util",
 ]
 
 [[package]]
 name = "redoubt-vault"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "redoubt-aead",
  "redoubt-alloc",
@@ -1127,7 +1127,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-vault-core"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "libc",
  "libseccomp",
@@ -1147,7 +1147,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-vault-derive"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "dummy-vault",
  "heck",
@@ -1168,7 +1168,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-zero"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "redoubt-zero-core",
  "redoubt-zero-derive",
@@ -1176,7 +1176,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-zero-core"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "pastey",
  "redoubt-forensics",
@@ -1186,7 +1186,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-zero-derive"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "dummy-zero",
  "insta",
@@ -1446,11 +1446,11 @@ dependencies = [
 
 [[package]]
 name = "test-a"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 
 [[package]]
 name = "test-b"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "test-a",
 ]
@@ -1602,7 +1602,7 @@ dependencies = [
 
 [[package]]
 name = "wallet-example"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "redoubt",
  "wallet-example",
@@ -1664,7 +1664,7 @@ dependencies = [
 
 [[package]]
 name = "wasm-example"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "redoubt",
  "wasm-bindgen",
