@@ -165,7 +165,12 @@ for arch in "${MACHINES[@]}"; do
       loader=()
 
       if [ "${target##*-}" = "gnu" ]; then
-        loader=("CARGO_TARGET_${named}_RUSTFLAGS=-C link-arg=-Wl,-dynamic-linker,$LOADER")
+        # Appended and not set: `env VAR=` replaces, and this variable already
+        # carries where the linker finds the cross libseccomp. Set flat, every
+        # crate whose tests install a seccomp filter stops linking.
+        flags="CARGO_TARGET_${named}_RUSTFLAGS"
+
+        loader=("$flags=${!flags:-} -C link-arg=-Wl,-dynamic-linker,$LOADER")
       fi
 
       env \
