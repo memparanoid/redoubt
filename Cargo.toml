@@ -41,36 +41,36 @@ resolver = "2"
   license    = "GPL-3.0-only"
   readme     = "README.md"
   repository = "https://github.com/memparanoid/redoubt"
-  version    = "0.1.0-rc.11"
+  version    = "0.1.0-rc.12"
 
   [workspace.dependencies]
   # Internal crates
-  redoubt                      = { path = "crates/redoubt", version = "0.1.0-rc.11" }
-  redoubt-aead                 = { path = "crates/redoubt-aead", version = "0.1.0-rc.11" }
-  redoubt-aead-aegis128l       = { path = "crates/redoubt-aead/crates/aegis128l", version = "0.1.0-rc.11" }
-  redoubt-aead-core            = { path = "crates/redoubt-aead/crates/core", version = "0.1.0-rc.11" }
-  redoubt-aead-xchachapoly1305 = { path = "crates/redoubt-aead/crates/xchachapoly1305", version = "0.1.0-rc.11" }
-  redoubt-alloc                = { path = "crates/redoubt-alloc", version = "0.1.0-rc.11" }
-  redoubt-asm                  = { path = "crates/redoubt-asm", version = "0.1.0-rc.11" }
-  redoubt-buffer               = { path = "crates/redoubt-buffer", version = "0.1.0-rc.11" }
-  redoubt-chacha               = { path = "crates/redoubt-aead/crates/chacha", version = "0.1.0-rc.11" }
-  redoubt-codec                = { path = "crates/redoubt-codec", version = "0.1.0-rc.11" }
-  redoubt-codec-core           = { path = "crates/redoubt-codec/core", version = "0.1.0-rc.11" }
-  redoubt-codec-derive         = { path = "crates/redoubt-codec/derive", version = "0.1.0-rc.11" }
-  redoubt-forensics            = { path = "crates/redoubt-forensics", version = "0.1.0-rc.11" }
-  redoubt-hkdf                 = { path = "crates/redoubt-hkdf", version = "0.1.0-rc.11" }
-  redoubt-mem                  = { path = "crates/redoubt-mem", version = "0.1.0-rc.11" }
-  redoubt-poly1305             = { path = "crates/redoubt-aead/crates/poly1305", version = "0.1.0-rc.11" }
-  redoubt-rand                 = { path = "crates/redoubt-rand", version = "0.1.0-rc.11" }
-  redoubt-secret               = { path = "crates/redoubt-secret", version = "0.1.0-rc.11" }
-  redoubt-test-utils           = { path = "crates/redoubt-test-utils", version = "0.1.0-rc.11" }
-  redoubt-util                 = { path = "crates/redoubt-util", version = "0.1.0-rc.11" }
-  redoubt-vault                = { path = "crates/redoubt-vault", version = "0.1.0-rc.11" }
-  redoubt-vault-core           = { path = "crates/redoubt-vault/core", version = "0.1.0-rc.11" }
-  redoubt-vault-derive         = { path = "crates/redoubt-vault/derive", version = "0.1.0-rc.11" }
-  redoubt-zero                 = { path = "crates/redoubt-zero", version = "0.1.0-rc.11" }
-  redoubt-zero-core            = { path = "crates/redoubt-zero/core", version = "0.1.0-rc.11" }
-  redoubt-zero-derive          = { path = "crates/redoubt-zero/derive", version = "0.1.0-rc.11" }
+  redoubt                      = { path = "crates/redoubt", version = "0.1.0-rc.12" }
+  redoubt-aead                 = { path = "crates/redoubt-aead", version = "0.1.0-rc.12" }
+  redoubt-aead-aegis128l       = { path = "crates/redoubt-aead/crates/aegis128l", version = "0.1.0-rc.12" }
+  redoubt-aead-core            = { path = "crates/redoubt-aead/crates/core", version = "0.1.0-rc.12" }
+  redoubt-aead-xchachapoly1305 = { path = "crates/redoubt-aead/crates/xchachapoly1305", version = "0.1.0-rc.12" }
+  redoubt-alloc                = { path = "crates/redoubt-alloc", version = "0.1.0-rc.12" }
+  redoubt-asm                  = { path = "crates/redoubt-asm", version = "0.1.0-rc.12" }
+  redoubt-buffer               = { path = "crates/redoubt-buffer", version = "0.1.0-rc.12" }
+  redoubt-chacha               = { path = "crates/redoubt-aead/crates/chacha", version = "0.1.0-rc.12" }
+  redoubt-codec                = { path = "crates/redoubt-codec", version = "0.1.0-rc.12" }
+  redoubt-codec-core           = { path = "crates/redoubt-codec/core", version = "0.1.0-rc.12" }
+  redoubt-codec-derive         = { path = "crates/redoubt-codec/derive", version = "0.1.0-rc.12" }
+  redoubt-forensics            = { path = "crates/redoubt-forensics", version = "0.1.0-rc.12" }
+  redoubt-hkdf                 = { path = "crates/redoubt-hkdf", version = "0.1.0-rc.12" }
+  redoubt-mem                  = { path = "crates/redoubt-mem", version = "0.1.0-rc.12" }
+  redoubt-poly1305             = { path = "crates/redoubt-aead/crates/poly1305", version = "0.1.0-rc.12" }
+  redoubt-rand                 = { path = "crates/redoubt-rand", version = "0.1.0-rc.12" }
+  redoubt-secret               = { path = "crates/redoubt-secret", version = "0.1.0-rc.12" }
+  redoubt-test-utils           = { path = "crates/redoubt-test-utils", version = "0.1.0-rc.12" }
+  redoubt-util                 = { path = "crates/redoubt-util", version = "0.1.0-rc.12" }
+  redoubt-vault                = { path = "crates/redoubt-vault", version = "0.1.0-rc.12" }
+  redoubt-vault-core           = { path = "crates/redoubt-vault/core", version = "0.1.0-rc.12" }
+  redoubt-vault-derive         = { path = "crates/redoubt-vault/derive", version = "0.1.0-rc.12" }
+  redoubt-zero                 = { path = "crates/redoubt-zero", version = "0.1.0-rc.12" }
+  redoubt-zero-core            = { path = "crates/redoubt-zero/core", version = "0.1.0-rc.12" }
+  redoubt-zero-derive          = { path = "crates/redoubt-zero/derive", version = "0.1.0-rc.12" }
 
   # External dependencies
   cpufeatures      = "0.2.17"
