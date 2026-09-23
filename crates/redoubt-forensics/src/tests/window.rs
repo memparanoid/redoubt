@@ -19,8 +19,11 @@
 use core::slice;
 
 use crate::errors::Reason;
+use crate::frame::capture;
 use crate::freeze;
 use crate::window::{COPY, FLOOR, SP, open};
+
+use super::support::set_in_the_copy;
 
 /// Thirty-two bytes to leave in a frame and look for in the copy.
 const MARK: [u8; 32] = [
@@ -390,29 +393,30 @@ fn test_every_byte_of_a_released_frame_is_in_the_copy_at_its_own_offset() -> Res
 
         freeze!();
 
-        // SAFETY: `FLOOR` and `COPY` were written by `open` above and `SP` by
-        // the capture, all three on the thread reading them.
-        let (floor, stood, copy) = unsafe { (FLOOR, SP, COPY) };
-
-        assert!(
-            floor <= at && at + WIDE <= stood,
-            "the frame at {at:#x} is not inside the window {floor:#x}-{stood:#x}",
+        assert_eq!(
+            set_in_the_copy(at, WIDE),
+            [offset],
+            "the frame left with byte {offset} set came back with these set",
         );
+    }
 
-        // SAFETY: the room is as wide as the window, and the frame is inside it
-        // with `WIDE` bytes to spare — it was released before the capture wrote
-        // down where it stood.
-        let frame = unsafe { slice::from_raw_parts(copy.add(at - floor), WIDE) };
+    Ok(())
+}
 
-        let set = frame
-            .iter()
-            .enumerate()
-            .filter(|(_, byte)| **byte != 0)
-            .map(|(where_it_is, _)| where_it_is)
-            .collect::<Vec<_>>();
+/// Run through `capture`, the routine's frame sits under the one the call runs
+/// in, and that one is released too by the time the freeze reads.
+#[test]
+fn test_every_byte_of_a_frame_a_captured_call_left_is_in_the_copy_at_its_own_offset()
+-> Result<(), Reason> {
+    open()?;
+
+    for offset in 0..WIDE {
+        // SAFETY: the offset is inside the frame the routine takes, and the
+        // address it answers with is read only through the copy below.
+        let at = capture(|| unsafe { redoubt_dirty_frame(offset) }) as usize;
 
         assert_eq!(
-            set,
+            set_in_the_copy(at, WIDE),
             [offset],
             "the frame left with byte {offset} set came back with these set",
         );

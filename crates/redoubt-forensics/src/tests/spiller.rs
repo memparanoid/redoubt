@@ -505,7 +505,7 @@ macro_rules! seeded_arm {
 /// Nothing opens one, so the capture finds nowhere to copy the stack to and
 /// copies none — which is the branch that says a capture standing on its own
 /// still writes the registers down.
-macro_rules! seeded_through_capture_x86 {
+macro_rules! seeded_through_freeze_x86 {
     ($name:ident, $load:tt, $register:tt, $slot:expr, $wide:expr) => {
         #[cfg(target_arch = "x86_64")]
         #[test]
@@ -544,7 +544,7 @@ macro_rules! seeded_through_capture_x86 {
 /// being measured, so nothing ever arrives here with a value in it. `x17` is
 /// the same register by a different number and is captured, because the pair
 /// store writes it before anything needs it.
-macro_rules! seeded_through_capture_arm {
+macro_rules! seeded_through_freeze_arm {
     ($name:ident, $load:tt, $named:tt, $operand:tt, $slot:expr, $wide:expr) => {
         #[cfg(target_arch = "aarch64")]
         #[test]
@@ -561,6 +561,61 @@ macro_rules! seeded_through_capture_arm {
             }
 
             crate::freeze!();
+
+            found_only_at($operand, $slot, $wide);
+        }
+    };
+}
+
+/// One register seeded inside [`crate::capture`], and read once it returns.
+///
+/// Every one of them has to come back in its slot, callee-saved or not: the
+/// freeze runs inside the frame `capture` gives the operation, before that
+/// frame's epilogue puts anything back.
+macro_rules! seeded_through_capture_x86 {
+    ($name:ident, $load:tt, $register:tt, $slot:expr, $wide:expr) => {
+        #[cfg(target_arch = "x86_64")]
+        #[test]
+        fn $name() {
+            alone!();
+
+            crate::capture(|| {
+                // SAFETY: the one register written is declared, and the seed
+                // is read for the bytes it has. The load is unaligned.
+                unsafe {
+                    core::arch::asm!(
+                        concat!($load, " ", $register, ", [{seed}]"),
+                        seed = in(reg) SEED.as_ptr(),
+                        out($register) _,
+                    );
+                }
+            });
+
+            found_only_at($register, $slot, $wide);
+        }
+    };
+}
+
+/// One register seeded inside [`crate::capture`] on AArch64, and read once it
+/// returns.
+macro_rules! seeded_through_capture_arm {
+    ($name:ident, $load:tt, $named:tt, $operand:tt, $slot:expr, $wide:expr) => {
+        #[cfg(target_arch = "aarch64")]
+        #[test]
+        fn $name() {
+            alone!();
+
+            crate::capture(|| {
+                // SAFETY: the one register written is declared, and the seed
+                // is read for the bytes it has.
+                unsafe {
+                    core::arch::asm!(
+                        concat!($load, " ", $named, ", [{seed}]"),
+                        seed = in(reg) SEED.as_ptr(),
+                        out($operand) _,
+                    );
+                }
+            });
 
             found_only_at($operand, $slot, $wide);
         }
@@ -1236,384 +1291,123 @@ fn test_the_capture_writes_down_x19() {
 }
 
 // ============================================================================
-// freeze!, on x86_64
+// freeze! and capture, on every register
 // ============================================================================
 
-seeded_through_capture_x86!(test_capture_leaves_rax_readable, "mov", "rax", 0, 8);
-seeded_through_capture_x86!(test_capture_leaves_rcx_readable, "mov", "rcx", 16, 8);
-seeded_through_capture_x86!(test_capture_leaves_rdx_readable, "mov", "rdx", 24, 8);
-seeded_through_capture_x86!(test_capture_leaves_rsi_readable, "mov", "rsi", 32, 8);
-seeded_through_capture_x86!(test_capture_leaves_rdi_readable, "mov", "rdi", 40, 8);
-seeded_through_capture_x86!(test_capture_leaves_r8_readable, "mov", "r8", 64, 8);
-seeded_through_capture_x86!(test_capture_leaves_r9_readable, "mov", "r9", 72, 8);
-seeded_through_capture_x86!(test_capture_leaves_r10_readable, "mov", "r10", 80, 8);
-seeded_through_capture_x86!(test_capture_leaves_r11_readable, "mov", "r11", 88, 8);
-seeded_through_capture_x86!(test_capture_leaves_r12_readable, "mov", "r12", 96, 8);
-seeded_through_capture_x86!(test_capture_leaves_r13_readable, "mov", "r13", 104, 8);
-seeded_through_capture_x86!(test_capture_leaves_r14_readable, "mov", "r14", 112, 8);
-seeded_through_capture_x86!(test_capture_leaves_r15_readable, "mov", "r15", 120, 8);
+/// Every register asked about on `x86_64`, each handed to `$seeded`.
+macro_rules! every_register_x86 {
+    ($seeded:ident) => {
+        $seeded!(test_what_is_left_in_rax, "mov", "rax", 0, 8);
+        $seeded!(test_what_is_left_in_rcx, "mov", "rcx", 16, 8);
+        $seeded!(test_what_is_left_in_rdx, "mov", "rdx", 24, 8);
+        $seeded!(test_what_is_left_in_rsi, "mov", "rsi", 32, 8);
+        $seeded!(test_what_is_left_in_rdi, "mov", "rdi", 40, 8);
+        $seeded!(test_what_is_left_in_r8, "mov", "r8", 64, 8);
+        $seeded!(test_what_is_left_in_r9, "mov", "r9", 72, 8);
+        $seeded!(test_what_is_left_in_r10, "mov", "r10", 80, 8);
+        $seeded!(test_what_is_left_in_r11, "mov", "r11", 88, 8);
+        $seeded!(test_what_is_left_in_r12, "mov", "r12", 96, 8);
+        $seeded!(test_what_is_left_in_r13, "mov", "r13", 104, 8);
+        $seeded!(test_what_is_left_in_r14, "mov", "r14", 112, 8);
+        $seeded!(test_what_is_left_in_r15, "mov", "r15", 120, 8);
+        $seeded!(test_what_is_left_in_xmm0, "movdqu", "xmm0", 128, 16);
+        $seeded!(test_what_is_left_in_xmm1, "movdqu", "xmm1", 192, 16);
+        $seeded!(test_what_is_left_in_xmm2, "movdqu", "xmm2", 256, 16);
+        $seeded!(test_what_is_left_in_xmm3, "movdqu", "xmm3", 320, 16);
+        $seeded!(test_what_is_left_in_xmm4, "movdqu", "xmm4", 384, 16);
+        $seeded!(test_what_is_left_in_xmm5, "movdqu", "xmm5", 448, 16);
+        $seeded!(test_what_is_left_in_xmm6, "movdqu", "xmm6", 512, 16);
+        $seeded!(test_what_is_left_in_xmm7, "movdqu", "xmm7", 576, 16);
+        $seeded!(test_what_is_left_in_xmm8, "movdqu", "xmm8", 640, 16);
+        $seeded!(test_what_is_left_in_xmm9, "movdqu", "xmm9", 704, 16);
+        $seeded!(test_what_is_left_in_xmm10, "movdqu", "xmm10", 768, 16);
+        $seeded!(test_what_is_left_in_xmm11, "movdqu", "xmm11", 832, 16);
+        $seeded!(test_what_is_left_in_xmm12, "movdqu", "xmm12", 896, 16);
+        $seeded!(test_what_is_left_in_xmm13, "movdqu", "xmm13", 960, 16);
+        $seeded!(test_what_is_left_in_xmm14, "movdqu", "xmm14", 1024, 16);
+        $seeded!(test_what_is_left_in_xmm15, "movdqu", "xmm15", 1088, 16);
+    };
+}
 
-seeded_through_capture_x86!(test_capture_leaves_xmm0_readable, "movdqu", "xmm0", 128, 16);
-seeded_through_capture_x86!(test_capture_leaves_xmm1_readable, "movdqu", "xmm1", 192, 16);
-seeded_through_capture_x86!(test_capture_leaves_xmm2_readable, "movdqu", "xmm2", 256, 16);
-seeded_through_capture_x86!(test_capture_leaves_xmm3_readable, "movdqu", "xmm3", 320, 16);
-seeded_through_capture_x86!(test_capture_leaves_xmm4_readable, "movdqu", "xmm4", 384, 16);
-seeded_through_capture_x86!(test_capture_leaves_xmm5_readable, "movdqu", "xmm5", 448, 16);
-seeded_through_capture_x86!(test_capture_leaves_xmm6_readable, "movdqu", "xmm6", 512, 16);
-seeded_through_capture_x86!(test_capture_leaves_xmm7_readable, "movdqu", "xmm7", 576, 16);
-seeded_through_capture_x86!(test_capture_leaves_xmm8_readable, "movdqu", "xmm8", 640, 16);
-seeded_through_capture_x86!(test_capture_leaves_xmm9_readable, "movdqu", "xmm9", 704, 16);
-seeded_through_capture_x86!(
-    test_capture_leaves_xmm10_readable,
-    "movdqu",
-    "xmm10",
-    768,
-    16
-);
-seeded_through_capture_x86!(
-    test_capture_leaves_xmm11_readable,
-    "movdqu",
-    "xmm11",
-    832,
-    16
-);
-seeded_through_capture_x86!(
-    test_capture_leaves_xmm12_readable,
-    "movdqu",
-    "xmm12",
-    896,
-    16
-);
-seeded_through_capture_x86!(
-    test_capture_leaves_xmm13_readable,
-    "movdqu",
-    "xmm13",
-    960,
-    16
-);
-seeded_through_capture_x86!(
-    test_capture_leaves_xmm14_readable,
-    "movdqu",
-    "xmm14",
-    1024,
-    16
-);
-seeded_through_capture_x86!(
-    test_capture_leaves_xmm15_readable,
-    "movdqu",
-    "xmm15",
-    1088,
-    16
-);
+/// Every register asked about on `aarch64`, each handed to `$seeded`.
+macro_rules! every_register_arm {
+    ($seeded:ident) => {
+        $seeded!(test_what_is_left_in_x0, "ldr", "x0", "x0", 0, 8);
+        $seeded!(test_what_is_left_in_x1, "ldr", "x1", "x1", 8, 8);
+        $seeded!(test_what_is_left_in_x2, "ldr", "x2", "x2", 16, 8);
+        $seeded!(test_what_is_left_in_x3, "ldr", "x3", "x3", 24, 8);
+        $seeded!(test_what_is_left_in_x4, "ldr", "x4", "x4", 32, 8);
+        $seeded!(test_what_is_left_in_x5, "ldr", "x5", "x5", 40, 8);
+        $seeded!(test_what_is_left_in_x6, "ldr", "x6", "x6", 48, 8);
+        $seeded!(test_what_is_left_in_x7, "ldr", "x7", "x7", 56, 8);
+        $seeded!(test_what_is_left_in_x8, "ldr", "x8", "x8", 64, 8);
+        $seeded!(test_what_is_left_in_x9, "ldr", "x9", "x9", 72, 8);
+        $seeded!(test_what_is_left_in_x10, "ldr", "x10", "x10", 80, 8);
+        $seeded!(test_what_is_left_in_x11, "ldr", "x11", "x11", 88, 8);
+        $seeded!(test_what_is_left_in_x12, "ldr", "x12", "x12", 96, 8);
+        $seeded!(test_what_is_left_in_x13, "ldr", "x13", "x13", 104, 8);
+        $seeded!(test_what_is_left_in_x14, "ldr", "x14", "x14", 112, 8);
+        $seeded!(test_what_is_left_in_x15, "ldr", "x15", "x15", 120, 8);
+        $seeded!(test_what_is_left_in_x17, "ldr", "x17", "x17", 136, 8);
+        $seeded!(test_what_is_left_in_x20, "ldr", "x20", "x20", 160, 8);
+        $seeded!(test_what_is_left_in_x21, "ldr", "x21", "x21", 168, 8);
+        $seeded!(test_what_is_left_in_x22, "ldr", "x22", "x22", 176, 8);
+        $seeded!(test_what_is_left_in_x23, "ldr", "x23", "x23", 184, 8);
+        $seeded!(test_what_is_left_in_x24, "ldr", "x24", "x24", 192, 8);
+        $seeded!(test_what_is_left_in_x25, "ldr", "x25", "x25", 200, 8);
+        $seeded!(test_what_is_left_in_x26, "ldr", "x26", "x26", 208, 8);
+        $seeded!(test_what_is_left_in_x27, "ldr", "x27", "x27", 216, 8);
+        $seeded!(test_what_is_left_in_x28, "ldr", "x28", "x28", 224, 8);
+        $seeded!(test_what_is_left_in_v0, "ldr", "q0", "v0", 256, 16);
+        $seeded!(test_what_is_left_in_v1, "ldr", "q1", "v1", 512, 16);
+        $seeded!(test_what_is_left_in_v2, "ldr", "q2", "v2", 768, 16);
+        $seeded!(test_what_is_left_in_v3, "ldr", "q3", "v3", 1024, 16);
+        $seeded!(test_what_is_left_in_v4, "ldr", "q4", "v4", 1280, 16);
+        $seeded!(test_what_is_left_in_v5, "ldr", "q5", "v5", 1536, 16);
+        $seeded!(test_what_is_left_in_v6, "ldr", "q6", "v6", 1792, 16);
+        $seeded!(test_what_is_left_in_v7, "ldr", "q7", "v7", 2048, 16);
+        $seeded!(test_what_is_left_in_v8, "ldr", "q8", "v8", 2304, 16);
+        $seeded!(test_what_is_left_in_v9, "ldr", "q9", "v9", 2560, 16);
+        $seeded!(test_what_is_left_in_v10, "ldr", "q10", "v10", 2816, 16);
+        $seeded!(test_what_is_left_in_v11, "ldr", "q11", "v11", 3072, 16);
+        $seeded!(test_what_is_left_in_v12, "ldr", "q12", "v12", 3328, 16);
+        $seeded!(test_what_is_left_in_v13, "ldr", "q13", "v13", 3584, 16);
+        $seeded!(test_what_is_left_in_v14, "ldr", "q14", "v14", 3840, 16);
+        $seeded!(test_what_is_left_in_v15, "ldr", "q15", "v15", 4096, 16);
+        $seeded!(test_what_is_left_in_v16, "ldr", "q16", "v16", 4352, 16);
+        $seeded!(test_what_is_left_in_v17, "ldr", "q17", "v17", 4608, 16);
+        $seeded!(test_what_is_left_in_v18, "ldr", "q18", "v18", 4864, 16);
+        $seeded!(test_what_is_left_in_v19, "ldr", "q19", "v19", 5120, 16);
+        $seeded!(test_what_is_left_in_v20, "ldr", "q20", "v20", 5376, 16);
+        $seeded!(test_what_is_left_in_v21, "ldr", "q21", "v21", 5632, 16);
+        $seeded!(test_what_is_left_in_v22, "ldr", "q22", "v22", 5888, 16);
+        $seeded!(test_what_is_left_in_v23, "ldr", "q23", "v23", 6144, 16);
+        $seeded!(test_what_is_left_in_v24, "ldr", "q24", "v24", 6400, 16);
+        $seeded!(test_what_is_left_in_v25, "ldr", "q25", "v25", 6656, 16);
+        $seeded!(test_what_is_left_in_v26, "ldr", "q26", "v26", 6912, 16);
+        $seeded!(test_what_is_left_in_v27, "ldr", "q27", "v27", 7168, 16);
+        $seeded!(test_what_is_left_in_v28, "ldr", "q28", "v28", 7424, 16);
+        $seeded!(test_what_is_left_in_v29, "ldr", "q29", "v29", 7680, 16);
+        $seeded!(test_what_is_left_in_v30, "ldr", "q30", "v30", 7936, 16);
+        $seeded!(test_what_is_left_in_v31, "ldr", "q31", "v31", 8192, 16);
+    };
+}
 
-// ============================================================================
-// freeze!, on AArch64
-// ============================================================================
+/// Each register seeded and then frozen by [`crate::freeze`] where it stands.
+mod through_freeze {
+    use super::*;
 
-seeded_through_capture_arm!(test_capture_leaves_x0_readable, "ldr", "x0", "x0", 0, 8);
-seeded_through_capture_arm!(test_capture_leaves_x1_readable, "ldr", "x1", "x1", 8, 8);
-seeded_through_capture_arm!(test_capture_leaves_x2_readable, "ldr", "x2", "x2", 16, 8);
-seeded_through_capture_arm!(test_capture_leaves_x3_readable, "ldr", "x3", "x3", 24, 8);
-seeded_through_capture_arm!(test_capture_leaves_x4_readable, "ldr", "x4", "x4", 32, 8);
-seeded_through_capture_arm!(test_capture_leaves_x5_readable, "ldr", "x5", "x5", 40, 8);
-seeded_through_capture_arm!(test_capture_leaves_x6_readable, "ldr", "x6", "x6", 48, 8);
-seeded_through_capture_arm!(test_capture_leaves_x7_readable, "ldr", "x7", "x7", 56, 8);
-seeded_through_capture_arm!(test_capture_leaves_x8_readable, "ldr", "x8", "x8", 64, 8);
-seeded_through_capture_arm!(test_capture_leaves_x9_readable, "ldr", "x9", "x9", 72, 8);
-seeded_through_capture_arm!(test_capture_leaves_x10_readable, "ldr", "x10", "x10", 80, 8);
-seeded_through_capture_arm!(test_capture_leaves_x11_readable, "ldr", "x11", "x11", 88, 8);
-seeded_through_capture_arm!(test_capture_leaves_x12_readable, "ldr", "x12", "x12", 96, 8);
-seeded_through_capture_arm!(
-    test_capture_leaves_x13_readable,
-    "ldr",
-    "x13",
-    "x13",
-    104,
-    8
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_x14_readable,
-    "ldr",
-    "x14",
-    "x14",
-    112,
-    8
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_x15_readable,
-    "ldr",
-    "x15",
-    "x15",
-    120,
-    8
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_x17_readable,
-    "ldr",
-    "x17",
-    "x17",
-    136,
-    8
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_x20_readable,
-    "ldr",
-    "x20",
-    "x20",
-    160,
-    8
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_x21_readable,
-    "ldr",
-    "x21",
-    "x21",
-    168,
-    8
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_x22_readable,
-    "ldr",
-    "x22",
-    "x22",
-    176,
-    8
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_x23_readable,
-    "ldr",
-    "x23",
-    "x23",
-    184,
-    8
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_x24_readable,
-    "ldr",
-    "x24",
-    "x24",
-    192,
-    8
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_x25_readable,
-    "ldr",
-    "x25",
-    "x25",
-    200,
-    8
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_x26_readable,
-    "ldr",
-    "x26",
-    "x26",
-    208,
-    8
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_x27_readable,
-    "ldr",
-    "x27",
-    "x27",
-    216,
-    8
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_x28_readable,
-    "ldr",
-    "x28",
-    "x28",
-    224,
-    8
-);
+    every_register_x86!(seeded_through_freeze_x86);
+    every_register_arm!(seeded_through_freeze_arm);
+}
 
-seeded_through_capture_arm!(test_capture_leaves_v0_readable, "ldr", "q0", "v0", 256, 16);
-seeded_through_capture_arm!(test_capture_leaves_v1_readable, "ldr", "q1", "v1", 512, 16);
-seeded_through_capture_arm!(test_capture_leaves_v2_readable, "ldr", "q2", "v2", 768, 16);
-seeded_through_capture_arm!(test_capture_leaves_v3_readable, "ldr", "q3", "v3", 1024, 16);
-seeded_through_capture_arm!(test_capture_leaves_v4_readable, "ldr", "q4", "v4", 1280, 16);
-seeded_through_capture_arm!(test_capture_leaves_v5_readable, "ldr", "q5", "v5", 1536, 16);
-seeded_through_capture_arm!(test_capture_leaves_v6_readable, "ldr", "q6", "v6", 1792, 16);
-seeded_through_capture_arm!(test_capture_leaves_v7_readable, "ldr", "q7", "v7", 2048, 16);
-seeded_through_capture_arm!(test_capture_leaves_v8_readable, "ldr", "q8", "v8", 2304, 16);
-seeded_through_capture_arm!(test_capture_leaves_v9_readable, "ldr", "q9", "v9", 2560, 16);
-seeded_through_capture_arm!(
-    test_capture_leaves_v10_readable,
-    "ldr",
-    "q10",
-    "v10",
-    2816,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v11_readable,
-    "ldr",
-    "q11",
-    "v11",
-    3072,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v12_readable,
-    "ldr",
-    "q12",
-    "v12",
-    3328,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v13_readable,
-    "ldr",
-    "q13",
-    "v13",
-    3584,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v14_readable,
-    "ldr",
-    "q14",
-    "v14",
-    3840,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v15_readable,
-    "ldr",
-    "q15",
-    "v15",
-    4096,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v16_readable,
-    "ldr",
-    "q16",
-    "v16",
-    4352,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v17_readable,
-    "ldr",
-    "q17",
-    "v17",
-    4608,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v18_readable,
-    "ldr",
-    "q18",
-    "v18",
-    4864,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v19_readable,
-    "ldr",
-    "q19",
-    "v19",
-    5120,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v20_readable,
-    "ldr",
-    "q20",
-    "v20",
-    5376,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v21_readable,
-    "ldr",
-    "q21",
-    "v21",
-    5632,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v22_readable,
-    "ldr",
-    "q22",
-    "v22",
-    5888,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v23_readable,
-    "ldr",
-    "q23",
-    "v23",
-    6144,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v24_readable,
-    "ldr",
-    "q24",
-    "v24",
-    6400,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v25_readable,
-    "ldr",
-    "q25",
-    "v25",
-    6656,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v26_readable,
-    "ldr",
-    "q26",
-    "v26",
-    6912,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v27_readable,
-    "ldr",
-    "q27",
-    "v27",
-    7168,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v28_readable,
-    "ldr",
-    "q28",
-    "v28",
-    7424,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v29_readable,
-    "ldr",
-    "q29",
-    "v29",
-    7680,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v30_readable,
-    "ldr",
-    "q30",
-    "v30",
-    7936,
-    16
-);
-seeded_through_capture_arm!(
-    test_capture_leaves_v31_readable,
-    "ldr",
-    "q31",
-    "v31",
-    8192,
-    16
-);
+/// Each register seeded inside [`crate::capture`], and read once it returns.
+mod through_capture {
+    use super::*;
+
+    every_register_x86!(seeded_through_capture_x86);
+    every_register_arm!(seeded_through_capture_arm);
+}
 
 // ============================================================================
 // The capture, read out

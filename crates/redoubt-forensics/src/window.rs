@@ -85,6 +85,15 @@ pub static mut FLOOR: usize = 0;
 /// `SP - FLOOR` bytes and zeroes past that.
 pub static mut SP: usize = 0;
 
+/// Where the window ends when the freeze runs deeper than the operation's
+/// caller, or zero.
+///
+/// Written by [`crate::capture`] before it enters the frame it runs the
+/// operation in, so that a freeze inside that frame copies it too. The freeze
+/// copies up to whichever of this and its own stack pointer is higher, and
+/// zeroes this in the same breath, so a top is never read by a second freeze.
+pub static mut TOP: usize = 0;
+
 /// Reserve the window's room and find its floor.
 ///
 /// Runs before the operation, and its own frames are inside the window it is

@@ -104,9 +104,9 @@ pub use frame::capture;
 
 // What `freeze!` expands into reaches by name, and nothing else has a use for
 // any of it: the room's address, the entry that writes the vectors alone, and
-// the three numbers the window is made of.
+// the numbers the window is made of.
 #[cfg(target_os = "linux")]
 pub use spiller::{SPILL, redoubt_spill_room, redoubt_spill_vectors};
 
 #[cfg(target_os = "linux")]
-pub use window::{COPY, FLOOR, SP, open};
+pub use window::{COPY, FLOOR, SP, TOP, open};

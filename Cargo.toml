@@ -123,6 +123,14 @@ opt-level = 3
 [profile.dev.package.redoubt-zero]
 opt-level = 3
 
+# Unoptimized, nothing is inlined, and the instrument's own tests would stop
+# measuring the case `capture` exists for: a closure compiled as a function of
+# its own has an epilogue that restores the callee-saved registers a seeding
+# wrote, before the freeze reads them. Optimized, the closure folds into the
+# frame the freeze runs in, as an inlined operation does in a release build.
+[profile.dev.package.redoubt-forensics]
+opt-level = 3
+
 [profile.release]
 codegen-units = 1
 lto           = true
