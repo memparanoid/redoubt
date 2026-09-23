@@ -70,7 +70,11 @@ for crate in "${CRATES[@]}"; do
   echo "Publishing $crate..."
 
   if ! cargo publish -p "$crate" --no-verify 2>&1 | tee /tmp/publish_output; then
-    if grep -q "already uploaded" /tmp/publish_output; then
+    # Two refusals, because a version that is already there is refused twice
+    # over: by the index, which cargo reads before it uploads anything, and by
+    # the registry, which answers the upload itself. Which one comes back
+    # depends on how fresh the local index is.
+    if grep -qE "already exists on crates.io index|already uploaded" /tmp/publish_output; then
       echo "  (already published, skipping)"
     else
       echo "  FAILED"
