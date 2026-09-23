@@ -16,9 +16,9 @@
 # # Dev-dependencies count
 #
 # A dev-dependency that names a version is kept in the published manifest and
-# has to resolve, and `^0.1.0-rc.9` is not satisfied by the rc.8 on crates.io —
-# a prerelease requirement asks for that prerelease or a later one. So
-# `redoubt-codec-derive` waits for `redoubt-codec-core` even though it only
+# has to resolve. A prerelease requirement asks for that prerelease or a later
+# one, so the release being cut is never satisfied by the one before it. That
+# is why `redoubt-codec-derive` waits for `redoubt-codec-core` although it only
 # builds its tests against it.
 #
 # A dev-dependency given a path and no version is dropped when the package is
