@@ -170,7 +170,7 @@ fn test_algorithm_answers_what_the_constructor_chose() {
 #[test]
 fn test_key_size_is_the_width_encrypt_accepts() {
     for algorithm in every_algorithm() {
-        let mut aead = Aead::from_algorithm(algorithm);
+        let aead = Aead::from_algorithm(algorithm);
         let mut data = filled(64);
         let mut tag = filled(aead.tag_size());
 
@@ -219,7 +219,7 @@ fn test_nonce_size_is_the_width_generate_nonce_answers()
 fn test_tag_size_is_the_width_encrypt_writes()
 -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     for algorithm in every_algorithm() {
-        let mut aead = Aead::from_algorithm(algorithm);
+        let aead = Aead::from_algorithm(algorithm);
         let mut data = filled(64);
         let mut tag = filled(aead.tag_size());
         let before = tag.clone();
@@ -597,7 +597,7 @@ fn test_from_algorithm_reaches_every_algorithm_this_machine_names() {
 
 #[test]
 fn test_encrypt_propagates_the_fuse_at_the_first_call() {
-    let mut aead = Aead::new_chacha().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let aead = Aead::new_chacha().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
     let mut data = filled(64);
     let mut tag = filled(poly1305::TAG_SIZE);
     let sealed = data.clone();
@@ -620,7 +620,7 @@ fn test_encrypt_propagates_the_fuse_at_the_first_call() {
 #[test]
 fn test_encrypt_propagates_the_fuse_at_the_nth_call()
 -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut aead = Aead::new_chacha().with_behaviour(AeadBehaviour::FailAtNthEncrypt(2));
+    let aead = Aead::new_chacha().with_behaviour(AeadBehaviour::FailAtNthEncrypt(2));
     let mut data = filled(64);
     let mut tag = filled(poly1305::TAG_SIZE);
     let plain = data.clone();
@@ -653,7 +653,7 @@ fn test_encrypt_propagates_the_fuse_at_the_nth_call()
 
 #[test]
 fn test_encrypt_refuses_invalid_inputs_for_xchacha_variant() {
-    let mut aead = Aead::from_algorithm(AeadAlgorithm::XChachaPoly1305);
+    let aead = Aead::from_algorithm(AeadAlgorithm::XChachaPoly1305);
 
     for given in every_width_but(chacha::KEY_SIZE) {
         let mut data = filled(64);
@@ -725,7 +725,7 @@ fn test_encrypt_refuses_invalid_inputs_for_xchacha_variant() {
 #[test]
 #[cfg(aes_asm)]
 fn test_encrypt_refuses_invalid_inputs_for_aegis_variant() {
-    let mut aead = Aead::from_algorithm(AeadAlgorithm::Aegis128L);
+    let aead = Aead::from_algorithm(AeadAlgorithm::Aegis128L);
 
     for given in every_width_but(aegis::KEY_SIZE) {
         let mut data = filled(64);
@@ -883,7 +883,7 @@ fn test_decrypt_propagates_the_fuse_at_the_first_call() {
 #[test]
 fn test_decrypt_propagates_the_fuse_at_the_nth_call()
 -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut aead = Aead::new_chacha().with_behaviour(AeadBehaviour::FailAtNthDecrypt(2));
+    let aead = Aead::new_chacha().with_behaviour(AeadBehaviour::FailAtNthDecrypt(2));
     let mut data = filled(64);
     let mut tag = filled(poly1305::TAG_SIZE);
     let plain = data.clone();

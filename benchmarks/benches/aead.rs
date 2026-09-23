@@ -7,7 +7,7 @@ use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_mai
 use redoubt_aead::Aead;
 
 fn benchmark_aead_encrypt(c: &mut Criterion) {
-    let mut aead = Aead::default();
+    let aead = Aead::default();
     let algorithm_name = format!("{:?}", aead.algorithm());
 
     let mut group = c.benchmark_group(format!(
@@ -39,7 +39,7 @@ fn benchmark_aead_encrypt(c: &mut Criterion) {
 }
 
 fn benchmark_aead_decrypt(c: &mut Criterion) {
-    let mut aead = Aead::default();
+    let aead = Aead::default();
     let algorithm_name = format!("{:?}", aead.algorithm());
 
     let mut group = c.benchmark_group(format!(
@@ -77,7 +77,7 @@ fn benchmark_aead_decrypt(c: &mut Criterion) {
 }
 
 fn benchmark_aead_roundtrip(c: &mut Criterion) {
-    let mut aead = Aead::default();
+    let aead = Aead::default();
     let algorithm_name = format!("{:?}", aead.algorithm());
 
     let mut group = c.benchmark_group(format!(

@@ -183,7 +183,7 @@ impl Aead {
     /// A width that is not the one this cipher takes, and nothing else: with
     /// the three widths measured, sealing cannot fail.
     pub fn encrypt(
-        &mut self,
+        &self,
         key: &[u8],
         nonce: &[u8],
         aad: &[u8],
@@ -192,7 +192,7 @@ impl Aead {
     ) -> Result<(), AeadError> {
         #[cfg(any(test, feature = "test-utils"))]
         {
-            if let Some(fuse) = self.fuse.as_mut() {
+            if let Some(fuse) = self.fuse.as_ref() {
                 fuse.at_encrypt()?;
             }
         }
