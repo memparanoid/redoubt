@@ -872,6 +872,7 @@ version = "0.1.0-rc.12"
 dependencies = [
  "redoubt-aead",
  "redoubt-alloc",
+ "redoubt-asm",
  "redoubt-codec",
  "redoubt-forensics",
  "redoubt-hkdf",
