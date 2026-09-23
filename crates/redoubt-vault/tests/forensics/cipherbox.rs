@@ -262,9 +262,7 @@ fn test_a_filled_box_holds_nothing_at_rest() -> Result<(), AnyError> {
     let mut secrets_box = SecretsBox::new();
 
     forensics!({
-        open_fill_and_close(&mut secrets_box)?;
-
-        capture!();
+        capture(|| open_fill_and_close(&mut secrets_box))?;
     });
 
     // Held across the photograph, and by reference so that holding it is not
@@ -308,13 +306,11 @@ fn test_a_box_given_away_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         open_fill_and_close(&mut secrets_box)?;
 
-        // CORRECTNESS: before the capture, because this is the operation. What
+        // CORRECTNESS: inside the capture, because this is the operation. What
         // the section measures is whether the move itself leaves a copy in the
         // registers or the stack it used. What it writes over is whatever ran
         // before it, which has a section of its own.
-        let_go(secrets_box);
-
-        capture!();
+        capture(|| let_go(secrets_box));
     });
 
     let report_after = watch.snapshot()?;
@@ -365,15 +361,17 @@ fn test_open_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watch, report_before) = filled()?;
 
     forensics!({
-        for _ in 0..ROUNDS {
-            secrets_box.open(|it| {
-                core::hint::black_box(it.in_an_array.as_slice()[0]);
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                secrets_box.open(|it| {
+                    core::hint::black_box(it.in_an_array.as_slice()[0]);
 
-                Ok(())
-            })?;
-        }
+                    Ok(())
+                })?;
+            }
 
-        capture!();
+            Ok(())
+        })?;
     });
 
     let report_after = watch.snapshot()?;
@@ -429,15 +427,17 @@ fn test_open_mut_leaves_nothing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watch, report_before) = filled()?;
 
     forensics!({
-        for _ in 0..ROUNDS {
-            secrets_box.open_mut(|it| {
-                it.in_an_array.as_mut_slice()[0] ^= 0;
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                secrets_box.open_mut(|it| {
+                    it.in_an_array.as_mut_slice()[0] ^= 0;
 
-                Ok(())
-            })?;
-        }
+                    Ok(())
+                })?;
+            }
 
-        capture!();
+            Ok(())
+        })?;
     });
 
     let report_after = watch.snapshot()?;
@@ -470,9 +470,7 @@ fn test_filling_every_field_once_leaves_nothing() -> Result<(), AnyError> {
     let mut secrets_box = SecretsBox::new();
 
     forensics!({
-        open_fill_and_close(&mut secrets_box)?;
-
-        capture!();
+        capture(|| open_fill_and_close(&mut secrets_box))?;
     });
 
     let report_after = watch.snapshot()?;
@@ -505,11 +503,13 @@ fn test_filling_every_field_many_times_leaves_nothing() -> Result<(), AnyError> 
     let mut secrets_box = SecretsBox::new();
 
     forensics!({
-        for _ in 0..ROUNDS {
-            open_fill_and_close(&mut secrets_box)?;
-        }
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                open_fill_and_close(&mut secrets_box)?;
+            }
 
-        capture!();
+            Ok(())
+        })?;
     });
 
     let report_after = watch.snapshot()?;
@@ -563,15 +563,17 @@ fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watch, report_before) = filled()?;
 
     forensics!({
-        for _ in 0..ROUNDS {
-            secrets_box.open_in_two_options(|it| {
-                core::hint::black_box(it.as_ref().is_ok());
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                secrets_box.open_in_two_options(|it| {
+                    core::hint::black_box(it.as_ref().is_ok());
 
-                Ok(())
-            })?;
-        }
+                    Ok(())
+                })?;
+            }
 
-        capture!();
+            Ok(())
+        })?;
     });
 
     let report_after = watch.snapshot()?;
@@ -619,15 +621,17 @@ fn test_open_field_mut_leaves_nothing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watch, report_before) = filled()?;
 
     forensics!({
-        for _ in 0..ROUNDS {
-            secrets_box.open_in_two_options_mut(|it| {
-                core::hint::black_box(it.as_ref().is_ok());
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                secrets_box.open_in_two_options_mut(|it| {
+                    core::hint::black_box(it.as_ref().is_ok());
 
-                Ok(())
-            })?;
-        }
+                    Ok(())
+                })?;
+            }
 
-        capture!();
+            Ok(())
+        })?;
     });
 
     let report_after = watch.snapshot()?;
@@ -659,9 +663,7 @@ fn test_what_a_leaked_vec_handed_back_is_found_while_it_is_held() -> Result<(), 
     let (secrets_box, mut watch, _) = filled()?;
 
     forensics!({
-        let taken = secrets_box.leak_in_a_vec()?;
-
-        capture!();
+        let taken = capture(|| secrets_box.leak_in_a_vec())?;
 
         core::mem::forget(taken);
     });
@@ -694,9 +696,7 @@ fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
 
         let taken = secrets_box.leak_in_a_vec()?;
 
-        core::hint::black_box(taken.as_slice()[0]);
-
-        capture!();
+        capture(|| core::hint::black_box(taken.as_slice()[0]));
 
         drop(taken);
     });
@@ -721,9 +721,7 @@ fn test_what_a_leaked_array_handed_back_is_found_while_it_is_held() -> Result<()
     let (secrets_box, mut watch, _) = filled()?;
 
     forensics!({
-        let taken = secrets_box.leak_in_an_array()?;
-
-        capture!();
+        let taken = capture(|| secrets_box.leak_in_an_array())?;
 
         core::mem::forget(taken);
     });
@@ -751,9 +749,7 @@ fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
 
         let taken = secrets_box.leak_in_an_array()?;
 
-        core::hint::black_box(taken.as_slice()[0]);
-
-        capture!();
+        capture(|| core::hint::black_box(taken.as_slice()[0]));
 
         drop(taken);
     });
@@ -778,9 +774,7 @@ fn test_what_a_leaked_option_handed_back_is_found_while_it_is_held() -> Result<(
     let (secrets_box, mut watch, _) = filled()?;
 
     forensics!({
-        let taken = secrets_box.leak_in_an_option()?;
-
-        capture!();
+        let taken = capture(|| secrets_box.leak_in_an_option())?;
 
         core::mem::forget(taken);
     });
@@ -808,9 +802,7 @@ fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
 
         let taken = secrets_box.leak_in_an_option()?;
 
-        core::hint::black_box(taken.as_ref().is_ok());
-
-        capture!();
+        capture(|| core::hint::black_box(taken.as_ref().is_ok()));
 
         drop(taken);
     });
@@ -835,9 +827,7 @@ fn test_what_two_leaked_options_handed_back_is_found_while_it_is_held() -> Resul
     let (secrets_box, mut watch, _) = filled()?;
 
     forensics!({
-        let taken = secrets_box.leak_in_two_options()?;
-
-        capture!();
+        let taken = capture(|| secrets_box.leak_in_two_options())?;
 
         core::mem::forget(taken);
     });
@@ -866,9 +856,7 @@ fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
 
         let taken = secrets_box.leak_in_two_options()?;
 
-        core::hint::black_box(taken.as_ref().is_ok());
-
-        capture!();
+        capture(|| core::hint::black_box(taken.as_ref().is_ok()));
 
         drop(taken);
     });

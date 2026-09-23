@@ -110,10 +110,9 @@ fn test_chacha_widths_finds_the_key_while_it_is_held() -> Result<(), AnyError> {
     let tag = [0_u8; poly1305::TAG_SIZE];
 
     forensics!({
-        let held =
-            chacha_widths(&key, &nonce, &tag).expect("Infallible: the widths are the cipher's own");
-
-        capture!();
+        let held = capture(|| {
+            chacha_widths(&key, &nonce, &tag).expect("Infallible: the widths are the cipher's own")
+        });
 
         core::hint::black_box(held);
     });
@@ -142,10 +141,9 @@ fn test_chacha_widths_leaves_no_key_behind() -> Result<(), AnyError> {
     let tag = [0_u8; poly1305::TAG_SIZE];
 
     forensics!({
-        let held =
-            chacha_widths(&key, &nonce, &tag).expect("Infallible: the widths are the cipher's own");
-
-        capture!();
+        let held = capture(|| {
+            chacha_widths(&key, &nonce, &tag).expect("Infallible: the widths are the cipher's own")
+        });
 
         // CORRECTNESS: after the capture. A call made before it writes over the
         // stack and the registers the operation left, and then the absence
@@ -180,10 +178,10 @@ fn test_chacha_widths_mut_finds_the_key_while_it_is_held() -> Result<(), AnyErro
     let mut tag = [0_u8; poly1305::TAG_SIZE];
 
     forensics!({
-        let held = chacha_widths_mut(&key, &nonce, &mut tag)
-            .expect("Infallible: the widths are the cipher's own");
-
-        capture!();
+        let held = capture(|| {
+            chacha_widths_mut(&key, &nonce, &mut tag)
+                .expect("Infallible: the widths are the cipher's own")
+        });
 
         core::hint::black_box(held);
     });
@@ -208,10 +206,10 @@ fn test_chacha_widths_mut_leaves_no_key_behind() -> Result<(), AnyError> {
     let mut tag = [0_u8; poly1305::TAG_SIZE];
 
     forensics!({
-        let held = chacha_widths_mut(&key, &nonce, &mut tag)
-            .expect("Infallible: the widths are the cipher's own");
-
-        capture!();
+        let held = capture(|| {
+            chacha_widths_mut(&key, &nonce, &mut tag)
+                .expect("Infallible: the widths are the cipher's own")
+        });
 
         // CORRECTNESS: after the capture. A call made before it writes over the
         // stack and the registers the operation left, and then the absence
@@ -245,10 +243,9 @@ fn test_aegis_widths_finds_the_key_while_it_is_held() -> Result<(), AnyError> {
     let tag = [0_u8; aegis::TAG_SIZE];
 
     forensics!({
-        let held =
-            aegis_widths(&key, &nonce, &tag).expect("Infallible: the widths are the cipher's own");
-
-        capture!();
+        let held = capture(|| {
+            aegis_widths(&key, &nonce, &tag).expect("Infallible: the widths are the cipher's own")
+        });
 
         core::hint::black_box(held);
     });
@@ -273,10 +270,9 @@ fn test_aegis_widths_leaves_no_key_behind() -> Result<(), AnyError> {
     let tag = [0_u8; aegis::TAG_SIZE];
 
     forensics!({
-        let held =
-            aegis_widths(&key, &nonce, &tag).expect("Infallible: the widths are the cipher's own");
-
-        capture!();
+        let held = capture(|| {
+            aegis_widths(&key, &nonce, &tag).expect("Infallible: the widths are the cipher's own")
+        });
 
         // CORRECTNESS: after the capture. A call made before it writes over the
         // stack and the registers the operation left, and then the absence
@@ -310,10 +306,10 @@ fn test_aegis_widths_mut_finds_the_key_while_it_is_held() -> Result<(), AnyError
     let mut tag = [0_u8; aegis::TAG_SIZE];
 
     forensics!({
-        let held = aegis_widths_mut(&key, &nonce, &mut tag)
-            .expect("Infallible: the widths are the cipher's own");
-
-        capture!();
+        let held = capture(|| {
+            aegis_widths_mut(&key, &nonce, &mut tag)
+                .expect("Infallible: the widths are the cipher's own")
+        });
 
         core::hint::black_box(held);
     });
@@ -338,10 +334,10 @@ fn test_aegis_widths_mut_leaves_no_key_behind() -> Result<(), AnyError> {
     let mut tag = [0_u8; aegis::TAG_SIZE];
 
     forensics!({
-        let held = aegis_widths_mut(&key, &nonce, &mut tag)
-            .expect("Infallible: the widths are the cipher's own");
-
-        capture!();
+        let held = capture(|| {
+            aegis_widths_mut(&key, &nonce, &mut tag)
+                .expect("Infallible: the widths are the cipher's own")
+        });
 
         // CORRECTNESS: after the capture. A call made before it writes over the
         // stack and the registers the operation left, and then the absence

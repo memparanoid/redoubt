@@ -142,9 +142,7 @@ fn test_a_value_is_found_while_it_holds_the_secret() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let value = held(32);
-
-        capture!();
+        let value = capture(|| held(32));
 
         core::mem::forget(value);
     });
@@ -171,9 +169,7 @@ fn test_a_buffer_is_found_while_it_holds_the_encoding() -> Result<(), AnyError> 
         let mut value = held(32);
         let mut buffer = RedoubtCodecBuffer::with_capacity(32 + SPARE);
 
-        value.encode_into(&mut buffer)?;
-
-        capture!();
+        capture(|| value.encode_into(&mut buffer))?;
 
         core::mem::forget(buffer);
 
@@ -200,9 +196,7 @@ macro_rules! encoded {
                 let mut value = held($of);
                 let mut buffer = RedoubtCodecBuffer::with_capacity($of + SPARE);
 
-                value.encode_into(&mut buffer)?;
-
-                capture!();
+                capture(|| value.encode_into(&mut buffer))?;
 
                 value.fast_zeroize();
                 buffer.fast_zeroize();
@@ -251,9 +245,7 @@ fn test_a_decoded_value_is_found_while_it_holds_the_secret() -> Result<(), AnyEr
         let mut wire = buffer.export_as_vec();
         let mut back = RedoubtVec::<u8>::new();
 
-        back.decode_from(&mut wire.as_mut_slice())?;
-
-        capture!();
+        capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
 
         core::mem::forget(back);
 
@@ -293,9 +285,7 @@ macro_rules! decoded {
                 let mut wire = buffer.export_as_vec();
                 let mut back = RedoubtVec::<u8>::new();
 
-                back.decode_from(&mut wire.as_mut_slice())?;
-
-                capture!();
+                capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
 
                 back.fast_zeroize();
                 buffer.fast_zeroize();
@@ -353,9 +343,7 @@ fn test_a_buffer_is_found_while_it_holds_the_secret() -> Result<(), AnyError> {
         let mut source = held(4096);
         let mut destination = [0_u8; 32];
 
-        source.as_mut_slice().read(&mut destination)?;
-
-        capture!();
+        capture(|| source.as_mut_slice().read(&mut destination))?;
 
         // An array has no drop to skip, so what keeps it findable is that
         // something reads it after the photograph.
@@ -382,9 +370,7 @@ fn test_reading_a_value_leaves_nothing() -> Result<(), AnyError> {
         let mut source = held(4096);
         let mut destination = [0_u8; 32];
 
-        source.as_mut_slice().read(&mut destination)?;
-
-        capture!();
+        capture(|| source.as_mut_slice().read(&mut destination))?;
 
         destination.fast_zeroize();
         source.fast_zeroize();
@@ -411,9 +397,7 @@ macro_rules! read_slice_of {
                 let mut source = held($of);
                 let mut destination = vec![0_u8; $of];
 
-                source.as_mut_slice().read_slice(&mut destination)?;
-
-                capture!();
+                capture(|| source.as_mut_slice().read_slice(&mut destination))?;
 
                 destination.fast_zeroize();
                 source.fast_zeroize();

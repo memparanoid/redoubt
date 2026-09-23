@@ -122,9 +122,7 @@ fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
 
     forensics!({
         // A real open, and nothing done to hide it.
-        let held = leak_master_key(WIDE)?;
-
-        capture!();
+        let held = capture(|| leak_master_key(WIDE))?;
 
         // Kept rather than let go, which is the one line between this and the
         // test below. Emits no code, so the two are the same measurement of
@@ -230,9 +228,7 @@ fn test_opening_the_master_key_once_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         let key = leak_master_key(WIDE)?;
 
-        core::hint::black_box(key[0]);
-
-        capture!();
+        capture(|| core::hint::black_box(key[0]));
     });
 
     let report_after = watch.snapshot()?;
@@ -255,13 +251,15 @@ fn test_opening_the_master_key_often_leaves_nothing() -> Result<(), AnyError> {
     let report_before = watch.snapshot()?;
 
     forensics!({
-        for _ in 0..ROUNDS {
-            let key = leak_master_key(WIDE)?;
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                let key = leak_master_key(WIDE)?;
 
-            core::hint::black_box(key[0]);
-        }
+                core::hint::black_box(key[0]);
+            }
 
-        capture!();
+            Ok(())
+        })?;
     });
 
     let report_after = watch.snapshot()?;

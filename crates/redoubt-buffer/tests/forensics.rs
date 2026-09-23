@@ -9,7 +9,7 @@
 //! Not what the page holds: that is out of the sweep's reach whatever it is.
 //! What is measured is the operations that handle the page — the unprotect, the
 //! slice handed out, the protect on the way back — and whether any of them left
-//! a copy in a register or on the stack it used, which is where `capture!()`
+//! a copy in a register or on the stack it used, which is where `capture`
 //! reads.
 //!
 //! # A process each
@@ -124,17 +124,17 @@ fn test_a_copy_taken_out_of_the_page_is_found() -> Result<(), AnyError> {
     let mut inside = None;
 
     forensics!({
-        let read = buffer.open(&mut |slice: &[u8]| {
-            let taken = slice.to_vec();
+        let read = capture(|| {
+            buffer.open(&mut |slice: &[u8]| {
+                let taken = slice.to_vec();
 
-            inside = watch.snapshot().ok();
+                inside = watch.snapshot().ok();
 
-            drop(core::hint::black_box(taken));
+                drop(core::hint::black_box(taken));
 
-            Ok(())
+                Ok(())
+            })
         });
-
-        capture!();
         read?;
     });
 
@@ -166,13 +166,13 @@ fn test_the_page_itself_is_out_of_the_sweep_s_reach() -> Result<(), AnyError> {
     forensics!({
         let mut held = PageBuffer::new(ProtectionStrategy::MemProtected, SECRET.len())?;
 
-        let wrote = held.open_mut(&mut |slice: &mut [u8]| {
-            giving(slice);
+        let wrote = capture(|| {
+            held.open_mut(&mut |slice: &mut [u8]| {
+                giving(slice);
 
-            Ok(())
+                Ok(())
+            })
         });
-
-        capture!();
         wrote?;
 
         // CORRECTNESS: the page is left holding the secret, which is what the
@@ -212,13 +212,13 @@ fn test_reading_a_page_out_leaves_nothing_behind() -> Result<(), AnyError> {
     let report_before = watch.snapshot()?;
 
     forensics!({
-        let read_result = buffer.open(&mut |slice: &[u8]| {
-            used(slice);
+        let read_result = capture(|| {
+            buffer.open(&mut |slice: &[u8]| {
+                used(slice);
 
-            Ok::<(), BufferError>(())
+                Ok::<(), BufferError>(())
+            })
         });
-
-        capture!();
         read_result?;
     });
 
@@ -249,12 +249,10 @@ fn test_dropping_a_page_leaves_nothing_behind() -> Result<(), AnyError> {
     forensics!({
         let held = filled()?;
 
-        // CORRECTNESS: before the capture. The release is the subject, so what
+        // CORRECTNESS: inside the capture. The release is the subject, so what
         // the photograph reads is the stack and the registers it left on its
         // way through.
-        drop(held);
-
-        capture!();
+        capture(|| drop(held));
     });
 
     let report_after = watch.snapshot()?;
@@ -291,11 +289,9 @@ fn test_moving_a_page_leaves_nothing_behind() -> Result<(), AnyError> {
     forensics!({
         let held = filled()?;
 
-        // CORRECTNESS: before the capture. The move is the subject, so what
+        // CORRECTNESS: inside the capture. The move is the subject, so what
         // the photograph reads is the slot it was moved out of.
-        let_go(held);
-
-        capture!();
+        capture(|| let_go(held));
     });
 
     let report_after = watch.snapshot()?;

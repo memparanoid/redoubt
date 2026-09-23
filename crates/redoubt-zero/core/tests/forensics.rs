@@ -169,9 +169,7 @@ fn test_a_guarded_vec_is_found_while_the_guard_holds_it() -> Result<(), AnyError
     giving(&mut source);
 
     forensics!({
-        let guard = ZeroizingGuard::from_mut(&mut source);
-
-        capture!();
+        let guard = capture(|| ZeroizingGuard::from_mut(&mut source));
 
         core::mem::forget(guard);
     });
@@ -199,9 +197,7 @@ macro_rules! a_guarded_vec {
             giving(&mut source);
 
             forensics!({
-                let guard = ZeroizingGuard::from_mut(&mut source);
-
-                capture!();
+                let guard = capture(|| ZeroizingGuard::from_mut(&mut source));
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the swap left, and then the
@@ -251,12 +247,10 @@ fn test_a_guarded_vec_given_away_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         let guard = ZeroizingGuard::from_mut(&mut source);
 
-        // CORRECTNESS: before the capture, because this is the operation. What
+        // CORRECTNESS: inside the capture, because this is the operation. What
         // the section measures is whether the move itself leaves a copy in the
         // registers or the stack it used.
-        let_go(guard);
-
-        capture!();
+        capture(|| let_go(guard));
     });
 
     drop(core::hint::black_box(source));
@@ -286,12 +280,10 @@ fn test_dropping_a_guarded_vec_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         let guard = ZeroizingGuard::from_mut(&mut source);
 
-        // CORRECTNESS: before the capture, because this is the operation. What
+        // CORRECTNESS: inside the capture, because this is the operation. What
         // the section measures is what the drop itself leaves in the registers
         // or the stack it used.
-        drop(guard);
-
-        capture!();
+        capture(|| drop(guard));
     });
 
     drop(core::hint::black_box(source));
@@ -321,9 +313,7 @@ fn test_a_guarded_array_is_found_while_the_guard_holds_it() -> Result<(), AnyErr
     giving(&mut source);
 
     forensics!({
-        let guard = ZeroizingGuard::from_mut(&mut source);
-
-        capture!();
+        let guard = capture(|| ZeroizingGuard::from_mut(&mut source));
 
         core::mem::forget(guard);
     });
@@ -352,9 +342,7 @@ fn test_guarding_an_array_leaves_nothing() -> Result<(), AnyError> {
     giving(&mut source);
 
     forensics!({
-        let guard = ZeroizingGuard::from_mut(&mut source);
-
-        capture!();
+        let guard = capture(|| ZeroizingGuard::from_mut(&mut source));
 
         // CORRECTNESS: after the capture. A call made before it writes over
         // the stack and the registers the swap left, and then the absence
@@ -389,10 +377,8 @@ fn test_a_guarded_array_given_away_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         let guard = ZeroizingGuard::from_mut(&mut source);
 
-        // CORRECTNESS: before the capture, because this is the operation.
-        let_go(guard);
-
-        capture!();
+        // CORRECTNESS: inside the capture, because this is the operation.
+        capture(|| let_go(guard));
     });
 
     core::hint::black_box(&source);
@@ -422,10 +408,8 @@ fn test_dropping_a_guarded_array_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         let guard = ZeroizingGuard::from_mut(&mut source);
 
-        // CORRECTNESS: before the capture, because this is the operation.
-        drop(guard);
-
-        capture!();
+        // CORRECTNESS: inside the capture, because this is the operation.
+        capture(|| drop(guard));
     });
 
     core::hint::black_box(&source);
@@ -455,9 +439,7 @@ fn test_a_guarded_wide_value_is_found_while_the_guard_holds_it() -> Result<(), A
     giving(&mut source.0);
 
     forensics!({
-        let guard = ZeroizingGuard::from_mut(&mut source);
-
-        capture!();
+        let guard = capture(|| ZeroizingGuard::from_mut(&mut source));
 
         core::mem::forget(guard);
     });
@@ -483,9 +465,7 @@ fn test_guarding_a_wide_value_leaves_nothing() -> Result<(), AnyError> {
     giving(&mut source.0);
 
     forensics!({
-        let guard = ZeroizingGuard::from_mut(&mut source);
-
-        capture!();
+        let guard = capture(|| ZeroizingGuard::from_mut(&mut source));
 
         // CORRECTNESS: after the capture. A call made before it writes over
         // the stack and the registers the swap left, and then the absence
@@ -520,10 +500,8 @@ fn test_a_guarded_wide_value_given_away_leaves_nothing() -> Result<(), AnyError>
     forensics!({
         let guard = ZeroizingGuard::from_mut(&mut source);
 
-        // CORRECTNESS: before the capture, because this is the operation.
-        let_go(guard);
-
-        capture!();
+        // CORRECTNESS: inside the capture, because this is the operation.
+        capture(|| let_go(guard));
     });
 
     core::hint::black_box(&source);
@@ -553,10 +531,8 @@ fn test_dropping_a_guarded_wide_value_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         let guard = ZeroizingGuard::from_mut(&mut source);
 
-        // CORRECTNESS: before the capture, because this is the operation.
-        drop(guard);
-
-        capture!();
+        // CORRECTNESS: inside the capture, because this is the operation.
+        capture(|| drop(guard));
     });
 
     core::hint::black_box(&source);
@@ -585,9 +561,7 @@ fn test_a_borrowed_vec_is_found_while_the_guard_holds_it() -> Result<(), AnyErro
     giving(&mut source);
 
     forensics!({
-        let guard = ZeroizingMutGuard::from(&mut source);
-
-        capture!();
+        let guard = capture(|| ZeroizingMutGuard::from(&mut source));
 
         hold_on(guard);
     });
@@ -617,12 +591,10 @@ macro_rules! a_borrowed_vec {
             forensics!({
                 let guard = ZeroizingMutGuard::from(&mut source);
 
-                // CORRECTNESS: before the capture, because the drop is the
+                // CORRECTNESS: inside the capture, because the drop is the
                 // operation. A borrowing guard moves nothing on the way in —
                 // what it does is wipe the caller's value on the way out.
-                drop(guard);
-
-                capture!();
+                capture(|| drop(guard));
             });
 
             drop(core::hint::black_box(source));
@@ -663,9 +635,7 @@ fn test_a_borrowed_wide_value_is_found_while_the_guard_holds_it() -> Result<(), 
     giving(&mut source.0);
 
     forensics!({
-        let guard = ZeroizingMutGuard::from(&mut source);
-
-        capture!();
+        let guard = capture(|| ZeroizingMutGuard::from(&mut source));
 
         hold_on(guard);
     });
@@ -697,10 +667,8 @@ fn test_borrowing_a_wide_value_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         let guard = ZeroizingMutGuard::from(&mut source);
 
-        // CORRECTNESS: before the capture, because the drop is the operation.
-        drop(guard);
-
-        capture!();
+        // CORRECTNESS: inside the capture, because the drop is the operation.
+        capture(|| drop(guard));
     });
 
     core::hint::black_box(&source);
@@ -733,10 +701,8 @@ fn test_a_borrowing_guard_given_away_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         let guard = ZeroizingMutGuard::from(&mut source);
 
-        // CORRECTNESS: before the capture, because this is the operation.
-        let_go(guard);
-
-        capture!();
+        // CORRECTNESS: inside the capture, because this is the operation.
+        capture(|| let_go(guard));
     });
 
     core::hint::black_box(&source);

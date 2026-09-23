@@ -39,9 +39,8 @@
 //!
 //! forensics!({
 //!     let mut held = RedoubtVec::new();   // everything the crate does,
-//!     held.replace_from_mut_slice(&mut source);
-//!     capture!();                         // and the capture against it
-//!     drop(held);
+//!     capture(|| held.replace_from_mut_slice(&mut source));
+//!     drop(held);                         // and the drop once it is frozen
 //! });
 //!
 //! let report_after = watch.snapshot()?;
@@ -53,8 +52,8 @@
 //!
 //! # Why the drop comes after the capture
 //!
-//! `capture!()` reads the registers and the stack — everything the operation
-//! left below the stack pointer, copied out before anything can write over it.
+//! `capture` freezes the registers and the stack — everything the operation
+//! left, copied out before anything can write over it.
 //! It does not read the heap, and does not have to: the photograph reads that
 //! live, later.
 //!
@@ -63,8 +62,6 @@
 //! capture froze, and that is what lets the drop come afterwards: it empties
 //! the allocation before the photograph and touches nothing the capture
 //! already took. An absence can then only be residue the operation left.
-//!
-//! The operation under test and `capture!()` are adjacent, always.
 //!
 //! # What an absence here is contingent on
 //!
@@ -287,9 +284,7 @@ fn test_what_was_pushed_is_found_while_the_allocked_vec_holds_it() -> Result<(),
 
     forensics!({
         let mut held = AllockedVec::<Block>::with_capacity(1);
-        held.push(&mut { SECRET })?;
-
-        capture!();
+        capture(|| held.push(&mut { SECRET }))?;
 
         core::mem::forget(held);
     });
@@ -322,11 +317,13 @@ macro_rules! an_allocked_vec_pushed_into {
             forensics!({
                 let mut held = AllockedVec::<Block>::with_capacity(blocks($of));
 
-                for one in &mut source {
-                    held.push(one)?;
-                }
+                capture(|| -> Result<(), AnyError> {
+                    for one in &mut source {
+                        held.push(one)?;
+                    }
 
-                capture!();
+                    Ok(())
+                })?;
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
@@ -387,9 +384,7 @@ fn test_what_a_truncation_will_cut_is_found_before_it_is_cut() -> Result<(), Any
 
     forensics!({
         let mut held = AllockedVec::<Block>::with_capacity(1);
-        held.push(&mut { SECRET })?;
-
-        capture!();
+        capture(|| held.push(&mut { SECRET }))?;
 
         core::mem::forget(held);
     });
@@ -423,9 +418,7 @@ macro_rules! an_allocked_vec_truncated {
                     held.push(one)?;
                 }
 
-                held.truncate(0);
-
-                capture!();
+                capture(|| held.truncate(0));
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
@@ -479,9 +472,7 @@ fn test_what_was_drained_is_found_while_the_allocked_vec_holds_it() -> Result<()
 
     forensics!({
         let mut held = AllockedVec::<Block>::with_capacity(1);
-        held.drain_from(&mut source)?;
-
-        capture!();
+        capture(|| held.drain_from(&mut source))?;
 
         core::mem::forget(held);
     });
@@ -516,9 +507,7 @@ macro_rules! an_allocked_vec_drained_into {
 
             forensics!({
                 let mut held = AllockedVec::<Block>::with_capacity(blocks($of));
-                held.drain_from(&mut source)?;
-
-                capture!();
+                capture(|| held.drain_from(&mut source))?;
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
@@ -579,9 +568,7 @@ fn test_what_was_carried_over_is_found_while_the_allocked_vec_holds_it() -> Resu
         let mut held = AllockedVec::<Block>::with_capacity(1);
         held.push(&mut { SECRET })?;
 
-        held.realloc_with_capacity(2);
-
-        capture!();
+        capture(|| held.realloc_with_capacity(2));
 
         core::mem::forget(held);
     });
@@ -619,9 +606,7 @@ macro_rules! an_allocked_vec_reallocated {
                     held.push(one)?;
                 }
 
-                held.realloc_with_capacity(blocks($of) * 2);
-
-                capture!();
+                capture(|| held.realloc_with_capacity(blocks($of) * 2));
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
@@ -679,13 +664,11 @@ fn test_an_allocked_vec_given_away_is_found_while_it_is_held() -> Result<(), Any
         let mut held = AllockedVec::<Block>::with_capacity(1);
         held.push(&mut { SECRET })?;
 
-        // CORRECTNESS: before the capture, because this is the operation. What
+        // CORRECTNESS: inside the capture, because this is the operation. What
         // the section measures is whether it leaves a copy in the registers or
         // the stack it used itself. What it writes over is whatever ran before
         // it, which has a section of its own.
-        hold_on(held);
-
-        capture!();
+        capture(|| hold_on(held));
     });
 
     let report = watch.snapshot()?;
@@ -717,14 +700,12 @@ macro_rules! an_allocked_vec_given_away {
                     held.push(one)?;
                 }
 
-                // CORRECTNESS: before the capture, because this is the
+                // CORRECTNESS: inside the capture, because this is the
                 // operation. What the section measures is whether it leaves a
                 // copy in the registers or the stack it used itself. What it
                 // writes over is whatever ran before it, which has a section
                 // of its own.
-                let_go(held);
-
-                capture!();
+                capture(|| let_go(held));
             });
 
             drop(core::hint::black_box(source));
@@ -783,14 +764,12 @@ macro_rules! an_allocked_vec_dropped {
                     held.push(one)?;
                 }
 
-                // CORRECTNESS: before the capture, because this is the
+                // CORRECTNESS: inside the capture, because this is the
                 // operation. What the section measures is whether it leaves a
                 // copy in the registers or the stack it used itself. What it
                 // writes over is whatever ran before it, which has a section
                 // of its own.
-                drop(held);
-
-                capture!();
+                capture(|| drop(held));
             });
 
             drop(core::hint::black_box(source));
@@ -835,9 +814,7 @@ fn test_a_redoubt_array_replaced_is_found_while_it_holds_it() -> Result<(), AnyE
 
     forensics!({
         let mut held = RedoubtArray::<u8, 32>::default();
-        held.replace_from_mut_array(&mut source);
-
-        capture!();
+        capture(|| held.replace_from_mut_array(&mut source));
 
         core::mem::forget(held);
     });
@@ -867,9 +844,7 @@ fn test_a_redoubt_array_replaced_leaves_nothing() -> Result<(), AnyError> {
 
     forensics!({
         let mut held = RedoubtArray::<u8, 32>::default();
-        held.replace_from_mut_array(&mut source);
-
-        capture!();
+        capture(|| held.replace_from_mut_array(&mut source));
 
         // CORRECTNESS: after the capture. A call made before it writes over
         // the stack and the registers the operation left, and then the absence
@@ -909,13 +884,11 @@ fn test_a_redoubt_array_given_away_is_found_while_it_is_held() -> Result<(), Any
         let mut held = RedoubtArray::<u8, 32>::default();
         held.replace_from_mut_array(&mut source);
 
-        // CORRECTNESS: before the capture, because this is the operation. What
+        // CORRECTNESS: inside the capture, because this is the operation. What
         // the section measures is whether it leaves a copy in the registers or
         // the stack it used itself. What it writes over is whatever ran before
         // it, which has a section of its own.
-        hold_on(held);
-
-        capture!();
+        capture(|| hold_on(held));
     });
 
     let report = watch.snapshot()?;
@@ -942,13 +915,11 @@ fn test_a_redoubt_array_given_away_leaves_nothing() -> Result<(), AnyError> {
         let mut held = RedoubtArray::<u8, 32>::default();
         held.replace_from_mut_array(&mut source);
 
-        // CORRECTNESS: before the capture, because this is the operation. What
+        // CORRECTNESS: inside the capture, because this is the operation. What
         // the section measures is whether it leaves a copy in the registers or
         // the stack it used itself. What it writes over is whatever ran before
         // it, which has a section of its own.
-        let_go(held);
-
-        capture!();
+        capture(|| let_go(held));
     });
 
     core::hint::black_box(&source);
@@ -979,13 +950,11 @@ fn test_a_redoubt_array_dropped_leaves_nothing() -> Result<(), AnyError> {
         let mut held = RedoubtArray::<u8, 32>::default();
         held.replace_from_mut_array(&mut source);
 
-        // CORRECTNESS: before the capture, because this is the operation. What
+        // CORRECTNESS: inside the capture, because this is the operation. What
         // the section measures is whether it leaves a copy in the registers or
         // the stack it used itself. What it writes over is whatever ran before
         // it, which has a section of its own.
-        drop(held);
-
-        capture!();
+        capture(|| drop(held));
     });
 
     core::hint::black_box(&source);
@@ -1015,9 +984,7 @@ fn test_a_redoubt_option_replaced_is_found_while_it_holds_it() -> Result<(), Any
         inner.replace_from_mut_slice(&mut source);
 
         let mut held = RedoubtOption::<RedoubtVec<u8>>::default();
-        held.replace(&mut inner);
-
-        capture!();
+        capture(|| held.replace(&mut inner));
 
         core::mem::forget(held);
 
@@ -1055,9 +1022,7 @@ macro_rules! a_redoubt_option_replaced {
                 inner.replace_from_mut_slice(&mut source);
 
                 let mut held = RedoubtOption::<RedoubtVec<u8>>::default();
-                held.replace(&mut inner);
-
-                capture!();
+                capture(|| held.replace(&mut inner));
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
@@ -1122,13 +1087,11 @@ fn test_a_redoubt_option_given_away_is_found_while_it_is_held() -> Result<(), An
         let mut held = RedoubtOption::<RedoubtVec<u8>>::default();
         held.replace(&mut inner);
 
-        // CORRECTNESS: before the capture, because this is the operation. What
+        // CORRECTNESS: inside the capture, because this is the operation. What
         // the section measures is whether it leaves a copy in the registers or
         // the stack it used itself. What it writes over is whatever ran before
         // it, which has a section of its own.
-        hold_on(held);
-
-        capture!();
+        capture(|| hold_on(held));
 
         // CORRECTNESS: after the capture. A call made before it writes over
         // the stack and the registers the operation left, and then the absence
@@ -1168,14 +1131,12 @@ macro_rules! a_redoubt_option_given_away {
                 let mut held = RedoubtOption::<RedoubtVec<u8>>::default();
                 held.replace(&mut inner);
 
-                // CORRECTNESS: before the capture, because this is the
+                // CORRECTNESS: inside the capture, because this is the
                 // operation. What the section measures is whether it leaves a
                 // copy in the registers or the stack it used itself. What it
                 // writes over is whatever ran before it, which has a section
                 // of its own.
-                let_go(held);
-
-                capture!();
+                capture(|| let_go(held));
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
@@ -1252,14 +1213,12 @@ macro_rules! a_redoubt_option_dropped {
                 let mut held = RedoubtOption::<RedoubtVec<u8>>::default();
                 held.replace(&mut inner);
 
-                // CORRECTNESS: before the capture, because this is the
+                // CORRECTNESS: inside the capture, because this is the
                 // operation. What the section measures is whether it leaves a
                 // copy in the registers or the stack it used itself. What it
                 // writes over is whatever ran before it, which has a section
                 // of its own.
-                drop(held);
-
-                capture!();
+                capture(|| drop(held));
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
@@ -1310,9 +1269,7 @@ fn test_a_redoubt_string_extended_is_found_while_it_holds_it() -> Result<(), Any
 
     forensics!({
         let mut held = RedoubtString::new();
-        held.extend_from_mut_string(&mut source);
-
-        capture!();
+        capture(|| held.extend_from_mut_string(&mut source));
 
         core::mem::forget(held);
     });
@@ -1348,11 +1305,11 @@ macro_rules! a_redoubt_string_extended {
             forensics!({
                 let mut held = RedoubtString::new();
 
-                for source in &mut sources {
-                    held.extend_from_mut_string(source);
-                }
-
-                capture!();
+                capture(|| {
+                    for source in &mut sources {
+                        held.extend_from_mut_string(source);
+                    }
+                });
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
@@ -1409,9 +1366,7 @@ fn test_a_redoubt_string_replaced_is_found_while_it_holds_it() -> Result<(), Any
 
     forensics!({
         let mut held = RedoubtString::new();
-        held.replace_from_mut_string(&mut source);
-
-        capture!();
+        capture(|| held.replace_from_mut_string(&mut source));
 
         core::mem::forget(held);
     });
@@ -1441,9 +1396,7 @@ macro_rules! a_redoubt_string_replaced {
 
             forensics!({
                 let mut held = RedoubtString::new();
-                held.replace_from_mut_string(&mut source);
-
-                capture!();
+                capture(|| held.replace_from_mut_string(&mut source));
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
@@ -1500,9 +1453,7 @@ fn test_a_redoubt_string_extended_from_a_str_is_found_while_it_holds_it() -> Res
 
     forensics!({
         let mut held = RedoubtString::new();
-        held.extend_from_str(&source);
-
-        capture!();
+        capture(|| held.extend_from_str(&source));
 
         core::mem::forget(held);
     });
@@ -1540,9 +1491,7 @@ macro_rules! a_redoubt_string_extended_from_a_str {
 
             forensics!({
                 let mut held = RedoubtString::new();
-                held.extend_from_str(&source);
-
-                capture!();
+                capture(|| held.extend_from_str(&source));
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
@@ -1624,13 +1573,11 @@ fn test_a_redoubt_string_given_away_is_found_while_it_is_held() -> Result<(), An
         let mut held = RedoubtString::new();
         held.replace_from_mut_string(&mut source);
 
-        // CORRECTNESS: before the capture, because this is the operation. What
+        // CORRECTNESS: inside the capture, because this is the operation. What
         // the section measures is whether it leaves a copy in the registers or
         // the stack it used itself. What it writes over is whatever ran before
         // it, which has a section of its own.
-        hold_on(held);
-
-        capture!();
+        capture(|| hold_on(held));
     });
 
     let report = watch.snapshot()?;
@@ -1657,14 +1604,12 @@ macro_rules! a_redoubt_string_given_away {
                 let mut held = RedoubtString::new();
                 held.replace_from_mut_string(&mut source);
 
-                // CORRECTNESS: before the capture, because this is the
+                // CORRECTNESS: inside the capture, because this is the
                 // operation. What the section measures is whether it leaves a
                 // copy in the registers or the stack it used itself. What it
                 // writes over is whatever ran before it, which has a section
                 // of its own.
-                let_go(held);
-
-                capture!();
+                capture(|| let_go(held));
             });
 
             drop(core::hint::black_box(source));
@@ -1730,14 +1675,12 @@ macro_rules! a_redoubt_string_dropped {
                 let mut held = RedoubtString::new();
                 held.replace_from_mut_string(&mut source);
 
-                // CORRECTNESS: before the capture, because this is the
+                // CORRECTNESS: inside the capture, because this is the
                 // operation. What the section measures is whether it leaves a
                 // copy in the registers or the stack it used itself. What it
                 // writes over is whatever ran before it, which has a section
                 // of its own.
-                drop(held);
-
-                capture!();
+                capture(|| drop(held));
             });
 
             drop(core::hint::black_box(source));
@@ -1781,9 +1724,7 @@ fn test_a_redoubt_vec_replaced_is_found_while_it_holds_it() -> Result<(), AnyErr
 
     forensics!({
         let mut held = RedoubtVec::<u8>::new();
-        held.replace_from_mut_slice(&mut source);
-
-        capture!();
+        capture(|| held.replace_from_mut_slice(&mut source));
 
         core::mem::forget(held);
     });
@@ -1816,9 +1757,7 @@ macro_rules! a_redoubt_vec_replaced {
 
             forensics!({
                 let mut held = RedoubtVec::<u8>::new();
-                held.replace_from_mut_slice(&mut source);
-
-                capture!();
+                capture(|| held.replace_from_mut_slice(&mut source));
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
@@ -1868,9 +1807,7 @@ fn test_a_redoubt_vec_extended_is_found_while_it_holds_it() -> Result<(), AnyErr
 
     forensics!({
         let mut held = RedoubtVec::<u8>::new();
-        held.extend_from_mut_slice(&mut source);
-
-        capture!();
+        capture(|| held.extend_from_mut_slice(&mut source));
 
         core::mem::forget(held);
     });
@@ -1910,11 +1847,11 @@ macro_rules! a_redoubt_vec_extended {
             forensics!({
                 let mut held = RedoubtVec::<u8>::new();
 
-                for source in &mut sources {
-                    held.extend_from_mut_slice(source);
-                }
-
-                capture!();
+                capture(|| {
+                    for source in &mut sources {
+                        held.extend_from_mut_slice(source);
+                    }
+                });
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
@@ -1966,13 +1903,11 @@ fn test_a_redoubt_vec_given_away_is_found_while_it_is_held() -> Result<(), AnyEr
         let mut held = RedoubtVec::<u8>::new();
         held.replace_from_mut_slice(&mut source);
 
-        // CORRECTNESS: before the capture, because this is the operation. What
+        // CORRECTNESS: inside the capture, because this is the operation. What
         // the section measures is whether it leaves a copy in the registers or
         // the stack it used itself. What it writes over is whatever ran before
         // it, which has a section of its own.
-        hold_on(held);
-
-        capture!();
+        capture(|| hold_on(held));
     });
 
     let report = watch.snapshot()?;
@@ -2009,14 +1944,12 @@ macro_rules! a_redoubt_vec_given_away {
                 let mut held = RedoubtVec::<u8>::new();
                 held.replace_from_mut_slice(&mut source);
 
-                // CORRECTNESS: before the capture, because this is the
+                // CORRECTNESS: inside the capture, because this is the
                 // operation. What the section measures is whether it leaves a
                 // copy in the registers or the stack it used itself. What it
                 // writes over is whatever ran before it, which has a section
                 // of its own.
-                let_go(held);
-
-                capture!();
+                capture(|| let_go(held));
             });
 
             drop(core::hint::black_box(source));
@@ -2066,14 +1999,12 @@ macro_rules! a_redoubt_vec_dropped {
                 let mut held = RedoubtVec::<u8>::new();
                 held.replace_from_mut_slice(&mut source);
 
-                // CORRECTNESS: before the capture, because this is the
+                // CORRECTNESS: inside the capture, because this is the
                 // operation. What the section measures is whether it leaves a
                 // copy in the registers or the stack it used itself. What it
                 // writes over is whatever ran before it, which has a section
                 // of its own.
-                drop(held);
-
-                capture!();
+                capture(|| drop(held));
             });
 
             drop(core::hint::black_box(source));

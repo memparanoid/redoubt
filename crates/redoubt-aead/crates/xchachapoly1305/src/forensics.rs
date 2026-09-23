@@ -139,9 +139,7 @@ fn test_the_pad_is_found_while_the_authenticator_holds_it() -> Result<(), AnyErr
     held.init(&ONE_TIME_KEY);
 
     forensics!({
-        aead.tag_with(&mut held, AAD, &ciphertext);
-
-        capture!();
+        capture(|| aead.tag_with(&mut held, AAD, &ciphertext));
 
         core::mem::forget(held);
     });
@@ -173,9 +171,7 @@ macro_rules! a_tag_taken {
 
             forensics!({
                 aead.tag_with(&mut authenticator, AAD, &ciphertext);
-                authenticator.finalize_mut(&mut tag);
-
-                capture!();
+                capture(|| authenticator.finalize_mut(&mut tag));
             });
 
             drop(core::hint::black_box((authenticator, ciphertext, tag)));

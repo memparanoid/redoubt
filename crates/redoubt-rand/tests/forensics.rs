@@ -20,7 +20,7 @@
 //! # What the inversion costs, and it is the register half
 //!
 //! The instrument cannot exist before the call, because the needle comes out of
-//! it. So `capture!()` is never adjacent to the ask: what it reads are the
+//! it. So the freeze is never adjacent to the ask: what it reads are the
 //! registers as the **wipe** left them, and between the ask and the wipe there
 //! ran a loop building the needle and the whole of `Forensics::watching`.
 //!
@@ -45,7 +45,7 @@
 
 #![cfg(target_os = "linux")]
 
-use redoubt_forensics::{AnyError, Forensics, QUIET, Report, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, QUIET, Report, capture, forensics, freeze};
 use redoubt_rand::{
     EntropySource, SystemEntropySource, fill_with_random_bytes, generate_random_key,
 };
@@ -151,7 +151,7 @@ fn test_what_was_asked_for_is_found_while_the_buffer_holds_it() -> Result<(), An
     let mut watch = Forensics::watching(&backwards(&got))?;
 
     forensics!({
-        capture!();
+        freeze!();
     });
 
     let report = watch.snapshot()?;
@@ -177,9 +177,7 @@ fn test_asking_for_bytes_leaves_nothing() -> Result<(), AnyError> {
     let report_before = watch.snapshot()?;
 
     forensics!({
-        wipe(&mut got);
-
-        capture!();
+        capture(|| wipe(&mut got));
     });
 
     let report_after = watch.snapshot()?;
@@ -216,17 +214,19 @@ fn test_two_hundred_requests_leave_nothing_of_the_first() -> Result<(), AnyError
     let report_before = watch.snapshot()?;
 
     forensics!({
-        for _ in 0..ROUNDS {
-            let mut round = vec![0_u8; WIDE];
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                let mut round = vec![0_u8; WIDE];
 
-            fill_with_random_bytes(&mut round)?;
+                fill_with_random_bytes(&mut round)?;
 
-            wipe(&mut round);
+                wipe(&mut round);
 
-            drop(round);
-        }
+                drop(round);
+            }
 
-        capture!();
+            Ok(())
+        })?;
     });
 
     let report_after = watch.snapshot()?;
@@ -257,7 +257,7 @@ fn test_what_the_source_produced_is_found_while_the_buffer_holds_it() -> Result<
     let mut watch = Forensics::watching(&backwards(&got))?;
 
     forensics!({
-        capture!();
+        freeze!();
     });
 
     let report = watch.snapshot()?;
@@ -288,9 +288,7 @@ fn test_asking_the_source_leaves_nothing() -> Result<(), AnyError> {
     let report_before = watch.snapshot()?;
 
     forensics!({
-        wipe(&mut got);
-
-        capture!();
+        capture(|| wipe(&mut got));
     });
 
     let report_after = watch.snapshot()?;
@@ -321,7 +319,7 @@ fn test_a_derived_key_is_found_while_the_buffer_holds_it() -> Result<(), AnyErro
     let mut watch = Forensics::watching(&backwards(&key))?;
 
     forensics!({
-        capture!();
+        freeze!();
     });
 
     let report = watch.snapshot()?;
@@ -355,9 +353,7 @@ fn test_deriving_a_key_leaves_nothing() -> Result<(), AnyError> {
     let report_before = watch.snapshot()?;
 
     forensics!({
-        wipe(&mut key);
-
-        capture!();
+        capture(|| wipe(&mut key));
     });
 
     let report_after = watch.snapshot()?;
@@ -390,17 +386,19 @@ fn test_two_hundred_derivations_leave_nothing_of_the_first() -> Result<(), AnyEr
     let report_before = watch.snapshot()?;
 
     forensics!({
-        for _ in 0..ROUNDS {
-            let mut round = vec![0_u8; WIDE];
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                let mut round = vec![0_u8; WIDE];
 
-            generate_random_key(INFO, &mut round)?;
+                generate_random_key(INFO, &mut round)?;
 
-            wipe(&mut round);
+                wipe(&mut round);
 
-            drop(round);
-        }
+                drop(round);
+            }
 
-        capture!();
+            Ok(())
+        })?;
     });
 
     let report_after = watch.snapshot()?;

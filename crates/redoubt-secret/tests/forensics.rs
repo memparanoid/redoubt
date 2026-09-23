@@ -148,9 +148,7 @@ fn test_what_was_taken_is_found_while_the_secret_holds_it() -> Result<(), AnyErr
     giving(&mut source);
 
     forensics!({
-        let held = RedoubtSecret::from(&mut source);
-
-        capture!();
+        let held = capture(|| RedoubtSecret::from(&mut source));
 
         hold_on(held);
     });
@@ -171,9 +169,7 @@ fn test_taking_a_secret_leaves_nothing() -> Result<(), AnyError> {
     let report_before = watch.snapshot()?;
 
     forensics!({
-        let held = RedoubtSecret::from(&mut source);
-
-        capture!();
+        let held = capture(|| RedoubtSecret::from(&mut source));
 
         // CORRECTNESS: after the capture. A call made before it writes over
         // the stack and the registers the operation left, and then the absence
@@ -195,9 +191,7 @@ fn test_taking_a_narrow_secret_leaves_nothing() -> Result<(), AnyError> {
     let report_before = watch.snapshot()?;
 
     forensics!({
-        let held = RedoubtSecret::from(&mut source);
-
-        capture!();
+        let held = capture(|| RedoubtSecret::from(&mut source));
 
         // CORRECTNESS: after the capture. A call made before it writes over
         // the stack and the registers the operation left, and then the absence
@@ -229,9 +223,7 @@ fn test_what_replaced_is_found_while_the_secret_holds_it() -> Result<(), AnyErro
     forensics!({
         let mut held = RedoubtSecret::<[u8; 32]>::default();
 
-        held.replace(&mut source);
-
-        capture!();
+        capture(|| held.replace(&mut source));
 
         hold_on(held);
     });
@@ -254,9 +246,7 @@ fn test_replacing_a_secret_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         let mut held = RedoubtSecret::<[u8; 32]>::default();
 
-        held.replace(&mut source);
-
-        capture!();
+        capture(|| held.replace(&mut source));
 
         // CORRECTNESS: after the capture. A call made before it writes over
         // the stack and the registers the operation left, and then the absence
@@ -290,12 +280,10 @@ fn test_a_secret_given_away_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         let held = RedoubtSecret::from(&mut source);
 
-        // CORRECTNESS: before the capture, because this is the operation. What
+        // CORRECTNESS: inside the capture, because this is the operation. What
         // the section measures is whether the move itself leaves a copy in the
         // registers or the stack it used.
-        let_go(held);
-
-        capture!();
+        capture(|| let_go(held));
     });
 
     leaves_nothing(&report_before, &watch.snapshot()?, "a secret given away");
@@ -321,12 +309,10 @@ fn test_dropping_a_secret_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         let held = RedoubtSecret::from(&mut source);
 
-        // CORRECTNESS: before the capture, because this is the operation. What
+        // CORRECTNESS: inside the capture, because this is the operation. What
         // the section measures is what the drop itself leaves in the registers
         // or the stack it used.
-        drop(held);
-
-        capture!();
+        capture(|| drop(held));
     });
 
     leaves_nothing(&report_before, &watch.snapshot()?, "a secret dropped");

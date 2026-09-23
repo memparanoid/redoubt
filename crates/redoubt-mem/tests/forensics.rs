@@ -165,13 +165,17 @@ fn test_a_copy_is_found_in_its_destination() -> Result<(), AnyError> {
     let mut scratch = vec![0_u8; SECRET.len()];
 
     forensics!({
-        // SAFETY: `scratch` is exactly the secret's length, and a constant and
-        // a heap block are different allocations.
-        unsafe {
-            redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), scratch.as_mut_ptr(), SECRET.len());
-        }
-
-        capture!();
+        capture(|| {
+            // SAFETY: `scratch` is exactly the secret's length, and a constant and
+            // a heap block are different allocations.
+            unsafe {
+                redoubt_mem::copy_nonoverlapping(
+                    SECRET.as_ptr(),
+                    scratch.as_mut_ptr(),
+                    SECRET.len(),
+                );
+            }
+        });
     });
 
     let report = watch.snapshot()?;
@@ -195,12 +199,16 @@ fn test_copying_leaves_nothing() -> Result<(), AnyError> {
     let mut scratch = vec![0_u8; SECRET.len()];
 
     forensics!({
-        // SAFETY: as above.
-        unsafe {
-            redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), scratch.as_mut_ptr(), SECRET.len());
-        }
-
-        capture!();
+        capture(|| {
+            // SAFETY: as above.
+            unsafe {
+                redoubt_mem::copy_nonoverlapping(
+                    SECRET.as_ptr(),
+                    scratch.as_mut_ptr(),
+                    SECRET.len(),
+                );
+            }
+        });
 
         // CORRECTNESS: after the capture. A call made before it writes over
         // the stack and the registers the copy left, and then the absence
@@ -237,18 +245,18 @@ fn test_two_hundred_copies_leave_nothing() -> Result<(), AnyError> {
     let mut scratch = vec![0_u8; SECRET.len()];
 
     forensics!({
-        for _ in 0..ROUNDS {
-            // SAFETY: as above.
-            unsafe {
-                redoubt_mem::copy_nonoverlapping(
-                    SECRET.as_ptr(),
-                    scratch.as_mut_ptr(),
-                    SECRET.len(),
-                );
+        capture(|| {
+            for _ in 0..ROUNDS {
+                // SAFETY: as above.
+                unsafe {
+                    redoubt_mem::copy_nonoverlapping(
+                        SECRET.as_ptr(),
+                        scratch.as_mut_ptr(),
+                        SECRET.len(),
+                    );
+                }
             }
-        }
-
-        capture!();
+        });
 
         // CORRECTNESS: after the capture, for the reason the test above gives.
         wipe(&mut scratch);
@@ -280,14 +288,14 @@ macro_rules! copied {
             let mut scratch = vec![0_u8; $of];
 
             forensics!({
-                // SAFETY: `scratch` is `$of` long, `$of` never passes `BIG`'s
-                // length, and a constant and a heap block are different
-                // allocations.
-                unsafe {
-                    redoubt_mem::copy_nonoverlapping(BIG.as_ptr(), scratch.as_mut_ptr(), $of);
-                }
-
-                capture!();
+                capture(|| {
+                    // SAFETY: `scratch` is `$of` long, `$of` never passes `BIG`'s
+                    // length, and a constant and a heap block are different
+                    // allocations.
+                    unsafe {
+                        redoubt_mem::copy_nonoverlapping(BIG.as_ptr(), scratch.as_mut_ptr(), $of);
+                    }
+                });
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the copy left, and then the
@@ -346,9 +354,7 @@ fn test_a_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError> {
     unsafe { redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), secret.as_mut_ptr(), 32) };
 
     forensics!({
-        redoubt_mem::swap(&mut secret, &mut empty);
-
-        capture!();
+        capture(|| redoubt_mem::swap(&mut secret, &mut empty));
     });
 
     let report = watch.snapshot()?;
@@ -380,9 +386,7 @@ fn test_swapping_leaves_nothing() -> Result<(), AnyError> {
     unsafe { redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), secret.as_mut_ptr(), 32) };
 
     forensics!({
-        redoubt_mem::swap(&mut secret, &mut empty);
-
-        capture!();
+        capture(|| redoubt_mem::swap(&mut secret, &mut empty));
 
         // CORRECTNESS: after the capture. A call made before it writes over
         // the stack and the registers the swap left, and then the absence
@@ -423,12 +427,16 @@ fn test_a_sized_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError
     }
 
     forensics!({
-        // SAFETY: two different allocations, both the secret's length.
-        unsafe {
-            redoubt_mem::swap_nonoverlapping(secret.as_mut_ptr(), empty.as_mut_ptr(), SECRET.len());
-        }
-
-        capture!();
+        capture(|| {
+            // SAFETY: two different allocations, both the secret's length.
+            unsafe {
+                redoubt_mem::swap_nonoverlapping(
+                    secret.as_mut_ptr(),
+                    empty.as_mut_ptr(),
+                    SECRET.len(),
+                );
+            }
+        });
     });
 
     let report = watch.snapshot()?;
@@ -461,12 +469,16 @@ macro_rules! swapped {
             unsafe { redoubt_mem::copy_nonoverlapping(BIG.as_ptr(), secret.as_mut_ptr(), $of) };
 
             forensics!({
-                // SAFETY: two different allocations, both `$of` long.
-                unsafe {
-                    redoubt_mem::swap_nonoverlapping(secret.as_mut_ptr(), empty.as_mut_ptr(), $of);
-                }
-
-                capture!();
+                capture(|| {
+                    // SAFETY: two different allocations, both `$of` long.
+                    unsafe {
+                        redoubt_mem::swap_nonoverlapping(
+                            secret.as_mut_ptr(),
+                            empty.as_mut_ptr(),
+                            $of,
+                        );
+                    }
+                });
 
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the swap left, and then the

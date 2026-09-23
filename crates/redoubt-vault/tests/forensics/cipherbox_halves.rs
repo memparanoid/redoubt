@@ -151,9 +151,7 @@ fn test_the_value_encrypting_is_handed_is_found_while_it_holds_it() -> Result<()
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let it = value(32);
-
-        capture!();
+        let it = capture(|| value(32));
 
         core::mem::forget(it);
     });
@@ -179,9 +177,7 @@ macro_rules! encrypted {
             forensics!({
                 let mut it = value($of);
 
-                one_field_box.inner.encrypt_struct(&key, &mut it)?;
-
-                capture!();
+                capture(|| one_field_box.inner.encrypt_struct(&key, &mut it))?;
 
                 it.fast_zeroize();
 
@@ -230,9 +226,7 @@ fn test_what_was_decrypted_is_found_while_it_is_held() -> Result<(), AnyError> {
 
         it.fast_zeroize();
 
-        let back = one_field_box.inner.decrypt_struct(&key)?;
-
-        capture!();
+        let back = capture(|| one_field_box.inner.decrypt_struct(&key))?;
 
         core::mem::forget(back);
 
@@ -268,9 +262,7 @@ macro_rules! decrypted {
 
                 it.fast_zeroize();
 
-                let back = one_field_box.inner.decrypt_struct(&key)?;
-
-                capture!();
+                let back = capture(|| one_field_box.inner.decrypt_struct(&key))?;
 
                 drop(back);
                 drop(it);

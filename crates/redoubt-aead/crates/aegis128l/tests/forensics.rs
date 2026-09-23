@@ -153,9 +153,7 @@ fn test_the_sealing_tag_is_found_while_the_caller_holds_it() -> Result<(), AnyEr
     let mut tag = [0_u8; TAG_SIZE];
 
     forensics!({
-        aead.encrypt(&KEY, &NONCE, AAD, &mut data, &mut tag);
-
-        capture!();
+        capture(|| aead.encrypt(&KEY, &NONCE, AAD, &mut data, &mut tag));
 
         core::hint::black_box(&tag);
     });
@@ -186,9 +184,7 @@ fn test_a_sealed_message_leaves_no_tag_behind() -> Result<(), AnyError> {
     let mut tag = [0_u8; TAG_SIZE];
 
     forensics!({
-        aead.encrypt(&KEY, &NONCE, AAD, &mut data, &mut tag);
-
-        capture!();
+        capture(|| aead.encrypt(&KEY, &NONCE, AAD, &mut data, &mut tag));
 
         // CORRECTNESS: after the capture. A call made before it writes over the
         // stack and the registers the operation left, and then the absence
@@ -229,9 +225,7 @@ fn test_a_refused_message_leaves_no_computed_tag_behind() -> Result<(), AnyError
     let refused;
 
     forensics!({
-        refused = aead.decrypt(&KEY, &NONCE, AAD, &mut data, &WRONG);
-
-        capture!();
+        refused = capture(|| aead.decrypt(&KEY, &NONCE, AAD, &mut data, &WRONG));
     });
 
     drop(core::hint::black_box(data));
@@ -269,9 +263,7 @@ fn test_an_accepted_message_leaves_no_computed_tag_behind() -> Result<(), AnyErr
     let accepted;
 
     forensics!({
-        accepted = aead.decrypt(&KEY, &NONCE, AAD, &mut data, &given);
-
-        capture!();
+        accepted = capture(|| aead.decrypt(&KEY, &NONCE, AAD, &mut data, &given));
 
         // CORRECTNESS: after the capture. A call made before it writes over the
         // stack and the registers the operation left, and then the absence
