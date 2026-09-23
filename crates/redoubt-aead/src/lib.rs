@@ -38,6 +38,10 @@ mod errors;
 mod feature_detector;
 mod utils;
 
+/// What [`AeadError::Core`] carries, which a caller matching on it has to be
+/// able to name.
+pub use redoubt_aead_core::AeadCoreError;
+
 pub use aead::{Aead, AeadAlgorithms, AeadVariants};
 pub use enums::AeadAlgorithm;
 pub use errors::AeadError;
