@@ -13,37 +13,38 @@
 # order is a thing a reader checks against the manifests before anything is
 # uploaded, and an upload cannot be taken back.
 #
-# # What the order is, and what is not in it
+# # Dev-dependencies count
 #
-# Dependencies, and build dependencies. Not dev-dependencies: those form
-# genuine cycles here — `redoubt-vault-derive` builds its tests against
-# `redoubt-vault`, which depends on it — and they resolve against what is
-# already on crates.io rather than against this run.
+# A dev-dependency that names a version is kept in the published manifest and
+# has to resolve, and `^0.1.0-rc.9` is not satisfied by the rc.8 on crates.io —
+# a prerelease requirement asks for that prerelease or a later one. So
+# `redoubt-codec-derive` waits for `redoubt-codec-core` even though it only
+# builds its tests against it.
+#
+# A dev-dependency given a path and no version is dropped when the package is
+# packed, so it constrains nothing. `redoubt-util` depending on itself that way
+# is the reason its own tests see its `test-utils` feature.
 #
 # The crates carrying `publish = false` are absent: the fixtures, the
 # examples, the benchmarks and the memory analysis.
 
 set -euo pipefail
 
-# Each line's crates depend on earlier lines and on nothing below.
+# Each crate depends on ones above it and on none below.
 CRATES=(
-  # Nothing in the workspace
   redoubt-asm
-  redoubt-codec-derive
   redoubt-forensics
-  redoubt-mem
   redoubt-test-utils
   redoubt-util
-  redoubt-vault-derive
 
   redoubt-aead-core
+  redoubt-mem
   redoubt-zero-core
   redoubt-zero-derive
   redoubt-zero
 
   redoubt-aead-aegis128l
   redoubt-alloc
-  redoubt-buffer
   redoubt-chacha
   redoubt-hkdf
   redoubt-poly1305
@@ -51,11 +52,14 @@ CRATES=(
   redoubt-aead-xchachapoly1305
   redoubt-codec-core
   redoubt-rand
+  redoubt-buffer
+  redoubt-codec-derive
   redoubt-codec
   redoubt-aead
   redoubt-secret
 
   redoubt-vault-core
+  redoubt-vault-derive
   redoubt-vault
   redoubt
 )
