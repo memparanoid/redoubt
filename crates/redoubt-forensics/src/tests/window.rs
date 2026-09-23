@@ -18,8 +18,8 @@
 
 use core::slice;
 
-use crate::capture;
 use crate::errors::Reason;
+use crate::freeze;
 use crate::window::{COPY, FLOOR, SP, open};
 
 /// Thirty-two bytes to leave in a frame and look for in the copy.
@@ -166,7 +166,7 @@ fn test_open_leaves_no_stack_pointer_behind_it() -> Result<(), Reason> {
 fn test_open_clears_the_stack_pointer_the_last_capture_wrote() -> Result<(), Reason> {
     open()?;
 
-    capture!();
+    freeze!();
 
     // SAFETY: written by the capture just above, on the thread reading it.
     let stood = unsafe { SP };
@@ -218,7 +218,7 @@ fn test_open_reserves_a_new_room_for_every_window() -> Result<(), Reason> {
 fn test_the_capture_writes_down_the_stack_pointer_it_ran_at() -> Result<(), Reason> {
     open()?;
 
-    capture!();
+    freeze!();
 
     let here = 0_u64;
     let at = core::hint::black_box(&here) as *const u64 as usize;
@@ -249,7 +249,7 @@ fn test_open_reserves_a_room_the_capture_fills_from_the_floor_up() -> Result<(),
 
     let at = a_frame_left_full();
 
-    capture!();
+    freeze!();
 
     // SAFETY: `FLOOR` and `COPY` were written by `open` and `SP` by the capture
     // above, all three on the thread reading them.
@@ -287,7 +287,7 @@ fn test_the_mark_is_at_one_offset_of_the_copy_and_it_is_the_address_it_came_from
 
     let at = a_frame_left_full();
 
-    capture!();
+    freeze!();
 
     // SAFETY: `FLOOR` and `COPY` were written by `open` and `SP` by the capture
     // above, all three on the thread reading them.
@@ -325,7 +325,7 @@ fn test_the_copy_reaches_a_frame_released_a_long_way_from_the_capture() -> Resul
 
     let at = a_deep_frame_left_full(DEEP);
 
-    capture!();
+    freeze!();
 
     // SAFETY: `FLOOR` and `COPY` were written by `open` and `SP` by the capture
     // above, all three on the thread reading them.
@@ -388,7 +388,7 @@ fn test_every_byte_of_a_released_frame_is_in_the_copy_at_its_own_offset() -> Res
         // address it answers with is read only through the copy below.
         let at = unsafe { redoubt_dirty_frame(offset) } as usize;
 
-        capture!();
+        freeze!();
 
         // SAFETY: `FLOOR` and `COPY` were written by `open` above and `SP` by
         // the capture, all three on the thread reading them.
@@ -454,7 +454,7 @@ fn test_stack_put_before_the_frame_moves_where_it_is_read_back_from() -> Result<
     // it answers with is compared and never read through.
     let flush = unsafe { redoubt_dirty_frame(0) } as usize;
 
-    capture!();
+    freeze!();
 
     // SAFETY: written by the capture just above, on the thread reading it.
     let over_the_flush = unsafe { SP } - flush;
@@ -462,7 +462,7 @@ fn test_stack_put_before_the_frame_moves_where_it_is_read_back_from() -> Result<
     // SAFETY: as above, and this one takes `WEDGE` bytes more before it does.
     let wedged = unsafe { redoubt_dirty_frame_deeper(0) } as usize;
 
-    capture!();
+    freeze!();
 
     // SAFETY: written by the capture just above, on the thread reading it.
     let over_the_wedged = unsafe { SP } - wedged;

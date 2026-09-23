@@ -29,7 +29,7 @@
 #![cfg(target_os = "linux")]
 
 use redoubt_forensics::{
-    Forensics, Reason, Report, capture, forensics, occurrences, occurrences_reversed,
+    Forensics, Reason, Report, forensics, freeze, occurrences, occurrences_reversed,
 };
 
 mod support;
@@ -197,7 +197,7 @@ fn test_a_copy_in_a_frame_that_returned_is_found() -> Result<(), Reason> {
     forensics!({
         core::hint::black_box(abandon(&ALPHA));
 
-        capture!();
+        freeze!();
     });
 
     let report = watch.snapshot()?;
@@ -220,7 +220,7 @@ fn test_a_register_spilled_onto_a_dead_frame_is_found() -> Result<(), Reason> {
     forensics!({
         core::hint::black_box(spill(&ALPHA));
 
-        capture!();
+        freeze!();
     });
 
     let report = watch.snapshot()?;

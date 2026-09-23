@@ -103,7 +103,7 @@ unsafe extern "C" {
     /// Safe to call at any time. It writes only into the room, and the form it
     /// reaches is one this machine supports.
     ///
-    /// Nothing that ships calls this: `capture!` writes the general registers
+    /// Nothing that ships calls this: `freeze!` writes the general registers
     /// itself and reaches [`redoubt_spill_vectors`] for the rest. What reads
     /// the whole form is `src/tests/spiller.rs`, which is where the register
     /// lists live.

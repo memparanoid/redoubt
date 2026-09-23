@@ -76,6 +76,9 @@ mod errors;
 mod forensics;
 
 #[cfg(target_os = "linux")]
+mod frame;
+
+#[cfg(target_os = "linux")]
 mod macros;
 
 #[cfg(target_os = "linux")]
@@ -96,7 +99,10 @@ pub use errors::{AnyError, Reason};
 #[cfg(target_os = "linux")]
 pub use forensics::{Forensics, occurrences, occurrences_reversed};
 
-// What `capture!` expands into reaches by name, and nothing else has a use for
+#[cfg(target_os = "linux")]
+pub use frame::capture;
+
+// What `freeze!` expands into reaches by name, and nothing else has a use for
 // any of it: the room's address, the entry that writes the vectors alone, and
 // the three numbers the window is made of.
 #[cfg(target_os = "linux")]

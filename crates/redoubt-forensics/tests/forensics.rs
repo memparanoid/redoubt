@@ -19,7 +19,7 @@
 //! in a crate above, where a test went on passing against a zeroization that
 //! had been commented out.
 //!
-//! [`capture!`] answers both at once, and this file asserts each half against
+//! [`freeze!`] answers both at once, and this file asserts each half against
 //! a control that says the sweep could not have found it on its own.
 //!
 //! # The shape
@@ -27,7 +27,7 @@
 //! ```text
 //! forensics!({
 //!     operation();        // the only thing that touches the secret
-//!     capture!();         // the registers, and the stack, out of reach
+//!     freeze!();         // the registers, and the stack, out of reach
 //!     cleanup();          // anything at all
 //! });
 //!
@@ -47,7 +47,7 @@
     any(target_arch = "x86_64", target_arch = "aarch64")
 ))]
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, forensics, freeze};
 
 mod support;
 
@@ -354,7 +354,7 @@ fn test_the_capture_finds_a_secret_that_is_only_in_a_register() -> Result<(), An
 
     forensics!({
         into_a_register(&mut held);
-        capture!();
+        freeze!();
     });
 
     let report = watch.snapshot()?;
@@ -426,7 +426,7 @@ fn test_the_capture_finds_a_secret_in_a_register_nothing_writes() -> Result<(), 
     forensics!({
         only_in_a_wide_register();
 
-        capture!();
+        freeze!();
     });
 
     let with = watch.snapshot()?;
@@ -480,7 +480,7 @@ fn test_the_capture_finds_a_frame_that_was_left_full() -> Result<(), AnyError> {
 
     forensics!({
         a_frame_left_full();
-        capture!();
+        freeze!();
     });
 
     let report = watch.snapshot()?;
@@ -510,7 +510,7 @@ fn test_a_frame_emptied_before_it_is_left_holds_nothing() -> Result<(), AnyError
 
     forensics!({
         a_frame_emptied();
-        capture!();
+        freeze!();
     });
 
     let report = watch.snapshot()?;
@@ -544,7 +544,7 @@ fn test_the_difference_says_the_secret_surfaced() -> Result<(), AnyError> {
 
     forensics!({
         a_frame_left_full();
-        capture!();
+        freeze!();
     });
 
     let report_after = watch.snapshot()?;
@@ -586,7 +586,7 @@ fn test_the_difference_is_quiet_when_the_frame_was_emptied() -> Result<(), AnyEr
 
     forensics!({
         a_frame_emptied();
-        capture!();
+        freeze!();
     });
 
     let report_after = watch.snapshot()?;
@@ -628,7 +628,7 @@ fn test_a_cleanup_run_before_the_capture_erases_the_evidence() -> Result<(), Any
 
         drop(core::hint::black_box(waste));
 
-        capture!();
+        freeze!();
     });
 
     let report = watch.snapshot()?;
@@ -661,7 +661,7 @@ fn test_a_cleanup_run_after_the_capture_leaves_the_evidence() -> Result<(), AnyE
 
     forensics!({
         a_frame_left_full();
-        capture!();
+        freeze!();
 
         drop(core::hint::black_box(waste));
     });

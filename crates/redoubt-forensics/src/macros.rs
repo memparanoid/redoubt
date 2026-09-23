@@ -13,7 +13,7 @@
 //! reports a clean process — just as cleanly as it would for an operation that
 //! wiped nothing.
 //!
-//! [`forensics!`] and [`capture!`] answer it by taking the evidence out of the
+//! [`forensics!`] and [`freeze!`] answer it by taking the evidence out of the
 //! stack at the moment it exists, so that nothing afterwards can reach it.
 //! Everything a caller has to get right is on one line: nothing goes between
 //! the operation and the capture.
@@ -71,7 +71,7 @@
 /// and it is there because the alternative is a string move through a null
 /// pointer.
 #[macro_export]
-macro_rules! capture {
+macro_rules! freeze {
     () => {{
         #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
         // SAFETY: every store is into one of this crate's own statics at an
@@ -197,7 +197,7 @@ macro_rules! capture {
 /// A measurement, with the window open around it.
 ///
 /// ```no_run
-/// # use redoubt_forensics::{Forensics, Reason, capture, forensics};
+/// # use redoubt_forensics::{Forensics, Reason, freeze, forensics};
 /// # fn seal(into: &mut [u8]) {}
 /// # fn measured() -> Result<(), Reason> {
 /// # let needle: Vec<u8> = Vec::new();
@@ -208,7 +208,7 @@ macro_rules! capture {
 ///
 /// forensics!({
 ///     seal(&mut buffer);
-///     capture!();
+///     freeze!();
 /// });
 ///
 /// let report_after = watch.snapshot()?;

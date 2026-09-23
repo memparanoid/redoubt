@@ -477,7 +477,7 @@ macro_rules! seeded_arm {
     };
 }
 
-/// The same seeding, captured by [`crate::capture`] rather than by a call.
+/// The same seeding, captured by [`crate::freeze`] rather than by a call.
 ///
 /// # Why a third list of the same registers
 ///
@@ -523,7 +523,7 @@ macro_rules! seeded_through_capture_x86 {
                 );
             }
 
-            crate::capture!();
+            crate::freeze!();
 
             found_only_at($register, $slot, $wide);
         }
@@ -560,7 +560,7 @@ macro_rules! seeded_through_capture_arm {
                 );
             }
 
-            crate::capture!();
+            crate::freeze!();
 
             found_only_at($operand, $slot, $wide);
         }
@@ -1236,7 +1236,7 @@ fn test_the_capture_writes_down_x19() {
 }
 
 // ============================================================================
-// capture!, on x86_64
+// freeze!, on x86_64
 // ============================================================================
 
 seeded_through_capture_x86!(test_capture_leaves_rax_readable, "mov", "rax", 0, 8);
@@ -1307,7 +1307,7 @@ seeded_through_capture_x86!(
 );
 
 // ============================================================================
-// capture!, on AArch64
+// freeze!, on AArch64
 // ============================================================================
 
 seeded_through_capture_arm!(test_capture_leaves_x0_readable, "ldr", "x0", "x0", 0, 8);

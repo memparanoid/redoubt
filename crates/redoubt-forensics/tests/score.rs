@@ -25,7 +25,7 @@
 
 #![cfg(target_os = "linux")]
 
-use redoubt_forensics::{Forensics, Reason, Report, capture, forensics};
+use redoubt_forensics::{Forensics, Reason, Report, forensics, freeze};
 
 mod support;
 
@@ -215,7 +215,7 @@ fn test_the_difference_shows_what_an_operation_kept() -> Result<(), Reason> {
     forensics!({
         let kept = core::hint::black_box(ALPHA[8..24].to_vec());
 
-        capture!();
+        freeze!();
 
         core::mem::forget(kept);
     });
@@ -252,7 +252,7 @@ fn test_the_difference_shows_nothing_for_an_operation_that_kept_nothing() -> Res
     forensics!({
         core::hint::black_box(1_u8);
 
-        capture!();
+        freeze!();
     });
 
     let after = photograph(&mut watch)?;
