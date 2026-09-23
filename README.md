@@ -12,7 +12,7 @@
     <a href="https://github.com/memparanoid/redoubt/actions/workflows/ci.yml"><img src="https://github.com/memparanoid/redoubt/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <a href="https://crates.io/crates/redoubt"><img src="https://img.shields.io/crates/v/redoubt.svg" alt="crates.io"></a>
     <a href="https://docs.rs/redoubt"><img src="https://docs.rs/redoubt/badge.svg" alt="docs.rs"></a>
-    <a href="#"><img src="https://img.shields.io/badge/coverage-99.32%25-22e500" alt="coverage"></a>
+    <a href="#"><img src="https://img.shields.io/badge/coverage-99.63%25-13e500" alt="coverage"></a>
     <a href="#"><img src="https://img.shields.io/badge/vulnerabilities-0-brightgreen" alt="security"></a>
     <a href="#license"><img src="https://img.shields.io/badge/license-GPL--3.0--only-blue" alt="license"></a>
 </p>
