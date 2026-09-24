@@ -87,3 +87,20 @@ pub(crate) fn is_utf8(bytes: &[u8]) -> bool {
 
     true
 }
+
+/// Whether every one of `bytes` is zero, reading each byte on its own.
+///
+/// Volatile and one byte wide, so the compiler cannot widen or vectorise the
+/// loads: what a register can be left holding is one byte, and the fold, which
+/// is none of them.
+#[inline(never)]
+pub(crate) fn is_zeroized(bytes: &[u8]) -> bool {
+    let mut folded = 0_u8;
+
+    for at in 0..bytes.len() {
+        // SAFETY: `at` is under the slice's length, inside it.
+        folded |= unsafe { bytes.as_ptr().add(at).read_volatile() };
+    }
+
+    folded == 0
+}

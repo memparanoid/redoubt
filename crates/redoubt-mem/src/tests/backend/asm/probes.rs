@@ -14,6 +14,7 @@ unsafe extern "C" {
     fn redoubt_mem_copy_nonoverlapping(src: *const u8, dst: *mut u8, bytes: usize);
     fn redoubt_mem_swap_nonoverlapping(a: *mut u8, b: *mut u8, bytes: usize);
     fn redoubt_mem_is_utf8(bytes: *const u8, len: usize, answer: *mut u8);
+    fn redoubt_mem_is_zeroized(bytes: *const u8, len: usize, answer: *mut u8);
 
     fn redoubt_mem_registers_are_zeroized() -> u64;
     fn redoubt_mem_dirty_registers();
@@ -882,6 +883,25 @@ test_what_the_routine_leaves!(
         let mut answer = 0_u8;
         let bytes = text.as_ptr();
         let len = text.len();
+        let answer = &raw mut answer;
+    },
+    (bytes, len, answer)
+);
+
+// ============================================================================
+// redoubt_mem_is_zeroized
+// ============================================================================
+
+test_what_the_routine_leaves!(
+    test_is_zeroized_leaves_the_residue_its_case_declares,
+    redoubt_mem_is_zeroized,
+    fn(*const u8, usize, *mut u8),
+    [dirty_is_zeroized_registers, untouched_is_zeroized],
+    for len in LENGTHS,
+    {
+        let held = said(len);
+        let mut answer = 0_u8;
+        let bytes = held.as_ptr();
         let answer = &raw mut answer;
     },
     (bytes, len, answer)

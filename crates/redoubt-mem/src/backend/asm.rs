@@ -15,6 +15,10 @@ unsafe extern "C" {
     /// Whether `len` bytes at `bytes` spell UTF-8, written to `*answer` as one
     /// or zero: nothing crosses back in a register.
     fn redoubt_mem_is_utf8(bytes: *const u8, len: usize, answer: *mut u8);
+
+    /// Whether `len` bytes at `bytes` are all zero, written to `*answer` as one
+    /// or zero: nothing crosses back in a register.
+    fn redoubt_mem_is_zeroized(bytes: *const u8, len: usize, answer: *mut u8);
 }
 
 /// What `rust::copy_nonoverlapping` does, in the assembly for this target.
@@ -44,6 +48,17 @@ pub(crate) fn is_utf8(bytes: &[u8]) -> bool {
     // SAFETY: the slice is readable for its own length, which the routine does
     // not read past, and `answer` is one byte this frame owns.
     unsafe { redoubt_mem_is_utf8(bytes.as_ptr(), bytes.len(), &mut answer) };
+
+    answer == 1
+}
+
+/// What `rust::is_zeroized` does, in the assembly for this target.
+pub(crate) fn is_zeroized(bytes: &[u8]) -> bool {
+    let mut answer = 0_u8;
+
+    // SAFETY: the slice is readable for its own length, which the routine does
+    // not read past, and `answer` is one byte this frame owns.
+    unsafe { redoubt_mem_is_zeroized(bytes.as_ptr(), bytes.len(), &mut answer) };
 
     answer == 1
 }

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-// A copy, a swap and a UTF-8 check that leave nothing in a register — x86-64.
+// A copy, a swap, a UTF-8 check and a zero check that leave nothing in a
+// register — x86-64.
 //
 // Platforms: Linux and macOS, SysV. Windows is not built.
 // No runtime feature detection. The floor is SSE2: movdqu, movdqa, pxor, por,
@@ -11,9 +12,10 @@
 //   ymmN/zmmN as they were and never reaches xmm16-31, so `pxor` reaches every
 //   byte these routines wrote.
 // Crossing: pointers to the caller's storage and lengths. Nothing is returned;
-//   the UTF-8 answer is one byte written through a pointer.
-// Branches: the copy and the swap on the length only. The UTF-8 check on the
-//   bytes, stopping at the first that is not UTF-8: not constant time.
+//   each check's answer is one byte written through a pointer.
+// Branches: the copy, the swap and the zero check on the length only. The UTF-8
+//   check on the bytes, stopping at the first that is not UTF-8: not constant
+//   time.
 // Not answered for: what other code left in registers, the ranges themselves,
 //   a signal frame, a core dump, swap, ptrace, or a fault before the wipe.
 // No routine takes a frame, so the probe has no stack half.
@@ -392,6 +394,42 @@ FUNC(redoubt_mem_is_utf8):
     .cfi_endproc
 #if !defined(__APPLE__)
 .size FUNC(redoubt_mem_is_utf8), .-FUNC(redoubt_mem_is_utf8)
+#endif
+
+// ============================================================================
+// redoubt_mem_is_zeroized
+// ============================================================================
+//
+// void redoubt_mem_is_zeroized(const uint8_t *bytes, size_t len, uint8_t *answer)
+// rdi = bytes, rsi = len, rdx = answer; one when every byte is zero.
+
+.global FUNC(redoubt_mem_is_zeroized)
+HIDDEN_FUNC(redoubt_mem_is_zeroized)
+#if !defined(__APPLE__)
+.type FUNC(redoubt_mem_is_zeroized), @function
+#endif
+.p2align 4
+FUNC(redoubt_mem_is_zeroized):
+    .cfi_startproc
+    endbr64
+    xor eax, eax
+    test rsi, rsi
+    jz .Lzero_answer
+.Lzero_next:
+    movzx ecx, byte ptr [rdi]
+    or eax, ecx
+    add rdi, 1
+    sub rsi, 1
+    jnz .Lzero_next
+    // The answer goes out through rdx before the wipe empties it.
+.Lzero_answer:
+    test eax, eax
+    sete byte ptr [rdx]
+    MEM_ZEROIZE_ALL
+    ret
+    .cfi_endproc
+#if !defined(__APPLE__)
+.size FUNC(redoubt_mem_is_zeroized), .-FUNC(redoubt_mem_is_zeroized)
 #endif
 
 // ============================================================================

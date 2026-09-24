@@ -71,3 +71,11 @@ pub(crate) fn is_utf8(backend: Backend, bytes: &[u8]) -> bool {
         Backend::Auto => chosen::is_utf8(bytes),
     }
 }
+
+/// Whether every one of `bytes` is zero.
+pub(crate) fn is_zeroized(backend: Backend, bytes: &[u8]) -> bool {
+    match backend {
+        Backend::Rust => rust::is_zeroized(bytes),
+        Backend::Auto => chosen::is_zeroized(bytes),
+    }
+}

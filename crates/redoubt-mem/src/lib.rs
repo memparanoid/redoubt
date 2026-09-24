@@ -61,7 +61,9 @@ mod backend;
 mod copy;
 mod swap;
 mod utf8;
+mod zeroized;
 
 pub use copy::copy_nonoverlapping;
 pub use swap::{swap, swap_nonoverlapping};
 pub use utf8::is_utf8;
+pub use zeroized::is_zeroized;

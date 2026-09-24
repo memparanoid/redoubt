@@ -9,3 +9,4 @@ mod backend;
 mod copy;
 mod swap;
 mod utf8;
+mod zeroized;
