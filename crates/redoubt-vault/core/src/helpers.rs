@@ -63,7 +63,7 @@ pub fn encrypt_into<const N: usize>(
 }
 
 #[inline(always)]
-fn try_encrypt_into_buffers<const N: usize>(
+pub(crate) fn try_encrypt_into_buffers<const N: usize>(
     mut fields: [&mut dyn Encryptable; N],
     aead: &mut Aead,
     aead_key: &[u8],
@@ -121,7 +121,7 @@ pub(crate) fn encrypt_into_buffers<const N: usize>(
 }
 
 #[inline(always)]
-fn try_decrypt_from<const N: usize>(
+pub(crate) fn try_decrypt_from<const N: usize>(
     fields: &mut [&mut dyn Decryptable; N],
     aead: &Aead,
     aead_key: &[u8],

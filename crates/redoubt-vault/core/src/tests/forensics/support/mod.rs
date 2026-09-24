@@ -4,10 +4,13 @@
 
 pub(crate) mod needles;
 
+use redoubt_alloc::RedoubtVec;
 use redoubt_buffer::BufferError;
 use redoubt_forensics::{AnyError, Forensics, QUIET, Report};
 
-use needles::{SECRET, backwards, master_key_backwards};
+use crate::master_key::leak_master_key;
+
+use needles::{SECRET, backwards, master_key_backwards, master_key_width};
 
 /// The needles an operation of a box is held to, the secret and the master key,
 /// each with its photograph from before.
@@ -66,6 +69,32 @@ pub(crate) fn giving(into: &mut [u8]) {
         // local are different allocations.
         unsafe { redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), one.as_mut_ptr(), one.len()) };
     }
+}
+
+/// A field holding the secret.
+pub(crate) fn a_field() -> RedoubtVec<u8> {
+    let mut source = vec![0_u8; 32];
+
+    giving(&mut source);
+
+    let mut field = RedoubtVec::default();
+
+    field.replace_from_mut_slice(&mut source);
+
+    field
+}
+
+/// A copy of the key a box encrypts with, made by the copy that erases what it
+/// used: `to_vec` would be the C library's `memcpy`.
+pub(crate) fn a_key() -> Result<Vec<u8>, AnyError> {
+    let opened = leak_master_key(master_key_width())?;
+    let mut key = vec![0_u8; opened.len()];
+
+    // SAFETY: `key` was made as long as `opened`, and the two are different
+    // allocations.
+    unsafe { redoubt_mem::copy_nonoverlapping(opened.as_ptr(), key.as_mut_ptr(), key.len()) };
+
+    Ok(key)
 }
 
 /// A callback that copies what it is handed into `into`, through the copy that

@@ -10,4 +10,5 @@
 mod support;
 
 mod cipherbox;
+mod helpers;
 mod master_key;

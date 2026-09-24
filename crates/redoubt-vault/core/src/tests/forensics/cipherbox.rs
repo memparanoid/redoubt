@@ -18,7 +18,7 @@ use crate::traits::{CipherBoxDyns, DecryptStruct, Decryptable, EncryptStruct, En
 use crate::types::{Ciphertexts, Data, DataBuffers, Nonces, Tags};
 
 use super::support::needles::{backwards, master_key_backwards, master_key_width};
-use super::support::{Watched, giving, is_found, leaves_nothing};
+use super::support::{Watched, a_field, a_key, giving, is_found, leaves_nothing};
 
 #[derive(Default, RedoubtZero, RedoubtCodec)]
 #[fast_zeroize(drop)]
@@ -91,30 +91,9 @@ fn value(of: usize) -> OneField {
     one_field
 }
 
-fn a_field() -> Box<Field> {
-    let mut source = vec![0_u8; 32];
-
-    giving(&mut source);
-
-    let mut field = Box::new(Field::default());
-
-    field.replace_from_mut_slice(&mut source);
-
-    field
-}
-
-/// An empty box and a copy of the key it works with, made by the copy that
-/// erases what it used: `to_vec` would be the C library's `memcpy`.
+/// An empty box and a copy of the key it works with.
 fn a_box() -> Result<(OneFieldBox, Vec<u8>), AnyError> {
-    let one_field_box = OneFieldBox::new(Aead::default());
-    let opened = leak_master_key(master_key_width())?;
-    let mut key = vec![0_u8; opened.len()];
-
-    // SAFETY: `key` was made as long as `opened`, and the two are different
-    // allocations.
-    unsafe { redoubt_mem::copy_nonoverlapping(opened.as_ptr(), key.as_mut_ptr(), key.len()) };
-
-    Ok((one_field_box, key))
+    Ok((OneFieldBox::new(Aead::default()), a_key()?))
 }
 
 /// A box sealed over a value of the secret, and the key it was sealed with.
