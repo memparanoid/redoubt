@@ -18,4 +18,5 @@ cc.workspace = true
 
 [dev-dependencies]
 libc.workspace              = true
+proptest.workspace          = true
 redoubt-forensics.workspace = true

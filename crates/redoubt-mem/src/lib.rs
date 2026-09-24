@@ -59,6 +59,8 @@ mod tests;
 
 mod copy;
 mod swap;
+mod utf8;
 
 pub use copy::copy_nonoverlapping;
 pub use swap::{swap, swap_nonoverlapping};
+pub use utf8::is_utf8;

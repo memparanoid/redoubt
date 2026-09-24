@@ -14,6 +14,8 @@ fn main() {
     println!("cargo:rerun-if-changed=asm/copy_aarch64.S");
     println!("cargo:rerun-if-changed=asm/swap_x86_64.S");
     println!("cargo:rerun-if-changed=asm/swap_aarch64.S");
+    println!("cargo:rerun-if-changed=asm/utf8_x86_64.S");
+    println!("cargo:rerun-if-changed=asm/utf8_aarch64.S");
 
     let family = std::env::var("CARGO_CFG_TARGET_FAMILY").unwrap_or_default();
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
@@ -22,12 +24,20 @@ fn main() {
         return;
     }
 
-    // Only the pair for this architecture: each `.S` refuses to assemble
+    // Only the files for this architecture: each `.S` refuses to assemble
     // anywhere else, which is how a wrong one is caught at build time rather
     // than at link time.
-    let files: [&str; 2] = match arch.as_str() {
-        "x86_64" => ["asm/copy_x86_64.S", "asm/swap_x86_64.S"],
-        "aarch64" => ["asm/copy_aarch64.S", "asm/swap_aarch64.S"],
+    let files: [&str; 3] = match arch.as_str() {
+        "x86_64" => [
+            "asm/copy_x86_64.S",
+            "asm/swap_x86_64.S",
+            "asm/utf8_x86_64.S",
+        ],
+        "aarch64" => [
+            "asm/copy_aarch64.S",
+            "asm/swap_aarch64.S",
+            "asm/utf8_aarch64.S",
+        ],
         _ => return,
     };
 
