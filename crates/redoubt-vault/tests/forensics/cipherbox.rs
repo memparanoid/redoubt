@@ -76,10 +76,10 @@ const TIMES: usize = 1024;
 #[derive(Default, RedoubtZero, RedoubtCodec)]
 #[fast_zeroize(drop)]
 struct Secret {
-    in_a_vec: RedoubtVec<u8>,
-    in_an_array: RedoubtArray<u8, 32>,
-    in_an_option: RedoubtOption<RedoubtVec<u8>>,
-    in_two_options: RedoubtOption<RedoubtOption<RedoubtArray<u8, 32>>>,
+    a_vec: RedoubtVec<u8>,
+    an_array: RedoubtArray<u8, 32>,
+    an_option: RedoubtOption<RedoubtVec<u8>>,
+    two_options: RedoubtOption<RedoubtOption<RedoubtArray<u8, 32>>>,
 }
 
 /// The needle, built from its last byte to its first.
@@ -118,7 +118,7 @@ fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
         let mut source = [0_u8; 32];
 
         giving(&mut source);
-        it.in_an_array.replace_from_mut_array(&mut source);
+        it.an_array.replace_from_mut_array(&mut source);
 
         // Replaced and not extended: extending appends, so filling twice would
         // leave one more copy of the secret per round by the test's own doing.
@@ -128,7 +128,7 @@ fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
             giving(one);
         }
 
-        it.in_a_vec.replace_from_mut_slice(&mut source);
+        it.a_vec.replace_from_mut_slice(&mut source);
 
         // Room asked for up front, so the extend below never reaches `grow_to`.
         // A payload this size with no growth in it is what tells a leak in the
@@ -142,7 +142,7 @@ fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
         }
 
         inner.replace_from_mut_slice(&mut source);
-        it.in_an_option.replace(&mut inner);
+        it.an_option.replace(&mut inner);
 
         let mut source = [0_u8; 32];
         let mut inner = RedoubtArray::<u8, 32>::default();
@@ -153,7 +153,7 @@ fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
         let mut wrapped = RedoubtOption::<RedoubtArray<u8, 32>>::default();
 
         wrapped.replace(&mut inner);
-        it.in_two_options.replace(&mut wrapped);
+        it.two_options.replace(&mut wrapped);
 
         Ok(())
     })?;
@@ -385,7 +385,7 @@ fn test_open_leaves_nothing() -> Result<(), AnyError> {
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
                 secrets_box.open(|it| {
-                    core::hint::black_box(it.in_an_array.as_slice()[0]);
+                    core::hint::black_box(it.an_array.as_slice()[0]);
 
                     Ok(())
                 })?;
@@ -458,7 +458,7 @@ fn test_open_mut_leaves_nothing() -> Result<(), AnyError> {
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
                 secrets_box.open_mut(|it| {
-                    it.in_an_array.as_mut_slice()[0] ^= 0;
+                    it.an_array.as_mut_slice()[0] ^= 0;
 
                     Ok(())
                 })?;
@@ -562,7 +562,7 @@ fn test_open_mut_that_fails_leaves_nothing() {
 }
 
 // ============================================================================
-// SecretsBox::leak_in_a_vec
+// SecretsBox::leak_a_vec
 // ============================================================================
 
 /// What a leak handed back is found while whoever asked for it is holding it.
@@ -576,7 +576,7 @@ fn test_what_a_leaked_vec_handed_back_is_found_while_it_is_held() -> Result<(), 
     let (secrets_box, mut watch, _) = filled()?;
 
     forensics!({
-        let taken = capture(|| secrets_box.leak_in_a_vec())?;
+        let taken = capture(|| secrets_box.leak_a_vec())?;
 
         core::mem::forget(taken);
     });
@@ -602,12 +602,12 @@ fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
 
     forensics!({
         for _ in 0..ROUNDS - 1 {
-            let taken = secrets_box.leak_in_a_vec()?;
+            let taken = secrets_box.leak_a_vec()?;
 
             core::hint::black_box(taken.as_slice()[0]);
         }
 
-        let taken = capture(|| secrets_box.leak_in_a_vec())?;
+        let taken = capture(|| secrets_box.leak_a_vec())?;
 
         drop(taken);
     });
@@ -627,7 +627,7 @@ fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
 }
 
 // ============================================================================
-// SecretsBox::leak_in_an_array
+// SecretsBox::leak_an_array
 // ============================================================================
 
 /// What a leaked array handed back is found while it is held.
@@ -636,7 +636,7 @@ fn test_what_a_leaked_array_handed_back_is_found_while_it_is_held() -> Result<()
     let (secrets_box, mut watch, _) = filled()?;
 
     forensics!({
-        let taken = capture(|| secrets_box.leak_in_an_array())?;
+        let taken = capture(|| secrets_box.leak_an_array())?;
 
         core::mem::forget(taken);
     });
@@ -657,12 +657,12 @@ fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
 
     forensics!({
         for _ in 0..ROUNDS - 1 {
-            let taken = secrets_box.leak_in_an_array()?;
+            let taken = secrets_box.leak_an_array()?;
 
             core::hint::black_box(taken.as_slice()[0]);
         }
 
-        let taken = capture(|| secrets_box.leak_in_an_array())?;
+        let taken = capture(|| secrets_box.leak_an_array())?;
 
         drop(taken);
     });
@@ -682,7 +682,7 @@ fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
 }
 
 // ============================================================================
-// SecretsBox::leak_in_an_option
+// SecretsBox::leak_an_option
 // ============================================================================
 
 /// What a leaked option handed back is found while it is held.
@@ -691,7 +691,7 @@ fn test_what_a_leaked_option_handed_back_is_found_while_it_is_held() -> Result<(
     let (secrets_box, mut watch, _) = filled()?;
 
     forensics!({
-        let taken = capture(|| secrets_box.leak_in_an_option())?;
+        let taken = capture(|| secrets_box.leak_an_option())?;
 
         core::mem::forget(taken);
     });
@@ -712,12 +712,12 @@ fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
 
     forensics!({
         for _ in 0..ROUNDS - 1 {
-            let taken = secrets_box.leak_in_an_option()?;
+            let taken = secrets_box.leak_an_option()?;
 
             core::hint::black_box(taken.as_ref().is_some());
         }
 
-        let taken = capture(|| secrets_box.leak_in_an_option())?;
+        let taken = capture(|| secrets_box.leak_an_option())?;
 
         drop(taken);
     });
@@ -737,7 +737,7 @@ fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
 }
 
 // ============================================================================
-// SecretsBox::leak_in_two_options
+// SecretsBox::leak_two_options
 // ============================================================================
 
 /// What two leaked options handed back is found while it is held.
@@ -746,7 +746,7 @@ fn test_what_two_leaked_options_handed_back_is_found_while_it_is_held() -> Resul
     let (secrets_box, mut watch, _) = filled()?;
 
     forensics!({
-        let taken = capture(|| secrets_box.leak_in_two_options())?;
+        let taken = capture(|| secrets_box.leak_two_options())?;
 
         core::mem::forget(taken);
     });
@@ -768,12 +768,12 @@ fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
 
     forensics!({
         for _ in 0..ROUNDS - 1 {
-            let taken = secrets_box.leak_in_two_options()?;
+            let taken = secrets_box.leak_two_options()?;
 
             core::hint::black_box(taken.as_ref().is_some());
         }
 
-        let taken = capture(|| secrets_box.leak_in_two_options())?;
+        let taken = capture(|| secrets_box.leak_two_options())?;
 
         drop(taken);
     });
@@ -793,58 +793,58 @@ fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
 }
 
 // ============================================================================
-// SecretsBox::open_in_a_vec
+// SecretsBox::open_a_vec
 // ============================================================================
 
 #[test]
 #[ignore = "TODO: it opens the secret, and nothing measures it yet."]
-fn test_open_in_a_vec_leaves_nothing() {
+fn test_open_a_vec_leaves_nothing() {
     // Intentionally empty.
 }
 
 #[test]
 #[ignore = "TODO: a callback that fails has the value emptied on its way out, \
             and nothing measures that path yet."]
-fn test_open_in_a_vec_that_fails_leaves_nothing() {
+fn test_open_a_vec_that_fails_leaves_nothing() {
     // Intentionally empty.
 }
 
 // ============================================================================
-// SecretsBox::open_in_an_array
+// SecretsBox::open_an_array
 // ============================================================================
 
 #[test]
 #[ignore = "TODO: it opens the secret, and nothing measures it yet."]
-fn test_open_in_an_array_leaves_nothing() {
+fn test_open_an_array_leaves_nothing() {
     // Intentionally empty.
 }
 
 #[test]
 #[ignore = "TODO: a callback that fails has the value emptied on its way out, \
             and nothing measures that path yet."]
-fn test_open_in_an_array_that_fails_leaves_nothing() {
+fn test_open_an_array_that_fails_leaves_nothing() {
     // Intentionally empty.
 }
 
 // ============================================================================
-// SecretsBox::open_in_an_option
+// SecretsBox::open_an_option
 // ============================================================================
 
 #[test]
 #[ignore = "TODO: it opens the secret, and nothing measures it yet."]
-fn test_open_in_an_option_leaves_nothing() {
+fn test_open_an_option_leaves_nothing() {
     // Intentionally empty.
 }
 
 #[test]
 #[ignore = "TODO: a callback that fails has the value emptied on its way out, \
             and nothing measures that path yet."]
-fn test_open_in_an_option_that_fails_leaves_nothing() {
+fn test_open_an_option_that_fails_leaves_nothing() {
     // Intentionally empty.
 }
 
 // ============================================================================
-// SecretsBox::open_in_two_options
+// SecretsBox::open_two_options
 // ============================================================================
 
 /// A field on its own decrypts through its own buffer and not through the one
@@ -856,7 +856,7 @@ fn test_the_secret_is_found_while_one_field_is_open() -> Result<(), AnyError> {
 
     let mut inside = None;
 
-    secrets_box.open_in_two_options(|_| {
+    secrets_box.open_two_options(|_| {
         inside = watch.snapshot().ok();
 
         Ok(())
@@ -880,7 +880,7 @@ fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
-                secrets_box.open_in_two_options(|it| {
+                secrets_box.open_two_options(|it| {
                     core::hint::black_box(it.as_ref().is_some());
 
                     Ok(())
@@ -908,63 +908,63 @@ fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
 #[test]
 #[ignore = "TODO: a callback that fails has the value emptied on its way out, \
             and nothing measures that path yet."]
-fn test_open_in_two_options_that_fails_leaves_nothing() {
+fn test_open_two_options_that_fails_leaves_nothing() {
     // Intentionally empty.
 }
 
 // ============================================================================
-// SecretsBox::open_in_a_vec_mut
+// SecretsBox::open_a_vec_mut
 // ============================================================================
 
 #[test]
 #[ignore = "TODO: it opens the secret, and nothing measures it yet."]
-fn test_open_in_a_vec_mut_leaves_nothing() {
+fn test_open_a_vec_mut_leaves_nothing() {
     // Intentionally empty.
 }
 
 #[test]
 #[ignore = "TODO: a callback that fails has the value emptied on its way out, \
             and nothing measures that path yet."]
-fn test_open_in_a_vec_mut_that_fails_leaves_nothing() {
+fn test_open_a_vec_mut_that_fails_leaves_nothing() {
     // Intentionally empty.
 }
 
 // ============================================================================
-// SecretsBox::open_in_an_array_mut
+// SecretsBox::open_an_array_mut
 // ============================================================================
 
 #[test]
 #[ignore = "TODO: it opens the secret, and nothing measures it yet."]
-fn test_open_in_an_array_mut_leaves_nothing() {
+fn test_open_an_array_mut_leaves_nothing() {
     // Intentionally empty.
 }
 
 #[test]
 #[ignore = "TODO: a callback that fails has the value emptied on its way out, \
             and nothing measures that path yet."]
-fn test_open_in_an_array_mut_that_fails_leaves_nothing() {
+fn test_open_an_array_mut_that_fails_leaves_nothing() {
     // Intentionally empty.
 }
 
 // ============================================================================
-// SecretsBox::open_in_an_option_mut
+// SecretsBox::open_an_option_mut
 // ============================================================================
 
 #[test]
 #[ignore = "TODO: it opens the secret, and nothing measures it yet."]
-fn test_open_in_an_option_mut_leaves_nothing() {
+fn test_open_an_option_mut_leaves_nothing() {
     // Intentionally empty.
 }
 
 #[test]
 #[ignore = "TODO: a callback that fails has the value emptied on its way out, \
             and nothing measures that path yet."]
-fn test_open_in_an_option_mut_that_fails_leaves_nothing() {
+fn test_open_an_option_mut_that_fails_leaves_nothing() {
     // Intentionally empty.
 }
 
 // ============================================================================
-// SecretsBox::open_in_two_options_mut
+// SecretsBox::open_two_options_mut
 // ============================================================================
 
 #[test]
@@ -973,7 +973,7 @@ fn test_the_secret_is_found_while_one_field_is_open_for_writing() -> Result<(), 
 
     let mut inside = None;
 
-    secrets_box.open_in_two_options_mut(|_| {
+    secrets_box.open_two_options_mut(|_| {
         inside = watch.snapshot().ok();
 
         Ok(())
@@ -995,7 +995,7 @@ fn test_open_field_mut_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
-                secrets_box.open_in_two_options_mut(|it| {
+                secrets_box.open_two_options_mut(|it| {
                     core::hint::black_box(it.as_ref().is_some());
 
                     Ok(())
@@ -1023,6 +1023,6 @@ fn test_open_field_mut_leaves_nothing() -> Result<(), AnyError> {
 #[test]
 #[ignore = "TODO: a callback that fails has the value emptied on its way out, \
             and nothing measures that path yet."]
-fn test_open_in_two_options_mut_that_fails_leaves_nothing() {
+fn test_open_two_options_mut_that_fails_leaves_nothing() {
     // Intentionally empty.
 }
