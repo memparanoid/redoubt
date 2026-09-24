@@ -260,20 +260,186 @@ fn test_making_a_redoubt_string_with_capacity_leaves_nothing() {
 // ============================================================================
 
 #[test]
-#[ignore = "TODO: it takes the secret, and nothing measures it yet."]
-fn test_a_redoubt_string_from_a_mut_string_leaves_nothing() {
-    // Intentionally empty.
+fn test_a_redoubt_string_from_a_mut_string_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&spelled_backwards())?;
+
+    let mut source = spelled(SECRET.len() * 2);
+
+    forensics!({
+        let held = capture(|| RedoubtString::from_mut_string(&mut source));
+
+        core::mem::forget(held);
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "a string made from a string, and kept");
+
+    drop(core::hint::black_box(source));
+
+    Ok(())
 }
+
+macro_rules! a_redoubt_string_from_a_mut_string {
+    ($name:ident, $of:expr) => {
+        #[test]
+        fn $name() -> Result<(), AnyError> {
+            let mut watch = Forensics::watching(&spelled_backwards())?;
+
+            let report_before = watch.snapshot()?;
+
+            let mut source = spelled($of);
+
+            forensics!({
+                let held = capture(|| RedoubtString::from_mut_string(&mut source));
+
+                drop(held);
+            });
+
+            drop(core::hint::black_box(source));
+
+            let report_after = watch.snapshot()?;
+
+            leaves_nothing(
+                &report_before,
+                &report_after,
+                &format!("a string made from a string of {} bytes", $of),
+            );
+
+            Ok(())
+        }
+    };
+}
+
+a_redoubt_string_from_a_mut_string!(
+    test_a_redoubt_string_from_a_mut_string_of_32_leaves_nothing,
+    32
+);
+a_redoubt_string_from_a_mut_string!(
+    test_a_redoubt_string_from_a_mut_string_of_64_leaves_nothing,
+    64
+);
+a_redoubt_string_from_a_mut_string!(
+    test_a_redoubt_string_from_a_mut_string_of_128_leaves_nothing,
+    128
+);
+a_redoubt_string_from_a_mut_string!(
+    test_a_redoubt_string_from_a_mut_string_of_512_leaves_nothing,
+    512
+);
+a_redoubt_string_from_a_mut_string!(
+    test_a_redoubt_string_from_a_mut_string_of_1024_leaves_nothing,
+    1024
+);
+a_redoubt_string_from_a_mut_string!(
+    test_a_redoubt_string_from_a_mut_string_of_4096_leaves_nothing,
+    4096
+);
+a_redoubt_string_from_a_mut_string!(
+    test_a_redoubt_string_from_a_mut_string_of_8192_leaves_nothing,
+    8192
+);
+a_redoubt_string_from_a_mut_string!(
+    test_a_redoubt_string_from_a_mut_string_of_16384_leaves_nothing,
+    16384
+);
+a_redoubt_string_from_a_mut_string!(
+    test_a_redoubt_string_from_a_mut_string_of_32768_leaves_nothing,
+    32768
+);
+a_redoubt_string_from_a_mut_string!(
+    test_a_redoubt_string_from_a_mut_string_of_65536_leaves_nothing,
+    65536
+);
 
 // ============================================================================
 // RedoubtString::from_str
 // ============================================================================
 
 #[test]
-#[ignore = "TODO: it takes the secret, and nothing measures it yet."]
-fn test_a_redoubt_string_from_a_str_leaves_nothing() {
-    // Intentionally empty.
+fn test_a_redoubt_string_from_a_str_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&spelled_backwards())?;
+
+    let mut source = spelled(SECRET.len() * 2);
+
+    forensics!({
+        let held = capture(|| RedoubtString::from_str(&source));
+
+        core::mem::forget(held);
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "a string made from a str, and kept");
+
+    emptying(&mut source);
+
+    drop(core::hint::black_box(source));
+
+    Ok(())
 }
+
+macro_rules! a_redoubt_string_from_a_str {
+    ($name:ident, $of:expr) => {
+        #[test]
+        fn $name() -> Result<(), AnyError> {
+            let mut watch = Forensics::watching(&spelled_backwards())?;
+
+            let report_before = watch.snapshot()?;
+
+            let mut source = spelled($of);
+
+            forensics!({
+                let held = capture(|| RedoubtString::from_str(&source));
+
+                drop(held);
+            });
+
+            emptying(&mut source);
+
+            drop(core::hint::black_box(source));
+
+            let report_after = watch.snapshot()?;
+
+            leaves_nothing(
+                &report_before,
+                &report_after,
+                &format!("a string made from a str of {} bytes", $of),
+            );
+
+            Ok(())
+        }
+    };
+}
+
+a_redoubt_string_from_a_str!(test_a_redoubt_string_from_a_str_of_32_leaves_nothing, 32);
+a_redoubt_string_from_a_str!(test_a_redoubt_string_from_a_str_of_64_leaves_nothing, 64);
+a_redoubt_string_from_a_str!(test_a_redoubt_string_from_a_str_of_128_leaves_nothing, 128);
+a_redoubt_string_from_a_str!(test_a_redoubt_string_from_a_str_of_512_leaves_nothing, 512);
+a_redoubt_string_from_a_str!(
+    test_a_redoubt_string_from_a_str_of_1024_leaves_nothing,
+    1024
+);
+a_redoubt_string_from_a_str!(
+    test_a_redoubt_string_from_a_str_of_4096_leaves_nothing,
+    4096
+);
+a_redoubt_string_from_a_str!(
+    test_a_redoubt_string_from_a_str_of_8192_leaves_nothing,
+    8192
+);
+a_redoubt_string_from_a_str!(
+    test_a_redoubt_string_from_a_str_of_16384_leaves_nothing,
+    16384
+);
+a_redoubt_string_from_a_str!(
+    test_a_redoubt_string_from_a_str_of_32768_leaves_nothing,
+    32768
+);
+a_redoubt_string_from_a_str!(
+    test_a_redoubt_string_from_a_str_of_65536_leaves_nothing,
+    65536
+);
 
 // ============================================================================
 // RedoubtString::len
@@ -635,11 +801,59 @@ a_redoubt_string_extended_from_a_str!(
 // RedoubtString::clear
 // ============================================================================
 
-#[test]
-#[ignore = "TODO: it removes the secret, and nothing measures it yet."]
-fn test_a_redoubt_string_cleared_leaves_nothing() {
-    // Intentionally empty.
+macro_rules! a_redoubt_string_cleared {
+    ($name:ident, $of:expr) => {
+        #[test]
+        fn $name() -> Result<(), AnyError> {
+            let mut watch = Forensics::watching(&spelled_backwards())?;
+
+            let report_before = watch.snapshot()?;
+
+            let mut source = spelled($of);
+
+            forensics!({
+                let mut held = RedoubtString::new();
+                held.replace_from_mut_string(&mut source);
+
+                capture(|| held.clear());
+
+                drop(held);
+            });
+
+            drop(core::hint::black_box(source));
+
+            let report_after = watch.snapshot()?;
+
+            leaves_nothing(
+                &report_before,
+                &report_after,
+                &format!("a string of {} bytes cleared", $of),
+            );
+
+            Ok(())
+        }
+    };
 }
+
+a_redoubt_string_cleared!(test_a_redoubt_string_of_32_cleared_leaves_nothing, 32);
+a_redoubt_string_cleared!(test_a_redoubt_string_of_64_cleared_leaves_nothing, 64);
+a_redoubt_string_cleared!(test_a_redoubt_string_of_128_cleared_leaves_nothing, 128);
+a_redoubt_string_cleared!(test_a_redoubt_string_of_512_cleared_leaves_nothing, 512);
+a_redoubt_string_cleared!(test_a_redoubt_string_of_1024_cleared_leaves_nothing, 1024);
+a_redoubt_string_cleared!(test_a_redoubt_string_of_4096_cleared_leaves_nothing, 4096);
+a_redoubt_string_cleared!(test_a_redoubt_string_of_8192_cleared_leaves_nothing, 8192);
+a_redoubt_string_cleared!(
+    test_a_redoubt_string_of_16384_cleared_leaves_nothing,
+    16384
+);
+a_redoubt_string_cleared!(
+    test_a_redoubt_string_of_32768_cleared_leaves_nothing,
+    32768
+);
+a_redoubt_string_cleared!(
+    test_a_redoubt_string_of_65536_cleared_leaves_nothing,
+    65536
+);
 
 // ============================================================================
 // RedoubtString::as_str
