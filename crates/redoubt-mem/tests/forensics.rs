@@ -2,46 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! What each copy leaves behind, weighed rather than named.
+//! What each copy and swap leaves behind, weighed over the whole register file
+//! rather than over the registers the assembly names.
 //!
-//! # Why this as well as `registers.rs`
-//!
-//! That file reads the registers the assembly *says* it uses: `rax`, `rcx`,
-//! `xmm0`, `xmm1`, or `x3` and `v0-v3`. It is exact, and it is exactly as good
-//! as that list. A byte left somewhere nobody wrote down reads as clean.
-//!
-//! The list was wrong once before, and not by a little. The residue this crate
-//! exists for lived in `zmm16` and `zmm17`, which no instrument was looking at
-//! because no instrument had been told to. A capture that reads the whole
-//! register file cannot make that mistake, which is the one thing it is better
-//! at.
-//!
-//! So: the registers become memory, the sweep finds them like anything else,
-//! and the score says how much of the secret is in the process. No list.
-//!
-//! # Where the wipe goes
-//!
-//! A copy that worked leaves the secret in its destination, which would be
-//! found and would say nothing. So the destination is wiped — but **after** the
-//! capture, never before. Wiped first, the wipe's own frames and registers land
-//! on what the copy left, and the absence would be the wipe's doing.
-//!
-//! The wipe is volatile and one byte at a time. A `fill` is a call to `memset`,
-//! which is the other half of the library this is measuring.
-//!
-//! # Two tests for every claim
-//!
-//! Each section opens with the same call and nothing wiped after it, and that
-//! one has to be **found** — in the destination, which is where a copy puts
-//! things. An absence is worth exactly as much as that presence.
-//!
-//! # One size per test
-//!
-//! The routine takes a different path by length — the general registers up to
-//! thirty-two bytes, the vector loop up to five hundred and twelve, the string
-//! move past that — and each is its own test, because the sweep reads the whole
-//! process and a size that leaks would be found by every size measured after it
-//! in the same one.
+//! Run under `nextest`: the sweep reads the whole process, and `cargo test`
+//! shares one between tests.
 
 #![cfg(target_os = "linux")]
 
@@ -57,14 +22,11 @@ const SECRET: [u8; 32] = [
     0x84, 0x1D, 0xA6, 0x3F, 0xD8, 0x60, 0x95, 0x2E, 0xBB, 0x07, 0x4C, 0xE1, 0x76, 0xAF, 0x13, 0xCA,
 ];
 
-/// How many times the secret goes into the constant a sized copy reads from.
+/// How many times the secret goes into [`BIG`].
 const TIMES: usize = 256;
 
-/// The secret over and over, in a constant, so that a copy of any size has
-/// something to carry.
-///
-/// A `const`, for the reason [`SECRET`] is one: the source of a copy must not
-/// be somewhere the sweep reads, or every measurement would find it.
+/// The secret over and over, in a constant the sweep does not read, so that a
+/// copy of any size has something to carry.
 const BIG: [u8; SECRET.len() * TIMES] = {
     let mut all = [0_u8; SECRET.len() * TIMES];
     let mut at = 0;
@@ -77,27 +39,18 @@ const BIG: [u8; SECRET.len() * TIMES] = {
     all
 };
 
-/// One round leaving nothing is a weaker claim than it looks.
-///
-/// A piece surviving one round in fifty would not show once and would show
-/// plainly at two hundred.
+/// Copies in a row: a residue that survives one copy in fifty shows here and
+/// not in a single one.
 const ROUNDS: usize = 200;
 
-/// The needle, built from its last byte to its first.
-///
-/// Backwards from the start and never turned around: a `to_vec` followed by a
-/// `reverse` would put the secret forwards on the heap for as long as it takes
-/// to turn it over, and a vectorised reverse can spill half of it on the way.
-/// That is the very thing being measured, and the test does not get to cause
-/// it.
+/// The needle, built from its last byte to its first and never turned around:
+/// the forward bytes must not exist in this process.
 fn backwards() -> Vec<u8> {
     SECRET.iter().rev().copied().collect()
 }
 
-/// Every byte of it back to zero, so that what survives is not memory.
-///
-/// Volatile and one at a time: a `fill` is a call to `memset`, which is the
-/// other half of the library this is measuring.
+/// Every byte back to zero, volatile and one at a time: a `fill` is a call to
+/// `memset`, which is the other half of the library this is measuring.
 fn wipe(into: &mut [u8]) {
     for at in 0..into.len() {
         // SAFETY: in bounds of a live slice.
@@ -105,8 +58,8 @@ fn wipe(into: &mut [u8]) {
     }
 }
 
-/// The photograph says the secret is there, which is what makes the rest of
-/// the section mean anything.
+/// Asserts the secret was found. Without a presence, an absence cannot be told
+/// apart from a sweep that reaches nowhere.
 fn is_found(report: &Report, what: &str) {
     println!();
     report.summary(what);
@@ -119,11 +72,8 @@ fn is_found(report: &Report, what: &str) {
     );
 }
 
-/// The three things an absence has to survive.
-///
-/// The whole secret is gone, no piece of it wider than chance is left, and the
-/// score did not move. One of the three on its own would pass a process that
-/// kept half of it, or kept all of it somewhere the score weighs at nothing.
+/// Asserts the secret is gone: not whole, no run past `QUIET`, and a score that
+/// did not move. Each alone passes a process that kept part of it.
 fn leaves_nothing(report_before: &Report, before: &str, report_after: &Report, what: &str) {
     println!();
     report_before.summary(before);
@@ -148,16 +98,22 @@ fn leaves_nothing(report_before: &Report, before: &str, report_after: &Report, w
     assert!(delta.is_noise(), "{what} moved the score: {delta}");
 }
 
+/// Thirty-two bytes of the secret in a box, through the copy being measured
+/// elsewhere in this file.
+fn hold() -> Box<[u8; 32]> {
+    let mut held = Box::new([0_u8; 32]);
+
+    // SAFETY: a constant and a heap block are different allocations, and both
+    // are thirty-two bytes.
+    unsafe { redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), held.as_mut_ptr(), 32) };
+
+    held
+}
+
 // ============================================================================
 // copy_nonoverlapping
 // ============================================================================
 
-/// A copy is found in its destination.
-///
-/// The same call as every test below with the wipe left out, so what it finds
-/// is the copy's own result in the buffer the copy was given. Nothing is
-/// planted: a copy the test put somewhere of its own choosing would vouch for
-/// that place and not for this one.
 #[test]
 fn test_a_copy_is_found_in_its_destination() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -166,8 +122,8 @@ fn test_a_copy_is_found_in_its_destination() -> Result<(), AnyError> {
 
     forensics!({
         capture(|| {
-            // SAFETY: `scratch` is exactly the secret's length, and a constant and
-            // a heap block are different allocations.
+            // SAFETY: `scratch` is exactly the secret's length, and a constant
+            // and a heap block are different allocations.
             unsafe {
                 redoubt_mem::copy_nonoverlapping(
                     SECRET.as_ptr(),
@@ -189,7 +145,6 @@ fn test_a_copy_is_found_in_its_destination() -> Result<(), AnyError> {
     Ok(())
 }
 
-/// Copying leaves nothing once the destination is emptied.
 #[test]
 fn test_copying_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -200,7 +155,8 @@ fn test_copying_leaves_nothing() -> Result<(), AnyError> {
 
     forensics!({
         capture(|| {
-            // SAFETY: as above.
+            // SAFETY: `scratch` is exactly the secret's length, and a constant
+            // and a heap block are different allocations.
             unsafe {
                 redoubt_mem::copy_nonoverlapping(
                     SECRET.as_ptr(),
@@ -210,32 +166,21 @@ fn test_copying_leaves_nothing() -> Result<(), AnyError> {
             }
         });
 
-        // CORRECTNESS: after the capture. A call made before it writes over
-        // the stack and the registers the copy left, and then the absence
-        // below is about that call and not about the copy.
+        // CORRECTNESS: after the capture. A call made before it writes over the
+        // stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         wipe(&mut scratch);
     });
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(
-        &report_before,
-        "nothing copied yet",
-        &report_after,
-        "a copy",
-    );
+    leaves_nothing(&report_before, "nothing held yet", &report_after, "a copy");
 
     drop(core::hint::black_box(scratch));
 
     Ok(())
 }
 
-/// The same copy two hundred times.
-///
-/// Its own test rather than one more round in the one above, because the two
-/// fail for different reasons. One round failing is a leak in a single copy.
-/// Only this one failing is something that accumulates — a residue that
-/// survives one round in fifty.
 #[test]
 fn test_two_hundred_copies_leave_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -247,7 +192,8 @@ fn test_two_hundred_copies_leave_nothing() -> Result<(), AnyError> {
     forensics!({
         capture(|| {
             for _ in 0..ROUNDS {
-                // SAFETY: as above.
+                // SAFETY: `scratch` is exactly the secret's length, and a
+                // constant and a heap block are different allocations.
                 unsafe {
                     redoubt_mem::copy_nonoverlapping(
                         SECRET.as_ptr(),
@@ -258,7 +204,9 @@ fn test_two_hundred_copies_leave_nothing() -> Result<(), AnyError> {
             }
         });
 
-        // CORRECTNESS: after the capture, for the reason the test above gives.
+        // CORRECTNESS: after the capture. A call made before it writes over the
+        // stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         wipe(&mut scratch);
     });
 
@@ -266,7 +214,7 @@ fn test_two_hundred_copies_leave_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "nothing copied yet",
+        "nothing held yet",
         &report_after,
         &format!("{ROUNDS} copies"),
     );
@@ -276,7 +224,6 @@ fn test_two_hundred_copies_leave_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-/// A copy of one size, and the destination emptied behind it.
 macro_rules! copied {
     ($name:ident, $of:expr) => {
         #[test]
@@ -289,17 +236,18 @@ macro_rules! copied {
 
             forensics!({
                 capture(|| {
-                    // SAFETY: `scratch` is `$of` long, `$of` never passes `BIG`'s
-                    // length, and a constant and a heap block are different
-                    // allocations.
+                    // SAFETY: `scratch` is `$of` long, `$of` never passes
+                    // `BIG`'s length, and a constant and a heap block are
+                    // different allocations.
                     unsafe {
                         redoubt_mem::copy_nonoverlapping(BIG.as_ptr(), scratch.as_mut_ptr(), $of);
                     }
                 });
 
                 // CORRECTNESS: after the capture. A call made before it writes
-                // over the stack and the registers the copy left, and then the
-                // absence below is about that call and not about the copy.
+                // over the stack and the registers the operation left, and then
+                // the absence below is about that call and not about the
+                // operation.
                 wipe(&mut scratch);
             });
 
@@ -307,7 +255,7 @@ macro_rules! copied {
 
             leaves_nothing(
                 &report_before,
-                "nothing copied yet",
+                "nothing held yet",
                 &report_after,
                 &format!("a copy of {} bytes", $of),
             );
@@ -338,73 +286,55 @@ copied!(test_copying_8192_bytes_leaves_nothing, 8192);
 // swap
 // ============================================================================
 
-/// A swap is found in the buffer it moved the secret into.
-///
-/// Thirty-two bytes inline on purpose: that is the shape where a swap moves
-/// the value itself rather than a header, and where what it moved it through is
-/// nobody's to choose.
 #[test]
 fn test_a_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
-    let mut secret = [0_u8; 32];
-    let mut empty = [0_u8; 32];
-
-    // SAFETY: a constant and a local are different allocations.
-    unsafe { redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), secret.as_mut_ptr(), 32) };
+    let mut secret = hold();
+    let mut empty = Box::new([0_u8; 32]);
 
     forensics!({
-        capture(|| redoubt_mem::swap(&mut secret, &mut empty));
+        capture(|| redoubt_mem::swap(&mut *secret, &mut *empty));
     });
 
     let report = watch.snapshot()?;
 
     is_found(&report, "a swap, left where it moved it");
 
-    wipe(&mut secret);
-    wipe(&mut empty);
+    wipe(&mut *empty);
 
-    core::hint::black_box((&secret, &empty));
+    drop(core::hint::black_box((secret, empty)));
 
     Ok(())
 }
 
-/// Swapping leaves nothing once both buffers are emptied.
-///
-/// Both, because a swap leaves the value in the *other* place: emptying only
-/// one would leave the secret in plain sight and measure nothing.
 #[test]
 fn test_swapping_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
 
-    let mut secret = [0_u8; 32];
-    let mut empty = [0_u8; 32];
-
-    // SAFETY: a constant and a local are different allocations.
-    unsafe { redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), secret.as_mut_ptr(), 32) };
+    let mut secret = hold();
+    let mut empty = Box::new([0_u8; 32]);
 
     forensics!({
-        capture(|| redoubt_mem::swap(&mut secret, &mut empty));
+        capture(|| redoubt_mem::swap(&mut *secret, &mut *empty));
 
-        // CORRECTNESS: after the capture. A call made before it writes over
-        // the stack and the registers the swap left, and then the absence
-        // below is about that call and not about the swap.
-        wipe(&mut secret);
-        wipe(&mut empty);
+        // CORRECTNESS: after the capture. A call made before it writes over the
+        // stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
+        //
+        // Only the side the secret was swapped into is emptied: the side it
+        // left is the swap's to leave empty, and emptying it here would keep
+        // this green for a swap that only copied.
+        wipe(&mut *empty);
     });
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(
-        &report_before,
-        "nothing swapped yet",
-        &report_after,
-        "a swap",
-    );
+    leaves_nothing(&report_before, "nothing held yet", &report_after, "a swap");
 
-    core::hint::black_box((&secret, &empty));
+    drop(core::hint::black_box((secret, empty)));
 
     Ok(())
 }
@@ -413,7 +343,6 @@ fn test_swapping_leaves_nothing() -> Result<(), AnyError> {
 // swap_nonoverlapping
 // ============================================================================
 
-/// A sized swap is found in the buffer it moved the secret into.
 #[test]
 fn test_a_sized_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -443,7 +372,6 @@ fn test_a_sized_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError
 
     is_found(&report, "a sized swap, left where it moved it");
 
-    wipe(&mut secret);
     wipe(&mut empty);
 
     drop(core::hint::black_box((secret, empty)));
@@ -451,7 +379,6 @@ fn test_a_sized_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError
     Ok(())
 }
 
-/// A swap of one size, and both buffers emptied behind it.
 macro_rules! swapped {
     ($name:ident, $of:expr) => {
         #[test]
@@ -481,9 +408,13 @@ macro_rules! swapped {
                 });
 
                 // CORRECTNESS: after the capture. A call made before it writes
-                // over the stack and the registers the swap left, and then the
-                // absence below is about that call and not about the swap.
-                wipe(&mut secret);
+                // over the stack and the registers the operation left, and then
+                // the absence below is about that call and not about the
+                // operation.
+                //
+                // Only the side the secret was swapped into is emptied: the
+                // side it left is the swap's to leave empty, and emptying it
+                // here would keep this green for a swap that only copied.
                 wipe(&mut empty);
             });
 
@@ -491,7 +422,7 @@ macro_rules! swapped {
 
             leaves_nothing(
                 &report_before,
-                "nothing swapped yet",
+                "nothing held yet",
                 &report_after,
                 &format!("a swap of {} bytes", $of),
             );
