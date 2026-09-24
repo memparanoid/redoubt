@@ -18,6 +18,32 @@ pub(crate) fn giving(into: &mut [u8]) {
     }
 }
 
+/// Sixteen bytes of the secret in a `u128`, the widest primitive.
+pub(crate) fn a_u128() -> Box<u128> {
+    let mut value = Box::new(0_u128);
+
+    giving(bytes_of(&mut *value));
+
+    value
+}
+
+/// Thirty-two bytes of the secret in two `u128`s, the whole needle.
+pub(crate) fn two_u128() -> Box<[u128; 2]> {
+    let mut values = Box::new([0_u128; 2]);
+
+    giving(bytes_of(&mut *values));
+
+    values
+}
+
+fn bytes_of<T: Copy>(value: &mut T) -> &mut [u8] {
+    // SAFETY: only called with `u128` and arrays of it, which have no padding
+    // and a value for every bit pattern, and the borrow is exclusive.
+    unsafe {
+        core::slice::from_raw_parts_mut(value as *mut T as *mut u8, core::mem::size_of::<T>())
+    }
+}
+
 /// Takes the value by move and drops it. Not inlined, so the move is not
 /// folded away.
 #[inline(never)]

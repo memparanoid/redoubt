@@ -13,7 +13,7 @@ use redoubt_zero::FastZeroizable;
 use crate::codec_buffer::RedoubtCodecBuffer;
 
 use crate::tests::forensics::support::needles::{backwards, half_backwards};
-use crate::tests::forensics::support::{giving, hold_on, is_found, leaves_nothing, let_go};
+use crate::tests::forensics::support::{a_u128, giving, hold_on, is_found, leaves_nothing, let_go};
 
 fn source() -> Vec<u8> {
     let mut source = vec![0_u8; 32];
@@ -32,18 +32,6 @@ fn holding() -> Result<RedoubtCodecBuffer, AnyError> {
     source.fast_zeroize();
 
     Ok(buffer)
-}
-
-fn a_u128() -> Box<u128> {
-    let mut value = Box::new(0_u128);
-
-    // SAFETY: a `u128` is sixteen bytes, every pattern of which is a value, and
-    // the box is the only reference to it.
-    let bytes = unsafe { core::slice::from_raw_parts_mut(&mut *value as *mut u128 as *mut u8, 16) };
-
-    giving(bytes);
-
-    value
 }
 
 // ============================================================================
