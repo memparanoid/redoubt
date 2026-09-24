@@ -18,6 +18,10 @@ pub(crate) fn backwards() -> Vec<u8> {
     SECRET.iter().rev().copied().collect()
 }
 
+pub(crate) fn half_backwards() -> Vec<u8> {
+    SECRET[..16].iter().rev().copied().collect()
+}
+
 pub(crate) fn text_backwards() -> Vec<u8> {
     TEXT.iter().rev().copied().collect()
 }

@@ -18,6 +18,20 @@ pub(crate) fn giving(into: &mut [u8]) {
     }
 }
 
+/// Takes the value by move and drops it. Not inlined, so the move is not
+/// folded away.
+#[inline(never)]
+pub(crate) fn let_go<T>(value: T) {
+    core::hint::black_box(&value);
+}
+
+/// Takes the value by move and never drops it. Not inlined, so the move is not
+/// folded away.
+#[inline(never)]
+pub(crate) fn hold_on<T>(value: T) {
+    core::mem::forget(core::hint::black_box(value));
+}
+
 /// Asserts the secret was found. Without a presence, an absence cannot be told
 /// apart from a sweep that reaches nowhere.
 pub(crate) fn is_found(report: &Report, what: &str) {

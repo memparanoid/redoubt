@@ -9,4 +9,5 @@
 
 mod support;
 
+mod codec_buffer;
 mod collections;
