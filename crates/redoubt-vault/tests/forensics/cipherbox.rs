@@ -694,9 +694,7 @@ fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
             core::hint::black_box(taken.as_slice()[0]);
         }
 
-        let taken = secrets_box.leak_in_a_vec()?;
-
-        capture(|| core::hint::black_box(taken.as_slice()[0]));
+        let taken = capture(|| secrets_box.leak_in_a_vec())?;
 
         drop(taken);
     });
@@ -747,9 +745,7 @@ fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
             core::hint::black_box(taken.as_slice()[0]);
         }
 
-        let taken = secrets_box.leak_in_an_array()?;
-
-        capture(|| core::hint::black_box(taken.as_slice()[0]));
+        let taken = capture(|| secrets_box.leak_in_an_array())?;
 
         drop(taken);
     });
@@ -800,9 +796,7 @@ fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
             core::hint::black_box(taken.as_ref().is_some());
         }
 
-        let taken = secrets_box.leak_in_an_option()?;
-
-        capture(|| core::hint::black_box(taken.as_ref().is_some()));
+        let taken = capture(|| secrets_box.leak_in_an_option())?;
 
         drop(taken);
     });
@@ -854,9 +848,7 @@ fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
             core::hint::black_box(taken.as_ref().is_some());
         }
 
-        let taken = secrets_box.leak_in_two_options()?;
-
-        capture(|| core::hint::black_box(taken.as_ref().is_some()));
+        let taken = capture(|| secrets_box.leak_in_two_options())?;
 
         drop(taken);
     });
