@@ -20,7 +20,9 @@ where
 {
     #[inline(always)]
     fn encode_bytes_required(&self) -> Result<usize, OverflowError> {
-        (**self).encode_bytes_required()
+        let inner: &T = self;
+
+        inner.encode_bytes_required()
     }
 }
 
@@ -30,7 +32,9 @@ where
 {
     #[inline(always)]
     fn encode_into(&mut self, buf: &mut RedoubtCodecBuffer) -> Result<(), EncodeError> {
-        (**self).encode_into(buf)
+        let inner: &mut T = self;
+
+        inner.encode_into(buf)
     }
 }
 
@@ -40,6 +44,8 @@ where
 {
     #[inline(always)]
     fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), DecodeError> {
-        (**self).decode_from(buf)
+        let inner: &mut T = self;
+
+        inner.decode_from(buf)
     }
 }
