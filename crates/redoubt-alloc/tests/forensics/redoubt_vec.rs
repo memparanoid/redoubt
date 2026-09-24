@@ -241,8 +241,14 @@ macro_rules! a_redoubt_vec_from_a_mut_slice {
 
 a_redoubt_vec_from_a_mut_slice!(test_a_redoubt_vec_from_a_mut_slice_of_32_leaves_nothing, 32);
 a_redoubt_vec_from_a_mut_slice!(test_a_redoubt_vec_from_a_mut_slice_of_64_leaves_nothing, 64);
-a_redoubt_vec_from_a_mut_slice!(test_a_redoubt_vec_from_a_mut_slice_of_128_leaves_nothing, 128);
-a_redoubt_vec_from_a_mut_slice!(test_a_redoubt_vec_from_a_mut_slice_of_512_leaves_nothing, 512);
+a_redoubt_vec_from_a_mut_slice!(
+    test_a_redoubt_vec_from_a_mut_slice_of_128_leaves_nothing,
+    128
+);
+a_redoubt_vec_from_a_mut_slice!(
+    test_a_redoubt_vec_from_a_mut_slice_of_512_leaves_nothing,
+    512
+);
 a_redoubt_vec_from_a_mut_slice!(
     test_a_redoubt_vec_from_a_mut_slice_of_1024_leaves_nothing,
     1024

@@ -817,18 +817,9 @@ a_redoubt_string_cleared!(test_a_redoubt_string_of_512_cleared_leaves_nothing, 5
 a_redoubt_string_cleared!(test_a_redoubt_string_of_1024_cleared_leaves_nothing, 1024);
 a_redoubt_string_cleared!(test_a_redoubt_string_of_4096_cleared_leaves_nothing, 4096);
 a_redoubt_string_cleared!(test_a_redoubt_string_of_8192_cleared_leaves_nothing, 8192);
-a_redoubt_string_cleared!(
-    test_a_redoubt_string_of_16384_cleared_leaves_nothing,
-    16384
-);
-a_redoubt_string_cleared!(
-    test_a_redoubt_string_of_32768_cleared_leaves_nothing,
-    32768
-);
-a_redoubt_string_cleared!(
-    test_a_redoubt_string_of_65536_cleared_leaves_nothing,
-    65536
-);
+a_redoubt_string_cleared!(test_a_redoubt_string_of_16384_cleared_leaves_nothing, 16384);
+a_redoubt_string_cleared!(test_a_redoubt_string_of_32768_cleared_leaves_nothing, 32768);
+a_redoubt_string_cleared!(test_a_redoubt_string_of_65536_cleared_leaves_nothing, 65536);
 
 // ============================================================================
 // RedoubtString::as_str
