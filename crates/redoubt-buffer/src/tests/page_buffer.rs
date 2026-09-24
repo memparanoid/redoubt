@@ -59,7 +59,7 @@ mod page_buffer_tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn test_new_propagates_page_create_error() {
-        use crate::tests::utils::run_test_as_subprocess;
+        use redoubt_test_utils::run_test_as_subprocess;
 
         let exit_code = run_test_as_subprocess(
             "tests::page_buffer::page_buffer_tests::subprocess_test_new_propagates_page_create_error",
@@ -74,11 +74,13 @@ mod page_buffer_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_new {
-        use super::*;
+        use redoubt_test_utils::run_test_as_subprocess;
+
         use crate::error::PageError;
-        use crate::tests::utils::{
-            block_madvise, block_mlock, block_mprotect, run_test_as_subprocess,
-        };
+
+        use crate::tests::utils::{block_madvise, block_mlock, block_mprotect};
+
+        use super::*;
 
         #[test]
         #[ignore]
@@ -166,7 +168,7 @@ mod page_buffer_tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn test_new_returns_a_closed_page() {
-        use crate::tests::utils::run_test_as_subprocess;
+        use redoubt_test_utils::run_test_as_subprocess;
 
         let exit_code = run_test_as_subprocess(
             "tests::page_buffer::page_buffer_tests::subprocess_test_new_returns_a_closed_page",
@@ -195,9 +197,13 @@ mod page_buffer_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_unseal {
-        use super::*;
+        use redoubt_test_utils::run_test_as_subprocess;
+
         use crate::error::PageError;
-        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
+
+        use crate::tests::utils::block_mprotect;
+
+        use super::*;
 
         #[test]
         #[ignore]
@@ -255,9 +261,13 @@ mod page_buffer_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_seal {
-        use super::*;
+        use redoubt_test_utils::run_test_as_subprocess;
+
         use crate::error::PageError;
-        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
+
+        use crate::tests::utils::block_mprotect;
+
+        use super::*;
 
         #[test]
         #[ignore]
@@ -406,7 +416,7 @@ mod page_buffer_tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn test_open_seals_the_page_when_the_callback_errors() {
-        use crate::tests::utils::run_test_as_subprocess;
+        use redoubt_test_utils::run_test_as_subprocess;
 
         let exit_code = run_test_as_subprocess(
             "tests::page_buffer::page_buffer_tests::subprocess_test_open_seals_the_page_when_the_callback_errors",
@@ -420,9 +430,13 @@ mod page_buffer_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_open {
-        use super::*;
+        use redoubt_test_utils::run_test_as_subprocess;
+
         use crate::error::PageError;
-        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
+
+        use crate::tests::utils::block_mprotect;
+
+        use super::*;
 
         #[test]
         #[ignore]
@@ -520,7 +534,7 @@ mod page_buffer_tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn test_open_mut_seals_the_page_when_the_callback_errors() {
-        use crate::tests::utils::run_test_as_subprocess;
+        use redoubt_test_utils::run_test_as_subprocess;
 
         let exit_code = run_test_as_subprocess(
             "tests::page_buffer::page_buffer_tests::subprocess_test_open_mut_seals_the_page_when_the_callback_errors",
@@ -534,9 +548,13 @@ mod page_buffer_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_open_mut {
-        use super::*;
+        use redoubt_test_utils::run_test_as_subprocess;
+
         use crate::error::PageError;
-        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
+
+        use crate::tests::utils::block_mprotect;
+
+        use super::*;
 
         #[test]
         #[ignore]

@@ -966,6 +966,7 @@ dependencies = [
  "redoubt-forensics",
  "redoubt-mem",
  "redoubt-rand",
+ "redoubt-test-utils",
  "redoubt-util",
  "redoubt-zero",
  "thiserror",

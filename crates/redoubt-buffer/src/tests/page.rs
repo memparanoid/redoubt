@@ -67,7 +67,7 @@ mod page_tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn test_new_reports_create_when_the_address_space_is_exhausted() {
-        use crate::tests::utils::run_test_as_subprocess;
+        use redoubt_test_utils::run_test_as_subprocess;
 
         let exit_code = run_test_as_subprocess(
             "tests::page::page_tests::subprocess_test_new_reports_create_when_the_address_space_is_exhausted",
@@ -123,8 +123,11 @@ mod page_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_lock {
+        use redoubt_test_utils::run_test_as_subprocess;
+
+        use crate::tests::utils::block_mlock;
+
         use super::*;
-        use crate::tests::utils::{block_mlock, run_test_as_subprocess};
 
         #[test]
         #[ignore]
@@ -183,8 +186,11 @@ mod page_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_mark_dontdump {
+        use redoubt_test_utils::run_test_as_subprocess;
+
+        use crate::tests::utils::block_madvise;
+
         use super::*;
-        use crate::tests::utils::{block_madvise, run_test_as_subprocess};
 
         #[test]
         #[ignore]
@@ -274,8 +280,11 @@ mod page_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_protect {
+        use redoubt_test_utils::run_test_as_subprocess;
+
+        use crate::tests::utils::block_mprotect;
+
         use super::*;
-        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
 
         #[test]
         #[ignore]
@@ -335,8 +344,11 @@ mod page_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_unprotect {
+        use redoubt_test_utils::run_test_as_subprocess;
+
+        use crate::tests::utils::block_mprotect;
+
         use super::*;
-        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
 
         #[test]
         #[ignore]
@@ -464,7 +476,7 @@ mod page_tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn test_drop_unprotects_before_zeroizing() {
-        use crate::tests::utils::run_test_as_subprocess;
+        use redoubt_test_utils::run_test_as_subprocess;
 
         let exit_code = run_test_as_subprocess(
             "tests::page::page_tests::subprocess_test_drop_unprotects_before_zeroizing",
@@ -479,8 +491,11 @@ mod page_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_drop {
+        use redoubt_test_utils::run_test_as_subprocess;
+
+        use crate::tests::utils::block_mprotect;
+
         use super::*;
-        use crate::tests::utils::{block_mprotect, run_test_as_subprocess};
 
         /// The oracle is the MMU: a page whose `mprotect` is refused stays at
         /// `PROT_NONE`, so a clean exit is what says the zeroize was skipped

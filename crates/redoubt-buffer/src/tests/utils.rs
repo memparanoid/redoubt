@@ -4,24 +4,6 @@
 
 //! Test utilities for redoubt-buffer.
 
-/// Runs an ignored test as a subprocess and returns its exit code.
-#[cfg(target_os = "linux")]
-pub fn run_test_as_subprocess(test_name: &str) -> Option<i32> {
-    let exe = std::env::current_exe().expect("Failed to current_exe()");
-    let status = std::process::Command::new(exe)
-        .args([
-            "--exact",
-            test_name,
-            "--ignored",
-            "--test-threads=1",
-            "--nocapture",
-        ])
-        .status()
-        .expect("Failed to run subprocess");
-
-    status.code()
-}
-
 #[cfg(target_os = "linux")]
 fn block_syscall(name: &str) {
     use libseccomp::{ScmpAction, ScmpFilterContext, ScmpSyscall};
