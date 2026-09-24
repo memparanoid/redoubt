@@ -18,13 +18,13 @@ macro_rules! an_allocked_vec_dropped {
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
+            let report_before = watch.snapshot()?;
+
             let mut source = vec![[0_u8; SECRET.len()]; blocks($of)];
 
             for one in &mut source {
                 giving(one);
             }
-
-            let report_before = watch.snapshot()?;
 
             forensics!({
                 let mut held = AllockedVec::<Block>::with_capacity(blocks($of));
@@ -97,13 +97,13 @@ macro_rules! an_allocked_vec_given_away {
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
+            let report_before = watch.snapshot()?;
+
             let mut source = vec![[0_u8; SECRET.len()]; blocks($of)];
 
             for one in &mut source {
                 giving(one);
             }
-
-            let report_before = watch.snapshot()?;
 
             forensics!({
                 let mut held = AllockedVec::<Block>::with_capacity(blocks($of));
@@ -234,13 +234,13 @@ macro_rules! an_allocked_vec_pushed_into {
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
+            let report_before = watch.snapshot()?;
+
             let mut source = vec![[0_u8; SECRET.len()]; blocks($of)];
 
             for one in &mut source {
                 giving(one);
             }
-
-            let report_before = watch.snapshot()?;
 
             forensics!({
                 let mut held = AllockedVec::<Block>::with_capacity(blocks($of));
@@ -377,13 +377,13 @@ macro_rules! an_allocked_vec_truncated {
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
+            let report_before = watch.snapshot()?;
+
             let mut source = vec![[0_u8; SECRET.len()]; blocks($of)];
 
             for one in &mut source {
                 giving(one);
             }
-
-            let report_before = watch.snapshot()?;
 
             forensics!({
                 let mut held = AllockedVec::<Block>::with_capacity(blocks($of));
@@ -552,13 +552,13 @@ macro_rules! an_allocked_vec_reallocated {
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
+            let report_before = watch.snapshot()?;
+
             let mut source = vec![[0_u8; SECRET.len()]; blocks($of)];
 
             for one in &mut source {
                 giving(one);
             }
-
-            let report_before = watch.snapshot()?;
 
             forensics!({
                 let mut held = AllockedVec::<Block>::with_capacity(blocks($of));
