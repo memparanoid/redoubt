@@ -23,10 +23,6 @@ fn test_create_buffer_returns_correct_length() -> Result<(), Box<dyn std::error:
             debug_output.contains("PageBuffer"),
             "Expected PageBuffer (not fallback)"
         );
-        assert!(
-            debug_output.contains("MemProtected"),
-            "Expected MemProtected strategy when not guarded"
-        );
     }
 
     #[cfg(any(target_os = "wasi", not(unix)))]

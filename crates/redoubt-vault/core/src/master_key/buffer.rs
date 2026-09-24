@@ -9,7 +9,7 @@ use redoubt_buffer::{Buffer, BufferError, PortableBuffer};
 use redoubt_rand::generate_random_key;
 
 #[cfg(all(unix, not(target_os = "wasi")))]
-use redoubt_buffer::{PageBuffer, ProtectionStrategy};
+use redoubt_buffer::PageBuffer;
 
 use super::consts::MASTER_KEY_LEN;
 
@@ -24,7 +24,7 @@ pub fn create_buffer() -> Box<dyn Buffer> {
     // excluded from core dumps with madvise(MADV_DONTDUMP). Everything that
     // guards it is on the mapping itself, so it holds whatever the process
     // around it does.
-    match PageBuffer::new(ProtectionStrategy::MemProtected, MASTER_KEY_LEN) {
+    match PageBuffer::new(MASTER_KEY_LEN) {
         Ok(buffer) => Box::new(buffer),
         Err(e) => {
             #[cfg(feature = "std")]

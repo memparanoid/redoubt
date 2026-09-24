@@ -9,11 +9,11 @@ mod page_buffer_tests {
     use redoubt_zero::ZeroizationProbe;
 
     use crate::error::BufferError;
-    use crate::page_buffer::{PageBuffer, ProtectionStrategy};
+    use crate::page_buffer::PageBuffer;
     use crate::traits::Buffer;
 
     fn protected() -> Result<PageBuffer, Box<dyn std::error::Error>> {
-        Ok(PageBuffer::new(ProtectionStrategy::MemProtected, 32)?)
+        Ok(PageBuffer::new(32)?)
     }
 
     /// What a callback hands back where the test is about the refusal rather
@@ -46,7 +46,7 @@ mod page_buffer_tests {
         };
         unsafe { libc::setrlimit(libc::RLIMIT_AS, &tiny) };
 
-        let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
+        let result = PageBuffer::new(32);
 
         // CORRECTNESS: before the assertion. A failing `assert!` formats its
         // message, and there is no address space to allocate that in while the
@@ -85,7 +85,7 @@ mod page_buffer_tests {
         fn subprocess_test_new_propagates_page_lock_error() {
             block_mlock();
 
-            let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
+            let result = PageBuffer::new(32);
 
             assert!(matches!(result, Err(PageError::Lock)));
         }
@@ -108,7 +108,7 @@ mod page_buffer_tests {
         fn subprocess_test_new_propagates_page_madvise_error() {
             block_madvise();
 
-            let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
+            let result = PageBuffer::new(32);
 
             assert!(matches!(result, Err(PageError::Madvise)));
         }
@@ -131,7 +131,7 @@ mod page_buffer_tests {
         fn subprocess_test_new_propagates_page_protect_error() {
             block_mprotect();
 
-            let result = PageBuffer::new(ProtectionStrategy::MemProtected, 32);
+            let result = PageBuffer::new(32);
 
             assert!(matches!(result, Err(PageError::Protect)));
         }
@@ -150,22 +150,29 @@ mod page_buffer_tests {
         }
     }
 
+    /// The oracle is the MMU: reading a page at `PROT_NONE` raises `SIGSEGV`,
+    /// so being killed by a signal is what says `new` closed the page.
     #[test]
-    fn test_new_returns_a_protected_buffer() -> Result<(), Box<dyn std::error::Error>> {
+    #[ignore]
+    #[cfg(target_os = "linux")]
+    fn subprocess_test_new_returns_a_closed_page() -> Result<(), Box<dyn std::error::Error>> {
         let buffer = protected()?;
 
-        assert!(format!("{:?}", buffer).contains("MemProtected"));
+        core::hint::black_box(unsafe { buffer.page.as_slice()[0] });
 
         Ok(())
     }
 
     #[test]
-    fn test_new_returns_a_non_protected_buffer() -> Result<(), Box<dyn std::error::Error>> {
-        let buffer = PageBuffer::new(ProtectionStrategy::MemNonProtected, 32)?;
+    #[cfg(target_os = "linux")]
+    fn test_new_returns_a_closed_page() {
+        use crate::tests::utils::run_test_as_subprocess;
 
-        assert!(format!("{:?}", buffer).contains("MemNonProtected"));
+        let exit_code = run_test_as_subprocess(
+            "tests::page_buffer::page_buffer_tests::subprocess_test_new_returns_a_closed_page",
+        );
 
-        Ok(())
+        assert_eq!(exit_code, None, "the page was readable after new");
     }
 
     // =============================================================================
@@ -320,7 +327,7 @@ mod page_buffer_tests {
 
     #[test]
     fn test_is_empty_returns_true() -> Result<(), Box<dyn std::error::Error>> {
-        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 0)?;
+        let buffer = PageBuffer::new(0)?;
 
         assert!(buffer.is_empty());
 
@@ -345,7 +352,6 @@ mod page_buffer_tests {
         assert!(debug_output.contains("PageBuffer"));
         assert!(debug_output.contains("len"));
         assert!(debug_output.contains("32"));
-        assert!(debug_output.contains("MemProtected"));
         assert!(!debug_output.contains("ab"));
 
         Ok(())
@@ -459,24 +465,6 @@ mod page_buffer_tests {
         buffer.open(&mut |bytes| {
             assert_eq!(bytes[0], 0xAB);
             assert_eq!(bytes.len(), 32);
-            Ok(())
-        })?;
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_open_returns_the_page_contents_when_non_protected()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let mut buffer = PageBuffer::new(ProtectionStrategy::MemNonProtected, 32)?;
-
-        buffer.open_mut(&mut |bytes| {
-            bytes[0] = 0xCD;
-            Ok(())
-        })?;
-
-        buffer.open(&mut |bytes| {
-            assert_eq!(bytes[0], 0xCD);
             Ok(())
         })?;
 
@@ -625,7 +613,7 @@ mod page_buffer_tests {
 
     #[test]
     fn test_len_returns_the_requested_length() -> Result<(), Box<dyn std::error::Error>> {
-        let buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 64)?;
+        let buffer = PageBuffer::new(64)?;
 
         assert_eq!(buffer.len(), 64);
 

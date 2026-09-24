@@ -12,57 +12,29 @@ use crate::error::{BufferError, PageError};
 use crate::page::Page;
 use crate::traits::Buffer;
 
-/// Memory protection strategy for the buffer.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum ProtectionStrategy {
-    /// mlock + mprotect toggling (full protection)
-    MemProtected,
-    /// mlock only (no mprotect toggling)
-    MemNonProtected,
-}
-
-/// A buffer backed by a memory-locked page with optional memory protection.
+/// A buffer backed by a memory-locked page, closed to every access between
+/// opens.
 pub struct PageBuffer {
     pub(crate) page: Page,
     len: usize,
-    strategy: ProtectionStrategy,
     pub(crate) poisoned: bool,
 }
 
 impl PageBuffer {
-    /// Creates a new PageBuffer with the specified protection strategy and length.
-    pub fn new(strategy: ProtectionStrategy, len: usize) -> Result<Self, PageError> {
+    /// Creates a new PageBuffer of the specified length, its page locked,
+    /// excluded from core dumps, and closed.
+    pub fn new(len: usize) -> Result<Self, PageError> {
         let page = Page::new()?;
 
         page.lock()?;
         page.mark_dontdump()?;
-
-        if strategy == ProtectionStrategy::MemProtected {
-            page.protect()?;
-        }
+        page.protect()?;
 
         Ok(Self {
             page,
             len,
-            strategy,
             poisoned: false,
         })
-    }
-
-    fn maybe_unprotect(&mut self) -> Result<(), PageError> {
-        if self.strategy == ProtectionStrategy::MemProtected {
-            self.page.unprotect()?;
-        }
-
-        Ok(())
-    }
-
-    fn maybe_protect(&mut self) -> Result<(), PageError> {
-        if self.strategy == ProtectionStrategy::MemProtected {
-            self.page.protect()?;
-        }
-
-        Ok(())
     }
 
     /// Opens the page, or reports that it will not open again.
@@ -71,7 +43,7 @@ impl PageBuffer {
             return Err(BufferError::PageNoLongerAvailable);
         }
 
-        let Err(error) = self.maybe_unprotect() else {
+        let Err(error) = self.page.unprotect() else {
             return Ok(());
         };
 
@@ -85,7 +57,7 @@ impl PageBuffer {
 
     /// Closes the page, and empties it where it will not close.
     pub(crate) fn seal(&mut self) -> Result<(), BufferError> {
-        let Err(error) = self.maybe_protect() else {
+        let Err(error) = self.page.protect() else {
             return Ok(());
         };
 
@@ -112,7 +84,6 @@ impl core::fmt::Debug for PageBuffer {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("PageBuffer")
             .field("len", &self.len)
-            .field("strategy", &self.strategy)
             .finish_non_exhaustive()
     }
 }

@@ -21,19 +21,11 @@
 //!
 //! Platform-specific buffer with memory protection:
 //! - Uses `mmap` for allocation
-//! - Optional `mlock` to prevent swapping to disk
-//! - Optional `mprotect` to make pages read-only when not in use
+//! - `mlock` to prevent swapping to disk
+//! - `mprotect` to `PROT_NONE` between opens, so the data is reached only
+//!   through closures that open the page for their duration
 //! - Automatic zeroization on drop
 //! - Only available on Unix platforms
-//!
-//! # Protection Strategies
-//!
-//! `PageBuffer` supports two protection strategies:
-//!
-//! - **MemProtected**: Uses `mprotect` to make pages read-only by default.
-//!   Data can only be accessed through closures that temporarily unprotect the page.
-//! - **MemNonProtected**: Pages remain readable/writable. Data can be accessed
-//!   directly through slices.
 //!
 //! # Example: PortableBuffer
 //!
@@ -64,12 +56,11 @@
 //! ```rust
 //! #[cfg(unix)]
 //! fn example() -> Result<(), redoubt_buffer::BufferError> {
-//!     use redoubt_buffer::{Buffer, PageBuffer, ProtectionStrategy};
+//!     use redoubt_buffer::{Buffer, PageBuffer};
 //!
-//!     let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)?;
+//!     let mut buffer = PageBuffer::new(32)?;
 //!
-//!     // Page is protected (read-only)
-//!     // Must use closures to access data
+//!     // The page is closed to every access; the closures open it
 //!     buffer.open_mut(&mut |slice: &mut [u8]| {
 //!         slice[0] = 42;
 //!         Ok(())
@@ -110,7 +101,7 @@ mod portable_buffer;
 mod traits;
 
 #[cfg(unix)]
-pub use page_buffer::{PageBuffer, ProtectionStrategy};
+pub use page_buffer::PageBuffer;
 
 pub use error::BufferError;
 pub use portable_buffer::PortableBuffer;

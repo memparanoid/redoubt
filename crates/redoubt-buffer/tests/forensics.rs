@@ -19,7 +19,7 @@
 
 #![cfg(all(unix, target_os = "linux"))]
 
-use redoubt_buffer::{Buffer, BufferError, PageBuffer, ProtectionStrategy};
+use redoubt_buffer::{Buffer, BufferError, PageBuffer};
 use redoubt_forensics::{AnyError, Forensics, QUIET, Report, capture, forensics};
 
 /// Thirty-two distinct bytes: no value repeats, so a run that extends did not
@@ -54,7 +54,7 @@ fn used(what: &[u8]) {
 }
 
 fn filled() -> Result<PageBuffer, AnyError> {
-    let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, SECRET.len())?;
+    let mut buffer = PageBuffer::new(SECRET.len())?;
 
     buffer.open_mut(&mut |slice: &mut [u8]| {
         giving(slice);
@@ -164,7 +164,7 @@ fn test_the_page_itself_is_out_of_the_sweep_s_reach() -> Result<(), AnyError> {
     let report_before = watch.snapshot()?;
 
     forensics!({
-        let mut held = PageBuffer::new(ProtectionStrategy::MemProtected, SECRET.len())?;
+        let mut held = PageBuffer::new(SECRET.len())?;
 
         let wrote = capture(|| {
             held.open_mut(&mut |slice: &mut [u8]| {

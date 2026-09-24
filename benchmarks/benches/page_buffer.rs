@@ -16,7 +16,7 @@ fn main() {}
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 #[cfg(unix)]
-use redoubt_buffer::{Buffer, PageBuffer, ProtectionStrategy};
+use redoubt_buffer::{Buffer, PageBuffer};
 #[cfg(unix)]
 use redoubt_util::fill_bytes_with_pattern;
 
@@ -25,8 +25,7 @@ fn bench_open_mut_fill_32(c: &mut Criterion) {
     let mut group = c.benchmark_group("protected_buffer/32B");
 
     group.bench_function("open_mut_fill/protected", |b| {
-        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)
-            .expect("failed to create protected buffer");
+        let mut buffer = PageBuffer::new(32).expect("failed to create protected buffer");
         b.iter(|| {
             buffer
                 .open_mut(&mut |bytes| {
@@ -34,19 +33,6 @@ fn bench_open_mut_fill_32(c: &mut Criterion) {
                     Ok(())
                 })
                 .expect("failed to open_mut protected buffer");
-        });
-    });
-
-    group.bench_function("open_mut_fill/non_protected", |b| {
-        let mut buffer = PageBuffer::new(ProtectionStrategy::MemNonProtected, 32)
-            .expect("failed to create non-protected buffer");
-        b.iter(|| {
-            buffer
-                .open_mut(&mut |bytes| {
-                    fill_bytes_with_pattern(bytes, black_box(0xAB));
-                    Ok(())
-                })
-                .expect("failed to open_mut non-protected buffer");
         });
     });
 
@@ -58,8 +44,7 @@ fn bench_open_mut_fill_4096(c: &mut Criterion) {
     let mut group = c.benchmark_group("protected_buffer_READ_ONLY/32B");
 
     group.bench_function("open/protected", |b| {
-        let mut buffer = PageBuffer::new(ProtectionStrategy::MemProtected, 32)
-            .expect("failed to create protected buffer");
+        let mut buffer = PageBuffer::new(32).expect("failed to create protected buffer");
 
         b.iter(|| {
             buffer
@@ -68,20 +53,6 @@ fn bench_open_mut_fill_4096(c: &mut Criterion) {
                     Ok(())
                 })
                 .expect("failed to open protected buffer")
-        });
-    });
-
-    group.bench_function("open/non_protected", |b| {
-        let mut buffer = PageBuffer::new(ProtectionStrategy::MemNonProtected, 32)
-            .expect("failed to create non-protected buffer");
-
-        b.iter(|| {
-            buffer
-                .open(&mut |bytes| {
-                    black_box(bytes);
-                    Ok(())
-                })
-                .expect("failed to open non-protected buffer");
         });
     });
 
