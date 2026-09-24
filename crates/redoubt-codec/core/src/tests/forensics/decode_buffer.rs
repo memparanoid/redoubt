@@ -47,10 +47,11 @@ fn test_what_reading_a_value_wrote_is_found_while_the_value_holds_it() -> Result
 
 #[test]
 fn test_reading_a_value_leaves_nothing() -> Result<(), AnyError> {
-    let mut source = source(4096);
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut source = source(4096);
 
     forensics!({
         let mut destination = Box::new([0_u8; 32]);
@@ -69,7 +70,7 @@ fn test_reading_a_value_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a buffer holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "a value read",
     );
@@ -105,10 +106,11 @@ macro_rules! read_slice_of {
     ($name:ident, $of:expr) => {
         #[test]
         fn $name() -> Result<(), AnyError> {
-            let mut source = source($of);
             let mut watch = Forensics::watching(&backwards())?;
 
             let report_before = watch.snapshot()?;
+
+            let mut source = source($of);
 
             forensics!({
                 let mut destination = vec![0_u8; $of];
@@ -128,7 +130,7 @@ macro_rules! read_slice_of {
 
             leaves_nothing(
                 &report_before,
-                "a buffer holding the secret",
+                "nothing held yet",
                 &watch.snapshot()?,
                 &format!("a slice of {} bytes read", $of),
             );

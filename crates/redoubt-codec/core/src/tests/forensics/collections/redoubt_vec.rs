@@ -52,10 +52,10 @@ fn test_sizing_a_redoubt_vec_leaves_nothing() {
 
 #[test]
 fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
+    let mut value = held(32);
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let mut value = held(32);
         let mut buffer = RedoubtCodecBuffer::with_capacity(value.encode_bytes_required()?);
 
         capture(|| value.encode_into(&mut buffer))?;
@@ -76,8 +76,9 @@ macro_rules! encoded {
 
             let report_before = watch.snapshot()?;
 
+            let mut value = held($of);
+
             forensics!({
-                let mut value = held($of);
                 let mut buffer = RedoubtCodecBuffer::with_capacity(value.encode_bytes_required()?);
 
                 capture(|| value.encode_into(&mut buffer))?;
@@ -94,7 +95,7 @@ macro_rules! encoded {
 
             leaves_nothing(
                 &report_before,
-                "nothing encoded yet",
+                "nothing held yet",
                 &watch.snapshot()?,
                 &format!("encoded {} bytes", $of),
             );
@@ -139,10 +140,11 @@ macro_rules! decoded {
     ($name:ident, $of:expr) => {
         #[test]
         fn $name() -> Result<(), AnyError> {
-            let mut wire = wire($of)?;
             let mut watch = Forensics::watching(&backwards())?;
 
             let report_before = watch.snapshot()?;
+
+            let mut wire = wire($of)?;
 
             forensics!({
                 let mut back = RedoubtVec::<u8>::new();
@@ -161,7 +163,7 @@ macro_rules! decoded {
 
             leaves_nothing(
                 &report_before,
-                "encoded, nothing decoded",
+                "nothing held yet",
                 &watch.snapshot()?,
                 &format!("decoded {} bytes", $of),
             );

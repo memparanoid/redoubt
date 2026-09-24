@@ -67,10 +67,11 @@ fn test_what_encoding_a_box_wrote_is_found_while_the_buffer_holds_it() -> Result
 
 #[test]
 fn test_encoding_a_box_leaves_nothing() -> Result<(), AnyError> {
-    let mut boxed = boxed();
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut boxed = boxed();
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(boxed.encode_bytes_required()?);
@@ -88,7 +89,7 @@ fn test_encoding_a_box_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a box holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "encoding a box",
     );
@@ -120,10 +121,11 @@ fn test_what_decoding_a_box_wrote_is_found_while_the_box_holds_it() -> Result<()
 
 #[test]
 fn test_decoding_a_box_leaves_nothing() -> Result<(), AnyError> {
-    let mut wire = wire()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut wire = wire()?;
 
     forensics!({
         let mut back = Box::new([0_u8; 32]);
@@ -141,7 +143,7 @@ fn test_decoding_a_box_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a wire holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "decoding a box",
     );

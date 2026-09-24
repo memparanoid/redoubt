@@ -87,11 +87,12 @@ fn wire_not_utf8() -> Result<Vec<u8>, AnyError> {
 
 #[test]
 fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
-    let mut held = held(32);
-    let mut buffer = a_buffer_holding_text()?;
     let mut watch = Forensics::watching(&text_backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut held = held(32);
+    let mut buffer = a_buffer_holding_text()?;
 
     forensics!({
         capture(|| cleanup_encode_error(&mut held, &mut buffer));
@@ -106,7 +107,7 @@ fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a string and a buffer holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "cleaning up a refused encode",
     );
@@ -120,11 +121,12 @@ fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_cleaning_up_a_refused_decode_leaves_nothing() -> Result<(), AnyError> {
-    let mut held = held(32);
-    let mut wire = wire(64)?;
     let mut watch = Forensics::watching(&text_backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut held = held(32);
+    let mut wire = wire(64)?;
 
     forensics!({
         capture(|| cleanup_decode_error(&mut held, &mut wire.as_mut_slice()));
@@ -139,7 +141,7 @@ fn test_cleaning_up_a_refused_decode_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a string and a wire holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "cleaning up a refused decode",
     );
@@ -194,10 +196,11 @@ fn test_what_trying_to_encode_wrote_is_found_while_the_buffer_holds_it() -> Resu
 
 #[test]
 fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
-    let mut held = held(32);
     let mut watch = Forensics::watching(&text_backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut held = held(32);
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
@@ -215,7 +218,7 @@ fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a string holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "trying to encode",
     );
@@ -247,10 +250,11 @@ fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), A
 
 #[test]
 fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
-    let mut held = held(32);
     let mut watch = Forensics::watching(&text_backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut held = held(32);
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
@@ -268,7 +272,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a string holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "encoding",
     );
@@ -278,10 +282,11 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_encoding_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError> {
-    let mut held = held(32);
     let mut watch = Forensics::watching(&text_backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut held = held(32);
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()? - 1);
@@ -303,7 +308,7 @@ fn test_encoding_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError
 
     leaves_nothing(
         &report_before,
-        "a string holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "encoding into a buffer too small",
     );
@@ -335,10 +340,11 @@ fn test_what_encoding_a_slice_wrote_is_found_while_the_buffer_holds_it() -> Resu
 
 #[test]
 fn test_encoding_a_slice_leaves_nothing() -> Result<(), AnyError> {
-    let mut two = two();
     let mut watch = Forensics::watching(&text_backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut two = two();
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(2 * two[0].encode_bytes_required()?);
@@ -356,7 +362,7 @@ fn test_encoding_a_slice_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "strings holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "encoding a slice",
     );
@@ -388,10 +394,11 @@ fn test_what_trying_to_decode_wrote_is_found_while_the_string_holds_it() -> Resu
 
 #[test]
 fn test_trying_to_decode_leaves_nothing() -> Result<(), AnyError> {
-    let mut wire = wire(64)?;
     let mut watch = Forensics::watching(&text_backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut wire = wire(64)?;
 
     forensics!({
         let mut back = Held::new();
@@ -409,7 +416,7 @@ fn test_trying_to_decode_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a wire holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "trying to decode",
     );
@@ -441,10 +448,11 @@ fn test_what_decoding_wrote_is_found_while_the_string_holds_it() -> Result<(), A
 
 #[test]
 fn test_decoding_leaves_nothing() -> Result<(), AnyError> {
-    let mut wire = wire(64)?;
     let mut watch = Forensics::watching(&text_backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut wire = wire(64)?;
 
     forensics!({
         let mut back = Held::new();
@@ -462,7 +470,7 @@ fn test_decoding_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a wire holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "decoding",
     );
@@ -472,11 +480,12 @@ fn test_decoding_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_decoding_over_a_string_that_holds_a_secret_leaves_nothing() -> Result<(), AnyError> {
-    let mut wire = wire(64)?;
-    let mut back = held(32);
     let mut watch = Forensics::watching(&text_backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut wire = wire(64)?;
+    let mut back = held(32);
 
     forensics!({
         capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
@@ -492,7 +501,7 @@ fn test_decoding_over_a_string_that_holds_a_secret_leaves_nothing() -> Result<()
 
     leaves_nothing(
         &report_before,
-        "a wire, and a string holding a secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "decoding over it",
     );
@@ -502,10 +511,11 @@ fn test_decoding_over_a_string_that_holds_a_secret_leaves_nothing() -> Result<()
 
 #[test]
 fn test_decoding_out_of_a_wire_cut_short_leaves_nothing() -> Result<(), AnyError> {
-    let mut wire = wire(64)?;
     let mut watch = Forensics::watching(&text_backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut wire = wire(64)?;
 
     forensics!({
         let mut back = Held::new();
@@ -529,7 +539,7 @@ fn test_decoding_out_of_a_wire_cut_short_leaves_nothing() -> Result<(), AnyError
 
     leaves_nothing(
         &report_before,
-        "a wire holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "decoding out of a wire cut short",
     );
@@ -541,10 +551,11 @@ fn test_decoding_out_of_a_wire_cut_short_leaves_nothing() -> Result<(), AnyError
 /// empties them is the cleanup of the refusal.
 #[test]
 fn test_decoding_bytes_that_are_not_utf8_leaves_nothing() -> Result<(), AnyError> {
-    let mut wire = wire_not_utf8()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut wire = wire_not_utf8()?;
 
     forensics!({
         let mut back = Held::new();
@@ -566,7 +577,7 @@ fn test_decoding_bytes_that_are_not_utf8_leaves_nothing() -> Result<(), AnyError
 
     leaves_nothing(
         &report_before,
-        "a wire holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "decoding bytes that are not UTF-8",
     );
@@ -598,10 +609,11 @@ fn test_what_decoding_a_slice_wrote_is_found_while_the_strings_hold_it() -> Resu
 
 #[test]
 fn test_decoding_a_slice_leaves_nothing() -> Result<(), AnyError> {
-    let mut wire = two_wire()?;
     let mut watch = Forensics::watching(&text_backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut wire = two_wire()?;
 
     forensics!({
         let mut back = Box::new([Held::new(), Held::new()]);
@@ -619,7 +631,7 @@ fn test_decoding_a_slice_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a wire holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "decoding a slice",
     );
@@ -633,10 +645,11 @@ fn test_decoding_a_slice_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_preallocating_over_a_string_that_holds_a_secret_leaves_nothing() -> Result<(), AnyError> {
-    let mut back = held(4096);
     let mut watch = Forensics::watching(&text_backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut back = held(4096);
 
     forensics!({
         capture(|| back.prealloc(2048));
@@ -651,7 +664,7 @@ fn test_preallocating_over_a_string_that_holds_a_secret_leaves_nothing() -> Resu
 
     leaves_nothing(
         &report_before,
-        "a string holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "preallocating over it",
     );

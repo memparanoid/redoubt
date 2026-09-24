@@ -23,10 +23,11 @@ use crate::tests::forensics::support::{
 
 #[test]
 fn test_a_buffer_dropped_leaves_nothing() -> Result<(), AnyError> {
-    let buffer = a_buffer_holding()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let buffer = a_buffer_holding()?;
 
     forensics!({
         // CORRECTNESS: inside the capture, because this is the operation. What
@@ -38,7 +39,7 @@ fn test_a_buffer_dropped_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a buffer holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "a buffer dropped",
     );
@@ -70,10 +71,11 @@ fn test_a_buffer_given_away_is_found_while_it_is_kept() -> Result<(), AnyError> 
 
 #[test]
 fn test_a_buffer_given_away_leaves_nothing() -> Result<(), AnyError> {
-    let buffer = a_buffer_holding()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let buffer = a_buffer_holding()?;
 
     forensics!({
         // CORRECTNESS: inside the capture, because this is the operation. What
@@ -85,7 +87,7 @@ fn test_a_buffer_given_away_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a buffer holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "a buffer given away",
     );
@@ -119,10 +121,11 @@ fn test_making_a_buffer_leaves_nothing() {
 
 #[test]
 fn test_reallocating_a_buffer_leaves_nothing() -> Result<(), AnyError> {
-    let mut buffer = a_buffer_holding()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut buffer = a_buffer_holding()?;
 
     forensics!({
         capture(|| buffer.realloc_with_capacity(64));
@@ -137,7 +140,7 @@ fn test_reallocating_a_buffer_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a buffer holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "a buffer reallocated",
     );
@@ -151,10 +154,11 @@ fn test_reallocating_a_buffer_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_clearing_a_buffer_leaves_nothing() -> Result<(), AnyError> {
-    let mut buffer = a_buffer_holding()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut buffer = a_buffer_holding()?;
 
     forensics!({
         capture(|| buffer.clear());
@@ -169,7 +173,7 @@ fn test_clearing_a_buffer_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a buffer holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "a buffer cleared",
     );
@@ -244,10 +248,11 @@ fn test_what_writing_a_value_wrote_is_found_while_the_buffer_holds_it() -> Resul
 
 #[test]
 fn test_writing_a_value_leaves_nothing() -> Result<(), AnyError> {
-    let mut value = a_u128();
     let mut watch = Forensics::watching(&half_backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut value = a_u128();
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(16);
@@ -265,7 +270,7 @@ fn test_writing_a_value_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a value holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "a value written",
     );
@@ -300,10 +305,11 @@ fn test_what_writing_a_slice_wrote_is_found_while_the_buffer_holds_it() -> Resul
 
 #[test]
 fn test_writing_a_slice_leaves_nothing() -> Result<(), AnyError> {
-    let mut source = secret_bytes(32);
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut source = secret_bytes(32);
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(32);
@@ -321,7 +327,7 @@ fn test_writing_a_slice_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a slice holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "a slice written",
     );
@@ -353,10 +359,11 @@ fn test_what_exporting_wrote_is_found_while_the_vec_holds_it() -> Result<(), Any
 
 #[test]
 fn test_exporting_leaves_nothing() -> Result<(), AnyError> {
-    let mut buffer = a_buffer_holding()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut buffer = a_buffer_holding()?;
 
     forensics!({
         let mut exported = capture(|| buffer.export_as_vec());
@@ -372,7 +379,7 @@ fn test_exporting_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "a buffer holding the secret",
+        "nothing held yet",
         &watch.snapshot()?,
         "a buffer exported",
     );

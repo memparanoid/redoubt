@@ -61,10 +61,11 @@ fn test_what_decoding_some_wrote_is_found_while_the_option_holds_it() -> Result<
 
 #[test]
 fn test_decoding_some_leaves_nothing() -> Result<(), AnyError> {
-    let mut wire = wire()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
+
+    let mut wire = wire()?;
 
     forensics!({
         let mut back: Box<Held> = Box::new(None);
@@ -82,7 +83,7 @@ fn test_decoding_some_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "encoded, nothing decoded",
+        "nothing held yet",
         &watch.snapshot()?,
         "decoding some",
     );
