@@ -32,7 +32,7 @@ use std::vec;
 type Swap = unsafe extern "C" fn(*mut u8, *mut u8, usize);
 
 unsafe extern "C" {
-    fn redoubt_mem_swap(a: *mut u8, b: *mut u8, n: usize);
+    fn redoubt_mem_swap_nonoverlapping(a: *mut u8, b: *mut u8, n: usize);
 }
 
 /// A routine with the same signature that does nothing at all.
@@ -223,7 +223,7 @@ fn test_the_capture_reports_bytes_a_routine_left_in_a_register() {
 }
 
 // ============================================================================
-// redoubt_mem_swap
+// redoubt_mem_swap_nonoverlapping
 // ============================================================================
 
 /// Nothing left in any payload register, on every path through the routine.
@@ -249,7 +249,7 @@ fn test_swap_leaves_no_payload_register_holding_either_side() {
                 // `n + 128`, and the two are separate allocations.
                 let seen = unsafe {
                     capture(
-                        redoubt_mem_swap,
+                        redoubt_mem_swap_nonoverlapping,
                         a.as_mut_ptr().add(offset_a),
                         b.as_mut_ptr().add(offset_b),
                         n,

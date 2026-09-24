@@ -15,17 +15,9 @@
 //! files start with a `#if` that picks the object format and the symbol
 //! spelling, and it is the preprocessor that has to see it.
 
-/// The files for each architecture, relative to the manifest.
-const X86_64: [&str; 3] = [
-    "asm/copy_x86_64.S",
-    "asm/swap_x86_64.S",
-    "asm/utf8_x86_64.S",
-];
-const AARCH64: [&str; 3] = [
-    "asm/copy_aarch64.S",
-    "asm/swap_aarch64.S",
-    "asm/utf8_aarch64.S",
-];
+/// The file for each architecture, relative to the manifest.
+const X86_64: &str = "src/asm/mem_x86_64.S";
+const AARCH64: &str = "src/asm/mem_aarch64.S";
 
 /// What the crate compiles under when they were built.
 const HAS_ASM: &str = "mem_asm";
@@ -36,21 +28,18 @@ fn main() {
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").expect("cargo names the target architecture");
     let os = std::env::var("CARGO_CFG_TARGET_OS").expect("cargo names the target operating system");
 
-    let Some(files) = for_target(&os, &arch) else {
+    let Some(file) = for_target(&os, &arch) else {
         return;
     };
 
-    cc::Build::new().files(files).compile("redoubt_mem_asm");
+    cc::Build::new().file(file).compile("redoubt_mem_asm");
 
-    for file in files {
-        println!("cargo::rerun-if-changed={file}");
-    }
-
+    println!("cargo::rerun-if-changed={file}");
     println!("cargo::rustc-cfg={HAS_ASM}");
 }
 
-/// The files to compile, or nothing for a target that has none.
-fn for_target(os: &str, arch: &str) -> Option<[&'static str; 3]> {
+/// The file to compile, or nothing for a target that has none.
+fn for_target(os: &str, arch: &str) -> Option<&'static str> {
     if os == "windows" {
         return None;
     }

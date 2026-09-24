@@ -48,7 +48,7 @@ use std::vec;
 // The routine is not part of this crate's public surface, so the test asks the
 // linker for it by name.
 unsafe extern "C" {
-    fn redoubt_copy_bytes(src: *const u8, dst: *mut u8, bytes: usize);
+    fn redoubt_mem_copy_nonoverlapping(src: *const u8, dst: *mut u8, bytes: usize);
 }
 
 type CopyBytes = unsafe extern "C" fn(*const u8, *mut u8, usize);
@@ -240,7 +240,7 @@ fn test_the_capture_reports_a_byte_a_routine_left_in_a_register() {
 }
 
 // ============================================================================
-// redoubt_copy_bytes
+// redoubt_mem_copy_nonoverlapping
 // ============================================================================
 
 /// Nothing of what was copied is in a register when the routine returns.
@@ -265,7 +265,7 @@ fn test_no_register_holds_what_was_copied() {
                 // `at + of` never reaches that.
                 let held = unsafe {
                     payload(
-                        redoubt_copy_bytes,
+                        redoubt_mem_copy_nonoverlapping,
                         from.as_ptr().add(at),
                         into.as_mut_ptr().add(at),
                         of,
