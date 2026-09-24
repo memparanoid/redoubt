@@ -219,8 +219,11 @@ impl ZeroizationProbe for String {
 }
 
 // Blanket impls for Box<T>
+//
+// Never bulk, whatever `T` is: a box's own bytes are a pointer, so a memset of
+// a collection of boxes empties the pointers and leaves every value they held.
 impl<T: ZeroizeMetadata + FastZeroizable> ZeroizeMetadata for alloc::boxed::Box<T> {
-    const CAN_BE_BULK_ZEROIZED: bool = T::CAN_BE_BULK_ZEROIZED;
+    const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
 impl<T: FastZeroizable> FastZeroizable for alloc::boxed::Box<T> {

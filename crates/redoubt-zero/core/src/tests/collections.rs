@@ -103,6 +103,34 @@ fn test_slice_fast_zeroize_fast_false() {
     assert!(arr.is_zeroized());
 }
 
+#[test]
+fn test_slice_of_boxes() {
+    let mut boxes = [
+        alloc::boxed::Box::new([u8::MAX; 32]),
+        alloc::boxed::Box::new([u8::MAX; 32]),
+    ];
+    let addresses = boxes.each_ref().map(|boxed| &raw const **boxed);
+
+    let slice: &mut [alloc::boxed::Box<[u8; 32]>] = &mut boxes;
+
+    slice.fast_zeroize();
+
+    assert_eq!(
+        boxes.each_ref().map(|boxed| &raw const **boxed),
+        addresses,
+        "the boxes point where they pointed"
+    );
+
+    // Assert zeroization!
+    assert!(boxes.iter().all(|boxed| boxed.is_zeroized()));
+}
+
+#[test]
+fn test_a_slice_is_bulk_when_its_element_is() {
+    const { assert!(<[u8] as ZeroizeMetadata>::CAN_BE_BULK_ZEROIZED) };
+    const { assert!(!<[Vec<u8>] as ZeroizeMetadata>::CAN_BE_BULK_ZEROIZED) };
+}
+
 // === === === === === === === === === ===
 // [T; N] - arrays
 // === === === === === === === === === ===
@@ -122,6 +150,32 @@ fn test_array() {
 
     assert!(array.is_zeroized());
     assert!(redoubt_util::is_slice_zeroized(&array));
+}
+
+#[test]
+fn test_array_of_boxes() {
+    let mut boxes = [
+        alloc::boxed::Box::new([u8::MAX; 32]),
+        alloc::boxed::Box::new([u8::MAX; 32]),
+    ];
+    let addresses = boxes.each_ref().map(|boxed| &raw const **boxed);
+
+    boxes.fast_zeroize();
+
+    assert_eq!(
+        boxes.each_ref().map(|boxed| &raw const **boxed),
+        addresses,
+        "the boxes point where they pointed"
+    );
+
+    // Assert zeroization!
+    assert!(boxes.iter().all(|boxed| boxed.is_zeroized()));
+}
+
+#[test]
+fn test_an_array_is_bulk_when_its_element_is() {
+    const { assert!(<[u8; 32] as ZeroizeMetadata>::CAN_BE_BULK_ZEROIZED) };
+    const { assert!(!<[Vec<u8>; 2] as ZeroizeMetadata>::CAN_BE_BULK_ZEROIZED) };
 }
 
 // === === === === === === === === === ===
@@ -211,6 +265,34 @@ fn test_vec_spare_capacity_recursive_zeroize() {
     assert!(vec.is_zeroized());
 }
 
+#[test]
+fn test_vec_of_boxes() {
+    let mut boxes = vec![
+        alloc::boxed::Box::new([u8::MAX; 32]),
+        alloc::boxed::Box::new([u8::MAX; 32]),
+    ];
+    let addresses: Vec<*const [u8; 32]> = boxes.iter().map(|boxed| &raw const **boxed).collect();
+
+    boxes.fast_zeroize();
+
+    assert_eq!(
+        boxes
+            .iter()
+            .map(|boxed| &raw const **boxed)
+            .collect::<Vec<_>>(),
+        addresses,
+        "the boxes point where they pointed"
+    );
+
+    // Assert zeroization!
+    assert!(boxes.iter().all(|boxed| boxed.is_zeroized()));
+}
+
+#[test]
+fn test_a_vec_is_never_bulk() {
+    const { assert!(!<Vec<u8> as ZeroizeMetadata>::CAN_BE_BULK_ZEROIZED) };
+}
+
 // === === === === === === === === === ===
 // String
 // === === === === === === === === === ===
@@ -227,6 +309,11 @@ fn test_string() {
     assert!(redoubt_util::is_slice_zeroized(s.as_bytes()));
 }
 
+#[test]
+fn test_a_string_is_never_bulk() {
+    const { assert!(!<alloc::string::String as ZeroizeMetadata>::CAN_BE_BULK_ZEROIZED) };
+}
+
 // === === === === === === === === === ===
 // Box<T>
 // === === === === === === === === === ===
@@ -241,6 +328,11 @@ fn test_box() {
 
     assert!(boxed.is_zeroized());
     assert!(redoubt_util::is_slice_zeroized(&*boxed));
+}
+
+#[test]
+fn test_a_box_is_never_bulk() {
+    const { assert!(!<alloc::boxed::Box<[u8; 32]> as ZeroizeMetadata>::CAN_BE_BULK_ZEROIZED) };
 }
 
 // === === === === === === === === === ===
@@ -265,4 +357,9 @@ fn test_option() {
     held.fast_zeroize();
 
     assert_eq!(held, None);
+}
+
+#[test]
+fn test_an_option_is_never_bulk() {
+    const { assert!(!<Option<u8> as ZeroizeMetadata>::CAN_BE_BULK_ZEROIZED) };
 }

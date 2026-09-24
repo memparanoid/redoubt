@@ -53,3 +53,11 @@ fn test_null_ptrs_are_zeroized() {
     assert!(ptr_mut.is_zeroized(), "null *mut should be zeroized");
     assert!(ptr_const.is_zeroized(), "null *const should be zeroized");
 }
+
+#[test]
+fn test_no_pointer_is_bulk() {
+    use crate::traits::ZeroizeMetadata;
+
+    const { assert!(!<*mut u8 as ZeroizeMetadata>::CAN_BE_BULK_ZEROIZED) };
+    const { assert!(!<*const u8 as ZeroizeMetadata>::CAN_BE_BULK_ZEROIZED) };
+}

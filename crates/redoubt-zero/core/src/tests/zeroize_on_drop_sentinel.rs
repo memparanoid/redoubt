@@ -145,3 +145,10 @@ fn test_sentinel_reset() {
     assert!(sentinel.is_zeroized());
     assert!(sentinel_clone.is_zeroized());
 }
+
+#[test]
+fn test_the_sentinel_is_never_bulk() {
+    use crate::traits::ZeroizeMetadata;
+
+    const { assert!(!<ZeroizeOnDropSentinel as ZeroizeMetadata>::CAN_BE_BULK_ZEROIZED) };
+}

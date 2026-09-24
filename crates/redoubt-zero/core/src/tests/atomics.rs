@@ -73,3 +73,31 @@ fn test_atomic_bool_zeroization() {
     );
     assert!(!value.load(Ordering::Relaxed));
 }
+
+#[test]
+fn test_no_atomic_is_bulk() {
+    use core::sync::atomic::{AtomicBool, AtomicI8, AtomicI16, AtomicI32, AtomicI64, AtomicIsize};
+    use core::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, AtomicU64, AtomicUsize};
+
+    use crate::traits::ZeroizeMetadata;
+
+    macro_rules! is_not_bulk {
+        ($($ty:ty),* $(,)?) => {
+            $(const { assert!(!<$ty as ZeroizeMetadata>::CAN_BE_BULK_ZEROIZED) };)*
+        };
+    }
+
+    is_not_bulk!(
+        AtomicBool,
+        AtomicU8,
+        AtomicU16,
+        AtomicU32,
+        AtomicU64,
+        AtomicUsize,
+        AtomicI8,
+        AtomicI16,
+        AtomicI32,
+        AtomicI64,
+        AtomicIsize,
+    );
+}

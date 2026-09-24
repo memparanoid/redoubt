@@ -132,3 +132,18 @@ fn test_unit_zeroization() {
         "unit type should still be zeroized after fast_zeroize"
     );
 }
+
+#[test]
+fn test_every_primitive_is_bulk() {
+    use crate::traits::ZeroizeMetadata;
+
+    macro_rules! is_bulk {
+        ($($ty:ty),* $(,)?) => {
+            $(const { assert!(<$ty as ZeroizeMetadata>::CAN_BE_BULK_ZEROIZED) };)*
+        };
+    }
+
+    is_bulk!(
+        u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64, bool, char,
+    );
+}
