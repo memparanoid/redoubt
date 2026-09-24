@@ -7,10 +7,10 @@
 use redoubt_alloc::{RedoubtArray, RedoubtOption, RedoubtVec};
 use redoubt_codec::RedoubtCodec;
 use redoubt_forensics::{AnyError, Forensics, QUIET, Reason, Report, capture, forensics};
-use redoubt_vault::{CipherBoxError, cipherbox};
+use redoubt_vault::{CipherBoxError, cipherbox, leak_master_key};
 use redoubt_zero::RedoubtZero;
 
-use crate::support::needles::{SECRET, backwards};
+use crate::support::needles::{SECRET, backwards, master_key_backwards, master_key_width};
 use crate::support::{giving, is_found, leaves_nothing};
 
 /// Rounds per absence, so a residue that survives only now and then still
@@ -75,30 +75,73 @@ fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
     Ok(())
 }
 
-/// A filled box, the instrument watching, and the photograph after the fill.
-/// The fill comes before it so a test reads what opening left, and it is held
-/// to the bound because every test reads a difference from it.
-fn filled() -> Result<(SecretsBox, Forensics, Report), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
+struct Watched {
+    secret: Forensics,
+    secret_before: Report,
+    key: Forensics,
+    key_before: Report,
+}
+
+impl Watched {
+    fn start() -> Result<Self, AnyError> {
+        let mut secret = Forensics::watching(&backwards())?;
+        let mut key = Forensics::watching(&master_key_backwards()?)?;
+
+        let secret_before = secret.snapshot()?;
+        let key_before = key.snapshot()?;
+
+        Ok(Self {
+            secret,
+            secret_before,
+            key,
+            key_before,
+        })
+    }
+
+    fn none_left(&mut self, before: &str, what: &str) -> Result<(), AnyError> {
+        let secret_after = self.secret.snapshot()?;
+        let key_after = self.key.snapshot()?;
+
+        leaves_nothing(&self.secret_before, before, &secret_after, what);
+        leaves_nothing(
+            &self.key_before,
+            before,
+            &key_after,
+            &format!("{what}, in the master key"),
+        );
+
+        Ok(())
+    }
+}
+
+/// A filled box, the instrument watching, and the photographs after the fill.
+/// The fill comes before them so a test reads what opening left, and they are
+/// held to the bound because every test reads a difference from them.
+fn filled() -> Result<(SecretsBox, Watched), AnyError> {
     let mut secrets_box = SecretsBox::new();
 
     open_fill_and_close(&mut secrets_box)?;
 
-    let report_before = watch.snapshot()?;
+    let watched = Watched::start()?;
 
-    assert!(
-        !report_before.found,
-        "the whole secret was left behind by filling the box: {report_before}"
-    );
+    for (report, what) in [
+        (&watched.secret_before, "the secret"),
+        (&watched.key_before, "the master key"),
+    ] {
+        assert!(
+            !report.found,
+            "the whole of {what} was left behind by filling the box: {report}"
+        );
 
-    assert!(
-        report_before.widest <= QUIET,
-        "a run of {} bytes of the secret was left behind by filling the box, and \
-         {QUIET} is what memory has by accident: {report_before}",
-        report_before.widest,
-    );
+        assert!(
+            report.widest <= QUIET,
+            "a run of {} bytes of {what} was left behind by filling the box, and \
+             {QUIET} is what memory has by accident: {report}",
+            report.widest,
+        );
+    }
 
-    Ok((secrets_box, watch, report_before))
+    Ok((secrets_box, watched))
 }
 
 /// Takes the value by move and drops it. Not inlined, so the move is not
@@ -114,7 +157,7 @@ fn let_go<T>(value: T) {
 
 #[test]
 fn test_a_box_dropped_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         // CORRECTNESS: inside the capture, because this is the operation. What
@@ -124,16 +167,7 @@ fn test_a_box_dropped_leaves_nothing() -> Result<(), AnyError> {
         capture(|| drop(secrets_box));
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "a box dropped",
-    );
-
-    Ok(())
+    watched.none_left("filled, nothing opened", "a box dropped")
 }
 
 // ============================================================================
@@ -145,9 +179,7 @@ fn test_a_box_dropped_leaves_nothing() -> Result<(), AnyError> {
 /// methods.
 #[test]
 fn test_a_box_given_away_leaves_nothing() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
-
-    let report_before = watch.snapshot()?;
+    let mut watched = Watched::start()?;
 
     let mut secrets_box = SecretsBox::new();
 
@@ -161,16 +193,7 @@ fn test_a_box_given_away_leaves_nothing() -> Result<(), AnyError> {
         capture(|| let_go(secrets_box));
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "nothing filled yet",
-        &report_after,
-        "a box given away",
-    );
-
-    Ok(())
+    watched.none_left("nothing filled yet", "a box given away")
 }
 
 // ============================================================================
@@ -181,9 +204,7 @@ fn test_a_box_given_away_leaves_nothing() -> Result<(), AnyError> {
 /// `open` presence: the same box, open, holds the whole secret.
 #[test]
 fn test_a_filled_box_holds_nothing_at_rest() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
-
-    let report_before = watch.snapshot()?;
+    let mut watched = Watched::start()?;
 
     let mut secrets_box = SecretsBox::new();
 
@@ -195,14 +216,7 @@ fn test_a_filled_box_holds_nothing_at_rest() -> Result<(), AnyError> {
     // photograph would read the drop and not what the box keeps.
     core::hint::black_box(&secrets_box);
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "nothing filled yet",
-        &report_after,
-        "a filled box, at rest",
-    );
+    watched.none_left("nothing filled yet", "a filled box, at rest")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -225,12 +239,12 @@ fn test_making_a_box_leaves_nothing() {
 
 #[test]
 fn test_the_secret_is_found_while_the_box_is_open() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     let mut inside = None;
 
     secrets_box.open(|_| {
-        inside = watch.snapshot().ok();
+        inside = watched.secret.snapshot().ok();
 
         Ok(())
     })?;
@@ -245,8 +259,25 @@ fn test_the_secret_is_found_while_the_box_is_open() -> Result<(), AnyError> {
 }
 
 #[test]
+fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&master_key_backwards()?)?;
+
+    forensics!({
+        let held = capture(|| leak_master_key(master_key_width()))?;
+
+        core::mem::forget(held);
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "the master key, held");
+
+    Ok(())
+}
+
+#[test]
 fn test_open_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| -> Result<(), AnyError> {
@@ -262,14 +293,7 @@ fn test_open_leaves_nothing() -> Result<(), AnyError> {
         })?;
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened whole",
-    );
+    watched.none_left("filled, nothing opened", "opened whole")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -278,7 +302,7 @@ fn test_open_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_open_that_fails_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| {
@@ -290,14 +314,7 @@ fn test_open_that_fails_leaves_nothing() -> Result<(), AnyError> {
         });
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened whole, and failed",
-    );
+    watched.none_left("filled, nothing opened", "opened whole, and failed")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -310,19 +327,26 @@ fn test_open_that_fails_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_the_secret_is_found_while_the_box_is_open_for_writing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, _) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     let mut inside = None;
+    let mut key_inside = None;
 
     secrets_box.open_mut(|_| {
-        inside = watch.snapshot().ok();
+        inside = watched.secret.snapshot().ok();
+        key_inside = watched.key.snapshot().ok();
 
         Ok(())
     })?;
 
     let report = inside.ok_or(Reason::NoAnswer)?;
+    let key_report = key_inside.ok_or(Reason::NoAnswer)?;
 
     is_found(&report, "the secret, while the box is open for writing");
+    is_found(
+        &key_report,
+        "the master key, while the box is open for writing",
+    );
 
     drop(core::hint::black_box(secrets_box));
 
@@ -331,7 +355,7 @@ fn test_the_secret_is_found_while_the_box_is_open_for_writing() -> Result<(), An
 
 #[test]
 fn test_open_mut_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| -> Result<(), AnyError> {
@@ -347,14 +371,7 @@ fn test_open_mut_leaves_nothing() -> Result<(), AnyError> {
         })?;
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened whole for writing",
-    );
+    watched.none_left("filled, nothing opened", "opened whole for writing")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -365,9 +382,7 @@ fn test_open_mut_leaves_nothing() -> Result<(), AnyError> {
 /// test here starts from.
 #[test]
 fn test_filling_every_field_once_leaves_nothing() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
-
-    let report_before = watch.snapshot()?;
+    let mut watched = Watched::start()?;
 
     let mut secrets_box = SecretsBox::new();
 
@@ -375,14 +390,7 @@ fn test_filling_every_field_once_leaves_nothing() -> Result<(), AnyError> {
         capture(|| open_fill_and_close(&mut secrets_box))?;
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "nothing filled yet",
-        &report_after,
-        "filled once",
-    );
+    watched.none_left("nothing filled yet", "filled once")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -393,9 +401,7 @@ fn test_filling_every_field_once_leaves_nothing() -> Result<(), AnyError> {
 /// old contents as it grows, fails here and not after a single fill.
 #[test]
 fn test_filling_every_field_many_times_leaves_nothing() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
-
-    let report_before = watch.snapshot()?;
+    let mut watched = Watched::start()?;
 
     let mut secrets_box = SecretsBox::new();
 
@@ -409,14 +415,7 @@ fn test_filling_every_field_many_times_leaves_nothing() -> Result<(), AnyError> 
         })?;
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "nothing filled yet",
-        &report_after,
-        &format!("filled {ROUNDS} times"),
-    );
+    watched.none_left("nothing filled yet", &format!("filled {ROUNDS} times"))?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -425,7 +424,7 @@ fn test_filling_every_field_many_times_leaves_nothing() -> Result<(), AnyError> 
 
 #[test]
 fn test_open_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| {
@@ -437,14 +436,10 @@ fn test_open_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
         });
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
+    watched.none_left(
         "filled, nothing opened",
-        &report_after,
         "opened whole for writing, and failed",
-    );
+    )?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -457,7 +452,7 @@ fn test_open_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_what_a_leaked_vec_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         let taken = capture(|| secrets_box.leak_a_vec())?;
@@ -465,7 +460,7 @@ fn test_what_a_leaked_vec_handed_back_is_found_while_it_is_held() -> Result<(), 
         core::mem::forget(taken);
     });
 
-    let report = watch.snapshot()?;
+    let report = watched.secret.snapshot()?;
 
     is_found(&report, "a leaked vec, and kept");
 
@@ -476,7 +471,7 @@ fn test_what_a_leaked_vec_handed_back_is_found_while_it_is_held() -> Result<(), 
 
 #[test]
 fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         for _ in 0..ROUNDS - 1 {
@@ -493,14 +488,7 @@ fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
         drop(taken);
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "leaked a vec",
-    );
+    watched.none_left("filled, nothing opened", "leaked a vec")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -513,7 +501,7 @@ fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_what_a_leaked_array_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         let taken = capture(|| secrets_box.leak_an_array())?;
@@ -521,7 +509,7 @@ fn test_what_a_leaked_array_handed_back_is_found_while_it_is_held() -> Result<()
         core::mem::forget(taken);
     });
 
-    let report = watch.snapshot()?;
+    let report = watched.secret.snapshot()?;
 
     is_found(&report, "a leaked array, and kept");
 
@@ -532,7 +520,7 @@ fn test_what_a_leaked_array_handed_back_is_found_while_it_is_held() -> Result<()
 
 #[test]
 fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         for _ in 0..ROUNDS - 1 {
@@ -549,14 +537,7 @@ fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
         drop(taken);
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "leaked an array",
-    );
+    watched.none_left("filled, nothing opened", "leaked an array")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -569,7 +550,7 @@ fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_what_a_leaked_option_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         let taken = capture(|| secrets_box.leak_an_option())?;
@@ -577,7 +558,7 @@ fn test_what_a_leaked_option_handed_back_is_found_while_it_is_held() -> Result<(
         core::mem::forget(taken);
     });
 
-    let report = watch.snapshot()?;
+    let report = watched.secret.snapshot()?;
 
     is_found(&report, "a leaked option, and kept");
 
@@ -588,7 +569,7 @@ fn test_what_a_leaked_option_handed_back_is_found_while_it_is_held() -> Result<(
 
 #[test]
 fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         for _ in 0..ROUNDS - 1 {
@@ -605,14 +586,7 @@ fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
         drop(taken);
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "leaked an option",
-    );
+    watched.none_left("filled, nothing opened", "leaked an option")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -625,7 +599,7 @@ fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_what_two_leaked_options_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         let taken = capture(|| secrets_box.leak_two_options())?;
@@ -633,7 +607,7 @@ fn test_what_two_leaked_options_handed_back_is_found_while_it_is_held() -> Resul
         core::mem::forget(taken);
     });
 
-    let report = watch.snapshot()?;
+    let report = watched.secret.snapshot()?;
 
     is_found(&report, "two leaked options, and kept");
 
@@ -644,7 +618,7 @@ fn test_what_two_leaked_options_handed_back_is_found_while_it_is_held() -> Resul
 
 #[test]
 fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         for _ in 0..ROUNDS - 1 {
@@ -661,14 +635,7 @@ fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
         drop(taken);
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "leaked two options",
-    );
+    watched.none_left("filled, nothing opened", "leaked two options")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -681,12 +648,12 @@ fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_the_secret_is_found_while_a_vec_is_open() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     let mut inside = None;
 
     secrets_box.open_a_vec(|_| {
-        inside = watch.snapshot().ok();
+        inside = watched.secret.snapshot().ok();
 
         Ok(())
     })?;
@@ -702,7 +669,7 @@ fn test_the_secret_is_found_while_a_vec_is_open() -> Result<(), AnyError> {
 
 #[test]
 fn test_open_a_vec_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| -> Result<(), AnyError> {
@@ -718,14 +685,7 @@ fn test_open_a_vec_leaves_nothing() -> Result<(), AnyError> {
         })?;
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened a vec",
-    );
+    watched.none_left("filled, nothing opened", "opened a vec")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -734,7 +694,7 @@ fn test_open_a_vec_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_open_a_vec_that_fails_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| {
@@ -746,14 +706,7 @@ fn test_open_a_vec_that_fails_leaves_nothing() -> Result<(), AnyError> {
         });
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened a vec, and failed",
-    );
+    watched.none_left("filled, nothing opened", "opened a vec, and failed")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -766,12 +719,12 @@ fn test_open_a_vec_that_fails_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_the_secret_is_found_while_an_array_is_open() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     let mut inside = None;
 
     secrets_box.open_an_array(|_| {
-        inside = watch.snapshot().ok();
+        inside = watched.secret.snapshot().ok();
 
         Ok(())
     })?;
@@ -787,7 +740,7 @@ fn test_the_secret_is_found_while_an_array_is_open() -> Result<(), AnyError> {
 
 #[test]
 fn test_open_an_array_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| -> Result<(), AnyError> {
@@ -803,14 +756,7 @@ fn test_open_an_array_leaves_nothing() -> Result<(), AnyError> {
         })?;
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened an array",
-    );
+    watched.none_left("filled, nothing opened", "opened an array")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -819,7 +765,7 @@ fn test_open_an_array_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_open_an_array_that_fails_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| {
@@ -831,14 +777,7 @@ fn test_open_an_array_that_fails_leaves_nothing() -> Result<(), AnyError> {
         });
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened an array, and failed",
-    );
+    watched.none_left("filled, nothing opened", "opened an array, and failed")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -851,12 +790,12 @@ fn test_open_an_array_that_fails_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_the_secret_is_found_while_an_option_is_open() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     let mut inside = None;
 
     secrets_box.open_an_option(|_| {
-        inside = watch.snapshot().ok();
+        inside = watched.secret.snapshot().ok();
 
         Ok(())
     })?;
@@ -872,7 +811,7 @@ fn test_the_secret_is_found_while_an_option_is_open() -> Result<(), AnyError> {
 
 #[test]
 fn test_open_an_option_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| -> Result<(), AnyError> {
@@ -888,14 +827,7 @@ fn test_open_an_option_leaves_nothing() -> Result<(), AnyError> {
         })?;
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened an option",
-    );
+    watched.none_left("filled, nothing opened", "opened an option")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -904,7 +836,7 @@ fn test_open_an_option_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_open_an_option_that_fails_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| {
@@ -916,14 +848,7 @@ fn test_open_an_option_that_fails_leaves_nothing() -> Result<(), AnyError> {
         });
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened an option, and failed",
-    );
+    watched.none_left("filled, nothing opened", "opened an option, and failed")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -936,12 +861,12 @@ fn test_open_an_option_that_fails_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_the_secret_is_found_while_one_field_is_open() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, _) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     let mut inside = None;
 
     secrets_box.open_two_options(|_| {
-        inside = watch.snapshot().ok();
+        inside = watched.secret.snapshot().ok();
 
         Ok(())
     })?;
@@ -957,7 +882,7 @@ fn test_the_secret_is_found_while_one_field_is_open() -> Result<(), AnyError> {
 
 #[test]
 fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| -> Result<(), AnyError> {
@@ -973,14 +898,7 @@ fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
         })?;
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened one field",
-    );
+    watched.none_left("filled, nothing opened", "opened one field")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -989,7 +907,7 @@ fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_open_two_options_that_fails_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
+    let (secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| {
@@ -1002,14 +920,7 @@ fn test_open_two_options_that_fails_leaves_nothing() -> Result<(), AnyError> {
         });
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened two options, and failed",
-    );
+    watched.none_left("filled, nothing opened", "opened two options, and failed")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -1022,19 +933,26 @@ fn test_open_two_options_that_fails_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_the_secret_is_found_while_a_vec_is_open_for_writing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, _) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     let mut inside = None;
+    let mut key_inside = None;
 
     secrets_box.open_a_vec_mut(|_| {
-        inside = watch.snapshot().ok();
+        inside = watched.secret.snapshot().ok();
+        key_inside = watched.key.snapshot().ok();
 
         Ok(())
     })?;
 
     let report = inside.ok_or(Reason::NoAnswer)?;
+    let key_report = key_inside.ok_or(Reason::NoAnswer)?;
 
     is_found(&report, "the secret, while a vec is open for writing");
+    is_found(
+        &key_report,
+        "the master key, while a vec is open for writing",
+    );
 
     drop(core::hint::black_box(secrets_box));
 
@@ -1043,7 +961,7 @@ fn test_the_secret_is_found_while_a_vec_is_open_for_writing() -> Result<(), AnyE
 
 #[test]
 fn test_open_a_vec_mut_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| -> Result<(), AnyError> {
@@ -1059,14 +977,7 @@ fn test_open_a_vec_mut_leaves_nothing() -> Result<(), AnyError> {
         })?;
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened a vec for writing",
-    );
+    watched.none_left("filled, nothing opened", "opened a vec for writing")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -1075,7 +986,7 @@ fn test_open_a_vec_mut_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_open_a_vec_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| {
@@ -1087,14 +998,10 @@ fn test_open_a_vec_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
         });
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
+    watched.none_left(
         "filled, nothing opened",
-        &report_after,
         "opened a vec for writing, and failed",
-    );
+    )?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -1107,19 +1014,26 @@ fn test_open_a_vec_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_the_secret_is_found_while_an_array_is_open_for_writing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, _) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     let mut inside = None;
+    let mut key_inside = None;
 
     secrets_box.open_an_array_mut(|_| {
-        inside = watch.snapshot().ok();
+        inside = watched.secret.snapshot().ok();
+        key_inside = watched.key.snapshot().ok();
 
         Ok(())
     })?;
 
     let report = inside.ok_or(Reason::NoAnswer)?;
+    let key_report = key_inside.ok_or(Reason::NoAnswer)?;
 
     is_found(&report, "the secret, while an array is open for writing");
+    is_found(
+        &key_report,
+        "the master key, while an array is open for writing",
+    );
 
     drop(core::hint::black_box(secrets_box));
 
@@ -1128,7 +1042,7 @@ fn test_the_secret_is_found_while_an_array_is_open_for_writing() -> Result<(), A
 
 #[test]
 fn test_open_an_array_mut_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| -> Result<(), AnyError> {
@@ -1144,14 +1058,7 @@ fn test_open_an_array_mut_leaves_nothing() -> Result<(), AnyError> {
         })?;
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened an array for writing",
-    );
+    watched.none_left("filled, nothing opened", "opened an array for writing")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -1160,7 +1067,7 @@ fn test_open_an_array_mut_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_open_an_array_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| {
@@ -1173,14 +1080,10 @@ fn test_open_an_array_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
         });
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
+    watched.none_left(
         "filled, nothing opened",
-        &report_after,
         "opened an array for writing, and failed",
-    );
+    )?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -1193,19 +1096,26 @@ fn test_open_an_array_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_the_secret_is_found_while_an_option_is_open_for_writing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, _) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     let mut inside = None;
+    let mut key_inside = None;
 
     secrets_box.open_an_option_mut(|_| {
-        inside = watch.snapshot().ok();
+        inside = watched.secret.snapshot().ok();
+        key_inside = watched.key.snapshot().ok();
 
         Ok(())
     })?;
 
     let report = inside.ok_or(Reason::NoAnswer)?;
+    let key_report = key_inside.ok_or(Reason::NoAnswer)?;
 
     is_found(&report, "the secret, while an option is open for writing");
+    is_found(
+        &key_report,
+        "the master key, while an option is open for writing",
+    );
 
     drop(core::hint::black_box(secrets_box));
 
@@ -1214,7 +1124,7 @@ fn test_the_secret_is_found_while_an_option_is_open_for_writing() -> Result<(), 
 
 #[test]
 fn test_open_an_option_mut_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| -> Result<(), AnyError> {
@@ -1230,14 +1140,7 @@ fn test_open_an_option_mut_leaves_nothing() -> Result<(), AnyError> {
         })?;
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened an option for writing",
-    );
+    watched.none_left("filled, nothing opened", "opened an option for writing")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -1246,7 +1149,7 @@ fn test_open_an_option_mut_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_open_an_option_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| {
@@ -1259,14 +1162,10 @@ fn test_open_an_option_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
         });
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
+    watched.none_left(
         "filled, nothing opened",
-        &report_after,
         "opened an option for writing, and failed",
-    );
+    )?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -1279,19 +1178,26 @@ fn test_open_an_option_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_the_secret_is_found_while_one_field_is_open_for_writing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, _) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     let mut inside = None;
+    let mut key_inside = None;
 
     secrets_box.open_two_options_mut(|_| {
-        inside = watch.snapshot().ok();
+        inside = watched.secret.snapshot().ok();
+        key_inside = watched.key.snapshot().ok();
 
         Ok(())
     })?;
 
     let report = inside.ok_or(Reason::NoAnswer)?;
+    let key_report = key_inside.ok_or(Reason::NoAnswer)?;
 
     is_found(&report, "the secret, while one field is open for writing");
+    is_found(
+        &key_report,
+        "the master key, while one field is open for writing",
+    );
 
     drop(core::hint::black_box(secrets_box));
 
@@ -1300,7 +1206,7 @@ fn test_the_secret_is_found_while_one_field_is_open_for_writing() -> Result<(), 
 
 #[test]
 fn test_open_field_mut_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| -> Result<(), AnyError> {
@@ -1316,14 +1222,7 @@ fn test_open_field_mut_leaves_nothing() -> Result<(), AnyError> {
         })?;
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened one field for writing",
-    );
+    watched.none_left("filled, nothing opened", "opened one field for writing")?;
 
     drop(core::hint::black_box(secrets_box));
 
@@ -1332,7 +1231,7 @@ fn test_open_field_mut_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_open_two_options_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
+    let (mut secrets_box, mut watched) = filled()?;
 
     forensics!({
         capture(|| {
@@ -1345,14 +1244,10 @@ fn test_open_two_options_mut_that_fails_leaves_nothing() -> Result<(), AnyError>
         });
     });
 
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
+    watched.none_left(
         "filled, nothing opened",
-        &report_after,
         "opened two options for writing, and failed",
-    );
+    )?;
 
     drop(core::hint::black_box(secrets_box));
 
