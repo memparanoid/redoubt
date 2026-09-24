@@ -448,6 +448,37 @@ fn test_decoding_leaves_nothing() -> Result<(), AnyError> {
 }
 
 #[test]
+fn test_decoding_over_an_array_that_holds_a_secret_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut wire = wire()?;
+    let mut back = hold();
+
+    forensics!({
+        capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
+
+        // CORRECTNESS: after the capture. A call made before it writes over the
+        // stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
+        back.fast_zeroize();
+
+        // Forgotten and not emptied: emptying it is the operation's.
+        core::mem::forget(wire);
+    });
+
+    leaves_nothing(
+        &report_before,
+        "nothing held yet",
+        &watch.snapshot()?,
+        "decoding over it",
+    );
+
+    Ok(())
+}
+
+#[test]
 fn test_decoding_into_an_array_of_another_width_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
