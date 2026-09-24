@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! The standard library's copy, swap and check: the same answers, and no
-//! promise about the registers they went through.
+//! The standard library's copy and swap, and a UTF-8 check read one byte at a
+//! time: the same answers, and no promise about the registers they went
+//! through.
 
 /// `bytes` from `src` to `dst`.
 ///
@@ -25,7 +26,64 @@ pub(crate) unsafe fn swap_bytes(a: *mut u8, b: *mut u8, bytes: usize) {
     unsafe { core::ptr::swap_nonoverlapping(a, b, bytes) };
 }
 
-/// Whether `bytes` spell UTF-8.
+/// Whether `bytes` spell UTF-8, by RFC 3629, reading each byte on its own.
+///
+/// Not `core::str::from_utf8`, whose fast path reads the text a word at a time
+/// and leaves it in registers nothing empties. Every read here is volatile and
+/// one byte wide, so the compiler cannot join them into a wider load or
+/// vectorise the loop: what a register can be left holding is one byte.
+#[inline(never)]
 pub(crate) fn is_utf8(bytes: &[u8]) -> bool {
-    core::str::from_utf8(bytes).is_ok()
+    let len = bytes.len();
+
+    let byte = |at: usize| -> u8 {
+        // SAFETY: every caller below keeps `at` under `len`, inside the slice.
+        unsafe { bytes.as_ptr().add(at).read_volatile() }
+    };
+
+    let mut at = 0;
+
+    while at < len {
+        let lead = byte(at);
+
+        let width = match lead {
+            0x00..=0x7F => 1,
+            0xC2..=0xDF => 2,
+            0xE0..=0xEF => 3,
+            0xF0..=0xF4 => 4,
+            _ => return false,
+        };
+
+        if len - at < width {
+            return false;
+        }
+
+        if width > 1 {
+            // E0 is followed by A0..BF, ED by 80..9F, F0 by 90..BF, F4 by
+            // 80..8F, and every other lead by 80..BF.
+            let (lowest, highest) = match lead {
+                0xE0 => (0xA0, 0xBF),
+                0xED => (0x80, 0x9F),
+                0xF0 => (0x90, 0xBF),
+                0xF4 => (0x80, 0x8F),
+                _ => (0x80, 0xBF),
+            };
+
+            let second = byte(at + 1);
+
+            if second < lowest || second > highest {
+                return false;
+            }
+
+            for rest in 2..width {
+                if byte(at + rest).wrapping_sub(0x80) > 0x3F {
+                    return false;
+                }
+            }
+        }
+
+        at += width;
+    }
+
+    true
 }

@@ -13,7 +13,8 @@ use crate::backend;
 ///
 /// Not constant time: how long it takes says where the multibyte sequences are
 /// and where the first byte that is not UTF-8 is. Where there is no assembly
-/// this is [`core::str::from_utf8`] and there is no erasure.
+/// the check reads one byte at a time: there is no erasure, and no load wider
+/// than a byte either.
 ///
 /// ```
 /// assert!(redoubt_mem::is_utf8("añejo".as_bytes()));
