@@ -226,9 +226,9 @@ fn test_opening_the_master_key_once_leaves_nothing() -> Result<(), AnyError> {
     let report_before = watch.snapshot()?;
 
     forensics!({
-        let key = leak_master_key(WIDE)?;
+        let key = capture(|| leak_master_key(WIDE))?;
 
-        capture(|| core::hint::black_box(key[0]));
+        drop(key);
     });
 
     let report_after = watch.snapshot()?;
