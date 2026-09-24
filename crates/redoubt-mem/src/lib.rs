@@ -57,6 +57,7 @@ extern crate std;
 #[cfg(test)]
 mod tests;
 
+mod backend;
 mod copy;
 mod swap;
 mod utf8;

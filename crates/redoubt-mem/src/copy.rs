@@ -4,31 +4,15 @@
 
 //! Bytes from one place to another, leaving none of them in a register.
 
-// Three paths inside, chosen by length alone: general registers up to 32
-// bytes, SSE or NEON in the middle, and a string move or a wide loop past
-// that. The erasure is a handful of instructions at the end, so it is most of
-// the cost of a short copy and nothing at all in a long one — which is the
-// argument for reaching for this at an API boundary rather than around every
-// copy inside one.
-#[cfg(all(
-    target_family = "unix",
-    any(target_arch = "x86_64", target_arch = "aarch64")
-))]
-unsafe extern "C" {
-    /// The routine itself, in whichever `asm/copy_*.S` was assembled.
-    ///
-    /// # Safety
-    ///
-    /// `src` readable and `dst` writable for `bytes`, and the two ranges must
-    /// not overlap.
-    fn redoubt_copy_bytes(src: *const u8, dst: *mut u8, bytes: usize);
-}
+use redoubt_asm::Backend;
+
+use crate::backend;
 
 /// `count` elements of `T` from `src` to `dst`, with nothing left behind in a
 /// register.
 ///
-/// The same arguments, in the same order, as
-/// [`core::ptr::copy_nonoverlapping`] — count in elements, not bytes.
+/// Takes the arguments of [`core::ptr::copy_nonoverlapping`], in its order:
+/// the count is in elements, not bytes.
 ///
 /// # Safety
 ///
@@ -55,32 +39,32 @@ unsafe extern "C" {
 /// ```
 #[inline]
 pub unsafe fn copy_nonoverlapping<T>(src: *const T, dst: *mut T, count: usize) {
-    #[cfg(all(
-        target_family = "unix",
-        any(target_arch = "x86_64", target_arch = "aarch64")
-    ))]
-    {
-        let bytes = count
-            .checked_mul(core::mem::size_of::<T>())
-            .expect("a copy of more bytes than there are addresses");
+    // SAFETY: the caller's, verbatim.
+    unsafe { copy_nonoverlapping_with_backend(Backend::default(), src, dst, count) };
+}
 
-        // A zero-length copy is a call that does nothing, and for a
-        // zero-sized `T` the pointers are allowed to be dangling — which the
-        // routine would still be handed. Neither is worth a call.
-        if bytes != 0 {
-            // SAFETY: the caller's, verbatim. The cast is between thin
-            // pointers of the same address.
-            unsafe { redoubt_copy_bytes(src.cast(), dst.cast(), bytes) };
-        }
-    }
+/// [`copy_nonoverlapping`], through the backend named.
+///
+/// # Safety
+///
+/// As [`copy_nonoverlapping`].
+#[inline]
+pub(crate) unsafe fn copy_nonoverlapping_with_backend<T>(
+    backend: Backend,
+    src: *const T,
+    dst: *mut T,
+    count: usize,
+) {
+    let bytes = count
+        .checked_mul(core::mem::size_of::<T>())
+        .expect("a copy of more bytes than there are addresses");
 
-    #[cfg(not(all(
-        target_family = "unix",
-        any(target_arch = "x86_64", target_arch = "aarch64")
-    )))]
-    // SAFETY: the caller's, verbatim. No erasure is promised here, and the
-    // crate documentation says so.
-    unsafe {
-        core::ptr::copy_nonoverlapping(src, dst, count);
+    // A zero-length copy is a call that does nothing, and for a zero-sized `T`
+    // the pointers are allowed to be dangling — which the routine would still
+    // be handed. Neither is worth a call.
+    if bytes != 0 {
+        // SAFETY: the caller's, verbatim. The cast is between thin pointers of
+        // the same address.
+        unsafe { backend::copy_bytes(backend, src.cast(), dst.cast(), bytes) };
     }
 }

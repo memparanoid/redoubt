@@ -4,18 +4,9 @@
 
 //! Whether bytes spell UTF-8, leaving none of them in a register.
 
-#[cfg(all(
-    target_family = "unix",
-    any(target_arch = "x86_64", target_arch = "aarch64")
-))]
-unsafe extern "C" {
-    /// The routine itself, in whichever `asm/utf8_*.S` was assembled.
-    ///
-    /// # Safety
-    ///
-    /// `bytes` readable for `len`, and `answer` writable for one byte.
-    fn redoubt_mem_utf8_valid(bytes: *const u8, len: usize, answer: *mut u8);
-}
+use redoubt_asm::Backend;
+
+use crate::backend;
 
 /// Whether `bytes` are UTF-8, as [`core::str::from_utf8`] would answer, with
 /// none of them left behind in a register.
@@ -30,25 +21,11 @@ unsafe extern "C" {
 /// ```
 #[inline]
 pub fn is_utf8(bytes: &[u8]) -> bool {
-    #[cfg(all(
-        target_family = "unix",
-        any(target_arch = "x86_64", target_arch = "aarch64")
-    ))]
-    {
-        let mut answer = 0_u8;
+    is_utf8_with_backend(Backend::default(), bytes)
+}
 
-        // SAFETY: the slice is readable for its own length, which the routine
-        // does not read past, and `answer` is one byte this frame owns.
-        unsafe { redoubt_mem_utf8_valid(bytes.as_ptr(), bytes.len(), &mut answer) };
-
-        answer == 1
-    }
-
-    #[cfg(not(all(
-        target_family = "unix",
-        any(target_arch = "x86_64", target_arch = "aarch64")
-    )))]
-    {
-        core::str::from_utf8(bytes).is_ok()
-    }
+/// [`is_utf8`], through the backend named.
+#[inline]
+pub(crate) fn is_utf8_with_backend(backend: Backend, bytes: &[u8]) -> bool {
+    backend::is_utf8(backend, bytes)
 }

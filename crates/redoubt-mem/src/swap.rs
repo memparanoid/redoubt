@@ -17,34 +17,17 @@
 //! allocation; a swap leaves exactly one owner at each address, which is what
 //! `mem::swap` means.
 
-// Payload lives in `rax`, `rcx` and the low 128 bits of `xmm0-3` on x86_64, in
-// `v0-v3` and `x3-x4` on aarch64, and every exit erases them. A leaf: nothing
-// on the stack, no calls, no callee-saved register touched.
-//
-// Legacy SSE and Advanced SIMD on purpose, as in `copy.rs`: a write to `xmm0`
-// leaves the upper lanes of `zmm0` alone, so a routine that never writes past
-// 128 bits has no upper lanes to erase.
-#[cfg(all(
-    target_family = "unix",
-    any(target_arch = "x86_64", target_arch = "aarch64")
-))]
-unsafe extern "C" {
-    /// The routine itself, in whichever `asm/swap_*.S` was assembled.
-    ///
-    /// # Safety
-    ///
-    /// `a` and `b` readable and writable for `bytes`, and the two ranges must
-    /// not overlap.
-    fn redoubt_mem_swap(a: *mut u8, b: *mut u8, bytes: usize);
-}
+use redoubt_asm::Backend;
+
+use crate::backend;
 
 /// Exchanges two values, with neither left behind in a register.
 ///
-/// The same shape as [`core::mem::swap`], and the same meaning: what each
-/// reference points at afterwards is what the other pointed at before,
-/// including a value that owns a heap allocation. Nothing is dropped and
-/// nothing is moved through Rust, so no temporary of `T` is ever materialised
-/// where the compiler could leave a copy of it.
+/// The shape of [`core::mem::swap`], and its meaning: what each reference
+/// points at afterwards is what the other pointed at before, including a value
+/// that owns a heap allocation. Nothing is dropped and nothing is moved through
+/// Rust, so no temporary of `T` is ever materialised where the compiler could
+/// leave a copy of it.
 ///
 /// # Example
 ///
@@ -59,17 +42,23 @@ unsafe extern "C" {
 /// ```
 #[inline]
 pub fn swap<T>(a: &mut T, b: &mut T) {
+    swap_with_backend(Backend::default(), a, b);
+}
+
+/// [`swap`], through the backend named.
+#[inline]
+pub(crate) fn swap_with_backend<T>(backend: Backend, a: &mut T, b: &mut T) {
     // SAFETY: exclusive references are aligned, valid for reads and writes of
     // one `T`, and cannot overlap.
-    unsafe { swap_nonoverlapping(a, b, 1) };
+    unsafe { swap_nonoverlapping_with_backend(backend, a, b, 1) };
 }
 
 /// `count` elements of `T` exchanged between two disjoint ranges.
 ///
-/// The same arguments, in the same order, as
-/// [`core::ptr::swap_nonoverlapping`] — count in elements, not bytes. Nothing
-/// is allocated and nothing is dropped, and the initialisation state of both
-/// ranges is preserved down to the padding.
+/// Takes the arguments of [`core::ptr::swap_nonoverlapping`], in its order:
+/// the count is in elements, not bytes. Nothing is allocated and nothing is
+/// dropped, and the initialisation state of both ranges is preserved down to
+/// the padding.
 ///
 /// # Safety
 ///
@@ -85,32 +74,32 @@ pub fn swap<T>(a: &mut T, b: &mut T) {
 /// cannot exist.
 #[inline]
 pub unsafe fn swap_nonoverlapping<T>(a: *mut T, b: *mut T, count: usize) {
-    #[cfg(all(
-        target_family = "unix",
-        any(target_arch = "x86_64", target_arch = "aarch64")
-    ))]
-    {
-        let bytes = count
-            .checked_mul(core::mem::size_of::<T>())
-            .expect("a swap of more bytes than there are addresses");
+    // SAFETY: the caller's, verbatim.
+    unsafe { swap_nonoverlapping_with_backend(Backend::default(), a, b, count) };
+}
 
-        // A zero-length swap is a call that does nothing, and for a zero-sized
-        // `T` the pointers are allowed to be dangling — which the routine
-        // would still be handed. Neither is worth a call.
-        if bytes != 0 {
-            // SAFETY: the caller's, verbatim. The cast is between thin
-            // pointers of the same address.
-            unsafe { redoubt_mem_swap(a.cast(), b.cast(), bytes) };
-        }
-    }
+/// [`swap_nonoverlapping`], through the backend named.
+///
+/// # Safety
+///
+/// As [`swap_nonoverlapping`].
+#[inline]
+pub(crate) unsafe fn swap_nonoverlapping_with_backend<T>(
+    backend: Backend,
+    a: *mut T,
+    b: *mut T,
+    count: usize,
+) {
+    let bytes = count
+        .checked_mul(core::mem::size_of::<T>())
+        .expect("a swap of more bytes than there are addresses");
 
-    #[cfg(not(all(
-        target_family = "unix",
-        any(target_arch = "x86_64", target_arch = "aarch64")
-    )))]
-    // SAFETY: the caller's, verbatim. No erasure is promised here, and the
-    // crate documentation says so.
-    unsafe {
-        core::ptr::swap_nonoverlapping(a, b, count);
+    // A zero-length swap is a call that does nothing, and for a zero-sized `T`
+    // the pointers are allowed to be dangling — which the routine would still
+    // be handed. Neither is worth a call.
+    if bytes != 0 {
+        // SAFETY: the caller's, verbatim. The cast is between thin pointers of
+        // the same address.
+        unsafe { backend::swap_bytes(backend, a.cast(), b.cast(), bytes) };
     }
 }

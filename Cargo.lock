@@ -1050,7 +1050,9 @@ dependencies = [
  "cc",
  "libc",
  "proptest",
+ "redoubt-asm",
  "redoubt-forensics",
+ "rstest",
 ]
 
 [[package]]

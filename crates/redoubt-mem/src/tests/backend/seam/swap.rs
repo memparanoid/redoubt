@@ -2,38 +2,21 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! That the swap exchanges exactly what it was asked to, and nothing else.
+//! That both backends exchange exactly what they were asked to, and nothing
+//! else.
 //!
-//! # One target, two files
-//!
-//! A directory under `tests/` is one binary and not one per file, so what is
-//! named here is linked with it. That costs nothing: `nextest` gives every
-//! test function its own process either way.
-//!
-//! # The oracle is `core`, and that is the point
-//!
-//! Every size and alignment is run twice: once through this crate's routine
-//! and once through [`core::ptr::swap_nonoverlapping`], and the two results
-//! are compared. The answer is not read out of this implementation, so a
-//! misreading of its own assembly cannot agree with itself.
-//!
-//! What that does not cover is what the routine leaves behind, which is the
-//! whole reason it exists. `swap_registers.rs` asks that, and `forensics.rs`
-//! asks it of the process.
-//!
-//! # Why whole allocations are compared
-//!
-//! Not the exchanged range: both buffers are compared end to end, so a write
-//! one byte outside what was asked for is a failure here rather than a
-//! puzzling result somewhere else. The guard-page test asks the same question
-//! of the kernel, which answers with a signal.
-
-mod registers;
+//! The oracle is [`core::ptr::swap_nonoverlapping`], run beside each exchange,
+//! so the answer is not read out of the implementation under test. Both
+//! buffers are compared end to end, so a write one byte outside the range is a
+//! failure here; the guard-page test asks the same of a read.
 
 use std::boxed::Box;
 use std::vec::Vec;
 
-use crate::{swap, swap_nonoverlapping};
+use redoubt_asm::Backend;
+use rstest::rstest;
+
+use crate::swap::{swap_nonoverlapping_with_backend, swap_with_backend};
 
 /// Cases that are the same on every run and on every machine.
 ///
@@ -63,7 +46,14 @@ impl Generator {
 /// exchange matches the oracle, that nothing outside the range moved, and that
 /// doing it twice restores both buffers — which catches a routine that writes
 /// the right bytes to the wrong side.
-fn matches_core(a: &mut [u8], b: &mut [u8], offset_a: usize, offset_b: usize, n: usize) {
+fn matches_core(
+    backend: Backend,
+    a: &mut [u8],
+    b: &mut [u8],
+    offset_a: usize,
+    offset_b: usize,
+    n: usize,
+) {
     let original_a = a.to_vec();
     let original_b = b.to_vec();
 
@@ -79,7 +69,8 @@ fn matches_core(a: &mut [u8], b: &mut [u8], offset_a: usize, offset_b: usize, n:
             n,
         );
 
-        swap_nonoverlapping(
+        swap_nonoverlapping_with_backend(
+            backend,
             a.as_mut_ptr().add(offset_a),
             b.as_mut_ptr().add(offset_b),
             n,
@@ -91,7 +82,8 @@ fn matches_core(a: &mut [u8], b: &mut [u8], offset_a: usize, offset_b: usize, n:
 
     // SAFETY: as above, on buffers of the same shape.
     unsafe {
-        swap_nonoverlapping(
+        swap_nonoverlapping_with_backend(
+            backend,
             a.as_mut_ptr().add(offset_a),
             b.as_mut_ptr().add(offset_b),
             n,
@@ -116,8 +108,12 @@ fn matches_core(a: &mut [u8], b: &mut [u8], offset_a: usize, offset_b: usize, n:
 /// path and all of them are here. The offsets are independent because the two
 /// pointers are: a routine that assumed they shared an alignment would pass a
 /// test that moved them together.
-#[test]
-fn test_swap_nonoverlapping_matches_core_at_every_small_size_and_alignment() {
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_swap_nonoverlapping_matches_core_at_every_small_size_and_alignment(
+    #[case] backend: Backend,
+) {
     let mut generator = Generator(0x4db7_629e_c185_3fa1);
 
     let mut a = generator.bytes(384);
@@ -126,7 +122,7 @@ fn test_swap_nonoverlapping_matches_core_at_every_small_size_and_alignment() {
     for n in 0..=256 {
         for offset_a in 0..64 {
             for offset_b in 0..64 {
-                matches_core(&mut a, &mut b, offset_a, offset_b, n);
+                matches_core(backend, &mut a, &mut b, offset_a, offset_b, n);
             }
         }
     }
@@ -137,8 +133,10 @@ fn test_swap_nonoverlapping_matches_core_at_every_small_size_and_alignment() {
 /// Two thousand generated cases and then the sizes either side of sixty-four
 /// kilobytes and of a megabyte by hand, because an off-by-one in the loop
 /// counter shows at a boundary and nowhere else.
-#[test]
-fn test_swap_nonoverlapping_matches_core_at_generated_sizes_and_offsets() {
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_swap_nonoverlapping_matches_core_at_generated_sizes_and_offsets(#[case] backend: Backend) {
     let mut generator = Generator(0xd39a_745b_126f_e801);
 
     for case in 0..2048 {
@@ -154,14 +152,14 @@ fn test_swap_nonoverlapping_matches_core_at_generated_sizes_and_offsets() {
         let mut a = generator.bytes(n + 256);
         let mut b = generator.bytes(n + 256);
 
-        matches_core(&mut a, &mut b, offset_a, offset_b, n);
+        matches_core(backend, &mut a, &mut b, offset_a, offset_b, n);
     }
 
     for n in [65535, 65536, 65537, 1048575, 1048576, 1048577] {
         let mut a = generator.bytes(n + 128);
         let mut b = generator.bytes(n + 128);
 
-        matches_core(&mut a, &mut b, 1, 63, n);
+        matches_core(backend, &mut a, &mut b, 1, 63, n);
     }
 }
 
@@ -171,8 +169,12 @@ fn test_swap_nonoverlapping_matches_core_at_generated_sizes_and_offsets() {
 /// contract, and it is where a routine that walked one pointer too far would
 /// corrupt the other rather than fault. Both orders, because the assembly
 /// advances both pointers and nothing says which is lower.
-#[test]
-fn test_swap_nonoverlapping_exchanges_adjacent_ranges_in_both_address_orders() {
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_swap_nonoverlapping_exchanges_adjacent_ranges_in_both_address_orders(
+    #[case] backend: Backend,
+) {
     for n in 1..=1024 {
         let mut data: Vec<u8> = (0..2 * n + 2)
             .map(|i| ((i * 131) ^ (i >> 8)) as u8)
@@ -186,12 +188,26 @@ fn test_swap_nonoverlapping_exchanges_adjacent_ranges_in_both_address_orders() {
 
         // SAFETY: the two ranges are `n` bytes each inside one allocation of
         // `2n + 2`, starting at 1 and at `n + 1`, so they do not overlap.
-        unsafe { swap_nonoverlapping(data.as_mut_ptr().add(1), data.as_mut_ptr().add(n + 1), n) };
+        unsafe {
+            swap_nonoverlapping_with_backend(
+                backend,
+                data.as_mut_ptr().add(1),
+                data.as_mut_ptr().add(n + 1),
+                n,
+            )
+        };
 
         assert_eq!(data, expected);
 
         // SAFETY: the same two ranges, named the other way round.
-        unsafe { swap_nonoverlapping(data.as_mut_ptr().add(n + 1), data.as_mut_ptr().add(1), n) };
+        unsafe {
+            swap_nonoverlapping_with_backend(
+                backend,
+                data.as_mut_ptr().add(n + 1),
+                data.as_mut_ptr().add(1),
+                n,
+            )
+        };
 
         assert_eq!(data, original);
     }
@@ -203,14 +219,20 @@ fn test_swap_nonoverlapping_exchanges_adjacent_ranges_in_both_address_orders() {
 /// is this crate's to get right. Zero and a zero-sized type are the two cases
 /// where the pointers are allowed to be dangling and the call must not happen
 /// at all.
-#[test]
-fn test_swap_nonoverlapping_counts_in_elements_and_skips_what_has_no_size() {
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_swap_nonoverlapping_counts_in_elements_and_skips_what_has_no_size(
+    #[case] backend: Backend,
+) {
     let mut a = [0x1234_5678_dead_beef_u64; 67];
     let mut b = [0xfedc_ba98_7654_3210_u64; 67];
 
     // SAFETY: 65 elements starting at index 1 of two arrays of 67, which are
     // separate allocations.
-    unsafe { swap_nonoverlapping(a.as_mut_ptr().add(1), b.as_mut_ptr().add(1), 65) };
+    unsafe {
+        swap_nonoverlapping_with_backend(backend, a.as_mut_ptr().add(1), b.as_mut_ptr().add(1), 65)
+    };
 
     assert!(a[1..66].iter().all(|&v| v == 0xfedc_ba98_7654_3210));
     assert!(b[1..66].iter().all(|&v| v == 0x1234_5678_dead_beef));
@@ -220,19 +242,19 @@ fn test_swap_nonoverlapping_counts_in_elements_and_skips_what_has_no_size() {
     assert_eq!(a[0], a[66]);
     assert_eq!(b[0], b[66]);
 
-    swap(&mut (), &mut ());
+    swap_with_backend(backend, &mut (), &mut ());
 
     let dangling = core::ptr::NonNull::<u64>::dangling().as_ptr();
 
     // SAFETY: a count of zero reads and writes nothing, which a dangling
     // pointer is allowed to be handed.
-    unsafe { swap_nonoverlapping(dangling, dangling, 0) };
+    unsafe { swap_nonoverlapping_with_backend(backend, dangling, dangling, 0) };
 
     let zero_sized = core::ptr::NonNull::<()>::dangling().as_ptr();
 
     // SAFETY: every count of a zero-sized type is zero bytes, `usize::MAX`
     // included.
-    unsafe { swap_nonoverlapping(zero_sized, zero_sized, usize::MAX) };
+    unsafe { swap_nonoverlapping_with_backend(backend, zero_sized, zero_sized, usize::MAX) };
 }
 
 // ============================================================================
@@ -249,8 +271,10 @@ fn test_swap_nonoverlapping_counts_in_elements_and_skips_what_has_no_size() {
 ///
 /// The drop count is the other half: a routine that left a third copy
 /// somewhere would drop three times at the end of the test, not two.
-#[test]
-fn test_swap_exchanges_owners_without_dropping_or_duplicating_them() {
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_swap_exchanges_owners_without_dropping_or_duplicating_them(#[case] backend: Backend) {
     use std::cell::Cell;
     use std::rc::Rc;
 
@@ -284,7 +308,7 @@ fn test_swap_exchanges_owners_without_dropping_or_duplicating_them() {
     let address_a = &*a.value as *const u64;
     let address_b = &*b.value as *const u64;
 
-    swap(&mut a, &mut b);
+    swap_with_backend(backend, &mut a, &mut b);
 
     assert_eq!((a.tag, *a.value), (2, 22));
     assert_eq!((b.tag, *b.value), (1, 11));
@@ -310,8 +334,12 @@ fn test_swap_exchanges_owners_without_dropping_or_duplicating_them() {
 ///
 /// The drop count is the other half, as above: a routine that left a third copy
 /// somewhere would drop three times at the end, not two.
-#[test]
-fn test_swap_exchanges_three_word_owners_without_dropping_or_duplicating_them() {
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_swap_exchanges_three_word_owners_without_dropping_or_duplicating_them(
+    #[case] backend: Backend,
+) {
     use std::cell::Cell;
     use std::rc::Rc;
 
@@ -348,7 +376,7 @@ fn test_swap_exchanges_three_word_owners_without_dropping_or_duplicating_them() 
     let capacity_a = a.holding.capacity();
     let capacity_b = b.holding.capacity();
 
-    swap(&mut a, &mut b);
+    swap_with_backend(backend, &mut a, &mut b);
 
     assert_eq!((a.tag, &a.holding[..]), (2, &std::vec![22u8; 64][..]));
     assert_eq!((b.tag, &b.holding[..]), (1, &std::vec![11u8; 3][..]));
@@ -380,8 +408,10 @@ fn test_swap_exchanges_three_word_owners_without_dropping_or_duplicating_them() 
 ///
 /// Both sides own a block, and the lengths differ, so a length that stayed
 /// behind is visible as a length.
-#[test]
-fn test_swap_exchanges_a_three_word_handle_whole() {
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_swap_exchanges_a_three_word_handle_whole(#[case] backend: Backend) {
     let mut a = std::vec![1u8, 2, 3];
     let mut b = std::vec![9u8; 64];
 
@@ -391,7 +421,7 @@ fn test_swap_exchanges_a_three_word_handle_whole() {
     let capacity_a = a.capacity();
     let capacity_b = b.capacity();
 
-    swap(&mut a, &mut b);
+    swap_with_backend(backend, &mut a, &mut b);
 
     assert_eq!(a, std::vec![9u8; 64]);
     assert_eq!(b, std::vec![1u8, 2, 3]);
@@ -414,8 +444,10 @@ fn test_swap_exchanges_a_three_word_handle_whole() {
 /// Every size up to a page, and each range placed at the start and at the end
 /// of its own, so that both edges are against the wall.
 #[cfg(unix)]
-#[test]
-fn test_swap_nonoverlapping_touches_nothing_outside_either_range() {
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_swap_nonoverlapping_touches_nothing_outside_either_range(#[case] backend: Backend) {
     /// One readable page with an unreadable one on each side.
     struct Walled {
         base: *mut u8,
@@ -491,6 +523,7 @@ fn test_swap_nonoverlapping_touches_nothing_outside_either_range() {
             for against_the_end_a in [false, true] {
                 for against_the_end_b in [false, true] {
                     matches_core(
+                        backend,
                         left,
                         right,
                         if against_the_end_a { a.size - n } else { 0 },

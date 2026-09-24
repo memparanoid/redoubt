@@ -26,7 +26,10 @@
 use std::vec;
 use std::vec::Vec;
 
-use crate::copy_nonoverlapping;
+use redoubt_asm::Backend;
+use rstest::rstest;
+
+use crate::copy::copy_nonoverlapping_with_backend;
 
 fn pattern(at: usize) -> u8 {
     (at.wrapping_mul(131) ^ (at >> 8) ^ 0x97) as u8
@@ -100,8 +103,10 @@ impl Drop for Fenced {
 /// Every length from one byte to a whole page, and both ends of both buffers.
 /// A read or a write one byte outside the range is a fault, and a fault here
 /// is the test failing in the loudest way there is.
-#[test]
-fn test_reads_and_writes_nothing_outside_the_range() {
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_reads_and_writes_nothing_outside_the_range(#[case] backend: Backend) {
     let from = Fenced::new();
     let into = Fenced::new();
     let page = from.page;
@@ -125,7 +130,7 @@ fn test_reads_and_writes_nothing_outside_the_range() {
                     let src = from.middle().add(if flush_start { page - of } else { 0 });
                     let dst = into.middle().add(if flush_end { page - of } else { 0 });
 
-                    copy_nonoverlapping(src, dst, of);
+                    copy_nonoverlapping_with_backend(backend, src, dst, of);
 
                     assert_eq!(
                         core::slice::from_raw_parts(src, of),
@@ -144,8 +149,10 @@ fn test_reads_and_writes_nothing_outside_the_range() {
 /// `aarch64`, and the last of those hands the work to a string move that the
 /// tests above never reach. A step that is not a power of two lands on
 /// lengths no boundary is near.
-#[test]
-fn test_moves_the_large_sizes_and_every_threshold() {
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_moves_the_large_sizes_and_every_threshold(#[case] backend: Backend) {
     const MOST: usize = 1 << 18;
 
     let from: Vec<u8> = (0..MOST + 128).map(pattern).collect();
@@ -162,7 +169,14 @@ fn test_moves_the_large_sizes_and_every_threshold() {
 
             // SAFETY: different allocations, and `from` is 128 bytes longer
             // than the largest `of` plus the largest offset.
-            unsafe { copy_nonoverlapping(from.as_ptr().add(at), into.as_mut_ptr().add(to), of) };
+            unsafe {
+                copy_nonoverlapping_with_backend(
+                    backend,
+                    from.as_ptr().add(at),
+                    into.as_mut_ptr().add(to),
+                    of,
+                )
+            };
 
             assert_eq!(
                 &into[to..to + of],
