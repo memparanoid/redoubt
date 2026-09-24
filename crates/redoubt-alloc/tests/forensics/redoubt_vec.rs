@@ -191,10 +191,89 @@ fn test_making_a_redoubt_vec_with_capacity_leaves_nothing() {
 // ============================================================================
 
 #[test]
-#[ignore = "TODO: it takes the secret, and nothing measures it yet."]
-fn test_a_redoubt_vec_from_a_mut_slice_leaves_nothing() {
-    // Intentionally empty.
+fn test_a_redoubt_vec_from_a_mut_slice_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = vec![0_u8; SECRET.len()];
+
+    giving(&mut source);
+
+    forensics!({
+        let held = capture(|| RedoubtVec::from_mut_slice(&mut source));
+
+        core::mem::forget(held);
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "a vec made from a slice, and kept");
+
+    drop(core::hint::black_box(source));
+
+    Ok(())
 }
+
+macro_rules! a_redoubt_vec_from_a_mut_slice {
+    ($name:ident, $of:expr) => {
+        #[test]
+        fn $name() -> Result<(), AnyError> {
+            let mut watch = Forensics::watching(&backwards())?;
+
+            let report_before = watch.snapshot()?;
+
+            let mut source = vec![0_u8; $of];
+
+            giving(&mut source);
+
+            forensics!({
+                let held = capture(|| RedoubtVec::from_mut_slice(&mut source));
+
+                drop(held);
+            });
+
+            drop(core::hint::black_box(source));
+
+            let report_after = watch.snapshot()?;
+
+            leaves_nothing(
+                &report_before,
+                &report_after,
+                &format!("a vec made from a slice of {} bytes", $of),
+            );
+
+            Ok(())
+        }
+    };
+}
+
+a_redoubt_vec_from_a_mut_slice!(test_a_redoubt_vec_from_a_mut_slice_of_32_leaves_nothing, 32);
+a_redoubt_vec_from_a_mut_slice!(test_a_redoubt_vec_from_a_mut_slice_of_64_leaves_nothing, 64);
+a_redoubt_vec_from_a_mut_slice!(test_a_redoubt_vec_from_a_mut_slice_of_128_leaves_nothing, 128);
+a_redoubt_vec_from_a_mut_slice!(test_a_redoubt_vec_from_a_mut_slice_of_512_leaves_nothing, 512);
+a_redoubt_vec_from_a_mut_slice!(
+    test_a_redoubt_vec_from_a_mut_slice_of_1024_leaves_nothing,
+    1024
+);
+a_redoubt_vec_from_a_mut_slice!(
+    test_a_redoubt_vec_from_a_mut_slice_of_4096_leaves_nothing,
+    4096
+);
+a_redoubt_vec_from_a_mut_slice!(
+    test_a_redoubt_vec_from_a_mut_slice_of_8192_leaves_nothing,
+    8192
+);
+a_redoubt_vec_from_a_mut_slice!(
+    test_a_redoubt_vec_from_a_mut_slice_of_16384_leaves_nothing,
+    16384
+);
+a_redoubt_vec_from_a_mut_slice!(
+    test_a_redoubt_vec_from_a_mut_slice_of_32768_leaves_nothing,
+    32768
+);
+a_redoubt_vec_from_a_mut_slice!(
+    test_a_redoubt_vec_from_a_mut_slice_of_65536_leaves_nothing,
+    65536
+);
 
 // ============================================================================
 // RedoubtVec::len
@@ -534,11 +613,52 @@ a_redoubt_vec_drained_into!(
 // RedoubtVec::clear
 // ============================================================================
 
-#[test]
-#[ignore = "TODO: it removes the secret, and nothing measures it yet."]
-fn test_a_redoubt_vec_cleared_leaves_nothing() {
-    // Intentionally empty.
+macro_rules! a_redoubt_vec_cleared {
+    ($name:ident, $of:expr) => {
+        #[test]
+        fn $name() -> Result<(), AnyError> {
+            let mut watch = Forensics::watching(&backwards())?;
+
+            let report_before = watch.snapshot()?;
+
+            let mut source = vec![0_u8; $of];
+
+            giving(&mut source);
+
+            forensics!({
+                let mut held = RedoubtVec::<u8>::new();
+                held.replace_from_mut_slice(&mut source);
+
+                capture(|| held.clear());
+
+                drop(held);
+            });
+
+            drop(core::hint::black_box(source));
+
+            let report_after = watch.snapshot()?;
+
+            leaves_nothing(
+                &report_before,
+                &report_after,
+                &format!("a vec of {} bytes cleared", $of),
+            );
+
+            Ok(())
+        }
+    };
 }
+
+a_redoubt_vec_cleared!(test_a_redoubt_vec_of_32_cleared_leaves_nothing, 32);
+a_redoubt_vec_cleared!(test_a_redoubt_vec_of_64_cleared_leaves_nothing, 64);
+a_redoubt_vec_cleared!(test_a_redoubt_vec_of_128_cleared_leaves_nothing, 128);
+a_redoubt_vec_cleared!(test_a_redoubt_vec_of_512_cleared_leaves_nothing, 512);
+a_redoubt_vec_cleared!(test_a_redoubt_vec_of_1024_cleared_leaves_nothing, 1024);
+a_redoubt_vec_cleared!(test_a_redoubt_vec_of_4096_cleared_leaves_nothing, 4096);
+a_redoubt_vec_cleared!(test_a_redoubt_vec_of_8192_cleared_leaves_nothing, 8192);
+a_redoubt_vec_cleared!(test_a_redoubt_vec_of_16384_cleared_leaves_nothing, 16384);
+a_redoubt_vec_cleared!(test_a_redoubt_vec_of_32768_cleared_leaves_nothing, 32768);
+a_redoubt_vec_cleared!(test_a_redoubt_vec_of_65536_cleared_leaves_nothing, 65536);
 
 // ============================================================================
 // RedoubtVec::as_slice
