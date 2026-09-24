@@ -115,6 +115,8 @@ where
         match *size {
             0 => {
                 // None
+                self.fast_zeroize();
+
                 *self = None;
             }
             1 => {
