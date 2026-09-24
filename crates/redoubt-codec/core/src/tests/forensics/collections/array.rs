@@ -11,13 +11,16 @@ use redoubt_forensics::{AnyError, Forensics, capture, forensics};
 use redoubt_zero::FastZeroizable;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
+use crate::collections::array::{cleanup_decode_error, cleanup_encode_error};
 use crate::error::{DecodeError, EncodeError};
 use crate::traits::{
     BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, TryDecode, TryEncode,
 };
 
 use crate::tests::forensics::support::needles::backwards;
-use crate::tests::forensics::support::{giving, is_found, leaves_nothing};
+use crate::tests::forensics::support::{
+    a_buffer_holding, giving, is_found, leaves_nothing, secret_bytes,
+};
 
 type Held = [u8; 32];
 
@@ -55,6 +58,72 @@ fn two_wire() -> Result<Vec<u8>, AnyError> {
     Held::encode_slice_into(&mut *two, &mut buffer)?;
 
     Ok(buffer.export_as_vec())
+}
+
+// ============================================================================
+// cleanup_encode_error
+// ============================================================================
+
+#[test]
+fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
+    let mut held = held();
+    let mut buffer = a_buffer_holding()?;
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    forensics!({
+        capture(|| cleanup_encode_error(&mut held,&mut buffer));
+
+        // CORRECTNESS: after the capture. A call made before it writes over the
+        // stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
+        //
+        // Forgotten and not emptied: emptying them is the operation's.
+        core::mem::forget((held, buffer));
+    });
+
+    leaves_nothing(
+        &report_before,
+        "an array and a buffer holding the secret",
+        &watch.snapshot()?,
+        "cleaning up a refused encode",
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// cleanup_decode_error
+// ============================================================================
+
+#[test]
+fn test_cleaning_up_a_refused_decode_leaves_nothing() -> Result<(), AnyError> {
+    let mut held = held();
+    let mut wire = secret_bytes(64);
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    forensics!({
+        capture(|| cleanup_decode_error(&mut held,&mut wire.as_mut_slice()));
+
+        // CORRECTNESS: after the capture. A call made before it writes over the
+        // stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
+        //
+        // Forgotten and not emptied: emptying them is the operation's.
+        core::mem::forget((held, wire));
+    });
+
+    leaves_nothing(
+        &report_before,
+        "an array and a wire holding the secret",
+        &watch.snapshot()?,
+        "cleaning up a refused decode",
+    );
+
+    Ok(())
 }
 
 // ============================================================================

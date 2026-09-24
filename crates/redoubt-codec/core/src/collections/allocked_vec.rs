@@ -18,7 +18,7 @@ use super::helpers::{header_size, process_header, write_header};
 /// Cleanup function for encode errors. Marked #[cold] to keep it out of the hot path.
 #[cold]
 #[inline(never)]
-fn cleanup_encode_error<T>(vec: &mut AllockedVec<T>, buf: &mut RedoubtCodecBuffer)
+pub(crate) fn cleanup_encode_error<T>(vec: &mut AllockedVec<T>, buf: &mut RedoubtCodecBuffer)
 where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
 {
@@ -29,7 +29,7 @@ where
 /// Cleanup function for decode errors. Marked #[cold] to keep it out of the hot path.
 #[cold]
 #[inline(never)]
-fn cleanup_decode_error<T>(vec: &mut AllockedVec<T>, buf: &mut &mut [u8])
+pub(crate) fn cleanup_decode_error<T>(vec: &mut AllockedVec<T>, buf: &mut &mut [u8])
 where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
 {

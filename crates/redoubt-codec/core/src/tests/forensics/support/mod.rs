@@ -4,7 +4,10 @@
 
 pub(crate) mod needles;
 
-use redoubt_forensics::{QUIET, Report};
+use redoubt_forensics::{AnyError, QUIET, Report};
+use redoubt_zero::FastZeroizable;
+
+use crate::codec_buffer::RedoubtCodecBuffer;
 
 use needles::SECRET;
 
@@ -16,6 +19,27 @@ pub(crate) fn giving(into: &mut [u8]) {
         // local are different allocations.
         unsafe { redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), one.as_mut_ptr(), one.len()) };
     }
+}
+
+/// `of` bytes of the secret, over and over.
+pub(crate) fn secret_bytes(of: usize) -> Vec<u8> {
+    let mut bytes = vec![0_u8; of];
+
+    giving(&mut bytes);
+
+    bytes
+}
+
+/// A buffer holding thirty-two bytes of the secret.
+pub(crate) fn a_buffer_holding() -> Result<RedoubtCodecBuffer, AnyError> {
+    let mut source = secret_bytes(32);
+    let mut buffer = RedoubtCodecBuffer::with_capacity(32);
+
+    buffer.write_slice(&mut source)?;
+
+    source.fast_zeroize();
+
+    Ok(buffer)
 }
 
 /// Sixteen bytes of the secret in a `u128`, the widest primitive.

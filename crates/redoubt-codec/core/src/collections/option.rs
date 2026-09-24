@@ -14,7 +14,7 @@ use super::helpers::{header_size, process_header, write_header};
 /// Cleanup function for encode errors. Marked #[cold] to keep it out of the hot path.
 #[cold]
 #[inline(never)]
-fn cleanup_encode_error<T: FastZeroizable + ZeroizeMetadata>(
+pub(crate) fn cleanup_encode_error<T: FastZeroizable + ZeroizeMetadata>(
     opt: &mut Option<T>,
     buf: &mut RedoubtCodecBuffer,
 ) {
@@ -25,7 +25,7 @@ fn cleanup_encode_error<T: FastZeroizable + ZeroizeMetadata>(
 /// Cleanup function for decode errors. Marked #[cold] to keep it out of the hot path.
 #[cold]
 #[inline(never)]
-fn cleanup_decode_error<T: FastZeroizable + ZeroizeMetadata>(
+pub(crate) fn cleanup_decode_error<T: FastZeroizable + ZeroizeMetadata>(
     opt: &mut Option<T>,
     buf: &mut &mut [u8],
 ) {

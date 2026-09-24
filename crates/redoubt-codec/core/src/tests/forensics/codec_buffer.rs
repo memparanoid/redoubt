@@ -13,26 +13,9 @@ use redoubt_zero::FastZeroizable;
 use crate::codec_buffer::RedoubtCodecBuffer;
 
 use crate::tests::forensics::support::needles::{backwards, half_backwards};
-use crate::tests::forensics::support::{a_u128, giving, hold_on, is_found, leaves_nothing, let_go};
-
-fn source() -> Vec<u8> {
-    let mut source = vec![0_u8; 32];
-
-    giving(&mut source);
-
-    source
-}
-
-fn holding() -> Result<RedoubtCodecBuffer, AnyError> {
-    let mut source = source();
-    let mut buffer = RedoubtCodecBuffer::with_capacity(32);
-
-    buffer.write_slice(&mut source)?;
-
-    source.fast_zeroize();
-
-    Ok(buffer)
-}
+use crate::tests::forensics::support::{
+    a_buffer_holding, a_u128, hold_on, is_found, leaves_nothing, let_go, secret_bytes,
+};
 
 // ============================================================================
 // RedoubtCodecBuffer::drop
@@ -40,7 +23,7 @@ fn holding() -> Result<RedoubtCodecBuffer, AnyError> {
 
 #[test]
 fn test_a_buffer_dropped_leaves_nothing() -> Result<(), AnyError> {
-    let buffer = holding()?;
+    let buffer = a_buffer_holding()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
@@ -69,7 +52,7 @@ fn test_a_buffer_dropped_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_a_buffer_given_away_is_found_while_it_is_kept() -> Result<(), AnyError> {
-    let buffer = holding()?;
+    let buffer = a_buffer_holding()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
@@ -87,7 +70,7 @@ fn test_a_buffer_given_away_is_found_while_it_is_kept() -> Result<(), AnyError> 
 
 #[test]
 fn test_a_buffer_given_away_leaves_nothing() -> Result<(), AnyError> {
-    let buffer = holding()?;
+    let buffer = a_buffer_holding()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
@@ -136,7 +119,7 @@ fn test_making_a_buffer_leaves_nothing() {
 
 #[test]
 fn test_reallocating_a_buffer_leaves_nothing() -> Result<(), AnyError> {
-    let mut buffer = holding()?;
+    let mut buffer = a_buffer_holding()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
@@ -168,7 +151,7 @@ fn test_reallocating_a_buffer_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_clearing_a_buffer_leaves_nothing() -> Result<(), AnyError> {
-    let mut buffer = holding()?;
+    let mut buffer = a_buffer_holding()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
@@ -296,7 +279,7 @@ fn test_writing_a_value_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_what_writing_a_slice_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
-    let mut source = source();
+    let mut source = secret_bytes(32);
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
@@ -317,7 +300,7 @@ fn test_what_writing_a_slice_wrote_is_found_while_the_buffer_holds_it() -> Resul
 
 #[test]
 fn test_writing_a_slice_leaves_nothing() -> Result<(), AnyError> {
-    let mut source = source();
+    let mut source = secret_bytes(32);
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
@@ -352,7 +335,7 @@ fn test_writing_a_slice_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_what_exporting_wrote_is_found_while_the_vec_holds_it() -> Result<(), AnyError> {
-    let mut buffer = holding()?;
+    let mut buffer = a_buffer_holding()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
@@ -370,7 +353,7 @@ fn test_what_exporting_wrote_is_found_while_the_vec_holds_it() -> Result<(), Any
 
 #[test]
 fn test_exporting_leaves_nothing() -> Result<(), AnyError> {
-    let mut buffer = holding()?;
+    let mut buffer = a_buffer_holding()?;
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
