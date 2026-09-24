@@ -50,14 +50,9 @@ where
         }
 
         // Move new value from source
-        let mut new_value = T::default();
+        let slot = self.inner.get_or_insert_with(T::default);
 
-        // SAFETY: both are `&mut T`, so each is live and aligned for one, and
-        // `new_value` is a local the caller cannot also be holding.
-        unsafe {
-            core::ptr::swap_nonoverlapping(value, &mut new_value, 1);
-        }
-        self.inner = Some(new_value);
+        redoubt_mem::swap(value, slot);
 
         // Zeroize source
         value.fast_zeroize();

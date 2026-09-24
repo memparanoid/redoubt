@@ -244,8 +244,12 @@ where
     {
         self.maybe_grow_to(self.len() + 1);
 
-        let item = core::mem::take(src);
-        self.inner.push(item);
+        let at = self.inner.len();
+
+        self.inner.push(T::default());
+
+        redoubt_mem::swap(src, &mut self.inner[at]);
+
         src.fast_zeroize();
     }
 

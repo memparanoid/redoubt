@@ -186,6 +186,111 @@ a_redoubt_vec_extended!(test_a_redoubt_vec_extended_to_32768_leaves_nothing, 327
 a_redoubt_vec_extended!(test_a_redoubt_vec_extended_to_65536_leaves_nothing, 65536);
 
 // ============================================================================
+// RedoubtVec::drain_value
+// ============================================================================
+
+fn wide_values(of: usize) -> Vec<u128> {
+    let mut values = vec![0_u128; (of / core::mem::size_of::<u128>()).max(2)];
+
+    // SAFETY: a `u128` has no invalid bit pattern, and the byte view covers
+    // exactly the allocation `values` owns.
+    let bytes = unsafe {
+        core::slice::from_raw_parts_mut(
+            values.as_mut_ptr().cast::<u8>(),
+            values.len() * core::mem::size_of::<u128>(),
+        )
+    };
+
+    giving(bytes);
+
+    values
+}
+
+#[test]
+fn test_a_redoubt_vec_drained_into_is_found_while_it_holds_it() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = wide_values(SECRET.len());
+
+    forensics!({
+        let mut held = RedoubtVec::<u128>::new();
+
+        capture(|| {
+            for one in &mut source {
+                held.drain_value(one);
+            }
+        });
+
+        core::mem::forget(held);
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "a vec drained into, and kept");
+
+    drop(core::hint::black_box(source));
+
+    Ok(())
+}
+
+macro_rules! a_redoubt_vec_drained_into {
+    ($name:ident, $of:expr) => {
+        #[test]
+        fn $name() -> Result<(), AnyError> {
+            let mut watch = Forensics::watching(&backwards())?;
+
+            let report_before = watch.snapshot()?;
+
+            let mut source = wide_values($of);
+
+            forensics!({
+                let mut held = RedoubtVec::<u128>::new();
+
+                capture(|| {
+                    for one in &mut source {
+                        held.drain_value(one);
+                    }
+                });
+
+                drop(held);
+            });
+
+            drop(core::hint::black_box(source));
+
+            let report_after = watch.snapshot()?;
+
+            leaves_nothing(
+                &report_before,
+                &report_after,
+                &format!("a vec drained into to {} bytes", $of),
+            );
+
+            Ok(())
+        }
+    };
+}
+
+a_redoubt_vec_drained_into!(test_a_redoubt_vec_drained_into_to_32_leaves_nothing, 32);
+a_redoubt_vec_drained_into!(test_a_redoubt_vec_drained_into_to_64_leaves_nothing, 64);
+a_redoubt_vec_drained_into!(test_a_redoubt_vec_drained_into_to_128_leaves_nothing, 128);
+a_redoubt_vec_drained_into!(test_a_redoubt_vec_drained_into_to_512_leaves_nothing, 512);
+a_redoubt_vec_drained_into!(test_a_redoubt_vec_drained_into_to_1024_leaves_nothing, 1024);
+a_redoubt_vec_drained_into!(test_a_redoubt_vec_drained_into_to_4096_leaves_nothing, 4096);
+a_redoubt_vec_drained_into!(test_a_redoubt_vec_drained_into_to_8192_leaves_nothing, 8192);
+a_redoubt_vec_drained_into!(
+    test_a_redoubt_vec_drained_into_to_16384_leaves_nothing,
+    16384
+);
+a_redoubt_vec_drained_into!(
+    test_a_redoubt_vec_drained_into_to_32768_leaves_nothing,
+    32768
+);
+a_redoubt_vec_drained_into!(
+    test_a_redoubt_vec_drained_into_to_65536_leaves_nothing,
+    65536
+);
+
+// ============================================================================
 // RedoubtVec: ownership
 // ============================================================================
 

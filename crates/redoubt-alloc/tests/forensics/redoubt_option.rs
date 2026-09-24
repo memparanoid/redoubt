@@ -4,9 +4,10 @@
 
 use redoubt_alloc::{RedoubtOption, RedoubtVec};
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_zero::FastZeroizable;
 
 use crate::support::needles::{SECRET, backwards};
-use crate::support::{giving, hold_on, is_found, leaves_nothing, let_go};
+use crate::support::{Block, giving, hold_on, is_found, leaves_nothing, let_go};
 
 // ============================================================================
 // RedoubtOption::replace
@@ -108,6 +109,60 @@ a_redoubt_option_replaced!(
     test_a_redoubt_option_replaced_of_65536_leaves_nothing,
     65536
 );
+
+#[test]
+fn test_a_redoubt_option_of_a_block_replaced_is_found_while_it_holds_it() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source: Box<Block> = Box::new([0; SECRET.len()]);
+
+    giving(&mut source[..]);
+
+    forensics!({
+        let mut held = Box::new(RedoubtOption::<Block>::default());
+        capture(|| held.replace(&mut source));
+
+        core::mem::forget(held);
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "an option of a block replaced, and kept");
+
+    drop(core::hint::black_box(source));
+
+    Ok(())
+}
+
+#[test]
+fn test_a_redoubt_option_of_a_block_replaced_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source: Box<Block> = Box::new([0; SECRET.len()]);
+
+    giving(&mut source[..]);
+
+    forensics!({
+        let mut held = Box::new(RedoubtOption::<Block>::default());
+        capture(|| held.replace(&mut source));
+
+        held.fast_zeroize();
+    });
+
+    drop(core::hint::black_box(source));
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        &report_after,
+        "an option of a block replaced",
+    );
+
+    Ok(())
+}
 
 // ============================================================================
 // RedoubtOption: ownership
