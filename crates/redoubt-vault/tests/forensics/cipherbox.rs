@@ -33,11 +33,11 @@ struct Secret {
 
 /// Fills every field inside one `open_mut`, from sources the containers empty.
 fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
-    into.open_mut(|it| {
+    into.open_mut(|secret| {
         let mut source = [0_u8; 32];
 
         giving(&mut source);
-        it.an_array.replace_from_mut_array(&mut source);
+        secret.an_array.replace_from_mut_array(&mut source);
 
         // Replaced and not extended: extending appends, so filling twice would
         // leave one more copy of the secret per round by the test's own doing.
@@ -45,7 +45,7 @@ fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
 
         giving(&mut source);
 
-        it.a_vec.replace_from_mut_slice(&mut source);
+        secret.a_vec.replace_from_mut_slice(&mut source);
 
         // Room asked for up front, so the replace below never reaches
         // `grow_to`: a payload this size with no growth tells a leak in the
@@ -56,7 +56,7 @@ fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
         giving(&mut source);
 
         inner.replace_from_mut_slice(&mut source);
-        it.an_option.replace(&mut inner);
+        secret.an_option.replace(&mut inner);
 
         let mut source = [0_u8; 32];
         let mut inner = RedoubtArray::<u8, 32>::default();
@@ -67,7 +67,7 @@ fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
         let mut wrapped = RedoubtOption::<RedoubtArray<u8, 32>>::default();
 
         wrapped.replace(&mut inner);
-        it.two_options.replace(&mut wrapped);
+        secret.two_options.replace(&mut wrapped);
 
         Ok(())
     })?;
@@ -251,8 +251,8 @@ fn test_open_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
-                secrets_box.open(|it| {
-                    core::hint::black_box(it.an_array.as_slice()[0]);
+                secrets_box.open(|secret| {
+                    core::hint::black_box(secret.an_array.as_slice()[0]);
 
                     Ok(())
                 })?;
@@ -336,8 +336,8 @@ fn test_open_mut_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
-                secrets_box.open_mut(|it| {
-                    it.an_array.as_mut_slice()[0] ^= 0;
+                secrets_box.open_mut(|secret| {
+                    secret.an_array.as_mut_slice()[0] ^= 0;
 
                     Ok(())
                 })?;
@@ -707,8 +707,8 @@ fn test_open_a_vec_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
-                secrets_box.open_a_vec(|it| {
-                    core::hint::black_box(it.len());
+                secrets_box.open_a_vec(|secret| {
+                    core::hint::black_box(secret.len());
 
                     Ok(())
                 })?;
@@ -792,8 +792,8 @@ fn test_open_an_array_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
-                secrets_box.open_an_array(|it| {
-                    core::hint::black_box(it.len());
+                secrets_box.open_an_array(|secret| {
+                    core::hint::black_box(secret.len());
 
                     Ok(())
                 })?;
@@ -877,8 +877,8 @@ fn test_open_an_option_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
-                secrets_box.open_an_option(|it| {
-                    core::hint::black_box(it.as_ref().is_some());
+                secrets_box.open_an_option(|secret| {
+                    core::hint::black_box(secret.as_ref().is_some());
 
                     Ok(())
                 })?;
@@ -962,8 +962,8 @@ fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
-                secrets_box.open_two_options(|it| {
-                    core::hint::black_box(it.as_ref().is_some());
+                secrets_box.open_two_options(|secret| {
+                    core::hint::black_box(secret.as_ref().is_some());
 
                     Ok(())
                 })?;
@@ -1048,8 +1048,8 @@ fn test_open_a_vec_mut_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
-                secrets_box.open_a_vec_mut(|it| {
-                    core::hint::black_box(it.len());
+                secrets_box.open_a_vec_mut(|secret| {
+                    core::hint::black_box(secret.len());
 
                     Ok(())
                 })?;
@@ -1133,8 +1133,8 @@ fn test_open_an_array_mut_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
-                secrets_box.open_an_array_mut(|it| {
-                    core::hint::black_box(it.len());
+                secrets_box.open_an_array_mut(|secret| {
+                    core::hint::black_box(secret.len());
 
                     Ok(())
                 })?;
@@ -1219,8 +1219,8 @@ fn test_open_an_option_mut_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
-                secrets_box.open_an_option_mut(|it| {
-                    core::hint::black_box(it.as_ref().is_some());
+                secrets_box.open_an_option_mut(|secret| {
+                    core::hint::black_box(secret.as_ref().is_some());
 
                     Ok(())
                 })?;
@@ -1305,8 +1305,8 @@ fn test_open_field_mut_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
-                secrets_box.open_two_options_mut(|it| {
-                    core::hint::black_box(it.as_ref().is_some());
+                secrets_box.open_two_options_mut(|secret| {
+                    core::hint::black_box(secret.as_ref().is_some());
 
                     Ok(())
                 })?;

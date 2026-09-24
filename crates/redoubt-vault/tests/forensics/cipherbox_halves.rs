@@ -55,11 +55,11 @@ fn value(of: usize) -> OneField {
 
     giving(&mut source);
 
-    let mut it = OneField::default();
+    let mut one_field = OneField::default();
 
-    it.all_of_it.replace_from_mut_slice(&mut source);
+    one_field.all_of_it.replace_from_mut_slice(&mut source);
 
-    it
+    one_field
 }
 
 /// An empty box and the key it works with.
@@ -95,9 +95,9 @@ fn test_the_value_encrypting_is_handed_is_found_while_it_holds_it() -> Result<()
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let it = capture(|| value(32));
+        let plaintext = capture(|| value(32));
 
-        core::mem::forget(it);
+        core::mem::forget(plaintext);
     });
 
     let report = watch.snapshot()?;
@@ -119,11 +119,11 @@ macro_rules! encrypted {
             let report_before = watch.snapshot()?;
 
             forensics!({
-                let mut it = value($of);
+                let mut plaintext = value($of);
 
-                capture(|| one_field_box.inner.encrypt_struct(&key, &mut it))?;
+                capture(|| one_field_box.inner.encrypt_struct(&key, &mut plaintext))?;
 
-                core::mem::forget(it);
+                core::mem::forget(plaintext);
             });
 
             let report_after = watch.snapshot()?;
@@ -163,17 +163,17 @@ fn test_what_was_decrypted_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let mut it = value(32);
+        let mut plaintext = value(32);
 
-        one_field_box.inner.encrypt_struct(&key, &mut it)?;
+        one_field_box.inner.encrypt_struct(&key, &mut plaintext)?;
 
-        it.fast_zeroize();
+        plaintext.fast_zeroize();
 
         let back = capture(|| one_field_box.inner.decrypt_struct(&key))?;
 
         core::mem::forget(back);
 
-        drop(it);
+        drop(plaintext);
     });
 
     let report = watch.snapshot()?;
@@ -199,16 +199,16 @@ macro_rules! decrypted {
             let report_before = watch.snapshot()?;
 
             forensics!({
-                let mut it = value($of);
+                let mut plaintext = value($of);
 
-                one_field_box.inner.encrypt_struct(&key, &mut it)?;
+                one_field_box.inner.encrypt_struct(&key, &mut plaintext)?;
 
-                it.fast_zeroize();
+                plaintext.fast_zeroize();
 
                 let back = capture(|| one_field_box.inner.decrypt_struct(&key))?;
 
                 drop(back);
-                drop(it);
+                drop(plaintext);
             });
 
             let report_after = watch.snapshot()?;
