@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Both backends are measured here: the portable check reads one byte at a
-//! time, volatile, and so makes a claim a sweep can hold it to.
+//! Both backends are measured here. The portable check is not clean: it reads
+//! one byte at a time and leaves the last it read in a register. The
+//! alternative would be `core::str::from_utf8`, which leaves the whole text;
+//! what is asserted of this one is that nothing wider than `QUIET` survives.
 
 use redoubt_asm::Backend;
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
