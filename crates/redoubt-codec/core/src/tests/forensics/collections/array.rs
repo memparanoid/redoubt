@@ -73,7 +73,7 @@ fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
     let report_before = watch.snapshot()?;
 
     forensics!({
-        capture(|| cleanup_encode_error(&mut held,&mut buffer));
+        capture(|| cleanup_encode_error(&mut held, &mut buffer));
 
         // CORRECTNESS: after the capture. A call made before it writes over the
         // stack and the registers the operation left, and then the absence
@@ -106,7 +106,7 @@ fn test_cleaning_up_a_refused_decode_leaves_nothing() -> Result<(), AnyError> {
     let report_before = watch.snapshot()?;
 
     forensics!({
-        capture(|| cleanup_decode_error(&mut held,&mut wire.as_mut_slice()));
+        capture(|| cleanup_decode_error(&mut held, &mut wire.as_mut_slice()));
 
         // CORRECTNESS: after the capture. A call made before it writes over the
         // stack and the registers the operation left, and then the absence
