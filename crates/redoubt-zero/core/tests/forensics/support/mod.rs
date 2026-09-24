@@ -9,15 +9,9 @@ use redoubt_zero_core::{FastZeroizable, ZeroizationProbe};
 
 use needles::SECRET;
 
-/// Four kilobytes inline, which is the shape the guard cannot be handed
-/// directly.
-///
-/// `ZeroizingGuard` needs `T: Default`, and `std` implements `Default` for
-/// `[T; N]` only up to thirty-two — so the largest inline array it takes is
-/// exactly the size at which a swap is still a handful of registers. A caller
-/// with a larger key reaches it the way this does, through a type of their own,
-/// and the swap that moves it is then a call into the C library with four
-/// kilobytes of secret in it.
+/// Four kilobytes inline. `std` implements `Default` for arrays only up to
+/// thirty-two elements, so a larger key reaches `ZeroizingGuard` through a type
+/// of its own, and the swap that moves it is a call into the C library.
 pub(crate) struct Wide(pub(crate) [u8; 4096]);
 
 impl Default for Wide {
@@ -78,11 +72,8 @@ pub(crate) fn is_found(report: &Report, what: &str) {
     );
 }
 
-/// The three things an absence has to survive.
-///
-/// The whole secret is gone, no piece of it wider than chance is left, and the
-/// score did not move. One of the three on its own would pass a process that
-/// kept half of it, or kept all of it somewhere the score weighs at nothing.
+/// Asserts the secret is gone: not whole, no run past `QUIET`, and a score that
+/// did not move. Each alone passes a process that kept part of it.
 pub(crate) fn leaves_nothing(report_before: &Report, report_after: &Report, what: &str) {
     println!();
     report_before.summary("nothing guarded yet");

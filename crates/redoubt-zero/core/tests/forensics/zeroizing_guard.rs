@@ -2,29 +2,284 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! # Why each `T` is its own set of sections
+//! # Why each section asks about three `T`
 //!
-//! `ZeroizingGuard::from_mut` is a `mem::swap` between the caller's value and a
-//! freshly boxed default, and what that swap moves depends entirely on `T`.
-//!
-//! A `Vec<u8>` is a pointer, a length and a capacity: the swap moves
-//! twenty-four bytes of header and the secret never leaves the heap block it
-//! was already in. An inline `[u8; 32]` has no header — the swap moves the
-//! secret itself, through whatever the compiler picked to move it with. Four
-//! kilobytes inline is a third question again: at that size the move is a call
-//! into the C library with the secret as its argument.
-//!
-//! Those are three different questions with one name on them, and a single test
-//! answering all three would say which only by accident.
+//! `ZeroizingGuard::from_mut` swaps the caller's value with a boxed default,
+//! and what the swap moves depends on `T`: a `Vec<u8>` moves its header and the
+//! secret stays in its heap block; `[u8; 32]` moves the secret itself through
+//! registers; four kilobytes inline moves through a call into the C library.
 
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
-use redoubt_zero_core::ZeroizingGuard;
+use redoubt_zero_core::{FastZeroizable, ZeroizationProbe, ZeroizingGuard};
 
 use crate::support::needles::{SECRET, backwards};
-use crate::support::{Wide, giving, is_found, leaves_nothing, let_go};
+use crate::support::{Wide, giving, hold_on, is_found, leaves_nothing, let_go};
 
 // ============================================================================
-// ZeroizingGuard<Vec<u8>>::from_mut
+// ZeroizingGuard::drop
+// ============================================================================
+
+#[test]
+fn test_dropping_a_guarded_vec_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source = vec![0_u8; SECRET.len()];
+
+    giving(&mut source);
+
+    forensics!({
+        let guard = ZeroizingGuard::from_mut(&mut source);
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
+        capture(|| drop(guard));
+    });
+
+    drop(core::hint::black_box(source));
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(&report_before, &report_after, "a guarded vec dropped");
+
+    Ok(())
+}
+
+#[test]
+fn test_dropping_a_guarded_array_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source = [0_u8; 32];
+
+    giving(&mut source);
+
+    forensics!({
+        let guard = ZeroizingGuard::from_mut(&mut source);
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
+        capture(|| drop(guard));
+    });
+
+    core::hint::black_box(&source);
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(&report_before, &report_after, "a guarded array dropped");
+
+    Ok(())
+}
+
+#[test]
+fn test_dropping_a_guarded_wide_value_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source = Wide::default();
+
+    giving(&mut source.0);
+
+    forensics!({
+        let guard = ZeroizingGuard::from_mut(&mut source);
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
+        capture(|| drop(guard));
+    });
+
+    core::hint::black_box(&source);
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(&report_before, &report_after, "four kilobytes dropped");
+
+    Ok(())
+}
+
+// ============================================================================
+// ZeroizingGuard: ownership
+// ============================================================================
+
+#[test]
+fn test_a_guarded_vec_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = vec![0_u8; SECRET.len()];
+
+    giving(&mut source);
+
+    forensics!({
+        let guard = ZeroizingGuard::from_mut(&mut source);
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
+        capture(|| hold_on(guard));
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "a guarded vec given away, and kept");
+
+    drop(core::hint::black_box(source));
+
+    Ok(())
+}
+
+#[test]
+fn test_a_guarded_array_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = [0_u8; 32];
+
+    giving(&mut source);
+
+    forensics!({
+        let guard = ZeroizingGuard::from_mut(&mut source);
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
+        capture(|| hold_on(guard));
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "a guarded array given away, and kept");
+
+    core::hint::black_box(&source);
+
+    Ok(())
+}
+
+#[test]
+fn test_a_guarded_wide_value_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = Wide::default();
+
+    giving(&mut source.0);
+
+    forensics!({
+        let guard = ZeroizingGuard::from_mut(&mut source);
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
+        capture(|| hold_on(guard));
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "four kilobytes given away, and kept");
+
+    core::hint::black_box(&source);
+
+    Ok(())
+}
+
+#[test]
+fn test_a_guarded_vec_given_away_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source = vec![0_u8; SECRET.len()];
+
+    giving(&mut source);
+
+    forensics!({
+        let guard = ZeroizingGuard::from_mut(&mut source);
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
+        capture(|| let_go(guard));
+    });
+
+    drop(core::hint::black_box(source));
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(&report_before, &report_after, "a guarded vec given away");
+
+    Ok(())
+}
+
+#[test]
+fn test_a_guarded_array_given_away_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source = [0_u8; 32];
+
+    giving(&mut source);
+
+    forensics!({
+        let guard = ZeroizingGuard::from_mut(&mut source);
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
+        capture(|| let_go(guard));
+    });
+
+    core::hint::black_box(&source);
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(&report_before, &report_after, "a guarded array given away");
+
+    Ok(())
+}
+
+#[test]
+fn test_a_guarded_wide_value_given_away_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source = Wide::default();
+
+    giving(&mut source.0);
+
+    forensics!({
+        let guard = ZeroizingGuard::from_mut(&mut source);
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
+        capture(|| let_go(guard));
+    });
+
+    core::hint::black_box(&source);
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(&report_before, &report_after, "four kilobytes given away");
+
+    Ok(())
+}
+
+// ============================================================================
+// ZeroizingGuard::from_mut
 // ============================================================================
 
 #[test]
@@ -50,7 +305,52 @@ fn test_a_guarded_vec_is_found_while_the_guard_holds_it() -> Result<(), AnyError
     Ok(())
 }
 
-/// Taking a vec of one size, and letting the guard go.
+#[test]
+fn test_a_guarded_array_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = [0_u8; 32];
+
+    giving(&mut source);
+
+    forensics!({
+        let guard = capture(|| ZeroizingGuard::from_mut(&mut source));
+
+        core::mem::forget(guard);
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "an array guarded, and kept");
+
+    core::hint::black_box(&source);
+
+    Ok(())
+}
+
+#[test]
+fn test_a_guarded_wide_value_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = Wide::default();
+
+    giving(&mut source.0);
+
+    forensics!({
+        let guard = capture(|| ZeroizingGuard::from_mut(&mut source));
+
+        core::mem::forget(guard);
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "four kilobytes guarded, and kept");
+
+    core::hint::black_box(&source);
+
+    Ok(())
+}
+
 macro_rules! a_guarded_vec {
     ($name:ident, $of:expr) => {
         #[test]
@@ -67,8 +367,9 @@ macro_rules! a_guarded_vec {
                 let guard = capture(|| ZeroizingGuard::from_mut(&mut source));
 
                 // CORRECTNESS: after the capture. A call made before it writes
-                // over the stack and the registers the swap left, and then the
-                // absence below is about that call and not about the swap.
+                // over the stack and the registers the operation left, and
+                // then the absence below is about that call and not about the
+                // operation.
                 drop(guard);
             });
 
@@ -96,103 +397,6 @@ a_guarded_vec!(test_guarding_a_vec_of_4096_leaves_nothing, 4096);
 a_guarded_vec!(test_guarding_a_vec_of_16384_leaves_nothing, 16384);
 a_guarded_vec!(test_guarding_a_vec_of_65536_leaves_nothing, 65536);
 
-// ============================================================================
-// ZeroizingGuard<Vec<u8>>: ownership
-// ============================================================================
-
-#[test]
-fn test_a_guarded_vec_given_away_leaves_nothing() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
-
-    let report_before = watch.snapshot()?;
-
-    let mut source = vec![0_u8; SECRET.len()];
-
-    giving(&mut source);
-
-    forensics!({
-        let guard = ZeroizingGuard::from_mut(&mut source);
-
-        // CORRECTNESS: inside the capture, because this is the operation. What
-        // the section measures is whether the move itself leaves a copy in the
-        // registers or the stack it used.
-        capture(|| let_go(guard));
-    });
-
-    drop(core::hint::black_box(source));
-
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(&report_before, &report_after, "a guarded vec given away");
-
-    Ok(())
-}
-
-// ============================================================================
-// ZeroizingGuard<Vec<u8>>::drop
-// ============================================================================
-
-#[test]
-fn test_dropping_a_guarded_vec_leaves_nothing() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
-
-    let report_before = watch.snapshot()?;
-
-    let mut source = vec![0_u8; SECRET.len()];
-
-    giving(&mut source);
-
-    forensics!({
-        let guard = ZeroizingGuard::from_mut(&mut source);
-
-        // CORRECTNESS: inside the capture, because this is the operation. What
-        // the section measures is what the drop itself leaves in the registers
-        // or the stack it used.
-        capture(|| drop(guard));
-    });
-
-    drop(core::hint::black_box(source));
-
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(&report_before, &report_after, "a guarded vec dropped");
-
-    Ok(())
-}
-
-// ============================================================================
-// ZeroizingGuard<[u8; 32]>::from_mut
-// ============================================================================
-
-/// The shape that caught `RedoubtArray`: a swap of an inline array moves the
-/// bytes rather than a pointer to them, and what it moves them through is
-/// nobody's to choose.
-#[test]
-fn test_a_guarded_array_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
-
-    let mut source = [0_u8; 32];
-
-    giving(&mut source);
-
-    forensics!({
-        let guard = capture(|| ZeroizingGuard::from_mut(&mut source));
-
-        core::mem::forget(guard);
-    });
-
-    let report = watch.snapshot()?;
-
-    is_found(&report, "an array guarded, and kept");
-
-    // By reference on purpose: `[u8; 32]` is `Copy`, so a `black_box` of it by
-    // value makes one more copy on the stack, and the test would be measuring
-    // itself.
-    core::hint::black_box(&source);
-
-    Ok(())
-}
-
 #[test]
 fn test_guarding_an_array_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -207,8 +411,8 @@ fn test_guarding_an_array_leaves_nothing() -> Result<(), AnyError> {
         let guard = capture(|| ZeroizingGuard::from_mut(&mut source));
 
         // CORRECTNESS: after the capture. A call made before it writes over
-        // the stack and the registers the swap left, and then the absence
-        // below is about that call and not about the swap.
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         drop(guard);
     });
 
@@ -217,96 +421,6 @@ fn test_guarding_an_array_leaves_nothing() -> Result<(), AnyError> {
     let report_after = watch.snapshot()?;
 
     leaves_nothing(&report_before, &report_after, "an array guarded");
-
-    Ok(())
-}
-
-// ============================================================================
-// ZeroizingGuard<[u8; 32]>: ownership
-// ============================================================================
-
-#[test]
-fn test_a_guarded_array_given_away_leaves_nothing() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
-
-    let report_before = watch.snapshot()?;
-
-    let mut source = [0_u8; 32];
-
-    giving(&mut source);
-
-    forensics!({
-        let guard = ZeroizingGuard::from_mut(&mut source);
-
-        // CORRECTNESS: inside the capture, because this is the operation.
-        capture(|| let_go(guard));
-    });
-
-    core::hint::black_box(&source);
-
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(&report_before, &report_after, "a guarded array given away");
-
-    Ok(())
-}
-
-// ============================================================================
-// ZeroizingGuard<[u8; 32]>::drop
-// ============================================================================
-
-#[test]
-fn test_dropping_a_guarded_array_leaves_nothing() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
-
-    let report_before = watch.snapshot()?;
-
-    let mut source = [0_u8; 32];
-
-    giving(&mut source);
-
-    forensics!({
-        let guard = ZeroizingGuard::from_mut(&mut source);
-
-        // CORRECTNESS: inside the capture, because this is the operation.
-        capture(|| drop(guard));
-    });
-
-    core::hint::black_box(&source);
-
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(&report_before, &report_after, "a guarded array dropped");
-
-    Ok(())
-}
-
-// ============================================================================
-// ZeroizingGuard<Wide>::from_mut
-// ============================================================================
-
-/// The one the thirty-two byte section cannot reach: at that size a `mem::swap`
-/// is a few loads and stores, and at this one it is a call into the C library
-/// with the secret as its argument.
-#[test]
-fn test_a_guarded_wide_value_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
-
-    let mut source = Wide::default();
-
-    giving(&mut source.0);
-
-    forensics!({
-        let guard = capture(|| ZeroizingGuard::from_mut(&mut source));
-
-        core::mem::forget(guard);
-    });
-
-    let report = watch.snapshot()?;
-
-    is_found(&report, "four kilobytes guarded, and kept");
-
-    core::hint::black_box(&source);
 
     Ok(())
 }
@@ -325,8 +439,8 @@ fn test_guarding_a_wide_value_leaves_nothing() -> Result<(), AnyError> {
         let guard = capture(|| ZeroizingGuard::from_mut(&mut source));
 
         // CORRECTNESS: after the capture. A call made before it writes over
-        // the stack and the registers the swap left, and then the absence
-        // below is about that call and not about the swap.
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         drop(guard);
     });
 
@@ -340,11 +454,93 @@ fn test_guarding_a_wide_value_leaves_nothing() -> Result<(), AnyError> {
 }
 
 // ============================================================================
-// ZeroizingGuard<Wide>: ownership
+// ZeroizingGuard::from_default
 // ============================================================================
 
 #[test]
-fn test_a_guarded_wide_value_given_away_leaves_nothing() -> Result<(), AnyError> {
+#[ignore = "Reads no secret: it guards a default value."]
+fn test_guarding_a_default_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// ZeroizingGuard::deref
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it hands out a reference."]
+fn test_dereferencing_a_guard_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// ZeroizingGuard::deref_mut
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it hands out a reference."]
+fn test_dereferencing_a_guard_mutably_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// ZeroizingGuard::fast_zeroize
+// ============================================================================
+
+#[test]
+fn test_zeroizing_a_guarded_vec_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source = vec![0_u8; SECRET.len()];
+
+    giving(&mut source);
+
+    let mut guard = ZeroizingGuard::from_mut(&mut source);
+
+    forensics!({
+        capture(|| guard.fast_zeroize());
+    });
+
+    core::mem::forget(guard);
+    drop(core::hint::black_box(source));
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(&report_before, &report_after, "a guarded vec zeroized");
+
+    Ok(())
+}
+
+#[test]
+fn test_zeroizing_a_guarded_array_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source = [0_u8; 32];
+
+    giving(&mut source);
+
+    let mut guard = ZeroizingGuard::from_mut(&mut source);
+
+    forensics!({
+        capture(|| guard.fast_zeroize());
+    });
+
+    core::mem::forget(guard);
+    core::hint::black_box(&source);
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(&report_before, &report_after, "a guarded array zeroized");
+
+    Ok(())
+}
+
+#[test]
+fn test_zeroizing_a_guarded_wide_value_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
@@ -353,28 +549,160 @@ fn test_a_guarded_wide_value_given_away_leaves_nothing() -> Result<(), AnyError>
 
     giving(&mut source.0);
 
-    forensics!({
-        let guard = ZeroizingGuard::from_mut(&mut source);
+    let mut guard = ZeroizingGuard::from_mut(&mut source);
 
-        // CORRECTNESS: inside the capture, because this is the operation.
-        capture(|| let_go(guard));
+    forensics!({
+        capture(|| guard.fast_zeroize());
     });
 
+    core::mem::forget(guard);
     core::hint::black_box(&source);
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(&report_before, &report_after, "four kilobytes given away");
+    leaves_nothing(&report_before, &report_after, "four kilobytes zeroized");
 
     Ok(())
 }
 
 // ============================================================================
-// ZeroizingGuard<Wide>::drop
+// ZeroizingGuard::is_zeroized
 // ============================================================================
 
 #[test]
-fn test_dropping_a_guarded_wide_value_leaves_nothing() -> Result<(), AnyError> {
+fn test_a_guarded_vec_probed_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = vec![0_u8; SECRET.len()];
+
+    giving(&mut source);
+
+    let guard = ZeroizingGuard::from_mut(&mut source);
+
+    forensics!({
+        capture(|| core::hint::black_box(guard.is_zeroized()));
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "a guarded vec probed, and kept");
+
+    core::mem::forget(guard);
+    drop(core::hint::black_box(source));
+
+    Ok(())
+}
+
+#[test]
+fn test_a_guarded_array_probed_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = [0_u8; 32];
+
+    giving(&mut source);
+
+    let guard = ZeroizingGuard::from_mut(&mut source);
+
+    forensics!({
+        capture(|| core::hint::black_box(guard.is_zeroized()));
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "a guarded array probed, and kept");
+
+    core::mem::forget(guard);
+    core::hint::black_box(&source);
+
+    Ok(())
+}
+
+#[test]
+fn test_a_guarded_wide_value_probed_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = Wide::default();
+
+    giving(&mut source.0);
+
+    let guard = ZeroizingGuard::from_mut(&mut source);
+
+    forensics!({
+        capture(|| core::hint::black_box(guard.is_zeroized()));
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "four kilobytes probed, and kept");
+
+    core::mem::forget(guard);
+    core::hint::black_box(&source);
+
+    Ok(())
+}
+
+#[test]
+fn test_probing_a_guarded_vec_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source = vec![0_u8; SECRET.len()];
+
+    giving(&mut source);
+
+    let guard = ZeroizingGuard::from_mut(&mut source);
+
+    forensics!({
+        capture(|| core::hint::black_box(guard.is_zeroized()));
+
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
+        drop(guard);
+    });
+
+    drop(core::hint::black_box(source));
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(&report_before, &report_after, "a guarded vec probed");
+
+    Ok(())
+}
+
+#[test]
+fn test_probing_a_guarded_array_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source = [0_u8; 32];
+
+    giving(&mut source);
+
+    let guard = ZeroizingGuard::from_mut(&mut source);
+
+    forensics!({
+        capture(|| core::hint::black_box(guard.is_zeroized()));
+
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
+        drop(guard);
+    });
+
+    core::hint::black_box(&source);
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(&report_before, &report_after, "a guarded array probed");
+
+    Ok(())
+}
+
+#[test]
+fn test_probing_a_guarded_wide_value_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
@@ -383,18 +711,22 @@ fn test_dropping_a_guarded_wide_value_leaves_nothing() -> Result<(), AnyError> {
 
     giving(&mut source.0);
 
-    forensics!({
-        let guard = ZeroizingGuard::from_mut(&mut source);
+    let guard = ZeroizingGuard::from_mut(&mut source);
 
-        // CORRECTNESS: inside the capture, because this is the operation.
-        capture(|| drop(guard));
+    forensics!({
+        capture(|| core::hint::black_box(guard.is_zeroized()));
+
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
+        drop(guard);
     });
 
     core::hint::black_box(&source);
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(&report_before, &report_after, "four kilobytes dropped");
+    leaves_nothing(&report_before, &report_after, "four kilobytes probed");
 
     Ok(())
 }
