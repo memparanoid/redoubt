@@ -244,10 +244,23 @@ fn leaves_nothing(report_before: &Report, before: &str, report_after: &Report, w
 // ============================================================================
 
 #[test]
-#[ignore = "TODO: the box holds what its fields were encoded through, and \
-            nothing measures its drop yet."]
-fn test_a_box_dropped_leaves_nothing() {
-    // Intentionally empty.
+fn test_a_box_dropped_leaves_nothing() -> Result<(), AnyError> {
+    let (secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| drop(secrets_box));
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "a box dropped",
+    );
+
+    Ok(())
 }
 
 // ============================================================================
@@ -410,10 +423,31 @@ fn test_open_leaves_nothing() -> Result<(), AnyError> {
 }
 
 #[test]
-#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
-            and nothing measures that path yet."]
-fn test_open_that_fails_leaves_nothing() {
-    // Intentionally empty.
+fn test_open_that_fails_leaves_nothing() -> Result<(), AnyError> {
+    let (secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| {
+            for _ in 0..ROUNDS {
+                let failed = secrets_box.open(|_| Err::<(), _>(CipherBoxError::Zeroized));
+
+                core::hint::black_box(failed.is_err());
+            }
+        });
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened whole, and failed",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 // ============================================================================
@@ -555,10 +589,31 @@ fn test_filling_every_field_many_times_leaves_nothing() -> Result<(), AnyError> 
 }
 
 #[test]
-#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
-            and nothing measures that path yet."]
-fn test_open_mut_that_fails_leaves_nothing() {
-    // Intentionally empty.
+fn test_open_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| {
+            for _ in 0..ROUNDS {
+                let failed = secrets_box.open_mut(|_| Err::<(), _>(CipherBoxError::Zeroized));
+
+                core::hint::black_box(failed.is_err());
+            }
+        });
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened whole for writing, and failed",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 // ============================================================================
@@ -797,16 +852,84 @@ fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
 // ============================================================================
 
 #[test]
-#[ignore = "TODO: it opens the secret, and nothing measures it yet."]
-fn test_open_a_vec_leaves_nothing() {
-    // Intentionally empty.
+fn test_the_secret_is_found_while_a_vec_is_open() -> Result<(), AnyError> {
+    let (secrets_box, mut watch, _) = filled()?;
+
+    let mut inside = None;
+
+    secrets_box.open_a_vec(|_| {
+        inside = watch.snapshot().ok();
+
+        Ok(())
+    })?;
+
+    let report = inside.ok_or(Reason::NoAnswer)?;
+
+    is_found(&report, "the secret, while a vec is open");
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 #[test]
-#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
-            and nothing measures that path yet."]
-fn test_open_a_vec_that_fails_leaves_nothing() {
-    // Intentionally empty.
+fn test_open_a_vec_leaves_nothing() -> Result<(), AnyError> {
+    let (secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                secrets_box.open_a_vec(|it| {
+                    core::hint::black_box(it.len());
+
+                    Ok(())
+                })?;
+            }
+
+            Ok(())
+        })?;
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened a vec",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
+}
+
+#[test]
+fn test_open_a_vec_that_fails_leaves_nothing() -> Result<(), AnyError> {
+    let (secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| {
+            for _ in 0..ROUNDS {
+                let failed = secrets_box.open_a_vec(|_| Err::<(), _>(CipherBoxError::Zeroized));
+
+                core::hint::black_box(failed.is_err());
+            }
+        });
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened a vec, and failed",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 // ============================================================================
@@ -814,16 +937,84 @@ fn test_open_a_vec_that_fails_leaves_nothing() {
 // ============================================================================
 
 #[test]
-#[ignore = "TODO: it opens the secret, and nothing measures it yet."]
-fn test_open_an_array_leaves_nothing() {
-    // Intentionally empty.
+fn test_the_secret_is_found_while_an_array_is_open() -> Result<(), AnyError> {
+    let (secrets_box, mut watch, _) = filled()?;
+
+    let mut inside = None;
+
+    secrets_box.open_an_array(|_| {
+        inside = watch.snapshot().ok();
+
+        Ok(())
+    })?;
+
+    let report = inside.ok_or(Reason::NoAnswer)?;
+
+    is_found(&report, "the secret, while an array is open");
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 #[test]
-#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
-            and nothing measures that path yet."]
-fn test_open_an_array_that_fails_leaves_nothing() {
-    // Intentionally empty.
+fn test_open_an_array_leaves_nothing() -> Result<(), AnyError> {
+    let (secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                secrets_box.open_an_array(|it| {
+                    core::hint::black_box(it.len());
+
+                    Ok(())
+                })?;
+            }
+
+            Ok(())
+        })?;
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened an array",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
+}
+
+#[test]
+fn test_open_an_array_that_fails_leaves_nothing() -> Result<(), AnyError> {
+    let (secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| {
+            for _ in 0..ROUNDS {
+                let failed = secrets_box.open_an_array(|_| Err::<(), _>(CipherBoxError::Zeroized));
+
+                core::hint::black_box(failed.is_err());
+            }
+        });
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened an array, and failed",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 // ============================================================================
@@ -831,16 +1022,84 @@ fn test_open_an_array_that_fails_leaves_nothing() {
 // ============================================================================
 
 #[test]
-#[ignore = "TODO: it opens the secret, and nothing measures it yet."]
-fn test_open_an_option_leaves_nothing() {
-    // Intentionally empty.
+fn test_the_secret_is_found_while_an_option_is_open() -> Result<(), AnyError> {
+    let (secrets_box, mut watch, _) = filled()?;
+
+    let mut inside = None;
+
+    secrets_box.open_an_option(|_| {
+        inside = watch.snapshot().ok();
+
+        Ok(())
+    })?;
+
+    let report = inside.ok_or(Reason::NoAnswer)?;
+
+    is_found(&report, "the secret, while an option is open");
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 #[test]
-#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
-            and nothing measures that path yet."]
-fn test_open_an_option_that_fails_leaves_nothing() {
-    // Intentionally empty.
+fn test_open_an_option_leaves_nothing() -> Result<(), AnyError> {
+    let (secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                secrets_box.open_an_option(|it| {
+                    core::hint::black_box(it.as_ref().is_some());
+
+                    Ok(())
+                })?;
+            }
+
+            Ok(())
+        })?;
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened an option",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
+}
+
+#[test]
+fn test_open_an_option_that_fails_leaves_nothing() -> Result<(), AnyError> {
+    let (secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| {
+            for _ in 0..ROUNDS {
+                let failed = secrets_box.open_an_option(|_| Err::<(), _>(CipherBoxError::Zeroized));
+
+                core::hint::black_box(failed.is_err());
+            }
+        });
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened an option, and failed",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 // ============================================================================
@@ -906,10 +1165,32 @@ fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
 }
 
 #[test]
-#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
-            and nothing measures that path yet."]
-fn test_open_two_options_that_fails_leaves_nothing() {
-    // Intentionally empty.
+fn test_open_two_options_that_fails_leaves_nothing() -> Result<(), AnyError> {
+    let (secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| {
+            for _ in 0..ROUNDS {
+                let failed =
+                    secrets_box.open_two_options(|_| Err::<(), _>(CipherBoxError::Zeroized));
+
+                core::hint::black_box(failed.is_err());
+            }
+        });
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened two options, and failed",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 // ============================================================================
@@ -917,16 +1198,84 @@ fn test_open_two_options_that_fails_leaves_nothing() {
 // ============================================================================
 
 #[test]
-#[ignore = "TODO: it opens the secret, and nothing measures it yet."]
-fn test_open_a_vec_mut_leaves_nothing() {
-    // Intentionally empty.
+fn test_the_secret_is_found_while_a_vec_is_open_for_writing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watch, _) = filled()?;
+
+    let mut inside = None;
+
+    secrets_box.open_a_vec_mut(|_| {
+        inside = watch.snapshot().ok();
+
+        Ok(())
+    })?;
+
+    let report = inside.ok_or(Reason::NoAnswer)?;
+
+    is_found(&report, "the secret, while a vec is open for writing");
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 #[test]
-#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
-            and nothing measures that path yet."]
-fn test_open_a_vec_mut_that_fails_leaves_nothing() {
-    // Intentionally empty.
+fn test_open_a_vec_mut_leaves_nothing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                secrets_box.open_a_vec_mut(|it| {
+                    core::hint::black_box(it.len());
+
+                    Ok(())
+                })?;
+            }
+
+            Ok(())
+        })?;
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened a vec for writing",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
+}
+
+#[test]
+fn test_open_a_vec_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| {
+            for _ in 0..ROUNDS {
+                let failed = secrets_box.open_a_vec_mut(|_| Err::<(), _>(CipherBoxError::Zeroized));
+
+                core::hint::black_box(failed.is_err());
+            }
+        });
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened a vec for writing, and failed",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 // ============================================================================
@@ -934,16 +1283,85 @@ fn test_open_a_vec_mut_that_fails_leaves_nothing() {
 // ============================================================================
 
 #[test]
-#[ignore = "TODO: it opens the secret, and nothing measures it yet."]
-fn test_open_an_array_mut_leaves_nothing() {
-    // Intentionally empty.
+fn test_the_secret_is_found_while_an_array_is_open_for_writing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watch, _) = filled()?;
+
+    let mut inside = None;
+
+    secrets_box.open_an_array_mut(|_| {
+        inside = watch.snapshot().ok();
+
+        Ok(())
+    })?;
+
+    let report = inside.ok_or(Reason::NoAnswer)?;
+
+    is_found(&report, "the secret, while an array is open for writing");
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 #[test]
-#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
-            and nothing measures that path yet."]
-fn test_open_an_array_mut_that_fails_leaves_nothing() {
-    // Intentionally empty.
+fn test_open_an_array_mut_leaves_nothing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                secrets_box.open_an_array_mut(|it| {
+                    core::hint::black_box(it.len());
+
+                    Ok(())
+                })?;
+            }
+
+            Ok(())
+        })?;
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened an array for writing",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
+}
+
+#[test]
+fn test_open_an_array_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| {
+            for _ in 0..ROUNDS {
+                let failed =
+                    secrets_box.open_an_array_mut(|_| Err::<(), _>(CipherBoxError::Zeroized));
+
+                core::hint::black_box(failed.is_err());
+            }
+        });
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened an array for writing, and failed",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 // ============================================================================
@@ -951,16 +1369,85 @@ fn test_open_an_array_mut_that_fails_leaves_nothing() {
 // ============================================================================
 
 #[test]
-#[ignore = "TODO: it opens the secret, and nothing measures it yet."]
-fn test_open_an_option_mut_leaves_nothing() {
-    // Intentionally empty.
+fn test_the_secret_is_found_while_an_option_is_open_for_writing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watch, _) = filled()?;
+
+    let mut inside = None;
+
+    secrets_box.open_an_option_mut(|_| {
+        inside = watch.snapshot().ok();
+
+        Ok(())
+    })?;
+
+    let report = inside.ok_or(Reason::NoAnswer)?;
+
+    is_found(&report, "the secret, while an option is open for writing");
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 #[test]
-#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
-            and nothing measures that path yet."]
-fn test_open_an_option_mut_that_fails_leaves_nothing() {
-    // Intentionally empty.
+fn test_open_an_option_mut_leaves_nothing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                secrets_box.open_an_option_mut(|it| {
+                    core::hint::black_box(it.as_ref().is_some());
+
+                    Ok(())
+                })?;
+            }
+
+            Ok(())
+        })?;
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened an option for writing",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
+}
+
+#[test]
+fn test_open_an_option_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| {
+            for _ in 0..ROUNDS {
+                let failed =
+                    secrets_box.open_an_option_mut(|_| Err::<(), _>(CipherBoxError::Zeroized));
+
+                core::hint::black_box(failed.is_err());
+            }
+        });
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened an option for writing, and failed",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
 
 // ============================================================================
@@ -1021,8 +1508,30 @@ fn test_open_field_mut_leaves_nothing() -> Result<(), AnyError> {
 }
 
 #[test]
-#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
-            and nothing measures that path yet."]
-fn test_open_two_options_mut_that_fails_leaves_nothing() {
-    // Intentionally empty.
+fn test_open_two_options_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| {
+            for _ in 0..ROUNDS {
+                let failed =
+                    secrets_box.open_two_options_mut(|_| Err::<(), _>(CipherBoxError::Zeroized));
+
+                core::hint::black_box(failed.is_err());
+            }
+        });
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened two options for writing, and failed",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
 }
