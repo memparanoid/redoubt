@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use redoubt_aead::Aead;
+use redoubt_forensics::AnyError;
+use redoubt_vault::leak_master_key;
+
 /// The secret: thirty-two bytes, none repeated, so a run that extends did not
 /// extend by luck.
 ///
@@ -17,4 +21,16 @@ pub(crate) const SECRET: [u8; 32] = [
 /// reversal takes.
 pub(crate) fn backwards() -> Vec<u8> {
     SECRET.iter().rev().copied().collect()
+}
+
+pub(crate) fn master_key_width() -> usize {
+    Aead::default().key_size()
+}
+
+pub(crate) fn master_key_backwards() -> Result<Vec<u8>, AnyError> {
+    let mut needle = leak_master_key(master_key_width())?;
+
+    needle.reverse();
+
+    Ok(needle.to_vec())
 }

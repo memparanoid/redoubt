@@ -36,11 +36,8 @@ use redoubt_forensics::{AnyError, Forensics, capture, forensics};
 use redoubt_vault::{cipherbox, leak_master_key};
 use redoubt_zero::{FastZeroizable, RedoubtZero};
 
-use crate::support::needles::backwards;
+use crate::support::needles::{backwards, master_key_backwards, master_key_width};
 use crate::support::{giving, is_found, leaves_nothing};
-
-/// How much of the master key the box takes.
-const WIDE: usize = 16;
 
 #[cipherbox(OneFieldBox)]
 #[derive(Default, RedoubtZero, RedoubtCodec)]
@@ -62,14 +59,14 @@ fn value(of: usize) -> OneField {
     one_field
 }
 
-/// An empty box and the key it works with.
-///
-/// The key is opened once and what is held from here on is a copy of it, which
-/// is not the needle. Built before the first photograph, like everything else
-/// that is not what is being asked about.
 fn a_box() -> Result<(OneFieldBox, Vec<u8>), AnyError> {
     let one_field_box = OneFieldBox::new();
-    let key = leak_master_key(WIDE)?.to_vec();
+    let opened = leak_master_key(master_key_width())?;
+    let mut key = vec![0_u8; opened.len()];
+
+    // SAFETY: `key` was made as long as `opened`, and the two are different
+    // allocations.
+    unsafe { redoubt_mem::copy_nonoverlapping(opened.as_ptr(), key.as_mut_ptr(), key.len()) };
 
     Ok((one_field_box, key))
 }
@@ -107,16 +104,35 @@ fn test_the_value_encrypting_is_handed_is_found_while_it_holds_it() -> Result<()
     Ok(())
 }
 
+#[test]
+fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&master_key_backwards()?)?;
+
+    forensics!({
+        let held = capture(|| leak_master_key(master_key_width()))?;
+
+        core::mem::forget(held);
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "the master key, held");
+
+    Ok(())
+}
+
 /// The way in, on its own: a value built inside, encrypted, and cleared.
 macro_rules! encrypted {
     ($name:ident, $of:expr) => {
         #[test]
         fn $name() -> Result<(), AnyError> {
-            let (mut one_field_box, key) = a_box()?;
-
             let mut watch = Forensics::watching(&backwards())?;
+            let mut key_watch = Forensics::watching(&master_key_backwards()?)?;
 
             let report_before = watch.snapshot()?;
+            let key_report_before = key_watch.snapshot()?;
+
+            let (mut one_field_box, mut key) = a_box()?;
 
             forensics!({
                 let mut plaintext = value($of);
@@ -124,15 +140,25 @@ macro_rules! encrypted {
                 capture(|| one_field_box.inner.encrypt_struct(&key, &mut plaintext))?;
 
                 core::mem::forget(plaintext);
+
+                key.fast_zeroize();
             });
 
             let report_after = watch.snapshot()?;
+            let key_report_after = key_watch.snapshot()?;
 
             leaves_nothing(
                 &report_before,
                 "nothing in the box yet",
                 &report_after,
                 &format!("encrypted {} bytes", $of),
+            );
+
+            leaves_nothing(
+                &key_report_before,
+                "no key opened yet",
+                &key_report_after,
+                &format!("the key, after encrypting {} bytes", $of),
             );
 
             drop(core::hint::black_box((one_field_box, key)));
@@ -185,6 +211,13 @@ fn test_what_was_decrypted_is_found_while_it_is_held() -> Result<(), AnyError> {
     Ok(())
 }
 
+#[test]
+#[ignore = "Covered transitively: the key's presence is the same brick, \
+            `leak_master_key` held, measured in the `encrypt_struct` section."]
+fn test_the_master_key_decrypting_uses_is_found_while_it_is_held() {
+    // Intentionally empty.
+}
+
 /// The way out, which is where the plaintext reappears — in the field, in
 /// the buffer it was decrypted from, and in whatever the decoder read it
 /// through.
@@ -192,11 +225,13 @@ macro_rules! decrypted {
     ($name:ident, $of:expr) => {
         #[test]
         fn $name() -> Result<(), AnyError> {
-            let (mut one_field_box, key) = a_box()?;
-
             let mut watch = Forensics::watching(&backwards())?;
+            let mut key_watch = Forensics::watching(&master_key_backwards()?)?;
 
             let report_before = watch.snapshot()?;
+            let key_report_before = key_watch.snapshot()?;
+
+            let (mut one_field_box, mut key) = a_box()?;
 
             forensics!({
                 let mut plaintext = value($of);
@@ -209,15 +244,25 @@ macro_rules! decrypted {
 
                 drop(back);
                 drop(plaintext);
+
+                key.fast_zeroize();
             });
 
             let report_after = watch.snapshot()?;
+            let key_report_after = key_watch.snapshot()?;
 
             leaves_nothing(
                 &report_before,
                 "nothing in the box yet",
                 &report_after,
                 &format!("decrypted {} bytes", $of),
+            );
+
+            leaves_nothing(
+                &key_report_before,
+                "no key opened yet",
+                &key_report_after,
+                &format!("the key, after decrypting {} bytes", $of),
             );
 
             drop(core::hint::black_box((one_field_box, key)));
