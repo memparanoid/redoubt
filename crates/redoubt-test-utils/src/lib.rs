@@ -8,6 +8,11 @@
 //!
 //! GPL-3.0-only
 
+#[cfg(test)]
+mod tests;
+
 mod permutations;
+mod subprocess;
 
 pub use permutations::{apply_permutation, index_permutations};
+pub use subprocess::run_test_as_subprocess;

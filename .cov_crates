@@ -2,11 +2,13 @@
 # One crate per line. Optional features after space.
 # Lines starting with # are ignored.
 
+# Test utils
+redoubt-test-utils
+
 # Core
 redoubt-alloc
 redoubt-zero-core
 redoubt-zero-derive
-redoubt-test-utils
 redoubt-secret
 redoubt-rand
 redoubt-util
