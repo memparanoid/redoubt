@@ -2,19 +2,27 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use std::vec;
+use std::vec::Vec;
+
+use proptest::prelude::*;
+
 use crate::copy_nonoverlapping;
 
 // ============================================================================
 // copy_nonoverlapping
 // ============================================================================
 
-#[test]
-fn test_copy_nonoverlapping_resolves_the_default_backend() {
-    let from = [0x9E_u8, 0x41, 0x17, 0xC3];
-    let mut into = [0_u8; 4];
+proptest! {
+    #[test]
+    fn test_copy_nonoverlapping_leaves_the_destination_equal_to_the_source(
+        from in proptest::collection::vec(any::<u8>(), 0..1024),
+    ) {
+        let mut into: Vec<u8> = vec![0; from.len()];
 
-    // SAFETY: two distinct arrays of the same length.
-    unsafe { copy_nonoverlapping(from.as_ptr(), into.as_mut_ptr(), from.len()) };
+        // SAFETY: two distinct allocations of the same length.
+        unsafe { copy_nonoverlapping(from.as_ptr(), into.as_mut_ptr(), from.len()) };
 
-    assert_eq!(into, from);
+        prop_assert_eq!(into, from);
+    }
 }
