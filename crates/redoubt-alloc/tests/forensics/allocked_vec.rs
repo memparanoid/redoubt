@@ -357,26 +357,23 @@ fn test_an_allocked_vec_as_a_mut_slice_leaves_nothing() {
 // AllockedVec::truncate
 // ============================================================================
 
-/// The tail is found while it is still the vec's.
-///
-/// What the absence below is measured against: the sweep reaches the storage a
-/// truncation is about to cut, so a clean answer afterwards is the cut and not
-/// the instrument. Before and not after, because the type hands back nothing it
-/// removed — there is no `pop` — so a cut tail exists nowhere to be found.
 #[test]
-fn test_what_a_truncation_will_cut_is_found_before_it_is_cut() -> Result<(), AnyError> {
+fn test_what_a_truncation_keeps_is_found_while_the_allocked_vec_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let mut held = AllockedVec::<Block>::with_capacity(1);
-        capture(|| held.push(&mut { SECRET }))?;
+        let mut held = AllockedVec::<Block>::with_capacity(2);
+        held.push(&mut { SECRET })?;
+        held.push(&mut { SECRET })?;
+
+        capture(|| held.truncate(1));
 
         core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;
 
-    is_found(&report, "a vec filled, before anything was cut");
+    is_found(&report, "a vec truncated to one block, and kept");
 
     Ok(())
 }
