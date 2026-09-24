@@ -9,6 +9,7 @@
 
 mod support;
 
+mod blankets;
 mod codec_buffer;
 mod collections;
 mod decode_buffer;
