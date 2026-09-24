@@ -3,10 +3,11 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
-use redoubt_zero_core::{FastZeroizable, ZeroizationProbe, ZeroizingMutGuard};
 
-use crate::support::needles::{SECRET, backwards};
-use crate::support::{Wide, giving, hold_on, is_found, leaves_nothing, let_go};
+use crate::{FastZeroizable, ZeroizationProbe, ZeroizingMutGuard};
+
+use crate::tests::forensics::support::needles::{SECRET, backwards};
+use crate::tests::forensics::support::{Wide, giving, hold_on, is_found, leaves_nothing, let_go};
 
 // ============================================================================
 // ZeroizingMutGuard::drop

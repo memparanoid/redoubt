@@ -10,10 +10,11 @@
 //! registers; four kilobytes inline moves through a call into the C library.
 
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
-use redoubt_zero_core::{FastZeroizable, ZeroizationProbe, ZeroizingGuard};
 
-use crate::support::needles::{SECRET, backwards};
-use crate::support::{Wide, giving, hold_on, is_found, leaves_nothing, let_go};
+use crate::{FastZeroizable, ZeroizationProbe, ZeroizingGuard};
+
+use crate::tests::forensics::support::needles::{SECRET, backwards};
+use crate::tests::forensics::support::{Wide, giving, hold_on, is_found, leaves_nothing, let_go};
 
 // ============================================================================
 // ZeroizingGuard::drop

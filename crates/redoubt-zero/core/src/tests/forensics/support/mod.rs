@@ -5,7 +5,8 @@
 pub(crate) mod needles;
 
 use redoubt_forensics::{QUIET, Report};
-use redoubt_zero_core::{FastZeroizable, ZeroizationProbe};
+
+use crate::{FastZeroizable, ZeroizationProbe};
 
 use needles::SECRET;
 

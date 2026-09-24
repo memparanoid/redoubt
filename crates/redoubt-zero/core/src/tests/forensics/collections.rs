@@ -3,10 +3,11 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
-use redoubt_zero_core::FastZeroizable;
 
-use crate::support::needles::backwards;
-use crate::support::{giving, leaves_nothing};
+use crate::FastZeroizable;
+
+use crate::tests::forensics::support::needles::backwards;
+use crate::tests::forensics::support::{giving, leaves_nothing};
 
 // ============================================================================
 // [T]::fast_zeroize
