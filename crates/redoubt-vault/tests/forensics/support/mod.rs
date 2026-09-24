@@ -10,14 +10,14 @@ use needles::{SECRET, backwards, master_key_backwards};
 
 /// The needles an operation of a box is held to, the secret and the master key,
 /// each with its photograph from before.
-pub(crate) struct Watched {
+pub(crate) struct Watching {
     pub(crate) secret: Forensics,
     secret_before: Report,
     pub(crate) key: Forensics,
     key_before: Report,
 }
 
-impl Watched {
+impl Watching {
     pub(crate) fn start() -> Result<Self, AnyError> {
         let mut secret = Forensics::watching(&backwards())?;
         let mut key = Forensics::watching(&master_key_backwards()?)?;
@@ -31,13 +31,6 @@ impl Watched {
             key,
             key_before,
         })
-    }
-
-    pub(crate) fn befores(&self) -> [(&Report, &'static str); 2] {
-        [
-            (&self.secret_before, "the secret"),
-            (&self.key_before, "the master key"),
-        ]
     }
 
     /// Asserts neither needle survived.

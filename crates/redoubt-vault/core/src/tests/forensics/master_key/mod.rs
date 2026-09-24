@@ -110,7 +110,7 @@ fn test_opening_the_master_key_too_wide_leaves_nothing() -> Result<(), AnyError>
 
     leaves_nothing(
         &report_before,
-        "the key read backwards",
+        "nothing held yet",
         &report_after,
         "an open too wide",
     );
@@ -137,7 +137,7 @@ fn test_opening_the_master_key_once_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "the key read backwards",
+        "nothing held yet",
         &report_after,
         "one open",
     );
@@ -167,7 +167,7 @@ fn test_opening_the_master_key_often_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "the key read backwards",
+        "nothing held yet",
         &report_after,
         &format!("{ROUNDS} opens"),
     );

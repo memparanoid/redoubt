@@ -19,7 +19,7 @@ use crate::master_key::leak_master_key;
 use crate::types::{Ciphertexts, Nonces, Tags};
 
 use super::support::needles::{backwards, master_key_backwards, master_key_width};
-use super::support::{Watched, a_field, a_key, is_found};
+use super::support::{Watching, a_field, a_key, is_found};
 
 type Field = RedoubtVec<u8>;
 
@@ -46,7 +46,7 @@ struct Sealed {
 }
 
 /// Two fields of the secret encrypted, and the key's copy they took emptied.
-fn sealed() -> Result<Sealed, AnyError> {
+fn seal() -> Result<Sealed, AnyError> {
     let mut aead = Aead::default();
     let mut key = a_key()?;
     let (mut nonces, mut tags) = nonces_and_tags(&aead);
@@ -141,7 +141,7 @@ fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
 
 #[test]
 fn test_encrypting_leaves_nothing() -> Result<(), AnyError> {
-    let mut watched = Watched::start()?;
+    let mut watching = Watching::start()?;
 
     let mut aead = Aead::default();
     let mut key = a_key()?;
@@ -175,7 +175,7 @@ fn test_encrypting_leaves_nothing() -> Result<(), AnyError> {
         drop(ciphertexts);
     });
 
-    watched.none_left("nothing encrypted yet", "encrypting")
+    watching.none_left("nothing held yet", "encrypting")
 }
 
 // ============================================================================
@@ -229,7 +229,7 @@ fn test_what_encrypting_exported_and_did_not_encrypt_is_found() -> Result<(), An
 
 #[test]
 fn test_trying_to_encrypt_leaves_nothing() -> Result<(), AnyError> {
-    let mut watched = Watched::start()?;
+    let mut watching = Watching::start()?;
 
     let mut aead = Aead::default();
     let mut key = a_key()?;
@@ -267,7 +267,7 @@ fn test_trying_to_encrypt_leaves_nothing() -> Result<(), AnyError> {
         drop(ciphertexts);
     });
 
-    watched.none_left("nothing encrypted yet", "trying to encrypt")
+    watching.none_left("nothing held yet", "trying to encrypt")
 }
 
 // ============================================================================
@@ -276,7 +276,7 @@ fn test_trying_to_encrypt_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_encrypting_into_buffers_leaves_nothing() -> Result<(), AnyError> {
-    let mut watched = Watched::start()?;
+    let mut watching = Watching::start()?;
 
     let mut aead = Aead::default();
     let mut key = a_key()?;
@@ -314,12 +314,12 @@ fn test_encrypting_into_buffers_leaves_nothing() -> Result<(), AnyError> {
         drop(ciphertexts);
     });
 
-    watched.none_left("nothing encrypted yet", "encrypting into buffers")
+    watching.none_left("nothing held yet", "encrypting into buffers")
 }
 
 #[test]
 fn test_encrypting_into_buffers_refused_leaves_nothing() -> Result<(), AnyError> {
-    let mut watched = Watched::start()?;
+    let mut watching = Watching::start()?;
 
     let mut aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(2));
     let mut key = a_key()?;
@@ -360,7 +360,7 @@ fn test_encrypting_into_buffers_refused_leaves_nothing() -> Result<(), AnyError>
         key.fast_zeroize();
     });
 
-    watched.none_left("nothing encrypted yet", "encrypting into buffers, refused")
+    watching.none_left("nothing held yet", "encrypting into buffers, refused")
 }
 
 // ============================================================================
@@ -369,7 +369,7 @@ fn test_encrypting_into_buffers_refused_leaves_nothing() -> Result<(), AnyError>
 
 #[test]
 fn test_what_decrypting_decoded_is_found_while_the_fields_hold_it() -> Result<(), AnyError> {
-    let mut sealed = sealed()?;
+    let mut sealed = seal()?;
 
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -407,7 +407,7 @@ fn test_what_decrypting_decoded_is_found_while_the_fields_hold_it() -> Result<()
 
 #[test]
 fn test_what_decrypting_decrypted_and_did_not_decode_is_found() -> Result<(), AnyError> {
-    let mut sealed = sealed()?;
+    let mut sealed = seal()?;
 
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -454,9 +454,9 @@ fn test_what_decrypting_decrypted_and_did_not_decode_is_found() -> Result<(), An
 
 #[test]
 fn test_trying_to_decrypt_leaves_nothing() -> Result<(), AnyError> {
-    let mut sealed = sealed()?;
+    let mut watching = Watching::start()?;
 
-    let mut watched = Watched::start()?;
+    let mut sealed = seal()?;
 
     let aead = Aead::default();
     let mut key = a_key()?;
@@ -491,7 +491,7 @@ fn test_trying_to_decrypt_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(sealed);
     });
 
-    watched.none_left("sealed, nothing decrypted", "trying to decrypt")
+    watching.none_left("nothing held yet", "trying to decrypt")
 }
 
 // ============================================================================
@@ -500,9 +500,9 @@ fn test_trying_to_decrypt_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
-    let mut sealed = sealed()?;
+    let mut watching = Watching::start()?;
 
-    let mut watched = Watched::start()?;
+    let mut sealed = seal()?;
 
     let aead = Aead::default();
     let mut key = a_key()?;
@@ -537,14 +537,14 @@ fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(sealed);
     });
 
-    watched.none_left("sealed, nothing decrypted", "decrypting")
+    watching.none_left("nothing held yet", "decrypting")
 }
 
 #[test]
 fn test_decrypting_refused_leaves_nothing() -> Result<(), AnyError> {
-    let mut sealed = sealed()?;
+    let mut watching = Watching::start()?;
 
-    let mut watched = Watched::start()?;
+    let mut sealed = seal()?;
 
     let aead = Aead::default();
     let mut key = a_key()?;
@@ -583,5 +583,5 @@ fn test_decrypting_refused_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(sealed);
     });
 
-    watched.none_left("sealed, nothing decrypted", "decrypting, refused")
+    watching.none_left("nothing held yet", "decrypting, refused")
 }

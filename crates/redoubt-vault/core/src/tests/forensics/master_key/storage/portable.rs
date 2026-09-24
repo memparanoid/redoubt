@@ -68,9 +68,10 @@ fn test_the_key_opened_is_found_while_it_is_kept() -> Result<(), AnyError> {
 #[test]
 fn test_opening_the_key_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards_through(open)?)?;
-    let mut kept = vec![0_u8; MASTER_KEY_LEN];
 
     let report_before = watch.snapshot()?;
+
+    let mut kept = vec![0_u8; MASTER_KEY_LEN];
 
     forensics!({
         capture(|| open(&mut copying_into(&mut kept)))?;
@@ -85,7 +86,7 @@ fn test_opening_the_key_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "the key read backwards",
+        "nothing held yet",
         &report_after,
         "the key opened",
     );

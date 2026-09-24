@@ -70,7 +70,7 @@ fn test_making_the_key_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(
         &report_before,
-        "the key made, read backwards",
+        "nothing held yet",
         &report_after,
         "the key made",
     );
