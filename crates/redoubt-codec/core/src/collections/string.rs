@@ -148,6 +148,9 @@ impl PreAlloc for String {
     const ZERO_INIT: bool = true;
 
     fn prealloc(&mut self, size: usize) {
+        // Emptied before the capacity moves: a realloc copies the block and
+        // hands the old one back to the allocator as it is.
+        self.fast_zeroize();
         self.clear();
         self.shrink_to_fit();
         self.reserve_exact(size);

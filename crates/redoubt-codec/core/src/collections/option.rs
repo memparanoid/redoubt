@@ -118,10 +118,17 @@ where
                 *self = None;
             }
             1 => {
-                // Some
-                let mut inner = T::default();
-                inner.decode_from(buf)?;
-                *self = Some(inner);
+                // Some, decoded in place and handed over by swap: a move of an
+                // inline value leaves a copy where it was.
+                let mut slot = Some(T::default());
+
+                slot.as_mut()
+                    .expect("Infallible: slot was just made Some")
+                    .decode_from(buf)?;
+
+                self.fast_zeroize();
+
+                redoubt_mem::swap(self, &mut slot);
             }
             _ => {
                 return Err(DecodeError::PreconditionViolated);

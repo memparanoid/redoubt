@@ -161,6 +161,9 @@ pub(crate) fn vec_prealloc<T: PreAlloc + FastZeroizable + ZeroizeMetadata>(
     size: usize,
     zero_init: bool,
 ) {
+    // Emptied before the capacity moves: a realloc copies the block and hands
+    // the old one back to the allocator as it is.
+    vec.fast_zeroize();
     vec.shrink_to_fit();
     vec.reserve_exact(size);
 
