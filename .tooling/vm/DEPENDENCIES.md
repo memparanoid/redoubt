@@ -1,48 +1,29 @@
 # What the cross tests need
 
-Two ways of running this workspace on an architecture this machine is not,
-and they answer different questions.
-
-`scripts/cross-test.sh`, one per crate, runs the tests under **`qemu-aarch64`**
-— process emulation. Seconds, and it covers the other C library and the other
-architecture.
-
-`scripts/cross-nextest.sh` runs them on an **`aarch64` machine with a kernel of
-its own**, under `qemu-system-aarch64`. Minutes, and it reaches the one thing
-process emulation cannot: `ptrace`. A host kernel cannot be told that one
-emulated process is the tracer of another, so every `cross-test.sh` run takes
-the two-process path and the three-process one has never been read on
-`aarch64` at all.
+`scripts/cross-nextest.sh` runs the tests on a machine with a kernel of its own
+for each architecture, under `qemu-system-aarch64` and `qemu-system-x86_64`,
+with both C libraries on each. A machine has `ptrace`, which process emulation
+refuses: a host kernel cannot be told that one emulated process is the tracer
+of another.
 
 ---
 
-## For `cross-test.sh`
-
-| | what for |
-|---|---|
-| `qemu-aarch64` | runs an `aarch64` binary on this machine |
-| `aarch64-unknown-linux-musl-gcc` | links the `aarch64` test binaries |
-| `x86_64-unknown-linux-musl-gcc` | links the musl ones for this architecture |
-| the `aarch64-unknown-linux-musl` and `x86_64-unknown-linux-musl` targets | `rustup target add`, or the toolchain's own way |
-
-Each script takes `CROSS_CC`, `MUSL_CC` and `QEMU` for a machine that calls
-them something else.
-
 ## For `cross-nextest.sh`
 
-Everything above, and:
-
 | | what for |
 |---|---|
-| `qemu-system-aarch64` | the machine itself |
-| `qemu-img` | its disk |
+| `qemu-system-aarch64`, `qemu-system-x86_64` | the machines themselves |
+| `qemu-img` | their disks |
 | `cloud-localds` | the first-boot configuration |
-| `socat` | talks to the machine's monitor, which is how it is told to freeze |
+| `socat` | talks to a machine's monitor, which is how it is told to freeze |
 | `curl` | fetches the Ubuntu image once |
 | `ssh`, `scp`, `ssh-keygen` | everything after the first boot |
 | the EDK2 `aarch64` firmware | `aarch64` has no BIOS; it boots UEFI |
-| `aarch64-unknown-linux-gnu-gcc` | links the glibc half |
-| the `aarch64-unknown-linux-gnu` target | the same |
+| `<arch>-unknown-linux-gnu-gcc` | links the glibc half, per architecture |
+| `<arch>-unknown-linux-musl-gcc` | links the musl half, per architecture |
+| the `<arch>-unknown-linux-gnu` and `<arch>-unknown-linux-musl` targets | `rustup target add`, or the toolchain's own way |
+
+`GNU_CC` and `MUSL_CC` name the compilers where they go by other names.
 
 The firmware is `edk2-aarch64-code.fd`, and it ships with qemu. `build.sh`
 looks for it under `/run/current-system/sw/share/qemu`, `/usr/share/qemu` and

@@ -16,10 +16,8 @@
 #
 # # Why it does not stop at the first failure
 #
-# Unlike `scripts/cross-test-all.sh`, where a red means the tree is broken and
-# everything after it is read against a tree already known bad. These four are
-# independent measurements of the same code, and three of them are worth having
-# when the fourth could not run — an architecture Docker cannot emulate here
+# These four are independent measurements of the same code, and three of them
+# are worth having when the fourth could not run — an architecture Docker cannot emulate here
 # does not make the other three say less.
 #
 # # Arguments

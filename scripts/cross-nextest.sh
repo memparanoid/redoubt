@@ -5,21 +5,13 @@
 #
 # The tests on a machine with a kernel of its own.
 #
-# # What this reaches that `cross-test.sh` does not
+# # Why a machine and not process emulation
 #
 # `qemu-aarch64` emulates a process and hands the syscalls to the host kernel,
 # and a host kernel cannot be told that one emulated process is the tracer of
 # another. So `ptrace` is refused there and the analysis reads itself: two
-# processes where there would have been three.
-#
-# Every `aarch64` run this workspace has ever done took that path, and the
-# other one — the one `ubuntu-24.04-arm` takes, where sixteen tests die on a
-# signal — took none of them. A machine with its own kernel has `ptrace`, so it
-# takes the path that breaks.
-#
-# `cross-test.sh` is still the one to reach for. It is seconds where this is
-# minutes, and it covers the other C library and the architecture in one go.
-# This is for the questions it cannot answer.
+# processes where there would have been three. A machine with its own kernel
+# has `ptrace`, so it takes the path the runners take.
 #
 # # Built here, run there
 #
@@ -97,9 +89,8 @@ for arch in "${MACHINES[@]}"; do
     # shellcheck source=../.tooling/vm/common.sh
     . "$VMS/common.sh"
 
-    # Both C libraries, for the reason `cross-test.sh` runs both: the C library
-    # decides the allocator, and the allocator decides what a freed chunk
-    # keeps. glibc leaves everything past a chunk's first bytes where it was;
+    # Both C libraries, because the C library decides the allocator, and the
+    # allocator decides what a freed chunk keeps. glibc leaves everything past a chunk's first bytes where it was;
     # musl's `mallocng` may cover the lot. A sweep reads whatever is left.
     #
     # A musl build links statically and runs on the machine anyway, so one

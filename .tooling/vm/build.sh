@@ -7,19 +7,14 @@
 #
 # # Why a whole machine
 #
-# `qemu-aarch64` — the one every `cross-test.sh` uses — emulates a process. It
-# translates the instructions and hands the syscalls to the host kernel, and a
-# host kernel cannot be asked to make one emulated process the tracer of
-# another. So `ptrace` is refused there, and the analysis falls back to reading
-# itself: two processes where there would have been three.
+# Process emulation (`qemu-aarch64`) translates the instructions and hands the
+# syscalls to the host kernel, and a host kernel cannot be asked to make one
+# emulated process the tracer of another. So `ptrace` is refused there, and the
+# analysis falls back to reading itself: two processes where there would have
+# been three.
 #
-# That is a real path and it is the one every `aarch64` run of this workspace
-# has ever taken. What none of them took is the other one — and the other one
-# is what the `ubuntu-24.04-arm` runner takes, where sixteen tests die on a
-# signal that no machine here can produce.
-#
-# A whole machine has its own kernel, so it has `ptrace`, so it takes the path
-# that breaks. That is the entire reason this exists.
+# A whole machine has its own kernel, so it has `ptrace`, and it takes the path
+# the runners take. That is the entire reason this exists.
 #
 # # Ubuntu 24.04, and not something smaller
 #
