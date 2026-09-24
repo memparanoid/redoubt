@@ -31,7 +31,12 @@ pub(crate) const HAS_ASM: bool = cfg!(mem_asm);
 /// # Safety
 ///
 /// `src` readable and `dst` writable for `bytes`, and the two ranges disjoint.
-pub(crate) unsafe fn copy_nonoverlapping(backend: Backend, src: *const u8, dst: *mut u8, bytes: usize) {
+pub(crate) unsafe fn copy_nonoverlapping(
+    backend: Backend,
+    src: *const u8,
+    dst: *mut u8,
+    bytes: usize,
+) {
     match backend {
         // SAFETY: the caller's, verbatim.
         Backend::Rust => unsafe { rust::copy_nonoverlapping(src, dst, bytes) },
