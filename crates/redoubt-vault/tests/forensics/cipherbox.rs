@@ -6,12 +6,12 @@
 
 use redoubt_alloc::{RedoubtArray, RedoubtOption, RedoubtVec};
 use redoubt_codec::RedoubtCodec;
-use redoubt_forensics::{AnyError, Forensics, QUIET, Reason, Report, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, QUIET, Reason, capture, forensics};
 use redoubt_vault::{CipherBoxError, cipherbox, leak_master_key};
 use redoubt_zero::RedoubtZero;
 
-use crate::support::needles::{SECRET, backwards, master_key_backwards, master_key_width};
-use crate::support::{giving, is_found, leaves_nothing};
+use crate::support::needles::{SECRET, master_key_backwards, master_key_width};
+use crate::support::{Watched, giving, is_found};
 
 /// Rounds per absence, so a residue that survives only now and then still
 /// accumulates where the sweep reads it.
@@ -75,45 +75,6 @@ fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
     Ok(())
 }
 
-struct Watched {
-    secret: Forensics,
-    secret_before: Report,
-    key: Forensics,
-    key_before: Report,
-}
-
-impl Watched {
-    fn start() -> Result<Self, AnyError> {
-        let mut secret = Forensics::watching(&backwards())?;
-        let mut key = Forensics::watching(&master_key_backwards()?)?;
-
-        let secret_before = secret.snapshot()?;
-        let key_before = key.snapshot()?;
-
-        Ok(Self {
-            secret,
-            secret_before,
-            key,
-            key_before,
-        })
-    }
-
-    fn none_left(&mut self, before: &str, what: &str) -> Result<(), AnyError> {
-        let secret_after = self.secret.snapshot()?;
-        let key_after = self.key.snapshot()?;
-
-        leaves_nothing(&self.secret_before, before, &secret_after, what);
-        leaves_nothing(
-            &self.key_before,
-            before,
-            &key_after,
-            &format!("{what}, in the master key"),
-        );
-
-        Ok(())
-    }
-}
-
 /// A filled box, the instrument watching, and the photographs after the fill.
 /// The fill comes before them so a test reads what opening left, and they are
 /// held to the bound because every test reads a difference from them.
@@ -124,10 +85,7 @@ fn filled() -> Result<(SecretsBox, Watched), AnyError> {
 
     let watched = Watched::start()?;
 
-    for (report, what) in [
-        (&watched.secret_before, "the secret"),
-        (&watched.key_before, "the master key"),
-    ] {
+    for (report, what) in watched.befores() {
         assert!(
             !report.found,
             "the whole of {what} was left behind by filling the box: {report}"

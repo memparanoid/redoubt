@@ -4,9 +4,55 @@
 
 pub(crate) mod needles;
 
-use redoubt_forensics::{QUIET, Report};
+use redoubt_forensics::{AnyError, Forensics, QUIET, Report};
 
-use needles::SECRET;
+use needles::{SECRET, backwards, master_key_backwards};
+
+pub(crate) struct Watched {
+    pub(crate) secret: Forensics,
+    secret_before: Report,
+    pub(crate) key: Forensics,
+    key_before: Report,
+}
+
+impl Watched {
+    pub(crate) fn start() -> Result<Self, AnyError> {
+        let mut secret = Forensics::watching(&backwards())?;
+        let mut key = Forensics::watching(&master_key_backwards()?)?;
+
+        let secret_before = secret.snapshot()?;
+        let key_before = key.snapshot()?;
+
+        Ok(Self {
+            secret,
+            secret_before,
+            key,
+            key_before,
+        })
+    }
+
+    pub(crate) fn befores(&self) -> [(&Report, &'static str); 2] {
+        [
+            (&self.secret_before, "the secret"),
+            (&self.key_before, "the master key"),
+        ]
+    }
+
+    pub(crate) fn none_left(&mut self, before: &str, what: &str) -> Result<(), AnyError> {
+        let secret_after = self.secret.snapshot()?;
+        let key_after = self.key.snapshot()?;
+
+        leaves_nothing(&self.secret_before, before, &secret_after, what);
+        leaves_nothing(
+            &self.key_before,
+            before,
+            &key_after,
+            &format!("{what}, in the master key"),
+        );
+
+        Ok(())
+    }
+}
 
 /// Writes the secret over and over into `into`, through the copy that erases
 /// what it used: a compiler move would leave residue the test caused itself.
