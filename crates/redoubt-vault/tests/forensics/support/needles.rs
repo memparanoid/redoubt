@@ -23,10 +23,13 @@ pub(crate) fn backwards() -> Vec<u8> {
     SECRET.iter().rev().copied().collect()
 }
 
+/// How much of the master key a box encrypts with: the default cipher's key.
 pub(crate) fn master_key_width() -> usize {
     Aead::default().key_size()
 }
 
+/// The key needle, opened once and turned around where it lies: what is held
+/// from then on is the key backwards, which is not the key.
 pub(crate) fn master_key_backwards() -> Result<Vec<u8>, AnyError> {
     let mut needle = leak_master_key(master_key_width())?;
 

@@ -8,6 +8,8 @@ use redoubt_forensics::{AnyError, Forensics, QUIET, Report};
 
 use needles::{SECRET, backwards, master_key_backwards};
 
+/// The needles an operation of a box is held to, the secret and the master key,
+/// each with its photograph from before.
 pub(crate) struct Watched {
     pub(crate) secret: Forensics,
     secret_before: Report,
@@ -38,6 +40,7 @@ impl Watched {
         ]
     }
 
+    /// Asserts neither needle survived.
     pub(crate) fn none_left(&mut self, before: &str, what: &str) -> Result<(), AnyError> {
         let secret_after = self.secret.snapshot()?;
         let key_after = self.key.snapshot()?;

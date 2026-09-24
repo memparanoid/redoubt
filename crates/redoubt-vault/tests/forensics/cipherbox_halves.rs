@@ -2,33 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! What the two halves of a cipherbox leave behind.
-//!
-//! # The last layer without one
-//!
-//! Everything underneath has been measured and leaves nothing: the copy at
-//! every size it has a path for, `RedoubtVec` replaced and extended, the
-//! option, `mem::take`, the codec in both directions, and AEGIS in both
-//! directions. A box built out of those leaves the secret in plain sight once
-//! it is large enough, so whatever is left is here.
-//!
-//! One field, one size at a time, and the two halves apart —
-//! `encrypt_struct` and `decrypt_struct` rather than `open` and its five
-//! relatives. If one of them is the answer, this says which.
-//!
-//! # Two tests for every claim
-//!
-//! Each section opens with the same operation run against a value that is
-//! never cleared, and that one has to be **found**. An absence is worth
-//! exactly as much as the presence beside it: a sweep that reaches nowhere
-//! reports a clean process, and so does a box that left nothing.
-//!
-//! # One size per test
-//!
-//! The sweep reads the whole process, so a size that leaks leaves the secret
-//! in memory and every size measured after it in the same process finds that
-//! copy and is blamed for it. Under `nextest` each test is a process of its
-//! own, so the size that failed is the name of the test that failed.
+//! What each method of a `CipherBox` leaves behind, measured on its own.
 
 use redoubt_alloc::RedoubtVec;
 use redoubt_codec::RedoubtCodec;
@@ -48,7 +22,7 @@ struct OneField {
 
 type Field = RedoubtVec<u8>;
 
-/// A value of that many bytes of the secret, filled the clean way.
+/// A value holding `of` bytes of the secret.
 fn value(of: usize) -> OneField {
     let mut source = vec![0_u8; of];
 
@@ -73,6 +47,8 @@ fn a_field() -> Box<Field> {
     field
 }
 
+/// An empty box and a copy of the key it works with, made by the copy that
+/// erases what it used: `to_vec` would be the C library's `memcpy`.
 fn a_box() -> Result<(OneFieldBox, Vec<u8>), AnyError> {
     let one_field_box = OneFieldBox::new();
     let opened = leak_master_key(master_key_width())?;
@@ -85,6 +61,7 @@ fn a_box() -> Result<(OneFieldBox, Vec<u8>), AnyError> {
     Ok((one_field_box, key))
 }
 
+/// A box sealed over a value of the secret, and the key it was sealed with.
 fn sealed() -> Result<(OneFieldBox, Vec<u8>), AnyError> {
     let (mut one_field_box, key) = a_box()?;
     let mut plaintext = value(32);
@@ -94,6 +71,8 @@ fn sealed() -> Result<(OneFieldBox, Vec<u8>), AnyError> {
     Ok((one_field_box, key))
 }
 
+/// A sealed box, its key's copy emptied, and the photographs after, held to the
+/// bound because every test reads a difference from them.
 fn sealed_and_watched() -> Result<(OneFieldBox, Watched), AnyError> {
     let (one_field_box, mut key) = sealed()?;
 
@@ -128,6 +107,10 @@ fn test_a_cipherbox_dropped_leaves_nothing() -> Result<(), AnyError> {
     let (one_field_box, mut watched) = sealed_and_watched()?;
 
     forensics!({
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
         capture(|| drop(one_field_box));
     });
 
@@ -158,18 +141,8 @@ fn test_asserting_a_cipherbox_is_healthy_leaves_nothing() {
 // CipherBox::encrypt_struct
 // ============================================================================
 
-/// The value the encryption is handed is found while it is still holding it.
-///
-/// # Why this and not the call with nothing to clear it afterwards
-///
-/// Because there would be nothing left to find: `encrypt_struct` empties what
-/// it is handed as it encodes, so a value kept after that call is a value that
-/// is already empty, and a test built that way reports an absence the encoding
-/// caused rather than a sweep that cannot see.
-///
-/// So what this holds is the value before the call. It is the same allocation
-/// the field keeps its bytes in, reached the same way, and it is what says the
-/// absence below is about the box.
+/// `encrypt_struct` empties what it is handed, so there is nothing of it to
+/// find after the call: the presence is the value it is handed, before it.
 #[test]
 fn test_the_value_encrypting_is_handed_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -187,6 +160,8 @@ fn test_the_value_encrypting_is_handed_is_found_while_it_holds_it() -> Result<()
     Ok(())
 }
 
+/// Most methods let the key go before anything could photograph it, so what
+/// vouches for its needle is the same brick, `leak_master_key`, held.
 #[test]
 fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&master_key_backwards()?)?;
@@ -204,7 +179,6 @@ fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
     Ok(())
 }
 
-/// The way in, on its own: a value built inside, encrypted, and cleared.
 macro_rules! encrypted {
     ($name:ident, $of:expr) => {
         #[test]
@@ -222,6 +196,12 @@ macro_rules! encrypted {
 
                 capture(|| one_field_box.inner.encrypt_struct(&key, &mut plaintext))?;
 
+                // CORRECTNESS: after the capture. A call made before it writes
+                // over the stack and the registers the operation left, and
+                // then the absence below is about that call and not about the
+                // operation.
+                //
+                // Forgotten and not emptied: emptying it is the operation's.
                 core::mem::forget(plaintext);
 
                 key.fast_zeroize();
@@ -264,7 +244,6 @@ encrypted!(test_encrypting_32768_bytes_leaves_nothing, 32768);
 // CipherBox::decrypt_struct
 // ============================================================================
 
-/// What came back out is found while whoever asked for it is still holding it.
 #[test]
 fn test_what_was_decrypted_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (mut one_field_box, key) = a_box()?;
@@ -276,6 +255,7 @@ fn test_what_was_decrypted_is_found_while_it_is_held() -> Result<(), AnyError> {
 
         one_field_box.inner.encrypt_struct(&key, &mut plaintext)?;
 
+        // The input emptied, so what is found is what came back out.
         plaintext.fast_zeroize();
 
         let back = capture(|| one_field_box.inner.decrypt_struct(&key))?;
@@ -294,9 +274,6 @@ fn test_what_was_decrypted_is_found_while_it_is_held() -> Result<(), AnyError> {
     Ok(())
 }
 
-/// The way out, which is where the plaintext reappears — in the field, in
-/// the buffer it was decrypted from, and in whatever the decoder read it
-/// through.
 macro_rules! decrypted {
     ($name:ident, $of:expr) => {
         #[test]
@@ -314,10 +291,15 @@ macro_rules! decrypted {
 
                 one_field_box.inner.encrypt_struct(&key, &mut plaintext)?;
 
+                // The input emptied, so what is left is this call's.
                 plaintext.fast_zeroize();
 
                 let back = capture(|| one_field_box.inner.decrypt_struct(&key))?;
 
+                // CORRECTNESS: after the capture. A call made before it writes
+                // over the stack and the registers the operation left, and
+                // then the absence below is about that call and not about the
+                // operation.
                 drop(back);
                 drop(plaintext);
 
@@ -439,6 +421,9 @@ fn test_trying_to_decrypt_a_field_leaves_nothing() -> Result<(), AnyError> {
                 .try_decrypt_field::<Field, 0>(&key, &mut field, &mut data)
         })?;
 
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         field.fast_zeroize();
         drop(data);
         key.fast_zeroize();
@@ -497,6 +482,9 @@ fn test_decrypting_a_field_leaves_nothing() -> Result<(), AnyError> {
                 .decrypt_field::<Field, 0>(&key, &mut field)
         })?;
 
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         field.fast_zeroize();
         key.fast_zeroize();
     });
@@ -558,6 +546,9 @@ fn test_decrypting_a_field_into_a_buffer_leaves_nothing() -> Result<(), AnyError
                 .decrypt_field_into::<Field, 0>(&key, &mut field, &mut data)
         })?;
 
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         field.fast_zeroize();
         drop(data);
         key.fast_zeroize();
@@ -589,6 +580,11 @@ fn test_trying_to_encrypt_a_field_leaves_nothing() -> Result<(), AnyError> {
                 .try_encrypt_field::<Field, 0>(&key, &mut field)
         })?;
 
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
+        //
+        // Forgotten and not emptied: emptying it is the operation's.
         core::mem::forget(field);
         key.fast_zeroize();
     });
@@ -619,6 +615,11 @@ fn test_encrypting_a_field_leaves_nothing() -> Result<(), AnyError> {
                 .encrypt_field::<Field, 0>(&key, &mut field)
         })?;
 
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
+        //
+        // Forgotten and not emptied: emptying it is the operation's.
         core::mem::forget(field);
         key.fast_zeroize();
     });
@@ -712,6 +713,9 @@ fn test_the_value_a_read_sees_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         let seen = capture(|| one_field_box.inner.open_value())?;
 
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         drop(seen);
     });
 
@@ -872,6 +876,9 @@ fn test_the_field_a_read_sees_leaves_nothing() -> Result<(), AnyError> {
     forensics!({
         let seen = capture(|| one_field_box.inner.open_field_value::<Field, 0>())?;
 
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         drop(seen);
     });
 
@@ -1154,6 +1161,9 @@ fn test_leaking_a_field_of_a_cipherbox_leaves_nothing() -> Result<(), AnyError> 
     forensics!({
         let taken = capture(|| one_field_box.inner.leak_field::<Field, 0, CipherBoxError>())?;
 
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         drop(taken);
     });
 

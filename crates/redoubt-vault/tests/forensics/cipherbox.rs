@@ -216,6 +216,8 @@ fn test_the_secret_is_found_while_the_box_is_open() -> Result<(), AnyError> {
     Ok(())
 }
 
+/// Most methods let the key go before anything could photograph it, so what
+/// vouches for its needle is the same brick, `leak_master_key`, held.
 #[test]
 fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&master_key_backwards()?)?;
