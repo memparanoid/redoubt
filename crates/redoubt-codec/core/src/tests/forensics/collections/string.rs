@@ -15,34 +15,17 @@ use crate::traits::{
     BytesRequired, Decode, DecodeSlice, Encode, EncodeSlice, PreAlloc, TryDecode, TryEncode,
 };
 
-use crate::tests::forensics::support::needles::{TEXT, backwards, text_backwards};
-use crate::tests::forensics::support::{is_found, leaves_nothing, secret_bytes};
+use crate::tests::forensics::support::needles::{backwards, text_backwards};
+use crate::tests::forensics::support::{is_found, leaves_nothing, secret_bytes, text};
 
 type Held = String;
 
-fn hold(of: usize) -> Held {
-    let mut held = String::with_capacity(of);
-
-    // SAFETY: every byte written below is ASCII, so what is left spells UTF-8.
-    let bytes = unsafe { held.as_mut_vec() };
-
-    bytes.resize(of, 0);
-
-    for one in bytes.chunks_mut(TEXT.len()) {
-        // SAFETY: `one` is at most as long as the text, and a constant and a
-        // heap block are different allocations.
-        unsafe { redoubt_mem::copy_nonoverlapping(TEXT.as_ptr(), one.as_mut_ptr(), one.len()) };
-    }
-
-    held
-}
-
 fn two() -> Box<[Held; 2]> {
-    Box::new([hold(32), hold(32)])
+    Box::new([text(32), text(32)])
 }
 
 fn a_buffer_holding_text() -> Result<RedoubtCodecBuffer, AnyError> {
-    let mut source = hold(32);
+    let mut source = text(32);
     let mut buffer = RedoubtCodecBuffer::with_capacity(32);
 
     // SAFETY: nothing is written back through these bytes.
@@ -54,7 +37,7 @@ fn a_buffer_holding_text() -> Result<RedoubtCodecBuffer, AnyError> {
 }
 
 fn wire(of: usize) -> Result<Vec<u8>, AnyError> {
-    let mut held = hold(of);
+    let mut held = text(of);
     let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
 
     held.encode_into(&mut buffer)?;
@@ -91,7 +74,7 @@ fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut held = hold(32);
+    let mut held = text(32);
     let mut buffer = a_buffer_holding_text()?;
 
     forensics!({
@@ -125,7 +108,7 @@ fn test_cleaning_up_a_refused_decode_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut held = hold(32);
+    let mut held = text(32);
     let mut wire = wire(64)?;
 
     forensics!({
@@ -175,7 +158,7 @@ fn test_sizing_a_string_leaves_nothing() {
 
 #[test]
 fn test_what_trying_to_encode_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
-    let mut held = hold(32);
+    let mut held = text(32);
     let mut watch = Forensics::watching(&text_backwards())?;
 
     forensics!({
@@ -200,7 +183,7 @@ fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut held = hold(32);
+    let mut held = text(32);
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
@@ -232,7 +215,7 @@ fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
-    let mut held = hold(32);
+    let mut held = text(32);
     let mut watch = Forensics::watching(&text_backwards())?;
 
     forensics!({
@@ -254,7 +237,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut held = hold(32);
+    let mut held = text(32);
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
@@ -286,7 +269,7 @@ fn test_encoding_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError
 
     let report_before = watch.snapshot()?;
 
-    let mut held = hold(32);
+    let mut held = text(32);
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()? - 1);
@@ -485,7 +468,7 @@ fn test_decoding_over_a_string_that_holds_a_secret_leaves_nothing() -> Result<()
     let report_before = watch.snapshot()?;
 
     let mut wire = wire(64)?;
-    let mut back = hold(32);
+    let mut back = text(32);
 
     forensics!({
         capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
@@ -649,7 +632,7 @@ fn test_preallocating_over_a_string_that_holds_a_secret_leaves_nothing() -> Resu
 
     let report_before = watch.snapshot()?;
 
-    let mut back = hold(4096);
+    let mut back = text(4096);
 
     forensics!({
         capture(|| back.prealloc(2048));

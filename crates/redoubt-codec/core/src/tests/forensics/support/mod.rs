@@ -9,7 +9,7 @@ use redoubt_zero::FastZeroizable;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
 
-use needles::SECRET;
+use needles::{SECRET, TEXT};
 
 /// Writes the secret over and over into `into`, through the copy that erases
 /// what it used: a compiler move would leave residue the test caused itself.
@@ -28,6 +28,24 @@ pub(crate) fn secret_bytes(of: usize) -> Vec<u8> {
     giving(&mut bytes);
 
     bytes
+}
+
+/// `of` bytes of the text secret in a `String`, written the clean way.
+pub(crate) fn text(of: usize) -> String {
+    let mut text = String::with_capacity(of);
+
+    // SAFETY: every byte written below is ASCII, so what is left spells UTF-8.
+    let bytes = unsafe { text.as_mut_vec() };
+
+    bytes.resize(of, 0);
+
+    for one in bytes.chunks_mut(TEXT.len()) {
+        // SAFETY: `one` is at most as long as the text, and a constant and a
+        // heap block are different allocations.
+        unsafe { redoubt_mem::copy_nonoverlapping(TEXT.as_ptr(), one.as_mut_ptr(), one.len()) };
+    }
+
+    text
 }
 
 /// A buffer holding thirty-two bytes of the secret.

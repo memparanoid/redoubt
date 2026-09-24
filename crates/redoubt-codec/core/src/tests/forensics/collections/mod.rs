@@ -5,6 +5,9 @@
 mod allocked_vec;
 mod array;
 mod option;
+mod redoubt_array;
+mod redoubt_option;
+mod redoubt_string;
 mod redoubt_vec;
 mod string;
 mod vec;
