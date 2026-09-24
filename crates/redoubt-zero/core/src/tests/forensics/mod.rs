@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! What the guards leave behind between taking a value and dropping it.
+//! What the zeroizers, the probes and the guards leave behind.
 //!
 //! Run under `nextest`: the sweep reads the whole process, and `cargo test`
 //! shares one between tests.
 
 mod support;
 
+mod atomics;
 mod collections;
+mod pointers;
+mod primitives;
 mod zeroizing_guard;
 mod zeroizing_mut_guard;
