@@ -113,8 +113,9 @@ impl TryDecode for String {
         // buffer length. We use `?` instead of expect/unwrap to keep the code panic-free.
         u8::decode_slice_from(bytes, buf)?;
 
-        // Validate UTF-8
-        if core::str::from_utf8(self.as_bytes()).is_err() {
+        // Validated by `redoubt_mem` and not by `core::str::from_utf8`, which
+        // reads the text through registers it never empties.
+        if !redoubt_mem::is_utf8(self.as_bytes()) {
             return Err(DecodeError::PreconditionViolated);
         }
 
