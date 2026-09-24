@@ -47,17 +47,8 @@ use redoubt_forensics::{AnyError, Forensics, QUIET, Reason, Report, capture, for
 use redoubt_vault::{CipherBoxError, cipherbox};
 use redoubt_zero::RedoubtZero;
 
-use crate::is_found;
-
-/// Thirty-two distinct bytes: no value repeats, so a run that extends did not
-/// extend by luck.
-///
-/// A `const`, so it lives where nothing can write and the sweep never reads it
-/// as a copy.
-const SECRET: [u8; 32] = [
-    0x9E, 0x41, 0x17, 0xC3, 0x5A, 0xF0, 0x2B, 0x88, 0x6D, 0xB4, 0x0A, 0xE7, 0x39, 0x52, 0xCE, 0x71,
-    0x84, 0x1D, 0xA6, 0x3F, 0xD8, 0x60, 0x95, 0x2E, 0xBB, 0x07, 0x4C, 0xE1, 0x76, 0xAF, 0x13, 0xCA,
-];
+use crate::support::needles::{SECRET, backwards};
+use crate::support::{giving, is_found, leaves_nothing};
 
 /// One round leaving nothing is a weaker claim than it looks.
 ///
@@ -82,33 +73,6 @@ struct Secret {
     two_options: RedoubtOption<RedoubtOption<RedoubtArray<u8, 32>>>,
 }
 
-/// The needle, built from its last byte to its first.
-///
-/// Backwards from the start and never turned around: a `to_vec` followed by a
-/// `reverse` would put the secret forwards on the heap for as long as it takes
-/// to turn it over, and a vectorised reverse can spill half of it on the way.
-/// That is the very thing being measured, and the test does not get to cause
-/// it.
-fn backwards() -> Vec<u8> {
-    SECRET.iter().rev().copied().collect()
-}
-
-/// The secret into somewhere the caller already owns, by the copy that erases
-/// what it used.
-///
-/// Not `let mut source = SECRET`, and not `SECRET.to_vec()`. Both are whatever
-/// move the compiler emits, and for thirty-two bytes that is vector registers
-/// nobody clears — so the test would leak on the way in and every number below
-/// would be about the test rather than the box.
-///
-/// Filled in place and not returned, because a thirty-two byte return value is
-/// one more move.
-fn giving(into: &mut [u8]) {
-    // SAFETY: every caller below passes at least as many bytes as the secret
-    // has, and a constant and a local are different allocations.
-    unsafe { redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), into.as_mut_ptr(), SECRET.len()) };
-}
-
 /// The secret into all four shapes, out of locals that are cleared behind it.
 ///
 /// This is the operation the rest of the file measures the aftermath of:
@@ -124,9 +88,7 @@ fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
         // leave one more copy of the secret per round by the test's own doing.
         let mut source = vec![0_u8; SECRET.len() * TIMES];
 
-        for one in source.chunks_mut(SECRET.len()) {
-            giving(one);
-        }
+        giving(&mut source);
 
         it.a_vec.replace_from_mut_slice(&mut source);
 
@@ -137,9 +99,7 @@ fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
         let mut inner = RedoubtVec::<u8>::with_capacity(SECRET.len() * TIMES);
         let mut source = vec![0_u8; SECRET.len() * TIMES];
 
-        for one in source.chunks_mut(SECRET.len()) {
-            giving(one);
-        }
+        giving(&mut source);
 
         inner.replace_from_mut_slice(&mut source);
         it.an_option.replace(&mut inner);
@@ -205,38 +165,6 @@ fn filled() -> Result<(SecretsBox, Forensics, Report), AnyError> {
 #[inline(never)]
 fn let_go<T>(value: T) {
     core::hint::black_box(&value);
-}
-
-/// The three things an absence has to survive.
-///
-/// The whole secret is gone, no piece of it wider than chance is left, and the
-/// score did not move. The first two are absolute and owe nothing to any other
-/// photograph, which is what makes the third worth reading.
-fn leaves_nothing(report_before: &Report, before: &str, report_after: &Report, what: &str) {
-    println!();
-    report_before.summary(before);
-    report_after.summary_against(report_before, what);
-    println!();
-
-    // Assert zeroization!
-    assert!(
-        !report_after.found,
-        "the whole secret was left behind by {what}: {report_after}"
-    );
-
-    assert!(
-        report_after.widest <= QUIET,
-        "a run of {} bytes of the secret was left behind by {what}, and {QUIET} \
-         is what memory has by accident: {report_after}",
-        report_after.widest,
-    );
-
-    let delta = report_after.against(report_before);
-
-    assert!(
-        delta.is_noise(),
-        "{what} moved the score past chance: {delta}"
-    );
 }
 
 // ============================================================================

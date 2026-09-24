@@ -14,26 +14,7 @@
 
 #![cfg(target_os = "linux")]
 
-use redoubt_forensics::Report;
+mod support;
 
 mod cipherbox;
 mod cipherbox_halves;
-
-/// The photograph says the secret is there, which is what makes the absences
-/// beside it mean anything.
-///
-/// Here rather than in either module because both ask it in the same words: a
-/// sweep that reaches nowhere reports a clean process, and so does an
-/// operation that left nothing. Only a copy the sweep has to find tells the
-/// two apart.
-fn is_found(report: &Report, what: &str) {
-    println!();
-    report.summary(what);
-    println!();
-
-    assert!(
-        report.found,
-        "the sweep does not reach {what}, so every absence below it is the \
-         instrument standing where the evidence is: {report}"
-    );
-}

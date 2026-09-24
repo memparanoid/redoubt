@@ -32,21 +32,12 @@
 
 use redoubt_alloc::RedoubtVec;
 use redoubt_codec::RedoubtCodec;
-use redoubt_forensics::{AnyError, Forensics, QUIET, Report, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics};
 use redoubt_vault::{cipherbox, leak_master_key};
 use redoubt_zero::{FastZeroizable, RedoubtZero};
 
-use crate::is_found;
-
-/// Thirty-two distinct bytes: no value repeats, so a run that extends did not
-/// extend by luck.
-///
-/// A `const`, so it lives in a mapping nothing may write — and the sweep reads
-/// only writable ones, so the original is never found as a copy of itself.
-const SECRET: [u8; 32] = [
-    0x9E, 0x41, 0x17, 0xC3, 0x5A, 0xF0, 0x2B, 0x88, 0x6D, 0xB4, 0x0A, 0xE7, 0x39, 0x52, 0xCE, 0x71,
-    0x84, 0x1D, 0xA6, 0x3F, 0xD8, 0x60, 0x95, 0x2E, 0xBB, 0x07, 0x4C, 0xE1, 0x76, 0xAF, 0x13, 0xCA,
-];
+use crate::support::needles::backwards;
+use crate::support::{giving, is_found, leaves_nothing};
 
 /// How much of the master key the box takes.
 const WIDE: usize = 16;
@@ -56,24 +47,6 @@ const WIDE: usize = 16;
 #[fast_zeroize(drop)]
 struct OneField {
     all_of_it: RedoubtVec<u8>,
-}
-
-/// The needle, built from its last byte to its first.
-///
-/// Never turned around in this process: the forward bytes must not exist here
-/// even for as long as it would take to reverse them.
-fn backwards() -> Vec<u8> {
-    SECRET.iter().rev().copied().collect()
-}
-
-/// The secret over and over, by the copy that erases what it used, so that
-/// filling the source is not itself the leak.
-fn giving(into: &mut [u8]) {
-    for one in into.chunks_mut(SECRET.len()) {
-        // SAFETY: `one` is at most as long as the secret, and a constant and a
-        // local are different allocations.
-        unsafe { redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), one.as_mut_ptr(), one.len()) };
-    }
 }
 
 /// A value of that many bytes of the secret, filled the clean way.
@@ -99,35 +72,6 @@ fn a_box() -> Result<(OneFieldBox, Vec<u8>), AnyError> {
     let key = leak_master_key(WIDE)?.to_vec();
 
     Ok((one_field_box, key))
-}
-
-/// The three things an absence has to survive.
-///
-/// The whole secret is gone, no piece of it wider than chance is left, and the
-/// score did not move. One of the three on its own would pass a process that
-/// kept half of it, or kept all of it somewhere the score weighs at nothing.
-fn leaves_nothing(report_before: &Report, report_after: &Report, what: &str) {
-    println!();
-    report_before.summary("nothing in the box yet");
-    report_after.summary_against(report_before, what);
-    println!();
-
-    // Assert zeroization!
-    assert!(
-        !report_after.found,
-        "the whole secret survived {what}: {report_after}"
-    );
-
-    assert!(
-        report_after.widest <= QUIET,
-        "a run of {} bytes survived {what}, and {QUIET} is what memory has by \
-         accident: {report_after}",
-        report_after.widest,
-    );
-
-    let delta = report_after.against(report_before);
-
-    assert!(delta.is_noise(), "{what} moved the score: {delta}");
 }
 
 // ============================================================================
@@ -188,6 +132,7 @@ macro_rules! encrypted {
 
             leaves_nothing(
                 &report_before,
+                "nothing in the box yet",
                 &report_after,
                 &format!("encrypted {} bytes", $of),
             );
@@ -272,6 +217,7 @@ macro_rules! decrypted {
 
             leaves_nothing(
                 &report_before,
+                "nothing in the box yet",
                 &report_after,
                 &format!("decrypted {} bytes", $of),
             );
