@@ -7,14 +7,24 @@
 //! This module provides `ZeroizationProbe`, `ZeroizeMetadata`, and `FastZeroizable`
 //! implementations for all Rust primitive types.
 
-/// Implements ZeroizationProbe for integer types using to_le_bytes().
-macro_rules! impl_zeroization_probe_int {
+/// Implements ZeroizationProbe for integer and float types, by their bytes.
+///
+/// A comparison with zero would load the value into registers nothing empties.
+/// The bytes are a copy in this frame, so they are emptied before it returns.
+macro_rules! impl_zeroization_probe_numeric {
     ($($ty:ty),* $(,)?) => {
         $(
             impl crate::traits::ZeroizationProbe for $ty {
                 #[inline(always)]
                 fn is_zeroized(&self) -> bool {
-                    self.to_le_bytes().iter().all(|b| *b == 0)
+                    use crate::traits::FastZeroizable;
+
+                    let mut bytes = self.to_le_bytes();
+                    let answer = redoubt_mem::is_zeroized(&bytes);
+
+                    bytes.fast_zeroize();
+
+                    answer
                 }
             }
         )*
@@ -37,7 +47,7 @@ impl crate::traits::ZeroizationProbe for char {
     }
 }
 
-impl_zeroization_probe_int!(
+impl_zeroization_probe_numeric!(
     u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64
 );
 
