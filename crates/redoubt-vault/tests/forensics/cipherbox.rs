@@ -3,43 +3,6 @@
 // See LICENSE in the repository root for full license text.
 
 //! What each way of opening a cipherbox leaves behind.
-//!
-//! # One secret, four shapes
-//!
-//! The same thirty-two bytes go into a `RedoubtVec`, a `RedoubtArray`, an
-//! option around a vec and an option around an option around an array. One
-//! needle then covers all four, and a photograph that finds nothing found
-//! nothing in any of them.
-//!
-//! The shapes are not decoration. A vec keeps its bytes in a heap block it
-//! reallocates, an array in a box it never moves, and an option has to take its
-//! value out and put it back — three different paths for the same bytes, and
-//! the one thing they have in common is that the ciphertext is the only place
-//! either is supposed to rest.
-//!
-//! # An absolute bound, and then a difference
-//!
-//! Every photograph is held to [`QUIET`] — the widest run memory throws up by
-//! accident — and that bound owes nothing to any other photograph. A residue
-//! that vanishes while another appears reads as no change at all, so a
-//! difference alone would not catch it.
-//!
-//! The differences come after, and say what each operation moved.
-//!
-//! # Nothing is dropped here, and the controls are photographed in odd places
-//!
-//! A cipherbox holds ciphertext at rest, so there is no legitimate copy of the
-//! plaintext to remove before a photograph and no drop to measure: letting the
-//! box go destroys ciphertext, which is not what any of this is about.
-//!
-//! What that costs is the usual place to put a control. An `open` finishes —
-//! by the time it returns the plaintext is gone — so its control is
-//! photographed **from inside the closure**, which is the only moment the
-//! plaintext exists to be found. A `leak` hands it back, so its control holds
-//! what it was handed.
-//!
-//! Neither plants anything. A copy the test put somewhere of its own choosing
-//! would vouch for that place and not for the one the operation uses.
 
 use redoubt_alloc::{RedoubtArray, RedoubtOption, RedoubtVec};
 use redoubt_codec::RedoubtCodec;
@@ -50,17 +13,12 @@ use redoubt_zero::RedoubtZero;
 use crate::support::needles::{SECRET, backwards};
 use crate::support::{giving, is_found, leaves_nothing};
 
-/// One round leaving nothing is a weaker claim than it looks.
-///
-/// A piece surviving one round in fifty would not show once and would show
-/// plainly at two hundred.
+/// Rounds per absence, so a residue that survives only now and then still
+/// accumulates where the sweep reads it.
 const ROUNDS: usize = 200;
 
-/// How many times the secret goes into the containers that can hold more than
-/// one of it.
-///
-/// Thirty-two kilobytes, which is large enough that every buffer on the way
-/// into the ciphertext has to be that large too.
+/// Copies of the secret in each vec field: thirty-two kilobytes, so every
+/// buffer on the way into the ciphertext is that large too.
 const TIMES: usize = 1024;
 
 #[cipherbox(SecretsBox)]
@@ -73,10 +31,7 @@ struct Secret {
     two_options: RedoubtOption<RedoubtOption<RedoubtArray<u8, 32>>>,
 }
 
-/// The secret into all four shapes, out of locals that are cleared behind it.
-///
-/// This is the operation the rest of the file measures the aftermath of:
-/// wherever the plaintext moves on its way into the ciphertext, it moves here.
+/// Fills every field inside one `open_mut`, from sources the containers empty.
 fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
     into.open_mut(|it| {
         let mut source = [0_u8; 32];
@@ -92,10 +47,9 @@ fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
 
         it.a_vec.replace_from_mut_slice(&mut source);
 
-        // Room asked for up front, so the extend below never reaches `grow_to`.
-        // A payload this size with no growth in it is what tells a leak in the
-        // growing apart from a leak in everything else that has to carry
-        // thirty-two kilobytes.
+        // Room asked for up front, so the replace below never reaches
+        // `grow_to`: a payload this size with no growth tells a leak in the
+        // growing apart from one in the carrying.
         let mut inner = RedoubtVec::<u8>::with_capacity(SECRET.len() * TIMES);
         let mut source = vec![0_u8; SECRET.len() * TIMES];
 
@@ -121,18 +75,9 @@ fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
     Ok(())
 }
 
-/// A box with the secret already in it, the instrument watching, and the
-/// photograph that says filling it left nothing.
-///
-/// The filling happens before the first photograph on purpose: what every test
-/// taking this asks about is what *opening* leaves, and the filling's own
-/// leavings would otherwise sit in the difference. The two tests that ask about
-/// the filling itself do not take this — they watch it happen.
-///
-/// Which is why that photograph is held to the bound here rather than in each
-/// test: it is the same precondition every one of them starts from, and a test
-/// that measured an open against a dirty start would be reading a difference
-/// from a number that already had the secret in it.
+/// A filled box, the instrument watching, and the photograph after the fill.
+/// The fill comes before it so a test reads what opening left, and it is held
+/// to the bound because every test reads a difference from it.
 fn filled() -> Result<(SecretsBox, Forensics, Report), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
     let mut secrets_box = SecretsBox::new();
@@ -156,12 +101,8 @@ fn filled() -> Result<(SecretsBox, Forensics, Report), AnyError> {
     Ok((secrets_box, watch, report_before))
 }
 
-/// Takes the box and lets it go, which runs its drop somewhere this test
-/// cannot see.
-///
-/// What handing one of these to somebody else is. Not inlined: a move within
-/// one function is one the optimiser may fold away, and a measurement of what
-/// a move leaves has to be sure a move happened.
+/// Takes the value by move and drops it. Not inlined, so the move is not
+/// folded away.
 #[inline(never)]
 fn let_go<T>(value: T) {
     core::hint::black_box(&value);
@@ -176,6 +117,10 @@ fn test_a_box_dropped_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watch, report_before) = filled()?;
 
     forensics!({
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
         capture(|| drop(secrets_box));
     });
 
@@ -195,13 +140,9 @@ fn test_a_box_dropped_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox: ownership
 // ============================================================================
 
-/// A box given away and let go leaves nothing behind.
-///
-/// What this asks is whether *moving* the box first changes the answer. It
-/// does not, and for the same reason the containers underneath pass: what
-/// travels is pointers, and the buffers never move. A box that carried them
-/// inline would leave a copy of each in the slot it was moved out of, with
-/// nothing left to empty them.
+/// No presence of its own: at rest the box holds ciphertext, so a moved box has
+/// no plaintext to find. The absence leans on the presences of the opening
+/// methods.
 #[test]
 fn test_a_box_given_away_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -214,9 +155,9 @@ fn test_a_box_given_away_leaves_nothing() -> Result<(), AnyError> {
         open_fill_and_close(&mut secrets_box)?;
 
         // CORRECTNESS: inside the capture, because this is the operation. What
-        // the section measures is whether the move itself leaves a copy in the
-        // registers or the stack it used. What it writes over is whatever ran
-        // before it, which has a section of its own.
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
         capture(|| let_go(secrets_box));
     });
 
@@ -236,16 +177,8 @@ fn test_a_box_given_away_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox: at rest
 // ============================================================================
 
-/// A box that has been filled and left alone holds nothing a sweep can find.
-///
-/// The at-rest claim, and the one everything else here quietly stands on:
-/// between calls, what is in memory is ciphertext. Nothing is dropped and
-/// nothing is opened — the box is alive and full when the photograph is taken,
-/// which is the state it spends its life in.
-///
-/// Its pair is the control in the `open` section. The same box, the same
-/// process, and the only difference is whether it is open: open, the whole
-/// secret is there; closed, none of it is.
+/// The box is alive and full when the photograph is taken. Its control is the
+/// `open` presence: the same box, open, holds the whole secret.
 #[test]
 fn test_a_filled_box_holds_nothing_at_rest() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -258,9 +191,8 @@ fn test_a_filled_box_holds_nothing_at_rest() -> Result<(), AnyError> {
         capture(|| open_fill_and_close(&mut secrets_box))?;
     });
 
-    // Held across the photograph, and by reference so that holding it is not
-    // one more copy. Let go before it, the measurement would be about the drop
-    // instead of about what the box keeps.
+    // Held across the photograph, by reference: let go before it, the
+    // photograph would read the drop and not what the box keeps.
     core::hint::black_box(&secrets_box);
 
     let report_after = watch.snapshot()?;
@@ -291,11 +223,6 @@ fn test_making_a_box_leaves_nothing() {
 // SecretsBox::open
 // ============================================================================
 
-/// The secret is found while the box is open.
-///
-/// Taking a photograph forks and writes over a good deal of stack, which costs
-/// nothing to a test asserting a presence: a disturbed measurement can lose the
-/// secret and turn this red, and cannot invent one.
 #[test]
 fn test_the_secret_is_found_while_the_box_is_open() -> Result<(), AnyError> {
     let (secrets_box, mut watch, _) = filled()?;
@@ -317,7 +244,6 @@ fn test_the_secret_is_found_while_the_box_is_open() -> Result<(), AnyError> {
     Ok(())
 }
 
-/// Reading the whole struct, which decrypts all four shapes at once.
 #[test]
 fn test_open_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watch, report_before) = filled()?;
@@ -382,13 +308,6 @@ fn test_open_that_fails_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::open_mut
 // ============================================================================
 
-/// The secret is found while the box is open for writing.
-///
-/// The photograph is taken from inside the closure, where the plaintext is
-/// decrypted and alive in the buffers the call made for it. `open_mut` writes
-/// the value back as well, so what it holds open is not what the read-only
-/// call holds open, and an absence measured against one does not vouch for the
-/// other.
 #[test]
 fn test_the_secret_is_found_while_the_box_is_open_for_writing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watch, _) = filled()?;
@@ -410,8 +329,6 @@ fn test_the_secret_is_found_while_the_box_is_open_for_writing() -> Result<(), An
     Ok(())
 }
 
-/// Reading the whole struct and writing it back, so the plaintext makes the
-/// return trip as well.
 #[test]
 fn test_open_mut_leaves_nothing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watch, report_before) = filled()?;
@@ -444,13 +361,8 @@ fn test_open_mut_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-/// An `open_mut` with something to write, which is what fills the box.
-///
-/// The closures above read a byte and hand it back; this one replaces every
-/// field, so the plaintext makes the whole trip in — through the containers,
-/// the encoding and the cipher — inside one `open_mut`. If any of that keeps a
-/// copy, the boxes every other test here starts from were dirty before they
-/// were measured.
+/// Every field replaced inside one `open_mut`, which is the fill every other
+/// test here starts from.
 #[test]
 fn test_filling_every_field_once_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -477,13 +389,8 @@ fn test_filling_every_field_once_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-/// Filling it many times leaves nothing either.
-///
-/// Its own test rather than one more round in the one above, because the two
-/// fail for different reasons. One round failing is a leak in a single fill.
-/// Only this one failing is something that accumulates — a residue that
-/// survives one round in fifty, or a container that grows and leaves its old
-/// contents behind on the way.
+/// Only a residue that accumulates across fills, or a container that leaves its
+/// old contents as it grows, fails here and not after a single fill.
 #[test]
 fn test_filling_every_field_many_times_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -548,12 +455,6 @@ fn test_open_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::leak_a_vec
 // ============================================================================
 
-/// What a leak handed back is found while whoever asked for it is holding it.
-///
-/// A leak gives the plaintext to the caller, so there is a moment when it is
-/// legitimately in hand and no photograph has to be taken from inside
-/// anything. What it vouches for is the container the leak built, which is
-/// where the absence below says nothing is left.
 #[test]
 fn test_what_a_leaked_vec_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (secrets_box, mut watch, _) = filled()?;
@@ -573,12 +474,6 @@ fn test_what_a_leaked_vec_handed_back_is_found_while_it_is_held() -> Result<(), 
     Ok(())
 }
 
-/// A vec, whose bytes live in a heap block it reallocates.
-///
-/// The last round is written out rather than being the last turn of the loop,
-/// because what it is handed has to still be alive when the capture runs: the
-/// stack is then read as the leak left it and not as the drop left it. The drop
-/// is after, and the photograph reads the allocation live.
 #[test]
 fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watch, report_before) = filled()?;
@@ -592,6 +487,9 @@ fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
 
         let taken = capture(|| secrets_box.leak_a_vec())?;
 
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         drop(taken);
     });
 
@@ -613,7 +511,6 @@ fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::leak_an_array
 // ============================================================================
 
-/// What a leaked array handed back is found while it is held.
 #[test]
 fn test_what_a_leaked_array_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (secrets_box, mut watch, _) = filled()?;
@@ -633,7 +530,6 @@ fn test_what_a_leaked_array_handed_back_is_found_while_it_is_held() -> Result<()
     Ok(())
 }
 
-/// An array, whose bytes live in a box that never moves.
 #[test]
 fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watch, report_before) = filled()?;
@@ -647,6 +543,9 @@ fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
 
         let taken = capture(|| secrets_box.leak_an_array())?;
 
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         drop(taken);
     });
 
@@ -668,7 +567,6 @@ fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::leak_an_option
 // ============================================================================
 
-/// What a leaked option handed back is found while it is held.
 #[test]
 fn test_what_a_leaked_option_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (secrets_box, mut watch, _) = filled()?;
@@ -688,7 +586,6 @@ fn test_what_a_leaked_option_handed_back_is_found_while_it_is_held() -> Result<(
     Ok(())
 }
 
-/// An option around a vec, which has to take the value out and put it back.
 #[test]
 fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watch, report_before) = filled()?;
@@ -702,6 +599,9 @@ fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
 
         let taken = capture(|| secrets_box.leak_an_option())?;
 
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         drop(taken);
     });
 
@@ -723,7 +623,6 @@ fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::leak_two_options
 // ============================================================================
 
-/// What two leaked options handed back is found while it is held.
 #[test]
 fn test_what_two_leaked_options_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (secrets_box, mut watch, _) = filled()?;
@@ -743,8 +642,6 @@ fn test_what_two_leaked_options_handed_back_is_found_while_it_is_held() -> Resul
     Ok(())
 }
 
-/// An option around an option, which takes the value out and puts it back
-/// twice over.
 #[test]
 fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watch, report_before) = filled()?;
@@ -758,6 +655,9 @@ fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
 
         let taken = capture(|| secrets_box.leak_two_options())?;
 
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         drop(taken);
     });
 
@@ -1034,9 +934,6 @@ fn test_open_an_option_that_fails_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::open_two_options
 // ============================================================================
 
-/// A field on its own decrypts through its own buffer and not through the one
-/// the whole struct uses, so this is a different place for the plaintext to be
-/// and needs saying separately.
 #[test]
 fn test_the_secret_is_found_while_one_field_is_open() -> Result<(), AnyError> {
     let (secrets_box, mut watch, _) = filled()?;
@@ -1058,8 +955,6 @@ fn test_the_secret_is_found_while_one_field_is_open() -> Result<(), AnyError> {
     Ok(())
 }
 
-/// One field, through the option that has to take its value out and put it back
-/// twice over.
 #[test]
 fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watch, report_before) = filled()?;

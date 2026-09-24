@@ -4,13 +4,8 @@
 
 //! What the facade leaves behind, measured through the API a caller has.
 //!
-//! # One binary, and a process each anyway
-//!
-//! A directory under `tests/` is one target and not one per file, so both
-//! modules below are linked together. That costs nothing here: `nextest` gives
-//! every test function its own process, which is what these need — the memory
-//! being read is the whole process's, so a second test sharing it is another
-//! place the secret could be and another test's needle to trip over.
+//! Run under `nextest`: the sweep reads the whole process, and `cargo test`
+//! shares one between tests.
 
 #![cfg(target_os = "linux")]
 
