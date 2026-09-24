@@ -187,8 +187,13 @@ where
         self.decrypt_struct_from(aead_key, &mut data)
     }
 
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[inline(always)]
-    pub(crate) fn decrypt_struct_from(
+    pub fn decrypt_struct_from(
         &self,
         aead_key: &[u8],
         data: &mut DataBuffers<N>,
@@ -212,9 +217,15 @@ where
     /// and leaves the rest as they were, so on a box where the rest are empty
     /// it would return having sealed a single field, with the box still
     /// reading as unsealed and the write it just took lost at the next read.
+    ///
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[cold]
     #[inline(never)]
-    pub(crate) fn maybe_initialize(&mut self) -> Result<(), CipherBoxError> {
+    pub fn maybe_initialize(&mut self) -> Result<(), CipherBoxError> {
         if self.initialized {
             return Ok(());
         }
@@ -231,8 +242,14 @@ where
     /// sealed field survives the read, and a caller can be handed the
     /// plaintext without the box having to seal it again. What is left in the
     /// clone is zeros, because `decode_from` wipes each range as it reads it.
+    ///
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[inline(always)]
-    pub(crate) fn try_decrypt_field<F, const M: usize>(
+    pub fn try_decrypt_field<F, const M: usize>(
         &self,
         aead_key: &[u8],
         field: &mut F,
@@ -252,8 +269,13 @@ where
         Ok(())
     }
 
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[inline(always)]
-    pub(crate) fn decrypt_field<F, const M: usize>(
+    pub fn decrypt_field<F, const M: usize>(
         &self,
         aead_key: &[u8],
         field: &mut F,
@@ -266,8 +288,13 @@ where
         self.decrypt_field_into::<F, M>(aead_key, field, &mut data)
     }
 
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[inline(always)]
-    pub(crate) fn decrypt_field_into<F, const M: usize>(
+    pub fn decrypt_field_into<F, const M: usize>(
         &self,
         aead_key: &[u8],
         field: &mut F,
@@ -287,8 +314,13 @@ where
         Ok(())
     }
 
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[inline(always)]
-    pub(crate) fn try_encrypt_field<F, const M: usize>(
+    pub fn try_encrypt_field<F, const M: usize>(
         &mut self,
         aead_key: &[u8],
         field: &mut F,
@@ -326,8 +358,13 @@ where
         Ok(())
     }
 
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[inline(always)]
-    pub(crate) fn encrypt_field<F, const M: usize>(
+    pub fn encrypt_field<F, const M: usize>(
         &mut self,
         aead_key: &[u8],
         field: &mut F,
@@ -359,8 +396,14 @@ where
     ///
     /// Reading one field goes through `leak_field` instead, which clones and
     /// decrypts that field alone.
+    ///
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[inline(always)]
-    pub(crate) fn open_dyn<R, E>(
+    pub fn open_dyn<R, E>(
         &self,
         f: &mut dyn FnMut(&T) -> Result<R, E>,
     ) -> Result<ZeroizingGuard<R>, E>
@@ -385,8 +428,14 @@ where
     ///
     /// An unsealed box holds no ciphertexts, so there is nothing to open and
     /// the master key is never asked for.
+    ///
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[inline(always)]
-    pub(crate) fn open_value(&self) -> Result<ZeroizingGuard<T>, CipherBoxError> {
+    pub fn open_value(&self) -> Result<ZeroizingGuard<T>, CipherBoxError> {
         if !self.initialized {
             return Ok(ZeroizingGuard::<T>::from_default());
         }
@@ -401,8 +450,14 @@ where
     /// A callback that returns `Err` leaves the sealed fields as they were:
     /// what it was handed is a clone, and only a callback that returns `Ok` is
     /// followed by the reseal that commits it.
+    ///
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[inline(always)]
-    pub(crate) fn open_mut_dyn<R, E>(
+    pub fn open_mut_dyn<R, E>(
         &mut self,
         f: &mut dyn FnMut(&mut T) -> Result<R, E>,
     ) -> Result<ZeroizingGuard<R>, E>
@@ -432,8 +487,13 @@ where
         Ok(ZeroizingGuard::from_mut(&mut result))
     }
 
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[inline(always)]
-    pub(crate) fn open_field_dyn<Field, const M: usize, R, E>(
+    pub fn open_field_dyn<Field, const M: usize, R, E>(
         &self,
         f: &mut dyn FnMut(&Field) -> Result<R, E>,
     ) -> Result<ZeroizingGuard<R>, E>
@@ -459,8 +519,14 @@ where
     ///
     /// An unsealed box holds no ciphertexts, so there is nothing to open and
     /// the master key is never asked for.
+    ///
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[inline(always)]
-    pub(crate) fn open_field_value<Field, const M: usize>(
+    pub fn open_field_value<Field, const M: usize>(
         &self,
     ) -> Result<ZeroizingGuard<Field>, CipherBoxError>
     where
@@ -479,8 +545,13 @@ where
         Ok(field)
     }
 
+    /// Not API: reachable so that the forensics that measure one half at a
+    /// time can call it, which they do from an integration target because the
+    /// lib tests link `libseccomp` and so cannot be built for another
+    /// architecture.
+    #[doc(hidden)]
     #[inline(always)]
-    pub(crate) fn open_field_mut_dyn<Field, const M: usize, R, E>(
+    pub fn open_field_mut_dyn<Field, const M: usize, R, E>(
         &mut self,
         f: &mut dyn FnMut(&mut Field) -> Result<R, E>,
     ) -> Result<ZeroizingGuard<R>, E>
