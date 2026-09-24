@@ -33,12 +33,15 @@ fn test_callback_error_displays_what_the_callback_returned() {
 /// The wrapper is transparent, so what a chain walker reaches past it is
 /// the callback's own cause and not the callback's error again.
 #[test]
-fn test_callback_error_sources_the_cause_the_callback_error_had() {
+fn test_callback_error_sources_the_cause_the_callback_error_had()
+-> Result<(), Box<dyn std::error::Error>> {
     let error = BufferError::callback_error(CallersWithCause(Callers));
 
-    let source = error.source().expect("the callback error had a cause");
+    let source = error.source().ok_or("the callback error had no cause")?;
 
     assert_eq!(source.to_string(), Callers.to_string());
+
+    Ok(())
 }
 
 #[test]
@@ -53,10 +56,12 @@ fn test_callback_error_sources_nothing_where_the_callback_error_had_no_cause() {
 // =============================================================================
 
 #[test]
-fn test_a_page_error_sources_the_page_error() {
+fn test_a_page_error_sources_the_page_error() -> Result<(), Box<dyn std::error::Error>> {
     let error = BufferError::from(PageError::Lock);
 
-    let source = error.source().expect("a page error has a source");
+    let source = error.source().ok_or("the page error had no source")?;
 
     assert_eq!(source.to_string(), PageError::Lock.to_string());
+
+    Ok(())
 }

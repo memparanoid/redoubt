@@ -16,7 +16,6 @@ use crate::traits::Buffer;
 /// opens.
 pub struct PageBuffer {
     pub(crate) page: Page,
-    len: usize,
     pub(crate) poisoned: bool,
 }
 
@@ -24,7 +23,7 @@ impl PageBuffer {
     /// Creates a new PageBuffer of the specified length, its page locked,
     /// excluded from core dumps, and closed.
     pub fn new(len: usize) -> Result<Self, PageError> {
-        let page = Page::new()?;
+        let page = Page::new(len)?;
 
         page.lock()?;
         page.mark_dontdump()?;
@@ -32,7 +31,6 @@ impl PageBuffer {
 
         Ok(Self {
             page,
-            len,
             poisoned: false,
         })
     }
@@ -76,14 +74,14 @@ impl PageBuffer {
 
     /// Returns true if the buffer has zero length.
     pub fn is_empty(&self) -> bool {
-        self.len == 0
+        self.page.len() == 0
     }
 }
 
 impl core::fmt::Debug for PageBuffer {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("PageBuffer")
-            .field("len", &self.len)
+            .field("len", &self.page.len())
             .finish_non_exhaustive()
     }
 }
@@ -99,7 +97,7 @@ impl Buffer for PageBuffer {
         // SAFETY: what `as_slice` asks is that the page be readable, which is
         // what `unseal` left it, and `seal` below closes it again.
         let slice = unsafe { self.page.as_slice() };
-        let read = f(&slice[..self.len]);
+        let read = f(slice);
 
         // Not a `?` on the callback: a page the error skipped past is a page
         // left readable for the rest of the process.
@@ -119,7 +117,7 @@ impl Buffer for PageBuffer {
         // is what `unseal` left it, and `&mut self` is what makes this the only
         // reference to it. `seal` below closes it again.
         let slice = unsafe { self.page.as_mut_slice() };
-        let written = f(&mut slice[..self.len]);
+        let written = f(slice);
 
         // Not a `?` on the callback: a page the error skipped past is a page
         // left writable for the rest of the process.
@@ -129,6 +127,6 @@ impl Buffer for PageBuffer {
     }
 
     fn len(&self) -> usize {
-        self.len
+        self.page.len()
     }
 }

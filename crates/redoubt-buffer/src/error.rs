@@ -23,6 +23,8 @@ pub enum PageError {
 
     #[error("madvise(MADV_DONTDUMP) failed")]
     Madvise,
+    #[error("a buffer of {len} bytes does not fit a page of {capacity}")]
+    TooWide { len: usize, capacity: usize },
 }
 
 /// Errors that can occur when working with buffers.

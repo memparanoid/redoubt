@@ -22,6 +22,7 @@ use super::error::PageError;
 pub struct Page {
     ptr: *mut u8,
     capacity: usize,
+    len: usize,
     is_protected: AtomicBool,
 }
 
@@ -29,11 +30,16 @@ unsafe impl Send for Page {}
 unsafe impl Sync for Page {}
 
 impl Page {
-    /// Allocates a new page via mmap. Does NOT lock or protect.
-    pub fn new() -> Result<Self, PageError> {
+    /// Allocates a new page via mmap, of which `len` bytes are handed out. Does
+    /// NOT lock or protect.
+    pub fn new(len: usize) -> Result<Self, PageError> {
         // SAFETY: it reads a number the C library holds, takes no pointer and
         // writes nowhere.
         let capacity = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
+
+        if len > capacity {
+            return Err(PageError::TooWide { len, capacity });
+        }
 
         // SAFETY: a null address asks the kernel to choose one, and the fd is
         // -1 under `MAP_ANONYMOUS`, so nothing is mapped from a file. What
@@ -56,6 +62,7 @@ impl Page {
 
         let mut page = Self {
             capacity,
+            len,
             ptr: ptr as *mut u8,
             is_protected: AtomicBool::new(false),
         };
@@ -141,38 +148,47 @@ impl Page {
         Ok(())
     }
 
-    /// Returns a slice view of the page. Caller must ensure page is unprotected.
+    /// How many bytes of the page are handed out.
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Returns a slice view of the `len` bytes handed out. Caller must ensure
+    /// page is unprotected.
     ///
     /// # Safety
     /// Page must be unprotected (PROT_READ or PROT_WRITE), otherwise SIGSEGV.
     pub unsafe fn as_slice(&self) -> &[u8] {
-        // SAFETY: the address and the length are the mapping's own, and every
-        // byte of it is initialized — `new` zeroes the whole page before
+        // SAFETY: `len` is at most the mapping's length, checked in `new`, and
+        // every byte of it is initialized — `new` zeroes the whole page before
         // handing one out. That the page is readable is what this function's
         // own contract asks of the caller.
-        unsafe { core::slice::from_raw_parts(self.ptr, self.capacity) }
+        unsafe { core::slice::from_raw_parts(self.ptr, self.len) }
     }
 
-    /// Returns a mutable slice view of the page. Caller must ensure page is unprotected.
+    /// Returns a mutable slice view of the `len` bytes handed out. Caller must
+    /// ensure page is unprotected.
     ///
     /// # Safety
     /// Page must be unprotected (PROT_WRITE), otherwise SIGSEGV.
     pub unsafe fn as_mut_slice(&mut self) -> &mut [u8] {
-        // SAFETY: the address and the length are the mapping's own, every byte
-        // of it is initialized by `new`, and `&mut self` is what makes this the
-        // only reference to it. That the page is writable is what this
+        // SAFETY: `len` is at most the mapping's length, checked in `new`, every
+        // byte of it is initialized by `new`, and `&mut self` is what makes this
+        // the only reference to it. That the page is writable is what this
         // function's own contract asks of the caller.
-        unsafe { core::slice::from_raw_parts_mut(self.ptr, self.capacity) }
+        unsafe { core::slice::from_raw_parts_mut(self.ptr, self.len) }
     }
 
-    /// Zeroizes the page contents. Page must be unprotected.
+    /// Zeroizes the whole page, past `len` as well. Page must be unprotected.
     ///
     /// # Safety
     /// Page must be unprotected (PROT_WRITE), otherwise SIGSEGV.
     pub unsafe fn zeroize(&mut self) {
-        // SAFETY: what `as_mut_slice` asks is that the page be writable, which
-        // is what this function's own contract asks of the caller.
-        unsafe { self.as_mut_slice().fast_zeroize() };
+        // SAFETY: the address and the length are the mapping's own, and
+        // `&mut self` is what makes this the only reference to it. That the
+        // page is writable is what this function's own contract asks of the
+        // caller.
+        unsafe { core::slice::from_raw_parts_mut(self.ptr, self.capacity) }.fast_zeroize();
     }
 
     /// Unlocks page (allows swapping).

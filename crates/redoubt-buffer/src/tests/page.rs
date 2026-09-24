@@ -16,22 +16,49 @@ mod page_tests {
     // new()
     // =============================================================================
 
-    #[test]
-    fn test_new_page_is_zeroized() {
-        let page = Page::new().expect("Failed to new()");
-        let slice = unsafe { page.as_slice() };
-
-        assert!(slice.is_zeroized());
+    fn page_size() -> usize {
+        // SAFETY: it reads a number the C library holds, takes no pointer and
+        // writes nowhere.
+        unsafe { libc::sysconf(libc::_SC_PAGESIZE) as usize }
     }
 
     #[test]
-    #[cfg(unix)]
-    fn test_slice_len_matches_page_size() -> Result<(), Box<dyn std::error::Error>> {
-        let page = Page::new()?;
-        let system_page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
+    fn test_new_reports_a_length_wider_than_the_page() {
+        let capacity = page_size();
+
+        assert!(matches!(
+            Page::new(capacity + 1),
+            Err(crate::error::PageError::TooWide { len, capacity: reported })
+                if len == capacity + 1 && reported == capacity
+        ));
+    }
+
+    #[test]
+    fn test_new_page_is_zeroized() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new(32)?;
         let slice = unsafe { page.as_slice() };
 
-        assert_eq!(slice.len(), system_page_size);
+        assert!(slice.is_zeroized());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_new_hands_out_the_length_it_was_asked_for() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new(32)?;
+
+        assert_eq!(page.len(), 32);
+        assert_eq!(unsafe { page.as_slice() }.len(), 32);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_new_hands_out_a_whole_page() -> Result<(), Box<dyn std::error::Error>> {
+        let capacity = page_size();
+        let page = Page::new(capacity)?;
+
+        assert_eq!(unsafe { page.as_slice() }.len(), capacity);
 
         Ok(())
     }
@@ -54,7 +81,7 @@ mod page_tests {
         };
         unsafe { libc::setrlimit(libc::RLIMIT_AS, &tiny) };
 
-        let result = Page::new();
+        let result = Page::new(32);
 
         // CORRECTNESS: before the assertion. A failing `assert!` formats its
         // message, and there is no address space to allocate that in while the
@@ -86,7 +113,7 @@ mod page_tests {
 
     #[test]
     fn test_lock_succeeds() -> Result<(), Box<dyn std::error::Error>> {
-        let page = Page::new()?;
+        let page = Page::new(32)?;
         page.lock()?;
 
         Ok(())
@@ -94,7 +121,7 @@ mod page_tests {
 
     #[test]
     fn test_lock_then_munlock() -> Result<(), Box<dyn std::error::Error>> {
-        let page = Page::new()?;
+        let page = Page::new(32)?;
 
         page.lock()?;
         page.munlock();
@@ -104,7 +131,7 @@ mod page_tests {
 
     #[test]
     fn test_lock_multiple_times_succeeds() -> Result<(), Box<dyn std::error::Error>> {
-        let page = Page::new()?;
+        let page = Page::new(32)?;
 
         page.lock()?;
         page.lock()?;
@@ -114,7 +141,7 @@ mod page_tests {
 
     #[test]
     fn test_munlock_without_lock_succeeds() -> Result<(), Box<dyn std::error::Error>> {
-        let page = Page::new()?;
+        let page = Page::new(32)?;
 
         page.munlock();
 
@@ -133,7 +160,7 @@ mod page_tests {
         #[ignore]
         fn subprocess_test_lock_fails_when_mlock_blocked() -> Result<(), Box<dyn std::error::Error>>
         {
-            let page = Page::new()?;
+            let page = Page::new(32)?;
 
             block_mlock();
 
@@ -166,7 +193,7 @@ mod page_tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn test_mark_dontdump_succeeds() -> Result<(), Box<dyn std::error::Error>> {
-        let page = Page::new()?;
+        let page = Page::new(32)?;
 
         page.mark_dontdump()?;
 
@@ -176,7 +203,7 @@ mod page_tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn test_mark_dontdump_multiple_times_succeeds() -> Result<(), Box<dyn std::error::Error>> {
-        let page = Page::new()?;
+        let page = Page::new(32)?;
 
         page.mark_dontdump()?;
         page.mark_dontdump()?;
@@ -196,7 +223,7 @@ mod page_tests {
         #[ignore]
         fn subprocess_test_mark_dontdump_fails_when_madvise_blocked()
         -> Result<(), Box<dyn std::error::Error>> {
-            let page = Page::new()?;
+            let page = Page::new(32)?;
 
             block_madvise();
 
@@ -228,7 +255,7 @@ mod page_tests {
 
     #[test]
     fn test_protect_succeeds() -> Result<(), Box<dyn std::error::Error>> {
-        let page = Page::new()?;
+        let page = Page::new(32)?;
 
         page.protect()?;
 
@@ -237,7 +264,7 @@ mod page_tests {
 
     #[test]
     fn test_protect_then_unprotect() -> Result<(), Box<dyn std::error::Error>> {
-        let page = Page::new()?;
+        let page = Page::new(32)?;
 
         page.protect()?;
         page.unprotect()?;
@@ -247,7 +274,7 @@ mod page_tests {
 
     #[test]
     fn test_protect_unprotect_roundtrip_preserves_data() -> Result<(), Box<dyn std::error::Error>> {
-        let mut page = Page::new()?;
+        let mut page = Page::new(32)?;
 
         unsafe { page.as_mut_slice()[0] = 0xFF };
 
@@ -262,7 +289,7 @@ mod page_tests {
 
     #[test]
     fn test_multiple_protect_unprotect_cycles() -> Result<(), Box<dyn std::error::Error>> {
-        let mut page = Page::new()?;
+        let mut page = Page::new(32)?;
 
         for i in 0..5u8 {
             unsafe { page.as_mut_slice()[0] = i };
@@ -290,7 +317,7 @@ mod page_tests {
         #[ignore]
         fn subprocess_test_protect_fails_when_mprotect_blocked()
         -> Result<(), Box<dyn std::error::Error>> {
-            let page = Page::new()?;
+            let page = Page::new(32)?;
 
             block_mprotect();
 
@@ -322,7 +349,7 @@ mod page_tests {
 
     #[test]
     fn test_unprotect_on_unprotected_page_succeeds() -> Result<(), Box<dyn std::error::Error>> {
-        let page = Page::new()?;
+        let page = Page::new(32)?;
 
         page.unprotect()?;
 
@@ -331,7 +358,7 @@ mod page_tests {
 
     #[test]
     fn test_unprotect_allows_write() -> Result<(), Box<dyn std::error::Error>> {
-        let mut page = Page::new()?;
+        let mut page = Page::new(32)?;
 
         page.protect()?;
         page.unprotect()?;
@@ -354,7 +381,7 @@ mod page_tests {
         #[ignore]
         fn subprocess_test_unprotect_fails_when_mprotect_blocked()
         -> Result<(), Box<dyn std::error::Error>> {
-            let page = Page::new()?;
+            let page = Page::new(32)?;
 
             page.protect()?;
             block_mprotect();
@@ -387,7 +414,7 @@ mod page_tests {
 
     #[test]
     fn test_as_mut_slice_allows_writes() -> Result<(), Box<dyn std::error::Error>> {
-        let mut page = Page::new()?;
+        let mut page = Page::new(32)?;
 
         unsafe {
             let slice = page.as_mut_slice();
@@ -405,7 +432,7 @@ mod page_tests {
 
     #[test]
     fn test_write_read_full_page() -> Result<(), Box<dyn std::error::Error>> {
-        let mut page = Page::new()?;
+        let mut page = Page::new(32)?;
 
         unsafe { page.as_mut_slice().fill(0x55) };
         let slice = unsafe { page.as_slice() };
@@ -421,7 +448,7 @@ mod page_tests {
 
     #[test]
     fn test_zeroize_clears_all_data() -> Result<(), Box<dyn std::error::Error>> {
-        let mut page = Page::new()?;
+        let mut page = Page::new(32)?;
 
         unsafe { page.as_mut_slice().fill(0xFF) };
         assert!(!unsafe { page.as_slice() }.is_zeroized());
@@ -434,11 +461,11 @@ mod page_tests {
 
     #[test]
     fn test_zeroize_after_partial_write() -> Result<(), Box<dyn std::error::Error>> {
-        let mut page = Page::new()?;
+        let mut page = Page::new(32)?;
 
         unsafe {
             page.as_mut_slice()[0] = 0x42;
-            page.as_mut_slice()[100] = 0x42;
+            page.as_mut_slice()[31] = 0x42;
         }
 
         assert!(!unsafe { page.as_slice() }.is_zeroized());
@@ -463,7 +490,7 @@ mod page_tests {
     #[cfg(target_os = "linux")]
     fn subprocess_test_drop_unprotects_before_zeroizing() -> Result<(), Box<dyn std::error::Error>>
     {
-        let mut page = Page::new()?;
+        let mut page = Page::new(32)?;
 
         unsafe { page.as_mut_slice().fill(0xFF) };
         page.protect()?;
@@ -504,7 +531,7 @@ mod page_tests {
         #[ignore]
         fn subprocess_test_drop_skips_the_zeroize_when_unprotect_fails()
         -> Result<(), Box<dyn std::error::Error>> {
-            let mut page = Page::new()?;
+            let mut page = Page::new(32)?;
 
             unsafe { page.as_mut_slice().fill(0xFF) };
             page.protect()?;
@@ -536,7 +563,7 @@ mod page_tests {
 
     #[test]
     fn test_full_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
-        let mut page = Page::new()?;
+        let mut page = Page::new(32)?;
 
         // Lock in RAM
         page.lock()?;
@@ -557,7 +584,7 @@ mod page_tests {
 
     #[test]
     fn test_new_write_zeroize_verify() -> Result<(), Box<dyn std::error::Error>> {
-        let mut page = Page::new()?;
+        let mut page = Page::new(32)?;
 
         assert!(unsafe { page.as_slice() }.is_zeroized());
 

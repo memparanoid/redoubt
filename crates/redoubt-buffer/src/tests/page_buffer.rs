@@ -26,6 +26,18 @@ mod page_buffer_tests {
     // new()
     // =============================================================================
 
+    #[test]
+    fn test_new_propagates_page_too_wide_error() {
+        // SAFETY: it reads a number the C library holds, takes no pointer and
+        // writes nowhere.
+        let capacity = unsafe { libc::sysconf(libc::_SC_PAGESIZE) as usize };
+
+        assert!(matches!(
+            PageBuffer::new(capacity + 1),
+            Err(crate::error::PageError::TooWide { .. })
+        ));
+    }
+
     /// A process of its own: the limit is the whole address space, so every
     /// other test sharing the process would fail its next allocation too.
     #[test]
