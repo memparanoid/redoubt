@@ -12,7 +12,6 @@ use crate::support::{Block, blocks, giving, hold_on, is_found, leaves_nothing, l
 // AllockedVec::drop
 // ============================================================================
 
-/// One size dropped.
 macro_rules! an_allocked_vec_dropped {
     ($name:ident, $of:expr) => {
         #[test]
@@ -70,7 +69,6 @@ an_allocked_vec_dropped!(test_an_allocked_vec_of_65536_dropped_leaves_nothing, 6
 // AllockedVec: ownership
 // ============================================================================
 
-/// A vec given away is found while whoever took it is holding it.
 #[test]
 fn test_an_allocked_vec_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -93,7 +91,6 @@ fn test_an_allocked_vec_given_away_is_found_while_it_is_held() -> Result<(), Any
     Ok(())
 }
 
-/// One size given away.
 macro_rules! an_allocked_vec_given_away {
     ($name:ident, $of:expr) => {
         #[test]
@@ -209,10 +206,8 @@ fn test_an_allocked_vec_reserved_leaves_nothing() {
 // AllockedVec::push
 // ============================================================================
 
-/// What is pushed is found while the vec holds it.
-///
-/// The value comes out of the constant, which lives where nothing may write,
-/// so the only writable copy in the process is the one `push` made.
+/// The value is a temporary that `push` exchanges for a default, so the only
+/// copy left to find is the one it stored.
 #[test]
 fn test_what_was_pushed_is_found_while_the_allocked_vec_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -231,10 +226,8 @@ fn test_what_was_pushed_is_found_while_the_allocked_vec_holds_it() -> Result<(),
     Ok(())
 }
 
-/// One size pushed in a block at a time, and let go.
-///
-/// A value taken by `push` is a value copied out of the caller's slot, and the
-/// vec never reallocates here, so what is left is whatever those copies left.
+/// The capacity is reserved up front, so the vec never reallocates and what is
+/// left is only what the exchanges left.
 macro_rules! an_allocked_vec_pushed_into {
     ($name:ident, $of:expr) => {
         #[test]
@@ -263,7 +256,7 @@ macro_rules! an_allocked_vec_pushed_into {
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
                 // then the absence below is about that call and not about the
-                // operation. See the header.
+                // operation.
                 drop(held);
             });
 
@@ -378,7 +371,6 @@ fn test_what_a_truncation_keeps_is_found_while_the_allocked_vec_holds_it() -> Re
     Ok(())
 }
 
-/// One size filled and cut back to nothing.
 macro_rules! an_allocked_vec_truncated {
     ($name:ident, $of:expr) => {
         #[test]
@@ -405,7 +397,7 @@ macro_rules! an_allocked_vec_truncated {
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
                 // then the absence below is about that call and not about the
-                // operation. See the header.
+                // operation.
                 drop(held);
             });
 
@@ -443,7 +435,6 @@ an_allocked_vec_truncated!(
 // AllockedVec::drain_from
 // ============================================================================
 
-/// What was drained is found while the vec holds it.
 #[test]
 fn test_what_was_drained_is_found_while_the_allocked_vec_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -468,11 +459,8 @@ fn test_what_was_drained_is_found_while_the_allocked_vec_holds_it() -> Result<()
     Ok(())
 }
 
-/// One size drained out of a slice the caller owns.
-///
-/// The source is the caller's and the operation is what empties it, so this
-/// section asks about two places at once: what the call left of its own, and
-/// what it left in the slice it was handed.
+/// The source is left to the operation to empty, so the absence covers what the
+/// call left of its own and what it left in the slice it was handed.
 macro_rules! an_allocked_vec_drained_into {
     ($name:ident, $of:expr) => {
         #[test]
@@ -494,7 +482,7 @@ macro_rules! an_allocked_vec_drained_into {
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
                 // then the absence below is about that call and not about the
-                // operation. See the header.
+                // operation.
                 drop(held);
             });
 
@@ -538,10 +526,6 @@ an_allocked_vec_drained_into!(
 // AllockedVec::realloc_with_capacity
 // ============================================================================
 
-/// What was carried over is found while the vec holds it.
-///
-/// The photograph is taken with the new allocation still held, which is where
-/// the reallocation put the bytes it copied.
 #[test]
 fn test_what_was_carried_over_is_found_while_the_allocked_vec_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -562,11 +546,6 @@ fn test_what_was_carried_over_is_found_while_the_allocked_vec_holds_it() -> Resu
     Ok(())
 }
 
-/// One size carried into a wider allocation, and let go.
-///
-/// The only operation here that moves a secret from one allocation to another.
-/// What the absence asks about is the block it outgrew, which the call empties
-/// after it has copied out of it.
 macro_rules! an_allocked_vec_reallocated {
     ($name:ident, $of:expr) => {
         #[test]
@@ -593,7 +572,7 @@ macro_rules! an_allocked_vec_reallocated {
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
                 // then the absence below is about that call and not about the
-                // operation. See the header.
+                // operation.
                 drop(held);
             });
 

@@ -13,7 +13,6 @@ use crate::support::{Block, giving, hold_on, is_found, leaves_nothing, let_go};
 // RedoubtOption::drop
 // ============================================================================
 
-/// An option dropped at one size.
 macro_rules! a_redoubt_option_dropped {
     ($name:ident, $of:expr) => {
         #[test]
@@ -43,7 +42,7 @@ macro_rules! a_redoubt_option_dropped {
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
                 // then the absence below is about that call and not about the
-                // operation. See the header.
+                // operation.
                 drop(inner);
             });
 
@@ -77,7 +76,6 @@ a_redoubt_option_dropped!(test_a_redoubt_option_dropped_of_65536_leaves_nothing,
 // RedoubtOption: ownership
 // ============================================================================
 
-/// An option given away is found while whoever took it is holding it.
 #[test]
 fn test_a_redoubt_option_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -101,7 +99,7 @@ fn test_a_redoubt_option_given_away_is_found_while_it_is_held() -> Result<(), An
 
         // CORRECTNESS: after the capture. A call made before it writes over
         // the stack and the registers the operation left, and then the absence
-        // below is about that call and not about the operation. See the header.
+        // below is about that call and not about the operation.
         drop(inner);
     });
 
@@ -114,10 +112,6 @@ fn test_a_redoubt_option_given_away_is_found_while_it_is_held() -> Result<(), An
     Ok(())
 }
 
-/// An option given away at one size.
-///
-/// One container deep: what is given away is the option, and what it holds is
-/// a vec that is itself a pointer.
 macro_rules! a_redoubt_option_given_away {
     ($name:ident, $of:expr) => {
         #[test]
@@ -147,7 +141,7 @@ macro_rules! a_redoubt_option_given_away {
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
                 // then the absence below is about that call and not about the
-                // operation. See the header.
+                // operation.
                 drop(inner);
             });
 
@@ -219,7 +213,6 @@ fn test_a_redoubt_option_as_a_mut_leaves_nothing() {
 // RedoubtOption::replace
 // ============================================================================
 
-/// A vec put inside an option is found while the option holds it.
 #[test]
 fn test_a_redoubt_option_replaced_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -249,11 +242,6 @@ fn test_a_redoubt_option_replaced_is_found_while_it_holds_it() -> Result<(), Any
     Ok(())
 }
 
-/// An option filled at one size, and let go.
-///
-/// `replace` has to swap the value into place, which leaves a transit
-/// temporary on the stack while it does — and that temporary is in the window
-/// the capture copies.
 macro_rules! a_redoubt_option_replaced {
     ($name:ident, $of:expr) => {
         #[test]
@@ -276,7 +264,7 @@ macro_rules! a_redoubt_option_replaced {
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
                 // then the absence below is about that call and not about the
-                // operation. See the header.
+                // operation.
                 drop(held);
                 drop(inner);
             });
@@ -316,6 +304,8 @@ a_redoubt_option_replaced!(
     65536
 );
 
+/// Over a vec, `replace` moves a pointer and nothing a move leaves is the
+/// secret; over a block, the value it moves is the secret itself.
 #[test]
 fn test_a_redoubt_option_of_a_block_replaced_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -354,6 +344,9 @@ fn test_a_redoubt_option_of_a_block_replaced_leaves_nothing() -> Result<(), AnyE
         let mut held = Box::new(RedoubtOption::<Block>::default());
         capture(|| held.replace(&mut source));
 
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
         held.fast_zeroize();
     });
 

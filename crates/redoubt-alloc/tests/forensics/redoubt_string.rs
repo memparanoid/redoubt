@@ -8,18 +8,14 @@ use redoubt_forensics::{AnyError, Forensics, capture, forensics};
 use crate::support::needles::SECRET;
 use crate::support::{hold_on, is_found, leaves_nothing, let_go};
 
-/// The digits a byte is spelled with.
 const HEX: [u8; 16] = *b"0123456789abcdef";
 
-/// The secret written out as hex, over and over, as a `String`.
+/// The secret spelled in hex, over and over: a string holds text, so what the
+/// sweep looks for in one is the spelling.
 ///
-/// A string holds text, so the secret has to be spelled to go into one, and
-/// what the sweep looks for there is the spelling rather than the bytes.
-///
-/// Written one character at a time into room reserved up front. Neither
-/// `push_str` nor `write!` would do: both are `memcpy`, and the string would
-/// grow under them and leave the spelling in every block it outgrew — which is
-/// the very thing being measured, caused by the measuring.
+/// Pushed a character at a time into room reserved up front: `push_str` or
+/// `write!` would grow the string and leave the spelling in every block it
+/// outgrew.
 fn spelled(of: usize) -> String {
     let mut all = String::with_capacity(of);
 
@@ -40,11 +36,8 @@ fn spelled(of: usize) -> String {
     all
 }
 
-/// One copy of that spelling, read from its last character to its first.
-///
-/// Built backwards from the start and never turned around, for the reason
-/// every needle here is: the forward spelling must not exist in this process
-/// even for as long as it takes to reverse it.
+/// One copy of the spelling, from its last character to its first and never
+/// turned around: the forward spelling must not exist in this process.
 fn spelled_backwards() -> Vec<u8> {
     let mut backwards = Vec::with_capacity(SECRET.len() * 2);
 
@@ -56,12 +49,9 @@ fn spelled_backwards() -> Vec<u8> {
     backwards
 }
 
-/// A string emptied by hand, a byte at a time and volatile.
-///
-/// For the one method that is handed text it does not own and never promised
-/// to empty. A `String` does not clear itself when it is dropped, so leaving
-/// that to the drop would find the spelling in the block the allocator just
-/// took back and read it as the method's.
+/// Zeroes a string by hand, a byte at a time and volatile, for text a method
+/// borrows and never empties: a `String` does not clear itself on drop, and the
+/// freed block would still hold the spelling.
 fn emptying(text: &mut str) {
     // SAFETY: every byte written is zero, which is valid UTF-8, and the length
     // is the string's own.
@@ -77,7 +67,6 @@ fn emptying(text: &mut str) {
 // RedoubtString::drop
 // ============================================================================
 
-/// A string dropped at one size.
 macro_rules! a_redoubt_string_dropped {
     ($name:ident, $of:expr) => {
         #[test]
@@ -130,7 +119,6 @@ a_redoubt_string_dropped!(test_a_redoubt_string_of_65536_dropped_leaves_nothing,
 // RedoubtString: ownership
 // ============================================================================
 
-/// A string given away is found while whoever took it is holding it.
 #[test]
 fn test_a_redoubt_string_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&spelled_backwards())?;
@@ -157,7 +145,6 @@ fn test_a_redoubt_string_given_away_is_found_while_it_is_held() -> Result<(), An
     Ok(())
 }
 
-/// A string given away at one size.
 macro_rules! a_redoubt_string_given_away {
     ($name:ident, $of:expr) => {
         #[test]
@@ -293,6 +280,10 @@ macro_rules! a_redoubt_string_from_a_mut_string {
             forensics!({
                 let held = capture(|| RedoubtString::from_mut_string(&mut source));
 
+                // CORRECTNESS: after the capture. A call made before it writes
+                // over the stack and the registers the operation left, and
+                // then the absence below is about that call and not about the
+                // operation.
                 drop(held);
             });
 
@@ -392,6 +383,10 @@ macro_rules! a_redoubt_string_from_a_str {
             forensics!({
                 let held = capture(|| RedoubtString::from_str(&source));
 
+                // CORRECTNESS: after the capture. A call made before it writes
+                // over the stack and the registers the operation left, and
+                // then the absence below is about that call and not about the
+                // operation.
                 drop(held);
             });
 
@@ -497,10 +492,6 @@ fn test_a_redoubt_string_maybe_grown_leaves_nothing() {
 // RedoubtString::extend_from_mut_string
 // ============================================================================
 
-/// A string extended is found while the string holds it.
-///
-/// The needle here is the spelling and not the bytes: a string holds text, so
-/// the secret has to be spelled to go into one.
 #[test]
 fn test_a_redoubt_string_extended_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&spelled_backwards())?;
@@ -523,13 +514,8 @@ fn test_a_redoubt_string_extended_is_found_while_it_holds_it() -> Result<(), Any
     Ok(())
 }
 
-/// A string extended to one size, and let go.
-///
-/// Appended rather than replaced, so the string reallocates on the way up
-/// rather than being sized once. Each piece is its own `String`, handed over
-/// and emptied by the call — which is what the `&mut` in the signature is for.
-/// What the sweep asks about is the blocks the string outgrew on the way to
-/// its final size.
+/// Appended in pieces rather than replaced, so the container reallocates on the
+/// way up, and what the sweep asks about is the blocks it outgrew.
 macro_rules! a_redoubt_string_extended {
     ($name:ident, $of:expr) => {
         #[test]
@@ -554,7 +540,7 @@ macro_rules! a_redoubt_string_extended {
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
                 // then the absence below is about that call and not about the
-                // operation. See the header.
+                // operation.
                 drop(held);
             });
 
@@ -597,7 +583,6 @@ a_redoubt_string_extended!(
 // RedoubtString::replace_from_mut_string
 // ============================================================================
 
-/// A string replaced is found while the string holds it.
 #[test]
 fn test_a_redoubt_string_replaced_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&spelled_backwards())?;
@@ -620,9 +605,6 @@ fn test_a_redoubt_string_replaced_is_found_while_it_holds_it() -> Result<(), Any
     Ok(())
 }
 
-/// A string replaced at one size, and let go.
-///
-/// This type has a `grow_to` of its own, and a replace reaches it.
 macro_rules! a_redoubt_string_replaced {
     ($name:ident, $of:expr) => {
         #[test]
@@ -640,7 +622,7 @@ macro_rules! a_redoubt_string_replaced {
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
                 // then the absence below is about that call and not about the
-                // operation. See the header.
+                // operation.
                 drop(held);
             });
 
@@ -683,7 +665,6 @@ a_redoubt_string_replaced!(
 // RedoubtString::extend_from_str
 // ============================================================================
 
-/// A string extended from text it does not own is found while it holds it.
 #[test]
 fn test_a_redoubt_string_extended_from_a_str_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&spelled_backwards())?;
@@ -708,16 +689,6 @@ fn test_a_redoubt_string_extended_from_a_str_is_found_while_it_holds_it() -> Res
     Ok(())
 }
 
-/// A string extended from text it does not own, at one size.
-///
-/// The `&str` stays the caller's, so this is the only one of the three that
-/// cannot empty what it was given — and it is the only one that reaches its
-/// buffer through `push_str`, which is the `memcpy` the others are written to
-/// avoid. What is measured is therefore narrower: whether the *string* kept a
-/// copy, the caller's own text being the caller's to answer for.
-///
-/// Which is why the source is emptied by hand before the photograph rather
-/// than left to its drop.
 macro_rules! a_redoubt_string_extended_from_a_str {
     ($name:ident, $of:expr) => {
         #[test]
@@ -735,7 +706,7 @@ macro_rules! a_redoubt_string_extended_from_a_str {
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
                 // then the absence below is about that call and not about the
-                // operation. See the header.
+                // operation.
                 drop(held);
             });
 
@@ -817,6 +788,10 @@ macro_rules! a_redoubt_string_cleared {
 
                 capture(|| held.clear());
 
+                // CORRECTNESS: after the capture. A call made before it writes
+                // over the stack and the registers the operation left, and
+                // then the absence below is about that call and not about the
+                // operation.
                 drop(held);
             });
 

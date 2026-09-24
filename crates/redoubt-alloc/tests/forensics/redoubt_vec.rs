@@ -12,7 +12,6 @@ use crate::support::{giving, hold_on, is_found, leaves_nothing, let_go};
 // RedoubtVec::drop
 // ============================================================================
 
-/// A vec dropped at one size.
 macro_rules! a_redoubt_vec_dropped {
     ($name:ident, $of:expr) => {
         #[test]
@@ -67,7 +66,6 @@ a_redoubt_vec_dropped!(test_a_redoubt_vec_of_65536_dropped_leaves_nothing, 65536
 // RedoubtVec: ownership
 // ============================================================================
 
-/// A vec given away is found while whoever took it is holding it.
 #[test]
 fn test_a_redoubt_vec_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -96,15 +94,6 @@ fn test_a_redoubt_vec_given_away_is_found_while_it_is_held() -> Result<(), AnyEr
     Ok(())
 }
 
-/// A vec given away at one size.
-///
-/// The question an ownership section asks is not whether the drop empties the
-/// value — the replaces ask that. It is whether *moving* it first changes the
-/// answer, because a value that keeps its secret in its own bytes leaves the
-/// slot it was moved out of with nobody to empty it.
-///
-/// What makes the answer no is one word in the declaration: the secret is
-/// behind a `Box`, so what travels is the pointer and the bytes never move.
 macro_rules! a_redoubt_vec_given_away {
     ($name:ident, $of:expr) => {
         #[test]
@@ -228,6 +217,10 @@ macro_rules! a_redoubt_vec_from_a_mut_slice {
             forensics!({
                 let held = capture(|| RedoubtVec::from_mut_slice(&mut source));
 
+                // CORRECTNESS: after the capture. A call made before it writes
+                // over the stack and the registers the operation left, and
+                // then the absence below is about that call and not about the
+                // operation.
                 drop(held);
             });
 
@@ -331,7 +324,6 @@ fn test_a_redoubt_vec_maybe_grown_leaves_nothing() {
 // RedoubtVec::extend_from_mut_slice
 // ============================================================================
 
-/// A vec extended is found while the vec holds it.
 #[test]
 fn test_a_redoubt_vec_extended_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -356,11 +348,8 @@ fn test_a_redoubt_vec_extended_is_found_while_it_holds_it() -> Result<(), AnyErr
     Ok(())
 }
 
-/// A vec extended to one size, and let go.
-///
-/// Appended rather than replaced, so the vec reallocates on the way up rather
-/// than being sized once, and what the sweep asks about is the blocks it
-/// outgrew.
+/// Appended in pieces rather than replaced, so the container reallocates on the
+/// way up, and what the sweep asks about is the blocks it outgrew.
 macro_rules! a_redoubt_vec_extended {
     ($name:ident, $of:expr) => {
         #[test]
@@ -391,7 +380,7 @@ macro_rules! a_redoubt_vec_extended {
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
                 // then the absence below is about that call and not about the
-                // operation. See the header.
+                // operation.
                 drop(held);
             });
 
@@ -425,7 +414,6 @@ a_redoubt_vec_extended!(test_a_redoubt_vec_extended_to_65536_leaves_nothing, 655
 // RedoubtVec::replace_from_mut_slice
 // ============================================================================
 
-/// A vec replaced is found while the vec holds it.
 #[test]
 fn test_a_redoubt_vec_replaced_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
@@ -450,11 +438,6 @@ fn test_a_redoubt_vec_replaced_is_found_while_it_holds_it() -> Result<(), AnyErr
     Ok(())
 }
 
-/// A vec replaced at one size, and let go.
-///
-/// The vec grows to hold the slice, copies it in, zeroizes the source, and is
-/// zeroized itself on the way out. Nothing of the secret is supposed to
-/// outlive the call.
 macro_rules! a_redoubt_vec_replaced {
     ($name:ident, $of:expr) => {
         #[test]
@@ -474,7 +457,7 @@ macro_rules! a_redoubt_vec_replaced {
                 // CORRECTNESS: after the capture. A call made before it writes
                 // over the stack and the registers the operation left, and
                 // then the absence below is about that call and not about the
-                // operation. See the header.
+                // operation.
                 drop(held);
             });
 
@@ -508,6 +491,8 @@ a_redoubt_vec_replaced!(test_a_redoubt_vec_replaced_of_65536_leaves_nothing, 655
 // RedoubtVec::drain_value
 // ============================================================================
 
+/// The secret over `u128`s, two of which are the needle: `drain_value` moves
+/// one element at a time.
 fn wide_values(of: usize) -> Vec<u128> {
     let mut values = vec![0_u128; (of / core::mem::size_of::<u128>()).max(2)];
 
@@ -571,6 +556,10 @@ macro_rules! a_redoubt_vec_drained_into {
                     }
                 });
 
+                // CORRECTNESS: after the capture. A call made before it writes
+                // over the stack and the registers the operation left, and
+                // then the absence below is about that call and not about the
+                // operation.
                 drop(held);
             });
 
@@ -631,6 +620,10 @@ macro_rules! a_redoubt_vec_cleared {
 
                 capture(|| held.clear());
 
+                // CORRECTNESS: after the capture. A call made before it writes
+                // over the stack and the registers the operation left, and
+                // then the absence below is about that call and not about the
+                // operation.
                 drop(held);
             });
 
