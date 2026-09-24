@@ -240,7 +240,59 @@ fn leaves_nothing(report_before: &Report, before: &str, report_after: &Report, w
 }
 
 // ============================================================================
-// The box at rest
+// SecretsBox::drop
+// ============================================================================
+
+#[test]
+#[ignore = "TODO: the box holds what its fields were encoded through, and \
+            nothing measures its drop yet."]
+fn test_a_box_dropped_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// SecretsBox: ownership
+// ============================================================================
+
+/// A box given away and let go leaves nothing behind.
+///
+/// What this asks is whether *moving* the box first changes the answer. It
+/// does not, and for the same reason the containers underneath pass: what
+/// travels is pointers, and the buffers never move. A box that carried them
+/// inline would leave a copy of each in the slot it was moved out of, with
+/// nothing left to empty them.
+#[test]
+fn test_a_box_given_away_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut secrets_box = SecretsBox::new();
+
+    forensics!({
+        open_fill_and_close(&mut secrets_box)?;
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether the move itself leaves a copy in the
+        // registers or the stack it used. What it writes over is whatever ran
+        // before it, which has a section of its own.
+        capture(|| let_go(secrets_box));
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "nothing filled yet",
+        &report_after,
+        "a box given away",
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// SecretsBox: at rest
 // ============================================================================
 
 /// A box that has been filled and left alone holds nothing a sweep can find.
@@ -285,48 +337,17 @@ fn test_a_filled_box_holds_nothing_at_rest() -> Result<(), AnyError> {
 }
 
 // ============================================================================
-// The box, given away
+// SecretsBox::new
 // ============================================================================
 
-/// A box given away and let go leaves nothing behind.
-///
-/// What this asks is whether *moving* the box first changes the answer. It
-/// does not, and for the same reason the containers underneath pass: what
-/// travels is pointers, and the buffers never move. A box that carried them
-/// inline would leave a copy of each in the slot it was moved out of, with
-/// nothing left to empty them.
 #[test]
-fn test_a_box_given_away_leaves_nothing() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
-
-    let report_before = watch.snapshot()?;
-
-    let mut secrets_box = SecretsBox::new();
-
-    forensics!({
-        open_fill_and_close(&mut secrets_box)?;
-
-        // CORRECTNESS: inside the capture, because this is the operation. What
-        // the section measures is whether the move itself leaves a copy in the
-        // registers or the stack it used. What it writes over is whatever ran
-        // before it, which has a section of its own.
-        capture(|| let_go(secrets_box));
-    });
-
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "nothing filled yet",
-        &report_after,
-        "a box given away",
-    );
-
-    Ok(())
+#[ignore = "Reads no secret: it makes an empty box."]
+fn test_making_a_box_leaves_nothing() {
+    // Intentionally empty.
 }
 
 // ============================================================================
-// open
+// SecretsBox::open
 // ============================================================================
 
 /// The secret is found while the box is open.
@@ -388,8 +409,15 @@ fn test_open_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
+#[test]
+#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
+            and nothing measures that path yet."]
+fn test_open_that_fails_leaves_nothing() {
+    // Intentionally empty.
+}
+
 // ============================================================================
-// open_mut
+// SecretsBox::open_mut
 // ============================================================================
 
 /// The secret is found while the box is open for writing.
@@ -526,130 +554,15 @@ fn test_filling_every_field_many_times_leaves_nothing() -> Result<(), AnyError> 
     Ok(())
 }
 
-// ============================================================================
-// open_<field>
-// ============================================================================
-
-/// The secret is found while one field is open.
-///
-/// A field on its own decrypts through its own buffer and not through the one
-/// the whole struct uses, so this is a different place for the plaintext to be
-/// and needs saying separately.
 #[test]
-fn test_the_secret_is_found_while_one_field_is_open() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, _) = filled()?;
-
-    let mut inside = None;
-
-    secrets_box.open_in_two_options(|_| {
-        inside = watch.snapshot().ok();
-
-        Ok(())
-    })?;
-
-    let report = inside.ok_or(Reason::NoAnswer)?;
-
-    is_found(&report, "the secret, while one field is open");
-
-    drop(core::hint::black_box(secrets_box));
-
-    Ok(())
-}
-
-/// One field, through the option that has to take its value out and put it back
-/// twice over.
-#[test]
-fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
-    let (secrets_box, mut watch, report_before) = filled()?;
-
-    forensics!({
-        capture(|| -> Result<(), AnyError> {
-            for _ in 0..ROUNDS {
-                secrets_box.open_in_two_options(|it| {
-                    core::hint::black_box(it.as_ref().is_some());
-
-                    Ok(())
-                })?;
-            }
-
-            Ok(())
-        })?;
-    });
-
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened one field",
-    );
-
-    drop(core::hint::black_box(secrets_box));
-
-    Ok(())
+#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
+            and nothing measures that path yet."]
+fn test_open_mut_that_fails_leaves_nothing() {
+    // Intentionally empty.
 }
 
 // ============================================================================
-// open_<field>_mut
-// ============================================================================
-
-/// The secret is found while one field is open for writing.
-#[test]
-fn test_the_secret_is_found_while_one_field_is_open_for_writing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, _) = filled()?;
-
-    let mut inside = None;
-
-    secrets_box.open_in_two_options_mut(|_| {
-        inside = watch.snapshot().ok();
-
-        Ok(())
-    })?;
-
-    let report = inside.ok_or(Reason::NoAnswer)?;
-
-    is_found(&report, "the secret, while one field is open for writing");
-
-    drop(core::hint::black_box(secrets_box));
-
-    Ok(())
-}
-
-#[test]
-fn test_open_field_mut_leaves_nothing() -> Result<(), AnyError> {
-    let (mut secrets_box, mut watch, report_before) = filled()?;
-
-    forensics!({
-        capture(|| -> Result<(), AnyError> {
-            for _ in 0..ROUNDS {
-                secrets_box.open_in_two_options_mut(|it| {
-                    core::hint::black_box(it.as_ref().is_some());
-
-                    Ok(())
-                })?;
-            }
-
-            Ok(())
-        })?;
-    });
-
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "filled, nothing opened",
-        &report_after,
-        "opened one field for writing",
-    );
-
-    drop(core::hint::black_box(secrets_box));
-
-    Ok(())
-}
-
-// ============================================================================
-// leak_<field> — one per shape
+// SecretsBox::leak_in_a_vec
 // ============================================================================
 
 /// What a leak handed back is found while whoever asked for it is holding it.
@@ -713,6 +626,10 @@ fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
+// ============================================================================
+// SecretsBox::leak_in_an_array
+// ============================================================================
+
 /// What a leaked array handed back is found while it is held.
 #[test]
 fn test_what_a_leaked_array_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
@@ -763,6 +680,10 @@ fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
 
     Ok(())
 }
+
+// ============================================================================
+// SecretsBox::leak_in_an_option
+// ============================================================================
 
 /// What a leaked option handed back is found while it is held.
 #[test]
@@ -815,6 +736,10 @@ fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
+// ============================================================================
+// SecretsBox::leak_in_two_options
+// ============================================================================
+
 /// What two leaked options handed back is found while it is held.
 #[test]
 fn test_what_two_leaked_options_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
@@ -865,4 +790,239 @@ fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
     drop(core::hint::black_box(secrets_box));
 
     Ok(())
+}
+
+// ============================================================================
+// SecretsBox::open_in_a_vec
+// ============================================================================
+
+#[test]
+#[ignore = "TODO: it opens the secret, and nothing measures it yet."]
+fn test_open_in_a_vec_leaves_nothing() {
+    // Intentionally empty.
+}
+
+#[test]
+#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
+            and nothing measures that path yet."]
+fn test_open_in_a_vec_that_fails_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// SecretsBox::open_in_an_array
+// ============================================================================
+
+#[test]
+#[ignore = "TODO: it opens the secret, and nothing measures it yet."]
+fn test_open_in_an_array_leaves_nothing() {
+    // Intentionally empty.
+}
+
+#[test]
+#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
+            and nothing measures that path yet."]
+fn test_open_in_an_array_that_fails_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// SecretsBox::open_in_an_option
+// ============================================================================
+
+#[test]
+#[ignore = "TODO: it opens the secret, and nothing measures it yet."]
+fn test_open_in_an_option_leaves_nothing() {
+    // Intentionally empty.
+}
+
+#[test]
+#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
+            and nothing measures that path yet."]
+fn test_open_in_an_option_that_fails_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// SecretsBox::open_in_two_options
+// ============================================================================
+
+/// A field on its own decrypts through its own buffer and not through the one
+/// the whole struct uses, so this is a different place for the plaintext to be
+/// and needs saying separately.
+#[test]
+fn test_the_secret_is_found_while_one_field_is_open() -> Result<(), AnyError> {
+    let (secrets_box, mut watch, _) = filled()?;
+
+    let mut inside = None;
+
+    secrets_box.open_in_two_options(|_| {
+        inside = watch.snapshot().ok();
+
+        Ok(())
+    })?;
+
+    let report = inside.ok_or(Reason::NoAnswer)?;
+
+    is_found(&report, "the secret, while one field is open");
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
+}
+
+/// One field, through the option that has to take its value out and put it back
+/// twice over.
+#[test]
+fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
+    let (secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                secrets_box.open_in_two_options(|it| {
+                    core::hint::black_box(it.as_ref().is_some());
+
+                    Ok(())
+                })?;
+            }
+
+            Ok(())
+        })?;
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened one field",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
+}
+
+#[test]
+#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
+            and nothing measures that path yet."]
+fn test_open_in_two_options_that_fails_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// SecretsBox::open_in_a_vec_mut
+// ============================================================================
+
+#[test]
+#[ignore = "TODO: it opens the secret, and nothing measures it yet."]
+fn test_open_in_a_vec_mut_leaves_nothing() {
+    // Intentionally empty.
+}
+
+#[test]
+#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
+            and nothing measures that path yet."]
+fn test_open_in_a_vec_mut_that_fails_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// SecretsBox::open_in_an_array_mut
+// ============================================================================
+
+#[test]
+#[ignore = "TODO: it opens the secret, and nothing measures it yet."]
+fn test_open_in_an_array_mut_leaves_nothing() {
+    // Intentionally empty.
+}
+
+#[test]
+#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
+            and nothing measures that path yet."]
+fn test_open_in_an_array_mut_that_fails_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// SecretsBox::open_in_an_option_mut
+// ============================================================================
+
+#[test]
+#[ignore = "TODO: it opens the secret, and nothing measures it yet."]
+fn test_open_in_an_option_mut_leaves_nothing() {
+    // Intentionally empty.
+}
+
+#[test]
+#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
+            and nothing measures that path yet."]
+fn test_open_in_an_option_mut_that_fails_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// SecretsBox::open_in_two_options_mut
+// ============================================================================
+
+#[test]
+fn test_the_secret_is_found_while_one_field_is_open_for_writing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watch, _) = filled()?;
+
+    let mut inside = None;
+
+    secrets_box.open_in_two_options_mut(|_| {
+        inside = watch.snapshot().ok();
+
+        Ok(())
+    })?;
+
+    let report = inside.ok_or(Reason::NoAnswer)?;
+
+    is_found(&report, "the secret, while one field is open for writing");
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
+}
+
+#[test]
+fn test_open_field_mut_leaves_nothing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watch, report_before) = filled()?;
+
+    forensics!({
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                secrets_box.open_in_two_options_mut(|it| {
+                    core::hint::black_box(it.as_ref().is_some());
+
+                    Ok(())
+                })?;
+            }
+
+            Ok(())
+        })?;
+    });
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(
+        &report_before,
+        "filled, nothing opened",
+        &report_after,
+        "opened one field for writing",
+    );
+
+    drop(core::hint::black_box(secrets_box));
+
+    Ok(())
+}
+
+#[test]
+#[ignore = "TODO: a callback that fails has the value emptied on its way out, \
+            and nothing measures that path yet."]
+fn test_open_in_two_options_mut_that_fails_leaves_nothing() {
+    // Intentionally empty.
 }
