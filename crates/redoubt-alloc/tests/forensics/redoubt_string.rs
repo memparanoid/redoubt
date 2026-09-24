@@ -74,6 +74,260 @@ fn emptying(text: &mut str) {
 }
 
 // ============================================================================
+// RedoubtString::drop
+// ============================================================================
+
+/// A string dropped at one size.
+macro_rules! a_redoubt_string_dropped {
+    ($name:ident, $of:expr) => {
+        #[test]
+        fn $name() -> Result<(), AnyError> {
+            let mut watch = Forensics::watching(&spelled_backwards())?;
+
+            let report_before = watch.snapshot()?;
+
+            let mut source = spelled($of);
+
+            forensics!({
+                let mut held = RedoubtString::new();
+                held.replace_from_mut_string(&mut source);
+
+                // CORRECTNESS: inside the capture, because this is the
+                // operation. What the section measures is whether it leaves a
+                // copy in the registers or the stack it used itself. What it
+                // writes over is whatever ran before it, which has a section
+                // of its own.
+                capture(|| drop(held));
+            });
+
+            drop(core::hint::black_box(source));
+
+            let report_after = watch.snapshot()?;
+
+            leaves_nothing(
+                &report_before,
+                &report_after,
+                &format!("a string of {} bytes dropped", $of),
+            );
+
+            Ok(())
+        }
+    };
+}
+
+a_redoubt_string_dropped!(test_a_redoubt_string_of_32_dropped_leaves_nothing, 32);
+a_redoubt_string_dropped!(test_a_redoubt_string_of_64_dropped_leaves_nothing, 64);
+a_redoubt_string_dropped!(test_a_redoubt_string_of_128_dropped_leaves_nothing, 128);
+a_redoubt_string_dropped!(test_a_redoubt_string_of_512_dropped_leaves_nothing, 512);
+a_redoubt_string_dropped!(test_a_redoubt_string_of_1024_dropped_leaves_nothing, 1024);
+a_redoubt_string_dropped!(test_a_redoubt_string_of_4096_dropped_leaves_nothing, 4096);
+a_redoubt_string_dropped!(test_a_redoubt_string_of_8192_dropped_leaves_nothing, 8192);
+a_redoubt_string_dropped!(test_a_redoubt_string_of_16384_dropped_leaves_nothing, 16384);
+a_redoubt_string_dropped!(test_a_redoubt_string_of_32768_dropped_leaves_nothing, 32768);
+a_redoubt_string_dropped!(test_a_redoubt_string_of_65536_dropped_leaves_nothing, 65536);
+
+// ============================================================================
+// RedoubtString: ownership
+// ============================================================================
+
+/// A string given away is found while whoever took it is holding it.
+#[test]
+fn test_a_redoubt_string_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&spelled_backwards())?;
+
+    let mut source = spelled(SECRET.len() * 2);
+
+    forensics!({
+        let mut held = RedoubtString::new();
+        held.replace_from_mut_string(&mut source);
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
+        capture(|| hold_on(held));
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "a string given away, and kept");
+
+    drop(core::hint::black_box(source));
+
+    Ok(())
+}
+
+/// A string given away at one size.
+macro_rules! a_redoubt_string_given_away {
+    ($name:ident, $of:expr) => {
+        #[test]
+        fn $name() -> Result<(), AnyError> {
+            let mut watch = Forensics::watching(&spelled_backwards())?;
+
+            let report_before = watch.snapshot()?;
+
+            let mut source = spelled($of);
+
+            forensics!({
+                let mut held = RedoubtString::new();
+                held.replace_from_mut_string(&mut source);
+
+                // CORRECTNESS: inside the capture, because this is the
+                // operation. What the section measures is whether it leaves a
+                // copy in the registers or the stack it used itself. What it
+                // writes over is whatever ran before it, which has a section
+                // of its own.
+                capture(|| let_go(held));
+            });
+
+            drop(core::hint::black_box(source));
+
+            let report_after = watch.snapshot()?;
+
+            leaves_nothing(
+                &report_before,
+                &report_after,
+                &format!("a string of {} bytes given away", $of),
+            );
+
+            Ok(())
+        }
+    };
+}
+
+a_redoubt_string_given_away!(test_a_redoubt_string_of_32_given_away_leaves_nothing, 32);
+a_redoubt_string_given_away!(test_a_redoubt_string_of_64_given_away_leaves_nothing, 64);
+a_redoubt_string_given_away!(test_a_redoubt_string_of_128_given_away_leaves_nothing, 128);
+a_redoubt_string_given_away!(test_a_redoubt_string_of_512_given_away_leaves_nothing, 512);
+a_redoubt_string_given_away!(
+    test_a_redoubt_string_of_1024_given_away_leaves_nothing,
+    1024
+);
+a_redoubt_string_given_away!(
+    test_a_redoubt_string_of_4096_given_away_leaves_nothing,
+    4096
+);
+a_redoubt_string_given_away!(
+    test_a_redoubt_string_of_8192_given_away_leaves_nothing,
+    8192
+);
+a_redoubt_string_given_away!(
+    test_a_redoubt_string_of_16384_given_away_leaves_nothing,
+    16384
+);
+a_redoubt_string_given_away!(
+    test_a_redoubt_string_of_32768_given_away_leaves_nothing,
+    32768
+);
+a_redoubt_string_given_away!(
+    test_a_redoubt_string_of_65536_given_away_leaves_nothing,
+    65536
+);
+
+// ============================================================================
+// RedoubtString: Debug
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it prints the length and the capacity, and \
+            redacts the contents."]
+fn test_formatting_a_redoubt_string_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// RedoubtString::new
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it makes an empty container."]
+fn test_making_a_redoubt_string_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// RedoubtString::with_capacity
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it makes an empty container."]
+fn test_making_a_redoubt_string_with_capacity_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// RedoubtString::from_mut_string
+// ============================================================================
+
+#[test]
+#[ignore = "TODO: it takes the secret, and nothing measures it yet."]
+fn test_a_redoubt_string_from_a_mut_string_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// RedoubtString::from_str
+// ============================================================================
+
+#[test]
+#[ignore = "TODO: it takes the secret, and nothing measures it yet."]
+fn test_a_redoubt_string_from_a_str_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// RedoubtString::len
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it reads a length."]
+fn test_the_length_of_a_redoubt_string_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// RedoubtString::is_empty
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it reads a length."]
+fn test_whether_a_redoubt_string_is_empty_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// RedoubtString::capacity
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it reads a length."]
+fn test_the_capacity_of_a_redoubt_string_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// RedoubtString::grow_to
+// ============================================================================
+
+#[test]
+#[ignore = "Covered transitively: private, and every section that grows the \
+            string past its capacity runs it."]
+fn test_a_redoubt_string_grown_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// RedoubtString::maybe_grow_to
+// ============================================================================
+
+#[test]
+#[ignore = "Covered transitively: private, and every section that adds to the \
+            string runs it."]
+fn test_a_redoubt_string_maybe_grown_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
 // RedoubtString::extend_from_mut_string
 // ============================================================================
 
@@ -378,152 +632,81 @@ a_redoubt_string_extended_from_a_str!(
 );
 
 // ============================================================================
-// RedoubtString: ownership
+// RedoubtString::clear
 // ============================================================================
 
-/// A string given away is found while whoever took it is holding it.
 #[test]
-fn test_a_redoubt_string_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&spelled_backwards())?;
-
-    let mut source = spelled(SECRET.len() * 2);
-
-    forensics!({
-        let mut held = RedoubtString::new();
-        held.replace_from_mut_string(&mut source);
-
-        // CORRECTNESS: inside the capture, because this is the operation. What
-        // the section measures is whether it leaves a copy in the registers or
-        // the stack it used itself. What it writes over is whatever ran before
-        // it, which has a section of its own.
-        capture(|| hold_on(held));
-    });
-
-    let report = watch.snapshot()?;
-
-    is_found(&report, "a string given away, and kept");
-
-    drop(core::hint::black_box(source));
-
-    Ok(())
+#[ignore = "TODO: it removes the secret, and nothing measures it yet."]
+fn test_a_redoubt_string_cleared_leaves_nothing() {
+    // Intentionally empty.
 }
-
-/// A string given away at one size.
-macro_rules! a_redoubt_string_given_away {
-    ($name:ident, $of:expr) => {
-        #[test]
-        fn $name() -> Result<(), AnyError> {
-            let mut watch = Forensics::watching(&spelled_backwards())?;
-
-            let report_before = watch.snapshot()?;
-
-            let mut source = spelled($of);
-
-            forensics!({
-                let mut held = RedoubtString::new();
-                held.replace_from_mut_string(&mut source);
-
-                // CORRECTNESS: inside the capture, because this is the
-                // operation. What the section measures is whether it leaves a
-                // copy in the registers or the stack it used itself. What it
-                // writes over is whatever ran before it, which has a section
-                // of its own.
-                capture(|| let_go(held));
-            });
-
-            drop(core::hint::black_box(source));
-
-            let report_after = watch.snapshot()?;
-
-            leaves_nothing(
-                &report_before,
-                &report_after,
-                &format!("a string of {} bytes given away", $of),
-            );
-
-            Ok(())
-        }
-    };
-}
-
-a_redoubt_string_given_away!(test_a_redoubt_string_of_32_given_away_leaves_nothing, 32);
-a_redoubt_string_given_away!(test_a_redoubt_string_of_64_given_away_leaves_nothing, 64);
-a_redoubt_string_given_away!(test_a_redoubt_string_of_128_given_away_leaves_nothing, 128);
-a_redoubt_string_given_away!(test_a_redoubt_string_of_512_given_away_leaves_nothing, 512);
-a_redoubt_string_given_away!(
-    test_a_redoubt_string_of_1024_given_away_leaves_nothing,
-    1024
-);
-a_redoubt_string_given_away!(
-    test_a_redoubt_string_of_4096_given_away_leaves_nothing,
-    4096
-);
-a_redoubt_string_given_away!(
-    test_a_redoubt_string_of_8192_given_away_leaves_nothing,
-    8192
-);
-a_redoubt_string_given_away!(
-    test_a_redoubt_string_of_16384_given_away_leaves_nothing,
-    16384
-);
-a_redoubt_string_given_away!(
-    test_a_redoubt_string_of_32768_given_away_leaves_nothing,
-    32768
-);
-a_redoubt_string_given_away!(
-    test_a_redoubt_string_of_65536_given_away_leaves_nothing,
-    65536
-);
 
 // ============================================================================
-// RedoubtString::drop
+// RedoubtString::as_str
 // ============================================================================
 
-/// A string dropped at one size.
-macro_rules! a_redoubt_string_dropped {
-    ($name:ident, $of:expr) => {
-        #[test]
-        fn $name() -> Result<(), AnyError> {
-            let mut watch = Forensics::watching(&spelled_backwards())?;
-
-            let report_before = watch.snapshot()?;
-
-            let mut source = spelled($of);
-
-            forensics!({
-                let mut held = RedoubtString::new();
-                held.replace_from_mut_string(&mut source);
-
-                // CORRECTNESS: inside the capture, because this is the
-                // operation. What the section measures is whether it leaves a
-                // copy in the registers or the stack it used itself. What it
-                // writes over is whatever ran before it, which has a section
-                // of its own.
-                capture(|| drop(held));
-            });
-
-            drop(core::hint::black_box(source));
-
-            let report_after = watch.snapshot()?;
-
-            leaves_nothing(
-                &report_before,
-                &report_after,
-                &format!("a string of {} bytes dropped", $of),
-            );
-
-            Ok(())
-        }
-    };
+#[test]
+#[ignore = "Reads no secret: it hands back a reference and copies nothing."]
+fn test_a_redoubt_string_as_a_str_leaves_nothing() {
+    // Intentionally empty.
 }
 
-a_redoubt_string_dropped!(test_a_redoubt_string_of_32_dropped_leaves_nothing, 32);
-a_redoubt_string_dropped!(test_a_redoubt_string_of_64_dropped_leaves_nothing, 64);
-a_redoubt_string_dropped!(test_a_redoubt_string_of_128_dropped_leaves_nothing, 128);
-a_redoubt_string_dropped!(test_a_redoubt_string_of_512_dropped_leaves_nothing, 512);
-a_redoubt_string_dropped!(test_a_redoubt_string_of_1024_dropped_leaves_nothing, 1024);
-a_redoubt_string_dropped!(test_a_redoubt_string_of_4096_dropped_leaves_nothing, 4096);
-a_redoubt_string_dropped!(test_a_redoubt_string_of_8192_dropped_leaves_nothing, 8192);
-a_redoubt_string_dropped!(test_a_redoubt_string_of_16384_dropped_leaves_nothing, 16384);
-a_redoubt_string_dropped!(test_a_redoubt_string_of_32768_dropped_leaves_nothing, 32768);
-a_redoubt_string_dropped!(test_a_redoubt_string_of_65536_dropped_leaves_nothing, 65536);
+// ============================================================================
+// RedoubtString::as_mut_str
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it hands back a reference and copies nothing."]
+fn test_a_redoubt_string_as_a_mut_str_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// RedoubtString::as_string
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it hands back a reference and copies nothing."]
+fn test_a_redoubt_string_as_a_string_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// RedoubtString::as_mut_string
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it hands back a reference and copies nothing."]
+fn test_a_redoubt_string_as_a_mut_string_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// RedoubtString: Default
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it makes an empty container."]
+fn test_a_default_redoubt_string_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// RedoubtString: Deref
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it hands back a reference and copies nothing."]
+fn test_dereferencing_a_redoubt_string_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// RedoubtString: DerefMut
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it hands back a reference and copies nothing."]
+fn test_mutably_dereferencing_a_redoubt_string_leaves_nothing() {
+    // Intentionally empty.
+}

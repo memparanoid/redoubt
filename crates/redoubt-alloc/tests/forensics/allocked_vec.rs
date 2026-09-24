@@ -9,6 +9,203 @@ use crate::support::needles::{SECRET, backwards};
 use crate::support::{Block, blocks, giving, hold_on, is_found, leaves_nothing, let_go};
 
 // ============================================================================
+// AllockedVec::drop
+// ============================================================================
+
+/// One size dropped.
+macro_rules! an_allocked_vec_dropped {
+    ($name:ident, $of:expr) => {
+        #[test]
+        fn $name() -> Result<(), AnyError> {
+            let mut watch = Forensics::watching(&backwards())?;
+
+            let mut source = vec![[0_u8; SECRET.len()]; blocks($of)];
+
+            for one in &mut source {
+                giving(one);
+            }
+
+            let report_before = watch.snapshot()?;
+
+            forensics!({
+                let mut held = AllockedVec::<Block>::with_capacity(blocks($of));
+
+                for one in &mut source {
+                    held.push(one)?;
+                }
+
+                // CORRECTNESS: inside the capture, because this is the
+                // operation. What the section measures is whether it leaves a
+                // copy in the registers or the stack it used itself. What it
+                // writes over is whatever ran before it, which has a section
+                // of its own.
+                capture(|| drop(held));
+            });
+
+            drop(core::hint::black_box(source));
+
+            let report_after = watch.snapshot()?;
+
+            leaves_nothing(
+                &report_before,
+                &report_after,
+                &format!("an allocked vec of {} bytes dropped", $of),
+            );
+
+            Ok(())
+        }
+    };
+}
+
+an_allocked_vec_dropped!(test_an_allocked_vec_of_32_dropped_leaves_nothing, 32);
+an_allocked_vec_dropped!(test_an_allocked_vec_of_64_dropped_leaves_nothing, 64);
+an_allocked_vec_dropped!(test_an_allocked_vec_of_128_dropped_leaves_nothing, 128);
+an_allocked_vec_dropped!(test_an_allocked_vec_of_512_dropped_leaves_nothing, 512);
+an_allocked_vec_dropped!(test_an_allocked_vec_of_1024_dropped_leaves_nothing, 1024);
+an_allocked_vec_dropped!(test_an_allocked_vec_of_4096_dropped_leaves_nothing, 4096);
+an_allocked_vec_dropped!(test_an_allocked_vec_of_16384_dropped_leaves_nothing, 16384);
+an_allocked_vec_dropped!(test_an_allocked_vec_of_65536_dropped_leaves_nothing, 65536);
+
+// ============================================================================
+// AllockedVec: ownership
+// ============================================================================
+
+/// A vec given away is found while whoever took it is holding it.
+#[test]
+fn test_an_allocked_vec_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    forensics!({
+        let mut held = AllockedVec::<Block>::with_capacity(1);
+        held.push(&mut { SECRET })?;
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
+        capture(|| hold_on(held));
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "an allocked vec given away, and kept");
+
+    Ok(())
+}
+
+/// One size given away.
+macro_rules! an_allocked_vec_given_away {
+    ($name:ident, $of:expr) => {
+        #[test]
+        fn $name() -> Result<(), AnyError> {
+            let mut watch = Forensics::watching(&backwards())?;
+
+            let mut source = vec![[0_u8; SECRET.len()]; blocks($of)];
+
+            for one in &mut source {
+                giving(one);
+            }
+
+            let report_before = watch.snapshot()?;
+
+            forensics!({
+                let mut held = AllockedVec::<Block>::with_capacity(blocks($of));
+
+                for one in &mut source {
+                    held.push(one)?;
+                }
+
+                // CORRECTNESS: inside the capture, because this is the
+                // operation. What the section measures is whether it leaves a
+                // copy in the registers or the stack it used itself. What it
+                // writes over is whatever ran before it, which has a section
+                // of its own.
+                capture(|| let_go(held));
+            });
+
+            drop(core::hint::black_box(source));
+
+            let report_after = watch.snapshot()?;
+
+            leaves_nothing(
+                &report_before,
+                &report_after,
+                &format!("an allocked vec of {} bytes given away", $of),
+            );
+
+            Ok(())
+        }
+    };
+}
+
+an_allocked_vec_given_away!(test_an_allocked_vec_of_32_given_away_leaves_nothing, 32);
+an_allocked_vec_given_away!(test_an_allocked_vec_of_64_given_away_leaves_nothing, 64);
+an_allocked_vec_given_away!(test_an_allocked_vec_of_128_given_away_leaves_nothing, 128);
+an_allocked_vec_given_away!(test_an_allocked_vec_of_512_given_away_leaves_nothing, 512);
+an_allocked_vec_given_away!(test_an_allocked_vec_of_1024_given_away_leaves_nothing, 1024);
+an_allocked_vec_given_away!(test_an_allocked_vec_of_4096_given_away_leaves_nothing, 4096);
+an_allocked_vec_given_away!(
+    test_an_allocked_vec_of_16384_given_away_leaves_nothing,
+    16384
+);
+an_allocked_vec_given_away!(
+    test_an_allocked_vec_of_65536_given_away_leaves_nothing,
+    65536
+);
+
+// ============================================================================
+// AllockedVec: Debug
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it prints the length and the capacity, and \
+            redacts the contents."]
+fn test_formatting_an_allocked_vec_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// AllockedVec::realloc_with
+// ============================================================================
+
+#[test]
+#[ignore = "Covered transitively: `realloc_with_capacity` is what reaches it \
+            outside the crate, and its section measures it."]
+fn test_an_allocked_vec_reallocated_with_a_hook_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// AllockedVec::new
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it makes an empty container."]
+fn test_making_an_allocked_vec_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// AllockedVec::with_capacity
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it makes an empty container."]
+fn test_making_an_allocked_vec_with_capacity_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// AllockedVec::reserve_exact
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it writes zeros over capacity nothing has filled."]
+fn test_an_allocked_vec_reserved_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
 // AllockedVec::push
 // ============================================================================
 
@@ -105,6 +302,56 @@ an_allocked_vec_pushed_into!(
     test_an_allocked_vec_of_65536_pushed_into_leaves_nothing,
     65536
 );
+
+// ============================================================================
+// AllockedVec::len
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it reads a length."]
+fn test_the_length_of_an_allocked_vec_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// AllockedVec::capacity
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it reads a length."]
+fn test_the_capacity_of_an_allocked_vec_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// AllockedVec::is_empty
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it reads a length."]
+fn test_whether_an_allocked_vec_is_empty_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// AllockedVec::as_slice
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it hands back a reference and copies nothing."]
+fn test_an_allocked_vec_as_a_slice_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// AllockedVec::as_mut_slice
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it hands back a reference and copies nothing."]
+fn test_an_allocked_vec_as_a_mut_slice_leaves_nothing() {
+    // Intentionally empty.
+}
 
 // ============================================================================
 // AllockedVec::truncate
@@ -390,146 +637,71 @@ an_allocked_vec_reallocated!(
 );
 
 // ============================================================================
-// AllockedVec: ownership
+// AllockedVec::fill_with_default
 // ============================================================================
 
-/// A vec given away is found while whoever took it is holding it.
 #[test]
-fn test_an_allocked_vec_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
-
-    forensics!({
-        let mut held = AllockedVec::<Block>::with_capacity(1);
-        held.push(&mut { SECRET })?;
-
-        // CORRECTNESS: inside the capture, because this is the operation. What
-        // the section measures is whether it leaves a copy in the registers or
-        // the stack it used itself. What it writes over is whatever ran before
-        // it, which has a section of its own.
-        capture(|| hold_on(held));
-    });
-
-    let report = watch.snapshot()?;
-
-    is_found(&report, "an allocked vec given away, and kept");
-
-    Ok(())
+#[ignore = "Reads no secret: it writes defaults."]
+fn test_an_allocked_vec_filled_with_defaults_leaves_nothing() {
+    // Intentionally empty.
 }
-
-/// One size given away.
-macro_rules! an_allocked_vec_given_away {
-    ($name:ident, $of:expr) => {
-        #[test]
-        fn $name() -> Result<(), AnyError> {
-            let mut watch = Forensics::watching(&backwards())?;
-
-            let mut source = vec![[0_u8; SECRET.len()]; blocks($of)];
-
-            for one in &mut source {
-                giving(one);
-            }
-
-            let report_before = watch.snapshot()?;
-
-            forensics!({
-                let mut held = AllockedVec::<Block>::with_capacity(blocks($of));
-
-                for one in &mut source {
-                    held.push(one)?;
-                }
-
-                // CORRECTNESS: inside the capture, because this is the
-                // operation. What the section measures is whether it leaves a
-                // copy in the registers or the stack it used itself. What it
-                // writes over is whatever ran before it, which has a section
-                // of its own.
-                capture(|| let_go(held));
-            });
-
-            drop(core::hint::black_box(source));
-
-            let report_after = watch.snapshot()?;
-
-            leaves_nothing(
-                &report_before,
-                &report_after,
-                &format!("an allocked vec of {} bytes given away", $of),
-            );
-
-            Ok(())
-        }
-    };
-}
-
-an_allocked_vec_given_away!(test_an_allocked_vec_of_32_given_away_leaves_nothing, 32);
-an_allocked_vec_given_away!(test_an_allocked_vec_of_64_given_away_leaves_nothing, 64);
-an_allocked_vec_given_away!(test_an_allocked_vec_of_128_given_away_leaves_nothing, 128);
-an_allocked_vec_given_away!(test_an_allocked_vec_of_512_given_away_leaves_nothing, 512);
-an_allocked_vec_given_away!(test_an_allocked_vec_of_1024_given_away_leaves_nothing, 1024);
-an_allocked_vec_given_away!(test_an_allocked_vec_of_4096_given_away_leaves_nothing, 4096);
-an_allocked_vec_given_away!(
-    test_an_allocked_vec_of_16384_given_away_leaves_nothing,
-    16384
-);
-an_allocked_vec_given_away!(
-    test_an_allocked_vec_of_65536_given_away_leaves_nothing,
-    65536
-);
 
 // ============================================================================
-// AllockedVec::drop
+// AllockedVec::as_mut_ptr
 // ============================================================================
 
-/// One size dropped.
-macro_rules! an_allocked_vec_dropped {
-    ($name:ident, $of:expr) => {
-        #[test]
-        fn $name() -> Result<(), AnyError> {
-            let mut watch = Forensics::watching(&backwards())?;
-
-            let mut source = vec![[0_u8; SECRET.len()]; blocks($of)];
-
-            for one in &mut source {
-                giving(one);
-            }
-
-            let report_before = watch.snapshot()?;
-
-            forensics!({
-                let mut held = AllockedVec::<Block>::with_capacity(blocks($of));
-
-                for one in &mut source {
-                    held.push(one)?;
-                }
-
-                // CORRECTNESS: inside the capture, because this is the
-                // operation. What the section measures is whether it leaves a
-                // copy in the registers or the stack it used itself. What it
-                // writes over is whatever ran before it, which has a section
-                // of its own.
-                capture(|| drop(held));
-            });
-
-            drop(core::hint::black_box(source));
-
-            let report_after = watch.snapshot()?;
-
-            leaves_nothing(
-                &report_before,
-                &report_after,
-                &format!("an allocked vec of {} bytes dropped", $of),
-            );
-
-            Ok(())
-        }
-    };
+#[test]
+#[ignore = "Reads no secret: it hands back a pointer."]
+fn test_an_allocked_vec_as_a_mut_ptr_leaves_nothing() {
+    // Intentionally empty.
 }
 
-an_allocked_vec_dropped!(test_an_allocked_vec_of_32_dropped_leaves_nothing, 32);
-an_allocked_vec_dropped!(test_an_allocked_vec_of_64_dropped_leaves_nothing, 64);
-an_allocked_vec_dropped!(test_an_allocked_vec_of_128_dropped_leaves_nothing, 128);
-an_allocked_vec_dropped!(test_an_allocked_vec_of_512_dropped_leaves_nothing, 512);
-an_allocked_vec_dropped!(test_an_allocked_vec_of_1024_dropped_leaves_nothing, 1024);
-an_allocked_vec_dropped!(test_an_allocked_vec_of_4096_dropped_leaves_nothing, 4096);
-an_allocked_vec_dropped!(test_an_allocked_vec_of_16384_dropped_leaves_nothing, 16384);
-an_allocked_vec_dropped!(test_an_allocked_vec_of_65536_dropped_leaves_nothing, 65536);
+// ============================================================================
+// AllockedVec::as_capacity_slice
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it hands back a reference and copies nothing."]
+fn test_an_allocked_vec_as_a_capacity_slice_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// AllockedVec::as_capacity_mut_slice
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it hands back a reference and copies nothing."]
+fn test_an_allocked_vec_as_a_capacity_mut_slice_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// AllockedVec::set_len
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it writes a length."]
+fn test_setting_the_length_of_an_allocked_vec_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// AllockedVec: Default
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it makes an empty container."]
+fn test_a_default_allocked_vec_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// AllockedVec: Deref
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it hands back a reference and copies nothing."]
+fn test_dereferencing_an_allocked_vec_leaves_nothing() {
+    // Intentionally empty.
+}
