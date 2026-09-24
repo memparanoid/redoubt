@@ -11,7 +11,7 @@
 /// # Safety
 ///
 /// `src` readable and `dst` writable for `bytes`, and the two ranges disjoint.
-pub(crate) unsafe fn copy_bytes(src: *const u8, dst: *mut u8, bytes: usize) {
+pub(crate) unsafe fn copy_nonoverlapping(src: *const u8, dst: *mut u8, bytes: usize) {
     // SAFETY: the caller's, verbatim.
     unsafe { core::ptr::copy_nonoverlapping(src, dst, bytes) };
 }
@@ -21,7 +21,7 @@ pub(crate) unsafe fn copy_bytes(src: *const u8, dst: *mut u8, bytes: usize) {
 /// # Safety
 ///
 /// `a` and `b` readable and writable for `bytes`, and the two ranges disjoint.
-pub(crate) unsafe fn swap_bytes(a: *mut u8, b: *mut u8, bytes: usize) {
+pub(crate) unsafe fn swap_nonoverlapping(a: *mut u8, b: *mut u8, bytes: usize) {
     // SAFETY: the caller's, verbatim.
     unsafe { core::ptr::swap_nonoverlapping(a, b, bytes) };
 }

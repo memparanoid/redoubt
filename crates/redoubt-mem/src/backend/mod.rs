@@ -31,12 +31,12 @@ pub(crate) const HAS_ASM: bool = cfg!(mem_asm);
 /// # Safety
 ///
 /// `src` readable and `dst` writable for `bytes`, and the two ranges disjoint.
-pub(crate) unsafe fn copy_bytes(backend: Backend, src: *const u8, dst: *mut u8, bytes: usize) {
+pub(crate) unsafe fn copy_nonoverlapping(backend: Backend, src: *const u8, dst: *mut u8, bytes: usize) {
     match backend {
         // SAFETY: the caller's, verbatim.
-        Backend::Rust => unsafe { rust::copy_bytes(src, dst, bytes) },
+        Backend::Rust => unsafe { rust::copy_nonoverlapping(src, dst, bytes) },
         // SAFETY: the caller's, verbatim.
-        Backend::Auto => unsafe { auto_copy_bytes(src, dst, bytes) },
+        Backend::Auto => unsafe { auto_copy_nonoverlapping(src, dst, bytes) },
     }
 }
 
@@ -44,22 +44,22 @@ pub(crate) unsafe fn copy_bytes(backend: Backend, src: *const u8, dst: *mut u8, 
 ///
 /// # Safety
 ///
-/// As [`copy_bytes`].
+/// As [`copy_nonoverlapping`].
 #[cfg(mem_asm)]
-unsafe fn auto_copy_bytes(src: *const u8, dst: *mut u8, bytes: usize) {
+unsafe fn auto_copy_nonoverlapping(src: *const u8, dst: *mut u8, bytes: usize) {
     // SAFETY: the caller's, verbatim.
-    unsafe { asm::copy_bytes(src, dst, bytes) }
+    unsafe { asm::copy_nonoverlapping(src, dst, bytes) }
 }
 
 /// What `Auto` is anywhere else.
 ///
 /// # Safety
 ///
-/// As [`copy_bytes`].
+/// As [`copy_nonoverlapping`].
 #[cfg(not(mem_asm))]
-unsafe fn auto_copy_bytes(src: *const u8, dst: *mut u8, bytes: usize) {
+unsafe fn auto_copy_nonoverlapping(src: *const u8, dst: *mut u8, bytes: usize) {
     // SAFETY: the caller's, verbatim.
-    unsafe { rust::copy_bytes(src, dst, bytes) }
+    unsafe { rust::copy_nonoverlapping(src, dst, bytes) }
 }
 
 /// `bytes` exchanged between `a` and `b`.
@@ -67,12 +67,12 @@ unsafe fn auto_copy_bytes(src: *const u8, dst: *mut u8, bytes: usize) {
 /// # Safety
 ///
 /// `a` and `b` readable and writable for `bytes`, and the two ranges disjoint.
-pub(crate) unsafe fn swap_bytes(backend: Backend, a: *mut u8, b: *mut u8, bytes: usize) {
+pub(crate) unsafe fn swap_nonoverlapping(backend: Backend, a: *mut u8, b: *mut u8, bytes: usize) {
     match backend {
         // SAFETY: the caller's, verbatim.
-        Backend::Rust => unsafe { rust::swap_bytes(a, b, bytes) },
+        Backend::Rust => unsafe { rust::swap_nonoverlapping(a, b, bytes) },
         // SAFETY: the caller's, verbatim.
-        Backend::Auto => unsafe { auto_swap_bytes(a, b, bytes) },
+        Backend::Auto => unsafe { auto_swap_nonoverlapping(a, b, bytes) },
     }
 }
 
@@ -80,22 +80,22 @@ pub(crate) unsafe fn swap_bytes(backend: Backend, a: *mut u8, b: *mut u8, bytes:
 ///
 /// # Safety
 ///
-/// As [`swap_bytes`].
+/// As [`swap_nonoverlapping`].
 #[cfg(mem_asm)]
-unsafe fn auto_swap_bytes(a: *mut u8, b: *mut u8, bytes: usize) {
+unsafe fn auto_swap_nonoverlapping(a: *mut u8, b: *mut u8, bytes: usize) {
     // SAFETY: the caller's, verbatim.
-    unsafe { asm::swap_bytes(a, b, bytes) }
+    unsafe { asm::swap_nonoverlapping(a, b, bytes) }
 }
 
 /// What `Auto` is anywhere else.
 ///
 /// # Safety
 ///
-/// As [`swap_bytes`].
+/// As [`swap_nonoverlapping`].
 #[cfg(not(mem_asm))]
-unsafe fn auto_swap_bytes(a: *mut u8, b: *mut u8, bytes: usize) {
+unsafe fn auto_swap_nonoverlapping(a: *mut u8, b: *mut u8, bytes: usize) {
     // SAFETY: the caller's, verbatim.
-    unsafe { rust::swap_bytes(a, b, bytes) }
+    unsafe { rust::swap_nonoverlapping(a, b, bytes) }
 }
 
 /// Whether `bytes` spell UTF-8.

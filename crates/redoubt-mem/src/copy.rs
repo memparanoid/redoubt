@@ -65,6 +65,6 @@ pub(crate) unsafe fn copy_nonoverlapping_with_backend<T>(
     if bytes != 0 {
         // SAFETY: the caller's, verbatim. The cast is between thin pointers of
         // the same address.
-        unsafe { backend::copy_bytes(backend, src.cast(), dst.cast(), bytes) };
+        unsafe { backend::copy_nonoverlapping(backend, src.cast(), dst.cast(), bytes) };
     }
 }

@@ -17,22 +17,22 @@ unsafe extern "C" {
     fn redoubt_mem_utf8_valid(bytes: *const u8, len: usize, answer: *mut u8);
 }
 
-/// What `rust::copy_bytes` does, in the assembly for this target.
+/// What `rust::copy_nonoverlapping` does, in the assembly for this target.
 ///
 /// # Safety
 ///
 /// `src` readable and `dst` writable for `bytes`, and the two ranges disjoint.
-pub(crate) unsafe fn copy_bytes(src: *const u8, dst: *mut u8, bytes: usize) {
+pub(crate) unsafe fn copy_nonoverlapping(src: *const u8, dst: *mut u8, bytes: usize) {
     // SAFETY: the caller's, verbatim.
     unsafe { redoubt_copy_bytes(src, dst, bytes) };
 }
 
-/// What `rust::swap_bytes` does, in the assembly for this target.
+/// What `rust::swap_nonoverlapping` does, in the assembly for this target.
 ///
 /// # Safety
 ///
 /// `a` and `b` readable and writable for `bytes`, and the two ranges disjoint.
-pub(crate) unsafe fn swap_bytes(a: *mut u8, b: *mut u8, bytes: usize) {
+pub(crate) unsafe fn swap_nonoverlapping(a: *mut u8, b: *mut u8, bytes: usize) {
     // SAFETY: the caller's, verbatim.
     unsafe { redoubt_mem_swap(a, b, bytes) };
 }

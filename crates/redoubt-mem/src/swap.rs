@@ -100,6 +100,6 @@ pub(crate) unsafe fn swap_nonoverlapping_with_backend<T>(
     if bytes != 0 {
         // SAFETY: the caller's, verbatim. The cast is between thin pointers of
         // the same address.
-        unsafe { backend::swap_bytes(backend, a.cast(), b.cast(), bytes) };
+        unsafe { backend::swap_nonoverlapping(backend, a.cast(), b.cast(), bytes) };
     }
 }
