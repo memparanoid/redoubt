@@ -15,7 +15,7 @@ use crate::traits::{BytesRequired, Decode, Encode};
 use crate::tests::forensics::support::needles::backwards;
 use crate::tests::forensics::support::{giving, is_found, leaves_nothing};
 
-fn held(of: usize) -> RedoubtVec<u8> {
+fn hold(of: usize) -> RedoubtVec<u8> {
     let mut source = vec![0_u8; of];
 
     giving(&mut source);
@@ -28,7 +28,7 @@ fn held(of: usize) -> RedoubtVec<u8> {
 }
 
 fn wire(of: usize) -> Result<Vec<u8>, AnyError> {
-    let mut held = held(of);
+    let mut held = hold(of);
     let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
 
     held.encode_into(&mut buffer)?;
@@ -52,7 +52,7 @@ fn test_sizing_a_redoubt_vec_leaves_nothing() {
 
 #[test]
 fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
-    let mut value = held(32);
+    let mut value = hold(32);
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
@@ -76,7 +76,7 @@ macro_rules! encoded {
 
             let report_before = watch.snapshot()?;
 
-            let mut value = held($of);
+            let mut value = hold($of);
 
             forensics!({
                 let mut buffer = RedoubtCodecBuffer::with_capacity(value.encode_bytes_required()?);

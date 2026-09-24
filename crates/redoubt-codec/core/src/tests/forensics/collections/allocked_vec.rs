@@ -23,7 +23,7 @@ use crate::tests::forensics::support::{
 
 type Held = AllockedVec<u8>;
 
-fn held(of: usize) -> Result<Held, AnyError> {
+fn hold(of: usize) -> Result<Held, AnyError> {
     let mut source = vec![0_u8; of];
 
     giving(&mut source);
@@ -36,11 +36,11 @@ fn held(of: usize) -> Result<Held, AnyError> {
 }
 
 fn two() -> Result<Box<[Held; 2]>, AnyError> {
-    Ok(Box::new([held(32)?, held(32)?]))
+    Ok(Box::new([hold(32)?, hold(32)?]))
 }
 
 fn wire(of: usize) -> Result<Vec<u8>, AnyError> {
-    let mut held = held(of)?;
+    let mut held = hold(of)?;
     let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
 
     held.encode_into(&mut buffer)?;
@@ -67,7 +67,7 @@ fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut held = held(32)?;
+    let mut held = hold(32)?;
     let mut buffer = a_buffer_holding()?;
 
     forensics!({
@@ -101,7 +101,7 @@ fn test_cleaning_up_a_refused_decode_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut held = held(32)?;
+    let mut held = hold(32)?;
     let mut wire = secret_bytes(64);
 
     forensics!({
@@ -141,7 +141,7 @@ fn test_sizing_an_allocked_vec_leaves_nothing() {
 
 #[test]
 fn test_what_trying_to_encode_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
-    let mut held = held(32)?;
+    let mut held = hold(32)?;
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
@@ -166,7 +166,7 @@ fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut held = held(32)?;
+    let mut held = hold(32)?;
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
@@ -198,7 +198,7 @@ fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
-    let mut held = held(32)?;
+    let mut held = hold(32)?;
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
@@ -220,7 +220,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut held = held(32)?;
+    let mut held = hold(32)?;
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
@@ -252,7 +252,7 @@ fn test_encoding_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError
 
     let report_before = watch.snapshot()?;
 
-    let mut held = held(32)?;
+    let mut held = hold(32)?;
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()? - 1);
@@ -451,7 +451,7 @@ fn test_decoding_less_over_a_vec_that_holds_more_leaves_nothing() -> Result<(), 
     let report_before = watch.snapshot()?;
 
     let mut wire = wire(2048)?;
-    let mut back = held(4096)?;
+    let mut back = hold(4096)?;
 
     forensics!({
         capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
@@ -577,7 +577,7 @@ fn test_preallocating_over_a_vec_that_holds_a_secret_leaves_nothing() -> Result<
 
     let report_before = watch.snapshot()?;
 
-    let mut back = held(4096)?;
+    let mut back = hold(4096)?;
 
     forensics!({
         capture(|| back.prealloc(2048));

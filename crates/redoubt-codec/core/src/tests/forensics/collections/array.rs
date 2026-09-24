@@ -24,7 +24,7 @@ use crate::tests::forensics::support::{
 
 type Held = [u8; 32];
 
-fn held() -> Box<Held> {
+fn hold() -> Box<Held> {
     let mut held = Box::new([0_u8; 32]);
 
     giving(&mut *held);
@@ -43,7 +43,7 @@ fn two() -> Box<[Held; 2]> {
 }
 
 fn wire() -> Result<Vec<u8>, AnyError> {
-    let mut held = held();
+    let mut held = hold();
     let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
 
     held.encode_into(&mut buffer)?;
@@ -70,7 +70,7 @@ fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut held = held();
+    let mut held = hold();
     let mut buffer = a_buffer_holding()?;
 
     forensics!({
@@ -104,7 +104,7 @@ fn test_cleaning_up_a_refused_decode_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut held = held();
+    let mut held = hold();
     let mut wire = secret_bytes(64);
 
     forensics!({
@@ -144,7 +144,7 @@ fn test_sizing_an_array_leaves_nothing() {
 
 #[test]
 fn test_what_trying_to_encode_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
-    let mut held = held();
+    let mut held = hold();
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
@@ -169,7 +169,7 @@ fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut held = held();
+    let mut held = hold();
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
@@ -201,7 +201,7 @@ fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
 
 #[test]
 fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
-    let mut held = held();
+    let mut held = hold();
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
@@ -223,7 +223,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut held = held();
+    let mut held = hold();
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
@@ -255,7 +255,7 @@ fn test_encoding_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError
 
     let report_before = watch.snapshot()?;
 
-    let mut held = held();
+    let mut held = hold();
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()? - 1);

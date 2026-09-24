@@ -16,7 +16,7 @@ const HEX: [u8; 16] = *b"0123456789abcdef";
 /// Pushed a character at a time into room reserved up front: `push_str` or
 /// `write!` would grow the string and leave the spelling in every block it
 /// outgrew.
-fn spelled(of: usize) -> String {
+fn spell(of: usize) -> String {
     let mut all = String::with_capacity(of);
 
     // SAFETY: every byte pushed is an ASCII hex digit, so what is built stays
@@ -38,7 +38,7 @@ fn spelled(of: usize) -> String {
 
 /// One copy of the spelling, from its last character to its first and never
 /// turned around: the forward spelling must not exist in this process.
-fn spelled_backwards() -> Vec<u8> {
+fn spelling_backwards() -> Vec<u8> {
     let mut backwards = Vec::with_capacity(SECRET.len() * 2);
 
     for byte in SECRET.iter().rev() {
@@ -71,11 +71,11 @@ macro_rules! a_redoubt_string_dropped {
     ($name:ident, $of:expr) => {
         #[test]
         fn $name() -> Result<(), AnyError> {
-            let mut watch = Forensics::watching(&spelled_backwards())?;
+            let mut watch = Forensics::watching(&spelling_backwards())?;
 
             let report_before = watch.snapshot()?;
 
-            let mut source = spelled($of);
+            let mut source = spell($of);
 
             forensics!({
                 let mut held = RedoubtString::new();
@@ -121,9 +121,9 @@ a_redoubt_string_dropped!(test_a_redoubt_string_of_65536_dropped_leaves_nothing,
 
 #[test]
 fn test_a_redoubt_string_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&spelled_backwards())?;
+    let mut watch = Forensics::watching(&spelling_backwards())?;
 
-    let mut source = spelled(SECRET.len() * 2);
+    let mut source = spell(SECRET.len() * 2);
 
     forensics!({
         let mut held = RedoubtString::new();
@@ -149,11 +149,11 @@ macro_rules! a_redoubt_string_given_away {
     ($name:ident, $of:expr) => {
         #[test]
         fn $name() -> Result<(), AnyError> {
-            let mut watch = Forensics::watching(&spelled_backwards())?;
+            let mut watch = Forensics::watching(&spelling_backwards())?;
 
             let report_before = watch.snapshot()?;
 
-            let mut source = spelled($of);
+            let mut source = spell($of);
 
             forensics!({
                 let mut held = RedoubtString::new();
@@ -248,9 +248,9 @@ fn test_making_a_redoubt_string_with_capacity_leaves_nothing() {
 
 #[test]
 fn test_a_redoubt_string_from_a_mut_string_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&spelled_backwards())?;
+    let mut watch = Forensics::watching(&spelling_backwards())?;
 
-    let mut source = spelled(SECRET.len() * 2);
+    let mut source = spell(SECRET.len() * 2);
 
     forensics!({
         let held = capture(|| RedoubtString::from_mut_string(&mut source));
@@ -271,11 +271,11 @@ macro_rules! a_redoubt_string_from_a_mut_string {
     ($name:ident, $of:expr) => {
         #[test]
         fn $name() -> Result<(), AnyError> {
-            let mut watch = Forensics::watching(&spelled_backwards())?;
+            let mut watch = Forensics::watching(&spelling_backwards())?;
 
             let report_before = watch.snapshot()?;
 
-            let mut source = spelled($of);
+            let mut source = spell($of);
 
             forensics!({
                 let held = capture(|| RedoubtString::from_mut_string(&mut source));
@@ -349,9 +349,9 @@ a_redoubt_string_from_a_mut_string!(
 
 #[test]
 fn test_a_redoubt_string_from_a_str_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&spelled_backwards())?;
+    let mut watch = Forensics::watching(&spelling_backwards())?;
 
-    let mut source = spelled(SECRET.len() * 2);
+    let mut source = spell(SECRET.len() * 2);
 
     forensics!({
         let held = capture(|| RedoubtString::from_str(&source));
@@ -374,11 +374,11 @@ macro_rules! a_redoubt_string_from_a_str {
     ($name:ident, $of:expr) => {
         #[test]
         fn $name() -> Result<(), AnyError> {
-            let mut watch = Forensics::watching(&spelled_backwards())?;
+            let mut watch = Forensics::watching(&spelling_backwards())?;
 
             let report_before = watch.snapshot()?;
 
-            let mut source = spelled($of);
+            let mut source = spell($of);
 
             forensics!({
                 let held = capture(|| RedoubtString::from_str(&source));
@@ -494,9 +494,9 @@ fn test_a_redoubt_string_maybe_grown_leaves_nothing() {
 
 #[test]
 fn test_a_redoubt_string_extended_is_found_while_it_holds_it() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&spelled_backwards())?;
+    let mut watch = Forensics::watching(&spelling_backwards())?;
 
-    let mut source = spelled(SECRET.len() * 2);
+    let mut source = spell(SECRET.len() * 2);
 
     forensics!({
         let mut held = RedoubtString::new();
@@ -520,12 +520,12 @@ macro_rules! a_redoubt_string_extended {
     ($name:ident, $of:expr) => {
         #[test]
         fn $name() -> Result<(), AnyError> {
-            let mut watch = Forensics::watching(&spelled_backwards())?;
+            let mut watch = Forensics::watching(&spelling_backwards())?;
 
             let report_before = watch.snapshot()?;
 
             let mut sources: Vec<String> = (0..($of / (SECRET.len() * 2)).max(1))
-                .map(|_| spelled(SECRET.len() * 2))
+                .map(|_| spell(SECRET.len() * 2))
                 .collect();
 
             forensics!({
@@ -585,9 +585,9 @@ a_redoubt_string_extended!(
 
 #[test]
 fn test_a_redoubt_string_replaced_is_found_while_it_holds_it() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&spelled_backwards())?;
+    let mut watch = Forensics::watching(&spelling_backwards())?;
 
-    let mut source = spelled(SECRET.len() * 2);
+    let mut source = spell(SECRET.len() * 2);
 
     forensics!({
         let mut held = RedoubtString::new();
@@ -609,11 +609,11 @@ macro_rules! a_redoubt_string_replaced {
     ($name:ident, $of:expr) => {
         #[test]
         fn $name() -> Result<(), AnyError> {
-            let mut watch = Forensics::watching(&spelled_backwards())?;
+            let mut watch = Forensics::watching(&spelling_backwards())?;
 
             let report_before = watch.snapshot()?;
 
-            let mut source = spelled($of);
+            let mut source = spell($of);
 
             forensics!({
                 let mut held = RedoubtString::new();
@@ -667,9 +667,9 @@ a_redoubt_string_replaced!(
 
 #[test]
 fn test_a_redoubt_string_extended_from_a_str_is_found_while_it_holds_it() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&spelled_backwards())?;
+    let mut watch = Forensics::watching(&spelling_backwards())?;
 
-    let mut source = spelled(SECRET.len() * 2);
+    let mut source = spell(SECRET.len() * 2);
 
     forensics!({
         let mut held = RedoubtString::new();
@@ -693,11 +693,11 @@ macro_rules! a_redoubt_string_extended_from_a_str {
     ($name:ident, $of:expr) => {
         #[test]
         fn $name() -> Result<(), AnyError> {
-            let mut watch = Forensics::watching(&spelled_backwards())?;
+            let mut watch = Forensics::watching(&spelling_backwards())?;
 
             let report_before = watch.snapshot()?;
 
-            let mut source = spelled($of);
+            let mut source = spell($of);
 
             forensics!({
                 let mut held = RedoubtString::new();
@@ -776,11 +776,11 @@ macro_rules! a_redoubt_string_cleared {
     ($name:ident, $of:expr) => {
         #[test]
         fn $name() -> Result<(), AnyError> {
-            let mut watch = Forensics::watching(&spelled_backwards())?;
+            let mut watch = Forensics::watching(&spelling_backwards())?;
 
             let report_before = watch.snapshot()?;
 
-            let mut source = spelled($of);
+            let mut source = spell($of);
 
             forensics!({
                 let mut held = RedoubtString::new();

@@ -16,7 +16,7 @@ use crate::traits::{BytesRequired, Decode, Encode};
 use crate::tests::forensics::support::needles::backwards;
 use crate::tests::forensics::support::{giving, is_found, leaves_nothing};
 
-fn boxed() -> Box<[u8; 32]> {
+fn a_box() -> Box<[u8; 32]> {
     let mut boxed = Box::new([0_u8; 32]);
 
     giving(&mut *boxed);
@@ -25,7 +25,7 @@ fn boxed() -> Box<[u8; 32]> {
 }
 
 fn wire() -> Result<Vec<u8>, AnyError> {
-    let mut boxed = boxed();
+    let mut boxed = a_box();
     let mut buffer = RedoubtCodecBuffer::with_capacity(boxed.encode_bytes_required()?);
 
     boxed.encode_into(&mut buffer)?;
@@ -49,7 +49,7 @@ fn test_sizing_a_box_leaves_nothing() {
 
 #[test]
 fn test_what_encoding_a_box_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
-    let mut boxed = boxed();
+    let mut boxed = a_box();
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
@@ -71,7 +71,7 @@ fn test_encoding_a_box_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut boxed = boxed();
+    let mut boxed = a_box();
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(boxed.encode_bytes_required()?);
