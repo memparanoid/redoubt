@@ -11,5 +11,6 @@
 
 mod support;
 
+mod collections;
 mod zeroizing_guard;
 mod zeroizing_mut_guard;
