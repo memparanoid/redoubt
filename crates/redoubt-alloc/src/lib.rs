@@ -120,7 +120,7 @@ mod redoubt_vec;
 mod tests;
 
 pub use allocked_vec::AllockedVec;
-pub use error::{AllockedVecError, RedoubtOptionError};
+pub use error::AllockedVecError;
 pub use redoubt_array::RedoubtArray;
 pub use redoubt_option::RedoubtOption;
 pub use redoubt_string::RedoubtString;

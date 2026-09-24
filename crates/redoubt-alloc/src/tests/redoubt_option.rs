@@ -4,7 +4,7 @@
 
 use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
-use crate::{RedoubtOption, RedoubtOptionError};
+use crate::RedoubtOption;
 
 // ╔════════════════════════════════════════════════════════════════════════════╗
 // ║ ZEROIZATION                                                                ║
@@ -44,37 +44,31 @@ fn test_redoubt_option_is_none_by_default() {
 #[test]
 fn test_redoubt_option_as_ref_empty() {
     let opt = RedoubtOption::<u64>::default();
-    let result = opt.as_ref();
 
-    assert!(result.is_err());
-    assert!(matches!(result, Err(RedoubtOptionError::Empty)));
+    assert!(opt.as_ref().is_none());
 }
 
 #[test]
 fn test_redoubt_option_as_mut_empty() {
     let mut opt = RedoubtOption::<u64>::default();
-    let result = opt.as_mut();
 
-    assert!(result.is_err());
-    assert!(matches!(result, Err(RedoubtOptionError::Empty)));
+    assert!(opt.as_mut().is_none());
 }
 
 #[test]
-fn test_redoubt_option_replace() -> Result<(), Box<dyn std::error::Error>> {
+fn test_redoubt_option_replace() {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;
 
     opt.replace(&mut value);
 
     assert!(opt.is_some());
-    assert_eq!(*opt.as_ref()?, 42);
+    assert_eq!(opt.as_ref(), Some(&42));
     assert!(value.is_zeroized());
-
-    Ok(())
 }
 
 #[test]
-fn test_redoubt_option_replace_zeroizes_old_value() -> Result<(), Box<dyn std::error::Error>> {
+fn test_redoubt_option_replace_zeroizes_old_value() {
     let mut opt = RedoubtOption::<u64>::default();
 
     let mut value1 = 42u64;
@@ -83,50 +77,22 @@ fn test_redoubt_option_replace_zeroizes_old_value() -> Result<(), Box<dyn std::e
     let mut value2 = 99u64;
     opt.replace(&mut value2);
 
-    assert_eq!(*opt.as_ref()?, 99);
+    assert_eq!(opt.as_ref(), Some(&99));
     assert!(value1.is_zeroized());
     assert!(value2.is_zeroized());
-
-    Ok(())
 }
 
 #[test]
-fn test_redoubt_option_take_some() -> Result<(), Box<dyn std::error::Error>> {
+fn test_redoubt_option_as_mut() {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;
     opt.replace(&mut value);
 
-    let taken = opt.take();
+    if let Some(val_mut) = opt.as_mut() {
+        *val_mut = 99;
+    }
 
-    assert!(taken.is_ok());
-    assert_eq!(taken?, 42);
-    assert!(opt.is_none());
-
-    Ok(())
-}
-
-#[test]
-fn test_redoubt_option_take_none() {
-    let mut opt = RedoubtOption::<u64>::default();
-    let taken = opt.take();
-
-    assert!(taken.is_err());
-    assert!(matches!(taken, Err(RedoubtOptionError::Empty)));
-    assert!(opt.is_none());
-}
-
-#[test]
-fn test_redoubt_option_as_mut() -> Result<(), Box<dyn std::error::Error>> {
-    let mut opt = RedoubtOption::<u64>::default();
-    let mut value = 42u64;
-    opt.replace(&mut value);
-
-    let val_mut = opt.as_mut()?;
-    *val_mut = 99;
-
-    assert_eq!(*opt.as_ref()?, 99);
-
-    Ok(())
+    assert_eq!(opt.as_ref(), Some(&99));
 }
 
 #[test]
@@ -147,7 +113,7 @@ fn test_redoubt_option_as_option() {
 }
 
 #[test]
-fn test_redoubt_option_as_mut_option() -> Result<(), Box<dyn std::error::Error>> {
+fn test_redoubt_option_as_mut_option() {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;
     opt.replace(&mut value);
@@ -160,7 +126,5 @@ fn test_redoubt_option_as_mut_option() -> Result<(), Box<dyn std::error::Error>>
         *v = 99;
     }
 
-    assert_eq!(*opt.as_ref()?, 99);
-
-    Ok(())
+    assert_eq!(opt.as_ref(), Some(&99));
 }

@@ -24,7 +24,7 @@ fn test_redoubt_option_codec_roundtrip() -> Result<(), Box<dyn std::error::Error
 
     recovered.decode_from(&mut decode_buf.as_mut_slice())?;
 
-    assert_eq!(*recovered.as_ref()?, 42);
+    assert_eq!(recovered.as_ref(), Some(&42));
 
     // Assert zeroization!
     assert!(buf.is_zeroized());

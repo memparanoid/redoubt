@@ -566,7 +566,7 @@ fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
                 secrets_box.open_in_two_options(|it| {
-                    core::hint::black_box(it.as_ref().is_ok());
+                    core::hint::black_box(it.as_ref().is_some());
 
                     Ok(())
                 })?;
@@ -624,7 +624,7 @@ fn test_open_field_mut_leaves_nothing() -> Result<(), AnyError> {
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
                 secrets_box.open_in_two_options_mut(|it| {
-                    core::hint::black_box(it.as_ref().is_ok());
+                    core::hint::black_box(it.as_ref().is_some());
 
                     Ok(())
                 })?;
@@ -797,12 +797,12 @@ fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
         for _ in 0..ROUNDS - 1 {
             let taken = secrets_box.leak_in_an_option()?;
 
-            core::hint::black_box(taken.as_ref().is_ok());
+            core::hint::black_box(taken.as_ref().is_some());
         }
 
         let taken = secrets_box.leak_in_an_option()?;
 
-        capture(|| core::hint::black_box(taken.as_ref().is_ok()));
+        capture(|| core::hint::black_box(taken.as_ref().is_some()));
 
         drop(taken);
     });
@@ -851,12 +851,12 @@ fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
         for _ in 0..ROUNDS - 1 {
             let taken = secrets_box.leak_in_two_options()?;
 
-            core::hint::black_box(taken.as_ref().is_ok());
+            core::hint::black_box(taken.as_ref().is_some());
         }
 
         let taken = secrets_box.leak_in_two_options()?;
 
-        capture(|| core::hint::black_box(taken.as_ref().is_ok()));
+        capture(|| core::hint::black_box(taken.as_ref().is_some()));
 
         drop(taken);
     });

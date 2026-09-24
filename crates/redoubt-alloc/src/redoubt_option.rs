@@ -4,8 +4,6 @@
 
 use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeMetadata};
 
-use crate::error::RedoubtOptionError;
-
 /// An optional value wrapper with automatic zeroization.
 #[derive(RedoubtZero, Default)]
 #[fast_zeroize(drop)]
@@ -29,14 +27,14 @@ impl<T> RedoubtOption<T>
 where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
 {
-    /// Returns a reference to the inner value, or an error if `None`.
-    pub fn as_ref(&self) -> Result<&T, RedoubtOptionError> {
-        self.inner.as_ref().ok_or(RedoubtOptionError::Empty)
+    /// Returns a reference to the inner value, or `None`.
+    pub fn as_ref(&self) -> Option<&T> {
+        self.inner.as_ref()
     }
 
-    /// Returns a mutable reference to the inner value, or an error if `None`.
-    pub fn as_mut(&mut self) -> Result<&mut T, RedoubtOptionError> {
-        self.inner.as_mut().ok_or(RedoubtOptionError::Empty)
+    /// Returns a mutable reference to the inner value, or `None`.
+    pub fn as_mut(&mut self) -> Option<&mut T> {
+        self.inner.as_mut()
     }
 
     /// Replaces the inner value with a new one, zeroizing both the old value and the source.
@@ -56,11 +54,6 @@ where
 
         // Zeroize source
         value.fast_zeroize();
-    }
-
-    /// Takes the value out of the option, leaving `None` in its place.
-    pub fn take(&mut self) -> Result<T, RedoubtOptionError> {
-        self.inner.take().ok_or(RedoubtOptionError::Empty)
     }
 
     /// Returns `true` if the option contains a value.
