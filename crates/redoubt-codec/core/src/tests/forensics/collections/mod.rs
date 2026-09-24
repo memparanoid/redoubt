@@ -3,5 +3,6 @@
 // See LICENSE in the repository root for full license text.
 
 mod option;
+mod redoubt_vec;
 mod string;
 mod vec;
