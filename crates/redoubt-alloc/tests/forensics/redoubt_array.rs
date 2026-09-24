@@ -138,9 +138,51 @@ fn test_making_a_redoubt_array_leaves_nothing() {
 // ============================================================================
 
 #[test]
-#[ignore = "TODO: it takes the secret, and nothing measures it yet."]
-fn test_a_redoubt_array_from_a_mut_array_leaves_nothing() {
-    // Intentionally empty.
+fn test_a_redoubt_array_from_a_mut_array_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = [0_u8; 32];
+
+    giving(&mut source);
+
+    forensics!({
+        let held = capture(|| RedoubtArray::from_mut_array(&mut source));
+
+        core::mem::forget(held);
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "an array made from an array, and kept");
+
+    core::hint::black_box(&source);
+
+    Ok(())
+}
+
+#[test]
+fn test_a_redoubt_array_from_a_mut_array_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source = [0_u8; 32];
+
+    giving(&mut source);
+
+    forensics!({
+        let held = capture(|| RedoubtArray::from_mut_array(&mut source));
+
+        drop(held);
+    });
+
+    core::hint::black_box(&source);
+
+    let report_after = watch.snapshot()?;
+
+    leaves_nothing(&report_before, &report_after, "an array made from an array");
+
+    Ok(())
 }
 
 // ============================================================================
