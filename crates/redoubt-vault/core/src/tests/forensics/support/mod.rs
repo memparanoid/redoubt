@@ -4,6 +4,7 @@
 
 pub(crate) mod needles;
 
+use redoubt_buffer::BufferError;
 use redoubt_forensics::{AnyError, Forensics, QUIET, Report};
 
 use needles::{SECRET, backwards, master_key_backwards};
@@ -64,6 +65,20 @@ pub(crate) fn giving(into: &mut [u8]) {
         // SAFETY: `one` is at most as long as the secret, and a constant and a
         // local are different allocations.
         unsafe { redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), one.as_mut_ptr(), one.len()) };
+    }
+}
+
+/// A callback that copies what it is handed into `into`, through the copy that
+/// erases what it used.
+pub(crate) fn copying_into(into: &mut [u8]) -> impl FnMut(&[u8]) -> Result<(), BufferError> + '_ {
+    move |key| {
+        let len = into.len().min(key.len());
+
+        // SAFETY: `len` fits both, and the key's page and `into` are different
+        // allocations.
+        unsafe { redoubt_mem::copy_nonoverlapping(key.as_ptr(), into.as_mut_ptr(), len) };
+
+        Ok(())
     }
 }
 

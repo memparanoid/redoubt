@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_aead::Aead;
+use redoubt_buffer::BufferError;
 use redoubt_forensics::AnyError;
 
 use crate::master_key::leak_master_key;
@@ -37,4 +38,20 @@ pub(crate) fn master_key_backwards() -> Result<Vec<u8>, AnyError> {
     needle.reverse();
 
     Ok(needle.to_vec())
+}
+
+/// The key an `open` hands its callback, read from its last byte to its first,
+/// so the forward bytes never leave its page.
+pub(crate) fn backwards_through(
+    open: impl FnOnce(&mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError>,
+) -> Result<Vec<u8>, AnyError> {
+    let mut needle = Vec::new();
+
+    open(&mut |key| {
+        needle = key.iter().rev().copied().collect();
+
+        Ok(())
+    })?;
+
+    Ok(needle)
 }
