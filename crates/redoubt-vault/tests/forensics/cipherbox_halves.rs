@@ -123,9 +123,7 @@ macro_rules! encrypted {
 
                 capture(|| one_field_box.inner.encrypt_struct(&key, &mut it))?;
 
-                it.fast_zeroize();
-
-                drop(it);
+                core::mem::forget(it);
             });
 
             let report_after = watch.snapshot()?;
