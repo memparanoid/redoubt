@@ -10,9 +10,13 @@
 //! four cases in `asm`.
 
 use std::vec;
+use std::vec::Vec;
+
+use proptest::prelude::*;
 
 use redoubt_aead_core::consts::aegis::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
 use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt};
+use redoubt_alloc::RedoubtVec;
 use redoubt_zero::ZeroizationProbe;
 
 use crate::aegis128l::Aegis128L;
@@ -74,6 +78,37 @@ fn test_decrypt_empties_the_buffer_when_the_tag_does_not_match() {
     }
 }
 
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(10_000))]
+
+    #[test]
+    fn test_decrypt_refuses_a_tag_with_any_bit_turned_over(
+        key: [u8; KEY_SIZE],
+        nonce: [u8; NONCE_SIZE],
+        aad in proptest::collection::vec(any::<u8>(), 0..=300),
+        mut plaintext in proptest::collection::vec(any::<u8>(), 0..=1024),
+        at: usize,
+        bit in 0..8_u8,
+    ) {
+        let mut data = RedoubtVec::default();
+        data.replace_from_mut_slice(&mut plaintext);
+
+        let mut aead = Aegis128L::new();
+        let mut tag = [0u8; TAG_SIZE];
+
+        aead.encrypt(&key, &nonce, &aad, &mut data, &mut tag);
+
+        tag[at % TAG_SIZE] ^= 1 << bit;
+
+        let refused = aead.decrypt(&key, &nonce, &aad, &mut data, &tag);
+
+        prop_assert_eq!(refused, Err(AeadCoreError::AuthenticationFailed));
+
+        // Assert zeroization!
+        prop_assert!(data.is_zeroized());
+    }
+}
+
 /// The other way round, which is what says the wipe above is the refusal and
 /// not something that happens either way.
 #[test]
@@ -87,7 +122,7 @@ fn test_decrypt_leaves_the_plaintext_when_the_tag_matches() {
 
         aead.encrypt(&KEY, &NONCE, b"", &mut data, &mut tag);
         aead.decrypt(&KEY, &NONCE, b"", &mut data, &tag)
-            .expect("the tag is the one encrypt just wrote");
+            .expect("Infallible: the tag is the one encrypt just wrote");
 
         assert_eq!(data, plaintext, "{length} bytes in");
     }
@@ -123,5 +158,28 @@ fn test_decrypt_leaves_the_associated_data_when_it_refuses() {
             vec![0xC3_u8; 64],
             "the associated data was written to, {length} bytes in"
         );
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(10_000))]
+
+    #[test]
+    fn test_decrypt_returns_what_encrypt_was_given(
+        key: [u8; KEY_SIZE],
+        nonce: [u8; NONCE_SIZE],
+        aad in proptest::collection::vec(any::<u8>(), 0..=300),
+        plaintext in proptest::collection::vec(any::<u8>(), 0..=1024),
+    ) {
+        let mut aead = Aegis128L::new();
+        let mut data: Vec<u8> = plaintext.clone();
+        let mut tag = [0u8; TAG_SIZE];
+
+        aead.encrypt(&key, &nonce, &aad, &mut data, &mut tag);
+
+        let opened = aead.decrypt(&key, &nonce, &aad, &mut data, &tag);
+
+        prop_assert_eq!(opened, Ok(()));
+        prop_assert_eq!(data, plaintext);
     }
 }

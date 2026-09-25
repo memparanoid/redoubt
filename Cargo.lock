@@ -907,7 +907,9 @@ name = "redoubt-aead-aegis128l"
 version = "0.1.0-rc.13"
 dependencies = [
  "cc",
+ "proptest",
  "redoubt-aead-core",
+ "redoubt-alloc",
  "redoubt-forensics",
  "redoubt-hkdf",
  "redoubt-util",
