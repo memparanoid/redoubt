@@ -11,7 +11,7 @@
 /// # Safety
 ///
 /// `src` readable and `dst` writable for `bytes`, and the two ranges disjoint.
-pub(crate) unsafe fn copy_nonoverlapping(src: *const u8, dst: *mut u8, bytes: usize) {
+pub unsafe fn copy_nonoverlapping(src: *const u8, dst: *mut u8, bytes: usize) {
     // SAFETY: the caller's, verbatim.
     unsafe { core::ptr::copy_nonoverlapping(src, dst, bytes) };
 }
@@ -21,7 +21,7 @@ pub(crate) unsafe fn copy_nonoverlapping(src: *const u8, dst: *mut u8, bytes: us
 /// # Safety
 ///
 /// `a` and `b` readable and writable for `bytes`, and the two ranges disjoint.
-pub(crate) unsafe fn swap_nonoverlapping(a: *mut u8, b: *mut u8, bytes: usize) {
+pub unsafe fn swap_nonoverlapping(a: *mut u8, b: *mut u8, bytes: usize) {
     // SAFETY: the caller's, verbatim.
     unsafe { core::ptr::swap_nonoverlapping(a, b, bytes) };
 }
@@ -33,7 +33,7 @@ pub(crate) unsafe fn swap_nonoverlapping(a: *mut u8, b: *mut u8, bytes: usize) {
 /// one byte wide, so the compiler cannot join them into a wider load or
 /// vectorise the loop: what a register can be left holding is one byte.
 #[inline(never)]
-pub(crate) fn is_utf8(bytes: &[u8]) -> bool {
+pub fn is_utf8(bytes: &[u8]) -> bool {
     let len = bytes.len();
 
     let byte = |at: usize| -> u8 {
@@ -94,7 +94,7 @@ pub(crate) fn is_utf8(bytes: &[u8]) -> bool {
 /// loads: what a register can be left holding is one byte, and the fold, which
 /// is none of them.
 #[inline(never)]
-pub(crate) fn is_zeroized(bytes: &[u8]) -> bool {
+pub fn is_zeroized(bytes: &[u8]) -> bool {
     let mut folded = 0_u8;
 
     for at in 0..bytes.len() {

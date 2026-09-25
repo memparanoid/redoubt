@@ -14,10 +14,10 @@
 //! and it is named nowhere but the alias below: `Auto` is whatever was chosen
 //! for this target.
 
-pub(crate) mod rust;
+pub mod rust;
 
 #[cfg(mem_asm)]
-pub(crate) mod asm;
+pub mod asm;
 
 #[cfg(mem_asm)]
 use asm as chosen;
@@ -36,12 +36,7 @@ pub(crate) const HAS_ASM: bool = cfg!(mem_asm);
 /// # Safety
 ///
 /// `src` readable and `dst` writable for `bytes`, and the two ranges disjoint.
-pub(crate) unsafe fn copy_nonoverlapping(
-    backend: Backend,
-    src: *const u8,
-    dst: *mut u8,
-    bytes: usize,
-) {
+pub unsafe fn copy_nonoverlapping(backend: Backend, src: *const u8, dst: *mut u8, bytes: usize) {
     match backend {
         // SAFETY: the caller's, verbatim.
         Backend::Rust => unsafe { rust::copy_nonoverlapping(src, dst, bytes) },
@@ -55,7 +50,7 @@ pub(crate) unsafe fn copy_nonoverlapping(
 /// # Safety
 ///
 /// `a` and `b` readable and writable for `bytes`, and the two ranges disjoint.
-pub(crate) unsafe fn swap_nonoverlapping(backend: Backend, a: *mut u8, b: *mut u8, bytes: usize) {
+pub unsafe fn swap_nonoverlapping(backend: Backend, a: *mut u8, b: *mut u8, bytes: usize) {
     match backend {
         // SAFETY: the caller's, verbatim.
         Backend::Rust => unsafe { rust::swap_nonoverlapping(a, b, bytes) },
@@ -65,7 +60,7 @@ pub(crate) unsafe fn swap_nonoverlapping(backend: Backend, a: *mut u8, b: *mut u
 }
 
 /// Whether `bytes` spell UTF-8.
-pub(crate) fn is_utf8(backend: Backend, bytes: &[u8]) -> bool {
+pub fn is_utf8(backend: Backend, bytes: &[u8]) -> bool {
     match backend {
         Backend::Rust => rust::is_utf8(bytes),
         Backend::Auto => chosen::is_utf8(bytes),
@@ -73,7 +68,7 @@ pub(crate) fn is_utf8(backend: Backend, bytes: &[u8]) -> bool {
 }
 
 /// Whether every one of `bytes` is zero.
-pub(crate) fn is_zeroized(backend: Backend, bytes: &[u8]) -> bool {
+pub fn is_zeroized(backend: Backend, bytes: &[u8]) -> bool {
     match backend {
         Backend::Rust => rust::is_zeroized(bytes),
         Backend::Auto => chosen::is_zeroized(bytes),

@@ -8,13 +8,11 @@
 
 use redoubt_asm::Backend;
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_mem_core::{copy_nonoverlapping, is_zeroized, is_zeroized_with_backend};
 use rstest::rstest;
 
-use crate::copy_nonoverlapping;
-use crate::zeroized::{is_zeroized, is_zeroized_with_backend};
-
-use crate::tests::forensics::support::needles::{SECRET, backwards};
-use crate::tests::forensics::support::{is_found, leaves_nothing, wipe};
+use crate::support::needles::{SECRET, backwards};
+use crate::support::{is_found, leaves_nothing, wipe};
 
 /// The secret in a heap block, through the copy measured beside this file.
 fn hold() -> Vec<u8> {

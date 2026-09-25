@@ -27,7 +27,7 @@ redoubt-aead
 redoubt-buffer
 
 # Mem
-redoubt-mem
+redoubt-mem-core
 
 # Forensics
 redoubt-forensics

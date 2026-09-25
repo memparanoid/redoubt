@@ -8,6 +8,8 @@
 //! Run under `nextest`: the sweep reads the whole process, and `cargo test`
 //! shares one between tests.
 
+#![cfg(target_os = "linux")]
+
 mod support;
 
 mod copy;

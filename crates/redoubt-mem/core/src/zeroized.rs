@@ -16,8 +16,8 @@ use crate::backend;
 /// than a byte either.
 ///
 /// ```
-/// assert!(redoubt_mem::is_zeroized(&[0; 32]));
-/// assert!(!redoubt_mem::is_zeroized(&[0, 0, 1, 0]));
+/// assert!(redoubt_mem_core::is_zeroized(&[0; 32]));
+/// assert!(!redoubt_mem_core::is_zeroized(&[0, 0, 1, 0]));
 /// ```
 #[inline]
 pub fn is_zeroized(bytes: &[u8]) -> bool {
@@ -26,6 +26,6 @@ pub fn is_zeroized(bytes: &[u8]) -> bool {
 
 /// [`is_zeroized`], through the backend named.
 #[inline]
-pub(crate) fn is_zeroized_with_backend(backend: Backend, bytes: &[u8]) -> bool {
+pub fn is_zeroized_with_backend(backend: Backend, bytes: &[u8]) -> bool {
     backend::is_zeroized(backend, bytes)
 }

@@ -26,7 +26,7 @@ unsafe extern "C" {
 /// # Safety
 ///
 /// `src` readable and `dst` writable for `bytes`, and the two ranges disjoint.
-pub(crate) unsafe fn copy_nonoverlapping(src: *const u8, dst: *mut u8, bytes: usize) {
+pub unsafe fn copy_nonoverlapping(src: *const u8, dst: *mut u8, bytes: usize) {
     // SAFETY: the caller's, verbatim.
     unsafe { redoubt_mem_copy_nonoverlapping(src, dst, bytes) };
 }
@@ -36,13 +36,13 @@ pub(crate) unsafe fn copy_nonoverlapping(src: *const u8, dst: *mut u8, bytes: us
 /// # Safety
 ///
 /// `a` and `b` readable and writable for `bytes`, and the two ranges disjoint.
-pub(crate) unsafe fn swap_nonoverlapping(a: *mut u8, b: *mut u8, bytes: usize) {
+pub unsafe fn swap_nonoverlapping(a: *mut u8, b: *mut u8, bytes: usize) {
     // SAFETY: the caller's, verbatim.
     unsafe { redoubt_mem_swap_nonoverlapping(a, b, bytes) };
 }
 
 /// What `rust::is_utf8` does, in the assembly for this target.
-pub(crate) fn is_utf8(bytes: &[u8]) -> bool {
+pub fn is_utf8(bytes: &[u8]) -> bool {
     let mut answer = 0_u8;
 
     // SAFETY: the slice is readable for its own length, which the routine does
@@ -53,7 +53,7 @@ pub(crate) fn is_utf8(bytes: &[u8]) -> bool {
 }
 
 /// What `rust::is_zeroized` does, in the assembly for this target.
-pub(crate) fn is_zeroized(bytes: &[u8]) -> bool {
+pub fn is_zeroized(bytes: &[u8]) -> bool {
     let mut answer = 0_u8;
 
     // SAFETY: the slice is readable for its own length, which the routine does

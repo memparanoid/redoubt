@@ -49,21 +49,10 @@
 //! [`core::ptr::copy_nonoverlapping`] and **there is no erasure**. The call
 //! compiles and the guarantee does not travel with it.
 
-#![cfg_attr(not(test), no_std)]
+#![no_std]
+#![warn(missing_docs)]
 
-#[cfg(test)]
-extern crate std;
-
-#[cfg(test)]
-mod tests;
-
-mod backend;
-mod copy;
-mod swap;
-mod utf8;
-mod zeroized;
-
-pub use copy::copy_nonoverlapping;
-pub use swap::{swap, swap_nonoverlapping};
-pub use utf8::is_utf8;
-pub use zeroized::is_zeroized;
+pub use redoubt_mem_core::copy_nonoverlapping;
+pub use redoubt_mem_core::is_utf8;
+pub use redoubt_mem_core::is_zeroized;
+pub use redoubt_mem_core::{swap, swap_nonoverlapping};

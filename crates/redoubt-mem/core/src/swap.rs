@@ -35,7 +35,7 @@ use crate::backend;
 /// let mut secret = [0xAB_u8; 32];
 /// let mut empty = [0_u8; 32];
 ///
-/// redoubt_mem::swap(&mut secret, &mut empty);
+/// redoubt_mem_core::swap(&mut secret, &mut empty);
 ///
 /// assert_eq!(empty, [0xAB_u8; 32]);
 /// assert_eq!(secret, [0_u8; 32]);
@@ -47,7 +47,7 @@ pub fn swap<T>(a: &mut T, b: &mut T) {
 
 /// [`swap`], through the backend named.
 #[inline]
-pub(crate) fn swap_with_backend<T>(backend: Backend, a: &mut T, b: &mut T) {
+pub fn swap_with_backend<T>(backend: Backend, a: &mut T, b: &mut T) {
     // SAFETY: exclusive references are aligned, valid for reads and writes of
     // one `T`, and cannot overlap.
     unsafe { swap_nonoverlapping_with_backend(backend, a, b, 1) };
@@ -84,7 +84,7 @@ pub unsafe fn swap_nonoverlapping<T>(a: *mut T, b: *mut T, count: usize) {
 ///
 /// As [`swap_nonoverlapping`].
 #[inline]
-pub(crate) unsafe fn swap_nonoverlapping_with_backend<T>(
+pub unsafe fn swap_nonoverlapping_with_backend<T>(
     backend: Backend,
     a: *mut T,
     b: *mut T,

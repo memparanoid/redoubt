@@ -28,7 +28,7 @@ use crate::backend;
 /// not have been valid to ask for.
 ///
 /// ```
-/// # use redoubt_mem::copy_nonoverlapping;
+/// # use redoubt_mem_core::copy_nonoverlapping;
 /// let secret = [0x9E_u8, 0x41, 0x17, 0xC3];
 /// let mut into = [0_u8; 4];
 ///
@@ -49,7 +49,7 @@ pub unsafe fn copy_nonoverlapping<T>(src: *const T, dst: *mut T, count: usize) {
 ///
 /// As [`copy_nonoverlapping`].
 #[inline]
-pub(crate) unsafe fn copy_nonoverlapping_with_backend<T>(
+pub unsafe fn copy_nonoverlapping_with_backend<T>(
     backend: Backend,
     src: *const T,
     dst: *mut T,

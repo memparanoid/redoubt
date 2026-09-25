@@ -1048,11 +1048,27 @@ dependencies = [
 name = "redoubt-mem"
 version = "0.1.0-rc.13"
 dependencies = [
+ "redoubt-mem-core",
+]
+
+[[package]]
+name = "redoubt-mem-core"
+version = "0.1.0-rc.13"
+dependencies = [
  "cc",
  "libc",
  "proptest",
  "redoubt-asm",
+ "rstest",
+]
+
+[[package]]
+name = "redoubt-mem-forensics"
+version = "0.1.0-rc.13"
+dependencies = [
+ "redoubt-asm",
  "redoubt-forensics",
+ "redoubt-mem-core",
  "rstest",
 ]
 

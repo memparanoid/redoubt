@@ -9,12 +9,10 @@
 
 use redoubt_asm::Backend;
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_mem_core::{copy_nonoverlapping, is_utf8, is_utf8_with_backend};
 use rstest::rstest;
 
-use crate::copy_nonoverlapping;
-use crate::utf8::{is_utf8, is_utf8_with_backend};
-
-use crate::tests::forensics::support::{is_found, leaves_nothing, wipe};
+use crate::support::{is_found, leaves_nothing, wipe};
 
 /// Thirty-two bytes of UTF-8, every width among them, with a character boundary
 /// at `BREAKS_AT`.

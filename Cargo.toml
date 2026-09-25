@@ -27,6 +27,8 @@ members = [
   "crates/redoubt-test-utils",
   "crates/redoubt-forensics",
   "crates/redoubt-mem",
+  "crates/redoubt-mem/core",
+  "crates/redoubt-mem/forensics",
   "examples/wasm/rust",
   "examples/wallet",
   "benchmarks",
@@ -60,6 +62,7 @@ resolver = "2"
   redoubt-forensics            = { path = "crates/redoubt-forensics", version = "0.1.0-rc.13" }
   redoubt-hkdf                 = { path = "crates/redoubt-hkdf", version = "0.1.0-rc.13" }
   redoubt-mem                  = { path = "crates/redoubt-mem", version = "0.1.0-rc.13" }
+  redoubt-mem-core             = { path = "crates/redoubt-mem/core", version = "0.1.0-rc.13" }
   redoubt-poly1305             = { path = "crates/redoubt-aead/crates/poly1305", version = "0.1.0-rc.13" }
   redoubt-rand                 = { path = "crates/redoubt-rand", version = "0.1.0-rc.13" }
   redoubt-secret               = { path = "crates/redoubt-secret", version = "0.1.0-rc.13" }
@@ -114,7 +117,7 @@ resolver = "2"
 [profile.dev.package.redoubt-hkdf]
 opt-level = 3
 
-[profile.dev.package.redoubt-mem]
+[profile.dev.package.redoubt-mem-core]
 opt-level = 3
 
 [profile.dev.package.redoubt-util]

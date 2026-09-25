@@ -1,0 +1,18 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+description          = "What the routines of redoubt-mem-core leave behind, measured"
+edition.workspace    = true
+license.workspace    = true
+name                 = "redoubt-mem-forensics"
+publish              = false
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[dev-dependencies]
+redoubt-asm.workspace       = true
+redoubt-forensics.workspace = true
+redoubt-mem-core.workspace  = true
+rstest.workspace            = true

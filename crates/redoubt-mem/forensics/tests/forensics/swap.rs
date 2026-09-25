@@ -3,11 +3,10 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_mem_core::{copy_nonoverlapping, swap, swap_nonoverlapping};
 
-use crate::{copy_nonoverlapping, swap, swap_nonoverlapping};
-
-use crate::tests::forensics::support::needles::{BIG, SECRET, backwards};
-use crate::tests::forensics::support::{is_found, leaves_nothing, wipe};
+use crate::support::needles::{BIG, SECRET, backwards};
+use crate::support::{is_found, leaves_nothing, wipe};
 
 /// Thirty-two bytes of the secret in a box, through the copy being measured
 /// elsewhere in this crate.

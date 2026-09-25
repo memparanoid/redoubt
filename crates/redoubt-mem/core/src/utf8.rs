@@ -17,8 +17,8 @@ use crate::backend;
 /// than a byte either.
 ///
 /// ```
-/// assert!(redoubt_mem::is_utf8("añejo".as_bytes()));
-/// assert!(!redoubt_mem::is_utf8(&[0xC0, 0x80]));
+/// assert!(redoubt_mem_core::is_utf8("añejo".as_bytes()));
+/// assert!(!redoubt_mem_core::is_utf8(&[0xC0, 0x80]));
 /// ```
 #[inline]
 pub fn is_utf8(bytes: &[u8]) -> bool {
@@ -27,6 +27,6 @@ pub fn is_utf8(bytes: &[u8]) -> bool {
 
 /// [`is_utf8`], through the backend named.
 #[inline]
-pub(crate) fn is_utf8_with_backend(backend: Backend, bytes: &[u8]) -> bool {
+pub fn is_utf8_with_backend(backend: Backend, bytes: &[u8]) -> bool {
     backend::is_utf8(backend, bytes)
 }
