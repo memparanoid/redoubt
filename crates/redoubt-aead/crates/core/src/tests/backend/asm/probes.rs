@@ -286,10 +286,10 @@ fn capture_the_register_writer() -> [u64; GENERAL.len()] {
     // the stores cover it once each.
     unsafe {
         core::arch::asm!(
-            "movz x0, #0x3c3c",
-            "movk x0, #0x3c3c, lsl #16",
-            "movk x0, #0x3c3c, lsl #32",
-            "movk x0, #0x3c3c, lsl #48",
+            "movz x0, #{stale0}",
+            "movk x0, #{stale1}, lsl #16",
+            "movk x0, #{stale2}, lsl #32",
+            "movk x0, #{stale3}, lsl #48",
             "mov x1, x0",
             "mov x2, x0",
             "mov x3, x0",
@@ -317,6 +317,10 @@ fn capture_the_register_writer() -> [u64; GENERAL.len()] {
             "stp x12, x13, [x20, #96]",
             "stp x14, x15, [x20, #112]",
             "stp x16, x17, [x20, #128]",
+            stale0 = const STALE & 0xffff,
+            stale1 = const (STALE >> 16) & 0xffff,
+            stale2 = const (STALE >> 32) & 0xffff,
+            stale3 = const STALE >> 48,
             writer = sym redoubt_ct_dirty_registers,
             inlateout("x20") actual.as_mut_ptr() => _,
             clobber_abi("C"),
