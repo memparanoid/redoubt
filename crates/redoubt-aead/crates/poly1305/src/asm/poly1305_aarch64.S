@@ -2,53 +2,30 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-// Poly1305 One-Time Authenticator - AArch64 (AAPCS) Implementation
+// Poly1305 - AArch64 (AAPCS) Implementation
 //
-// Baseline armv8-a. No SIMD, no SVE, nothing to detect at runtime: the whole of
-// it is scalar 64-bit integer arithmetic. That is not the fastest Poly1305
-// anybody has written and it is not meant to be — a vectorized one needs a
-// runtime check, a second and third copy of the multiply, and a wipe written
-// once per register file. This one is the same code on every machine that runs
-// it, which is what makes the promise below checkable.
-//
-// Register-budgeted design goal:
-//   - `r` and the accumulator are five limbs of twenty-six bits each
-//   - The products of one block never leave registers
-//   - Any spill region is named and wiped here
+// Armv8-A baseline: scalar integer instructions only, nothing detected at
+// runtime.
 //
 // Platform Support:
 //   - Linux aarch64 (AAPCS)
-//   - macOS aarch64 (AAPCS, with the symbol naming below)
-//   - Windows aarch64 EXCLUDED: the build script compiles no assembly there
-//     and the crate falls back to the Rust, which answers the same and
-//     promises less.
+//   - macOS aarch64 (AAPCS, Mach-O naming)
+//   - Windows aarch64 EXCLUDED: the build script compiles no assembly there.
 //
-// x18 is the platform register and is never read or written here.
+// Every argument is a pointer to storage the caller declared, except the
+// lengths, which are public. Nothing is returned.
 //
-// What crosses into here, and what does not:
-//   Every argument is a pointer to storage the caller declared, and nothing is
-//   returned. A returned value leaves in a register, and a register carrying
-//   the answer out is a register the wipe below cannot touch — which is why
-//   even how much of the buffer is used arrives and leaves through memory. A
-//   length and the bit above a block arrive by value because neither is a
-//   secret and both are known to anybody watching the call.
-//
-// What must not branch:
-//   The final conditional subtraction is a mask and not a jump. Whether the
-//   accumulator was above the modulus is a fact about the key that made it, and
-//   a branch there is that fact on a clock.
+// The final subtraction of the modulus is a mask, not a branch: whether the
+// accumulator reached the modulus is a fact about the key.
 //
 // What this cannot answer for:
-//   The limbs are held in registers and in the frame this file named and wiped.
-//   That is a statement about this file, not about the machine. When a signal
-//   is delivered the kernel writes the whole register context to a frame on the
-//   user stack, and nothing in user space wipes that frame on the way back. The
-//   same goes for a core dump, for a page that reached swap, and for anything
-//   ptrace can read. None of those are reachable from here, and none are made
-//   worse by this being assembly: the Rust has every one of them too.
+//   A signal delivered mid-routine has the kernel write the whole register
+//   context to a frame on the user stack that nothing in user space wipes. The
+//   same for a core dump, a page that reached swap, and anything ptrace can
+//   read.
 //
 // References:
-// - RFC 8439, ChaCha20 and Poly1305 for IETF Protocols, section 2.5
+// - RFC 8439, section 2.5
 // - Procedure Call Standard for the Arm 64-bit Architecture, section 6.1.2
 
 .text
@@ -59,7 +36,7 @@
 
 #if defined(__APPLE__)
     #define FUNC(name) _##name
-    #define HIDDEN_FUNC(name)
+    #define HIDDEN_FUNC(name) .private_extern _##name
 #else
     #define FUNC(name) name
     #define HIDDEN_FUNC(name) .hidden name
@@ -69,28 +46,14 @@
 // The register budget
 // ============================================================================
 //
-// AAPCS:
-//   - Caller-saved GPR: x0-x17
-//   - Platform register: x18            (DO NOT TOUCH)
-//   - Callee-saved GPR: x19-x28, x29 (FP), x30 (LR)  (DO NOT TOUCH)
+// Every register these routines put anything in is named once, here, and every
+// operation over the set goes through this list. A register added to the wipe
+// and missing from the verifier is a register nothing looks at, silently.
 //
-// Every register these routines put anything in is named once, below, and
-// every operation over the set goes through that one list. Emptying them and
-// asking whether they are empty are the same eighteen registers by
-// construction, not by two lists that happen to agree today.
-//
-// The list is x0-x17: every register a limb or a product lands in, and the
-// three pointers the caller handed over on top of them. Those are the caller's
-// own and it still has them, so clearing them costs nothing; leaving them is a
-// pointer into the caller's key sitting in a register after the routine that
-// needed it has returned.
-//
-// Does NOT include: x18 is the platform register, and x19 upward are the
-// caller's, restored by an epilogue where there is one.
-//
-// Does NOT include the SIMD registers either. Nothing here writes one, so
-// clearing them would be clearing registers this code never put anything in.
-//
+// AAPCS makes x0-x17 caller-saved. Out of the list: x18, the platform register;
+// x30, which every `bl` writes; and x19-x28, callee-saved, which nothing here
+// writes — saving one would spill the caller's value into this file's stack.
+// Nothing here writes a vector register.
 .macro POLY1305_EACH op
     .irp reg,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17
         \op x\reg
@@ -101,46 +64,39 @@
     mov \reg, xzr
 .endm
 
-// Copies what x0 already holds into each of them, x0 included and harmless.
-// Only the probe below uses it, and it is here rather than there so that the
-// budget has one list and every operation over it sits beside that list.
+// Copies what x0 already holds into each, itself included. Used by the probe.
 .macro POLY1305_FILL reg
     mov \reg, x0
 .endm
 
-// Gathers into x1, which is in the list and therefore contributes its own
-// value on its own line. What the gather leaves in x1 is the bits of anything
-// that was not empty. The probe below is its only caller, and it is here for
-// the same reason FILL is.
+// Folds each into x1, which is in the list and so contributes its own value.
+// Used by the probe.
 .macro POLY1305_GATHER reg
     orr x1, x1, \reg
 .endm
 
-// ============================================================================
-// Catastrophic Register Zeroization Macro (caller-saved only)
-// ============================================================================
 .macro POLY1305_ZEROIZE_ALL
     POLY1305_EACH POLY1305_CLEAR
 .endm
 
 // ============================================================================
-// Frame layout — 160 bytes, entirely above sp
+// Frame layout
 // ============================================================================
 //
-//   ACC      0..39    the accumulator, five limbs of twenty-six bits
-//   SUMS    40..79    one block's five products, then the reduced answer
-//   BLOCK   80..95    the last block of the message, padded here
-//   SAID    96..103   where the message is up to
-//   LEN    104..111   how much of it is left
-//   RPTR   112..119   the caller's `r`, read where it lies
-//   SPTR   120..127   the caller's `s`
-//   OUT    128..135   where the tag goes
-//   ACCPTR 136..143   the caller's accumulator, written back at the end
+//   ACC        0..39    the accumulator, five limbs of twenty-six bits
+//   SUMS      40..79    one block's five products, then the reduced answer
+//   BLOCK     80..95    the last block of the message, padded here
+//   SAID      96..103   where the message is up to
+//   LEN      104..111   how much of it is left
+//   RPTR     112..119   the caller's `r`, read where it lies
+//   SPTR     120..127   the caller's `s`
+//   OUT      128..135   where the tag goes
+//   ACCPTR   136..143   the caller's accumulator
+//   BLOCKPTR 144..151   the caller's partial block
+//   FILLEDPTR 152..159  how much of it is filled
 //
-// `r` stays in the caller's array and is read thirty-two bits at a time. The
-// limb mask, and every other constant below, is a logical immediate: a run of
-// ones needs no register to hold it.
-//
+// FRAME is a multiple of sixteen: AArch64 faults on a load or store through an
+// sp that is not sixteen-aligned.
 .set ACC, 0
 .set SUMS, 40
 .set BLOCK, 80
@@ -150,22 +106,26 @@
 .set SPTR, 120
 .set OUT, 128
 .set ACCPTR, 136
-// `update` reaches the caller's partial block and its fill mark where they
-// lie, for the same reason `r` is not copied: they outlive the call and the
-// caller is the one that empties them.
 .set BLOCKPTR, 144
 .set FILLEDPTR, 152
 .set FRAME, 160
 
+// ============================================================================
+// Frame wipe
+// ============================================================================
+
+// Every byte of the frame, then the frame given back.
 .macro POLY1305_EMPTY_FRAME
-    .irp offset,0,16,32,48,64,80,96,112,128,144
-        stp xzr, xzr, [sp, #\offset]
+    .set _empty_at, 0
+    .rept FRAME / 16
+        stp xzr, xzr, [sp, #_empty_at]
+        .set _empty_at, _empty_at + 16
     .endr
     add sp, sp, #FRAME
 .endm
 
-// One product of the twenty-five, into x2. `five` picks the limb of `r` that
-// wrapped past the top and came back worth five times less a power.
+// One of the twenty-five products, added into x2. `five` scales the limb of
+// `r` by five, for a product that lands past 2^130 and wraps modulo 2^130 - 5.
 .macro POLY1305_TERM at, limb, five
     ldr w3, [x11, #(4 * \limb)]
     .if \five
@@ -175,6 +135,7 @@
     madd x2, x3, x4, x2
 .endm
 
+// The first product of a sum, which starts x2 rather than adding to it.
 .macro POLY1305_FIRST at, limb, five
     ldr w3, [x11, #(4 * \limb)]
     .if \five
@@ -184,8 +145,8 @@
     mul x2, x3, x4
 .endm
 
-// Every limb of the five at `at` back under twenty-six bits, and what ran off
-// the top folded back in worth five.
+// Every limb of the five at `at` carried back under twenty-six bits; what runs
+// off the top comes back into the first worth five.
 .macro POLY1305_CARRY at
     .irp step,0,8,16,24
         ldr x2, [sp, #(\at + \step)]
@@ -215,8 +176,8 @@
     str x2, [sp, #\at]
 .endm
 
-// acc = acc * r, modulo 2^130 - 5. Twenty-five products gathered by which
-// power of 2^26 they land on, then every limb put back under its width.
+// acc = acc * r modulo 2^130 - 5: the products summed by the power of 2^26
+// they land on, then every limb carried back under twenty-six bits.
 .macro POLY1305_MULTIPLY
     ldr x11, [sp, #RPTR]
 
@@ -263,8 +224,8 @@
     .endr
 .endm
 
-// acc += the sixteen bytes at `src`, with `hibit` above them, and then acc is
-// multiplied by `r`. `src` is a register and is not written.
+// acc += the sixteen bytes at `src`, with `hibit` above them, then acc *= r.
+// `src` is not written.
 .macro POLY1305_BLOCK src, hibit
     ldp x2, x3, [\src]
 
@@ -302,22 +263,24 @@
 .endm
 
 // ============================================================================
-// init — x0: r, five u32 limbs out; x1: s, sixteen bytes out;
-//        x2: key, thirty-two bytes in
+// poly1305_init
 // ============================================================================
 //
-// No frame and no callee-saved register: the whole clamp fits in the
-// caller-saved ones, so there is nothing to give back and nothing to wipe but
-// the registers themselves.
+// C signature:
+//   void redoubt_poly1305_init(uint32_t r[5], uint8_t s[16],
+//                              const uint8_t key[32]);
 //
+// Parameters (AAPCS):
+//   x0: r (written), x1: s (written), x2: key (read only)
+//
+// No frame: the clamp fits in the budget.
 .p2align 4
 .globl FUNC(redoubt_poly1305_init)
 HIDDEN_FUNC(redoubt_poly1305_init)
 FUNC(redoubt_poly1305_init):
     ldp x3, x4, [x2]
 
-    // RFC 8439 §2.5 masks the top four bits of every fourth byte and the
-    // bottom two of three others, which is one AND over each half.
+    // RFC 8439's clamp, as one AND over each half of `r`.
     mov  x5, #0xffff
     movk x5, #0x0fff, lsl #16
     movk x5, #0xfffc, lsl #32
@@ -329,7 +292,6 @@ FUNC(redoubt_poly1305_init):
     and x3, x3, x5
     and x4, x4, x6
 
-    // Five limbs of twenty-six bits out of the hundred and twenty-eight.
     ubfx x7, x3, #0, #26
     ubfx x8, x3, #26, #26
     lsr  x9, x3, #52
@@ -342,8 +304,6 @@ FUNC(redoubt_poly1305_init):
     stp w9, w10, [x0, #8]
     str w11, [x0, #16]
 
-    // `s` is kept as it arrived: it is added at the very end and never
-    // multiplied, so there is no representation to move it into.
     ldp x3, x4, [x2, #16]
     stp x3, x4, [x1]
 
@@ -351,14 +311,21 @@ FUNC(redoubt_poly1305_init):
     ret
 
 // ============================================================================
-// update — x0: acc; x1: r; x2: the partial block; x3: how full it is, read
-//          and written; x4: message; x5: its length
+// poly1305_update
 // ============================================================================
 //
-// What arrives is whatever the caller had. Whole blocks go by where they lie;
-// only a tail that is not a block yet is copied into the caller's buffer, and
-// only the block that filling it completed is counted here.
+// C signature:
+//   void redoubt_poly1305_update(uint64_t acc[5], const uint32_t r[5],
+//                                uint8_t block[16], size_t *filled,
+//                                const uint8_t *said, size_t said_len);
 //
+// Parameters (AAPCS):
+//   x0: acc (read and written), x1: r (read only), x2: block (read and
+//   written), x3: filled (read and written), x4: said (read only),
+//   x5: said_len
+//
+// Whole blocks are read where they lie; only a tail short of a block is copied
+// into the caller's `block`.
 .p2align 4
 .globl FUNC(redoubt_poly1305_update)
 HIDDEN_FUNC(redoubt_poly1305_update)
@@ -390,27 +357,26 @@ FUNC(redoubt_poly1305_update):
     str x6, [sp, #(ACC + 32)]
 
     ldr x6, [x3]
-    cbz x6, Lupdate_stream
+    cbz x6, .Lupdate_stream
 
-    // As much of the message as the buffer still has room for.
     mov x7, #16
     sub x7, x7, x6
     ldr x8, [sp, #LEN]
     cmp x7, x8
     csel x7, x7, x8, lo
 
-    cbz x7, Lupdate_flush
+    cbz x7, .Lupdate_flush
 
     ldr x9, [sp, #SAID]
     ldr x10, [sp, #BLOCKPTR]
     add x10, x10, x6
     mov x11, xzr
-Lupdate_fill_byte:
+.Lupdate_fill_byte:
     ldrb w12, [x9, x11]
     strb w12, [x10, x11]
     add x11, x11, #1
     cmp x11, x7
-    b.lo Lupdate_fill_byte
+    b.lo .Lupdate_fill_byte
 
     add x6, x6, x7
     ldr x9, [sp, #FILLEDPTR]
@@ -422,25 +388,23 @@ Lupdate_fill_byte:
     sub x9, x9, x7
     str x9, [sp, #LEN]
 
-Lupdate_flush:
+.Lupdate_flush:
     cmp x6, #16
-    b.ne Lupdate_stream
+    b.ne .Lupdate_stream
 
     ldr x7, [sp, #BLOCKPTR]
     POLY1305_BLOCK x7, 1
 
-    // The caller's buffer is emptied here and not left for it to do: what is
-    // in it is message, and the next thing written over it is only as much
-    // message as the next tail happens to be.
+    // Counted, so emptied: the next tail may not cover all of it.
     ldr x7, [sp, #BLOCKPTR]
     stp xzr, xzr, [x7]
     ldr x7, [sp, #FILLEDPTR]
     str xzr, [x7]
 
-Lupdate_stream:
+.Lupdate_stream:
     ldr x6, [sp, #LEN]
     cmp x6, #16
-    b.lo Lupdate_tail
+    b.lo .Lupdate_tail
     ldr x7, [sp, #SAID]
     POLY1305_BLOCK x7, 1
     ldr x6, [sp, #SAID]
@@ -449,26 +413,26 @@ Lupdate_stream:
     ldr x6, [sp, #LEN]
     sub x6, x6, #16
     str x6, [sp, #LEN]
-    b Lupdate_stream
+    b .Lupdate_stream
 
-Lupdate_tail:
+.Lupdate_tail:
     ldr x6, [sp, #LEN]
-    cbz x6, Lupdate_done
+    cbz x6, .Lupdate_done
 
     ldr x9, [sp, #SAID]
     ldr x10, [sp, #BLOCKPTR]
     mov x11, xzr
-Lupdate_keep_byte:
+.Lupdate_keep_byte:
     ldrb w12, [x9, x11]
     strb w12, [x10, x11]
     add x11, x11, #1
     cmp x11, x6
-    b.lo Lupdate_keep_byte
+    b.lo .Lupdate_keep_byte
 
     ldr x9, [sp, #FILLEDPTR]
     str x6, [x9]
 
-Lupdate_done:
+.Lupdate_done:
     ldr x9, [sp, #ACCPTR]
     ldp x6, x7, [sp, #ACC]
     stp x6, x7, [x9]
@@ -484,13 +448,17 @@ Lupdate_done:
     ret
 
 // ============================================================================
-// finalize — x0: acc; x1: r; x2: s; x3: message; x4: its length; x5: tag out
+// poly1305_finalize
 // ============================================================================
 //
-// One call and not a loop the caller drives: a message handed over whole goes
-// through every block of itself without the bytes coming back to Rust in
-// between.
+// C signature:
+//   void redoubt_poly1305_finalize(uint64_t acc[5], const uint32_t r[5],
+//                                  const uint8_t s[16], const uint8_t *said,
+//                                  size_t said_len, uint8_t out[16]);
 //
+// Parameters (AAPCS):
+//   x0: acc (read and written), x1: r (read only), x2: s (read only),
+//   x3: said (read only), x4: said_len, x5: out (written)
 .p2align 4
 .globl FUNC(redoubt_poly1305_finalize)
 HIDDEN_FUNC(redoubt_poly1305_finalize)
@@ -522,10 +490,10 @@ FUNC(redoubt_poly1305_finalize):
     ldr x6, [x0, #32]
     str x6, [sp, #(ACC + 32)]
 
-Lwhole:
+.Lwhole:
     ldr x6, [sp, #LEN]
     cmp x6, #16
-    b.lo Ltail
+    b.lo .Ltail
     ldr x7, [sp, #SAID]
     POLY1305_BLOCK x7, 1
     ldr x6, [sp, #SAID]
@@ -534,33 +502,33 @@ Lwhole:
     ldr x6, [sp, #LEN]
     sub x6, x6, #16
     str x6, [sp, #LEN]
-    b Lwhole
+    b .Lwhole
 
-Ltail:
+.Ltail:
     ldr x6, [sp, #LEN]
-    cbz x6, Lwritten_back
+    cbz x6, .Lwritten_back
 
     stp xzr, xzr, [sp, #BLOCK]
     add x10, sp, #BLOCK
     ldr x7, [sp, #SAID]
     mov x8, xzr
-Lcopy:
+.Lcopy:
     ldrb w9, [x7, x8]
     strb w9, [x10, x8]
     add x8, x8, #1
     cmp x8, x6
-    b.lo Lcopy
+    b.lo .Lcopy
 
-    // The one bit above the message, which is what keeps a tail of zeros from
-    // reading as a shorter message that ended sooner.
+    // The bit above the message, so that a tail ending in zeros does not read
+    // as a shorter message.
     mov w9, #1
     strb w9, [x10, x6]
     mov x7, x10
     POLY1305_BLOCK x7, 0
 
-Lwritten_back:
-    // The accumulator the caller gets back is the polynomial, before the
-    // reduction below turns it into a tag.
+.Lwritten_back:
+    // Written back before the reduction below: the caller's accumulator is the
+    // polynomial, not the tag.
     ldr x9, [sp, #ACCPTR]
     ldp x6, x7, [sp, #ACC]
     stp x6, x7, [x9]
@@ -571,10 +539,8 @@ Lwritten_back:
 
     POLY1305_CARRY ACC
 
-    // The accumulator is now below 2^130 but may still be at or above the
-    // modulus, and there is exactly one subtraction that could be owed. Adding
-    // five says whether it is: if the sum carries past the hundred and
-    // thirtieth bit, the accumulator was at least 2^130 - 5.
+    // acc + 5 into SUMS: it carries past bit 130 exactly when acc is at least
+    // 2^130 - 5.
     ldr x2, [sp, #ACC]
     add x2, x2, #5
     lsr x3, x2, #26
@@ -589,9 +555,8 @@ Lwritten_back:
         str x2, [sp, #(SUMS + \offset)]
     .endr
 
-    // All ones where the accumulator was already below the modulus, and all
-    // zeros where it was not. A comparison instead of a mask would be a branch
-    // on the tag, which is a branch on the key that made it.
+    // All ones in x10 if acc is below the modulus, all zeros if not, and x11
+    // the opposite. A mask and not a branch: which one is a fact about the key.
     ldr x2, [sp, #(ACC + 32)]
     add x2, x2, x3
     lsr x2, x2, #26
@@ -607,12 +572,13 @@ Lwritten_back:
         str x2, [sp, #(ACC + \offset)]
     .endr
 
-    // The sum has no fifth limb, so where it is taken the fifth goes.
+    // acc - (2^130 - 5) has no fifth limb, so the fifth is kept only where acc
+    // is.
     ldr x2, [sp, #(ACC + 32)]
     and x2, x2, x10
     str x2, [sp, #(ACC + 32)]
 
-    // Five limbs of twenty-six into four words of thirty-two.
+    // Five limbs of twenty-six bits into four words of thirty-two.
     ldr x2, [sp, #ACC]
     ldr x3, [sp, #(ACC + 8)]
     and x4, x3, #0x3f
@@ -633,8 +599,7 @@ Lwritten_back:
     and x4, x3, #0xffffff
     orr x7, x7, x4, lsl #8
 
-    // `s` added, carrying between the words, and the low half of each is the
-    // tag. What runs off the top of the fourth is the modulo 2^128.
+    // + s, modulo 2^128: the carry out of the fourth word is dropped.
     ldr x9, [sp, #SPTR]
     ldr w4, [x9]
     add x2, x2, x4
@@ -663,38 +628,12 @@ Lwritten_back:
 // ============================================================================
 // THE ZEROIZATION PROBE — everything below measures the routines above
 // ============================================================================
-//
-// Nothing in production calls any of it. It is here and not in a file of its
-// own because a reader asking whether the measurement is right should not have
-// to find a second file and check that a number in it still matches a number
-// in this one: FRAME below is the frame, and the register budget it asks about
-// is the list the wipe uses, not a copy of either.
-//
-// What it costs is a few hundred bytes of instructions that ship unused. What
-// it buys is that the only `160` in the measurement, and the only list of
-// registers, are the ones at the top of this file.
-//
-// What asks comes first, then what is asked about:
-//
-//   registers_are_zeroized   asks the machine, with the budget's own list
-//   frame_is_zeroized        asks the stack, with the file's own FRAME
-//   dirty_registers          fills the budget and leaves it that way
-//   dirty_frame              one byte of the frame, at an offset given
-//   clean_frame              the frame written and emptied, with no arithmetic
 
 // uint64_t redoubt_poly1305_registers_are_zeroized(void)
 //
-// Whether any register in the budget is still holding something. Zero when
-// they are all empty, and the bits of whatever was not otherwise.
-//
-// Takes no argument on purpose. A destination passed in would cost x0, and x0
-// is one of the registers being asked about — it would arrive holding our own
-// pointer rather than the caller's value. With nothing passed, `bl` is the
-// whole call sequence and every register read here is the caller's own.
-//
-// x30 is not in the budget and this is the routine that shows why: `bl` writes
-// it on the way here, so asking about it would be asking about the call that
-// did the asking.
+// Zero when every register in the budget is empty, the bits of whatever was not
+// otherwise. It takes no argument because x0 is one of the registers asked
+// about, and a pointer passed in would arrive where the caller's value was.
 .p2align 4
 .globl FUNC(redoubt_poly1305_registers_are_zeroized)
 HIDDEN_FUNC(redoubt_poly1305_registers_are_zeroized)
@@ -703,43 +642,11 @@ FUNC(redoubt_poly1305_registers_are_zeroized):
     mov x0, x1
     ret
 
-// uint64_t redoubt_poly1305_frame_is_zeroized(void)
-//
-// Whether any byte of the frame the call before it used is still holding
-// something. Zero when it is all empty, and the bits of whatever was not.
-//
-// Reads below its own sp, and that is the whole of it: `bl` puts the return
-// address in x30 and leaves sp where the routine before had it, so what sits
-// under this one's sp is what sat under that one's — the frame it took and
-// gave back. There is no return-address slot in between, which is the one way
-// this differs from the same routine on x86-64.
-//
-// Asked after the registers, never before: reading a hundred and sixty bytes
-// takes registers, and the answer about those has to be taken first.
-.p2align 4
-.globl FUNC(redoubt_poly1305_frame_is_zeroized)
-HIDDEN_FUNC(redoubt_poly1305_frame_is_zeroized)
-FUNC(redoubt_poly1305_frame_is_zeroized):
-    mov x0, xzr
-    sub x1, sp, #FRAME
-    mov x2, sp
-Lframe_scan:
-    ldr x3, [x1], #8
-    orr x0, x0, x3
-    cmp x1, x2
-    b.ne Lframe_scan
-    ret
-
-// Every register in the budget filled, and left that way.
-//
-// What answers whether anything runs between one call and the next: called
-// straight before the verifier, every register it filled has to still be full.
+// Every register in the budget filled with a pattern, and left that way.
 .p2align 4
 .globl FUNC(redoubt_poly1305_dirty_registers)
 HIDDEN_FUNC(redoubt_poly1305_dirty_registers)
 FUNC(redoubt_poly1305_dirty_registers):
-    // The pattern does not fit in one instruction, so it is built sixteen bits
-    // at a time before anything is copied out of x0.
     mov x0, #0xa5a5
     movk x0, #0xa5a5, lsl #16
     movk x0, #0xa5a5, lsl #32
@@ -747,50 +654,85 @@ FUNC(redoubt_poly1305_dirty_registers):
     POLY1305_EACH POLY1305_FILL
     ret
 
-// One byte of the frame, dirtied and left. x0 says which.
+// The frame instruments for a frame of \size bytes.
 //
-// Swept over every offset, this is what establishes that the verifier above
-// reads the whole frame and not the first word of it — and that the byte it
-// reaches is the byte that was written, which is where an off-by-one against
-// whatever sits next door would show.
+// uint64_t redoubt_poly1305_frame_is_zeroized_\name(void)
+//
+//   Zero when every byte of the frame the previous call used is empty. `bl`
+//   keeps the return address in x30 and leaves sp where the previous callee
+//   found it, so `[sp - \size, sp)` is the frame that callee took. Asked after
+//   the registers, never before: reading the frame takes registers.
+//
+// void redoubt_poly1305_dirty_frame_\name(size_t at)
+//
+//   One byte of the frame, at the offset in x0, marked and left.
+//
+// void redoubt_poly1305_clean_frame_\name(void)
+//
+//   The whole frame written and emptied, which is what a routine does without
+//   the work in between.
+.macro POLY1305_FRAME_PROBE name, size
 .p2align 4
-.globl FUNC(redoubt_poly1305_dirty_frame)
-HIDDEN_FUNC(redoubt_poly1305_dirty_frame)
-FUNC(redoubt_poly1305_dirty_frame):
-    sub sp, sp, #FRAME
-    // Isolate this byte from every previous call's residue. Keep x0, the
-    // requested offset, intact until the whole frame is empty.
-    mov x1, sp
-    add x2, sp, #FRAME
-Ldirty_clear:
-    str xzr, [x1], #8
+.globl FUNC(redoubt_poly1305_frame_is_zeroized_\name)
+HIDDEN_FUNC(redoubt_poly1305_frame_is_zeroized_\name)
+FUNC(redoubt_poly1305_frame_is_zeroized_\name):
+    mov x0, xzr
+    sub x1, sp, #\size
+    mov x2, sp
+1:
+    ldr x3, [x1], #8
+    orr x0, x0, x3
     cmp x1, x2
-    b.ne Ldirty_clear
-    mov w1, #0x5c
-    strb w1, [sp, x0]
-    add sp, sp, #FRAME
+    b.lo 1b
     ret
 
-// The whole frame written and then emptied: what a routine above does, without
-// the arithmetic in between.
-//
-// The positive control. Without it, "the frame came back zero" is only ever
-// asserted about routines whose correctness is what is in question.
 .p2align 4
-.globl FUNC(redoubt_poly1305_clean_frame)
-HIDDEN_FUNC(redoubt_poly1305_clean_frame)
-FUNC(redoubt_poly1305_clean_frame):
-    sub sp, sp, #FRAME
+.globl FUNC(redoubt_poly1305_dirty_frame_\name)
+HIDDEN_FUNC(redoubt_poly1305_dirty_frame_\name)
+FUNC(redoubt_poly1305_dirty_frame_\name):
+    sub sp, sp, #\size
+    // The frame is emptied before the byte goes in, so that what a verifier
+    // finds is this byte and not a previous call's residue.
+    mov x1, xzr
+2:
+    str xzr, [sp, x1]
+    add x1, x1, #8
+    cmp x1, #\size
+    b.lo 2b
+    mov w2, #0x5c
+    strb w2, [sp, x0]
+    add sp, sp, #\size
+    ret
+
+.p2align 4
+.globl FUNC(redoubt_poly1305_clean_frame_\name)
+HIDDEN_FUNC(redoubt_poly1305_clean_frame_\name)
+FUNC(redoubt_poly1305_clean_frame_\name):
+    sub sp, sp, #\size
     mov x0, #0x5c5c
     movk x0, #0x5c5c, lsl #16
     movk x0, #0x5c5c, lsl #32
     movk x0, #0x5c5c, lsl #48
-    mov x1, sp
-    add x2, sp, #FRAME
-Lclean_write:
-    str x0, [x1], #8
-    cmp x1, x2
-    b.ne Lclean_write
+    mov x1, xzr
+3:
+    str x0, [sp, x1]
+    add x1, x1, #8
+    cmp x1, #\size
+    b.lo 3b
     POLY1305_EMPTY_FRAME
     POLY1305_ZEROIZE_ALL
     ret
+.endm
+
+POLY1305_FRAME_PROBE poly1305, FRAME
+
+// ============================================================================
+// Stack permissions
+// ============================================================================
+//
+// An object with no .note.GNU-stack is one the linker assumes wants an
+// executable stack, and one such object gives it to the whole binary. Nothing
+// here needs one.
+#if !defined(__APPLE__)
+.section .note.GNU-stack,"",%progbits
+#endif
