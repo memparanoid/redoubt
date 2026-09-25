@@ -935,6 +935,7 @@ dependencies = [
  "redoubt-asm",
  "redoubt-chacha",
  "redoubt-forensics",
+ "redoubt-hkdf",
  "redoubt-mem",
  "redoubt-poly1305",
  "redoubt-util",

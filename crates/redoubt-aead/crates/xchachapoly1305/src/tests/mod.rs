@@ -4,6 +4,7 @@
 
 mod support;
 
+mod libsodium;
 mod rfc;
 mod wycheproof;
 mod xchachapoly1305;
