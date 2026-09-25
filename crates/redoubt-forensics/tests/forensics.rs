@@ -188,7 +188,7 @@ fn a_frame_emptied() {
 #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 macro_rules! wide {
     () => {
-        if !has_a_register_nothing_writes() {
+        if !has_a_wide_register() {
             eprintln!(
                 "skipped: this machine has no register the compiler is obliged \
                  to leave alone, so the capture has nothing here to reach."
@@ -217,13 +217,13 @@ const HELD: [u8; 16] = [
 /// there is SVE wide enough to have an above — a machine whose vector length
 /// is sixteen bytes has nothing past what NEON already uses.
 #[cfg(target_arch = "x86_64")]
-fn has_a_register_nothing_writes() -> bool {
+fn has_a_wide_register() -> bool {
     std::arch::is_x86_feature_detected!("avx512f")
 }
 
-/// The same question where the answer is a length.
+/// Whether this machine's SVE registers reach past what NEON uses.
 #[cfg(target_arch = "aarch64")]
-fn has_a_register_nothing_writes() -> bool {
+fn has_a_wide_register() -> bool {
     std::arch::is_aarch64_feature_detected!("sve") && vector_length() > 16
 }
 
@@ -248,7 +248,7 @@ fn vector_length() -> usize {
     bytes as usize
 }
 
-/// The secret put where only the capture can reach it, and then read.
+/// The secret put in one wide register, where only the capture can reach it.
 ///
 /// The seeding is in the measured block and the capture is the macro's, so
 /// between the two the compiler may put anything in a register it is entitled
@@ -264,68 +264,95 @@ fn vector_length() -> usize {
 /// It is erased before the block ends, so at the moment of the photograph the
 /// register is the only place the secret is.
 #[cfg(target_arch = "x86_64")]
-fn only_in_a_wide_register() {
-    let mut from = [0_u8; 64];
+macro_rules! only_in_a_wide_register {
+    ($load:tt, $declared:tt) => {{
+        let mut from = [0_u8; 64];
 
-    // Through the copy whose registers are probed: one the compiler emits passes
-    // the secret through a vector register of its choosing, and the capture then
-    // finds it there rather than in `zmm16`.
-    // SAFETY: `HELD` fits at the front of `from`, and the two do not overlap.
-    unsafe { redoubt_mem_core::copy_nonoverlapping(HELD.as_ptr(), from.as_mut_ptr(), HELD.len()) };
+        // Through the copy whose registers are probed: one the compiler emits
+        // passes the secret through a vector register of its choosing, and the
+        // capture then finds it there rather than in the one named.
+        // SAFETY: `HELD` fits at the front of `from`, and the two do not overlap.
+        unsafe {
+            redoubt_mem_core::copy_nonoverlapping(HELD.as_ptr(), from.as_mut_ptr(), HELD.len())
+        };
 
-    // SAFETY: one write to one vector register, declared, reading the sixty-
-    // four bytes the buffer has and no more. The load is unaligned.
-    unsafe {
-        core::arch::asm!(
-            "vmovdqu64 zmm16, [{from}]",
-            from = in(reg) from.as_ptr(),
-            out("zmm16") _,
-        );
-    }
+        // SAFETY: one write to one vector register, declared, reading the
+        // sixty-four bytes the buffer has and no more. The load is unaligned.
+        unsafe {
+            core::arch::asm!(
+                concat!("vmovdqu64 ", $load, ", [{from}]"),
+                from = in(reg) from.as_ptr(),
+                out($declared) _,
+            );
+        }
 
-    erase(&mut from);
+        erase(&mut from);
+    }};
 }
 
-/// The same, where the register the compiler leaves alone is the far end of
-/// one it uses.
+/// The secret put in the far end of one `z`, where only the capture can reach
+/// it.
 ///
-/// `z16` past its first hundred and twenty-eight bits. The low half is `v16`,
-/// which ordinary compiled code writes whenever it feels like it; everything
-/// above is reachable by SVE encodings alone, and nothing here compiles any.
-/// So the secret goes at sixteen bytes in, and what sits below it is padding
-/// whose fate nobody cares about.
+/// Past its first hundred and twenty-eight bits. The low half is a `v`, which
+/// ordinary compiled code writes whenever it feels like it; everything above is
+/// reachable by SVE encodings alone, and nothing here compiles any. So the
+/// secret goes at sixteen bytes in, and what sits below it is padding whose
+/// fate nobody cares about.
 ///
 /// `ldr` and not a predicated load: it moves the whole register, so the buffer
 /// is the vector length and there is no predicate register to name — and which
 /// predicates Rust will hand out is a question with a different answer on
 /// every toolchain.
 #[cfg(target_arch = "aarch64")]
-fn only_in_a_wide_register() {
-    let wide = vector_length();
-    let mut from = vec![0_u8; wide];
+macro_rules! only_in_a_wide_register {
+    ($load:tt, $declared:tt) => {{
+        let wide = vector_length();
+        let mut from = vec![0_u8; wide];
 
-    // Through the copy whose registers are probed: one the compiler emits passes
-    // the secret through a vector register of its choosing, and the capture then
-    // finds it there rather than in `z16`.
-    // SAFETY: `HELD` fits sixteen bytes into `from`, and the two do not overlap.
-    unsafe {
-        redoubt_mem_core::copy_nonoverlapping(HELD.as_ptr(), from.as_mut_ptr().add(16), HELD.len());
+        // Through the copy whose registers are probed: one the compiler emits
+        // passes the secret through a vector register of its choosing, and the
+        // capture then finds it there rather than in the one named.
+        // SAFETY: `HELD` fits sixteen bytes into `from`, and the two do not
+        // overlap.
+        unsafe {
+            redoubt_mem_core::copy_nonoverlapping(
+                HELD.as_ptr(),
+                from.as_mut_ptr().add(16),
+                HELD.len(),
+            );
+        };
+
+        // SAFETY: one write to one vector register, declared as the NEON half
+        // that Rust can name, reading exactly the vector length the buffer was
+        // made from.
+        unsafe {
+            core::arch::asm!(
+                ".arch_extension sve",
+                concat!("ldr ", $load, ", [{from}]"),
+                ".arch_extension nosve",
+                from = in(reg) from.as_ptr(),
+                out($declared) _,
+            );
+        }
+
+        erase(&mut from);
+    }};
+}
+
+/// The first wide register, for a test that asks about the shape and not about
+/// which register.
+#[cfg(target_arch = "x86_64")]
+macro_rules! a_wide_register {
+    () => {
+        only_in_a_wide_register!("zmm16", "zmm16")
     };
+}
 
-    // SAFETY: one write to one vector register, declared as the NEON half that
-    // Rust can name, reading exactly the vector length the buffer was made
-    // from.
-    unsafe {
-        core::arch::asm!(
-            ".arch_extension sve",
-            "ldr z16, [{from}]",
-            ".arch_extension nosve",
-            from = in(reg) from.as_ptr(),
-            out("v16") _,
-        );
-    }
-
-    erase(&mut from);
+#[cfg(target_arch = "aarch64")]
+macro_rules! a_wide_register {
+    () => {
+        only_in_a_wide_register!("z16", "v16")
+    };
 }
 
 /// The buffer, gone before the block ends.
@@ -416,62 +443,377 @@ fn test_a_register_is_out_of_reach_without_the_capture() -> Result<(), AnyError>
     Ok(())
 }
 
-/// The same pair again, in a register ordinary code never writes.
+/// A secret in one wide register, found through the whole path a consumer
+/// takes, and the same block with the capture taken out, which must find
+/// nothing.
 ///
-/// The one above uses `xmm0`, which anything may overwrite between the
-/// operation and the capture — so its finding half is true and a little lucky.
-/// `zmm16-31` and the far end of `z0-z31` are what no compiler emits unless it
-/// was asked to, which makes this the same claim without the luck.
+/// `xmm0` may be overwritten between the operation and the capture, so the
+/// pair for it is true and a little lucky. `zmm16-31` and the far end of
+/// `z0-z31` are what no compiler emits unless it was asked to, which makes
+/// these the same claim without the luck, one register at a time.
 ///
-/// It is also the pair that goes red if the capture is deleted. Every other
+/// They are also the pairs that go red if the capture is deleted. Every other
 /// test here leaves its secret in memory as well, and would stay green.
-#[test]
-fn test_the_capture_finds_a_secret_in_a_register_nothing_writes() -> Result<(), AnyError> {
-    alone!();
+macro_rules! test_a_wide_register_is_reached {
+    ($found:ident, $unseen:ident, $load:tt, $declared:tt) => {
+        #[test]
+        fn $found() -> Result<(), AnyError> {
+            alone!();
 
-    wide!();
+            wide!();
 
-    let mut watch = Forensics::watching(&backwards(&HELD))?;
+            let mut watch = Forensics::watching(&backwards(&HELD))?;
 
-    forensics!({
-        only_in_a_wide_register();
+            forensics!({
+                only_in_a_wide_register!($load, $declared);
 
-        freeze!();
-    });
+                freeze!();
+            });
 
-    let with = watch.snapshot()?;
+            let with = watch.snapshot()?;
 
-    assert!(
-        with.found,
-        "the secret was in a register nothing else writes and the photograph \
-         did not have it, so the capture did not happen: {with}",
-    );
+            assert!(
+                with.found,
+                concat!(
+                    "the secret was in ",
+                    $load,
+                    " and the photograph did not have it, so the capture did \
+                     not reach it: {}"
+                ),
+                with,
+            );
 
-    Ok(())
+            Ok(())
+        }
+
+        #[test]
+        fn $unseen() -> Result<(), AnyError> {
+            alone!();
+
+            wide!();
+
+            let mut watch = Forensics::watching(&backwards(&HELD))?;
+
+            forensics!({
+                only_in_a_wide_register!($load, $declared);
+            });
+
+            let without = watch.snapshot()?;
+
+            assert!(
+                !without.found,
+                concat!(
+                    "the secret in ",
+                    $load,
+                    " was reachable with no capture taken, so finding it with \
+                     one proves nothing about the capture: {}"
+                ),
+                without,
+            );
+
+            Ok(())
+        }
+    };
 }
 
-/// The same block with the capture taken out, which must find nothing.
-#[test]
-fn test_a_register_nothing_writes_is_out_of_reach_without_the_capture() -> Result<(), AnyError> {
-    alone!();
+#[cfg(target_arch = "x86_64")]
+mod every_wide_register {
+    use super::*;
 
-    wide!();
-
-    let mut watch = Forensics::watching(&backwards(&HELD))?;
-
-    forensics!({
-        only_in_a_wide_register();
-    });
-
-    let without = watch.snapshot()?;
-
-    assert!(
-        !without.found,
-        "the secret was reachable with no capture taken, so the half above \
-         proves nothing about the capture: {without}",
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm16,
+        test_zmm16_is_out_of_reach_without_the_capture,
+        "zmm16",
+        "zmm16"
     );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm17,
+        test_zmm17_is_out_of_reach_without_the_capture,
+        "zmm17",
+        "zmm17"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm18,
+        test_zmm18_is_out_of_reach_without_the_capture,
+        "zmm18",
+        "zmm18"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm19,
+        test_zmm19_is_out_of_reach_without_the_capture,
+        "zmm19",
+        "zmm19"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm20,
+        test_zmm20_is_out_of_reach_without_the_capture,
+        "zmm20",
+        "zmm20"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm21,
+        test_zmm21_is_out_of_reach_without_the_capture,
+        "zmm21",
+        "zmm21"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm22,
+        test_zmm22_is_out_of_reach_without_the_capture,
+        "zmm22",
+        "zmm22"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm23,
+        test_zmm23_is_out_of_reach_without_the_capture,
+        "zmm23",
+        "zmm23"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm24,
+        test_zmm24_is_out_of_reach_without_the_capture,
+        "zmm24",
+        "zmm24"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm25,
+        test_zmm25_is_out_of_reach_without_the_capture,
+        "zmm25",
+        "zmm25"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm26,
+        test_zmm26_is_out_of_reach_without_the_capture,
+        "zmm26",
+        "zmm26"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm27,
+        test_zmm27_is_out_of_reach_without_the_capture,
+        "zmm27",
+        "zmm27"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm28,
+        test_zmm28_is_out_of_reach_without_the_capture,
+        "zmm28",
+        "zmm28"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm29,
+        test_zmm29_is_out_of_reach_without_the_capture,
+        "zmm29",
+        "zmm29"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm30,
+        test_zmm30_is_out_of_reach_without_the_capture,
+        "zmm30",
+        "zmm30"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_zmm31,
+        test_zmm31_is_out_of_reach_without_the_capture,
+        "zmm31",
+        "zmm31"
+    );
+}
 
-    Ok(())
+#[cfg(target_arch = "aarch64")]
+mod every_wide_register {
+    use super::*;
+
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z0,
+        test_z0_is_out_of_reach_without_the_capture,
+        "z0",
+        "v0"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z1,
+        test_z1_is_out_of_reach_without_the_capture,
+        "z1",
+        "v1"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z2,
+        test_z2_is_out_of_reach_without_the_capture,
+        "z2",
+        "v2"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z3,
+        test_z3_is_out_of_reach_without_the_capture,
+        "z3",
+        "v3"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z4,
+        test_z4_is_out_of_reach_without_the_capture,
+        "z4",
+        "v4"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z5,
+        test_z5_is_out_of_reach_without_the_capture,
+        "z5",
+        "v5"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z6,
+        test_z6_is_out_of_reach_without_the_capture,
+        "z6",
+        "v6"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z7,
+        test_z7_is_out_of_reach_without_the_capture,
+        "z7",
+        "v7"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z8,
+        test_z8_is_out_of_reach_without_the_capture,
+        "z8",
+        "v8"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z9,
+        test_z9_is_out_of_reach_without_the_capture,
+        "z9",
+        "v9"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z10,
+        test_z10_is_out_of_reach_without_the_capture,
+        "z10",
+        "v10"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z11,
+        test_z11_is_out_of_reach_without_the_capture,
+        "z11",
+        "v11"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z12,
+        test_z12_is_out_of_reach_without_the_capture,
+        "z12",
+        "v12"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z13,
+        test_z13_is_out_of_reach_without_the_capture,
+        "z13",
+        "v13"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z14,
+        test_z14_is_out_of_reach_without_the_capture,
+        "z14",
+        "v14"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z15,
+        test_z15_is_out_of_reach_without_the_capture,
+        "z15",
+        "v15"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z16,
+        test_z16_is_out_of_reach_without_the_capture,
+        "z16",
+        "v16"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z17,
+        test_z17_is_out_of_reach_without_the_capture,
+        "z17",
+        "v17"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z18,
+        test_z18_is_out_of_reach_without_the_capture,
+        "z18",
+        "v18"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z19,
+        test_z19_is_out_of_reach_without_the_capture,
+        "z19",
+        "v19"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z20,
+        test_z20_is_out_of_reach_without_the_capture,
+        "z20",
+        "v20"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z21,
+        test_z21_is_out_of_reach_without_the_capture,
+        "z21",
+        "v21"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z22,
+        test_z22_is_out_of_reach_without_the_capture,
+        "z22",
+        "v22"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z23,
+        test_z23_is_out_of_reach_without_the_capture,
+        "z23",
+        "v23"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z24,
+        test_z24_is_out_of_reach_without_the_capture,
+        "z24",
+        "v24"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z25,
+        test_z25_is_out_of_reach_without_the_capture,
+        "z25",
+        "v25"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z26,
+        test_z26_is_out_of_reach_without_the_capture,
+        "z26",
+        "v26"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z27,
+        test_z27_is_out_of_reach_without_the_capture,
+        "z27",
+        "v27"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z28,
+        test_z28_is_out_of_reach_without_the_capture,
+        "z28",
+        "v28"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z29,
+        test_z29_is_out_of_reach_without_the_capture,
+        "z29",
+        "v29"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z30,
+        test_z30_is_out_of_reach_without_the_capture,
+        "z30",
+        "v30"
+    );
+    test_a_wide_register_is_reached!(
+        test_the_capture_finds_a_secret_in_z31,
+        test_z31_is_out_of_reach_without_the_capture,
+        "z31",
+        "v31"
+    );
 }
 
 // ============================================================================
@@ -700,8 +1042,7 @@ fn test_a_cleanup_run_after_the_capture_leaves_the_evidence() -> Result<(), AnyE
 /// written the registers and the window into memory by then, and building the
 /// watch writes over neither.
 #[test]
-fn test_a_register_nothing_writes_is_found_by_a_watch_built_after_the_capture()
--> Result<(), AnyError> {
+fn test_a_wide_register_is_found_by_a_watch_built_after_the_capture() -> Result<(), AnyError> {
     alone!();
 
     wide!();
@@ -709,7 +1050,7 @@ fn test_a_register_nothing_writes_is_found_by_a_watch_built_after_the_capture()
     pick_spiller();
 
     forensics!({
-        only_in_a_wide_register();
+        a_wide_register!();
 
         freeze!();
     });
@@ -726,17 +1067,17 @@ fn test_a_register_nothing_writes_is_found_by_a_watch_built_after_the_capture()
     Ok(())
 }
 
-/// The same, with the form picked only by the watch, after the capture: the
-/// capture ran with the narrowest one, which does not reach this register.
+/// A capture that runs before any form is picked runs the narrowest one, which
+/// does not reach a wide register; a watch built afterwards picks too late.
 #[test]
-fn test_a_register_nothing_writes_is_out_of_reach_when_the_form_is_picked_after_the_capture()
+fn test_a_wide_register_is_out_of_reach_when_the_form_is_picked_after_the_capture()
 -> Result<(), AnyError> {
     alone!();
 
     wide!();
 
     forensics!({
-        only_in_a_wide_register();
+        a_wide_register!();
 
         freeze!();
     });
