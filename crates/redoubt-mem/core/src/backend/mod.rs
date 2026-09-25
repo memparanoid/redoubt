@@ -28,7 +28,11 @@ use rust as chosen;
 use redoubt_asm::Backend;
 
 /// Whether this target was built with assembly.
-#[cfg(test)]
+#[cfg(all(
+    test,
+    not(target_os = "windows"),
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
 pub(crate) const HAS_ASM: bool = cfg!(mem_asm);
 
 /// `bytes` from `src` to `dst`.

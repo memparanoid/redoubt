@@ -24,7 +24,11 @@ use redoubt_asm::Backend;
 use crate::error::EntropyError;
 
 /// Whether this target was built with assembly.
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(target_os = "linux", target_os = "android"),
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
 pub(crate) const HAS_ASM: bool = cfg!(rand_asm);
 
 pub(crate) fn fill(backend: Backend, dest: &mut [u8]) -> Result<(), EntropyError> {
