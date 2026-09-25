@@ -103,26 +103,33 @@ fn test_allocked_vec_reserve_exact_seals_vector() -> Result<(), Box<dyn std::err
     Ok(())
 }
 
+/// The allocator hands out a freed block, or a piece of one, as its last owner
+/// left it.
 #[test]
-fn test_allocked_vec_capacity_is_zeroed_on_creation() -> Result<(), Box<dyn std::error::Error>> {
-    // Test that spare capacity is zeroed when using reserve_exact
+fn test_allocked_vec_reserve_exact_zeroizes_the_block_the_allocator_hands_it()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut dirty = std::vec![0xFF_u8; 4096];
+    dirty.clear();
+
+    assert!(!dirty.is_zeroized());
+
+    let block = dirty.as_ptr();
+
+    drop(dirty);
+
     let mut vec = AllockedVec::<u8>::new();
+    vec.reserve_exact(1024)?;
 
-    // Vec is zeroized since `has_been_sealed` is false.
-    assert!(vec.is_zeroized());
+    // SAFETY: `u8` is a value at every bit pattern, so reading the capacity
+    // past `len` builds nothing invalid.
+    let capacity = unsafe { vec.as_capacity_slice() };
 
-    vec.reserve_exact(100)?;
+    // CORRECTNESS: without the same block, an emptiness below says only that
+    // the allocator handed out one that came from the kernel empty.
+    assert_eq!(capacity.as_ptr(), block, "the dirty block was not reused");
 
-    // Vec is not zeroized since `has_been_sealed` is true after reserve_exact.
-    assert!(!vec.is_zeroized());
-
-    // All capacity should be zeroed
-    let slice = unsafe { vec.as_capacity_slice() };
-    assert_eq!(slice.len(), 100);
-    assert!(slice.iter().all(|&b| b == 0));
-
-    // Vec is not zeroized since `has_been_sealed` is true (even though all elements are 0).
-    assert!(!vec.is_zeroized());
+    // Assert zeroization!
+    assert!(capacity.iter().all(|&b| b == 0));
 
     Ok(())
 }

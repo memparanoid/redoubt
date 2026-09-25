@@ -269,17 +269,8 @@ where
         }
 
         self.inner.reserve_exact(capacity);
+        self.inner.fast_zeroize();
         self.has_been_sealed = true;
-
-        // When unsafe feature is enabled, zero the entire capacity to prevent
-        // reading garbage via as_capacity_slice() / as_capacity_mut_slice()
-        #[cfg(any(test, feature = "unsafe"))]
-        if capacity > 0 {
-            // SAFETY: what the slice is handed to writes zeros over its bytes
-            // and reads no `T` out of it, so the spare capacity this reaches
-            // past `len` is written before anything could observe it.
-            redoubt_util::fast_zeroize_slice(unsafe { self.as_capacity_mut_slice() });
-        }
 
         Ok(())
     }

@@ -54,11 +54,11 @@ fn test_with_capacity() {
     assert_eq!(vec.capacity(), 10);
 }
 
-/// The allocator hands a freed block to the next request of its size as its
-/// last owner left it.
+/// The allocator hands out a freed block, or a piece of one, as its last owner
+/// left it.
 #[test]
 fn test_with_capacity_is_zeroized() {
-    let mut dirty = std::vec![0xFF_u8; 1024];
+    let mut dirty = std::vec![0xFF_u8; 4096];
     dirty.clear();
 
     assert!(!dirty.is_zeroized());
