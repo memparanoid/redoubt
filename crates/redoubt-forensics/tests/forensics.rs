@@ -47,7 +47,7 @@
     any(target_arch = "x86_64", target_arch = "aarch64")
 ))]
 
-use redoubt_forensics::{AnyError, Forensics, forensics, freeze};
+use redoubt_forensics::{AnyError, Forensics, forensics, freeze, pick_spiller};
 
 mod support;
 
@@ -267,7 +267,11 @@ fn vector_length() -> usize {
 fn only_in_a_wide_register() {
     let mut from = [0_u8; 64];
 
-    from[..HELD.len()].copy_from_slice(&HELD);
+    // Through the copy whose registers are probed: one the compiler emits passes
+    // the secret through a vector register of its choosing, and the capture then
+    // finds it there rather than in `zmm16`.
+    // SAFETY: `HELD` fits at the front of `from`, and the two do not overlap.
+    unsafe { redoubt_mem_core::copy_nonoverlapping(HELD.as_ptr(), from.as_mut_ptr(), HELD.len()) };
 
     // SAFETY: one write to one vector register, declared, reading the sixty-
     // four bytes the buffer has and no more. The load is unaligned.
@@ -300,7 +304,13 @@ fn only_in_a_wide_register() {
     let wide = vector_length();
     let mut from = vec![0_u8; wide];
 
-    from[16..16 + HELD.len()].copy_from_slice(&HELD);
+    // Through the copy whose registers are probed: one the compiler emits passes
+    // the secret through a vector register of its choosing, and the capture then
+    // finds it there rather than in `z16`.
+    // SAFETY: `HELD` fits sixteen bytes into `from`, and the two do not overlap.
+    unsafe {
+        redoubt_mem_core::copy_nonoverlapping(HELD.as_ptr(), from.as_mut_ptr().add(16), HELD.len());
+    };
 
     // SAFETY: one write to one vector register, declared as the NEON half that
     // Rust can name, reading exactly the vector length the buffer was made
@@ -676,6 +686,90 @@ fn test_a_cleanup_run_after_the_capture_leaves_the_evidence() -> Result<(), AnyE
         report.found,
         "the cleanup erased the evidence even though the capture had already \
          taken it off the stack: {report}"
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// A watch built after the capture
+// ============================================================================
+
+/// A value that does not exist until the operation produces it has no needle
+/// beforehand, so its watch is built after the capture. The capture has already
+/// written the registers and the window into memory by then, and building the
+/// watch writes over neither.
+#[test]
+fn test_a_register_nothing_writes_is_found_by_a_watch_built_after_the_capture()
+-> Result<(), AnyError> {
+    alone!();
+
+    wide!();
+
+    pick_spiller();
+
+    forensics!({
+        only_in_a_wide_register();
+
+        freeze!();
+    });
+
+    let mut watch = Forensics::watching(&backwards(&HELD))?;
+
+    let report = watch.snapshot()?;
+
+    assert!(
+        report.found,
+        "the secret the capture took was lost to the watch built after it: {report}",
+    );
+
+    Ok(())
+}
+
+/// The same, with the form picked only by the watch, after the capture: the
+/// capture ran with the narrowest one, which does not reach this register.
+#[test]
+fn test_a_register_nothing_writes_is_out_of_reach_when_the_form_is_picked_after_the_capture()
+-> Result<(), AnyError> {
+    alone!();
+
+    wide!();
+
+    forensics!({
+        only_in_a_wide_register();
+
+        freeze!();
+    });
+
+    let mut watch = Forensics::watching(&backwards(&HELD))?;
+
+    let report = watch.snapshot()?;
+
+    assert!(
+        !report.found,
+        "a capture that ran before any form was picked reached the widest \
+         registers, so the pick before it proves nothing: {report}",
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_a_frame_left_full_is_found_by_a_watch_built_after_the_capture() -> Result<(), AnyError> {
+    alone!();
+
+    forensics!({
+        a_frame_left_full();
+        freeze!();
+    });
+
+    let mut watch = Forensics::watching(&backwards(&SECRET))?;
+
+    let report = watch.snapshot()?;
+
+    assert!(
+        report.found,
+        "the frame the capture took was lost to the watch built after it: {report}",
     );
 
     Ok(())

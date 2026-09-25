@@ -20,7 +20,8 @@ libc.workspace = true
 cc.workspace = true
 
 [dev-dependencies]
-proptest.workspace = true
+proptest.workspace         = true
+redoubt-mem-core.workspace = true
 
 # Set by the coverage run and by nothing else. Declared so that a build without
 # it is not a build with an unknown `cfg`.

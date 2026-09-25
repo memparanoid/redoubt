@@ -1028,6 +1028,7 @@ dependencies = [
  "cc",
  "libc",
  "proptest",
+ "redoubt-mem-core",
 ]
 
 [[package]]
