@@ -6,7 +6,7 @@
 use alloc::boxed::Box;
 
 use redoubt_buffer::{Buffer, BufferError, PortableBuffer};
-use redoubt_rand::generate_random_key;
+use redoubt_rand::fill_with_random_bytes;
 
 #[cfg(all(unix, not(target_os = "wasi")))]
 use redoubt_buffer::PageBuffer;
@@ -55,8 +55,7 @@ pub fn create_initialized_buffer() -> Box<dyn Buffer> {
 
     buffer
         .open_mut(&mut |bytes| {
-            generate_random_key(b"redoubt.master_key.v1", bytes)
-                .map_err(BufferError::callback_error)?;
+            fill_with_random_bytes(bytes).map_err(BufferError::callback_error)?;
             Ok(())
         })
         .expect("CRITICAL: Key generation failed");
