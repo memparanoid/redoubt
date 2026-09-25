@@ -465,6 +465,32 @@ FUNC(redoubt_mem_dirty_registers):
     MEM_EACH_GENERAL MEM_FILL_GENERAL
     ret
 
+// The low half of every vector register filled, and every other bit of the
+// budget emptied: what reaches a verifier afterwards can only be those halves.
+.global FUNC(redoubt_mem_dirty_vector_low)
+HIDDEN_FUNC(redoubt_mem_dirty_vector_low)
+FUNC(redoubt_mem_dirty_vector_low):
+    MEM_ZEROIZE_ALL
+    mov rax, 0xa5a5a5a5a5a5a5a5
+    movq xmm0, rax
+    xor eax, eax
+    MEM_EACH_VECTOR MEM_FILL_VECTOR
+    ret
+
+// The high half of every vector register filled, and every other bit of the
+// budget emptied: what reaches a verifier afterwards can only come through its
+// fold.
+.global FUNC(redoubt_mem_dirty_vector_high)
+HIDDEN_FUNC(redoubt_mem_dirty_vector_high)
+FUNC(redoubt_mem_dirty_vector_high):
+    MEM_ZEROIZE_ALL
+    mov rax, 0xa5a5a5a5a5a5a5a5
+    movq xmm0, rax
+    pslldq xmm0, 8
+    xor eax, eax
+    MEM_EACH_VECTOR MEM_FILL_VECTOR
+    ret
+
 #if !defined(__APPLE__)
 .section .note.GNU-stack,"",@progbits
 #endif

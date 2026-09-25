@@ -18,13 +18,16 @@ unsafe extern "C" {
 
     fn redoubt_mem_registers_are_zeroized() -> u64;
     fn redoubt_mem_dirty_registers();
+    fn redoubt_mem_dirty_vector_low();
+    fn redoubt_mem_dirty_vector_high();
 }
 
 /// What the register writer leaves in every register of the budget.
 const POISON: u64 = 0xa5a5_a5a5_a5a5_a5a5;
 
-/// The byte `POISON` is made of, for a vector read a byte at a time.
-const POISON_BYTE: u8 = 0xa5;
+/// What a register holds before a writer is captured, so that a zero the
+/// capture finds is one the writer put there.
+const STALE: u64 = 0x3c3c_3c3c_3c3c_3c3c;
 
 // ============================================================================
 // What differs between the targets
@@ -446,144 +449,229 @@ fn read_an_empty_register_file() -> u64 {
     dirty
 }
 
-/// Every general register of the budget as the writer leaves it, stored rather
-/// than asked: the verifier answers with an OR, and an OR cannot say which
-/// register carried it.
+/// Every general register of the budget as a register writer leaves it, stored
+/// rather than asked: the verifier answers with an OR, and an OR cannot say
+/// which register carried it. The registers hold `STALE` going in.
 #[cfg(target_arch = "x86_64")]
-fn capture_the_general_writer() -> [u64; GENERAL.len()] {
-    let mut actual = [0_u64; GENERAL.len()];
+macro_rules! capture_the_general_writer {
+    ($writer:path) => {{
+        let mut actual = [0_u64; GENERAL.len()];
 
-    // SAFETY: the writer takes no argument and leaves r12 alone, which holds
-    // the destination across the call. `actual` is one word per register, and
-    // the stores cover it once each.
-    unsafe {
-        core::arch::asm!(
-            empty_vectors!(),
-            empty_generals!(),
-            "call {writer}",
-            "mov [r12], rax",
-            "mov [r12 + 8], rcx",
-            "mov [r12 + 16], rdx",
-            "mov [r12 + 24], rsi",
-            "mov [r12 + 32], rdi",
-            "mov [r12 + 40], r8",
-            "mov [r12 + 48], r9",
-            "mov [r12 + 56], r10",
-            "mov [r12 + 64], r11",
-            writer = sym redoubt_mem_dirty_registers,
-            inlateout("r12") actual.as_mut_ptr() => _,
-            clobber_abi("C"),
-        );
-    }
+        // SAFETY: the writer takes no argument and leaves r12 alone, which
+        // holds the destination across the call. `actual` is one word per
+        // register, and the stores cover it once each.
+        unsafe {
+            core::arch::asm!(
+                empty_vectors!(),
+                "mov rax, {poison}",
+                "mov rcx, rax",
+                "mov rdx, rax",
+                "mov rsi, rax",
+                "mov rdi, rax",
+                "mov r8, rax",
+                "mov r9, rax",
+                "mov r10, rax",
+                "mov r11, rax",
+                "call {writer}",
+                "mov [r12], rax",
+                "mov [r12 + 8], rcx",
+                "mov [r12 + 16], rdx",
+                "mov [r12 + 24], rsi",
+                "mov [r12 + 32], rdi",
+                "mov [r12 + 40], r8",
+                "mov [r12 + 48], r9",
+                "mov [r12 + 56], r10",
+                "mov [r12 + 64], r11",
+                poison = const STALE,
+                writer = sym $writer,
+                inlateout("r12") actual.as_mut_ptr() => _,
+                clobber_abi("C"),
+            );
+        }
 
-    actual
+        actual
+    }};
 }
 
-/// Every general register of the budget as the writer leaves it, stored rather
-/// than asked: the verifier answers with an OR, and an OR cannot say which
-/// register carried it.
+/// Every general register of the budget as a register writer leaves it, stored
+/// rather than asked: the verifier answers with an OR, and an OR cannot say
+/// which register carried it. The registers hold `STALE` going in.
 #[cfg(target_arch = "aarch64")]
-fn capture_the_general_writer() -> [u64; GENERAL.len()] {
-    let mut actual = [0_u64; GENERAL.len()];
+macro_rules! capture_the_general_writer {
+    ($writer:path) => {{
+        let mut actual = [0_u64; GENERAL.len()];
 
-    // SAFETY: the writer takes no argument and leaves x20 alone, which holds
-    // the destination across the call. `actual` is one word per register, and
-    // the stores cover it once each.
-    unsafe {
-        core::arch::asm!(
-            empty_vectors!(),
-            empty_generals!(),
-            "bl {writer}",
-            "stp x0, x1, [x20]",
-            "stp x2, x3, [x20, #16]",
-            "stp x4, x5, [x20, #32]",
-            "stp x6, x7, [x20, #48]",
-            "stp x8, x9, [x20, #64]",
-            "stp x10, x11, [x20, #80]",
-            "stp x12, x13, [x20, #96]",
-            "stp x14, x15, [x20, #112]",
-            "stp x16, x17, [x20, #128]",
-            writer = sym redoubt_mem_dirty_registers,
-            inlateout("x20") actual.as_mut_ptr() => _,
-            clobber_abi("C"),
-        );
-    }
+        // SAFETY: the writer takes no argument and leaves x20 alone, which
+        // holds the destination across the call. `actual` is one word per
+        // register, and the stores cover it once each.
+        unsafe {
+            core::arch::asm!(
+                empty_vectors!(),
+                "movz x0, #0x3c3c",
+                "movk x0, #0x3c3c, lsl #16",
+                "movk x0, #0x3c3c, lsl #32",
+                "movk x0, #0x3c3c, lsl #48",
+                "mov x1, x0",
+                "mov x2, x0",
+                "mov x3, x0",
+                "mov x4, x0",
+                "mov x5, x0",
+                "mov x6, x0",
+                "mov x7, x0",
+                "mov x8, x0",
+                "mov x9, x0",
+                "mov x10, x0",
+                "mov x11, x0",
+                "mov x12, x0",
+                "mov x13, x0",
+                "mov x14, x0",
+                "mov x15, x0",
+                "mov x16, x0",
+                "mov x17, x0",
+                "bl {writer}",
+                "stp x0, x1, [x20]",
+                "stp x2, x3, [x20, #16]",
+                "stp x4, x5, [x20, #32]",
+                "stp x6, x7, [x20, #48]",
+                "stp x8, x9, [x20, #64]",
+                "stp x10, x11, [x20, #80]",
+                "stp x12, x13, [x20, #96]",
+                "stp x14, x15, [x20, #112]",
+                "stp x16, x17, [x20, #128]",
+                writer = sym $writer,
+                inlateout("x20") actual.as_mut_ptr() => _,
+                clobber_abi("C"),
+            );
+        }
 
-    actual
+        actual
+    }};
 }
 
-/// Every vector register of the budget as the writer leaves it, both lanes,
-/// stored rather than asked.
+/// Every vector register of the budget as a register writer leaves it, half by
+/// half, so a half written or left wrong is named. The registers hold `STALE`
+/// in both halves going in.
 #[cfg(target_arch = "x86_64")]
-fn capture_the_vector_writer() -> [[u8; 16]; VECTOR.len()] {
-    let mut actual = [[0_u8; 16]; VECTOR.len()];
+macro_rules! capture_the_vector_writer {
+    ($writer:path) => {{
+        let mut actual = [[0_u64; 2]; VECTOR.len()];
 
-    // SAFETY: the writer takes no argument and leaves r12 alone, which holds
-    // the destination across the call. `actual` is sixteen bytes per register,
-    // and the stores cover it once each.
-    unsafe {
-        core::arch::asm!(
-            empty_vectors!(),
-            empty_generals!(),
-            "call {writer}",
-            "movdqu [r12], xmm0",
-            "movdqu [r12 + 16], xmm1",
-            "movdqu [r12 + 32], xmm2",
-            "movdqu [r12 + 48], xmm3",
-            "movdqu [r12 + 64], xmm4",
-            "movdqu [r12 + 80], xmm5",
-            "movdqu [r12 + 96], xmm6",
-            "movdqu [r12 + 112], xmm7",
-            "movdqu [r12 + 128], xmm8",
-            "movdqu [r12 + 144], xmm9",
-            "movdqu [r12 + 160], xmm10",
-            "movdqu [r12 + 176], xmm11",
-            "movdqu [r12 + 192], xmm12",
-            "movdqu [r12 + 208], xmm13",
-            "movdqu [r12 + 224], xmm14",
-            "movdqu [r12 + 240], xmm15",
-            writer = sym redoubt_mem_dirty_registers,
-            inlateout("r12") actual.as_mut_ptr() => _,
-            clobber_abi("C"),
-        );
-    }
+        // SAFETY: the writer takes no argument and leaves r12 alone, which
+        // holds the destination across the call. `actual` is two words per
+        // register, and the stores cover it once each.
+        unsafe {
+            core::arch::asm!(
+                empty_generals!(),
+                "mov rax, {poison}",
+                "movq xmm0, rax",
+                "punpcklqdq xmm0, xmm0",
+                "movdqa xmm1, xmm0",
+                "movdqa xmm2, xmm0",
+                "movdqa xmm3, xmm0",
+                "movdqa xmm4, xmm0",
+                "movdqa xmm5, xmm0",
+                "movdqa xmm6, xmm0",
+                "movdqa xmm7, xmm0",
+                "movdqa xmm8, xmm0",
+                "movdqa xmm9, xmm0",
+                "movdqa xmm10, xmm0",
+                "movdqa xmm11, xmm0",
+                "movdqa xmm12, xmm0",
+                "movdqa xmm13, xmm0",
+                "movdqa xmm14, xmm0",
+                "movdqa xmm15, xmm0",
+                "xor eax, eax",
+                "call {writer}",
+                "movdqu [r12], xmm0",
+                "movdqu [r12 + 16], xmm1",
+                "movdqu [r12 + 32], xmm2",
+                "movdqu [r12 + 48], xmm3",
+                "movdqu [r12 + 64], xmm4",
+                "movdqu [r12 + 80], xmm5",
+                "movdqu [r12 + 96], xmm6",
+                "movdqu [r12 + 112], xmm7",
+                "movdqu [r12 + 128], xmm8",
+                "movdqu [r12 + 144], xmm9",
+                "movdqu [r12 + 160], xmm10",
+                "movdqu [r12 + 176], xmm11",
+                "movdqu [r12 + 192], xmm12",
+                "movdqu [r12 + 208], xmm13",
+                "movdqu [r12 + 224], xmm14",
+                "movdqu [r12 + 240], xmm15",
+                poison = const STALE,
+                writer = sym $writer,
+                inlateout("r12") actual.as_mut_ptr() => _,
+                clobber_abi("C"),
+            );
+        }
 
-    actual
+        actual
+    }};
 }
 
-/// Every vector register of the budget as the writer leaves it, both lanes,
-/// stored rather than asked.
+/// Every vector register of the budget as a register writer leaves it, lane by
+/// lane, so a lane written or left wrong is named. The registers hold `STALE`
+/// in both lanes going in.
 #[cfg(target_arch = "aarch64")]
-fn capture_the_vector_writer() -> [[u8; 16]; VECTOR.len()] {
-    let mut actual = [[0_u8; 16]; VECTOR.len()];
+macro_rules! capture_the_vector_writer {
+    ($writer:path) => {{
+        let mut actual = [[0_u64; 2]; VECTOR.len()];
 
-    // SAFETY: the writer takes no argument and leaves x20 alone, which holds
-    // the destination across the call. `actual` is sixteen bytes per register,
-    // and the stores cover it once each.
-    unsafe {
-        core::arch::asm!(
-            empty_vectors!(),
-            empty_generals!(),
-            "bl {writer}",
-            "stp q0, q1, [x20]",
-            "stp q2, q3, [x20, #32]",
-            "stp q4, q5, [x20, #64]",
-            "stp q6, q7, [x20, #96]",
-            "stp q16, q17, [x20, #128]",
-            "stp q18, q19, [x20, #160]",
-            "stp q20, q21, [x20, #192]",
-            "stp q22, q23, [x20, #224]",
-            "stp q24, q25, [x20, #256]",
-            "stp q26, q27, [x20, #288]",
-            "stp q28, q29, [x20, #320]",
-            "stp q30, q31, [x20, #352]",
-            writer = sym redoubt_mem_dirty_registers,
-            inlateout("x20") actual.as_mut_ptr() => _,
-            clobber_abi("C"),
-        );
-    }
+        // SAFETY: the writer takes no argument and leaves x20 alone, which
+        // holds the destination across the call. `actual` is two words per
+        // register, and the stores cover it once each.
+        unsafe {
+            core::arch::asm!(
+                "movz x0, #0x3c3c",
+                "movk x0, #0x3c3c, lsl #16",
+                "movk x0, #0x3c3c, lsl #32",
+                "movk x0, #0x3c3c, lsl #48",
+                "dup v0.2d, x0",
+                "mov v1.16b, v0.16b",
+                "mov v2.16b, v0.16b",
+                "mov v3.16b, v0.16b",
+                "mov v4.16b, v0.16b",
+                "mov v5.16b, v0.16b",
+                "mov v6.16b, v0.16b",
+                "mov v7.16b, v0.16b",
+                "mov v16.16b, v0.16b",
+                "mov v17.16b, v0.16b",
+                "mov v18.16b, v0.16b",
+                "mov v19.16b, v0.16b",
+                "mov v20.16b, v0.16b",
+                "mov v21.16b, v0.16b",
+                "mov v22.16b, v0.16b",
+                "mov v23.16b, v0.16b",
+                "mov v24.16b, v0.16b",
+                "mov v25.16b, v0.16b",
+                "mov v26.16b, v0.16b",
+                "mov v27.16b, v0.16b",
+                "mov v28.16b, v0.16b",
+                "mov v29.16b, v0.16b",
+                "mov v30.16b, v0.16b",
+                "mov v31.16b, v0.16b",
+                empty_generals!(),
+                "bl {writer}",
+                "stp q0, q1, [x20]",
+                "stp q2, q3, [x20, #32]",
+                "stp q4, q5, [x20, #64]",
+                "stp q6, q7, [x20, #96]",
+                "stp q16, q17, [x20, #128]",
+                "stp q18, q19, [x20, #160]",
+                "stp q20, q21, [x20, #192]",
+                "stp q22, q23, [x20, #224]",
+                "stp q24, q25, [x20, #256]",
+                "stp q26, q27, [x20, #288]",
+                "stp q28, q29, [x20, #320]",
+                "stp q30, q31, [x20, #352]",
+                writer = sym $writer,
+                inlateout("x20") actual.as_mut_ptr() => _,
+                clobber_abi("C"),
+            );
+        }
 
-    actual
+        actual
+    }};
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -652,7 +740,7 @@ macro_rules! measure {
 /// without it, a clean reading of the real routine could be the call site
 /// having tidied up.
 macro_rules! controls {
-    ($registers:ident, $untouched:ident, ($($kind:ty),*)) => {
+    ([$registers:ident, $low:ident, $high:ident, $untouched:ident], ($($kind:ty),*)) => {
         #[unsafe(naked)]
         unsafe extern "C" fn $untouched($(_: $kind),*) {
             core::arch::naked_asm!("ret");
@@ -665,6 +753,22 @@ macro_rules! controls {
                 target = sym redoubt_mem_dirty_registers,
             );
         }
+
+        #[unsafe(naked)]
+        unsafe extern "C" fn $low($(_: $kind),*) {
+            core::arch::naked_asm!(
+                tail_branch!(),
+                target = sym redoubt_mem_dirty_vector_low,
+            );
+        }
+
+        #[unsafe(naked)]
+        unsafe extern "C" fn $high($(_: $kind),*) {
+            core::arch::naked_asm!(
+                tail_branch!(),
+                target = sym redoubt_mem_dirty_vector_high,
+            );
+        }
     };
 }
 
@@ -672,22 +776,39 @@ macro_rules! controls {
 #[derive(Clone, Copy)]
 enum Left {
     Registers,
+    VectorLows,
+    VectorHighs,
     Everything,
     Nothing,
 }
 
+/// Each negative asks only about the residue it leaves. A half left full is
+/// asserted exactly: every other bit of the budget is empty, so `POISON` can
+/// only come through that half.
 fn assert_residue(registers: u64, left: Left) {
     match left {
-        Left::Everything => {
-            assert_ne!(
-                registers, 0,
-                "a call that ran nothing emptied the registers"
-            );
-        }
         Left::Registers => {
             assert_ne!(
                 registers, 0,
                 "registers the replacement left full read as empty"
+            );
+        }
+        Left::VectorLows => {
+            assert_eq!(
+                registers, POISON,
+                "the low halves the replacement left full do not reach the answer"
+            );
+        }
+        Left::VectorHighs => {
+            assert_eq!(
+                registers, POISON,
+                "the high halves the replacement left full do not reach the answer"
+            );
+        }
+        Left::Everything => {
+            assert_ne!(
+                registers, 0,
+                "a call that ran nothing emptied the registers"
             );
         }
         Left::Nothing => {
@@ -704,15 +825,17 @@ fn assert_residue(registers: u64, left: Left) {
 macro_rules! test_what_the_routine_leaves {
     (
         $name:ident, $real:path, fn($($kind:ty),*),
-        [$registers:ident, $untouched:ident],
+        [$registers:ident, $low:ident, $high:ident, $untouched:ident],
         for $each:ident in $over:expr,
         { $($setup:tt)* },
         ($($argument:expr),*)
     ) => {
-        controls!($registers, $untouched, ($($kind),*));
+        controls!([$registers, $low, $high, $untouched], ($($kind),*));
 
         #[rstest]
         #[case::registers_left_full($registers as unsafe extern "C" fn($($kind),*), Left::Registers)]
+        #[case::low_left_full($low as unsafe extern "C" fn($($kind),*), Left::VectorLows)]
+        #[case::high_left_full($high as unsafe extern "C" fn($($kind),*), Left::VectorHighs)]
         #[case::nothing_ran($untouched as unsafe extern "C" fn($($kind),*), Left::Everything)]
         #[case::real($real as unsafe extern "C" fn($($kind),*), Left::Nothing)]
         fn $name(#[case] routine: unsafe extern "C" fn($($kind),*), #[case] left: Left) {
@@ -774,7 +897,7 @@ fn test_the_lists_name_as_many_registers_as_there_are_tests() {
 /// never dirtying the register the routine failed to wipe.
 #[test]
 fn test_dirty_registers_fills_every_general_register_in_the_budget() {
-    let actual = capture_the_general_writer();
+    let actual = capture_the_general_writer!(redoubt_mem_dirty_registers);
 
     for (at, &value) in actual.iter().enumerate() {
         assert_eq!(
@@ -789,12 +912,67 @@ fn test_dirty_registers_fills_every_general_register_in_the_budget() {
 /// would hide a routine that wiped only that one.
 #[test]
 fn test_dirty_registers_fills_every_vector_register_in_the_budget() {
-    let actual = capture_the_vector_writer();
+    let actual = capture_the_vector_writer!(redoubt_mem_dirty_registers);
 
-    for (at, value) in actual.iter().enumerate() {
+    for (at, halves) in actual.iter().enumerate() {
         assert_eq!(
-            value, &[POISON_BYTE; 16],
-            "{} came back from the writer with a lane empty",
+            halves,
+            &[POISON, POISON],
+            "{} came back from the writer with a half empty",
+            VECTOR[at]
+        );
+    }
+}
+
+// ============================================================================
+// redoubt_mem_dirty_vector_low
+// ============================================================================
+
+#[test]
+fn test_dirty_vector_low_empties_every_general_register_in_the_budget() {
+    let actual = capture_the_general_writer!(redoubt_mem_dirty_vector_low);
+
+    for (at, &value) in actual.iter().enumerate() {
+        assert_eq!(value, 0, "{} came back from the writer full", GENERAL[at]);
+    }
+}
+
+#[test]
+fn test_dirty_vector_low_fills_only_the_low_half_of_every_vector_register() {
+    let actual = capture_the_vector_writer!(redoubt_mem_dirty_vector_low);
+
+    for (at, halves) in actual.iter().enumerate() {
+        assert_eq!(
+            halves,
+            &[POISON, 0],
+            "{} did not come back with only its low half full",
+            VECTOR[at]
+        );
+    }
+}
+
+// ============================================================================
+// redoubt_mem_dirty_vector_high
+// ============================================================================
+
+#[test]
+fn test_dirty_vector_high_empties_every_general_register_in_the_budget() {
+    let actual = capture_the_general_writer!(redoubt_mem_dirty_vector_high);
+
+    for (at, &value) in actual.iter().enumerate() {
+        assert_eq!(value, 0, "{} came back from the writer full", GENERAL[at]);
+    }
+}
+
+#[test]
+fn test_dirty_vector_high_fills_only_the_high_half_of_every_vector_register() {
+    let actual = capture_the_vector_writer!(redoubt_mem_dirty_vector_high);
+
+    for (at, halves) in actual.iter().enumerate() {
+        assert_eq!(
+            halves,
+            &[0, POISON],
+            "{} did not come back with only its high half full",
             VECTOR[at]
         );
     }
@@ -852,7 +1030,7 @@ test_what_the_routine_leaves!(
     test_copy_nonoverlapping_leaves_the_residue_its_case_declares,
     redoubt_mem_copy_nonoverlapping,
     fn(*const u8, *mut u8, usize),
-    [dirty_copy_registers, untouched_copy],
+    [dirty_copy_registers, dirty_copy_low, dirty_copy_high, untouched_copy],
     for bytes in LENGTHS,
     {
         let from = said(bytes);
@@ -871,7 +1049,7 @@ test_what_the_routine_leaves!(
     test_swap_nonoverlapping_leaves_the_residue_its_case_declares,
     redoubt_mem_swap_nonoverlapping,
     fn(*mut u8, *mut u8, usize),
-    [dirty_swap_registers, untouched_swap],
+    [dirty_swap_registers, dirty_swap_low, dirty_swap_high, untouched_swap],
     for bytes in LENGTHS,
     {
         let mut left = said(bytes);
@@ -890,7 +1068,7 @@ test_what_the_routine_leaves!(
     test_is_utf8_leaves_the_residue_its_case_declares,
     redoubt_mem_is_utf8,
     fn(*const u8, usize, *mut u8),
-    [dirty_is_utf8_registers, untouched_is_utf8],
+    [dirty_is_utf8_registers, dirty_is_utf8_low, dirty_is_utf8_high, untouched_is_utf8],
     for text in TEXTS,
     {
         let mut answer = 0_u8;
@@ -909,7 +1087,12 @@ test_what_the_routine_leaves!(
     test_is_zeroized_leaves_the_residue_its_case_declares,
     redoubt_mem_is_zeroized,
     fn(*const u8, usize, *mut u8),
-    [dirty_is_zeroized_registers, untouched_is_zeroized],
+    [
+        dirty_is_zeroized_registers,
+        dirty_is_zeroized_low,
+        dirty_is_zeroized_high,
+        untouched_is_zeroized
+    ],
     for len in LENGTHS,
     {
         let held = said(len);
