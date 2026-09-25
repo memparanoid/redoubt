@@ -51,7 +51,8 @@ type OneTimeKey = ZeroizingGuard<RedoubtArray<u8, POLY_KEY_SIZE>>;
 #[fast_zeroize(drop)]
 pub struct XChaCha20Poly1305 {
     cipher: XChaCha20,
-    #[cfg(test)]
+    /// Where the cipher's and the authenticator's operations go: the target's,
+    /// wherever a test has not named another.
     #[fast_zeroize(skip)]
     backend: Backend,
     // Something to test zeroization on drop against.
@@ -67,42 +68,11 @@ impl XChaCha20Poly1305 {
     pub fn new() -> Self {
         Self {
             cipher: XChaCha20::new(),
-            #[cfg(test)]
             backend: Backend::default(),
             #[cfg(test)]
             __marker: Default::default(),
             #[cfg(test)]
             __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
-        }
-    }
-
-    /// One that sends its operations where it is told, both halves of it.
-    ///
-    /// Gated, and the only way a backend other than the target's gets in here:
-    /// a test that wants the whole chain in Rust has to say so to the cipher
-    /// and to the authenticator, and without this there is nothing to say it
-    /// with.
-    #[cfg(test)]
-    #[must_use]
-    pub fn with_backend(backend: Backend) -> Self {
-        let mut made = Self::new();
-
-        made.backend = backend;
-
-        made
-    }
-
-    /// Where the cipher's and the authenticator's operations go: the one a test
-    /// of this crate named, and the target's everywhere else.
-    fn backend(&self) -> Backend {
-        #[cfg(test)]
-        {
-            self.backend
-        }
-
-        #[cfg(not(test))]
-        {
-            Backend::default()
         }
     }
 
@@ -114,7 +84,7 @@ impl XChaCha20Poly1305 {
     /// between.
     fn one_time_key(&self, key: &[u8; KEY_SIZE], nonce: &[u8; XNONCE_SIZE], out: &mut OneTimeKey) {
         self.cipher
-            .xor(self.backend(), key, nonce, POLY_KEY_COUNTER, out);
+            .xor(self.backend, key, nonce, POLY_KEY_COUNTER, out);
     }
 
     /// The tag over the associated data and the ciphertext, in that order.
@@ -132,11 +102,11 @@ impl XChaCha20Poly1305 {
     ) {
         let mut authenticator = Poly1305::new();
 
-        authenticator.init(self.backend(), one_time_key.as_array());
+        authenticator.init(self.backend, one_time_key.as_array());
 
         self.tag_with(&mut authenticator, aad, ciphertext);
 
-        authenticator.finalize_mut(self.backend(), out);
+        authenticator.finalize_mut(self.backend, out);
     }
 
     /// Everything the authenticator is told, and none of what it answers.
@@ -147,8 +117,8 @@ impl XChaCha20Poly1305 {
     /// for somebody else to still own the authenticator at that moment, which
     /// is what taking it by reference allows and what `forensics` does.
     pub(crate) fn tag_with(&self, authenticator: &mut Poly1305, aad: &[u8], ciphertext: &[u8]) {
-        authenticator.update_padded(self.backend(), aad);
-        authenticator.update_padded(self.backend(), ciphertext);
+        authenticator.update_padded(self.backend, aad);
+        authenticator.update_padded(self.backend, ciphertext);
 
         // Nothing here is emptied, and that is not an oversight. Both are
         // lengths: an attacker who saw the message knows how long its
@@ -172,7 +142,18 @@ impl XChaCha20Poly1305 {
             );
         }
 
-        authenticator.update(self.backend(), &lengths);
+        authenticator.update(self.backend, &lengths);
+    }
+
+    /// One that sends its operations where it is told, both halves of it.
+    #[cfg(test)]
+    #[must_use]
+    pub(crate) fn with_backend(backend: Backend) -> Self {
+        let mut made = Self::new();
+
+        made.backend = backend;
+
+        made
     }
 
     /// Something in it that a zeroization has to remove.
@@ -203,7 +184,7 @@ impl AeadEncrypt for XChaCha20Poly1305 {
         // The message is enciphered before it is authenticated, because what
         // is authenticated is the ciphertext.
         self.cipher
-            .xor(self.backend(), key, nonce, MESSAGE_COUNTER, data);
+            .xor(self.backend, key, nonce, MESSAGE_COUNTER, data);
         self.tag(&one_time_key, aad, data, tag);
 
         one_time_key.fast_zeroize();
@@ -241,7 +222,7 @@ impl AeadDecrypt for XChaCha20Poly1305 {
         }
 
         self.cipher
-            .xor(self.backend(), key, nonce, MESSAGE_COUNTER, data);
+            .xor(self.backend, key, nonce, MESSAGE_COUNTER, data);
 
         Ok(())
     }
