@@ -912,6 +912,7 @@ dependencies = [
  "redoubt-alloc",
  "redoubt-forensics",
  "redoubt-hkdf",
+ "redoubt-mem",
  "redoubt-util",
  "redoubt-zero",
  "rstest",

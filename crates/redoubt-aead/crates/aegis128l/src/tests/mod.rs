@@ -4,6 +4,9 @@
 
 mod support;
 
+#[cfg(all(target_os = "linux", aegis128l_asm))]
+mod forensics;
+
 mod aegis128l;
 mod libaegis;
 mod probes;
