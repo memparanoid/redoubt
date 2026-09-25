@@ -183,7 +183,16 @@ fn published() -> Vec<(usize, &'static str)> {
 ///
 /// Each encryption is decrypted back as well, so a ciphertext that equals
 /// libsodium's is one this crate opens.
-fn row(backend: Backend, msg_len: usize) -> String {
+/// Which part of a row's first cell has a bit turned over before the fold, or
+/// `Nothing` for the walk itself.
+#[derive(Clone, Copy)]
+enum Turn {
+    Nothing,
+    Ciphertext,
+    Tag,
+}
+
+fn row(backend: Backend, msg_len: usize, turn: Turn) -> String {
     let mut said = Vec::new();
 
     for aad_len in aad_lengths() {
@@ -215,6 +224,12 @@ fn row(backend: Backend, msg_len: usize) -> String {
                 "msg {msg_len}, aad {aad_len}, sample {sample} came back different"
             );
         }
+    }
+
+    match turn {
+        Turn::Nothing => {}
+        Turn::Ciphertext => said[0] ^= 1,
+        Turn::Tag => said[msg_len] ^= 1,
     }
 
     let mut digest = [0_u8; DIGEST_SIZE];
@@ -305,6 +320,34 @@ fn test_the_file_covers_the_lengths_the_walk_reaches() {
 // What libsodium answered
 // === === === === === === === === === ===
 
+/// The published row of the shortest message that has a byte to turn over.
+fn a_row_with_a_message() -> (usize, &'static str) {
+    let published = published();
+    let (msg_len, expected) = published[1];
+
+    assert!(msg_len > 0, "the row has a message byte to turn over");
+
+    (msg_len, expected)
+}
+
+/// The sweep below compares a digest with a digest, and a comparison that could
+/// not come out unequal would pass it at every length.
+#[test]
+fn test_a_row_with_one_ciphertext_bit_turned_over_disagrees_with_libsodium() {
+    let (msg_len, expected) = a_row_with_a_message();
+
+    assert_ne!(row(Backend::Auto, msg_len, Turn::Ciphertext), expected);
+}
+
+/// A fold that left the tag out would still agree on every ciphertext, and
+/// would go green here and nowhere else.
+#[test]
+fn test_a_row_with_one_tag_bit_turned_over_disagrees_with_libsodium() {
+    let (msg_len, expected) = a_row_with_a_message();
+
+    assert_ne!(row(Backend::Auto, msg_len, Turn::Tag), expected);
+}
+
 /// How many ways the walk is split, so that nextest runs the pieces side by
 /// side.
 ///
@@ -329,7 +372,7 @@ fn test_every_length_agrees_with_libsodium(
         }
 
         assert_eq!(
-            row(backend, msg_len),
+            row(backend, msg_len, Turn::Nothing),
             expected,
             "the row libsodium answered for a message of {msg_len} bytes"
         );
