@@ -1046,6 +1046,7 @@ dependencies = [
  "cc",
  "proptest",
  "redoubt-asm",
+ "redoubt-forensics",
  "redoubt-mem",
  "redoubt-util",
  "redoubt-zero",

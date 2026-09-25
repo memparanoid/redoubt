@@ -7,6 +7,9 @@
 
 mod support;
 
+#[cfg(target_os = "linux")]
+mod forensics;
+
 mod backend;
 mod hkdf;
 mod libsodium;
