@@ -1020,7 +1020,11 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
+ "redoubt-alloc",
  "redoubt-codec-core",
+ "redoubt-forensics",
+ "redoubt-mem",
+ "redoubt-secret",
  "redoubt-zero",
  "syn",
 ]
