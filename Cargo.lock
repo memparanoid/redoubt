@@ -1088,10 +1088,8 @@ dependencies = [
  "proptest",
  "redoubt-asm",
  "redoubt-forensics",
- "redoubt-hkdf",
  "redoubt-mem",
  "redoubt-test-utils",
- "redoubt-zero",
  "rstest",
  "thiserror",
 ]

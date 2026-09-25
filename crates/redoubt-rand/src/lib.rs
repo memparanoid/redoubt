@@ -40,7 +40,7 @@
 //!
 //! `redoubt_rand` is used throughout the Redoubt stack:
 //! - **redoubt-aead**: Key and nonce generation for AEAD encryption
-//! - **redoubt-vault**: Entropy for master key derivation
+//! - **redoubt-vault**: the master key
 //!
 //! ## Platform Support
 //!
@@ -66,7 +66,6 @@ mod tests;
 mod backend;
 mod error;
 mod fill;
-mod generate_random_key;
 mod session;
 mod system;
 mod traits;
@@ -76,7 +75,6 @@ pub mod support;
 
 pub use error::EntropyError;
 pub use fill::fill_with_random_bytes;
-pub use generate_random_key::generate_random_key;
 pub use session::NonceSessionGenerator;
 pub use system::SystemEntropySource;
 pub use traits::{EntropySource, NonceGenerator};

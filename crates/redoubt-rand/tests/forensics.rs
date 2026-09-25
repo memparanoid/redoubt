@@ -46,9 +46,7 @@
 #![cfg(target_os = "linux")]
 
 use redoubt_forensics::{AnyError, Forensics, QUIET, Report, capture, forensics, freeze};
-use redoubt_rand::{
-    EntropySource, SystemEntropySource, fill_with_random_bytes, generate_random_key,
-};
+use redoubt_rand::{EntropySource, SystemEntropySource, fill_with_random_bytes};
 
 /// As much as a key is, which is the length that matters.
 const WIDE: usize = 32;
@@ -58,9 +56,6 @@ const WIDE: usize = 32;
 /// A piece that survives one call in fifty would not show once and would show
 /// plainly at two hundred.
 const ROUNDS: usize = 200;
-
-/// What the derivation is told the key is for.
-const INFO: &[u8] = b"redoubt-rand forensics";
 
 /// Every byte of it back to zero, so that what survives is not memory.
 ///
@@ -301,116 +296,6 @@ fn test_asking_the_source_leaves_nothing() -> Result<(), AnyError> {
     );
 
     drop(core::hint::black_box(got));
-
-    Ok(())
-}
-
-// ============================================================================
-// generate_random_key
-// ============================================================================
-
-/// The derived key is found while the buffer still holds it.
-#[test]
-fn test_a_derived_key_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
-    let mut key = vec![0_u8; WIDE];
-
-    generate_random_key(INFO, &mut key)?;
-
-    let mut watch = Forensics::watching(&backwards(&key))?;
-
-    forensics!({
-        freeze!();
-    });
-
-    let report = watch.snapshot()?;
-
-    is_found(&report, "the derived key, still in the buffer");
-
-    wipe(&mut key);
-
-    drop(core::hint::black_box(key));
-
-    Ok(())
-}
-
-/// Nothing of the derived key is reachable once the buffer is cleared.
-///
-/// The longest path in this crate, and the only one where the bytes are more
-/// than returned: entropy is asked for into a guard, run through a derivation,
-/// and written out. Every one of those steps is somewhere a copy could stay.
-///
-/// What cannot be asked here is about the input the derivation read. Nobody
-/// outside that call ever sees it, so there is no needle for it — the absence
-/// below is about the key that came out.
-#[test]
-fn test_deriving_a_key_leaves_nothing() -> Result<(), AnyError> {
-    let mut key = vec![0_u8; WIDE];
-
-    generate_random_key(INFO, &mut key)?;
-
-    let mut watch = Forensics::watching(&backwards(&key))?;
-
-    let report_before = watch.snapshot()?;
-
-    forensics!({
-        capture(|| wipe(&mut key));
-    });
-
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "derived, and still held",
-        &report_after,
-        "the buffer wiped",
-    );
-
-    drop(core::hint::black_box(key));
-
-    Ok(())
-}
-
-/// Two hundred later derivations leave nothing of the first key.
-#[test]
-fn test_two_hundred_derivations_leave_nothing_of_the_first() -> Result<(), AnyError> {
-    let mut key = vec![0_u8; WIDE];
-
-    generate_random_key(INFO, &mut key)?;
-
-    let needle = backwards(&key);
-
-    wipe(&mut key);
-
-    let mut watch = Forensics::watching(&needle)?;
-
-    let report_before = watch.snapshot()?;
-
-    forensics!({
-        capture(|| -> Result<(), AnyError> {
-            for _ in 0..ROUNDS {
-                let mut round = vec![0_u8; WIDE];
-
-                generate_random_key(INFO, &mut round)?;
-
-                wipe(&mut round);
-
-                drop(round);
-            }
-
-            Ok(())
-        })?;
-    });
-
-    let report_after = watch.snapshot()?;
-
-    leaves_nothing(
-        &report_before,
-        "derived once, and wiped",
-        &report_after,
-        &format!("{ROUNDS} more derivations"),
-    );
-
-    drop(core::hint::black_box(key));
 
     Ok(())
 }
