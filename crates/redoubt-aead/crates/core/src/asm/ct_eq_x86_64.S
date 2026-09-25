@@ -13,10 +13,9 @@
 //   it to `core::hint::black_box` so the optimizer cannot prove the loop away.
 //   What `black_box` does is materialize the value and forbid reasoning about
 //   it — so the one instruction there to protect the timing is the one that
-//   guarantees the fold survives somewhere nothing wipes. And at sixteen bytes
-//   the loop above it vectorizes: both operands land in xmm registers, which
-//   every register budget in this workspace deliberately excludes, because
-//   until now nothing here wrote one.
+//   guarantees the fold survives somewhere nothing wipes. At sixteen bytes the
+//   loop around it vectorizes, and both operands land in xmm registers that
+//   nothing then clears.
 //
 // What is being protected:
 //   The computed tag. On a verification that fails, that tag is the forgery for
@@ -86,14 +85,13 @@
 //   - Caller-saved GPR: rax, rcx, rdx, rsi, rdi, r8-r11
 //   - Callee-saved GPR: rbx, rbp, r12-r15  (DO NOT TOUCH)
 //
-// Every register these routines put anything in is named once, below, and
-// every operation over the set goes through that one list. Emptying them and
-// asking whether they are empty are the same nine registers by construction,
-// not by two lists that happen to agree today.
+// Every register this file puts anything in is named once, below, and every
+// operation over the set goes through that one list. A register added to the
+// wipe and missing from the verifier is a register nothing looks at, silently.
 //
-// The comparison writes seven of the nine, and r10 and r11 are in the list
-// anyway. Two `xor` are cheaper than the day somebody reaches for a spare
-// register here and the verifier, asked about seven, says nothing about it.
+// The list is the whole caller-saved set, including registers the comparison
+// never writes, so the verifier still asks about them the day somebody reaches
+// for a spare.
 //
 // Does NOT include: rsp, rbx, rbp, r12-r15. Nothing here puts anything in
 // them, so there is nothing of ours to clear — and no prologue saving them,
@@ -135,43 +133,50 @@
     or rcx, \reg
 .endm
 
-// ============================================================================
-// Catastrophic Register Zeroization Macro (caller-saved only)
-// ============================================================================
+// The `xor`s also leave ZF set whatever the comparison left in the flags.
 .macro CT_ZEROIZE_ALL
     CT_EACH CT_CLEAR
 .endm
 
 // ============================================================================
-// Constant-time comparison — rdi: a, rsi: b, rdx: length, rcx: out
+// ct_eq
 // ============================================================================
 //
-// Writes one to the byte at rcx when the two runs of `length` bytes are equal,
-// and zero when they are not. A length of zero writes one: nothing differs.
+// C signature:
+//   void redoubt_ct_eq(const uint8_t *a, const uint8_t *b, size_t len,
+//                      uint8_t *out);
+//
+// Parameters (SysV ABI):
+//   rdi: a, rsi: b, rdx: len, rcx: out
+//
+// Writes one to `out` when the two runs of `len` bytes are equal, and zero when
+// they are not. A length of zero writes one: nothing differs.
 //
 // The caller checks that the two lengths agree. Two runs of different length
 // are not a timing question, they are a public fact about the message.
-//
 .p2align 4
 .globl FUNC(redoubt_ct_eq)
 HIDDEN_FUNC(redoubt_ct_eq)
+#if !defined(__APPLE__)
+.type FUNC(redoubt_ct_eq), @function
+#endif
 FUNC(redoubt_ct_eq):
     // r8 accumulates the differences and r9 indexes. Both start empty, which
     // is also the answer for a length of zero.
     xor r8d, r8d
     xor r9d, r9d
     test rdx, rdx
-    jz Lfold
+    jz .Lfold
 
-Lbyte:
+.Lbyte:
     mov al, [rdi + r9]
     xor al, [rsi + r9]
     or r8b, al
     inc r9
     cmp r9, rdx
-    jb Lbyte
+    jb .Lbyte
 
-Lfold:
+.Lfold:
     // One when nothing differed, zero otherwise. `sete` reads the flags the
     // test set; it does not jump on them, so neither answer is a shorter path
     // than the other.
@@ -181,6 +186,10 @@ Lfold:
 
     CT_ZEROIZE_ALL
     ret
+
+#if !defined(__APPLE__)
+.size FUNC(redoubt_ct_eq), .-FUNC(redoubt_ct_eq)
+#endif
 
 // ============================================================================
 // THE ZEROIZATION PROBE — everything below measures the routine above
@@ -232,6 +241,13 @@ FUNC(redoubt_ct_dirty_registers):
     CT_EACH CT_FILL
     ret
 
+// ============================================================================
+// Stack permissions
+// ============================================================================
+//
+// An object with no .note.GNU-stack is one the linker assumes wants an
+// executable stack, and one such object gives it to the whole binary. Nothing
+// here needs one.
 #if !defined(__APPLE__)
 .section .note.GNU-stack,"",@progbits
 #endif

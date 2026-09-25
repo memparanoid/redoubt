@@ -12,27 +12,18 @@
 
 use std::vec::Vec;
 
+use redoubt_asm::Backend;
 use rstest::rstest;
 
 use crate::backend::{constant_time_eq, constant_time_eq_with_backend};
-use redoubt_asm::Backend;
 
 /// A tag's width, which is what every caller of this compares.
 const TAG_SIZE: usize = 16;
 
-/// The precondition every case below rests on, which is why it is first.
-///
-/// The two backends are the same code where the target has no assembly, and a
-/// pair of cases that found them agreeing there would have proved nothing
-/// about either — while reading as though it had proved it twice.
-/// Where this file says the assembly belongs, written out rather than taken
-/// from the build script.
-///
-/// Gating on `ct_asm` would be the build script agreeing with itself. This is
-/// the other half of a pair: the build script decides, and this says what it
-/// was meant to decide. A target that drops out of one and not the other lands
-/// here as a failure instead of as a suite that quietly stopped comparing two
-/// backends.
+/// Both backends are the same code where the target has no assembly, and
+/// the cases below would read as proving agreement twice. The gate is written
+/// out rather than taken from `ct_asm`, so a target that drops out of the build
+/// script and not out of this lands here as a failure.
 #[test]
 #[cfg(all(
     not(target_os = "windows"),

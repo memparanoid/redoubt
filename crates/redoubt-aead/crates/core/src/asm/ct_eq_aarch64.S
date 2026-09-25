@@ -13,10 +13,9 @@
 //   it to `core::hint::black_box` so the optimizer cannot prove the loop away.
 //   What `black_box` does is materialize the value and forbid reasoning about
 //   it — so the one instruction there to protect the timing is the one that
-//   guarantees the fold survives somewhere nothing wipes. And at sixteen bytes
-//   the loop above it vectorizes: both operands land in vector registers, which
-//   every register budget in this workspace deliberately excludes, because
-//   until now nothing here wrote one.
+//   guarantees the fold survives somewhere nothing wipes. At sixteen bytes the
+//   loop around it vectorizes, and both operands land in vector registers that
+//   nothing then clears.
 //
 // What is being protected:
 //   The computed tag. On a verification that fails, that tag is the forgery for
@@ -35,9 +34,9 @@
 // Platform Support:
 //   - Linux aarch64 (AAPCS)
 //   - macOS aarch64 (AAPCS, with the leading underscore below)
-//   - Windows aarch64 EXCLUDED, for the same reason as the x86-64 file: the
-//     build script compiles no assembly there and the crate falls back to the
-//     Rust, which answers the same and promises less.
+//   - Windows aarch64 EXCLUDED: the build script compiles no assembly there
+//     and the crate falls back to the Rust, which answers the same and promises
+//     less.
 //
 // What crosses into here, and what does not:
 //   Every argument is a pointer to storage the caller declared, except the
@@ -71,7 +70,7 @@
 
 #if defined(__APPLE__)
     #define FUNC(name) _##name
-    #define HIDDEN_FUNC(name)
+    #define HIDDEN_FUNC(name) .private_extern _##name
 #else
     #define FUNC(name) name
     #define HIDDEN_FUNC(name) .hidden name
@@ -86,14 +85,13 @@
 //   - Platform register: x18            (DO NOT TOUCH)
 //   - Callee-saved GPR: x19-x28, x29 (FP), x30 (LR)  (DO NOT TOUCH)
 //
-// Every register these routines put anything in is named once, below, and
-// every operation over the set goes through that one list. Emptying them and
-// asking whether they are empty are the same eighteen registers by
-// construction, not by two lists that happen to agree today.
+// Every register this file puts anything in is named once, below, and every
+// operation over the set goes through that one list. A register added to the
+// wipe and missing from the verifier is a register nothing looks at, silently.
 //
-// The comparison writes six of the eighteen, and the rest are in the list
-// anyway. A dozen `mov` are cheaper than the day somebody reaches for a spare
-// register here and the verifier, asked about six, says nothing about it.
+// The list is the whole caller-saved set, including registers the comparison
+// never writes, so the verifier still asks about them the day somebody reaches
+// for a spare.
 //
 // Does NOT include: x18 is the platform register, and x19 upward are the
 // caller's. x30 is where `bl` puts the return address, so asking a verifier
@@ -128,24 +126,29 @@
     orr x1, x1, \reg
 .endm
 
-// ============================================================================
-// Catastrophic Register Zeroization Macro (caller-saved only)
-// ============================================================================
+// The `cmp` is not a register: `mov` leaves the flags alone, so without it the
+// flags would still say whether the two runs were equal.
 .macro CT_ZEROIZE_ALL
     CT_EACH CT_CLEAR
     cmp xzr, xzr
 .endm
 
 // ============================================================================
-// Constant-time comparison — x0: a, x1: b, x2: length, x3: out
+// ct_eq
 // ============================================================================
 //
-// Writes one to the byte at x3 when the two runs of `length` bytes are equal,
-// and zero when they are not. A length of zero writes one: nothing differs.
+// C signature:
+//   void redoubt_ct_eq(const uint8_t *a, const uint8_t *b, size_t len,
+//                      uint8_t *out);
+//
+// Parameters (AAPCS):
+//   x0: a, x1: b, x2: len, x3: out
+//
+// Writes one to `out` when the two runs of `len` bytes are equal, and zero when
+// they are not. A length of zero writes one: nothing differs.
 //
 // The caller checks that the two lengths agree. Two runs of different length
 // are not a timing question, they are a public fact about the message.
-//
 .p2align 4
 .globl FUNC(redoubt_ct_eq)
 HIDDEN_FUNC(redoubt_ct_eq)
@@ -154,18 +157,18 @@ FUNC(redoubt_ct_eq):
     // is also the answer for a length of zero.
     mov w4, wzr
     mov x5, xzr
-    cbz x2, Lfold
+    cbz x2, .Lfold
 
-Lbyte:
+.Lbyte:
     ldrb w6, [x0, x5]
     ldrb w7, [x1, x5]
     eor w6, w6, w7
     orr w4, w4, w6
     add x5, x5, #1
     cmp x5, x2
-    b.lo Lbyte
+    b.lo .Lbyte
 
-Lfold:
+.Lfold:
     // One when nothing differed, zero otherwise. `cset` reads the flags the
     // compare set; it does not branch on them, so neither answer is a shorter
     // path than the other.
@@ -228,6 +231,13 @@ FUNC(redoubt_ct_dirty_registers):
     CT_EACH CT_FILL
     ret
 
+// ============================================================================
+// Stack permissions
+// ============================================================================
+//
+// An object with no .note.GNU-stack is one the linker assumes wants an
+// executable stack, and one such object gives it to the whole binary. Nothing
+// here needs one.
 #if !defined(__APPLE__)
 .section .note.GNU-stack,"",%progbits
 #endif

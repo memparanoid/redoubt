@@ -2,7 +2,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-mod backend;
-
-#[cfg(feature = "constant-time")]
-mod constant_time;
+mod probes;
