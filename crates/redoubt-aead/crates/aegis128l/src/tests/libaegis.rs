@@ -2,6 +2,21 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! Every encryption libaegis was asked for, against the same one made here.
+//!
+//! libsodium has AEGIS-128L only with a 256-bit tag; libaegis writes the
+//! 128-bit one this crate writes, and the generator holds it to the draft's
+//! published encryptions before it writes anything. What chooses the path
+//! through the construction is how long the message and the associated data
+//! are — blocks of thirty-two either side — so both are walked, and what is
+//! carried is one digest per message length.
+//!
+//! Nothing is transcribed: every input is derived from a seed that is the
+//! digest of an ASCII string. The enumeration and the seeds are written in the
+//! file's header and held to the ones below. The file has to be generated from
+//! libaegis: generated from this crate, it would freeze whatever this crate
+//! does today and go on passing for ever.
+
 use std::string::String;
 use std::vec::Vec;
 
@@ -15,24 +30,35 @@ use redoubt_hkdf::sha256;
 
 use crate::aegis128l::Aegis128L;
 
+/// One digest per message length, generated from libaegis by the script beside
+/// it.
 const DIGESTS: &str = include_str!("../../vectors/aegis128l_digests.txt");
 
+/// A SHA-256 digest, which derives every input and folds every row.
 const DIGEST_SIZE: usize = 32;
 
+/// The rows, in the order both sides walk them: every tail of the block several
+/// times over, then lengths that take many blocks.
 fn msg_lengths() -> Vec<usize> {
     (0..248)
         .chain([1024, 4095, 4096, 4097, 16384, 65535, 65536, 65537])
         .collect()
 }
 
+/// The associated data inside a row: every tail of the block, and lengths past
+/// it.
 fn aad_lengths() -> Vec<usize> {
     (0..56)
         .chain([127, 128, 129, 255, 256, 257, 1024, 4096])
         .collect()
 }
 
+/// How many sets of inputs each pair of lengths is walked with.
 const SAMPLES: usize = 2;
 
+/// Which field the material is for, spelled as the generator spells it.
+///
+/// The word goes into the seed, so a different spelling is a different corpus.
 #[derive(Clone, Copy)]
 enum Field {
     Key,
@@ -54,6 +80,7 @@ impl Field {
     }
 }
 
+/// Bytes as the lowercase hex the file is written in.
 fn hex(of: &[u8]) -> String {
     let mut said = String::with_capacity(of.len() * 2);
 
@@ -65,6 +92,10 @@ fn hex(of: &[u8]) -> String {
     said
 }
 
+/// The value of every `Name = value` line with that name.
+///
+/// A prefix is enough: `Msg` does not match `MsgLengths`, because what follows
+/// the name has to be `=`.
 fn field<'a>(said: &'a str, name: &str) -> Vec<&'a str> {
     said.lines()
         .filter_map(|line| line.trim().strip_prefix(name))
@@ -73,6 +104,7 @@ fn field<'a>(said: &'a str, name: &str) -> Vec<&'a str> {
         .collect()
 }
 
+/// A header line of numbers, which the file says once.
 fn listed(name: &str) -> Vec<usize> {
     let lines = field(DIGESTS, name);
 
@@ -84,6 +116,7 @@ fn listed(name: &str) -> Vec<usize> {
         .collect()
 }
 
+/// A field's seed, derived so that there is no hexadecimal to transcribe.
 fn seed(field: Field) -> [u8; DIGEST_SIZE] {
     let mut said = Vec::from(b"redoubt-aegis128l corpus ".as_slice());
     said.extend_from_slice(field.said().as_bytes());
@@ -94,6 +127,10 @@ fn seed(field: Field) -> [u8; DIGEST_SIZE] {
     out
 }
 
+/// The bytes this field takes in this sample of the cell of these lengths.
+///
+/// The length, the cell and the sample are all in the derivation, so no input
+/// is a prefix or a copy of another.
 fn material(field: Field, length: usize, msg_len: usize, aad_len: usize, sample: usize) -> Vec<u8> {
     let seed = seed(field);
     let mut said = Vec::with_capacity(length + DIGEST_SIZE);
@@ -120,6 +157,8 @@ fn material(field: Field, length: usize, msg_len: usize, aad_len: usize, sample:
     said
 }
 
+/// The digest published for each message length, in the order they were
+/// written.
 fn published() -> Vec<(usize, &'static str)> {
     let lengths = field(DIGESTS, "Msg");
     let digests = field(DIGESTS, "MD");
@@ -138,7 +177,21 @@ fn published() -> Vec<(usize, &'static str)> {
         .collect()
 }
 
-fn row(msg_len: usize) -> String {
+/// Which part of a row's first cell has a bit turned over before the fold, or
+/// `Nothing` for the walk itself.
+#[derive(Clone, Copy)]
+enum Turn {
+    Nothing,
+    Ciphertext,
+    Tag,
+}
+
+/// One row: every aad length and sample of that message length, folded into one
+/// digest.
+///
+/// Each encryption is decrypted back as well, so a ciphertext that equals
+/// libaegis's is one this crate opens.
+fn row(msg_len: usize, turn: Turn) -> String {
     let mut said = Vec::new();
 
     for aad_len in aad_lengths() {
@@ -172,6 +225,12 @@ fn row(msg_len: usize) -> String {
         }
     }
 
+    match turn {
+        Turn::Nothing => {}
+        Turn::Ciphertext => said[0] ^= 1,
+        Turn::Tag => said[msg_len] ^= 1,
+    }
+
     let mut digest = [0_u8; DIGEST_SIZE];
     sha256(&said, &mut digest);
 
@@ -197,6 +256,8 @@ fn test_the_samples_are_the_ones_the_file_was_generated_from() {
     assert_eq!(listed("Samples"), [SAMPLES]);
 }
 
+/// A seed that drifted on either side would turn every row red at once, and
+/// read as this crate being wrong at every length.
 #[test]
 fn test_the_seeds_are_the_ones_the_file_was_generated_from() {
     for field in Field::ALL {
@@ -244,6 +305,9 @@ fn test_the_material_differs_between_samples() {
     );
 }
 
+/// The rows are matched to the walk by position, and this is also what says the
+/// sweep below is not an empty loop: an equality nobody reaches passes without
+/// comparing anything.
 #[test]
 fn test_the_file_covers_the_lengths_the_walk_reaches() {
     let published: Vec<usize> = published().iter().map(|(length, _)| *length).collect();
@@ -255,6 +319,41 @@ fn test_the_file_covers_the_lengths_the_walk_reaches() {
 // What libaegis answered
 // === === === === === === === === === ===
 
+/// The published row of the shortest message that has a byte to turn over.
+fn a_row_with_a_message() -> (usize, &'static str) {
+    let published = published();
+    let (msg_len, expected) = published[1];
+
+    assert!(msg_len > 0, "the row has a message byte to turn over");
+
+    (msg_len, expected)
+}
+
+/// The sweep below compares a digest with a digest, and a comparison that could
+/// not come out unequal would pass it at every length.
+#[test]
+fn test_a_row_with_one_ciphertext_bit_turned_over_disagrees_with_libaegis() {
+    let (msg_len, expected) = a_row_with_a_message();
+
+    assert_ne!(row(msg_len, Turn::Ciphertext), expected);
+}
+
+/// A fold that left the tag out would still agree on every ciphertext, and
+/// would go green here and nowhere else.
+#[test]
+fn test_a_row_with_one_tag_bit_turned_over_disagrees_with_libaegis() {
+    let (msg_len, expected) = a_row_with_a_message();
+
+    assert_ne!(row(msg_len, Turn::Tag), expected);
+}
+
+/// How many ways the walk is split, so that nextest runs the pieces side by
+/// side.
+///
+/// **This has to equal how many values `shard` is given below**, and nothing
+/// makes it. Fewer values and the rows of the shards nobody was given are never
+/// walked, while the suite stays green. The `assert!` in the body catches the
+/// other direction only.
 const SHARDS: usize = 8;
 
 #[rstest]
@@ -267,7 +366,7 @@ fn test_every_length_agrees_with_libaegis(#[values(0, 1, 2, 3, 4, 5, 6, 7)] shar
         }
 
         assert_eq!(
-            row(msg_len),
+            row(msg_len, Turn::Nothing),
             expected,
             "the row libaegis answered for a message of {msg_len} bytes"
         );
