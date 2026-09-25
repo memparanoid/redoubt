@@ -120,8 +120,16 @@ fn published() -> Vec<(usize, &'static str)> {
         .collect()
 }
 
+/// Whether the first output of a row has a bit turned over before the fold, or
+/// `Nothing` for the walk itself.
+#[derive(Clone, Copy)]
+enum Turn {
+    Nothing,
+    Okm,
+}
+
 /// One row: every derivation of that info length, folded into one digest.
-fn row(backend: Backend, info: &[u8]) -> [u8; HASH_SIZE] {
+fn row(backend: Backend, info: &[u8], turn: Turn) -> [u8; HASH_SIZE] {
     let widest = OKM_LENGTHS.iter().copied().max().expect("a widest output");
     let mut okm = vec![0_u8; widest];
     let mut said = Vec::new();
@@ -137,6 +145,11 @@ fn row(backend: Backend, info: &[u8]) -> [u8; HASH_SIZE] {
                 said.extend_from_slice(&okm[..okm_len]);
             }
         }
+    }
+
+    match turn {
+        Turn::Nothing => {}
+        Turn::Okm => said[0] ^= 1,
     }
 
     let mut digest = [0_u8; HASH_SIZE];
@@ -221,6 +234,16 @@ fn test_the_file_covers_the_lengths_the_walk_reaches() {
 // What libsodium answered
 // === === === === === === === === === ===
 
+/// The sweep below compares a digest with a digest, and a comparison that could
+/// not come out unequal would pass it at every length.
+#[test]
+fn test_a_row_with_one_okm_bit_turned_over_disagrees_with_libsodium() {
+    let (info_len, expected) = published()[0];
+    let info = material(Field::Info, info_len);
+
+    assert_ne!(hex(&row(Backend::Auto, &info, Turn::Okm)), expected);
+}
+
 /// How many ways the walk is split, so that the cores are.
 ///
 /// Eight, against two backends, is one test per core on a machine with sixteen.
@@ -256,7 +279,7 @@ fn test_every_length_agrees_with_libsodium(
         let info = material(Field::Info, info_len);
 
         assert_eq!(
-            hex(&row(backend, &info)),
+            hex(&row(backend, &info, Turn::Nothing)),
             expected,
             "the row libsodium answered for an info of {info_len} bytes"
         );
