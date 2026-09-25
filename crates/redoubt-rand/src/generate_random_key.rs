@@ -14,6 +14,7 @@ use redoubt_hkdf::hkdf;
 use redoubt_zero::ZeroizingGuard;
 
 use crate::error::EntropyError;
+use crate::fill::fill_with_random_bytes;
 
 /// What separates this extraction from every other use of the same hash.
 ///
@@ -85,7 +86,7 @@ const SALT: &[u8] = b"redoubt-rand.generate_random_key.v1";
 pub fn generate_random_key(info: &[u8], output_key: &mut [u8]) -> Result<(), EntropyError> {
     let mut ikm = ZeroizingGuard::from_mut(&mut vec![0u8; output_key.len()]);
 
-    getrandom::fill(&mut ikm).map_err(|_| EntropyError::EntropyNotAvailable)?;
+    fill_with_random_bytes(&mut ikm)?;
 
     hkdf(&ikm, SALT, info, output_key).map_err(|_| EntropyError::EntropyNotAvailable)
 }

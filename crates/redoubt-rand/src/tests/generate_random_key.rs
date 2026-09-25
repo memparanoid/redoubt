@@ -53,3 +53,34 @@ fn test_generate_random_key_info_provides_domain_separation()
 
     Ok(())
 }
+
+#[cfg(target_os = "linux")]
+mod seccomp_getrandom {
+    use redoubt_test_utils::run_test_as_subprocess;
+
+    use crate::error::EntropyError;
+    use crate::generate_random_key::generate_random_key;
+
+    use crate::tests::utils::block_getrandom;
+
+    #[test]
+    #[ignore]
+    fn subprocess_test_generate_random_key_propagates_entropy_not_available() {
+        let mut key = [0_u8; 32];
+
+        block_getrandom();
+
+        let result = generate_random_key(b"test.refused", &mut key);
+
+        assert!(matches!(result, Err(EntropyError::EntropyNotAvailable)));
+    }
+
+    #[test]
+    fn test_generate_random_key_propagates_entropy_not_available() {
+        let exit_code = run_test_as_subprocess(
+            "tests::generate_random_key::seccomp_getrandom::subprocess_test_generate_random_key_propagates_entropy_not_available",
+        );
+
+        assert_eq!(exit_code, Some(0), "the refused fill did not propagate");
+    }
+}

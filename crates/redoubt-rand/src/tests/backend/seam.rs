@@ -56,3 +56,35 @@ fn test_fill_returns_different_bytes_each_time(
 
     Ok(())
 }
+
+#[cfg(all(target_os = "linux", rand_asm))]
+mod seccomp_getrandom {
+    use redoubt_asm::Backend;
+    use redoubt_test_utils::run_test_as_subprocess;
+
+    use crate::backend::fill;
+    use crate::error::EntropyError;
+
+    use crate::tests::utils::block_getrandom;
+
+    #[test]
+    #[ignore]
+    fn subprocess_test_fill_reports_entropy_not_available_when_getrandom_is_refused() {
+        let mut bytes = [0_u8; 32];
+
+        block_getrandom();
+
+        let result = fill(Backend::Auto, &mut bytes);
+
+        assert!(matches!(result, Err(EntropyError::EntropyNotAvailable)));
+    }
+
+    #[test]
+    fn test_fill_reports_entropy_not_available_when_getrandom_is_refused() {
+        let exit_code = run_test_as_subprocess(
+            "tests::backend::seam::seccomp_getrandom::subprocess_test_fill_reports_entropy_not_available_when_getrandom_is_refused",
+        );
+
+        assert_eq!(exit_code, Some(0), "the refused fill did not report");
+    }
+}

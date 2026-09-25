@@ -33,9 +33,13 @@ cc.workspace = true
 
 [dev-dependencies]
 proptest.workspace          = true
-redoubt-forensics.workspace = true
-redoubt-mem.workspace       = true
-rstest.workspace            = true
+redoubt-forensics.workspace  = true
+redoubt-mem.workspace        = true
+redoubt-test-utils.workspace = true
+rstest.workspace             = true
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+libseccomp.workspace = true
 
 [features]
 test-utils = []

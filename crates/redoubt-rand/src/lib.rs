@@ -65,6 +65,7 @@ mod tests;
 
 mod backend;
 mod error;
+mod fill;
 mod generate_random_key;
 mod session;
 mod system;
@@ -74,6 +75,7 @@ mod traits;
 pub mod support;
 
 pub use error::EntropyError;
+pub use fill::fill_with_random_bytes;
 pub use generate_random_key::generate_random_key;
 pub use session::NonceSessionGenerator;
 pub use system::SystemEntropySource;
@@ -84,21 +86,3 @@ pub use session::NonceSessionGeneratorBehaviour;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub use support::test_utils;
-
-/// Fills a buffer with cryptographically secure random bytes.
-///
-/// On Linux, x86-64 and AArch64, the kernel writes them straight into `dest`,
-/// asked by a routine that leaves none of them in a register. Elsewhere they
-/// come from the `getrandom` crate.
-///
-/// # Example
-///
-/// ```rust
-/// use redoubt_rand::fill_with_random_bytes;
-///
-/// let mut key = [0u8; 32];
-/// fill_with_random_bytes(&mut key).expect("Failed to generate random bytes");
-/// ```
-pub fn fill_with_random_bytes(dest: &mut [u8]) -> Result<(), EntropyError> {
-    backend::fill(redoubt_asm::Backend::default(), dest)
-}

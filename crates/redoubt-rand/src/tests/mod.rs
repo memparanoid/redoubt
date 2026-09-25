@@ -8,3 +8,6 @@ mod generate_random_key;
 mod session;
 mod support;
 mod system;
+
+#[cfg(target_os = "linux")]
+mod utils;
