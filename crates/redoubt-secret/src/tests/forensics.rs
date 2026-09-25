@@ -12,6 +12,7 @@
 //! Run under `nextest`: the sweep reads the whole process, and `cargo test`
 //! shares one between tests.
 
+use redoubt_codec::{BytesRequired, Decode, Encode, EncodeError, RedoubtCodecBuffer};
 use redoubt_forensics::{AnyError, Forensics, QUIET, Report, capture, forensics};
 use redoubt_zero::FastZeroizable;
 
@@ -62,6 +63,25 @@ fn giving(into: &mut [u8; 32], from: &[u8; 32]) {
     // SAFETY: both are thirty-two bytes, and a constant and a local are
     // different allocations.
     unsafe { redoubt_mem::copy_nonoverlapping(from.as_ptr(), into.as_mut_ptr(), from.len()) };
+}
+
+/// A secret holding `from`, filled by the copy that erases what it used.
+fn holding(from: &[u8; 32]) -> RedoubtSecret<[u8; 32]> {
+    let mut source = [0_u8; 32];
+
+    giving(&mut source, from);
+
+    RedoubtSecret::from(&mut source)
+}
+
+/// The wire a secret holding `from` encodes into.
+fn wire(from: &[u8; 32]) -> Result<Vec<u8>, AnyError> {
+    let mut held = holding(from);
+    let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
+
+    held.encode_into(&mut buffer)?;
+
+    Ok(buffer.export_as_vec())
 }
 
 /// Takes the value and lets it go, which runs its drop somewhere the caller
@@ -240,19 +260,219 @@ fn test_zeroizing_a_secret_leaves_nothing() -> Result<(), AnyError> {
 }
 
 // ============================================================================
-// Encode and Decode for RedoubtSecret
+// BytesRequired for RedoubtSecret
 // ============================================================================
 
 #[test]
-#[ignore = "TODO: the codec derive's forensics, which measure what it generates for every struct."]
-fn test_encoding_a_secret_leaves_nothing() {
+#[ignore = "Reads no secret: it adds lengths."]
+fn test_sizing_a_secret_leaves_nothing() {
     // Intentionally empty.
 }
 
+// ============================================================================
+// Encode for RedoubtSecret
+// ============================================================================
+
 #[test]
-#[ignore = "TODO: the codec derive's forensics, which measure what it generates for every struct."]
-fn test_decoding_a_secret_leaves_nothing() {
-    // Intentionally empty.
+fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut held = holding(&SECRET);
+
+    forensics!({
+        let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
+
+        capture(|| held.encode_into(&mut buffer))?;
+
+        // What encode was given, emptied: what is found is what it wrote.
+        held.fast_zeroize();
+
+        core::mem::forget(buffer);
+    });
+
+    is_found(&watch.snapshot()?, "a buffer a secret was encoded into, and kept");
+
+    Ok(())
+}
+
+#[test]
+fn test_encoding_a_secret_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut held = holding(&SECRET);
+
+    forensics!({
+        let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
+
+        capture(|| held.encode_into(&mut buffer))?;
+
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
+        buffer.fast_zeroize();
+
+        // Forgotten and not emptied: emptying it is the operation's.
+        core::mem::forget(held);
+    });
+
+    leaves_nothing(&report_before, &watch.snapshot()?, "a secret encoded");
+
+    Ok(())
+}
+
+#[test]
+fn test_encoding_a_secret_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut held = holding(&SECRET);
+
+    forensics!({
+        let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()? / 2);
+
+        let refused = capture(|| held.encode_into(&mut buffer));
+
+        assert!(
+            matches!(refused, Err(EncodeError::RedoubtCodecBufferError(_))),
+            "a buffer too small was not refused: {refused:?}"
+        );
+
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
+        //
+        // Forgotten and not emptied: emptying them is the operation's.
+        core::mem::forget((held, buffer));
+    });
+
+    leaves_nothing(
+        &report_before,
+        &watch.snapshot()?,
+        "a secret encoded into a buffer too small",
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// Decode for RedoubtSecret
+// ============================================================================
+
+#[test]
+fn test_what_decoding_wrote_is_found_while_the_secret_holds_it() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut wire = wire(&SECRET)?;
+
+    forensics!({
+        let mut back = RedoubtSecret::<[u8; 32]>::default();
+
+        capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
+
+        // What decode was given, emptied: what is found is what it wrote.
+        wire.fast_zeroize();
+
+        hold_on(back);
+    });
+
+    is_found(&watch.snapshot()?, "a secret decoded into, and kept");
+
+    Ok(())
+}
+
+#[test]
+fn test_decoding_a_secret_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut wire = wire(&SECRET)?;
+
+    forensics!({
+        let mut back = RedoubtSecret::<[u8; 32]>::default();
+
+        capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
+
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
+        drop(back);
+
+        // Forgotten and not emptied: emptying it is the operation's.
+        core::mem::forget(wire);
+    });
+
+    leaves_nothing(&report_before, &watch.snapshot()?, "a secret decoded");
+
+    Ok(())
+}
+
+/// The value the secret held before is what is watched for, and the secret is
+/// kept holding the one decoded: nothing of the old may be left anywhere.
+#[test]
+fn test_decoding_over_a_secret_that_holds_one_leaves_nothing_of_the_old() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut wire = wire(&OTHER)?;
+    let mut back = holding(&SECRET);
+
+    forensics!({
+        capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
+
+        // Forgotten and not emptied: emptying it is the operation's.
+        core::mem::forget(wire);
+    });
+
+    leaves_nothing(
+        &report_before,
+        &watch.snapshot()?,
+        "a secret decoded over one it held",
+    );
+
+    drop(back);
+
+    Ok(())
+}
+
+#[test]
+fn test_decoding_a_secret_from_a_wire_cut_short_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut wire = wire(&SECRET)?;
+    let half = wire.len() / 2;
+
+    forensics!({
+        let mut back = RedoubtSecret::<[u8; 32]>::default();
+
+        let refused = capture(|| back.decode_from(&mut &mut wire[..half]));
+
+        assert!(refused.is_err(), "a wire cut short was not refused");
+
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
+        //
+        // The half decode was never handed is the test's to empty.
+        wire[half..].fast_zeroize();
+
+        // Forgotten and not emptied: emptying them is the operation's.
+        core::mem::forget((back, wire));
+    });
+
+    leaves_nothing(
+        &report_before,
+        &watch.snapshot()?,
+        "a secret decoded from a wire cut short",
+    );
+
+    Ok(())
 }
 
 // ============================================================================
