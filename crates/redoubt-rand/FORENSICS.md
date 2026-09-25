@@ -13,6 +13,25 @@ register the routine could have written reads as zero afterwards, whatever the
 bytes were. That is stronger than a sweep for a needle, and no forensics test
 re-measures it.
 
+## What is measured
+
+The Rust above the routine: `fill_with_random_bytes`, which asks for the bytes a
+piece at a time, and `SystemEntropySource::fill_bytes`, which hands them on.
+Each has a presence and an absence in `src/tests/forensics/`.
+
+The bytes do not exist until the call produces them, so there is no needle
+beforehand. The call runs inside `capture`, with the capture's register form
+picked before the block; the needle is read out of the buffer afterwards, the
+buffer is wiped, and only then is the watch built. The capture has already
+copied the registers and the stack into memory nothing else writes, so building
+the watch does not reach them — `redoubt-forensics` vouches for that with a
+secret left in a wide register and a frame left full, each found by a watch
+built after the capture.
+
+What that costs: there is no photograph from before, so an absence asserts that
+no copy and no run wider than `QUIET` is left, but not that the score did not
+move.
+
 ## Why the `getrandom` crate is not measured
 
 Everywhere else — another operating system, another architecture, and
