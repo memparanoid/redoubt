@@ -7,19 +7,19 @@ version.workspace = true
 [dependencies]
 redoubt-aead = { path = "../crates/redoubt-aead" }
 
-redoubt-aead-aegis128l = { path = "../crates/redoubt-aead/crates/aegis128l" }
-redoubt-aead-core = { path = "../crates/redoubt-aead/crates/core" }
+redoubt-aead-aegis128l       = { path = "../crates/redoubt-aead/crates/aegis128l" }
+redoubt-aead-core            = { path = "../crates/redoubt-aead/crates/core" }
 redoubt-aead-xchachapoly1305 = { path = "../crates/redoubt-aead/crates/xchachapoly1305" }
-redoubt-alloc = { path = "../crates/redoubt-alloc" }
-redoubt-asm = { path = "../crates/redoubt-asm" }
-redoubt-buffer = { path = "../crates/redoubt-buffer" }
-redoubt-chacha = { path = "../crates/redoubt-aead/crates/chacha" }
-redoubt-codec = { path = "../crates/redoubt-codec" }
-redoubt-hkdf = { path = "../crates/redoubt-hkdf" }
-redoubt-poly1305 = { path = "../crates/redoubt-aead/crates/poly1305" }
-redoubt-util = { path = "../crates/redoubt-util" }
-redoubt-vault = { path = "../crates/redoubt-vault" }
-redoubt-zero = { path = "../crates/redoubt-zero" }
+redoubt-alloc                = { path = "../crates/redoubt-alloc" }
+redoubt-asm                  = { path = "../crates/redoubt-asm" }
+redoubt-buffer               = { path = "../crates/redoubt-buffer" }
+redoubt-chacha               = { path = "../crates/redoubt-aead/crates/chacha" }
+redoubt-codec                = { path = "../crates/redoubt-codec" }
+redoubt-hkdf                 = { path = "../crates/redoubt-hkdf" }
+redoubt-poly1305             = { path = "../crates/redoubt-aead/crates/poly1305" }
+redoubt-util                 = { path = "../crates/redoubt-util" }
+redoubt-vault                = { path = "../crates/redoubt-vault" }
+redoubt-zero                 = { path = "../crates/redoubt-zero" }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

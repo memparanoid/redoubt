@@ -56,11 +56,7 @@ unsafe impl GlobalAlloc for DirtyAllocator {
             // SAFETY: the block holds `new_size` bytes, and what is written
             // starts past the `layout.size()` the caller's bytes take.
             unsafe {
-                core::ptr::write_bytes(
-                    grown.add(layout.size()),
-                    DIRT,
-                    new_size - layout.size(),
-                )
+                core::ptr::write_bytes(grown.add(layout.size()), DIRT, new_size - layout.size())
             };
         }
 
