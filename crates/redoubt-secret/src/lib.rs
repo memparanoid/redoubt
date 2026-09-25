@@ -78,7 +78,7 @@ use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe};
 /// // ✅ SAFE: Only uses a reference
 /// assert_eq!(secret.as_ref(), &0xDEADBEEF);
 /// ```
-#[derive(PartialEq, Eq, RedoubtZero, RedoubtCodec)]
+#[derive(RedoubtZero, RedoubtCodec)]
 #[fast_zeroize(drop)]
 pub struct RedoubtSecret<T>
 where
