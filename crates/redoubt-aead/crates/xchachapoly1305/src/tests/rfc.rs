@@ -110,12 +110,12 @@ fn test_decrypt_returns_the_published_plaintext(#[case] backend: Backend) {
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_the_one_time_key_is_the_published_one(#[case] backend: Backend) {
-    let cipher = XChaCha20::with_backend(backend);
+    let cipher = XChaCha20::new();
     let (key, nonce) = widths();
 
     let mut derived = [0u8; POLY_KEY_SIZE];
 
-    cipher.xor(&key, &nonce, 0, &mut derived);
+    cipher.xor(backend, &key, &nonce, 0, &mut derived);
 
     assert_eq!(
         derived.to_vec(),

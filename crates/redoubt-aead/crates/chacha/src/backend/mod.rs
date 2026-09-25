@@ -42,8 +42,12 @@ use crate::consts::WORDS;
 ///
 /// Where it is false the two backends are the same code, and a test that finds
 /// them agreeing has proved nothing.
-#[cfg(any(test, feature = "test-utils"))]
-pub const HAS_ASM: bool = cfg!(chacha_asm);
+#[cfg(all(
+    test,
+    not(target_os = "windows"),
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
+pub(crate) const HAS_ASM: bool = cfg!(chacha_asm);
 
 /// The twenty rounds, on a state somebody else built.
 ///

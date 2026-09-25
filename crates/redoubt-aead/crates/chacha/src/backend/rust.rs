@@ -137,7 +137,6 @@ impl Default for Derived {
 /// Reachable on its own for the one published answer that is an intermediate:
 /// RFC 8439 §2.3.2 prints the state after the rounds and before it is added
 /// back, which nothing that returns a keystream can be held to.
-#[cfg_attr(not(any(test, feature = "test-utils")), allow(dead_code))]
 pub(crate) fn rounds(state: &mut [u32; WORDS]) {
     for _ in 0..DOUBLE_ROUNDS {
         quarter(state, 0, 4, 8, 12);

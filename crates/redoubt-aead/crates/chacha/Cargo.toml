@@ -13,11 +13,6 @@ version.workspace    = true
 [lib]
 path = "src/lib.rs"
 
-[features]
-# Lets a crate above this one say which backend its whole chain runs on. Without
-# it the choice does not exist and every operation goes where the target says.
-test-utils = []
-
 [dependencies]
 redoubt-aead-core.workspace = true
 redoubt-asm.workspace       = true

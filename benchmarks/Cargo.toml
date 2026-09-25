@@ -13,9 +13,7 @@ redoubt-aead-xchachapoly1305 = { path = "../crates/redoubt-aead/crates/xchachapo
 redoubt-alloc = { path = "../crates/redoubt-alloc" }
 redoubt-asm = { path = "../crates/redoubt-asm" }
 redoubt-buffer = { path = "../crates/redoubt-buffer" }
-redoubt-chacha = { path = "../crates/redoubt-aead/crates/chacha", features = [
-  "test-utils",
-] }
+redoubt-chacha = { path = "../crates/redoubt-aead/crates/chacha" }
 redoubt-codec = { path = "../crates/redoubt-codec" }
 redoubt-hkdf = { path = "../crates/redoubt-hkdf" }
 redoubt-poly1305 = { path = "../crates/redoubt-aead/crates/poly1305" }

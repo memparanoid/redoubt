@@ -62,11 +62,17 @@ fn bench_xchacha20_xor(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(of as u64));
 
         for (name, backend) in BACKENDS {
-            let cipher = XChaCha20::with_backend(backend);
+            let cipher = XChaCha20::new();
 
             group.bench_with_input(BenchmarkId::new(name, of), &of, |b, _| {
                 b.iter(|| {
-                    cipher.xor(black_box(&key), black_box(&nonce), 1, black_box(&mut data));
+                    cipher.xor(
+                        backend,
+                        black_box(&key),
+                        black_box(&nonce),
+                        1,
+                        black_box(&mut data),
+                    );
                 });
             });
         }

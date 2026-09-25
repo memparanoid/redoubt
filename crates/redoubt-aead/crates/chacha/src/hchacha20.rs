@@ -13,14 +13,12 @@ use crate::backend::subkey;
 /// A key derivation that is the ChaCha20 rounds without the addition after
 /// them.
 ///
-/// It holds nothing but where its operations go. The subkey is written into
-/// storage the caller named and is never kept here.
+/// It holds nothing. The subkey is written into storage the caller named and
+/// is never kept here.
 #[cfg_attr(test, derive(Clone, Eq, PartialEq, Debug))]
 #[derive(Default, RedoubtZero)]
 #[fast_zeroize(drop)]
 pub struct HChaCha20 {
-    #[fast_zeroize(skip)]
-    backend: Backend,
     // Something to test zeroization on drop against.
     #[cfg(test)]
     __marker: [u8; 32],
@@ -29,11 +27,10 @@ pub struct HChaCha20 {
 }
 
 impl HChaCha20 {
-    /// One whose operations go where the target says.
+    /// One ready to derive.
     #[must_use]
     pub fn new() -> Self {
         Self {
-            backend: Backend::default(),
             #[cfg(test)]
             __marker: Default::default(),
             #[cfg(test)]
@@ -50,22 +47,12 @@ impl HChaCha20 {
     /// vector the draft publishes for it.
     pub fn subkey(
         &self,
+        backend: Backend,
         out: &mut [u8; KEY_SIZE],
         key: &[u8; KEY_SIZE],
         nonce: &[u8; HNONCE_SIZE],
     ) {
-        subkey(self.backend, out, key, nonce);
-    }
-
-    /// One that sends its operations where it is told.
-    #[cfg(any(test, feature = "test-utils"))]
-    #[must_use]
-    pub fn with_backend(backend: Backend) -> Self {
-        let mut made = Self::new();
-
-        made.backend = backend;
-
-        made
+        subkey(backend, out, key, nonce);
     }
 
     /// Something in it that a zeroization has to remove.

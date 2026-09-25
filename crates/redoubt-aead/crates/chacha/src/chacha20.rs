@@ -12,15 +12,13 @@ use crate::backend::xor;
 
 /// A keystream laid over a buffer the caller already has.
 ///
-/// It holds nothing but where its operations go. A stream cipher applied to a
-/// whole buffer keeps no state between calls — no key resident afterwards, no
-/// keystream, and nothing to zeroize that is not the backend's own.
+/// It holds nothing. A stream cipher applied to a whole buffer keeps no state
+/// between calls — no key resident afterwards, no keystream, and nothing to
+/// zeroize that is not the backend's own.
 #[cfg_attr(test, derive(Clone, Eq, PartialEq, Debug))]
 #[derive(Default, RedoubtZero)]
 #[fast_zeroize(drop)]
 pub struct ChaCha20 {
-    #[fast_zeroize(skip)]
-    backend: Backend,
     // Something to test zeroization on drop against.
     #[cfg(test)]
     __marker: [u8; 32],
@@ -29,11 +27,10 @@ pub struct ChaCha20 {
 }
 
 impl ChaCha20 {
-    /// One whose operations go where the target says.
+    /// One ready to be laid over a buffer.
     #[must_use]
     pub fn new() -> Self {
         Self {
-            backend: Backend::default(),
             #[cfg(test)]
             __marker: Default::default(),
             #[cfg(test)]
@@ -54,12 +51,13 @@ impl ChaCha20 {
     /// so it stops rather than answer.
     pub fn xor(
         &self,
+        backend: Backend,
         key: &[u8; KEY_SIZE],
         nonce: &[u8; NONCE_SIZE],
         counter: u32,
         data: &mut [u8],
     ) {
-        xor(self.backend, key, nonce, u64::from(counter), data);
+        xor(backend, key, nonce, u64::from(counter), data);
     }
 
     /// `data` xored with the keystream of Bernstein's original, starting at
@@ -74,23 +72,13 @@ impl ChaCha20 {
     /// a short message can do that when the caller starts near `u64::MAX`.
     pub fn xor_bernstein(
         &self,
+        backend: Backend,
         key: &[u8; KEY_SIZE],
         nonce: &[u8; BERNSTEIN_NONCE_SIZE],
         counter: u64,
         data: &mut [u8],
     ) {
-        xor(self.backend, key, nonce, counter, data);
-    }
-
-    /// One that sends its operations where it is told.
-    #[cfg(any(test, feature = "test-utils"))]
-    #[must_use]
-    pub fn with_backend(backend: Backend) -> Self {
-        let mut made = Self::new();
-
-        made.backend = backend;
-
-        made
+        xor(backend, key, nonce, counter, data);
     }
 
     /// Something in it that a zeroization has to remove.

@@ -54,6 +54,9 @@ pub struct XChaCha20Poly1305 {
     #[cfg(test)]
     #[fast_zeroize(skip)]
     backend: Backend,
+    // Something to test zeroization on drop against.
+    #[cfg(test)]
+    __marker: [u8; 32],
     #[cfg(test)]
     __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
@@ -66,6 +69,8 @@ impl XChaCha20Poly1305 {
             cipher: XChaCha20::new(),
             #[cfg(test)]
             backend: Backend::default(),
+            #[cfg(test)]
+            __marker: Default::default(),
             #[cfg(test)]
             __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
         }
@@ -87,8 +92,8 @@ impl XChaCha20Poly1305 {
         made
     }
 
-    /// Where the authenticator's operations go: the one a test of this crate
-    /// named, and the target's everywhere else.
+    /// Where the cipher's and the authenticator's operations go: the one a test
+    /// of this crate named, and the target's everywhere else.
     fn backend(&self) -> Backend {
         #[cfg(test)]
         {
@@ -108,7 +113,8 @@ impl XChaCha20Poly1305 {
     /// hands straight to a primitive, and it outlives neither call it sits
     /// between.
     fn one_time_key(&self, key: &[u8; KEY_SIZE], nonce: &[u8; XNONCE_SIZE], out: &mut OneTimeKey) {
-        self.cipher.xor(key, nonce, POLY_KEY_COUNTER, out);
+        self.cipher
+            .xor(self.backend(), key, nonce, POLY_KEY_COUNTER, out);
     }
 
     /// The tag over the associated data and the ciphertext, in that order.
@@ -172,7 +178,7 @@ impl XChaCha20Poly1305 {
     /// Something in it that a zeroization has to remove.
     #[cfg(test)]
     pub(crate) fn unzeroize(&mut self) {
-        self.cipher.unzeroize();
+        self.__marker = [0xff; 32];
     }
 }
 
@@ -196,7 +202,8 @@ impl AeadEncrypt for XChaCha20Poly1305 {
 
         // The message is enciphered before it is authenticated, because what
         // is authenticated is the ciphertext.
-        self.cipher.xor(key, nonce, MESSAGE_COUNTER, data);
+        self.cipher
+            .xor(self.backend(), key, nonce, MESSAGE_COUNTER, data);
         self.tag(&one_time_key, aad, data, tag);
 
         one_time_key.fast_zeroize();
@@ -233,7 +240,8 @@ impl AeadDecrypt for XChaCha20Poly1305 {
             return Err(AeadCoreError::AuthenticationFailed);
         }
 
-        self.cipher.xor(key, nonce, MESSAGE_COUNTER, data);
+        self.cipher
+            .xor(self.backend(), key, nonce, MESSAGE_COUNTER, data);
 
         Ok(())
     }

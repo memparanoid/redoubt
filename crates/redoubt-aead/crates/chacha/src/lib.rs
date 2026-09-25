@@ -31,6 +31,3 @@ pub mod xchacha20;
 
 #[cfg(test)]
 mod tests;
-
-#[cfg(any(test, feature = "test-utils"))]
-pub use backend::HAS_ASM;

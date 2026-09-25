@@ -22,12 +22,12 @@ use crate::tests::support::{oracle, vectors};
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_subkey_returns_the_published_subkey(#[case] backend: Backend) {
-    let cipher = HChaCha20::with_backend(backend);
+    let cipher = HChaCha20::new();
     let key = core::array::from_fn(|at| at as u8);
     let nonce = vectors::hex(vectors::HNONCE);
     let mut out = [0xa5; KEY_SIZE];
 
-    cipher.subkey(&mut out, &key, &nonce);
+    cipher.subkey(backend, &mut out, &key, &nonce);
 
     assert_eq!(out, vectors::hex::<KEY_SIZE>(vectors::SUBKEY));
 }
@@ -38,7 +38,7 @@ fn test_subkey_returns_the_published_subkey(#[case] backend: Backend) {
 fn test_subkey_overwrites_only_the_output_at_every_alignment(
     #[case] backend: Backend,
 ) -> Result<(), TryFromSliceError> {
-    let cipher = HChaCha20::with_backend(backend);
+    let cipher = HChaCha20::new();
 
     for offset in 0..16 {
         let key_storage: [u8; KEY_SIZE + 16] = core::array::from_fn(|at| at as u8);
@@ -50,6 +50,7 @@ fn test_subkey_overwrites_only_the_output_at_every_alignment(
         for fill in [0, 0xa5, 0xff] {
             let mut storage = [fill; KEY_SIZE + 32];
             cipher.subkey(
+                backend,
                 (&mut storage[offset..offset + KEY_SIZE]).try_into()?,
                 key,
                 nonce,
@@ -85,20 +86,9 @@ proptest! {
 
         for backend in [Backend::Rust, Backend::Auto] {
             let mut out = [0xa5; KEY_SIZE];
-            HChaCha20::with_backend(backend).subkey(&mut out, &key, &nonce);
+            HChaCha20::new().subkey(backend, &mut out, &key, &nonce);
 
             prop_assert_eq!(out, expected, "{:?}", backend);
         }
     }
-}
-
-// === === === === === === === === === ===
-// with_backend
-// === === === === === === === === === ===
-
-#[test]
-fn test_with_backend_defaults_to_auto() {
-    assert_eq!(HChaCha20::new(), HChaCha20::with_backend(Backend::Auto));
-    assert_eq!(HChaCha20::default(), HChaCha20::new());
-    assert_ne!(HChaCha20::with_backend(Backend::Rust), HChaCha20::new());
 }

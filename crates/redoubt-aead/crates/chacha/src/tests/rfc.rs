@@ -176,7 +176,7 @@ const ONE_TIME_KEYS: &[OneTimeKey] = &[
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_xor_returns_the_published_keystream_block(#[case] backend: Backend) {
-    let chacha = ChaCha20::with_backend(backend);
+    let chacha = ChaCha20::new();
 
     for one in BLOCKS {
         let expected = bytes(one.keystream);
@@ -192,6 +192,7 @@ fn test_xor_returns_the_published_keystream_block(#[case] backend: Backend) {
         let mut data = vec![0u8; BLOCK_SIZE];
 
         chacha.xor(
+            backend,
             &hex::<KEY_SIZE>(one.key),
             &hex::<NONCE_SIZE>(one.nonce),
             one.counter,
@@ -206,7 +207,7 @@ fn test_xor_returns_the_published_keystream_block(#[case] backend: Backend) {
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_xor_returns_the_published_ciphertexts(#[case] backend: Backend) {
-    let chacha = ChaCha20::with_backend(backend);
+    let chacha = ChaCha20::new();
 
     for one in ENCRYPTIONS {
         let mut data = bytes(one.plaintext);
@@ -220,6 +221,7 @@ fn test_xor_returns_the_published_ciphertexts(#[case] backend: Backend) {
         );
 
         chacha.xor(
+            backend,
             &hex::<KEY_SIZE>(one.key),
             &hex::<NONCE_SIZE>(one.nonce),
             one.counter,
@@ -238,7 +240,7 @@ fn test_xor_returns_the_published_ciphertexts(#[case] backend: Backend) {
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_xor_returns_the_published_one_time_key(#[case] backend: Backend) {
-    let chacha = ChaCha20::with_backend(backend);
+    let chacha = ChaCha20::new();
 
     for one in ONE_TIME_KEYS {
         let expected = bytes(one.one_time_key);
@@ -253,6 +255,7 @@ fn test_xor_returns_the_published_one_time_key(#[case] backend: Backend) {
         let mut data = vec![0u8; KEY_SIZE];
 
         chacha.xor(
+            backend,
             &hex::<KEY_SIZE>(one.key),
             &hex::<NONCE_SIZE>(one.nonce),
             0,

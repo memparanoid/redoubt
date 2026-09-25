@@ -13,29 +13,26 @@ use crate::backend::xxor;
 
 /// A keystream under a key nobody outside the backend ever sees.
 ///
-/// It holds nothing but where its operations go. The subkey the first sixteen
-/// bytes of the nonce derive is made and used inside one backend call, so it
-/// never crosses back into Rust and there is no second key to keep or to wipe.
+/// It holds nothing. The subkey the first sixteen bytes of the nonce derive is
+/// made and used inside one backend call, so it never crosses back into Rust
+/// and there is no second key to keep or to wipe.
 #[cfg_attr(test, derive(Clone, Eq, PartialEq, Debug))]
 #[derive(Default, RedoubtZero)]
 #[fast_zeroize(drop)]
 pub struct XChaCha20 {
-    #[fast_zeroize(skip)]
-    backend: Backend,
     // Something to test zeroization on drop against.
-    #[cfg(any(test, feature = "test-utils"))]
+    #[cfg(test)]
     __marker: [u8; 32],
     #[cfg(test)]
     __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 impl XChaCha20 {
-    /// One whose operations go where the target says.
+    /// One ready to be laid over a buffer.
     #[must_use]
     pub fn new() -> Self {
         Self {
-            backend: Backend::default(),
-            #[cfg(any(test, feature = "test-utils"))]
+            #[cfg(test)]
             __marker: Default::default(),
             #[cfg(test)]
             __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
@@ -52,28 +49,18 @@ impl XChaCha20 {
     /// keystream underneath is RFC 8439's, so the bound is RFC 8439's.
     pub fn xor(
         &self,
+        backend: Backend,
         key: &[u8; KEY_SIZE],
         nonce: &[u8; XNONCE_SIZE],
         counter: u32,
         data: &mut [u8],
     ) {
-        xxor(self.backend, key, nonce, u64::from(counter), data);
-    }
-
-    /// One that sends its operations where it is told.
-    #[cfg(any(test, feature = "test-utils"))]
-    #[must_use]
-    pub fn with_backend(backend: Backend) -> Self {
-        let mut made = Self::new();
-
-        made.backend = backend;
-
-        made
+        xxor(backend, key, nonce, u64::from(counter), data);
     }
 
     /// Something in it that a zeroization has to remove.
-    #[cfg(any(test, feature = "test-utils"))]
-    pub fn unzeroize(&mut self) {
+    #[cfg(test)]
+    pub(crate) fn unzeroize(&mut self) {
         self.__marker = [0xff; 32];
     }
 }

@@ -24,13 +24,14 @@ use crate::tests::support::{oracle, vectors};
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_xor_rejects_counter_exhaustion_before_touching_data(#[case] backend: Backend) {
-    let cipher = XChaCha20::with_backend(backend);
+    let cipher = XChaCha20::new();
 
     for blocks in 1..=4u32 {
         let mut data = std::vec![0xa5; blocks as usize * BLOCK_SIZE + 1];
         let before = data.clone();
         let result = catch_unwind(AssertUnwindSafe(|| {
             cipher.xor(
+                backend,
                 &[0x42; KEY_SIZE],
                 &[0x17; XNONCE_SIZE],
                 u32::MAX - blocks + 1,
@@ -47,13 +48,14 @@ fn test_xor_rejects_counter_exhaustion_before_touching_data(#[case] backend: Bac
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_xor_returns_the_published_ciphertext(#[case] backend: Backend) {
-    let cipher = XChaCha20::with_backend(backend);
+    let cipher = XChaCha20::new();
 
     for counter in 0..=1 {
         let mut data = vectors::DHOLE.to_vec();
         let expected = vectors::hex::<304>(vectors::XCIPHERTEXT[counter as usize]);
 
         cipher.xor(
+            backend,
             &vectors::hex(vectors::XKEY),
             &vectors::hex(vectors::XNONCE),
             counter,
@@ -62,6 +64,7 @@ fn test_xor_returns_the_published_ciphertext(#[case] backend: Backend) {
         assert_eq!(data, expected, "counter {counter}");
 
         cipher.xor(
+            backend,
             &vectors::hex(vectors::XKEY),
             &vectors::hex(vectors::XNONCE),
             counter,
@@ -75,7 +78,7 @@ fn test_xor_returns_the_published_ciphertext(#[case] backend: Backend) {
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_xor_accepts_the_last_counter(#[case] backend: Backend) {
-    let cipher = XChaCha20::with_backend(backend);
+    let cipher = XChaCha20::new();
     let key = [0x42; KEY_SIZE];
     let nonce = [0x17; XNONCE_SIZE];
 
@@ -87,7 +90,7 @@ fn test_xor_accepts_the_last_counter(#[case] backend: Backend) {
             let mut data = std::vec![0xa5; length];
             let expected = oracle::xxor(&key, &nonce, counter, &data);
 
-            cipher.xor(&key, &nonce, counter, &mut data);
+            cipher.xor(backend, &key, &nonce, counter, &mut data);
 
             assert_eq!(data, expected, "counter {counter}, {length} bytes in");
         }
@@ -100,7 +103,7 @@ fn test_xor_accepts_the_last_counter(#[case] backend: Backend) {
 fn test_xor_touches_only_the_named_bytes_at_every_alignment(
     #[case] backend: Backend,
 ) -> Result<(), TryFromSliceError> {
-    let cipher = XChaCha20::with_backend(backend);
+    let cipher = XChaCha20::new();
 
     for offset in 0..16 {
         let key_storage: [u8; KEY_SIZE + 16] = core::array::from_fn(|at| at as u8);
@@ -114,7 +117,13 @@ fn test_xor_touches_only_the_named_bytes_at_every_alignment(
             let mut storage = std::vec![0xa5; offset + length + 16];
             storage[offset..offset + length].copy_from_slice(&plaintext);
 
-            cipher.xor(key, nonce, 7, &mut storage[offset..offset + length]);
+            cipher.xor(
+                backend,
+                key,
+                nonce,
+                7,
+                &mut storage[offset..offset + length],
+            );
 
             assert_eq!(
                 &storage[offset..offset + length],
@@ -144,20 +153,9 @@ proptest! {
 
         for backend in [Backend::Rust, Backend::Auto] {
             let mut data = plaintext.clone();
-            XChaCha20::with_backend(backend).xor(&key, &nonce, counter, &mut data);
+            XChaCha20::new().xor(backend, &key, &nonce, counter, &mut data);
 
             prop_assert_eq!(&data, &expected, "{:?}", backend);
         }
     }
-}
-
-// === === === === === === === === === ===
-// with_backend
-// === === === === === === === === === ===
-
-#[test]
-fn test_with_backend_defaults_to_auto() {
-    assert_eq!(XChaCha20::new(), XChaCha20::with_backend(Backend::Auto));
-    assert_eq!(XChaCha20::default(), XChaCha20::new());
-    assert_ne!(XChaCha20::with_backend(Backend::Rust), XChaCha20::new());
 }
