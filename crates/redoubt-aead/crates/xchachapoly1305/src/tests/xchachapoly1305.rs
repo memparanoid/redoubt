@@ -5,12 +5,15 @@
 //! What the construction holds, and what it leaves the caller holding.
 
 use std::vec;
+use std::vec::Vec;
 
+use proptest::prelude::*;
 use rstest::rstest;
 
 use redoubt_aead_core::consts::chacha::{KEY_SIZE, XNONCE_SIZE};
 use redoubt_aead_core::consts::poly1305::TAG_SIZE;
 use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt};
+use redoubt_alloc::RedoubtVec;
 use redoubt_asm::Backend;
 use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
@@ -103,6 +106,40 @@ fn test_decrypt_empties_the_buffer_when_the_tag_does_not_match(#[case] backend: 
     }
 }
 
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(10_000))]
+
+    #[test]
+    fn test_decrypt_refuses_a_tag_with_any_bit_turned_over(
+        key: [u8; KEY_SIZE],
+        nonce: [u8; XNONCE_SIZE],
+        aad in proptest::collection::vec(any::<u8>(), 0..=300),
+        plaintext in proptest::collection::vec(any::<u8>(), 0..=1024),
+        at: usize,
+        bit in 0..8_u8,
+    ) {
+        for backend in [Backend::Rust, Backend::Auto] {
+            let mut said = plaintext.clone();
+            let mut data = RedoubtVec::default();
+            data.replace_from_mut_slice(&mut said);
+
+            let mut aead = XChaCha20Poly1305::with_backend(backend);
+            let mut tag = [0u8; TAG_SIZE];
+
+            aead.encrypt(&key, &nonce, &aad, &mut data, &mut tag);
+
+            tag[at % TAG_SIZE] ^= 1 << bit;
+
+            let refused = aead.decrypt(&key, &nonce, &aad, &mut data, &tag);
+
+            prop_assert_eq!(refused, Err(AeadCoreError::AuthenticationFailed));
+
+            // Assert zeroization!
+            prop_assert!(data.is_zeroized());
+        }
+    }
+}
+
 /// And the other way round, which is what says the wipe above is the refusal
 /// and not something that happens either way.
 #[rstest]
@@ -118,8 +155,33 @@ fn test_decrypt_leaves_the_plaintext_when_the_tag_matches(#[case] backend: Backe
 
         aead.encrypt(&KEY, &NONCE, b"", &mut data, &mut tag);
         aead.decrypt(&KEY, &NONCE, b"", &mut data, &tag)
-            .expect("the tag is the one encrypt just wrote");
+            .expect("Infallible: the tag is the one encrypt just wrote");
 
         assert_eq!(data, plaintext, "{length} bytes in");
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(10_000))]
+
+    #[test]
+    fn test_decrypt_returns_what_encrypt_was_given(
+        key: [u8; KEY_SIZE],
+        nonce: [u8; XNONCE_SIZE],
+        aad in proptest::collection::vec(any::<u8>(), 0..=300),
+        plaintext in proptest::collection::vec(any::<u8>(), 0..=1024),
+    ) {
+        for backend in [Backend::Rust, Backend::Auto] {
+            let mut aead = XChaCha20Poly1305::with_backend(backend);
+            let mut data: Vec<u8> = plaintext.clone();
+            let mut tag = [0u8; TAG_SIZE];
+
+            aead.encrypt(&key, &nonce, &aad, &mut data, &mut tag);
+
+            let opened = aead.decrypt(&key, &nonce, &aad, &mut data, &tag);
+
+            prop_assert_eq!(opened, Ok(()));
+            prop_assert_eq!(&data, &plaintext);
+        }
     }
 }
