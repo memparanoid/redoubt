@@ -773,6 +773,34 @@ FUNC(redoubt_aegis128l_dirty_registers):
     AEGIS_EACH_GENERAL AEGIS_FILL_GENERAL
     ret
 
+// The low half of every vector register filled, and every other bit of the
+// budget emptied: what reaches a verifier afterwards can only be those halves.
+.p2align 4
+.global FUNC(redoubt_aegis128l_dirty_vector_low)
+HIDDEN_FUNC(redoubt_aegis128l_dirty_vector_low)
+FUNC(redoubt_aegis128l_dirty_vector_low):
+    AEGIS_ZEROIZE_ALL
+    mov rax, 0xa5a5a5a5a5a5a5a5
+    movq xmm0, rax
+    xor eax, eax
+    AEGIS_EACH_VECTOR AEGIS_FILL_VECTOR
+    ret
+
+// The high half of every vector register filled, and every other bit of the
+// budget emptied: what reaches a verifier afterwards can only come through its
+// fold.
+.p2align 4
+.global FUNC(redoubt_aegis128l_dirty_vector_high)
+HIDDEN_FUNC(redoubt_aegis128l_dirty_vector_high)
+FUNC(redoubt_aegis128l_dirty_vector_high):
+    AEGIS_ZEROIZE_ALL
+    mov rax, 0xa5a5a5a5a5a5a5a5
+    movq xmm0, rax
+    pslldq xmm0, 8
+    xor eax, eax
+    AEGIS_EACH_VECTOR AEGIS_FILL_VECTOR
+    ret
+
 // The frame instruments for a frame of \size bytes.
 //
 // uint64_t redoubt_aegis128l_frame_is_zeroized_\name(void)
