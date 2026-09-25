@@ -47,6 +47,7 @@ use std::vec;
 use std::vec::Vec;
 use std::{format, println};
 
+use redoubt_asm::Backend;
 use redoubt_forensics::{AnyError, Forensics, QUIET, Report, capture, forensics};
 use redoubt_poly1305::Poly1305;
 
@@ -136,7 +137,7 @@ fn test_the_pad_is_found_while_the_authenticator_holds_it() -> Result<(), AnyErr
     let ciphertext = vec![0x5A_u8; 1024];
     let mut held = Poly1305::new();
 
-    held.init(&ONE_TIME_KEY);
+    held.init(Backend::default(), &ONE_TIME_KEY);
 
     forensics!({
         capture(|| aead.tag_with(&mut held, AAD, &ciphertext));
@@ -167,11 +168,11 @@ macro_rules! a_tag_taken {
             let mut authenticator = Poly1305::new();
             let mut tag = [0_u8; TAG_SIZE];
 
-            authenticator.init(&ONE_TIME_KEY);
+            authenticator.init(Backend::default(), &ONE_TIME_KEY);
 
             forensics!({
                 aead.tag_with(&mut authenticator, AAD, &ciphertext);
-                capture(|| authenticator.finalize_mut(&mut tag));
+                capture(|| authenticator.finalize_mut(Backend::default(), &mut tag));
             });
 
             drop(core::hint::black_box((authenticator, ciphertext, tag)));

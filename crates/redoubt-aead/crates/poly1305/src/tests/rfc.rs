@@ -13,7 +13,7 @@ use rstest::rstest;
 
 use redoubt_asm::Backend;
 
-use crate::poly1305::{tag, tag_with_backend};
+use crate::poly1305::tag;
 
 use crate::tests::support::{against_the_appendix, tag_of};
 
@@ -27,11 +27,6 @@ fn test_finalize_mut_returns_the_appendix_tag(#[case] backend: Backend) {
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_tag_with_backend_returns_the_appendix_tag(#[case] backend: Backend) {
-    against_the_appendix(|key, message, out| tag_with_backend(backend, key, message, out));
-}
-
-#[test]
-fn test_tag_returns_the_appendix_tag() {
-    against_the_appendix(tag);
+fn test_tag_returns_the_appendix_tag(#[case] backend: Backend) {
+    against_the_appendix(|key, message, out| tag(backend, key, message, out));
 }

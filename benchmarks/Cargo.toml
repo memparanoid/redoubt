@@ -18,9 +18,7 @@ redoubt-chacha = { path = "../crates/redoubt-aead/crates/chacha", features = [
 ] }
 redoubt-codec = { path = "../crates/redoubt-codec" }
 redoubt-hkdf = { path = "../crates/redoubt-hkdf" }
-redoubt-poly1305 = { path = "../crates/redoubt-aead/crates/poly1305", features = [
-  "test-utils",
-] }
+redoubt-poly1305 = { path = "../crates/redoubt-aead/crates/poly1305" }
 redoubt-util = { path = "../crates/redoubt-util" }
 redoubt-vault = { path = "../crates/redoubt-vault" }
 redoubt-zero = { path = "../crates/redoubt-zero" }

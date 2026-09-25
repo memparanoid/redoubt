@@ -41,8 +41,12 @@ use crate::consts::LIMBS;
 ///
 /// Where it is false the two backends are the same code, and a test that finds
 /// them agreeing has proved nothing.
-#[cfg(any(test, feature = "test-utils"))]
-pub const HAS_ASM: bool = cfg!(poly1305_asm);
+#[cfg(all(
+    test,
+    not(target_os = "windows"),
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
+pub(crate) const HAS_ASM: bool = cfg!(poly1305_asm);
 
 /// The key split in two: `r` as five clamped limbs, `s` as it arrived.
 pub(crate) fn init(

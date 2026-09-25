@@ -26,6 +26,3 @@ mod poly1305;
 mod tests;
 
 pub use poly1305::{Poly1305, tag};
-
-#[cfg(any(test, feature = "test-utils"))]
-pub use backend::HAS_ASM;

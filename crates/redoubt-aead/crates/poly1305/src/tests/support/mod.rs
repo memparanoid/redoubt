@@ -13,11 +13,11 @@ use redoubt_asm::Backend;
 use crate::poly1305::Poly1305;
 use crate::tests::support::vectors::{VECTORS, Vector};
 
-/// One keyed under the backend named, which is the order the clamp needs.
+/// One keyed under the backend named.
 pub(crate) fn keyed(backend: Backend, key: &[u8; KEY_SIZE]) -> Poly1305 {
-    let mut poly = Poly1305::new().with_backend(backend);
+    let mut poly = Poly1305::new();
 
-    poly.init(key);
+    poly.init(backend, key);
 
     poly
 }
@@ -27,8 +27,8 @@ pub(crate) fn tag_of(backend: Backend, key: &[u8; KEY_SIZE], message: &[u8]) -> 
     let mut poly = keyed(backend, key);
     let mut tag = [0u8; TAG_SIZE];
 
-    poly.update(message);
-    poly.finalize_mut(&mut tag);
+    poly.update(backend, message);
+    poly.finalize_mut(backend, &mut tag);
 
     tag
 }
@@ -44,9 +44,9 @@ pub(crate) fn tag_of_split(
     let mut tag = [0u8; TAG_SIZE];
     let (head, rest) = message.split_at(at);
 
-    poly.update(head);
-    poly.update(rest);
-    poly.finalize_mut(&mut tag);
+    poly.update(backend, head);
+    poly.update(backend, rest);
+    poly.finalize_mut(backend, &mut tag);
 
     tag
 }

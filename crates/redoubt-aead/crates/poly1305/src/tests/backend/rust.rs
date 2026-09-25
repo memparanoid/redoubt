@@ -5,6 +5,7 @@
 //! What the Rust side holds, and that none of it comes back out.
 
 use redoubt_aead_core::consts::poly1305::KEY_SIZE;
+use redoubt_asm::Backend;
 use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 use crate::poly1305::Poly1305;
@@ -13,7 +14,7 @@ use crate::poly1305::Poly1305;
 fn test_poly1305_is_zeroizable() {
     let mut poly = Poly1305::new();
 
-    poly.init(&[0x11; KEY_SIZE]);
+    poly.init(Backend::Rust, &[0x11; KEY_SIZE]);
     poly.unzeroize();
     assert!(!poly.is_zeroized());
 
@@ -27,7 +28,7 @@ fn test_poly1305_is_zeroizable() {
 fn test_poly1305_zeroizes_on_drop() {
     let mut poly = Poly1305::new();
 
-    poly.init(&[0x11; KEY_SIZE]);
+    poly.init(Backend::Rust, &[0x11; KEY_SIZE]);
     poly.unzeroize();
     assert!(!poly.is_zeroized());
 
@@ -39,7 +40,7 @@ fn test_poly1305_zeroizes_on_drop() {
 fn test_poly1305_debug_says_nothing() {
     let mut poly = Poly1305::new();
 
-    poly.init(&[0xab; KEY_SIZE]);
+    poly.init(Backend::Rust, &[0xab; KEY_SIZE]);
 
     assert_eq!(std::format!("{poly:?}"), "Poly1305 { [protected] }");
 }

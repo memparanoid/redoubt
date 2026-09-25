@@ -12,14 +12,12 @@ use redoubt_aead_core::consts::chacha::{KEY_SIZE, XNONCE_SIZE};
 use redoubt_aead_core::consts::poly1305::{KEY_SIZE as POLY_KEY_SIZE, TAG_SIZE};
 use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt, AeadSizes, constant_time_eq};
 use redoubt_alloc::RedoubtArray;
+use redoubt_asm::Backend;
 use redoubt_chacha::xchacha20::XChaCha20;
 use redoubt_mem::copy_nonoverlapping;
 use redoubt_poly1305::Poly1305;
 use redoubt_zero::RedoubtZero;
 use redoubt_zero::{FastZeroizable, ZeroizingGuard};
-
-#[cfg(test)]
-use redoubt_asm::Backend;
 
 /// The counter the one-time key is taken from, and the one the message starts
 /// at.
@@ -89,20 +87,17 @@ impl XChaCha20Poly1305 {
         made
     }
 
-    /// Send an authenticator's operations where this one's go.
-    ///
-    /// Two spellings because the choice only exists where it can be made.
-    /// Outside a test of this crate there is no backend but the target's, and
-    /// the authenticator already has it.
-    fn point_at_backend(&self, authenticator: &mut Poly1305) {
+    /// Where the authenticator's operations go: the one a test of this crate
+    /// named, and the target's everywhere else.
+    fn backend(&self) -> Backend {
         #[cfg(test)]
         {
-            authenticator.set_backend(self.backend);
+            self.backend
         }
 
         #[cfg(not(test))]
         {
-            let _ = authenticator;
+            Backend::default()
         }
     }
 
@@ -131,12 +126,11 @@ impl XChaCha20Poly1305 {
     ) {
         let mut authenticator = Poly1305::new();
 
-        self.point_at_backend(&mut authenticator);
-        authenticator.init(one_time_key.as_array());
+        authenticator.init(self.backend(), one_time_key.as_array());
 
         self.tag_with(&mut authenticator, aad, ciphertext);
 
-        authenticator.finalize_mut(out);
+        authenticator.finalize_mut(self.backend(), out);
     }
 
     /// Everything the authenticator is told, and none of what it answers.
@@ -147,8 +141,8 @@ impl XChaCha20Poly1305 {
     /// for somebody else to still own the authenticator at that moment, which
     /// is what taking it by reference allows and what `forensics` does.
     pub(crate) fn tag_with(&self, authenticator: &mut Poly1305, aad: &[u8], ciphertext: &[u8]) {
-        authenticator.update_padded(aad);
-        authenticator.update_padded(ciphertext);
+        authenticator.update_padded(self.backend(), aad);
+        authenticator.update_padded(self.backend(), ciphertext);
 
         // Nothing here is emptied, and that is not an oversight. Both are
         // lengths: an attacker who saw the message knows how long its
@@ -172,7 +166,7 @@ impl XChaCha20Poly1305 {
             );
         }
 
-        authenticator.update(&lengths);
+        authenticator.update(self.backend(), &lengths);
     }
 
     /// Something in it that a zeroization has to remove.
