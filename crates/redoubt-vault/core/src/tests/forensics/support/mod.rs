@@ -118,6 +118,27 @@ pub(crate) fn is_found(report: &Report, what: &str) {
     );
 }
 
+/// Asserts the secret is gone where no photograph could be taken before it
+/// existed: not whole, and no run past `QUIET`.
+pub(crate) fn leaves_no_copy(report: &Report, what: &str) {
+    println!();
+    report.summary(what);
+    println!();
+
+    // Assert zeroization!
+    assert!(
+        !report.found,
+        "the whole secret was left behind by {what}: {report}"
+    );
+
+    assert!(
+        report.widest <= QUIET,
+        "a run of {} bytes of the secret was left behind by {what}, and {QUIET} \
+         is what memory has by accident: {report}",
+        report.widest,
+    );
+}
+
 /// Asserts the secret is gone: not whole, no run past `QUIET`, and a score that
 /// did not move. Each alone passes a process that kept part of it.
 pub(crate) fn leaves_nothing(
