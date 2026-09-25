@@ -213,7 +213,18 @@ fn test_the_difference_shows_what_an_operation_kept() -> Result<(), Reason> {
     let before = photograph(&mut watch)?;
 
     forensics!({
-        let kept = core::hint::black_box(ALPHA[8..24].to_vec());
+        let mut kept = vec![0_u8; 16];
+
+        // Through the copy whose registers are probed: one the compiler emits
+        // leaves the piece in a vector register too, and the capture then puts
+        // it in the difference whether or not the copy on the heap is read.
+        // SAFETY: sixteen bytes from inside `ALPHA` into a vector of sixteen,
+        // two allocations apart.
+        unsafe {
+            redoubt_mem_core::copy_nonoverlapping(ALPHA[8..].as_ptr(), kept.as_mut_ptr(), 16)
+        };
+
+        core::hint::black_box(&kept);
 
         freeze!();
 
