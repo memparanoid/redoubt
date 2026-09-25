@@ -134,7 +134,7 @@ where
     ///
     /// 1. Allocate temp Vec with current data (memcpy for performance)
     /// 2. Zeroize old allocation
-    /// 3. Re-allocate with new capacity (next power of 2)
+    /// 3. Re-allocate with new capacity (next power of 2), and zeroize all of it
     /// 4. Move data from temp back (memcpy + zeroize temp)
     ///
     /// # Why a raw copy
@@ -172,6 +172,7 @@ where
 
         // 3. Re-allocate with new capacity
         self.inner.reserve_exact(new_capacity);
+        self.inner.fast_zeroize();
 
         // 4. Copy data back from tmp
         // SAFETY: `tmp` holds exactly `current_len`, and `reserve_exact` above

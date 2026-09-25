@@ -159,6 +159,23 @@ fn test_extend_from_mut_slice_grows() {
     assert!(src.is_zeroized());
 }
 
+/// The capacity a growth reserves comes from the allocator holding whatever
+/// its last owner left, and only the part up to the length is written over.
+#[test]
+fn test_extend_from_mut_slice_grows_into_zeroized_capacity() {
+    let mut vec = RedoubtVec::default();
+
+    // Assert zeroization!
+    assert!(vec.is_zeroized());
+
+    for _ in 0..1024 {
+        vec.extend_from_mut_slice(&mut [0u8; 1]);
+
+        // Assert zeroization!
+        assert!(vec.is_zeroized());
+    }
+}
+
 #[test]
 fn test_extend_from_mut_slice_zeroizes_default_values() {
     #[derive(Debug, PartialEq, Clone, Copy, Default)]
