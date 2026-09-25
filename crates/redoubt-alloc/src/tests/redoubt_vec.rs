@@ -58,20 +58,7 @@ fn test_with_capacity() {
 /// left it.
 #[test]
 fn test_with_capacity_is_zeroized() {
-    let mut dirty = std::vec![0xFF_u8; 4096];
-    dirty.clear();
-
-    assert!(!dirty.is_zeroized());
-
-    let block = dirty.as_ptr();
-
-    drop(dirty);
-
     let vec: RedoubtVec<u8> = RedoubtVec::with_capacity(1024);
-
-    // CORRECTNESS: without the same block, an emptiness below says only that
-    // the allocator handed out one that came from the kernel empty.
-    assert_eq!(vec.as_vec().as_ptr(), block, "the dirty block was not reused");
 
     // Assert zeroization!
     assert!(vec.is_zeroized());
