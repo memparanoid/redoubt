@@ -277,16 +277,6 @@ unsafe extern "C" {
     pub safe fn redoubt_spill_vectors_neon();
 }
 
-/// Point [`redoubt_spill`] at the widest form this machine supports.
-///
-/// Every form is in the binary already. This only decides which one the jump
-/// lands on, and it is called by [`crate::Forensics::watching`] long before
-/// any capture — because the question cannot be asked at the capture itself.
-/// Idempotent: it writes the same answer every time.
-///
-/// Until this runs, [`redoubt_spill`] reaches the narrowest form — SSE on
-/// `x86_64`, NEON on `aarch64`. Correct either way, and a quarter of what a
-/// modern machine has.
 /// Which registers a capture reaches.
 ///
 /// Named rather than counted in bytes, because a caller comparing a width
@@ -313,6 +303,16 @@ pub(crate) enum Form {
     Sve,
 }
 
+/// Point [`redoubt_spill`] at the widest form this machine supports.
+///
+/// Every form is in the binary already. This only decides which one the jump
+/// lands on, and it is called by [`crate::Forensics::watching`] long before
+/// any capture — because the question cannot be asked at the capture itself.
+/// Idempotent: it writes the same answer every time.
+///
+/// Until this runs, [`redoubt_spill`] reaches the narrowest form — SSE on
+/// `x86_64`, NEON on `aarch64`. A measurement whose needle only exists after
+/// the operation builds its watch after the capture, and calls this before it.
 pub fn pick_spiller() {
     #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
     use_spiller(pick_spiller_from(

@@ -102,6 +102,9 @@ pub use forensics::{Forensics, occurrences, occurrences_reversed};
 #[cfg(target_os = "linux")]
 pub use frame::capture;
 
+#[cfg(target_os = "linux")]
+pub use spiller::pick_spiller;
+
 // What `freeze!` expands into reaches by name, and nothing else has a use for
 // any of it: the room's address, the entry that writes the vectors alone, and
 // the numbers the window is made of.
