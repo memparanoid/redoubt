@@ -22,5 +22,6 @@ cc.workspace = true
 
 [dev-dependencies]
 redoubt-forensics.workspace = true
+redoubt-hkdf                = { workspace = true, features = ["test-utils"] }
 redoubt-util                = { workspace = true, features = ["test-utils"] }
 rstest.workspace            = true

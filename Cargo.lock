@@ -909,6 +909,7 @@ dependencies = [
  "cc",
  "redoubt-aead-core",
  "redoubt-forensics",
+ "redoubt-hkdf",
  "redoubt-util",
  "redoubt-zero",
  "rstest",

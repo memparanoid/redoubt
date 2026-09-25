@@ -5,6 +5,7 @@
 mod support;
 
 mod aegis128l;
+mod libaegis;
 mod probes;
 mod rfc;
 mod wycheproof;

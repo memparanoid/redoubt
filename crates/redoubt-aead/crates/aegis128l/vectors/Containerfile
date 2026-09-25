@@ -1,0 +1,24 @@
+# Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only
+# See LICENSE in the repository root for full license text.
+
+# libaegis, built from its own repository at one tag, for
+# generate_aegis128l_digests.py. Official images only.
+#
+# Run through generate_aegis128l_digests.sh, not by hand.
+
+FROM docker.io/library/alpine:3.22
+
+ARG LIBAEGIS_VERSION=0.10.6
+
+RUN apk add --no-cache build-base cmake git python3
+
+RUN git clone --depth 1 --branch "${LIBAEGIS_VERSION}" \
+        https://github.com/jedisct1/libaegis /src/libaegis \
+    && cmake -S /src/libaegis -B /src/build \
+        -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build /src/build \
+    && cmake --install /src/build \
+    && rm -rf /src
+
+ENV LIBAEGIS_VERSION="${LIBAEGIS_VERSION}"
