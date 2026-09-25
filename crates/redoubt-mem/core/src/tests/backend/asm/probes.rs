@@ -189,15 +189,22 @@ macro_rules! test_dirty_general_is_seen {
     };
 }
 
-/// One vector register filled in both lanes, every other register emptied, and
-/// the verifier asked.
+/// One half of one vector register filled, everything else emptied, and the
+/// verifier asked: a test for each half, since the verifier folds the high one
+/// down to the width of its answer and a fold that dropped it would still see
+/// the low one.
 ///
 /// The pattern goes through rax because no immediate is that wide, and the
 /// general registers are emptied after it so the scratch does not reach the
 /// call.
 #[cfg(target_arch = "x86_64")]
 macro_rules! test_dirty_vector_is_seen {
-    ($name:ident, $register:tt) => {
+    ($low:ident, $high:ident, $register:tt) => {
+        test_dirty_vector_is_seen!(@half $low, $register, "", " low");
+        test_dirty_vector_is_seen!(@half $high, $register,
+                                   concat!("pslldq ", $register, ", 8"), " high");
+    };
+    (@half $name:ident, $register:tt, $shift:expr, $half:literal) => {
         #[test]
         fn $name() {
             let dirty: u64;
@@ -209,7 +216,7 @@ macro_rules! test_dirty_vector_is_seen {
                     empty_vectors!(),
                     "mov rax, {poison}",
                     concat!("movq ", $register, ", rax"),
-                    concat!("punpcklqdq ", $register, ", ", $register),
+                    $shift,
                     empty_generals!(),
                     "call {verifier}",
                     poison = const POISON,
@@ -221,7 +228,7 @@ macro_rules! test_dirty_vector_is_seen {
 
             assert_eq!(
                 dirty, POISON,
-                concat!("a dirty ", $register, " does not reach the answer")
+                concat!("a dirty", $half, " half of ", $register, " does not reach the answer")
             );
         }
     };
@@ -265,15 +272,21 @@ macro_rules! test_dirty_general_is_seen {
     };
 }
 
-/// One vector register filled in both lanes, every other register emptied, and
-/// the verifier asked.
+/// One lane of one vector register filled, everything else emptied, and the
+/// verifier asked: a test for each lane, since the verifier folds the high one
+/// down to the width of its answer and a fold that dropped it would still see
+/// the low one.
 ///
 /// The pattern goes through x0 because `movi` cannot express it, and the
 /// general registers are emptied after it so the scratch does not reach the
 /// call.
 #[cfg(target_arch = "aarch64")]
 macro_rules! test_dirty_vector_is_seen {
-    ($name:ident, $register:tt) => {
+    ($low:ident, $high:ident, $register:tt) => {
+        test_dirty_vector_is_seen!(@lane $low, $register, "0", " low");
+        test_dirty_vector_is_seen!(@lane $high, $register, "1", " high");
+    };
+    (@lane $name:ident, $register:tt, $lane:literal, $half:literal) => {
         #[test]
         fn $name() {
             let dirty: u64;
@@ -287,7 +300,7 @@ macro_rules! test_dirty_vector_is_seen {
                     "movk x0, #0xa5a5, lsl #16",
                     "movk x0, #0xa5a5, lsl #32",
                     "movk x0, #0xa5a5, lsl #48",
-                    concat!("dup ", $register, ".2d, x0"),
+                    concat!("mov ", $register, ".d[", $lane, "], x0"),
                     empty_generals!(),
                     "bl {verifier}",
                     verifier = sym redoubt_mem_registers_are_zeroized,
@@ -298,7 +311,7 @@ macro_rules! test_dirty_vector_is_seen {
 
             assert_eq!(
                 dirty, POISON,
-                concat!("a dirty ", $register, " does not reach the answer")
+                concat!("a dirty", $half, " lane of ", $register, " does not reach the answer")
             );
         }
     };
@@ -319,22 +332,22 @@ macro_rules! every_register {
         test_dirty_general_is_seen!(test_r10_is_seen, "r10");
         test_dirty_general_is_seen!(test_r11_is_seen, "r11");
 
-        test_dirty_vector_is_seen!(test_xmm0_is_seen, "xmm0");
-        test_dirty_vector_is_seen!(test_xmm1_is_seen, "xmm1");
-        test_dirty_vector_is_seen!(test_xmm2_is_seen, "xmm2");
-        test_dirty_vector_is_seen!(test_xmm3_is_seen, "xmm3");
-        test_dirty_vector_is_seen!(test_xmm4_is_seen, "xmm4");
-        test_dirty_vector_is_seen!(test_xmm5_is_seen, "xmm5");
-        test_dirty_vector_is_seen!(test_xmm6_is_seen, "xmm6");
-        test_dirty_vector_is_seen!(test_xmm7_is_seen, "xmm7");
-        test_dirty_vector_is_seen!(test_xmm8_is_seen, "xmm8");
-        test_dirty_vector_is_seen!(test_xmm9_is_seen, "xmm9");
-        test_dirty_vector_is_seen!(test_xmm10_is_seen, "xmm10");
-        test_dirty_vector_is_seen!(test_xmm11_is_seen, "xmm11");
-        test_dirty_vector_is_seen!(test_xmm12_is_seen, "xmm12");
-        test_dirty_vector_is_seen!(test_xmm13_is_seen, "xmm13");
-        test_dirty_vector_is_seen!(test_xmm14_is_seen, "xmm14");
-        test_dirty_vector_is_seen!(test_xmm15_is_seen, "xmm15");
+        test_dirty_vector_is_seen!(test_xmm0_low_is_seen, test_xmm0_high_is_seen, "xmm0");
+        test_dirty_vector_is_seen!(test_xmm1_low_is_seen, test_xmm1_high_is_seen, "xmm1");
+        test_dirty_vector_is_seen!(test_xmm2_low_is_seen, test_xmm2_high_is_seen, "xmm2");
+        test_dirty_vector_is_seen!(test_xmm3_low_is_seen, test_xmm3_high_is_seen, "xmm3");
+        test_dirty_vector_is_seen!(test_xmm4_low_is_seen, test_xmm4_high_is_seen, "xmm4");
+        test_dirty_vector_is_seen!(test_xmm5_low_is_seen, test_xmm5_high_is_seen, "xmm5");
+        test_dirty_vector_is_seen!(test_xmm6_low_is_seen, test_xmm6_high_is_seen, "xmm6");
+        test_dirty_vector_is_seen!(test_xmm7_low_is_seen, test_xmm7_high_is_seen, "xmm7");
+        test_dirty_vector_is_seen!(test_xmm8_low_is_seen, test_xmm8_high_is_seen, "xmm8");
+        test_dirty_vector_is_seen!(test_xmm9_low_is_seen, test_xmm9_high_is_seen, "xmm9");
+        test_dirty_vector_is_seen!(test_xmm10_low_is_seen, test_xmm10_high_is_seen, "xmm10");
+        test_dirty_vector_is_seen!(test_xmm11_low_is_seen, test_xmm11_high_is_seen, "xmm11");
+        test_dirty_vector_is_seen!(test_xmm12_low_is_seen, test_xmm12_high_is_seen, "xmm12");
+        test_dirty_vector_is_seen!(test_xmm13_low_is_seen, test_xmm13_high_is_seen, "xmm13");
+        test_dirty_vector_is_seen!(test_xmm14_low_is_seen, test_xmm14_high_is_seen, "xmm14");
+        test_dirty_vector_is_seen!(test_xmm15_low_is_seen, test_xmm15_high_is_seen, "xmm15");
 
         pub(super) const GENERAL_TESTS: usize = 9;
         pub(super) const VECTOR_TESTS: usize = 16;
@@ -363,30 +376,30 @@ macro_rules! every_register {
         test_dirty_general_is_seen!(test_x16_is_seen, "x16");
         test_dirty_general_is_seen!(test_x17_is_seen, "x17");
 
-        test_dirty_vector_is_seen!(test_v0_is_seen, "v0");
-        test_dirty_vector_is_seen!(test_v1_is_seen, "v1");
-        test_dirty_vector_is_seen!(test_v2_is_seen, "v2");
-        test_dirty_vector_is_seen!(test_v3_is_seen, "v3");
-        test_dirty_vector_is_seen!(test_v4_is_seen, "v4");
-        test_dirty_vector_is_seen!(test_v5_is_seen, "v5");
-        test_dirty_vector_is_seen!(test_v6_is_seen, "v6");
-        test_dirty_vector_is_seen!(test_v7_is_seen, "v7");
-        test_dirty_vector_is_seen!(test_v16_is_seen, "v16");
-        test_dirty_vector_is_seen!(test_v17_is_seen, "v17");
-        test_dirty_vector_is_seen!(test_v18_is_seen, "v18");
-        test_dirty_vector_is_seen!(test_v19_is_seen, "v19");
-        test_dirty_vector_is_seen!(test_v20_is_seen, "v20");
-        test_dirty_vector_is_seen!(test_v21_is_seen, "v21");
-        test_dirty_vector_is_seen!(test_v22_is_seen, "v22");
-        test_dirty_vector_is_seen!(test_v23_is_seen, "v23");
-        test_dirty_vector_is_seen!(test_v24_is_seen, "v24");
-        test_dirty_vector_is_seen!(test_v25_is_seen, "v25");
-        test_dirty_vector_is_seen!(test_v26_is_seen, "v26");
-        test_dirty_vector_is_seen!(test_v27_is_seen, "v27");
-        test_dirty_vector_is_seen!(test_v28_is_seen, "v28");
-        test_dirty_vector_is_seen!(test_v29_is_seen, "v29");
-        test_dirty_vector_is_seen!(test_v30_is_seen, "v30");
-        test_dirty_vector_is_seen!(test_v31_is_seen, "v31");
+        test_dirty_vector_is_seen!(test_v0_low_is_seen, test_v0_high_is_seen, "v0");
+        test_dirty_vector_is_seen!(test_v1_low_is_seen, test_v1_high_is_seen, "v1");
+        test_dirty_vector_is_seen!(test_v2_low_is_seen, test_v2_high_is_seen, "v2");
+        test_dirty_vector_is_seen!(test_v3_low_is_seen, test_v3_high_is_seen, "v3");
+        test_dirty_vector_is_seen!(test_v4_low_is_seen, test_v4_high_is_seen, "v4");
+        test_dirty_vector_is_seen!(test_v5_low_is_seen, test_v5_high_is_seen, "v5");
+        test_dirty_vector_is_seen!(test_v6_low_is_seen, test_v6_high_is_seen, "v6");
+        test_dirty_vector_is_seen!(test_v7_low_is_seen, test_v7_high_is_seen, "v7");
+        test_dirty_vector_is_seen!(test_v16_low_is_seen, test_v16_high_is_seen, "v16");
+        test_dirty_vector_is_seen!(test_v17_low_is_seen, test_v17_high_is_seen, "v17");
+        test_dirty_vector_is_seen!(test_v18_low_is_seen, test_v18_high_is_seen, "v18");
+        test_dirty_vector_is_seen!(test_v19_low_is_seen, test_v19_high_is_seen, "v19");
+        test_dirty_vector_is_seen!(test_v20_low_is_seen, test_v20_high_is_seen, "v20");
+        test_dirty_vector_is_seen!(test_v21_low_is_seen, test_v21_high_is_seen, "v21");
+        test_dirty_vector_is_seen!(test_v22_low_is_seen, test_v22_high_is_seen, "v22");
+        test_dirty_vector_is_seen!(test_v23_low_is_seen, test_v23_high_is_seen, "v23");
+        test_dirty_vector_is_seen!(test_v24_low_is_seen, test_v24_high_is_seen, "v24");
+        test_dirty_vector_is_seen!(test_v25_low_is_seen, test_v25_high_is_seen, "v25");
+        test_dirty_vector_is_seen!(test_v26_low_is_seen, test_v26_high_is_seen, "v26");
+        test_dirty_vector_is_seen!(test_v27_low_is_seen, test_v27_high_is_seen, "v27");
+        test_dirty_vector_is_seen!(test_v28_low_is_seen, test_v28_high_is_seen, "v28");
+        test_dirty_vector_is_seen!(test_v29_low_is_seen, test_v29_high_is_seen, "v29");
+        test_dirty_vector_is_seen!(test_v30_low_is_seen, test_v30_high_is_seen, "v30");
+        test_dirty_vector_is_seen!(test_v31_low_is_seen, test_v31_high_is_seen, "v31");
 
         pub(super) const GENERAL_TESTS: usize = 18;
         pub(super) const VECTOR_TESTS: usize = 24;
