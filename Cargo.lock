@@ -1081,13 +1081,16 @@ dependencies = [
 name = "redoubt-rand"
 version = "0.1.0-rc.13"
 dependencies = [
+ "cc",
  "getrandom",
  "libc",
  "proptest",
+ "redoubt-asm",
  "redoubt-forensics",
  "redoubt-hkdf",
  "redoubt-mem",
  "redoubt-zero",
+ "rstest",
  "thiserror",
 ]
 

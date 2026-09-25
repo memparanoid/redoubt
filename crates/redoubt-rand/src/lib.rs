@@ -63,6 +63,7 @@ extern crate alloc;
 #[cfg(test)]
 mod tests;
 
+mod backend;
 mod error;
 mod generate_random_key;
 mod session;
@@ -86,8 +87,9 @@ pub use support::test_utils;
 
 /// Fills a buffer with cryptographically secure random bytes.
 ///
-/// This is a thin wrapper around `getrandom::fill` that returns
-/// [`EntropyError`] on failure.
+/// On Linux, x86-64 and AArch64, the kernel writes them straight into `dest`,
+/// asked by a routine that leaves none of them in a register. Elsewhere they
+/// come from the `getrandom` crate.
 ///
 /// # Example
 ///
@@ -97,7 +99,6 @@ pub use support::test_utils;
 /// let mut key = [0u8; 32];
 /// fill_with_random_bytes(&mut key).expect("Failed to generate random bytes");
 /// ```
-#[inline]
 pub fn fill_with_random_bytes(dest: &mut [u8]) -> Result<(), EntropyError> {
-    getrandom::fill(dest).map_err(|_| EntropyError::EntropyNotAvailable)
+    backend::fill(redoubt_asm::Backend::default(), dest)
 }
