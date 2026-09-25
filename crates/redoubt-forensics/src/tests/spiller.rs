@@ -219,6 +219,30 @@ const SEED: [u8; 64] = [
     0xF0, 0x56, 0xE9, 0x23, 0xB7, 0x4D, 0x0A, 0x98, 0x35, 0xC1, 0x6E, 0xFA, 0x82, 0x1F, 0xA7, 0x54,
 ];
 
+/// A seed for an SVE register, as wide as the widest vector the architecture
+/// defines: the load reads the machine's whole vector length, whatever it is.
+///
+/// Never `0x00` and never `0xFF`, for the reason [`SEED`] is not.
+#[cfg(target_arch = "aarch64")]
+const SEED_SVE: [u8; 256] = [
+    0xEA, 0x38, 0x01, 0x64, 0x47, 0x52, 0x7B, 0xB7, 0xD8, 0xC0, 0xA3, 0x77, 0x7F, 0x9F, 0x41, 0x93,
+    0xE3, 0x12, 0xCD, 0xE5, 0x53, 0x5C, 0x1C, 0x97, 0xB4, 0xEE, 0x3F, 0x48, 0x8E, 0x11, 0x33, 0xFE,
+    0xE7, 0x8F, 0x60, 0x75, 0x5A, 0x06, 0xA0, 0x59, 0x25, 0x4F, 0x2A, 0xC4, 0xCB, 0x63, 0xC1, 0x27,
+    0x88, 0xCA, 0x4E, 0x09, 0x9C, 0xA7, 0x43, 0xEB, 0x72, 0x45, 0xDF, 0x35, 0x1B, 0xBA, 0x19, 0x2E,
+    0x18, 0x07, 0xF5, 0xDC, 0xB1, 0x26, 0xFC, 0xDB, 0xB6, 0x62, 0xDD, 0x0C, 0x46, 0xE2, 0xD9, 0x9B,
+    0x87, 0xE8, 0x66, 0xB3, 0x29, 0xF4, 0xCF, 0xC8, 0x3E, 0x3B, 0xFD, 0x24, 0xF0, 0x2F, 0xB8, 0xBF,
+    0xAF, 0xBC, 0x05, 0x2C, 0x79, 0xD4, 0x5F, 0x40, 0xAD, 0x15, 0x69, 0xFA, 0x74, 0x04, 0xF8, 0x4D,
+    0x8B, 0x1E, 0x56, 0x8A, 0x78, 0x1A, 0xA5, 0x7C, 0x10, 0xE1, 0xF6, 0xD3, 0x13, 0xA9, 0x0F, 0xD5,
+    0x95, 0x57, 0xB0, 0xD2, 0x6A, 0xDA, 0xA6, 0x6C, 0x21, 0x98, 0x36, 0xE4, 0x68, 0xA1, 0xAC, 0x0E,
+    0xBD, 0xB9, 0xFB, 0xB5, 0xD6, 0xA4, 0x32, 0x86, 0x2D, 0x90, 0xA2, 0x51, 0x61, 0xEF, 0x39, 0x7A,
+    0xD0, 0xA8, 0xC9, 0x4B, 0xED, 0x82, 0xC7, 0x71, 0x37, 0x50, 0x5B, 0xF9, 0x0B, 0x2B, 0xF7, 0x20,
+    0xEC, 0x9A, 0x84, 0x0A, 0x0D, 0x8C, 0x89, 0x7E, 0x5E, 0x8D, 0x67, 0xBB, 0x70, 0x23, 0x5D, 0x6D,
+    0xC6, 0xAB, 0x30, 0x49, 0x28, 0xDE, 0x4A, 0x17, 0x14, 0x08, 0x73, 0x80, 0xC3, 0x6E, 0xE0, 0xD1,
+    0x3C, 0x34, 0x54, 0x6B, 0x94, 0xC2, 0x42, 0x81, 0x31, 0x1D, 0x02, 0xCE, 0x96, 0x76, 0x3A, 0xB2,
+    0xAE, 0x99, 0x9D, 0xF1, 0x58, 0xE9, 0xD7, 0x4C, 0x03, 0xE6, 0x44, 0x85, 0x16, 0x65, 0x7D, 0x92,
+    0x3D, 0x9E, 0xAA, 0xCC, 0xBE, 0xF3, 0x91, 0x6F, 0x1F, 0x83, 0xC5, 0x22, 0xF2, 0x55, 0x5A, 0xA5,
+];
+
 /// One register set to [`SEED`], and the room read back around it.
 ///
 /// The strong half is not that the slot holds the value — it is that nothing
@@ -353,6 +377,90 @@ macro_rules! seeded_wide_x86 {
     };
 }
 
+/// One register set to [`SEED`] and captured by the AVX form, which writes
+/// thirty-two bytes of each vector slot.
+///
+/// The form a machine with AVX and no AVX-512 is given, and the only one that
+/// writes the upper half of `ymm0-15`: the half a 32-byte `memcpy` passes
+/// through there. Called by name, so it runs on any machine with AVX, whichever
+/// form this one picks.
+macro_rules! seeded_avx_x86 {
+    ($name:ident, $load:tt, $register:tt, $slot:expr, $wide:expr) => {
+        #[cfg(target_arch = "x86_64")]
+        #[test]
+        fn $name() {
+            alone!();
+
+            if !std::arch::is_x86_feature_detected!("avx") {
+                eprintln!("skipped: no AVX here, so there is no such register to fill.");
+
+                return;
+            }
+
+            #[target_feature(enable = "avx")]
+            unsafe fn put() {
+                // SAFETY: the one register written is declared, the seed is
+                // read for the thirty-two bytes a `ymm` holds, and the call is
+                // the last thing in the block. The load is unaligned.
+                unsafe {
+                    core::arch::asm!(
+                        concat!($load, " ", $register, ", [{seed}]"),
+                        "call {spill}",
+                        seed = in(reg) SEED.as_ptr(),
+                        spill = sym crate::spiller::redoubt_spill_avx,
+                        out($register) _,
+                    );
+                }
+            }
+
+            // SAFETY: the feature it is compiled for was just detected.
+            unsafe { put() };
+
+            found_only_at($register, $slot, $wide);
+        }
+    };
+}
+
+/// One register set to [`SEED_SVE`] and captured by the SVE form, which writes
+/// as much of each vector slot as this machine's vector is long.
+///
+/// A `z` is named in the load and its NEON half in the operand, which is the
+/// only spelling of it Rust has. A machine without SVE skips.
+macro_rules! seeded_sve_arm {
+    ($name:ident, $load:tt, $named:tt, $operand:tt, $slot:expr, $wide:expr) => {
+        #[cfg(target_arch = "aarch64")]
+        #[test]
+        fn $name() {
+            alone!();
+
+            if !std::arch::is_aarch64_feature_detected!("sve") {
+                eprintln!("skipped: no SVE here, so there is no such register to fill.");
+
+                return;
+            }
+
+            // SAFETY: the one register written is declared, as is the link
+            // register the call writes; the seed is as wide as the widest
+            // vector there is, so the load reads inside it, and the call is the
+            // last thing in the block.
+            unsafe {
+                core::arch::asm!(
+                    ".arch_extension sve",
+                    concat!($load, " ", $named, ", [{seed}]"),
+                    ".arch_extension nosve",
+                    "bl {spill}",
+                    seed = in(reg) SEED_SVE.as_ptr(),
+                    spill = sym crate::spiller::redoubt_spill_sve,
+                    out($operand) _,
+                    out("lr") _,
+                );
+            }
+
+            found_only($operand, $slot, &SEED_SVE[..$wide]);
+        }
+    };
+}
+
 /// The seed is in that register's slot, and in no other.
 ///
 /// `wide` is how much of the seed the register could hold: eight bytes of it
@@ -361,8 +469,14 @@ macro_rules! seeded_wide_x86 {
 /// capture wrote this register into.
 #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 fn found_only_at(register: &str, slot: usize, wide: usize) {
+    found_only(register, slot, &SEED[..wide]);
+}
+
+/// `want` is in that register's slot, and in no other.
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+fn found_only(register: &str, slot: usize, want: &[u8]) {
     let room = spilled();
-    let want = &SEED[..wide];
+    let wide = want.len();
 
     assert_eq!(
         &room[slot..slot + wide],
@@ -691,6 +805,137 @@ seeded_x86!(
     "xmm15",
     1088,
     16
+);
+
+// ============================================================================
+// Every register there is, on x86_64 with AVX
+// ============================================================================
+
+seeded_avx_x86!(test_the_avx_capture_writes_down_rax, "mov", "rax", 0, 8);
+seeded_avx_x86!(test_the_avx_capture_writes_down_rcx, "mov", "rcx", 16, 8);
+seeded_avx_x86!(test_the_avx_capture_writes_down_rdx, "mov", "rdx", 24, 8);
+seeded_avx_x86!(test_the_avx_capture_writes_down_rsi, "mov", "rsi", 32, 8);
+seeded_avx_x86!(test_the_avx_capture_writes_down_rdi, "mov", "rdi", 40, 8);
+seeded_avx_x86!(test_the_avx_capture_writes_down_r8, "mov", "r8", 64, 8);
+seeded_avx_x86!(test_the_avx_capture_writes_down_r9, "mov", "r9", 72, 8);
+seeded_avx_x86!(test_the_avx_capture_writes_down_r10, "mov", "r10", 80, 8);
+seeded_avx_x86!(test_the_avx_capture_writes_down_r11, "mov", "r11", 88, 8);
+seeded_avx_x86!(test_the_avx_capture_writes_down_r12, "mov", "r12", 96, 8);
+seeded_avx_x86!(test_the_avx_capture_writes_down_r13, "mov", "r13", 104, 8);
+seeded_avx_x86!(test_the_avx_capture_writes_down_r14, "mov", "r14", 112, 8);
+seeded_avx_x86!(test_the_avx_capture_writes_down_r15, "mov", "r15", 120, 8);
+
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm0,
+    "vmovdqu",
+    "ymm0",
+    128,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm1,
+    "vmovdqu",
+    "ymm1",
+    192,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm2,
+    "vmovdqu",
+    "ymm2",
+    256,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm3,
+    "vmovdqu",
+    "ymm3",
+    320,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm4,
+    "vmovdqu",
+    "ymm4",
+    384,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm5,
+    "vmovdqu",
+    "ymm5",
+    448,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm6,
+    "vmovdqu",
+    "ymm6",
+    512,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm7,
+    "vmovdqu",
+    "ymm7",
+    576,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm8,
+    "vmovdqu",
+    "ymm8",
+    640,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm9,
+    "vmovdqu",
+    "ymm9",
+    704,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm10,
+    "vmovdqu",
+    "ymm10",
+    768,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm11,
+    "vmovdqu",
+    "ymm11",
+    832,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm12,
+    "vmovdqu",
+    "ymm12",
+    896,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm13,
+    "vmovdqu",
+    "ymm13",
+    960,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm14,
+    "vmovdqu",
+    "ymm14",
+    1024,
+    32
+);
+seeded_avx_x86!(
+    test_the_capture_writes_down_ymm15,
+    "vmovdqu",
+    "ymm15",
+    1088,
+    32
 );
 
 // ============================================================================
@@ -1289,6 +1534,470 @@ fn test_the_capture_writes_down_x19() {
 
     found_only_at("x19", 152, 8);
 }
+
+// ============================================================================
+// Every register there is, on aarch64 with SVE
+// ============================================================================
+
+seeded_sve_arm!(test_the_sve_capture_writes_down_x0, "ldr", "x0", "x0", 0, 8);
+seeded_sve_arm!(test_the_sve_capture_writes_down_x1, "ldr", "x1", "x1", 8, 8);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x2,
+    "ldr",
+    "x2",
+    "x2",
+    16,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x3,
+    "ldr",
+    "x3",
+    "x3",
+    24,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x4,
+    "ldr",
+    "x4",
+    "x4",
+    32,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x5,
+    "ldr",
+    "x5",
+    "x5",
+    40,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x6,
+    "ldr",
+    "x6",
+    "x6",
+    48,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x7,
+    "ldr",
+    "x7",
+    "x7",
+    56,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x8,
+    "ldr",
+    "x8",
+    "x8",
+    64,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x9,
+    "ldr",
+    "x9",
+    "x9",
+    72,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x10,
+    "ldr",
+    "x10",
+    "x10",
+    80,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x11,
+    "ldr",
+    "x11",
+    "x11",
+    88,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x12,
+    "ldr",
+    "x12",
+    "x12",
+    96,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x13,
+    "ldr",
+    "x13",
+    "x13",
+    104,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x14,
+    "ldr",
+    "x14",
+    "x14",
+    112,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x15,
+    "ldr",
+    "x15",
+    "x15",
+    120,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x16,
+    "ldr",
+    "x16",
+    "x16",
+    128,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x17,
+    "ldr",
+    "x17",
+    "x17",
+    136,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x20,
+    "ldr",
+    "x20",
+    "x20",
+    160,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x21,
+    "ldr",
+    "x21",
+    "x21",
+    168,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x22,
+    "ldr",
+    "x22",
+    "x22",
+    176,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x23,
+    "ldr",
+    "x23",
+    "x23",
+    184,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x24,
+    "ldr",
+    "x24",
+    "x24",
+    192,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x25,
+    "ldr",
+    "x25",
+    "x25",
+    200,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x26,
+    "ldr",
+    "x26",
+    "x26",
+    208,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x27,
+    "ldr",
+    "x27",
+    "x27",
+    216,
+    8
+);
+seeded_sve_arm!(
+    test_the_sve_capture_writes_down_x28,
+    "ldr",
+    "x28",
+    "x28",
+    224,
+    8
+);
+
+seeded_sve_arm!(
+    test_the_capture_writes_down_z0,
+    "ldr",
+    "z0",
+    "v0",
+    256,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z1,
+    "ldr",
+    "z1",
+    "v1",
+    512,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z2,
+    "ldr",
+    "z2",
+    "v2",
+    768,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z3,
+    "ldr",
+    "z3",
+    "v3",
+    1024,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z4,
+    "ldr",
+    "z4",
+    "v4",
+    1280,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z5,
+    "ldr",
+    "z5",
+    "v5",
+    1536,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z6,
+    "ldr",
+    "z6",
+    "v6",
+    1792,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z7,
+    "ldr",
+    "z7",
+    "v7",
+    2048,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z8,
+    "ldr",
+    "z8",
+    "v8",
+    2304,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z9,
+    "ldr",
+    "z9",
+    "v9",
+    2560,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z10,
+    "ldr",
+    "z10",
+    "v10",
+    2816,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z11,
+    "ldr",
+    "z11",
+    "v11",
+    3072,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z12,
+    "ldr",
+    "z12",
+    "v12",
+    3328,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z13,
+    "ldr",
+    "z13",
+    "v13",
+    3584,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z14,
+    "ldr",
+    "z14",
+    "v14",
+    3840,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z15,
+    "ldr",
+    "z15",
+    "v15",
+    4096,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z16,
+    "ldr",
+    "z16",
+    "v16",
+    4352,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z17,
+    "ldr",
+    "z17",
+    "v17",
+    4608,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z18,
+    "ldr",
+    "z18",
+    "v18",
+    4864,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z19,
+    "ldr",
+    "z19",
+    "v19",
+    5120,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z20,
+    "ldr",
+    "z20",
+    "v20",
+    5376,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z21,
+    "ldr",
+    "z21",
+    "v21",
+    5632,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z22,
+    "ldr",
+    "z22",
+    "v22",
+    5888,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z23,
+    "ldr",
+    "z23",
+    "v23",
+    6144,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z24,
+    "ldr",
+    "z24",
+    "v24",
+    6400,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z25,
+    "ldr",
+    "z25",
+    "v25",
+    6656,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z26,
+    "ldr",
+    "z26",
+    "v26",
+    6912,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z27,
+    "ldr",
+    "z27",
+    "v27",
+    7168,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z28,
+    "ldr",
+    "z28",
+    "v28",
+    7424,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z29,
+    "ldr",
+    "z29",
+    "v29",
+    7680,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z30,
+    "ldr",
+    "z30",
+    "v30",
+    7936,
+    spilled_width()
+);
+seeded_sve_arm!(
+    test_the_capture_writes_down_z31,
+    "ldr",
+    "z31",
+    "v31",
+    8192,
+    spilled_width()
+);
 
 // ============================================================================
 // freeze! and capture, on every register
