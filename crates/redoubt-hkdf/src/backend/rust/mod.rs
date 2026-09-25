@@ -20,13 +20,16 @@ pub(crate) mod hmac;
 pub(crate) mod sha256;
 pub(crate) mod word32;
 
-#[cfg(test)]
-use crate::consts::{BLOCK_SIZE, HASH_SIZE};
-
 use hkdf::HkdfSha256State;
+
+#[cfg(test)]
+use crate::consts::BLOCK_SIZE;
 #[cfg(test)]
 use hmac::HmacSha256State;
-#[cfg(test)]
+
+#[cfg(any(test, feature = "test-utils"))]
+use crate::consts::HASH_SIZE;
+#[cfg(any(test, feature = "test-utils"))]
 use sha256::Sha256State;
 
 /// One block folded into the state somebody else is carrying.
@@ -41,7 +44,7 @@ pub(crate) fn sha256_compress_block(h: &mut [u32; 8], block: &[u8; BLOCK_SIZE]) 
 }
 
 /// The digest of a message of any length.
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 pub(crate) fn sha256_hash(data: &[u8], out: &mut [u8; HASH_SIZE]) {
     let mut state = Sha256State::new();
 

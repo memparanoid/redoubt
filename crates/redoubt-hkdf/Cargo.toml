@@ -13,6 +13,11 @@ version.workspace    = true
 [lib]
 path = "src/lib.rs"
 
+[features]
+# Publishes this crate's SHA-256 for a crate above to use in its own tests.
+# Nothing that ships turns it on.
+test-utils = []
+
 [build-dependencies]
 cc.workspace = true
 

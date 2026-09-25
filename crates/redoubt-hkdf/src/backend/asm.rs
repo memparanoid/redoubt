@@ -15,16 +15,20 @@
 //! word to anybody.
 
 #[cfg(test)]
-use crate::consts::{BLOCK_SIZE, HASH_SIZE};
+use crate::consts::BLOCK_SIZE;
+#[cfg(any(test, feature = "test-utils"))]
+use crate::consts::HASH_SIZE;
 
 unsafe extern "C" {
-    // The first three are declared only where something reaches them, which is
-    // the tests. The assembly defines them in every build — its own routines
-    // call them — and what changes here is whether Rust has a name for one.
+    // The first three are declared only where something reaches them: this
+    // crate's tests, and for the hash a crate above's tests through
+    // `test-utils`. The assembly defines them in every build — its own
+    // routines call them — and what changes here is whether Rust has a name
+    // for one.
     #[cfg(test)]
     fn redoubt_sha256_compress_block(h: *mut u32, block: *const u8);
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-utils"))]
     fn redoubt_sha256_hash(msg: *const u8, msg_len: usize, digest: *mut u8);
 
     #[cfg(test)]
@@ -58,7 +62,7 @@ pub(crate) fn sha256_compress_block(h: &mut [u32; 8], block: &[u8; BLOCK_SIZE]) 
 }
 
 /// The digest of a message of any length.
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 pub(crate) fn sha256_hash(data: &[u8], out: &mut [u8; HASH_SIZE]) {
     // SAFETY: the message is as long as the length beside it, the destination
     // is `HASH_SIZE` bytes, and a shared borrow and an exclusive one cannot be

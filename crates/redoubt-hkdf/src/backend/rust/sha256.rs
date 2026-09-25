@@ -364,7 +364,7 @@ impl Sha256State {
     }
 
     /// Hash complete message
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn hash(&mut self, data: &[u8], out: &mut [u8; HASH_LEN]) {
         self.update(data);
         self.finalize(out);

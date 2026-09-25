@@ -28,7 +28,9 @@ pub(crate) mod asm;
 use redoubt_asm::Backend;
 
 #[cfg(test)]
-use crate::consts::{BLOCK_SIZE, HASH_SIZE};
+use crate::consts::BLOCK_SIZE;
+#[cfg(any(test, feature = "test-utils"))]
+use crate::consts::HASH_SIZE;
 
 #[cfg(hkdf_asm)]
 use asm as chosen;
@@ -69,9 +71,10 @@ pub(crate) fn sha256_compress_block(backend: Backend, h: &mut [u32; 8], block: &
 
 /// The digest of a message of any length.
 ///
-/// Test-only for the same reason as the compression above, and held to the same
-/// published answers.
-#[cfg(test)]
+/// Held to the same published answers as the compression. Outside this crate's
+/// tests it is reached only through [`crate::sha256`], for a crate above that
+/// needs a digest in its own tests.
+#[cfg(any(test, feature = "test-utils"))]
 pub(crate) fn sha256_hash(backend: Backend, data: &[u8], out: &mut [u8; HASH_SIZE]) {
     match backend {
         Backend::Rust => rust::sha256_hash(data, out),

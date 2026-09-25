@@ -32,10 +32,16 @@ extern crate std;
 #[cfg(test)]
 mod tests;
 
+#[cfg(any(test, feature = "test-utils"))]
+mod sha256;
+
 mod backend;
 mod consts;
 mod error;
 mod hkdf;
+
+#[cfg(any(test, feature = "test-utils"))]
+pub use sha256::sha256;
 
 pub use error::HkdfError;
 pub use hkdf::hkdf;

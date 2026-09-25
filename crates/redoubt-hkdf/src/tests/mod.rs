@@ -11,6 +11,7 @@ mod backend;
 mod hkdf;
 mod libsodium;
 mod rfc;
+mod sha256;
 mod wycheproof;
 
 use alloc::string::String;
