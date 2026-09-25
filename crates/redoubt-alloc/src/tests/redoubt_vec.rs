@@ -54,6 +54,29 @@ fn test_with_capacity() {
     assert_eq!(vec.capacity(), 10);
 }
 
+/// The allocator hands a freed block to the next request of its size as its
+/// last owner left it.
+#[test]
+fn test_with_capacity_is_zeroized() {
+    let mut dirty = std::vec![0xFF_u8; 1024];
+    dirty.clear();
+
+    assert!(!dirty.is_zeroized());
+
+    let block = dirty.as_ptr();
+
+    drop(dirty);
+
+    let vec: RedoubtVec<u8> = RedoubtVec::with_capacity(1024);
+
+    // CORRECTNESS: without the same block, an emptiness below says only that
+    // the allocator handed out one that came from the kernel empty.
+    assert_eq!(vec.as_vec().as_ptr(), block, "the dirty block was not reused");
+
+    // Assert zeroization!
+    assert!(vec.is_zeroized());
+}
+
 // =============================================================================
 // from_mut_slice()
 // =============================================================================

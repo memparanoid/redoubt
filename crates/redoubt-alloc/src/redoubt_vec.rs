@@ -90,11 +90,15 @@ where
 
     /// Creates a new `RedoubtVec` with the specified capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self {
+        let mut vec = Self {
             inner: Vec::with_capacity(capacity),
             #[cfg(test)]
             __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
-        }
+        };
+
+        vec.inner.fast_zeroize();
+
+        vec
     }
 
     /// Creates a new `RedoubtVec` from a mutable slice, zeroizing the source.
