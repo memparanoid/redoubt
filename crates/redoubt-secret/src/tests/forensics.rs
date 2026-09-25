@@ -2,34 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! What a secret leaves behind on its way into the box that holds it.
+//! What a secret leaves behind on its way into the box that holds it, and out.
 //!
-//! # Two tests for every claim
+//! No test here is about a `u64`: eight bytes is `QUIET`, the width memory
+//! reaches by accident, so an absence over it is no answer. The narrowest
+//! primitive measured is a `u128`, and the `u64` a caller stores runs the same
+//! generic code.
 //!
-//! An absence on its own says nothing: a sweep that reaches nowhere reports a
-//! clean process, and so does a secret that was put away properly. So each
-//! section opens with the same operation run against a value that is never let
-//! go, and that one has to be **found**. Whatever the rest of the section
-//! reports is worth exactly as much as that.
-//!
-//! # Why no test here is about a `u64`
-//!
-//! Eight bytes is `QUIET`, the width memory reaches by accident, so an absence
-//! over a value that narrow is not a weak answer — it is no answer. The
-//! narrowest primitive this can be asked about is a `u128`, and the answer for
-//! the `u64` a caller actually stores is reached the other way: it is the same
-//! generic code, measured at a width the instrument can see.
-//!
-//! # What goes inside the block
-//!
-//! The source is filled outside it — that is the test's own doing, and the
-//! crate does not answer for it. Everything the crate does goes in, from the
-//! value being taken to the box being let go.
-
-#![cfg(all(unix, target_os = "linux"))]
+//! Run under `nextest`: the sweep reads the whole process, and `cargo test`
+//! shares one between tests.
 
 use redoubt_forensics::{AnyError, Forensics, QUIET, Report, capture, forensics};
-use redoubt_secret::RedoubtSecret;
+use redoubt_zero::FastZeroizable;
+
+use crate::RedoubtSecret;
 
 /// Thirty-two distinct bytes: no value repeats, so a run that extends did not
 /// extend by luck.
@@ -41,9 +27,15 @@ const SECRET: [u8; 32] = [
     0x84, 0x1D, 0xA6, 0x3F, 0xD8, 0x60, 0x95, 0x2E, 0xBB, 0x07, 0x4C, 0xE1, 0x76, 0xAF, 0x13, 0xCA,
 ];
 
-/// Sixteen distinct bytes as a `u128`, which is the narrowest primitive an
-/// absence can be measured over: eight is `QUIET`, and no sweep tells that
-/// from noise.
+/// A second secret, sharing no run with [`SECRET`], for the value a replace
+/// puts where that one was.
+const OTHER: [u8; 32] = [
+    0x27, 0xC8, 0x6B, 0x15, 0xE0, 0x93, 0x4D, 0xFA, 0x3E, 0x81, 0xD6, 0x09, 0xB2, 0x5F, 0x74, 0xAB,
+    0x10, 0xE9, 0x36, 0x8C, 0x57, 0xF2, 0x0B, 0xC4, 0x69, 0xAD, 0x22, 0x9B, 0x40, 0xDD, 0x78, 0x05,
+];
+
+/// Sixteen distinct bytes as a `u128`, the narrowest primitive an absence can
+/// be measured over.
 const NARROW: u128 = u128::from_le_bytes([
     0x3B, 0xD5, 0x62, 0xF7, 0x18, 0xAC, 0x4E, 0x90, 0x27, 0xEB, 0x5D, 0x81, 0xC6, 0x0F, 0xA3, 0x74,
 ]);
@@ -61,15 +53,15 @@ fn narrow_backwards() -> Vec<u8> {
     NARROW.to_le_bytes().iter().rev().copied().collect()
 }
 
-/// The secret into somewhere the caller already owns, by the copy that erases
+/// A secret into somewhere the caller already owns, by the copy that erases
 /// what it used.
 ///
 /// Not a plain assignment, which is whatever move the compiler emits: the test
 /// does not get to cause the thing it is measuring.
-fn giving(into: &mut [u8; 32]) {
+fn giving(into: &mut [u8; 32], from: &[u8; 32]) {
     // SAFETY: both are thirty-two bytes, and a constant and a local are
     // different allocations.
-    unsafe { redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), into.as_mut_ptr(), SECRET.len()) };
+    unsafe { redoubt_mem::copy_nonoverlapping(from.as_ptr(), into.as_mut_ptr(), from.len()) };
 }
 
 /// Takes the value and lets it go, which runs its drop somewhere the caller
@@ -84,16 +76,16 @@ fn let_go<T>(value: T) {
 
 /// Takes the value the same way and never lets it go.
 ///
-/// The other half of each pair. The move is the same move, so whatever it
-/// leaves behind is the same; what changes is that whoever took it is still
-/// holding the secret when the photograph is taken.
+/// The move is the same move as [`let_go`]'s, so whatever it leaves behind is
+/// the same; what changes is that whoever took it still holds the secret when
+/// the photograph is taken.
 #[inline(never)]
 fn hold_on<T>(value: T) {
     core::mem::forget(core::hint::black_box(value));
 }
 
-/// The photograph says the secret is there, which is what makes the rest of
-/// the section mean anything.
+/// Without a presence an absence cannot be told apart from a sweep that reaches
+/// nowhere.
 fn is_found(report: &Report, what: &str) {
     println!();
     report.summary(what);
@@ -106,8 +98,6 @@ fn is_found(report: &Report, what: &str) {
     );
 }
 
-/// The three things an absence has to survive.
-///
 /// The whole secret is gone, no piece of it wider than chance is left, and the
 /// score did not move. One of the three on its own would pass a process that
 /// kept half of it, or kept all of it somewhere the score weighs at nothing.
@@ -136,6 +126,156 @@ fn leaves_nothing(report_before: &Report, report_after: &Report, what: &str) {
 }
 
 // ============================================================================
+// RedoubtSecret, dropped
+// ============================================================================
+
+#[test]
+fn test_dropping_a_secret_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source = [0_u8; 32];
+
+    giving(&mut source, &SECRET);
+
+    forensics!({
+        let held = RedoubtSecret::from(&mut source);
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
+        capture(|| drop(held));
+    });
+
+    leaves_nothing(&report_before, &watch.snapshot()?, "a secret dropped");
+
+    Ok(())
+}
+
+// ============================================================================
+// RedoubtSecret, moved
+// ============================================================================
+
+#[test]
+fn test_a_secret_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let mut source = [0_u8; 32];
+
+    giving(&mut source, &SECRET);
+
+    forensics!({
+        let held = RedoubtSecret::from(&mut source);
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
+        capture(|| hold_on(held));
+    });
+
+    is_found(&watch.snapshot()?, "a secret given away, and kept");
+
+    Ok(())
+}
+
+/// What a move copies is the box's address and not what is behind it, so the
+/// slot left behind holds no secret. Read a failure as the value having come
+/// out of the box and into the struct, where a move carries the bytes and
+/// empties nothing.
+#[test]
+fn test_a_secret_given_away_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source = [0_u8; 32];
+
+    giving(&mut source, &SECRET);
+
+    forensics!({
+        let held = RedoubtSecret::from(&mut source);
+
+        // CORRECTNESS: inside the capture, because this is the operation. What
+        // the section measures is whether it leaves a copy in the registers or
+        // the stack it used itself. What it writes over is whatever ran before
+        // it, which has a section of its own.
+        capture(|| let_go(held));
+    });
+
+    leaves_nothing(&report_before, &watch.snapshot()?, "a secret given away");
+
+    Ok(())
+}
+
+// ============================================================================
+// FastZeroizable for RedoubtSecret
+// ============================================================================
+
+#[test]
+fn test_zeroizing_a_secret_leaves_nothing() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&backwards())?;
+
+    let report_before = watch.snapshot()?;
+
+    let mut source = [0_u8; 32];
+
+    giving(&mut source, &SECRET);
+
+    let mut held = RedoubtSecret::from(&mut source);
+
+    forensics!({
+        capture(|| held.fast_zeroize());
+    });
+
+    // Not dropped: the drop zeroizes again, and would keep this absence green
+    // with the operation's own wipe deleted.
+    core::mem::forget(held);
+
+    leaves_nothing(&report_before, &watch.snapshot()?, "a secret zeroized");
+
+    Ok(())
+}
+
+// ============================================================================
+// Encode and Decode for RedoubtSecret
+// ============================================================================
+
+#[test]
+#[ignore = "TODO: the codec derive's forensics, which measure what it generates for every struct."]
+fn test_encoding_a_secret_leaves_nothing() {
+    // Intentionally empty.
+}
+
+#[test]
+#[ignore = "TODO: the codec derive's forensics, which measure what it generates for every struct."]
+fn test_decoding_a_secret_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// Default for RedoubtSecret
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it boxes an empty value."]
+fn test_making_an_empty_secret_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
+// Debug for RedoubtSecret
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it prints a placeholder."]
+fn test_printing_a_secret_leaves_nothing() {
+    // Intentionally empty.
+}
+
+// ============================================================================
 // RedoubtSecret::from
 // ============================================================================
 
@@ -145,7 +285,7 @@ fn test_what_was_taken_is_found_while_the_secret_holds_it() -> Result<(), AnyErr
 
     let mut source = [0_u8; 32];
 
-    giving(&mut source);
+    giving(&mut source, &SECRET);
 
     forensics!({
         let held = capture(|| RedoubtSecret::from(&mut source));
@@ -162,11 +302,11 @@ fn test_what_was_taken_is_found_while_the_secret_holds_it() -> Result<(), AnyErr
 fn test_taking_a_secret_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
+    let report_before = watch.snapshot()?;
+
     let mut source = [0_u8; 32];
 
-    giving(&mut source);
-
-    let report_before = watch.snapshot()?;
+    giving(&mut source, &SECRET);
 
     forensics!({
         let held = capture(|| RedoubtSecret::from(&mut source));
@@ -186,9 +326,9 @@ fn test_taking_a_secret_leaves_nothing() -> Result<(), AnyError> {
 fn test_taking_a_narrow_secret_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&narrow_backwards())?;
 
-    let mut source = NARROW;
-
     let report_before = watch.snapshot()?;
+
+    let mut source = NARROW;
 
     forensics!({
         let held = capture(|| RedoubtSecret::from(&mut source));
@@ -218,7 +358,7 @@ fn test_what_replaced_is_found_while_the_secret_holds_it() -> Result<(), AnyErro
 
     let mut source = [0_u8; 32];
 
-    giving(&mut source);
+    giving(&mut source, &SECRET);
 
     forensics!({
         let mut held = RedoubtSecret::<[u8; 32]>::default();
@@ -237,11 +377,11 @@ fn test_what_replaced_is_found_while_the_secret_holds_it() -> Result<(), AnyErro
 fn test_replacing_a_secret_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
+    let report_before = watch.snapshot()?;
+
     let mut source = [0_u8; 32];
 
-    giving(&mut source);
-
-    let report_before = watch.snapshot()?;
+    giving(&mut source, &SECRET);
 
     forensics!({
         let mut held = RedoubtSecret::<[u8; 32]>::default();
@@ -259,63 +399,53 @@ fn test_replacing_a_secret_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-// ============================================================================
-// RedoubtSecret: ownership
-// ============================================================================
-
-/// What a move copies is the box's address and not what is behind it, so the
-/// slot left behind holds no secret. Read a failure as the value having come
-/// out of the box and into the struct, where a move carries the bytes and
-/// empties nothing.
+/// The value the secret held before is what is watched for, and the secret is
+/// kept holding the new one: nothing of the old may be left anywhere.
 #[test]
-fn test_a_secret_given_away_leaves_nothing() -> Result<(), AnyError> {
+fn test_replacing_a_secret_that_holds_one_leaves_nothing_of_the_old() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
     let report_before = watch.snapshot()?;
 
-    let mut source = [0_u8; 32];
+    let mut old = [0_u8; 32];
+    let mut new = [0_u8; 32];
 
-    giving(&mut source);
+    giving(&mut old, &SECRET);
+    giving(&mut new, &OTHER);
+
+    let mut held = RedoubtSecret::from(&mut old);
 
     forensics!({
-        let held = RedoubtSecret::from(&mut source);
-
-        // CORRECTNESS: inside the capture, because this is the operation. What
-        // the section measures is whether the move itself leaves a copy in the
-        // registers or the stack it used.
-        capture(|| let_go(held));
+        capture(|| held.replace(&mut new));
     });
 
-    leaves_nothing(&report_before, &watch.snapshot()?, "a secret given away");
+    leaves_nothing(
+        &report_before,
+        &watch.snapshot()?,
+        "a secret replaced over one it held",
+    );
+
+    drop(held);
 
     Ok(())
 }
 
 // ============================================================================
-// RedoubtSecret::drop
+// AsRef for RedoubtSecret
 // ============================================================================
 
-/// Dropping the secret leaves nothing.
 #[test]
-fn test_dropping_a_secret_leaves_nothing() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&backwards())?;
+#[ignore = "Reads no secret: it hands out a reference."]
+fn test_viewing_a_secret_leaves_nothing() {
+    // Intentionally empty.
+}
 
-    let report_before = watch.snapshot()?;
+// ============================================================================
+// AsMut for RedoubtSecret
+// ============================================================================
 
-    let mut source = [0_u8; 32];
-
-    giving(&mut source);
-
-    forensics!({
-        let held = RedoubtSecret::from(&mut source);
-
-        // CORRECTNESS: inside the capture, because this is the operation. What
-        // the section measures is what the drop itself leaves in the registers
-        // or the stack it used.
-        capture(|| drop(held));
-    });
-
-    leaves_nothing(&report_before, &watch.snapshot()?, "a secret dropped");
-
-    Ok(())
+#[test]
+#[ignore = "Reads no secret: it hands out a reference."]
+fn test_viewing_a_secret_mutably_leaves_nothing() {
+    // Intentionally empty.
 }
