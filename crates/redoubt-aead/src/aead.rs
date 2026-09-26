@@ -276,15 +276,6 @@ impl Aead {
         None
     }
 
-    /// This `Aead`, with one of its calls set to refuse.
-    #[cfg(any(test, feature = "test-utils"))]
-    #[must_use]
-    pub fn with_behaviour(mut self, behaviour: AeadBehaviour) -> Self {
-        self.fuse = Some(Fuse::new(behaviour));
-
-        self
-    }
-
     /// Every algorithm this machine can run.
     ///
     /// Never empty: XChaCha20-Poly1305 is in it by construction.
@@ -315,6 +306,15 @@ impl Aead {
             xchachapoly1305: Aead::new_chacha(),
             aegis128l: Aead::new_aegis(feature_detector),
         }
+    }
+
+    /// This `Aead`, with one of its calls set to refuse.
+    #[cfg(any(test, feature = "test-utils"))]
+    #[must_use]
+    pub fn with_behaviour(mut self, behaviour: AeadBehaviour) -> Self {
+        self.fuse = Some(Fuse::new(behaviour));
+
+        self
     }
 
     /// The one this machine has, named rather than chosen.
