@@ -96,9 +96,7 @@ fn maybe_keys(into: &mut RedoubtOption<Keys>) {
     into.replace(&mut held);
 }
 
-fn arsenal() -> Result<Box<Arsenal>, AnyError> {
-    let mut arsenal = Box::new(Arsenal::default());
-
+fn arming(arsenal: &mut Arsenal) -> Result<(), AnyError> {
     secret(&mut arsenal.secret);
     maybe_secret(&mut arsenal.maybe_secret);
     maybe_text(&mut arsenal.maybe_text);
@@ -110,7 +108,15 @@ fn arsenal() -> Result<Box<Arsenal>, AnyError> {
     boxed_keys(&mut arsenal.boxed_keys);
     maybe_keys(&mut arsenal.maybe_keys);
 
-    Ok(arsenal)
+    Ok(())
+}
+
+fn armed_wire() -> Result<Vec<u8>, AnyError> {
+    let mut source = Arsenal::default();
+
+    arming(&mut source)?;
+
+    wire(&mut source)
 }
 
 fn wire(arsenal: &mut Arsenal) -> Result<Vec<u8>, AnyError> {
@@ -140,7 +146,7 @@ macro_rules! encoding_one_field_is_found {
         $(
             #[test]
             fn $name() -> Result<(), AnyError> {
-                let mut arsenal = Box::new(Arsenal::default());
+                let mut arsenal = Arsenal::default();
                 let fill: fn(&mut Arsenal) -> Result<(), AnyError> = $fill;
 
                 fill(&mut arsenal)?;
@@ -148,16 +154,18 @@ macro_rules! encoding_one_field_is_found {
                 let mut watch = Forensics::watching(&backwards())?;
 
                 forensics!({
-                    let mut buffer =
-                        RedoubtCodecBuffer::with_capacity(arsenal.encode_bytes_required()?);
+                    // Leaked and not a local: any call after the capture may
+                    // write over what a buffer let go of, and then the sweep
+                    // genuinely does not find what the operation wrote there.
+                    let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(
+                        arsenal.encode_bytes_required()?,
+                    )));
 
-                    capture(|| arsenal.encode_into(&mut buffer))?;
+                    capture(|| arsenal.encode_into(buffer))?;
 
                     // What encode was given, emptied: what is found is what it
                     // wrote.
                     arsenal.fast_zeroize();
-
-                    core::mem::forget(buffer);
                 });
 
                 is_found(
@@ -200,7 +208,9 @@ fn test_encoding_a_struct_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut arsenal = arsenal()?;
+    let mut arsenal = Arsenal::default();
+
+    arming(&mut arsenal)?;
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(arsenal.encode_bytes_required()?);
@@ -232,7 +242,9 @@ fn test_encoding_a_struct_into_a_buffer_too_small_leaves_nothing() -> Result<(),
 
     let report_before = watch.snapshot()?;
 
-    let mut arsenal = arsenal()?;
+    let mut arsenal = Arsenal::default();
+
+    arming(&mut arsenal)?;
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(arsenal.encode_bytes_required()? / 2);
@@ -271,7 +283,7 @@ macro_rules! decoding_one_field_is_found {
         $(
             #[test]
             fn $name() -> Result<(), AnyError> {
-                let mut arsenal = Box::new(Arsenal::default());
+                let mut arsenal = Arsenal::default();
                 let fill: fn(&mut Arsenal) -> Result<(), AnyError> = $fill;
 
                 fill(&mut arsenal)?;
@@ -280,15 +292,16 @@ macro_rules! decoding_one_field_is_found {
                 let mut watch = Forensics::watching(&backwards())?;
 
                 forensics!({
-                    let mut back = Box::new(Arsenal::default());
+                    // Leaked and not a local: any call after the capture may
+                    // write over what a struct let go of, and then the sweep
+                    // genuinely does not find what the operation wrote there.
+                    let back = Box::leak(Box::new(Arsenal::default()));
 
                     capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
 
                     // What decode was given, emptied: what is found is what it
                     // wrote.
                     wire.fast_zeroize();
-
-                    core::mem::forget(back);
                 });
 
                 is_found(
@@ -331,10 +344,10 @@ fn test_decoding_a_struct_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut wire = wire(&mut *arsenal()?)?;
+    let mut wire = armed_wire()?;
 
     forensics!({
-        let mut back = Box::new(Arsenal::default());
+        let mut back = Arsenal::default();
 
         capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
 
@@ -363,8 +376,10 @@ fn test_decoding_a_struct_over_one_that_holds_a_secret_leaves_nothing() -> Resul
 
     let report_before = watch.snapshot()?;
 
-    let mut wire = wire(&mut *arsenal()?)?;
-    let mut back = arsenal()?;
+    let mut wire = armed_wire()?;
+    let mut back = Arsenal::default();
+
+    arming(&mut back)?;
 
     forensics!({
         capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
@@ -394,11 +409,11 @@ fn test_decoding_a_struct_from_a_wire_cut_short_leaves_nothing() -> Result<(), A
 
     let report_before = watch.snapshot()?;
 
-    let mut wire = wire(&mut *arsenal()?)?;
+    let mut wire = armed_wire()?;
     let half = wire.len() / 2;
 
     forensics!({
-        let mut back = Box::new(Arsenal::default());
+        let mut back = Arsenal::default();
 
         let refused = capture(|| back.decode_from(&mut &mut wire[..half]));
 
