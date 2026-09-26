@@ -280,14 +280,17 @@ fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), A
     let mut held = holding(&SECRET);
 
     forensics!({
-        let mut buffer = RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?);
+        // Leaked and not a local: any call after the capture may write over
+        // what a buffer let go of, and then the sweep genuinely does not find
+        // what the operation wrote there.
+        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(
+            held.encode_bytes_required()?,
+        )));
 
-        capture(|| held.encode_into(&mut buffer))?;
+        capture(|| held.encode_into(buffer))?;
 
         // What encode was given, emptied: what is found is what it wrote.
         held.fast_zeroize();
-
-        core::mem::forget(buffer);
     });
 
     is_found(&watch.snapshot()?, "a buffer a secret was encoded into, and kept");
@@ -368,14 +371,15 @@ fn test_what_decoding_wrote_is_found_while_the_secret_holds_it() -> Result<(), A
     let mut wire = wire(&SECRET)?;
 
     forensics!({
-        let mut back = RedoubtSecret::<[u8; 32]>::default();
+        // Leaked and not a local: any call after the capture may write over
+        // what a secret let go of, and then the sweep genuinely does not find
+        // what the operation wrote there.
+        let back = Box::leak(Box::new(RedoubtSecret::<[u8; 32]>::default()));
 
         capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
 
         // What decode was given, emptied: what is found is what it wrote.
         wire.fast_zeroize();
-
-        hold_on(back);
     });
 
     is_found(&watch.snapshot()?, "a secret decoded into, and kept");
