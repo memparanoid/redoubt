@@ -29,7 +29,7 @@ Redoubt is a Rust library for storing secrets in memory. Encrypted at rest, zero
 - **Amazingly fast** — Powered by AEGIS-128L encryption, bit-level encoding, and decrypt-only-what-you-need
 - **Page-level protection** — The master key every CipherBox is sealed with lives in its own mapping, mlocked and excluded from core dumps
 - **Field-level access** — Decrypt only the field you need, not the entire struct
-- **`no_std` compatible** — Works in embedded and WASI environments
+- **`no_std` compatible** — Builds without the standard library, on the operating systems below
 
 ## Installation
 ```bash
@@ -265,7 +265,6 @@ See [examples/wallet/tests](examples/wallet/tests) for a complete example.
 | Linux | Full (`mlock`, `mprotect`, `madvise(MADV_DONTDUMP)`) |
 | macOS | Partial (`mlock`, `mprotect`) |
 | Windows | Encryption only |
-| WASI | Encryption only |
 | `no_std` | Encryption only |
 
 ## Project Insights

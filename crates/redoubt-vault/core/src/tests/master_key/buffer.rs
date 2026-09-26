@@ -16,7 +16,7 @@ use crate::tests::utils::{
 fn test_create_buffer_returns_correct_length() -> Result<(), Box<dyn std::error::Error>> {
     let mut buffer = create_buffer();
 
-    #[cfg(all(unix, not(target_os = "wasi")))]
+    #[cfg(unix)]
     {
         let debug_output = format!("{:?}", buffer);
         assert!(
@@ -25,7 +25,7 @@ fn test_create_buffer_returns_correct_length() -> Result<(), Box<dyn std::error:
         );
     }
 
-    #[cfg(any(target_os = "wasi", not(unix)))]
+    #[cfg(not(unix))]
     {
         let debug_output = format!("{:?}", buffer);
         assert!(

@@ -48,7 +48,6 @@
 //! - Linux/Android: `getrandom()` syscall
 //! - macOS/iOS: `getentropy()`
 //! - Windows: `BCryptGenRandom`
-//! - WASI: `random_get`
 //!
 //! ## License
 //!

@@ -45,8 +45,8 @@ machine, not about the path. So it is not measured, and nothing in this crate
 claims it leaves nothing.
 
 Off Linux there is nothing to measure it with either: the sweep reads
-`/proc/self`, so `redoubt-forensics` runs on Linux only. And on Windows and
-WASI a key made from these bytes has no protected memory to go to — no page
+`/proc/self`, so `redoubt-forensics` runs on Linux only. And on Windows a key
+made from these bytes has no protected memory to go to — no page
 that can be locked and closed — so it sits in ordinary memory for as long as
 it is held. A path proven clean into a key anyone can read would be worth
 nothing, which is why the fallback is the `getrandom` crate and nothing more.

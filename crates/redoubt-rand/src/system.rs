@@ -12,7 +12,6 @@ use crate::traits::EntropySource;
 /// - Linux/Android: `getrandom()` syscall
 /// - macOS/iOS: `getentropy()`
 /// - Windows: `BCryptGenRandom`
-/// - WASI: `random_get`
 #[derive(Default)]
 pub struct SystemEntropySource {}
 

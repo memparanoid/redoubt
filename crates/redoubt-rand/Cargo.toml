@@ -14,17 +14,12 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
+getrandom.workspace   = true
 redoubt-asm.workspace = true
 thiserror.workspace   = true
 
 [target.'cfg(any(target_os = "linux", target_os = "android", target_os = "macos", target_os = "ios"))'.dependencies]
 libc.workspace = true
-
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
-getrandom.workspace = true
-
-[target.'cfg(target_family = "wasm")'.dependencies]
-getrandom = { workspace = true, features = ["wasm_js"] }
 
 [build-dependencies]
 cc.workspace = true

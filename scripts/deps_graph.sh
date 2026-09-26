@@ -8,7 +8,6 @@ cd "$(dirname "$0")/.."
 
 cargo depgraph \
     --workspace-only \
-    --exclude wasm-example \
     --exclude benchmarks \
     --exclude dummy-codec \
     --exclude dummy-vault \

@@ -60,9 +60,3 @@ args        = ["make", "run"]
 command     = "cargo"
 cwd         = "examples/wallet"
 description = "Run wallet example"
-
-[tasks.wasm-example]
-args        = ["make", "run"]
-command     = "cargo"
-cwd         = "examples/wasm"
-description = "Run wasm example"

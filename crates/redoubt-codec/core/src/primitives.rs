@@ -99,8 +99,8 @@ macro_rules! impl_traits_for_primitives {
 }
 
 // No `usize` or `isize`: what they encode is `size_of` bytes of native memory,
-// which is four on `wasm32` and eight on `x86_64`. A field that has to cross
-// between them says `u64` or `i64` and means it.
+// which is four on a 32-bit target and eight on `x86_64`. A field that has to
+// cross between them says `u64` or `i64` and means it.
 //
 // No `bool` either: the macro copies bytes both ways, and a byte that is
 // neither zero nor one read back as a `bool` is undefined rather than an

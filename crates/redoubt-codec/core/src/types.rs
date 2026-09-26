@@ -7,7 +7,7 @@
 /// How many elements a collection holds, and how many bytes it takes, as its
 /// header carries them.
 ///
-/// Eight bytes on every target, where a `usize` is four on `wasm32` and eight
-/// on `x86_64`. The header is read by whoever receives the payload, not by
+/// Eight bytes on every target, where a `usize` is four on a 32-bit target and
+/// eight on `x86_64`. The header is read by whoever receives the payload, not by
 /// whoever wrote it.
 pub(crate) type Len = u64;

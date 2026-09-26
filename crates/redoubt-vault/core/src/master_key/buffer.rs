@@ -8,17 +8,17 @@ use alloc::boxed::Box;
 use redoubt_buffer::{Buffer, BufferError, PortableBuffer};
 use redoubt_rand::fill_with_random_bytes;
 
-#[cfg(all(unix, not(target_os = "wasi")))]
+#[cfg(unix)]
 use redoubt_buffer::PageBuffer;
 
 use super::consts::MASTER_KEY_LEN;
 
-#[cfg(any(target_os = "wasi", not(unix)))]
+#[cfg(not(unix))]
 pub fn create_buffer() -> Box<dyn Buffer> {
     Box::new(PortableBuffer::create(MASTER_KEY_LEN))
 }
 
-#[cfg(all(unix, not(target_os = "wasi")))]
+#[cfg(unix)]
 pub fn create_buffer() -> Box<dyn Buffer> {
     // SECURITY: the key's page is mlocked, kept at PROT_NONE between uses, and
     // excluded from core dumps with madvise(MADV_DONTDUMP). Everything that
