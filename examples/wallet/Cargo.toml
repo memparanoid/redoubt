@@ -18,7 +18,7 @@ version.workspace    = true
 test-utils = ["redoubt/test-utils"]
 
 [dependencies]
-redoubt = { workspace = true, features = ["full"] }
+redoubt = { workspace = true }
 
 [dev-dependencies]
 wallet-example = { path = ".", features = ["test-utils"] }

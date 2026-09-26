@@ -26,31 +26,13 @@ pub fn create_buffer() -> Box<dyn Buffer> {
     // around it does.
     match PageBuffer::new(MASTER_KEY_LEN) {
         Ok(buffer) => Box::new(buffer),
-        Err(e) => {
-            #[cfg(feature = "std")]
-            {
-                eprintln!(
-                    "\x1b[33m⚠️  SECURITY: Failed to create protected memory page: {:?}\x1b[0m",
-                    e
-                );
-                eprintln!("\x1b[33m   Falling back to heap (no mlock/mprotect/madvise).\x1b[0m");
-            }
-            #[cfg(not(feature = "std"))]
-            {
-                let _ = e;
-            }
-            Box::new(PortableBuffer::create(MASTER_KEY_LEN))
-        }
+        // Silent: the key goes to the heap, with no mlock, mprotect or
+        // madvise, and nothing tells the caller.
+        Err(_) => Box::new(PortableBuffer::create(MASTER_KEY_LEN)),
     }
 }
 
 pub fn create_initialized_buffer() -> Box<dyn Buffer> {
-    // Forensic analysis warning (applies to all platforms when internal-forensics feature is active)
-    #[cfg(all(feature = "internal-forensics", feature = "std"))]
-    eprintln!(
-        "\x1b[31m⚠️  WARNING: Forensic analysis mode enabled - reset_master_key is exposed\x1b[0m"
-    );
-
     let mut buffer = create_buffer();
 
     buffer
