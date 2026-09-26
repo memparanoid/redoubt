@@ -44,10 +44,6 @@ pub enum BufferError {
     /// name wrapped around it, and `source` reaches the thing itself.
     #[error(transparent)]
     CallbackError(Box<dyn core::error::Error + Send + Sync + 'static>),
-
-    /// A mutex was poisoned.
-    #[error("mutex poisoned")]
-    MutexPoisoned,
 }
 
 impl BufferError {
