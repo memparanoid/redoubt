@@ -397,18 +397,18 @@ fn test_what_tag_with_wrote_is_found_while_the_authenticator_holds_it() -> Resul
         capture(|| aead.tag_with(authenticator, AAD, &ciphertext));
     });
 
-    is_found(&watch.snapshot()?, "an authenticator told everything, and kept");
+    is_found(
+        &watch.snapshot()?,
+        "an authenticator told everything, and kept",
+    );
 
     Ok(())
 }
 
 #[test]
 fn test_tag_with_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[
-        ("one-time key", &OTK),
-        ("r", &R),
-        ("accumulator", &ACC),
-    ])?;
+    let mut watching =
+        Watching::start(&[("one-time key", &OTK), ("r", &R), ("accumulator", &ACC)])?;
 
     let ciphertext = holding(&CIPHERTEXT);
     let mut authenticator = Poly1305::new();
@@ -457,7 +457,10 @@ fn test_what_encrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(),
         key.fast_zeroize();
     });
 
-    is_found(&watch.snapshot()?, "a message encrypted where it lies, and kept");
+    is_found(
+        &watch.snapshot()?,
+        "a message encrypted where it lies, and kept",
+    );
 
     Ok(())
 }
@@ -482,7 +485,10 @@ fn test_the_tag_encrypting_wrote_is_found_while_the_caller_holds_it() -> Result<
         key.fast_zeroize();
     });
 
-    is_found(&watch.snapshot()?, "the tag a message was sealed with, and kept");
+    is_found(
+        &watch.snapshot()?,
+        "the tag a message was sealed with, and kept",
+    );
 
     Ok(())
 }
@@ -543,7 +549,10 @@ fn test_what_decrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(),
         key.fast_zeroize();
     });
 
-    is_found(&watch.snapshot()?, "a message decrypted where it lies, and kept");
+    is_found(
+        &watch.snapshot()?,
+        "a message decrypted where it lies, and kept",
+    );
 
     Ok(())
 }
