@@ -895,6 +895,7 @@ dependencies = [
  "redoubt-aead-xchachapoly1305",
  "redoubt-codec",
  "redoubt-forensics",
+ "redoubt-mem",
  "redoubt-rand",
  "redoubt-util",
  "redoubt-zero",
