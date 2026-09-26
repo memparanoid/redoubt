@@ -63,7 +63,11 @@ impl Watching {
     /// Asserts that nothing of any of them is left.
     pub(crate) fn none_left(&mut self, what: &str) -> Result<(), AnyError> {
         for (name, watch, before) in &mut self.watches {
-            leaves_nothing(before, &watch.snapshot()?, &std::format!("{what}, of the {name}"));
+            leaves_nothing(
+                before,
+                &watch.snapshot()?,
+                &std::format!("{what}, of the {name}"),
+            );
         }
 
         Ok(())

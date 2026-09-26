@@ -237,7 +237,10 @@ fn test_what_encrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(),
         key.fast_zeroize();
     });
 
-    is_found(&watch.snapshot()?, "a message encrypted where it lies, and kept");
+    is_found(
+        &watch.snapshot()?,
+        "a message encrypted where it lies, and kept",
+    );
 
     Ok(())
 }
@@ -262,7 +265,10 @@ fn test_the_tag_encrypting_wrote_is_found_while_the_caller_holds_it() -> Result<
         key.fast_zeroize();
     });
 
-    is_found(&watch.snapshot()?, "the tag a message was sealed with, and kept");
+    is_found(
+        &watch.snapshot()?,
+        "the tag a message was sealed with, and kept",
+    );
 
     Ok(())
 }
@@ -314,7 +320,10 @@ fn test_what_decrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(),
         key.fast_zeroize();
     });
 
-    is_found(&watch.snapshot()?, "a message decrypted where it lies, and kept");
+    is_found(
+        &watch.snapshot()?,
+        "a message decrypted where it lies, and kept",
+    );
 
     Ok(())
 }

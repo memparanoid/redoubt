@@ -19,7 +19,8 @@ const NONCE: [u8; NONCE_SIZE] = [
 ];
 
 /// Public, and so not watched: Bernstein's eight.
-const BERNSTEIN_NONCE: [u8; BERNSTEIN_NONCE_SIZE] = [0x07, 0x00, 0x00, 0x00, 0x40, 0x41, 0x42, 0x43];
+const BERNSTEIN_NONCE: [u8; BERNSTEIN_NONCE_SIZE] =
+    [0x07, 0x00, 0x00, 0x00, 0x40, 0x41, 0x42, 0x43];
 
 /// `PLAINTEXT` under `KEY` and `NONCE`, from a counter of one.
 ///

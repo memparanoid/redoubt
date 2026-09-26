@@ -136,7 +136,10 @@ fn test_the_subkey_xor_derives_is_found_while_a_derivation_holds_it() -> Result<
         key.fast_zeroize();
     });
 
-    is_found(&watch.snapshot()?, "the subkey xor derives, derived and kept");
+    is_found(
+        &watch.snapshot()?,
+        "the subkey xor derives, derived and kept",
+    );
 
     Ok(())
 }

@@ -293,7 +293,10 @@ fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), A
         held.fast_zeroize();
     });
 
-    is_found(&watch.snapshot()?, "a buffer a secret was encoded into, and kept");
+    is_found(
+        &watch.snapshot()?,
+        "a buffer a secret was encoded into, and kept",
+    );
 
     Ok(())
 }
