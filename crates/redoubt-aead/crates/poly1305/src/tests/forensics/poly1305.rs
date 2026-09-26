@@ -74,20 +74,6 @@ fn a_key() -> Box<[u8; KEY_SIZE]> {
     key
 }
 
-/// `init` run on the state where it lies, and the key it read emptied.
-fn keying(poly: &mut Poly1305) {
-    let mut key = a_key();
-
-    poly.init(Backend::default(), &key);
-    key.fast_zeroize();
-}
-
-/// The state keyed and `MESSAGE` in it, where it lies.
-fn feeding(poly: &mut Poly1305) {
-    keying(poly);
-    poly.update(Backend::default(), MESSAGE);
-}
-
 // ============================================================================
 // Poly1305::new
 // ============================================================================
@@ -157,13 +143,16 @@ fn test_init_leaves_nothing() -> Result<(), AnyError> {
 fn test_what_update_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&ACC))?;
 
+    let mut key = a_key();
+
     forensics!({
         // Leaked and not a local: any call after the capture may write over a
         // slot of the stack, and then the sweep genuinely does not find what
         // the operation wrote there.
         let poly = Box::leak(Box::new(Poly1305::new()));
 
-        keying(poly);
+        poly.init(Backend::default(), &key);
+        key.fast_zeroize();
 
         capture(|| poly.update(Backend::default(), MESSAGE));
     });
@@ -177,9 +166,11 @@ fn test_what_update_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyE
 fn test_update_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[("key", &KEY), ("r", &R), ("accumulator", &ACC)])?;
 
+    let mut key = a_key();
     let mut poly = Poly1305::new();
 
-    keying(&mut poly);
+    poly.init(Backend::default(), &key);
+    key.fast_zeroize();
 
     forensics!({
         capture(|| poly.update(Backend::default(), MESSAGE));
@@ -205,13 +196,16 @@ fn test_update_leaves_nothing() -> Result<(), AnyError> {
 fn test_what_update_padded_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&ACC_PADDED))?;
 
+    let mut key = a_key();
+
     forensics!({
         // Leaked and not a local: any call after the capture may write over a
         // slot of the stack, and then the sweep genuinely does not find what
         // the operation wrote there.
         let poly = Box::leak(Box::new(Poly1305::new()));
 
-        keying(poly);
+        poly.init(Backend::default(), &key);
+        key.fast_zeroize();
 
         capture(|| poly.update_padded(Backend::default(), MESSAGE));
     });
@@ -230,9 +224,11 @@ fn test_update_padded_leaves_nothing() -> Result<(), AnyError> {
         ("padded accumulator", &ACC_PADDED),
     ])?;
 
+    let mut key = a_key();
     let mut poly = Poly1305::new();
 
-    keying(&mut poly);
+    poly.init(Backend::default(), &key);
+    key.fast_zeroize();
 
     forensics!({
         capture(|| poly.update_padded(Backend::default(), MESSAGE));
@@ -258,9 +254,12 @@ fn test_update_padded_leaves_nothing() -> Result<(), AnyError> {
 fn test_what_finalize_wrote_is_found_while_the_caller_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&TAG))?;
 
+    let mut key = a_key();
     let mut poly = Poly1305::new();
 
-    feeding(&mut poly);
+    poly.init(Backend::default(), &key);
+    poly.update(Backend::default(), MESSAGE);
+    key.fast_zeroize();
 
     forensics!({
         // Leaked and not a local: any call after the capture may write over a
@@ -285,9 +284,12 @@ fn test_finalize_leaves_nothing() -> Result<(), AnyError> {
         ("tag", &TAG),
     ])?;
 
+    let mut key = a_key();
     let mut poly = Poly1305::new();
 
-    feeding(&mut poly);
+    poly.init(Backend::default(), &key);
+    poly.update(Backend::default(), MESSAGE);
+    key.fast_zeroize();
 
     forensics!({
         let mut out = [0_u8; TAG_SIZE];
@@ -319,9 +321,12 @@ fn test_finalize_leaves_nothing() -> Result<(), AnyError> {
 fn test_what_a_state_dropped_by_value_held_is_found_where_it_was() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&R))?;
 
+    let mut key = a_key();
     let mut poly = Poly1305::new();
 
-    feeding(&mut poly);
+    poly.init(Backend::default(), &key);
+    poly.update(Backend::default(), MESSAGE);
+    key.fast_zeroize();
 
     forensics!({
         // CORRECTNESS: inside the capture, because this is the operation. What
@@ -342,9 +347,12 @@ fn test_what_a_state_dropped_by_value_held_is_found_where_it_was() -> Result<(),
 fn test_a_state_zeroized_and_then_dropped_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[("key", &KEY), ("r", &R), ("accumulator", &ACC)])?;
 
+    let mut key = a_key();
     let mut poly = Poly1305::new();
 
-    feeding(&mut poly);
+    poly.init(Backend::default(), &key);
+    poly.update(Backend::default(), MESSAGE);
+    key.fast_zeroize();
 
     forensics!({
         poly.fast_zeroize();
