@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! What opening the key through the standard library's storage leaves behind.
-
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
 use redoubt_zero::FastZeroizable;
 
 use crate::master_key::consts::MASTER_KEY_LEN;
-use crate::master_key::storage::std::open;
+use crate::master_key::storage::open;
 
 use crate::tests::forensics::support::needles::backwards_through;
 use crate::tests::forensics::support::{copying_into, is_found, leaves_nothing};
@@ -64,4 +62,14 @@ fn test_opening_the_key_leaves_nothing() -> Result<(), AnyError> {
     drop(core::hint::black_box(kept));
 
     Ok(())
+}
+
+// ============================================================================
+// reset
+// ============================================================================
+
+#[test]
+#[ignore = "Reads no secret: it stores the buffer create_initialized_buffer makes."]
+fn test_resetting_the_storage_leaves_nothing() {
+    // Intentionally empty.
 }

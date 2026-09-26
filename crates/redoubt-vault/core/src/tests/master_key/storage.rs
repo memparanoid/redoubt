@@ -2,14 +2,25 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use std::error::Error;
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
+
 use redoubt_buffer::BufferError;
 
 use crate::master_key::consts::MASTER_KEY_LEN;
-use crate::master_key::storage::std::open;
+use crate::master_key::storage::open;
 use crate::tests::utils::run_test_as_subprocess;
 
+const DEADLINE: Duration = Duration::from_secs(10);
+
+// ============================================================================
+// open
+// ============================================================================
+
 #[test]
-fn test_std_storage_open_returns_correct_length() -> Result<(), Box<dyn std::error::Error>> {
+fn test_open_hands_the_whole_key() -> Result<(), Box<dyn Error>> {
     open(&mut |bytes| {
         assert_eq!(bytes.len(), MASTER_KEY_LEN);
         Ok(())
@@ -19,8 +30,7 @@ fn test_std_storage_open_returns_correct_length() -> Result<(), Box<dyn std::err
 }
 
 #[test]
-fn test_std_storage_open_returns_same_bytes_on_subsequent_calls()
--> Result<(), Box<dyn std::error::Error>> {
+fn test_open_hands_the_same_key_every_time() -> Result<(), Box<dyn Error>> {
     let mut first_bytes = [0u8; MASTER_KEY_LEN];
 
     open(&mut |bytes| {
@@ -37,28 +47,30 @@ fn test_std_storage_open_returns_same_bytes_on_subsequent_calls()
 }
 
 #[test]
-fn test_std_storage_open_propagates_callback_error() {
+fn test_open_propagates_callback_error() {
     #[derive(Debug, thiserror::Error)]
     #[error("a test callback refused")]
     struct CustomCallbackError {}
 
     let result = open(&mut |_| Err(BufferError::callback_error(CustomCallbackError {})));
-    assert!(result.is_err());
+
+    assert!(matches!(result, Err(BufferError::CallbackError(_))));
 }
 
 #[test]
-fn test_std_storage_concurrent_access() {
-    let exit_code = run_test_as_subprocess(
-        "tests::master_key::storage::std::std_storage_subprocess_concurrent_access",
-    );
+fn test_open_hands_every_thread_the_same_key() {
+    let exit_code =
+        run_test_as_subprocess("tests::master_key::storage::subprocess_every_thread_the_same_key");
+
     assert_eq!(exit_code, Some(0), "subprocess test failed");
 }
 
 #[test]
-fn test_std_storage_mutex_poisoned() {
+fn test_open_is_taken_again_after_a_callback_panicked() {
     let exit_code = run_test_as_subprocess(
-        "tests::master_key::storage::std::std_storage_subprocess_test_mutex_poisoned",
+        "tests::master_key::storage::subprocess_taken_again_after_a_callback_panicked",
     );
+
     assert_eq!(exit_code, Some(0), "subprocess test failed");
 }
 
@@ -68,14 +80,12 @@ fn test_std_storage_mutex_poisoned() {
 
 #[test]
 #[ignore]
-fn std_storage_subprocess_concurrent_access() -> Result<(), Box<dyn std::error::Error>> {
+fn subprocess_every_thread_the_same_key() -> Result<(), Box<dyn Error>> {
     use std::sync::{Arc, Mutex};
-    use std::thread;
 
     const NUM_THREADS: usize = 256;
     const POISONED: &str = "the keys mutex was poisoned";
 
-    /// What the callback hands back, which takes an error and not a string.
     #[derive(Debug, thiserror::Error)]
     #[error("{0}")]
     struct Refused(&'static str);
@@ -104,13 +114,13 @@ fn std_storage_subprocess_concurrent_access() -> Result<(), Box<dyn std::error::
         })
         .collect();
 
-    // Twice: once for the thread having finished at all, once for what it was
-    // doing in there.
     for handle in handles {
         handle.join().map_err(|_| "a thread panicked")??;
     }
 
     let guard = keys.lock().map_err(|_| POISONED)?;
+
+    assert_eq!(guard.len(), NUM_THREADS);
     assert!(guard.iter().all(|x| *x == guard[0]));
 
     Ok(())
@@ -118,25 +128,24 @@ fn std_storage_subprocess_concurrent_access() -> Result<(), Box<dyn std::error::
 
 #[test]
 #[ignore]
-fn std_storage_subprocess_test_mutex_poisoned() {
-    use std::panic;
-
-    // First call: poison the Mutex by panicking inside the closure
-    let result = panic::catch_unwind(|| {
+fn subprocess_taken_again_after_a_callback_panicked() {
+    let panicked = std::panic::catch_unwind(|| {
         open(&mut |_| {
-            panic!("Intentional panic to poison mutex");
+            panic!("the callback panics while the storage is open");
         })
     });
 
-    assert!(result.is_err(), "Expected panic");
+    assert!(panicked.is_err(), "the callback did not panic");
 
-    // Second call: should return MutexPoisoned error
-    let result = open(&mut |_| Ok(()));
+    let (opened, opening) = mpsc::channel();
 
-    match result {
-        Err(BufferError::MutexPoisoned) => {
-            // Success: we got the expected error
-        }
-        other => panic!("Expected MutexPoisoned error, got: {:?}", other),
-    }
+    thread::spawn(move || {
+        let _ = opened.send(open(&mut |_| Ok(())).is_ok());
+    });
+
+    let answer = opening
+        .recv_timeout(DEADLINE)
+        .expect("the storage was not opened again after the panic");
+
+    assert!(answer, "the storage refused to open after the panic");
 }

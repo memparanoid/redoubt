@@ -20,6 +20,7 @@ std                = []
 test-utils         = []
 
 [dependencies]
+quiesce.workspace        = true
 redoubt-aead.workspace   = true
 redoubt-alloc.workspace  = true
 redoubt-buffer.workspace = true
