@@ -31,46 +31,43 @@ struct Secret {
     two_options: RedoubtOption<RedoubtOption<RedoubtArray<u8, 32>>>,
 }
 
-/// Fills every field inside one `open_mut`, from sources the containers empty.
-fn open_fill_and_close(into: &mut SecretsBox) -> Result<(), CipherBoxError> {
-    into.open_mut(|secret| {
-        let mut source = [0_u8; 32];
+/// Fills every field, from sources the containers empty: the callback an
+/// `open_mut` is handed.
+fn fill_every_field(secret: &mut Secret) -> Result<(), CipherBoxError> {
+    let mut source = [0_u8; 32];
 
-        giving(&mut source);
-        secret.an_array.replace_from_mut_array(&mut source);
+    giving(&mut source);
+    secret.an_array.replace_from_mut_array(&mut source);
 
-        // Replaced and not extended: extending appends, so filling twice would
-        // leave one more copy of the secret per round by the test's own doing.
-        let mut source = vec![0_u8; SECRET.len() * TIMES];
+    // Replaced and not extended: extending appends, so filling twice would
+    // leave one more copy of the secret per round by the test's own doing.
+    let mut source = vec![0_u8; SECRET.len() * TIMES];
 
-        giving(&mut source);
+    giving(&mut source);
 
-        secret.a_vec.replace_from_mut_slice(&mut source);
+    secret.a_vec.replace_from_mut_slice(&mut source);
 
-        // Room asked for up front, so the replace below never reaches
-        // `grow_to`: a payload this size with no growth tells a leak in the
-        // growing apart from one in the carrying.
-        let mut inner = RedoubtVec::<u8>::with_capacity(SECRET.len() * TIMES);
-        let mut source = vec![0_u8; SECRET.len() * TIMES];
+    // Room asked for up front, so the replace below never reaches `grow_to`: a
+    // payload this size with no growth tells a leak in the growing apart from
+    // one in the carrying.
+    let mut inner = RedoubtVec::<u8>::with_capacity(SECRET.len() * TIMES);
+    let mut source = vec![0_u8; SECRET.len() * TIMES];
 
-        giving(&mut source);
+    giving(&mut source);
 
-        inner.replace_from_mut_slice(&mut source);
-        secret.an_option.replace(&mut inner);
+    inner.replace_from_mut_slice(&mut source);
+    secret.an_option.replace(&mut inner);
 
-        let mut source = [0_u8; 32];
-        let mut inner = RedoubtArray::<u8, 32>::default();
+    let mut source = [0_u8; 32];
+    let mut inner = RedoubtArray::<u8, 32>::default();
 
-        giving(&mut source);
-        inner.replace_from_mut_array(&mut source);
+    giving(&mut source);
+    inner.replace_from_mut_array(&mut source);
 
-        let mut wrapped = RedoubtOption::<RedoubtArray<u8, 32>>::default();
+    let mut wrapped = RedoubtOption::<RedoubtArray<u8, 32>>::default();
 
-        wrapped.replace(&mut inner);
-        secret.two_options.replace(&mut wrapped);
-
-        Ok(())
-    })?;
+    wrapped.replace(&mut inner);
+    secret.two_options.replace(&mut wrapped);
 
     Ok(())
 }
@@ -82,7 +79,7 @@ fn fill_while_watching() -> Result<(SecretsBox, Watching), AnyError> {
 
     let mut secrets_box = SecretsBox::new();
 
-    open_fill_and_close(&mut secrets_box)?;
+    secrets_box.open_mut(fill_every_field)?;
 
     watching.none_left("nothing held yet", "filling the box")?;
 
@@ -129,7 +126,7 @@ fn test_a_box_given_away_leaves_nothing() -> Result<(), AnyError> {
     let mut secrets_box = SecretsBox::new();
 
     forensics!({
-        open_fill_and_close(&mut secrets_box)?;
+        secrets_box.open_mut(fill_every_field)?;
 
         // CORRECTNESS: inside the capture, because this is the operation. What
         // the section measures is whether it leaves a copy in the registers or
@@ -154,7 +151,7 @@ fn test_a_filled_box_holds_nothing_at_rest() -> Result<(), AnyError> {
     let mut secrets_box = SecretsBox::new();
 
     forensics!({
-        capture(|| open_fill_and_close(&mut secrets_box))?;
+        capture(|| secrets_box.open_mut(fill_every_field))?;
     });
 
     // Held across the photograph, by reference: let go before it, the
@@ -334,7 +331,7 @@ fn test_filling_every_field_once_leaves_nothing() -> Result<(), AnyError> {
     let mut secrets_box = SecretsBox::new();
 
     forensics!({
-        capture(|| open_fill_and_close(&mut secrets_box))?;
+        capture(|| secrets_box.open_mut(fill_every_field))?;
     });
 
     watching.none_left("nothing held yet", "filled once")?;
@@ -355,7 +352,7 @@ fn test_filling_every_field_many_times_leaves_nothing() -> Result<(), AnyError> 
     forensics!({
         capture(|| -> Result<(), AnyError> {
             for _ in 0..ROUNDS {
-                open_fill_and_close(&mut secrets_box)?;
+                secrets_box.open_mut(fill_every_field)?;
             }
 
             Ok(())
