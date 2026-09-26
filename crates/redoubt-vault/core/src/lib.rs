@@ -21,6 +21,7 @@ mod helpers;
 mod master_key;
 mod traits;
 mod types;
+mod workspace;
 
 pub use cipherbox::CipherBox;
 pub use error::CipherBoxError;

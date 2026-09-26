@@ -152,7 +152,7 @@ fn assert_send<T: Send>() {}
 /// one box and open it at once, which they can only do if it is `Sync`.
 ///
 /// Nothing declares that: it holds because every field the box carries is
-/// plain data or an atomic. A `Cell` in any of them takes it away, and the
+/// plain data, an atomic or a lock. A `Cell` in any of them takes it away, and the
 /// consumer that can no longer share its box is where that would otherwise
 /// be found.
 #[test]
@@ -306,6 +306,54 @@ fn test_decrypt_struct_leaves_the_sealed_fields_intact() -> Result<(), BoxError>
     boxed.decrypt_struct(&master_key()?)?;
 
     assert_eq!(boxed.__unsafe_get_ciphertexts(), &before);
+
+    Ok(())
+}
+
+#[test]
+fn test_decrypt_struct_leaves_every_workspace_zeroized() -> Result<(), BoxError> {
+    let boxed = sealed(Aead::default())?;
+
+    boxed.decrypt_struct(&master_key()?)?;
+
+    assert!(boxed.__unsafe_get_workspaces().is_zeroized());
+
+    Ok(())
+}
+
+#[test]
+fn test_decrypt_struct_leaves_every_workspace_zeroized_on_a_failed_open() -> Result<(), BoxError> {
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
+    let boxed = sealed(aead)?;
+
+    assert!(boxed.decrypt_struct(&master_key()?).is_err());
+
+    assert!(boxed.__unsafe_get_workspaces().is_zeroized());
+
+    Ok(())
+}
+
+#[test]
+fn test_decrypt_struct_reads_again_into_the_same_blocks() -> Result<(), BoxError> {
+    let boxed = sealed(Aead::default())?;
+
+    boxed.decrypt_struct(&master_key()?)?;
+
+    let first: Vec<_> = boxed
+        .__unsafe_get_workspaces()
+        .iter()
+        .map(|workspace| workspace.lock().as_ptr())
+        .collect();
+
+    boxed.decrypt_struct(&master_key()?)?;
+
+    let second: Vec<_> = boxed
+        .__unsafe_get_workspaces()
+        .iter()
+        .map(|workspace| workspace.lock().as_ptr())
+        .collect();
+
+    assert_eq!(first, second);
 
     Ok(())
 }
@@ -481,6 +529,51 @@ fn test_decrypt_field_leaves_the_sealed_field_intact() -> Result<(), BoxError> {
     boxed.decrypt_field::<_, 1>(&master_key()?, &mut field)?;
 
     assert_eq!(boxed.__unsafe_get_field_ciphertext::<1>(), &before);
+
+    Ok(())
+}
+
+#[test]
+fn test_decrypt_field_leaves_the_workspace_zeroized() -> Result<(), BoxError> {
+    let boxed = sealed(Aead::default())?;
+    let mut field = RedoubtCodecTestBreaker::default();
+
+    boxed.decrypt_field::<_, 1>(&master_key()?, &mut field)?;
+
+    assert!(boxed.__unsafe_get_workspaces()[1].is_zeroized());
+
+    Ok(())
+}
+
+#[test]
+fn test_decrypt_field_leaves_the_workspace_zeroized_on_a_failed_open() -> Result<(), BoxError> {
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
+    let boxed = sealed(aead)?;
+    let mut field = RedoubtCodecTestBreaker::default();
+
+    assert!(
+        boxed
+            .decrypt_field::<_, 1>(&master_key()?, &mut field)
+            .is_err()
+    );
+
+    assert!(boxed.__unsafe_get_workspaces()[1].is_zeroized());
+
+    Ok(())
+}
+
+#[test]
+fn test_decrypt_field_reads_again_into_the_same_block() -> Result<(), BoxError> {
+    let boxed = sealed(Aead::default())?;
+    let mut field = RedoubtCodecTestBreaker::default();
+
+    boxed.decrypt_field::<_, 1>(&master_key()?, &mut field)?;
+    let first = boxed.__unsafe_get_workspaces()[1].lock().as_ptr();
+
+    boxed.decrypt_field::<_, 1>(&master_key()?, &mut field)?;
+    let second = boxed.__unsafe_get_workspaces()[1].lock().as_ptr();
+
+    assert_eq!(first, second);
 
     Ok(())
 }

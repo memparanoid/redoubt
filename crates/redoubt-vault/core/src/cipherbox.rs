@@ -18,6 +18,7 @@ use super::error::CipherBoxError;
 use super::master_key::leak_master_key;
 use super::traits::{DecryptStruct, Decryptable, EncryptStruct, Encryptable};
 use super::types::{Ciphertexts, Data, DataBuffers, Nonces, Tags};
+use super::workspace::Workspace;
 
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
@@ -47,6 +48,7 @@ where
     ciphertexts: Ciphertexts<N>,
     nonces: Nonces<N>,
     tags: Tags<N>,
+    workspaces: [Workspace; N],
     tmp_field_codec_buff: RedoubtCodecBuffer,
     /// Runtime verification that zeroization happened, for the tests that
     /// read it.
@@ -91,6 +93,11 @@ where
     }
 
     #[cfg(test)]
+    pub(crate) fn __unsafe_get_workspaces(&self) -> &[Workspace; N] {
+        &self.workspaces
+    }
+
+    #[cfg(test)]
     pub(crate) fn __unsafe_get_ciphertexts(&self) -> &Ciphertexts<N> {
         &self.ciphertexts
     }
@@ -125,6 +132,7 @@ where
             tags,
             nonces,
             ciphertexts,
+            workspaces: core::array::from_fn(|_| Workspace::new()),
             initialized: false,
             pristine: true,
             poisoned: AtomicBool::new(false),
@@ -177,11 +185,24 @@ where
         &self,
         aead_key: &[u8],
     ) -> Result<ZeroizingGuard<T>, CipherBoxError> {
-        // Decryption drains what it works on, so it works on a clone and the
-        // sealed fields survive the read.
-        let mut data: DataBuffers<N> = core::array::from_fn(|i| self.ciphertexts[i].clone());
+        // In field order, the one every read that holds more than one takes.
+        // The buffers leave the workspaces only while their locks are held.
+        let mut held: [_; N] = core::array::from_fn(|i| self.workspaces[i].lock());
+        let mut data: DataBuffers<N> = core::array::from_fn(|i| core::mem::take(&mut *held[i]));
 
-        self.decrypt_struct_from(aead_key, &mut data)
+        for (buffer, ciphertext) in data.iter_mut().zip(&self.ciphertexts) {
+            // SECURITY: a `memcpy` from the C library, which leaves what it
+            // copied in vector registers. What it copies is ciphertext.
+            buffer.clone_from(ciphertext);
+        }
+
+        let result = self.decrypt_struct_from(aead_key, &mut data);
+
+        for (slot, buffer) in held.iter_mut().zip(data) {
+            **slot = buffer;
+        }
+
+        result
     }
 
     #[inline(always)]
@@ -224,10 +245,10 @@ where
 
     /// Decrypts field `M`, leaving `ciphertexts[M]` intact.
     ///
-    /// Decryption drains the buffer it works on, so it works on a clone: the
-    /// sealed field survives the read, and a caller can be handed the
-    /// plaintext without the box having to seal it again. What is left in the
-    /// clone is zeros, because `decode_from` wipes each range as it reads it.
+    /// Decryption drains the buffer it works on, so it works on a copy in
+    /// `data`: the sealed field survives the read, and a caller can be handed
+    /// the plaintext without the box having to seal it again. What is left in
+    /// `data` is zeros, because `decode_from` wipes each range as it reads it.
     #[inline(always)]
     pub(crate) fn try_decrypt_field<F, const M: usize>(
         &self,
@@ -238,8 +259,9 @@ where
     where
         F: Default + Decryptable + ZeroizationProbe,
     {
-        // Clone ciphertext so we don't drain the original
-        *data = self.ciphertexts[M].clone();
+        // SECURITY: a `memcpy` from the C library, which leaves what it copied
+        // in vector registers. What it copies is ciphertext.
+        data.clone_from(&self.ciphertexts[M]);
         self.aead
             .decrypt(aead_key, &self.nonces[M], AAD, data, &self.tags[M])?;
 
@@ -258,7 +280,7 @@ where
     where
         F: Default + Decryptable + ZeroizationProbe,
     {
-        let mut data = Data::default();
+        let mut data = self.workspaces[M].lock();
 
         self.decrypt_field_into::<F, M>(aead_key, field, &mut data)
     }
@@ -354,8 +376,8 @@ where
     /// The sealed fields are not touched: the callback is handed a clone, and
     /// nothing is written back, so a read costs a decrypt and no encrypt.
     ///
-    /// Reading one field goes through `leak_field` instead, which clones and
-    /// decrypts that field alone.
+    /// Reading one field goes through `leak_field` instead, which decrypts
+    /// that field alone.
     #[inline(always)]
     pub(crate) fn open_dyn<R, E>(
         &self,
@@ -562,13 +584,13 @@ where
     /// # Performance
     ///
     /// This is the MOST EFFICIENT way to read a single field because:
-    /// 1. Only clones the field's ciphertext (not the entire struct)
+    /// 1. Only copies the field's ciphertext (not the entire struct)
     /// 2. No re-encryption required (original ciphertext remains intact)
     /// 3. Avoids the full struct decrypt-encrypt cycle of `open`
     ///
     /// # Design Note
     ///
-    /// `decrypt_field` clones `ciphertexts[M]` before decryption, allowing this method
+    /// `decrypt_field` copies `ciphertexts[M]` into the field's workspace before decryption, allowing this method
     /// to return ownership without losing the encrypted data. See `try_decrypt_field`
     /// for implementation details.
     ///
