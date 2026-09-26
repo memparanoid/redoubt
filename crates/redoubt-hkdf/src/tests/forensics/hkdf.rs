@@ -151,15 +151,17 @@ macro_rules! deriving {
                 let mut ikm = an_ikm();
 
                 forensics!({
-                    let mut okm = vec![0_u8; $len];
                     let derivation = HkdfSha256::new();
 
-                    capture(|| derivation.derive(SALT, &*ikm, INFO, &mut okm))?;
+                    // Leaked and not a local: any call after the capture may
+                    // write over what a buffer let go of, and then the sweep
+                    // genuinely does not find what the operation wrote there.
+                    let okm = vec![0_u8; $len].leak();
+
+                    capture(|| derivation.derive(SALT, &*ikm, INFO, okm))?;
 
                     // What it read, emptied: what is found is what it wrote.
                     ikm.fast_zeroize();
-
-                    core::mem::forget(okm);
                 });
 
                 is_found(&watch.snapshot()?, concat!("an output of ", $len, " derived, and kept"));
@@ -289,14 +291,15 @@ fn test_what_hkdf_wrote_is_found_while_the_output_holds_it() -> Result<(), AnyEr
     let mut ikm = an_ikm();
 
     forensics!({
-        let mut okm = vec![0_u8; OKM.len()];
+        // Leaked and not a local: any call after the capture may write over
+        // what a buffer let go of, and then the sweep genuinely does not find
+        // what the operation wrote there.
+        let okm = vec![0_u8; OKM.len()].leak();
 
-        capture(|| hkdf(SALT, &*ikm, INFO, &mut okm))?;
+        capture(|| hkdf(SALT, &*ikm, INFO, okm))?;
 
         // What it read, emptied: what is found is what it wrote.
         ikm.fast_zeroize();
-
-        core::mem::forget(okm);
     });
 
     is_found(&watch.snapshot()?, "an output hkdf derived, and kept");
