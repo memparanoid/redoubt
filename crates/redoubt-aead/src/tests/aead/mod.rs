@@ -150,6 +150,17 @@ fn test_a_cipher_can_be_held_by_several_threads() {
 }
 
 // === === === === === === === === === ===
+// default
+// === === === === === === === === === ===
+
+/// Resolving the detector is the one step a forced one cannot reach.
+#[test]
+#[cfg(aes_asm)]
+fn test_default_takes_what_this_machine_allows() {
+    assert_eq!(Aead::default().algorithm(), AeadAlgorithm::Aegis128L);
+}
+
+// === === === === === === === === === ===
 // algorithm
 // === === === === === === === === === ===
 
@@ -239,58 +250,6 @@ fn test_tag_size_is_the_width_encrypt_writes()
 }
 
 // === === === === === === === === === ===
-// generate_nonce_with
-// === === === === === === === === === ===
-
-#[test]
-fn test_generate_nonce_with_propagates_chacha_entropy_error() {
-    let mut session = Session::XChachaPoly1305(refusing());
-
-    let result = Aead::generate_nonce_with(&mut session);
-
-    assert!(
-        matches!(result, Err(AeadError::NonceEntropy(EntropyError::Injected))),
-        "a refused nonce came back as {result:?}"
-    );
-}
-
-#[test]
-fn test_generate_nonce_with_propagates_aegis_entropy_error() {
-    let mut session = Session::Aegis128L(refusing());
-
-    let result = Aead::generate_nonce_with(&mut session);
-
-    assert!(
-        matches!(result, Err(AeadError::NonceEntropy(EntropyError::Injected))),
-        "a refused nonce came back as {result:?}"
-    );
-}
-
-#[test]
-fn test_generate_nonce_with_answers_a_nonce_of_the_chacha_width()
--> Result<(), Box<dyn std::error::Error>> {
-    let mut session = Session::XChachaPoly1305(NonceSessionGenerator::new(SystemEntropySource {}));
-
-    let nonce = Aead::generate_nonce_with(&mut session)?;
-
-    assert_eq!(nonce.len(), chacha::XNONCE_SIZE);
-
-    Ok(())
-}
-
-#[test]
-fn test_generate_nonce_with_answers_a_nonce_of_the_aegis_width()
--> Result<(), Box<dyn std::error::Error>> {
-    let mut session = Session::Aegis128L(NonceSessionGenerator::new(SystemEntropySource {}));
-
-    let nonce = Aead::generate_nonce_with(&mut session)?;
-
-    assert_eq!(nonce.len(), aegis::NONCE_SIZE);
-
-    Ok(())
-}
-
-// === === === === === === === === === ===
 // generate_nonce
 // === === === === === === === === === ===
 
@@ -367,228 +326,55 @@ fn test_generate_nonce_answers_the_next_counter_each_time() -> Result<(), Box<dy
 }
 
 // === === === === === === === === === ===
-// new_with
+// generate_nonce_with
 // === === === === === === === === === ===
 
 #[test]
-fn test_new_with_takes_chacha_where_there_is_no_aes() {
-    let aead = Aead::new_with(&forced(FeatureDetectorBehaviour::ForceAesFalse));
+fn test_generate_nonce_with_propagates_chacha_entropy_error() {
+    let mut session = Session::XChachaPoly1305(refusing());
 
-    assert_eq!(aead.algorithm(), AeadAlgorithm::XChachaPoly1305);
-}
+    let result = Aead::generate_nonce_with(&mut session);
 
-#[test]
-#[cfg(aes_asm)]
-fn test_new_with_takes_aegis_where_there_is_aes() {
-    let aead = Aead::new_with(&forced(FeatureDetectorBehaviour::ForceAesTrue));
-
-    assert_eq!(aead.algorithm(), AeadAlgorithm::Aegis128L);
-}
-
-#[test]
-#[cfg(aes_asm)]
-fn test_new_with_takes_aegis_on_this_machine() {
-    let aead = Aead::new_with(&FeatureDetector::default());
-
-    assert_eq!(aead.algorithm(), AeadAlgorithm::Aegis128L);
-}
-
-// === === === === === === === === === ===
-// default
-// === === === === === === === === === ===
-
-/// Resolving the detector is the one step a forced one cannot reach.
-#[test]
-#[cfg(aes_asm)]
-fn test_default_takes_what_this_machine_allows() {
-    assert_eq!(Aead::default().algorithm(), AeadAlgorithm::Aegis128L);
-}
-
-// === === === === === === === === === ===
-// new_chacha
-// === === === === === === === === === ===
-
-#[test]
-fn test_new_chacha_takes_chacha_whatever_the_machine_is() {
-    assert_eq!(
-        Aead::new_chacha().algorithm(),
-        AeadAlgorithm::XChachaPoly1305
-    );
-}
-
-// === === === === === === === === === ===
-// new_aegis
-// === === === === === === === === === ===
-
-#[test]
-fn test_new_aegis_answers_with_nothing_where_there_is_no_aes() {
-    let aead = Aead::new_aegis(&forced(FeatureDetectorBehaviour::ForceAesFalse));
-
-    assert!(aead.is_none());
-}
-
-#[test]
-#[cfg(aes_asm)]
-fn test_new_aegis_takes_aegis_where_there_is_aes() {
-    let aead = Aead::new_aegis(&forced(FeatureDetectorBehaviour::ForceAesTrue))
-        .expect("Infallible: the detector was forced to say it has aes");
-
-    assert_eq!(aead.algorithm(), AeadAlgorithm::Aegis128L);
-}
-
-#[test]
-#[cfg(aes_asm)]
-fn test_new_aegis_takes_aegis_on_this_machine() {
-    let aead =
-        Aead::new_aegis(&FeatureDetector::default()).expect("Infallible: this machine has aes");
-
-    assert_eq!(aead.algorithm(), AeadAlgorithm::Aegis128L);
-}
-
-// === === === === === === === === === ===
-// supported_algorithms_with
-// === === === === === === === === === ===
-
-#[test]
-fn test_supported_algorithms_with_names_chacha_where_there_is_no_aes() {
-    let supported =
-        Aead::supported_algorithms_with(&forced(FeatureDetectorBehaviour::ForceAesFalse));
-
-    assert_eq!(supported.as_slice(), [AeadAlgorithm::XChachaPoly1305]);
-}
-
-#[test]
-#[cfg(aes_asm)]
-fn test_supported_algorithms_with_names_both_where_there_is_aes() {
-    let supported =
-        Aead::supported_algorithms_with(&forced(FeatureDetectorBehaviour::ForceAesTrue));
-
-    assert_eq!(
-        supported.as_slice(),
-        [AeadAlgorithm::XChachaPoly1305, AeadAlgorithm::Aegis128L]
-    );
-}
-
-/// The list is never empty, whatever the machine answers.
-///
-/// XChaCha20-Poly1305 needs nothing of the hardware, so it is in the list by
-/// construction rather than because some machine happened to allow it.
-#[test]
-fn test_supported_algorithms_with_always_names_chacha() {
-    for behaviour in every_behaviour() {
-        let supported = Aead::supported_algorithms_with(&forced(behaviour));
-
-        assert!(supported.contains(&AeadAlgorithm::XChachaPoly1305));
-    }
-}
-
-// === === === === === === === === === ===
-// supported_algorithms
-// === === === === === === === === === ===
-
-#[test]
-#[cfg(aes_asm)]
-fn test_supported_algorithms_names_what_this_machine_allows() {
-    assert_eq!(
-        Aead::supported_algorithms().as_slice(),
-        [AeadAlgorithm::XChachaPoly1305, AeadAlgorithm::Aegis128L]
-    );
-}
-
-// === === === === === === === === === ===
-// variants_with
-// === === === === === === === === === ===
-
-#[test]
-fn test_variants_with_answers_with_chacha_where_there_is_no_aes() {
-    let variants = Aead::variants_with(&forced(FeatureDetectorBehaviour::ForceAesFalse));
-
-    assert_eq!(
-        variants.xchachapoly1305.algorithm(),
-        AeadAlgorithm::XChachaPoly1305
-    );
-    assert!(variants.aegis128l.is_none());
-}
-
-#[test]
-#[cfg(aes_asm)]
-fn test_variants_with_answers_with_both_where_there_is_aes() {
-    let variants = Aead::variants_with(&forced(FeatureDetectorBehaviour::ForceAesTrue));
-
-    assert_eq!(
-        variants.xchachapoly1305.algorithm(),
-        AeadAlgorithm::XChachaPoly1305
-    );
-    assert_eq!(
-        variants
-            .aegis128l
-            .expect("Infallible: the detector was forced to say it has aes")
-            .algorithm(),
-        AeadAlgorithm::Aegis128L
+    assert!(
+        matches!(result, Err(AeadError::NonceEntropy(EntropyError::Injected))),
+        "a refused nonce came back as {result:?}"
     );
 }
 
 #[test]
-fn test_variants_with_always_answers_with_chacha() {
-    for behaviour in every_behaviour() {
-        let variants = Aead::variants_with(&forced(behaviour));
+fn test_generate_nonce_with_propagates_aegis_entropy_error() {
+    let mut session = Session::Aegis128L(refusing());
 
-        assert_eq!(
-            variants.xchachapoly1305.algorithm(),
-            AeadAlgorithm::XChachaPoly1305
-        );
-    }
-}
+    let result = Aead::generate_nonce_with(&mut session);
 
-// === === === === === === === === === ===
-// variants
-// === === === === === === === === === ===
-
-#[test]
-#[cfg(aes_asm)]
-fn test_variants_answers_with_what_this_machine_allows() {
-    let variants = Aead::variants();
-
-    assert_eq!(
-        variants.xchachapoly1305.algorithm(),
-        AeadAlgorithm::XChachaPoly1305
-    );
-    assert_eq!(
-        variants
-            .aegis128l
-            .expect("Infallible: this machine has aes")
-            .algorithm(),
-        AeadAlgorithm::Aegis128L
-    );
-}
-
-// === === === === === === === === === ===
-// from_algorithm
-// === === === === === === === === === ===
-
-#[test]
-fn test_from_algorithm_answers_with_the_one_it_was_named() {
-    assert_eq!(
-        Aead::from_algorithm(AeadAlgorithm::XChachaPoly1305).algorithm(),
-        AeadAlgorithm::XChachaPoly1305
+    assert!(
+        matches!(result, Err(AeadError::NonceEntropy(EntropyError::Injected))),
+        "a refused nonce came back as {result:?}"
     );
 }
 
 #[test]
-#[cfg(aes_asm)]
-fn test_from_algorithm_answers_with_aegis_when_it_is_named() {
-    assert_eq!(
-        Aead::from_algorithm(AeadAlgorithm::Aegis128L).algorithm(),
-        AeadAlgorithm::Aegis128L
-    );
+fn test_generate_nonce_with_answers_a_nonce_of_the_chacha_width()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut session = Session::XChachaPoly1305(NonceSessionGenerator::new(SystemEntropySource {}));
+
+    let nonce = Aead::generate_nonce_with(&mut session)?;
+
+    assert_eq!(nonce.len(), chacha::XNONCE_SIZE);
+
+    Ok(())
 }
 
 #[test]
-#[cfg(aes_asm)]
-fn test_from_algorithm_reaches_every_algorithm_this_machine_names() {
-    for &algorithm in Aead::supported_algorithms().iter() {
-        assert_eq!(Aead::from_algorithm(algorithm).algorithm(), algorithm);
-    }
+fn test_generate_nonce_with_answers_a_nonce_of_the_aegis_width()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut session = Session::Aegis128L(NonceSessionGenerator::new(SystemEntropySource {}));
+
+    let nonce = Aead::generate_nonce_with(&mut session)?;
+
+    assert_eq!(nonce.len(), aegis::NONCE_SIZE);
+
+    Ok(())
 }
 
 // === === === === === === === === === ===
@@ -1180,5 +966,219 @@ proptest! {
 
         prop_assert_eq!(refused.is_err(), underneath.is_err());
         prop_assert_eq!(&through, &direct);
+    }
+}
+
+// === === === === === === === === === ===
+// new_with
+// === === === === === === === === === ===
+
+#[test]
+fn test_new_with_takes_chacha_where_there_is_no_aes() {
+    let aead = Aead::new_with(&forced(FeatureDetectorBehaviour::ForceAesFalse));
+
+    assert_eq!(aead.algorithm(), AeadAlgorithm::XChachaPoly1305);
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_new_with_takes_aegis_where_there_is_aes() {
+    let aead = Aead::new_with(&forced(FeatureDetectorBehaviour::ForceAesTrue));
+
+    assert_eq!(aead.algorithm(), AeadAlgorithm::Aegis128L);
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_new_with_takes_aegis_on_this_machine() {
+    let aead = Aead::new_with(&FeatureDetector::default());
+
+    assert_eq!(aead.algorithm(), AeadAlgorithm::Aegis128L);
+}
+
+// === === === === === === === === === ===
+// new_chacha
+// === === === === === === === === === ===
+
+#[test]
+fn test_new_chacha_takes_chacha_whatever_the_machine_is() {
+    assert_eq!(
+        Aead::new_chacha().algorithm(),
+        AeadAlgorithm::XChachaPoly1305
+    );
+}
+
+// === === === === === === === === === ===
+// new_aegis
+// === === === === === === === === === ===
+
+#[test]
+fn test_new_aegis_answers_with_nothing_where_there_is_no_aes() {
+    let aead = Aead::new_aegis(&forced(FeatureDetectorBehaviour::ForceAesFalse));
+
+    assert!(aead.is_none());
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_new_aegis_takes_aegis_where_there_is_aes() {
+    let aead = Aead::new_aegis(&forced(FeatureDetectorBehaviour::ForceAesTrue))
+        .expect("Infallible: the detector was forced to say it has aes");
+
+    assert_eq!(aead.algorithm(), AeadAlgorithm::Aegis128L);
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_new_aegis_takes_aegis_on_this_machine() {
+    let aead =
+        Aead::new_aegis(&FeatureDetector::default()).expect("Infallible: this machine has aes");
+
+    assert_eq!(aead.algorithm(), AeadAlgorithm::Aegis128L);
+}
+
+// === === === === === === === === === ===
+// supported_algorithms
+// === === === === === === === === === ===
+
+#[test]
+#[cfg(aes_asm)]
+fn test_supported_algorithms_names_what_this_machine_allows() {
+    assert_eq!(
+        Aead::supported_algorithms().as_slice(),
+        [AeadAlgorithm::XChachaPoly1305, AeadAlgorithm::Aegis128L]
+    );
+}
+
+// === === === === === === === === === ===
+// supported_algorithms_with
+// === === === === === === === === === ===
+
+#[test]
+fn test_supported_algorithms_with_names_chacha_where_there_is_no_aes() {
+    let supported =
+        Aead::supported_algorithms_with(&forced(FeatureDetectorBehaviour::ForceAesFalse));
+
+    assert_eq!(supported.as_slice(), [AeadAlgorithm::XChachaPoly1305]);
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_supported_algorithms_with_names_both_where_there_is_aes() {
+    let supported =
+        Aead::supported_algorithms_with(&forced(FeatureDetectorBehaviour::ForceAesTrue));
+
+    assert_eq!(
+        supported.as_slice(),
+        [AeadAlgorithm::XChachaPoly1305, AeadAlgorithm::Aegis128L]
+    );
+}
+
+/// The list is never empty, whatever the machine answers.
+///
+/// XChaCha20-Poly1305 needs nothing of the hardware, so it is in the list by
+/// construction rather than because some machine happened to allow it.
+#[test]
+fn test_supported_algorithms_with_always_names_chacha() {
+    for behaviour in every_behaviour() {
+        let supported = Aead::supported_algorithms_with(&forced(behaviour));
+
+        assert!(supported.contains(&AeadAlgorithm::XChachaPoly1305));
+    }
+}
+
+// === === === === === === === === === ===
+// variants
+// === === === === === === === === === ===
+
+#[test]
+#[cfg(aes_asm)]
+fn test_variants_answers_with_what_this_machine_allows() {
+    let variants = Aead::variants();
+
+    assert_eq!(
+        variants.xchachapoly1305.algorithm(),
+        AeadAlgorithm::XChachaPoly1305
+    );
+    assert_eq!(
+        variants
+            .aegis128l
+            .expect("Infallible: this machine has aes")
+            .algorithm(),
+        AeadAlgorithm::Aegis128L
+    );
+}
+
+// === === === === === === === === === ===
+// variants_with
+// === === === === === === === === === ===
+
+#[test]
+fn test_variants_with_answers_with_chacha_where_there_is_no_aes() {
+    let variants = Aead::variants_with(&forced(FeatureDetectorBehaviour::ForceAesFalse));
+
+    assert_eq!(
+        variants.xchachapoly1305.algorithm(),
+        AeadAlgorithm::XChachaPoly1305
+    );
+    assert!(variants.aegis128l.is_none());
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_variants_with_answers_with_both_where_there_is_aes() {
+    let variants = Aead::variants_with(&forced(FeatureDetectorBehaviour::ForceAesTrue));
+
+    assert_eq!(
+        variants.xchachapoly1305.algorithm(),
+        AeadAlgorithm::XChachaPoly1305
+    );
+    assert_eq!(
+        variants
+            .aegis128l
+            .expect("Infallible: the detector was forced to say it has aes")
+            .algorithm(),
+        AeadAlgorithm::Aegis128L
+    );
+}
+
+#[test]
+fn test_variants_with_always_answers_with_chacha() {
+    for behaviour in every_behaviour() {
+        let variants = Aead::variants_with(&forced(behaviour));
+
+        assert_eq!(
+            variants.xchachapoly1305.algorithm(),
+            AeadAlgorithm::XChachaPoly1305
+        );
+    }
+}
+
+// === === === === === === === === === ===
+// from_algorithm
+// === === === === === === === === === ===
+
+#[test]
+fn test_from_algorithm_answers_with_the_one_it_was_named() {
+    assert_eq!(
+        Aead::from_algorithm(AeadAlgorithm::XChachaPoly1305).algorithm(),
+        AeadAlgorithm::XChachaPoly1305
+    );
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_from_algorithm_answers_with_aegis_when_it_is_named() {
+    assert_eq!(
+        Aead::from_algorithm(AeadAlgorithm::Aegis128L).algorithm(),
+        AeadAlgorithm::Aegis128L
+    );
+}
+
+#[test]
+#[cfg(aes_asm)]
+fn test_from_algorithm_reaches_every_algorithm_this_machine_names() {
+    for &algorithm in Aead::supported_algorithms().iter() {
+        assert_eq!(Aead::from_algorithm(algorithm).algorithm(), algorithm);
     }
 }
