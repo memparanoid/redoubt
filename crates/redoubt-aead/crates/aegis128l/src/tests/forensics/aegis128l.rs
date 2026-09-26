@@ -222,13 +222,17 @@ fn test_what_encrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(),
     let mut watch = Forensics::watching(&backwards(&CIPHERTEXT))?;
 
     let mut key = a_key();
-    let mut data = holding(&PLAINTEXT);
 
     forensics!({
         let mut aead = Aegis128L::new();
-        let mut tag = Box::new([0_u8; TAG_SIZE]);
+        let mut tag = [0_u8; TAG_SIZE];
 
-        capture(|| aead.encrypt(&key, &NONCE, AAD, &mut data, &mut tag));
+        // Leaked and not a local: any call after the capture may write over
+        // what a buffer let go of, and then the sweep genuinely does not find
+        // what the operation wrote there.
+        let data = holding(&PLAINTEXT).leak();
+
+        capture(|| aead.encrypt(&key, &NONCE, AAD, data, &mut tag));
 
         key.fast_zeroize();
     });
@@ -247,13 +251,15 @@ fn test_the_tag_encrypting_wrote_is_found_while_the_caller_holds_it() -> Result<
 
     forensics!({
         let mut aead = Aegis128L::new();
-        let mut tag = Box::new([0_u8; TAG_SIZE]);
 
-        capture(|| aead.encrypt(&key, &NONCE, AAD, &mut data, &mut tag));
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let tag = Box::leak(Box::new([0_u8; TAG_SIZE]));
+
+        capture(|| aead.encrypt(&key, &NONCE, AAD, &mut data, tag));
 
         key.fast_zeroize();
-
-        core::mem::forget(tag);
     });
 
     is_found(&watch.snapshot()?, "the tag a message was sealed with, and kept");
@@ -270,7 +276,7 @@ fn test_encrypting_leaves_nothing() -> Result<(), AnyError> {
 
     forensics!({
         let mut aead = Aegis128L::new();
-        let mut tag = Box::new([0_u8; TAG_SIZE]);
+        let mut tag = [0_u8; TAG_SIZE];
 
         capture(|| aead.encrypt(&key, &NONCE, AAD, &mut data, &mut tag));
 
@@ -294,12 +300,16 @@ fn test_what_decrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(),
     let mut watch = Forensics::watching(&backwards(&PLAINTEXT))?;
 
     let mut key = a_key();
-    let mut data = holding(&CIPHERTEXT);
 
     forensics!({
         let mut aead = Aegis128L::new();
 
-        capture(|| aead.decrypt(&key, &NONCE, AAD, &mut data, &SEALED_TAG))?;
+        // Leaked and not a local: any call after the capture may write over
+        // what a buffer let go of, and then the sweep genuinely does not find
+        // what the operation wrote there.
+        let data = holding(&CIPHERTEXT).leak();
+
+        capture(|| aead.decrypt(&key, &NONCE, AAD, data, &SEALED_TAG))?;
 
         key.fast_zeroize();
     });
@@ -319,9 +329,9 @@ fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
 
     let mut key = a_key();
     let mut data = holding(&CIPHERTEXT);
-    let mut given = Box::new([0_u8; TAG_SIZE]);
+    let mut given = [0_u8; TAG_SIZE];
 
-    giving(&mut *given, &SEALED_TAG);
+    giving(&mut given, &SEALED_TAG);
 
     forensics!({
         let mut aead = Aegis128L::new();
