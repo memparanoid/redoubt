@@ -30,8 +30,5 @@ pub use master_key::leak_master_key;
 pub use traits::{CipherBoxDyns, DecryptStruct, Decryptable, EncryptStruct, Encryptable};
 pub use types::{Ciphertext, Ciphertexts, Data, DataBuffers, Nonce, Nonces, Tag, Tags};
 
-#[cfg(feature = "internal-forensics")]
-pub use master_key::storage::reset as reset_master_key;
-
 #[cfg(test)]
 mod tests;

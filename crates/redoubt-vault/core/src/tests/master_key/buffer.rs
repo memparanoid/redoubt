@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use redoubt_buffer::BufferError;
 use redoubt_zero::ZeroizationProbe;
 
 use crate::master_key::buffer::{create_buffer, create_initialized_buffer};
@@ -9,68 +10,89 @@ use crate::master_key::consts::MASTER_KEY_LEN;
 #[cfg(target_os = "linux")]
 use crate::tests::utils::{
     block_getrandom, block_madvise, block_mlock, block_mprotect, block_munlock, block_openat,
-    block_read, run_test_as_subprocess,
+    block_read, is_seccomp_available, run_test_as_subprocess,
 };
 
-#[test]
-fn test_create_buffer_returns_correct_length() -> Result<(), Box<dyn std::error::Error>> {
-    let mut buffer = create_buffer();
-
-    #[cfg(unix)]
-    {
-        let debug_output = format!("{:?}", buffer);
-        assert!(
-            debug_output.contains("PageBuffer"),
-            "Expected PageBuffer (not fallback)"
-        );
-    }
-
-    #[cfg(not(unix))]
-    {
-        let debug_output = format!("{:?}", buffer);
-        assert!(
-            debug_output.contains("PortableBuffer"),
-            "Expected PortableBuffer on non-unix platforms"
-        );
-    }
-
-    buffer.open(&mut |bytes| {
-        assert!(
-            bytes.is_zeroized(),
-            "Key is not initialized: should be zeroized"
-        );
-        Ok(())
-    })?;
-
-    Ok(())
-}
-
-#[test]
-fn test_create_initialized_buffer_returns_correct_length() -> Result<(), Box<dyn std::error::Error>>
-{
-    let mut buffer = create_initialized_buffer();
-    buffer.open(&mut |bytes| {
-        assert_eq!(bytes.len(), MASTER_KEY_LEN);
-        Ok(())
-    })?;
-
-    Ok(())
-}
+// ============================================================================
+// create_buffer
+// ============================================================================
 
 #[cfg(target_os = "linux")]
 #[test]
-fn test_create_buffer_falls_back_to_portable_on_protected_failure() {
-    use crate::tests::utils::is_seccomp_available;
+fn test_create_buffer_propagates_page_error() {
+    if !is_seccomp_available() {
+        eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
+        return;
+    }
 
+    let exit_code =
+        run_test_as_subprocess("tests::master_key::buffer::subprocess_create_buffer_page_error");
+
+    assert_eq!(exit_code, Some(0), "subprocess test failed");
+}
+
+#[test]
+fn test_create_buffer_returns_an_empty_key_of_the_whole_length()
+-> Result<(), Box<dyn std::error::Error>> {
+    let mut buffer = create_buffer()?;
+
+    #[cfg(unix)]
+    assert!(format!("{buffer:?}").contains("PageBuffer"));
+
+    #[cfg(not(unix))]
+    assert!(format!("{buffer:?}").contains("PortableBuffer"));
+
+    buffer.open(&mut |bytes| {
+        assert_eq!(bytes.len(), MASTER_KEY_LEN);
+        assert!(bytes.is_zeroized(), "a key nothing has filled is not empty");
+
+        Ok(())
+    })?;
+
+    Ok(())
+}
+
+// ============================================================================
+// create_initialized_buffer
+// ============================================================================
+
+#[cfg(target_os = "linux")]
+#[test]
+fn test_create_initialized_buffer_propagates_create_buffer_error() {
     if !is_seccomp_available() {
         eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
         return;
     }
 
     let exit_code = run_test_as_subprocess(
-        "tests::master_key::buffer::subprocess_create_buffer_falls_back_to_portable",
+        "tests::master_key::buffer::subprocess_create_initialized_buffer_page_error",
     );
+
     assert_eq!(exit_code, Some(0), "subprocess test failed");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn test_create_initialized_buffer_propagates_entropy_error() {
+    let exit_code = run_test_as_subprocess(
+        "tests::master_key::buffer::subprocess_create_initialized_buffer_entropy_error",
+    );
+
+    assert_eq!(exit_code, Some(0), "subprocess test failed");
+}
+
+#[test]
+fn test_create_initialized_buffer_returns_a_filled_key() -> Result<(), Box<dyn std::error::Error>> {
+    let mut buffer = create_initialized_buffer()?;
+
+    buffer.open(&mut |bytes| {
+        assert_eq!(bytes.len(), MASTER_KEY_LEN);
+        assert!(!bytes.is_zeroized(), "the key was never filled");
+
+        Ok(())
+    })?;
+
+    Ok(())
 }
 
 // ==============================
@@ -78,48 +100,44 @@ fn test_create_buffer_falls_back_to_portable_on_protected_failure() {
 // ==============================
 
 #[cfg(target_os = "linux")]
-#[test]
-#[ignore]
-fn subprocess_create_buffer_falls_back_to_portable() -> Result<(), Box<dyn std::error::Error>> {
+fn block_the_page() {
     block_mprotect();
     block_mlock();
     block_munlock();
     block_madvise();
-
-    let mut buffer = create_buffer();
-
-    // Assert that we fell back to PortableBuffer when syscalls are blocked
-    assert!(
-        format!("{:?}", buffer).contains("PortableBuffer"),
-        "Expected PortableBuffer fallback when mem syscalls are blocked"
-    );
-
-    buffer.open(&mut |bytes| {
-        assert_eq!(bytes.len(), MASTER_KEY_LEN);
-        Ok(())
-    })?;
-
-    Ok(())
-}
-
-#[cfg(target_os = "linux")]
-#[test]
-fn test_create_initialized_buffer_panics_on_entropy_failure() {
-    let exit_code = run_test_as_subprocess(
-        "tests::master_key::buffer::subprocess_create_initialized_buffer_panics_on_entropy_failure",
-    );
-    // Rust panic exits with code 101
-    assert_eq!(exit_code, Some(101), "subprocess should have panicked");
 }
 
 #[cfg(target_os = "linux")]
 #[test]
 #[ignore]
-fn subprocess_create_initialized_buffer_panics_on_entropy_failure() {
+fn subprocess_create_buffer_page_error() {
+    block_the_page();
+
+    assert!(matches!(create_buffer(), Err(BufferError::Page(_))));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore]
+fn subprocess_create_initialized_buffer_page_error() {
+    block_the_page();
+
+    assert!(matches!(
+        create_initialized_buffer(),
+        Err(BufferError::Page(_))
+    ));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore]
+fn subprocess_create_initialized_buffer_entropy_error() {
     block_getrandom();
     block_read();
     block_openat();
 
-    // This should panic with "CRITICAL: Entropy not available"
-    let _ = create_initialized_buffer();
+    assert!(matches!(
+        create_initialized_buffer(),
+        Err(BufferError::CallbackError(_))
+    ));
 }

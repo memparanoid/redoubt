@@ -48,7 +48,6 @@ COPY crates/redoubt/Cargo.toml ./crates/redoubt/
 COPY crates/redoubt-test-utils/Cargo.toml ./crates/redoubt-test-utils/
 COPY benchmarks/Cargo.toml ./benchmarks/
 COPY examples/wallet/Cargo.toml ./examples/wallet/
-COPY forensics/memory_analysis/Cargo.toml ./forensics/memory_analysis/
 
 # Create stub lib.rs files to satisfy initial cargo build
 # This allows Docker to cache dependency compilation separately from source code
@@ -76,5 +75,4 @@ RUN mkdir -p crates/redoubt-alloc/src && echo "// stub" > crates/redoubt-alloc/s
     echo "fn main() {}" > benchmarks/benches/cipherbox.rs && \
     echo "fn main() {}" > benchmarks/benches/page_buffer.rs && \
     echo "fn main() {}" > benchmarks/benches/alloc.rs && \
-    echo "fn main() {}" > benchmarks/benches/hkdf_sha256.rs && \
-    mkdir -p forensics/memory_analysis/src/bin && echo "fn main() {}" > forensics/memory_analysis/src/bin/redoubt_trace_report.rs
+    echo "fn main() {}" > benchmarks/benches/hkdf_sha256.rs

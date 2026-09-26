@@ -35,7 +35,6 @@ redoubt-codec.workspace = true
 [features]
 default = []
 forensics = ["dep:redoubt-forensics"]
-internal-forensics = ["redoubt-vault/internal-forensics"]
 test-utils = [
   "redoubt-codec/test-utils",
   "redoubt-aead/test-utils",

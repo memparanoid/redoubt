@@ -12,17 +12,15 @@ use super::buffer::create_initialized_buffer;
 static BUFFER: Mutex<Option<Box<dyn Buffer>>> = Mutex::new(None);
 
 /// Hands the master key to `f`, making it on the first call; callers that
-/// arrive while it is being made wait for it instead of making another.
+/// arrive while it is being made wait for it instead of making another. A key
+/// that cannot be made is an error, and the next call tries again.
 pub fn open(f: &mut dyn FnMut(&[u8]) -> Result<(), BufferError>) -> Result<(), BufferError> {
-    BUFFER
-        .lock()
-        .get_or_insert_with(create_initialized_buffer)
-        .open(f)
-}
+    let mut held = BUFFER.lock();
 
-/// Replaces the master key with a new one, for the memory analyses that need
-/// a key they have not seen yet.
-#[cfg(feature = "internal-forensics")]
-pub fn reset() {
-    *BUFFER.lock() = Some(create_initialized_buffer());
+    let buffer = match held.as_mut() {
+        Some(buffer) => buffer,
+        None => held.insert(create_initialized_buffer()?),
+    };
+
+    buffer.open(f)
 }

@@ -31,7 +31,6 @@ members = [
   "crates/redoubt-mem/forensics",
   "examples/wallet",
   "benchmarks",
-  "forensics/memory_analysis",
   "canary/a",
   "canary/b",
 ]

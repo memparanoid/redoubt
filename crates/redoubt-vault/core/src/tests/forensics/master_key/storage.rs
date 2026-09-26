@@ -63,13 +63,3 @@ fn test_opening_the_key_leaves_nothing() -> Result<(), AnyError> {
 
     Ok(())
 }
-
-// ============================================================================
-// reset
-// ============================================================================
-
-#[test]
-#[ignore = "Reads no secret: it stores the buffer create_initialized_buffer makes."]
-fn test_resetting_the_storage_leaves_nothing() {
-    // Intentionally empty.
-}

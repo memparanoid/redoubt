@@ -42,7 +42,7 @@ fn test_the_key_made_is_found_once_copied_out_of_its_page() -> Result<(), AnyErr
     let mut buffer;
 
     forensics!({
-        buffer = capture(create_initialized_buffer);
+        buffer = capture(create_initialized_buffer)?;
     });
 
     let mut kept = vec![0_u8; MASTER_KEY_LEN];
@@ -71,7 +71,7 @@ fn test_making_the_key_leaves_nothing() -> Result<(), AnyError> {
     let mut buffer;
 
     forensics!({
-        buffer = capture(create_initialized_buffer);
+        buffer = capture(create_initialized_buffer)?;
     });
 
     // CORRECTNESS: after the capture. A call made before it writes over the

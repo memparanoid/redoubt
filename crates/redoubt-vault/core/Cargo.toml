@@ -15,7 +15,6 @@ path = "src/lib.rs"
 
 [features]
 default            = []
-internal-forensics = []
 test-utils         = []
 
 [dependencies]

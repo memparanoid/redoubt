@@ -1085,14 +1085,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "redoubt-memory-analysis"
-version = "0.1.0-rc.13"
-dependencies = [
- "libc",
- "redoubt",
-]
-
-[[package]]
 name = "redoubt-poly1305"
 version = "0.1.0-rc.13"
 dependencies = [

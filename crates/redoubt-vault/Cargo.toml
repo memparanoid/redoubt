@@ -15,7 +15,6 @@ path = "src/lib.rs"
 
 [features]
 default            = []
-internal-forensics = ["redoubt-vault-core/internal-forensics"]
 test-utils         = ["redoubt-vault-core/test-utils"]
 
 [dependencies]
