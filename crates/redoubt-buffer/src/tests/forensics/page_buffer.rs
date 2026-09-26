@@ -13,7 +13,7 @@ use crate::page_buffer::PageBuffer;
 use crate::traits::Buffer;
 
 use crate::tests::forensics::support::needles::{SECRET, backwards};
-use crate::tests::forensics::support::{fill, leaves_nothing, let_go, used};
+use crate::tests::forensics::support::{fill, leaves_nothing, let_go, used, writing_the_secret};
 
 // ============================================================================
 // PageBuffer, dropped
@@ -155,7 +155,7 @@ fn test_writing_a_page_buffer_leaves_nothing_outside_the_page() -> Result<(), An
     forensics!({
         let mut held = PageBuffer::new(SECRET.len())?;
 
-        let wrote = capture(|| fill(&mut held));
+        let wrote = capture(|| held.open_mut(&mut writing_the_secret));
 
         wrote?;
 

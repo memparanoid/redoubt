@@ -16,7 +16,9 @@ use crate::portable_buffer::PortableBuffer;
 use crate::traits::Buffer;
 
 use crate::tests::forensics::support::needles::{SECRET, backwards};
-use crate::tests::forensics::support::{fill, hold_on, is_found, leaves_nothing, let_go, used};
+use crate::tests::forensics::support::{
+    fill, hold_on, is_found, leaves_nothing, let_go, used, writing_the_secret,
+};
 
 // ============================================================================
 // PortableBuffer, at rest
@@ -210,7 +212,7 @@ fn test_a_portable_buffer_written_is_found_while_it_is_held() -> Result<(), AnyE
     let mut held = PortableBuffer::create(SECRET.len());
 
     forensics!({
-        let wrote = capture(|| fill(&mut held));
+        let wrote = capture(|| held.open_mut(&mut writing_the_secret));
 
         wrote?;
     });
@@ -233,7 +235,7 @@ fn test_writing_a_portable_buffer_leaves_nothing() -> Result<(), AnyError> {
     let mut held = PortableBuffer::create(SECRET.len());
 
     forensics!({
-        let wrote = capture(|| fill(&mut held));
+        let wrote = capture(|| held.open_mut(&mut writing_the_secret));
 
         // CORRECTNESS: after the capture. A call made before it writes over the
         // stack and the registers the operation left, and then the absence

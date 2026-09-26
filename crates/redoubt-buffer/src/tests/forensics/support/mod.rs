@@ -11,19 +11,21 @@ use crate::traits::Buffer;
 
 use needles::SECRET;
 
-/// The secret written into a buffer through the copy that erases what it used:
-/// a plain assignment is whatever move the compiler emits, and the test does
-/// not get to cause the thing it is measuring.
-pub(crate) fn fill(buffer: &mut dyn Buffer) -> Result<(), BufferError> {
-    buffer.open_mut(&mut |slice: &mut [u8]| {
-        // SAFETY: the buffer is the secret's length, and a constant and a
-        // buffer are different allocations.
-        unsafe {
-            redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), slice.as_mut_ptr(), SECRET.len())
-        };
+/// The callback an `open_mut` is handed to write the secret, through the copy
+/// that erases what it used: a plain assignment is whatever move the compiler
+/// emits, and the test does not get to cause the thing it is measuring.
+pub(crate) fn writing_the_secret(slice: &mut [u8]) -> Result<(), BufferError> {
+    // SAFETY: the buffer is the secret's length, and a constant and a buffer
+    // are different allocations.
+    unsafe { redoubt_mem::copy_nonoverlapping(SECRET.as_ptr(), slice.as_mut_ptr(), SECRET.len()) };
 
-        Ok(())
-    })
+    Ok(())
+}
+
+/// A buffer filled with the secret, for a section that measures something
+/// else. Never inside a capture: there the operation is called directly.
+pub(crate) fn fill(buffer: &mut dyn Buffer) -> Result<(), BufferError> {
+    buffer.open_mut(&mut writing_the_secret)
 }
 
 /// A reader that takes the slice and does nothing a compiler may remove.
