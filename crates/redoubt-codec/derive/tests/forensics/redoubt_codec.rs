@@ -96,7 +96,8 @@ fn maybe_keys(into: &mut RedoubtOption<Keys>) {
     into.replace(&mut held);
 }
 
-fn arming(arsenal: &mut Arsenal) -> Result<(), AnyError> {
+/// Every field of `arsenal` filled with the needle, where it lies.
+fn fill_every_field(arsenal: &mut Arsenal) -> Result<(), AnyError> {
     secret(&mut arsenal.secret);
     maybe_secret(&mut arsenal.maybe_secret);
     maybe_text(&mut arsenal.maybe_text);
@@ -111,15 +112,8 @@ fn arming(arsenal: &mut Arsenal) -> Result<(), AnyError> {
     Ok(())
 }
 
-fn armed_wire() -> Result<Vec<u8>, AnyError> {
-    let mut source = Arsenal::default();
-
-    arming(&mut source)?;
-
-    wire(&mut source)
-}
-
-fn wire(arsenal: &mut Arsenal) -> Result<Vec<u8>, AnyError> {
+/// The bytes encoding `arsenal` writes, for a decode to read.
+fn encode(arsenal: &mut Arsenal) -> Result<Vec<u8>, AnyError> {
     let mut buffer = RedoubtCodecBuffer::with_capacity(arsenal.encode_bytes_required()?);
 
     arsenal.encode_into(&mut buffer)?;
@@ -210,7 +204,7 @@ fn test_encoding_a_struct_leaves_nothing() -> Result<(), AnyError> {
 
     let mut arsenal = Arsenal::default();
 
-    arming(&mut arsenal)?;
+    fill_every_field(&mut arsenal)?;
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(arsenal.encode_bytes_required()?);
@@ -244,7 +238,7 @@ fn test_encoding_a_struct_into_a_buffer_too_small_leaves_nothing() -> Result<(),
 
     let mut arsenal = Arsenal::default();
 
-    arming(&mut arsenal)?;
+    fill_every_field(&mut arsenal)?;
 
     forensics!({
         let mut buffer = RedoubtCodecBuffer::with_capacity(arsenal.encode_bytes_required()? / 2);
@@ -288,7 +282,7 @@ macro_rules! decoding_one_field_is_found {
 
                 fill(&mut arsenal)?;
 
-                let mut wire = wire(&mut arsenal)?;
+                let mut wire = encode(&mut arsenal)?;
                 let mut watch = Forensics::watching(&backwards())?;
 
                 forensics!({
@@ -344,7 +338,11 @@ fn test_decoding_a_struct_leaves_nothing() -> Result<(), AnyError> {
 
     let report_before = watch.snapshot()?;
 
-    let mut wire = armed_wire()?;
+    let mut source = Arsenal::default();
+
+    fill_every_field(&mut source)?;
+
+    let mut wire = encode(&mut source)?;
 
     forensics!({
         let mut back = Arsenal::default();
@@ -376,10 +374,14 @@ fn test_decoding_a_struct_over_one_that_holds_a_secret_leaves_nothing() -> Resul
 
     let report_before = watch.snapshot()?;
 
-    let mut wire = armed_wire()?;
+    let mut source = Arsenal::default();
+
+    fill_every_field(&mut source)?;
+
+    let mut wire = encode(&mut source)?;
     let mut back = Arsenal::default();
 
-    arming(&mut back)?;
+    fill_every_field(&mut back)?;
 
     forensics!({
         capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
@@ -409,7 +411,11 @@ fn test_decoding_a_struct_from_a_wire_cut_short_leaves_nothing() -> Result<(), A
 
     let report_before = watch.snapshot()?;
 
-    let mut wire = armed_wire()?;
+    let mut source = Arsenal::default();
+
+    fill_every_field(&mut source)?;
+
+    let mut wire = encode(&mut source)?;
     let half = wire.len() / 2;
 
     forensics!({
