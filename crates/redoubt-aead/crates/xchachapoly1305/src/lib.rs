@@ -27,9 +27,6 @@ extern crate std;
 #[cfg(test)]
 mod tests;
 
-#[cfg(test)]
-mod forensics;
-
 mod xchachapoly1305;
 
 pub use xchachapoly1305::XChaCha20Poly1305;

@@ -31,7 +31,7 @@ const MESSAGE_COUNTER: u32 = 1;
 /// The block the tag ends on: two lengths, eight bytes each.
 const LENGTHS_SIZE: usize = 2 * core::mem::size_of::<u64>();
 
-type OneTimeKey = ZeroizingGuard<RedoubtArray<u8, POLY_KEY_SIZE>>;
+pub(crate) type OneTimeKey = ZeroizingGuard<RedoubtArray<u8, POLY_KEY_SIZE>>;
 
 /// XChaCha20 for the message, Poly1305 for the proof it was not touched.
 ///
@@ -82,7 +82,12 @@ impl XChaCha20Poly1305 {
     /// The caller empties it. It is the one secret this file holds rather than
     /// hands straight to a primitive, and it outlives neither call it sits
     /// between.
-    fn one_time_key(&self, key: &[u8; KEY_SIZE], nonce: &[u8; XNONCE_SIZE], out: &mut OneTimeKey) {
+    pub(crate) fn one_time_key(
+        &self,
+        key: &[u8; KEY_SIZE],
+        nonce: &[u8; XNONCE_SIZE],
+        out: &mut OneTimeKey,
+    ) {
         self.cipher
             .xor(self.backend, key, nonce, POLY_KEY_COUNTER, out);
     }
@@ -93,7 +98,7 @@ impl XChaCha20Poly1305 {
     /// are written at the end, so that moving a byte from one into the other
     /// cannot leave the tag unchanged. That is what `update_padded` is for, and
     /// the trailing sixteen bytes are the two lengths as they are counted.
-    fn tag(
+    pub(crate) fn tag(
         &self,
         one_time_key: &OneTimeKey,
         aad: &[u8],
