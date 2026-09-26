@@ -108,15 +108,8 @@ fn snapshot_named_struct_ok() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    let token_stream = expand(
-        syn::parse_quote!(DataBox),
-        None,
-        false,
-        None,
-        None,
-        derive_input,
-    )
-    .map_err(refusal)?;
+    let token_stream =
+        expand(syn::parse_quote!(DataBox), None, None, derive_input).map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
 
     Ok(())
@@ -130,15 +123,8 @@ fn snapshot_named_struct_with_single_field() -> Result<(), Box<dyn std::error::E
         }
     };
 
-    let token_stream = expand(
-        syn::parse_quote!(GammaBox),
-        None,
-        false,
-        None,
-        None,
-        derive_input,
-    )
-    .map_err(refusal)?;
+    let token_stream =
+        expand(syn::parse_quote!(GammaBox), None, None, derive_input).map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
 
     Ok(())
@@ -153,15 +139,8 @@ fn snapshot_named_struct_with_generics() -> Result<(), Box<dyn std::error::Error
         }
     };
 
-    let token_stream = expand(
-        syn::parse_quote!(ContainerBox),
-        None,
-        false,
-        None,
-        None,
-        derive_input,
-    )
-    .map_err(refusal)?;
+    let token_stream =
+        expand(syn::parse_quote!(ContainerBox), None, None, derive_input).map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
 
     Ok(())
@@ -181,8 +160,6 @@ fn snapshot_named_struct_with_custom_error() -> Result<(), Box<dyn std::error::E
     let token_stream = expand(
         syn::parse_quote!(WithCustomErrorBox),
         Some(custom_error),
-        false,
-        None,
         None,
         derive_input,
     )
@@ -208,15 +185,8 @@ fn snapshot_named_struct_with_codec_default_field() -> Result<(), Box<dyn std::e
         }
     };
 
-    let token_stream = expand(
-        syn::parse_quote!(DeltaBox),
-        None,
-        false,
-        None,
-        None,
-        derive_input,
-    )
-    .map_err(refusal)?;
+    let token_stream =
+        expand(syn::parse_quote!(DeltaBox), None, None, derive_input).map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
 
     Ok(())
@@ -235,15 +205,8 @@ fn snapshot_named_struct_with_zeroize_on_drop_sentinel() -> Result<(), Box<dyn s
         }
     };
 
-    let token_stream = expand(
-        syn::parse_quote!(EpsilonBox),
-        None,
-        false,
-        None,
-        None,
-        derive_input,
-    )
-    .map_err(refusal)?;
+    let token_stream =
+        expand(syn::parse_quote!(EpsilonBox), None, None, derive_input).map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
 
     Ok(())
@@ -264,15 +227,8 @@ fn snapshot_named_struct_with_multiple_filtered_fields() -> Result<(), Box<dyn s
         }
     };
 
-    let token_stream = expand(
-        syn::parse_quote!(ZetaBox),
-        None,
-        false,
-        None,
-        None,
-        derive_input,
-    )
-    .map_err(refusal)?;
+    let token_stream =
+        expand(syn::parse_quote!(ZetaBox), None, None, derive_input).map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
 
     Ok(())
@@ -292,15 +248,8 @@ fn snapshot_empty_struct_with_only_sentinel() -> Result<(), Box<dyn std::error::
         }
     };
 
-    let token_stream = expand(
-        syn::parse_quote!(EmptyBox),
-        None,
-        false,
-        None,
-        None,
-        derive_input,
-    )
-    .map_err(refusal)?;
+    let token_stream =
+        expand(syn::parse_quote!(EmptyBox), None, None, derive_input).map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
 
     Ok(())
@@ -317,15 +266,8 @@ fn snapshot_struct_with_all_fields_filtered() -> Result<(), Box<dyn std::error::
         }
     };
 
-    let token_stream = expand(
-        syn::parse_quote!(OnlyDefaultsBox),
-        None,
-        false,
-        None,
-        None,
-        derive_input,
-    )
-    .map_err(refusal)?;
+    let token_stream =
+        expand(syn::parse_quote!(OnlyDefaultsBox), None, None, derive_input).map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
 
     Ok(())
@@ -341,15 +283,8 @@ fn snapshot_unit_struct_ok() -> Result<(), Box<dyn std::error::Error>> {
         struct Unit;
     };
 
-    let token_stream = expand(
-        syn::parse_quote!(UnitBox),
-        None,
-        false,
-        None,
-        None,
-        derive_input,
-    )
-    .map_err(refusal)?;
+    let token_stream =
+        expand(syn::parse_quote!(UnitBox), None, None, derive_input).map_err(refusal)?;
     insta::assert_snapshot!(pretty(token_stream));
 
     Ok(())
@@ -366,14 +301,7 @@ fn snapshot_tuple_struct_fails() {
         struct Data(Vec<u8>, u64, u32);
     };
 
-    let result = expand(
-        syn::parse_quote!(DataBox),
-        None,
-        false,
-        None,
-        None,
-        derive_input,
-    );
+    let result = expand(syn::parse_quote!(DataBox), None, None, derive_input);
     assert!(result.is_err());
 
     let err_str = format!("{}", result.unwrap_err());
@@ -389,14 +317,7 @@ fn snapshot_enum_fails() {
         }
     };
 
-    let result = expand(
-        syn::parse_quote!(ChoiceBox),
-        None,
-        false,
-        None,
-        None,
-        derive_input,
-    );
+    let result = expand(syn::parse_quote!(ChoiceBox), None, None, derive_input);
     assert!(result.is_err());
 
     let err_str = format!("{}", result.unwrap_err());
@@ -412,14 +333,7 @@ fn snapshot_union_fails() {
         }
     };
 
-    let result = expand(
-        syn::parse_quote!(MyUnionBox),
-        None,
-        false,
-        None,
-        None,
-        derive_input,
-    );
+    let result = expand(syn::parse_quote!(MyUnionBox), None, None, derive_input);
     assert!(result.is_err());
 }
 
@@ -431,14 +345,12 @@ fn test_unknown_attribute_panics() {
 
 #[test]
 fn test_parse_testing_feature() {
-    let (name, error, global, storage, testing_feature) = crate::parse_cipherbox_attr_inner(
+    let (name, error, testing_feature) = crate::parse_cipherbox_attr_inner(
         "SecretsBox, testing_feature = \"test-utils\"".to_string(),
     );
 
     assert_eq!(name.to_string(), "SecretsBox");
     assert!(error.is_none());
-    assert!(!global);
-    assert!(storage.is_none());
     assert_eq!(testing_feature, Some("test-utils".to_string()));
 }
 
@@ -458,56 +370,6 @@ fn snapshot_named_struct_with_testing_feature() -> Result<(), Box<dyn std::error
     let token_stream = expand(
         syn::parse_quote!(TestableSecretsBox),
         None,
-        false,
-        None,
-        Some("test-utils".to_string()),
-        derive_input,
-    )
-    .map_err(refusal)?;
-    insta::assert_snapshot!(pretty(token_stream));
-
-    Ok(())
-}
-
-#[test]
-fn snapshot_global_struct_with_testing_feature_on_portable_storage()
--> Result<(), Box<dyn std::error::Error>> {
-    let derive_input = parse_quote! {
-        #[derive(RedoubtZero, RedoubtCodec)]
-        struct TestableGlobalSecrets {
-            pub secret_key: [u8; 32],
-        }
-    };
-
-    let token_stream = expand(
-        syn::parse_quote!(TestableGlobalSecretsBox),
-        None,
-        true,
-        Some(crate::StorageStrategy::Portable),
-        Some("test-utils".to_string()),
-        derive_input,
-    )
-    .map_err(refusal)?;
-    insta::assert_snapshot!(pretty(token_stream));
-
-    Ok(())
-}
-
-#[test]
-fn snapshot_global_struct_with_testing_feature_on_std_storage()
--> Result<(), Box<dyn std::error::Error>> {
-    let derive_input = parse_quote! {
-        #[derive(RedoubtZero, RedoubtCodec)]
-        struct TestableGlobalSecrets {
-            pub secret_key: [u8; 32],
-        }
-    };
-
-    let token_stream = expand(
-        syn::parse_quote!(TestableGlobalSecretsBox),
-        None,
-        true,
-        Some(crate::StorageStrategy::Std),
         Some("test-utils".to_string()),
         derive_input,
     )

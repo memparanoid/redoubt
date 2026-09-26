@@ -141,8 +141,7 @@ pub mod collections;
 pub mod primitives;
 
 pub use traits::{
-    AssertZeroizeOnDrop, FastZeroizable, FastZeroize, MutGuarded, StaticFastZeroizable,
-    ZeroizationProbe, ZeroizeMetadata,
+    AssertZeroizeOnDrop, FastZeroizable, FastZeroize, MutGuarded, ZeroizationProbe, ZeroizeMetadata,
 };
 pub use zeroize_on_drop_sentinel::ZeroizeOnDropSentinel;
 pub use zeroizing_guard::ZeroizingGuard;
