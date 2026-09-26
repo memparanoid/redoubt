@@ -7,5 +7,8 @@
 
 mod support;
 
+#[cfg(all(target_os = "linux", chacha_asm))]
+mod forensics;
+
 mod backend;
 mod rfc;

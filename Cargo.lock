@@ -985,6 +985,8 @@ dependencies = [
  "proptest",
  "redoubt-aead-core",
  "redoubt-asm",
+ "redoubt-forensics",
+ "redoubt-mem",
  "redoubt-zero",
  "rstest",
 ]
