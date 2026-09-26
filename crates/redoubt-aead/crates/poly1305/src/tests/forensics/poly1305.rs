@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! The state keeps its bytes in the struct. Where an operation takes it by
-//! reference it is boxed, so a presence reads storage that stays put, and it is
-//! emptied in place. Where it is let go by value it lives in the test's frame,
-//! as it does in a caller's: a box there would move a pointer and measure the
-//! box.
+//! The state keeps its bytes in the struct. Where it is let go by value it
+//! lives in the test's frame, as it does in a caller's: a box there would move
+//! a pointer and measure the box.
 
 use std::boxed::Box;
 
@@ -76,24 +74,18 @@ fn a_key() -> Box<[u8; KEY_SIZE]> {
     key
 }
 
-/// A state that `init` has run on, and the key it read emptied.
-fn keyed() -> Box<Poly1305> {
+/// `init` run on the state where it lies, and the key it read emptied.
+fn keying(poly: &mut Poly1305) {
     let mut key = a_key();
-    let mut poly = Box::new(Poly1305::new());
 
     poly.init(Backend::default(), &key);
     key.fast_zeroize();
-
-    poly
 }
 
-/// A keyed state with `MESSAGE` in it.
-fn fed() -> Box<Poly1305> {
-    let mut poly = keyed();
-
+/// The state keyed and `MESSAGE` in it, where it lies.
+fn feeding(poly: &mut Poly1305) {
+    keying(poly);
     poly.update(Backend::default(), MESSAGE);
-
-    poly
 }
 
 // ============================================================================
@@ -117,13 +109,14 @@ fn test_what_init_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyErr
     let mut key = a_key();
 
     forensics!({
-        let mut poly = Box::new(Poly1305::new());
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let poly = Box::leak(Box::new(Poly1305::new()));
 
         capture(|| poly.init(Backend::default(), &key));
 
         key.fast_zeroize();
-
-        core::mem::forget(poly);
     });
 
     is_found(&watch.snapshot()?, "a state keyed, and kept");
@@ -138,7 +131,7 @@ fn test_init_leaves_nothing() -> Result<(), AnyError> {
     let mut key = a_key();
 
     forensics!({
-        let mut poly = Box::new(Poly1305::new());
+        let mut poly = Poly1305::new();
 
         capture(|| poly.init(Backend::default(), &key));
 
@@ -164,12 +157,15 @@ fn test_init_leaves_nothing() -> Result<(), AnyError> {
 fn test_what_update_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&ACC))?;
 
-    let mut poly = keyed();
-
     forensics!({
-        capture(|| poly.update(Backend::default(), MESSAGE));
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let poly = Box::leak(Box::new(Poly1305::new()));
 
-        core::mem::forget(poly);
+        keying(poly);
+
+        capture(|| poly.update(Backend::default(), MESSAGE));
     });
 
     is_found(&watch.snapshot()?, "a state updated, and kept");
@@ -181,7 +177,9 @@ fn test_what_update_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyE
 fn test_update_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[("key", &KEY), ("r", &R), ("accumulator", &ACC)])?;
 
-    let mut poly = keyed();
+    let mut poly = Poly1305::new();
+
+    keying(&mut poly);
 
     forensics!({
         capture(|| poly.update(Backend::default(), MESSAGE));
@@ -207,12 +205,15 @@ fn test_update_leaves_nothing() -> Result<(), AnyError> {
 fn test_what_update_padded_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&ACC_PADDED))?;
 
-    let mut poly = keyed();
-
     forensics!({
-        capture(|| poly.update_padded(Backend::default(), MESSAGE));
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let poly = Box::leak(Box::new(Poly1305::new()));
 
-        core::mem::forget(poly);
+        keying(poly);
+
+        capture(|| poly.update_padded(Backend::default(), MESSAGE));
     });
 
     is_found(&watch.snapshot()?, "a state updated with padding, and kept");
@@ -229,7 +230,9 @@ fn test_update_padded_leaves_nothing() -> Result<(), AnyError> {
         ("padded accumulator", &ACC_PADDED),
     ])?;
 
-    let mut poly = keyed();
+    let mut poly = Poly1305::new();
+
+    keying(&mut poly);
 
     forensics!({
         capture(|| poly.update_padded(Backend::default(), MESSAGE));
@@ -255,14 +258,17 @@ fn test_update_padded_leaves_nothing() -> Result<(), AnyError> {
 fn test_what_finalize_wrote_is_found_while_the_caller_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&TAG))?;
 
-    let mut poly = fed();
+    let mut poly = Poly1305::new();
+
+    feeding(&mut poly);
 
     forensics!({
-        let mut out = Box::new([0_u8; TAG_SIZE]);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let out = Box::leak(Box::new([0_u8; TAG_SIZE]));
 
-        capture(|| poly.finalize_mut(Backend::default(), &mut out));
-
-        core::mem::forget(out);
+        capture(|| poly.finalize_mut(Backend::default(), out));
     });
 
     is_found(&watch.snapshot()?, "a tag finalized, and kept");
@@ -279,22 +285,23 @@ fn test_finalize_leaves_nothing() -> Result<(), AnyError> {
         ("tag", &TAG),
     ])?;
 
-    let mut poly = fed();
+    let mut poly = Poly1305::new();
+
+    feeding(&mut poly);
 
     forensics!({
-        let mut out = Box::new([0_u8; TAG_SIZE]);
+        let mut out = [0_u8; TAG_SIZE];
 
         capture(|| poly.finalize_mut(Backend::default(), &mut out));
 
         // CORRECTNESS: after the capture. A call made before it writes over the
         // stack and the registers the operation left, and then the absence
         // below is about that call and not about the operation.
+        //
+        // The state is not emptied here: that is finalize's to do, and its
+        // drop runs only once the photograph is taken.
         out.fast_zeroize();
     });
-
-    // Not dropped: the drop zeroizes again, and would keep this absence green
-    // with the operation's own wipe deleted.
-    core::mem::forget(poly);
 
     watching.none_left("finalize")?;
 
@@ -312,12 +319,9 @@ fn test_finalize_leaves_nothing() -> Result<(), AnyError> {
 fn test_what_a_state_dropped_by_value_held_is_found_where_it_was() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&R))?;
 
-    let mut key = a_key();
     let mut poly = Poly1305::new();
 
-    poly.init(Backend::default(), &key);
-    poly.update(Backend::default(), MESSAGE);
-    key.fast_zeroize();
+    feeding(&mut poly);
 
     forensics!({
         // CORRECTNESS: inside the capture, because this is the operation. What
@@ -338,12 +342,9 @@ fn test_what_a_state_dropped_by_value_held_is_found_where_it_was() -> Result<(),
 fn test_a_state_zeroized_and_then_dropped_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[("key", &KEY), ("r", &R), ("accumulator", &ACC)])?;
 
-    let mut key = a_key();
     let mut poly = Poly1305::new();
 
-    poly.init(Backend::default(), &key);
-    poly.update(Backend::default(), MESSAGE);
-    key.fast_zeroize();
+    feeding(&mut poly);
 
     forensics!({
         poly.fast_zeroize();
@@ -371,13 +372,14 @@ fn test_what_tag_wrote_is_found_while_the_caller_holds_it() -> Result<(), AnyErr
     let mut key = a_key();
 
     forensics!({
-        let mut out = Box::new([0_u8; TAG_SIZE]);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let out = Box::leak(Box::new([0_u8; TAG_SIZE]));
 
-        capture(|| tag(Backend::default(), &key, MESSAGE, &mut out));
+        capture(|| tag(Backend::default(), &key, MESSAGE, out));
 
         key.fast_zeroize();
-
-        core::mem::forget(out);
     });
 
     is_found(&watch.snapshot()?, "a tag, and kept");
@@ -397,7 +399,7 @@ fn test_tag_leaves_nothing() -> Result<(), AnyError> {
     let mut key = a_key();
 
     forensics!({
-        let mut out = Box::new([0_u8; TAG_SIZE]);
+        let mut out = [0_u8; TAG_SIZE];
 
         capture(|| tag(Backend::default(), &key, MESSAGE, &mut out));
 
