@@ -260,12 +260,13 @@ See [examples/wallet/tests](examples/wallet/tests) for a complete example.
 
 ## Platform support
 
-| Platform | Protection level |
-|----------|------------------|
-| Linux | Full (`mlock`, `mprotect`, `madvise(MADV_DONTDUMP)`) |
-| macOS | Partial (`mlock`, `mprotect`) |
-| Windows | Encryption only |
-| `no_std` | Encryption only |
+| Platform | Protection | Verified by |
+|----------|------------|-------------|
+| Linux | `mlock`, `mprotect`, `madvise(MADV_DONTDUMP)` | assembly probes and the forensics sweep |
+| macOS | `mlock`, `mprotect` | assembly probes |
+| Windows | encryption only | nothing: no assembly is built |
+
+The assembly probes check every routine leaves its registers and its frame empty, and run wherever the assembly is built. The forensics sweep searches the whole process for what an operation left behind; it reads `/proc/self`, so it runs on Linux only.
 
 ## Project Insights
 
