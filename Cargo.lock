@@ -1045,6 +1045,7 @@ dependencies = [
  "cc",
  "libc",
  "proptest",
+ "quiesce",
  "redoubt-mem-core",
 ]
 

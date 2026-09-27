@@ -7,6 +7,8 @@
 #[cfg(test)]
 mod tests;
 
+mod allocator;
+
 #[cfg(target_os = "linux")]
 mod analysis;
 
@@ -31,6 +33,8 @@ mod window;
 // The whole of it. Everything else — the block, the three processes, the
 // weighing — is reachable only through these, and a caller that needed one of
 // them directly would be doing something this crate has not thought about.
+pub use allocator::{ForensicsAllocator, enable_forensics_allocator};
+
 #[cfg(target_os = "linux")]
 pub use analysis::report::{Change, QUIET, Report};
 

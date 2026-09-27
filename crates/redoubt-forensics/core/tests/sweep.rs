@@ -35,20 +35,13 @@ use redoubt_forensics_core::{
 mod support;
 
 use support::helpers::alone;
+use support::needles::{SECRET, backwards};
 
 // ============================================================================
 // The material
 // ============================================================================
 
-/// Thirty-two distinct bytes. No value repeats, so the table of which byte may
-/// follow which is as sparse as a secret this long gets and a run that extends
-/// did not extend by luck.
-const ALPHA: [u8; 32] = [
-    0x9E, 0x41, 0x17, 0xC3, 0x5A, 0xF0, 0x2B, 0x88, 0x6D, 0xB4, 0x0A, 0xE7, 0x39, 0x52, 0xCE, 0x71,
-    0x84, 0x1D, 0xA6, 0x3F, 0xD8, 0x60, 0x95, 0x2E, 0xBB, 0x07, 0x4C, 0xE1, 0x76, 0xAF, 0x13, 0xCA,
-];
-
-/// A second secret, sharing no adjacent pair with the first: a run of one
+/// A second secret, sharing no adjacent pair with [`SECRET`]: a run of one
 /// cannot be mistaken for a run of the other.
 const BETA: [u8; 32] = [
     0x2D, 0xF7, 0x63, 0x1A, 0xC8, 0x35, 0x9B, 0x50, 0xE4, 0x0C, 0x77, 0xA2, 0x18, 0xDF, 0x66, 0x93,
@@ -71,16 +64,6 @@ const QUIET: u64 = 4;
 // ============================================================================
 // The tools
 // ============================================================================
-
-/// A needle, built from its last byte to its first.
-///
-/// Backwards from the start and never turned around. A `to_vec` followed by a
-/// `reverse` would put the value forwards on the heap for as long as it takes
-/// to turn it over, and a vectorised reverse can spill half of it to the stack
-/// on the way — which is the very thing being measured.
-fn backwards(of: &[u8]) -> Vec<u8> {
-    of.iter().rev().copied().collect()
-}
 
 /// An instrument watching for that value, reserved before anything happens.
 fn watching(of: &[u8]) -> Result<Forensics, Reason> {
@@ -156,11 +139,11 @@ fn spill(of: &[u8; 32]) -> u8 {
 fn test_a_copy_on_the_heap_is_found() -> Result<(), Reason> {
     alone!();
 
-    let held = core::hint::black_box(ALPHA.to_vec());
+    let held = core::hint::black_box(SECRET.to_vec());
 
     // MEASURING: `snapshot` reached without the helper in between, which on
     // one machine is a frame the compiler is free to make disappear.
-    let mut watch = watching(&ALPHA)?;
+    let mut watch = watching(&SECRET)?;
     let report = watch.snapshot()?;
 
     assert!(report.found, "{report}");
@@ -176,8 +159,8 @@ fn test_a_copy_on_the_heap_is_found() -> Result<(), Reason> {
 fn test_a_copy_in_a_live_local_is_found() -> Result<(), Reason> {
     alone!();
 
-    let held = core::hint::black_box(ALPHA);
-    let report = photograph(&mut watching(&ALPHA)?)?;
+    let held = core::hint::black_box(SECRET);
+    let report = photograph(&mut watching(&SECRET)?)?;
 
     assert!(report.found, "{report}");
 
@@ -192,10 +175,10 @@ fn test_a_copy_in_a_live_local_is_found() -> Result<(), Reason> {
 fn test_a_copy_in_a_frame_that_returned_is_found() -> Result<(), Reason> {
     alone!();
 
-    let mut watch = watching(&ALPHA)?;
+    let mut watch = watching(&SECRET)?;
 
     forensics!({
-        core::hint::black_box(abandon(&ALPHA));
+        core::hint::black_box(abandon(&SECRET));
 
         freeze!();
     });
@@ -215,10 +198,10 @@ fn test_a_copy_in_a_frame_that_returned_is_found() -> Result<(), Reason> {
 fn test_a_register_spilled_onto_a_dead_frame_is_found() -> Result<(), Reason> {
     alone!();
 
-    let mut watch = watching(&ALPHA)?;
+    let mut watch = watching(&SECRET)?;
 
     forensics!({
-        core::hint::black_box(spill(&ALPHA));
+        core::hint::black_box(spill(&SECRET));
 
         freeze!();
     });
@@ -239,10 +222,10 @@ fn test_a_copy_in_a_mapping_of_its_own_is_found() -> Result<(), Reason> {
 
     let mut roomy = vec![0_u8; 4 << 20];
 
-    roomy[2 << 20..(2 << 20) + ALPHA.len()].copy_from_slice(&ALPHA);
+    roomy[2 << 20..(2 << 20) + SECRET.len()].copy_from_slice(&SECRET);
 
     let held = core::hint::black_box(roomy);
-    let report = photograph(&mut watching(&ALPHA)?)?;
+    let report = photograph(&mut watching(&SECRET)?)?;
 
     assert!(report.found, "{report}");
 
@@ -261,9 +244,9 @@ fn test_a_copy_in_a_writable_static_is_found() -> Result<(), Reason> {
 
     // SAFETY: one write to a static this test alone touches, and nextest gives
     // this test a process nobody else is in.
-    unsafe { core::ptr::write_volatile(&raw mut KEPT, ALPHA) };
+    unsafe { core::ptr::write_volatile(&raw mut KEPT, SECRET) };
 
-    let report = photograph(&mut watching(&ALPHA)?)?;
+    let report = photograph(&mut watching(&SECRET)?)?;
 
     assert!(report.found, "{report}");
 
@@ -289,7 +272,7 @@ fn deeper(left: usize) -> u8 {
     let mut floor = core::hint::black_box([0_u8; 128]);
 
     if left == 0 {
-        floor[..ALPHA.len()].copy_from_slice(&ALPHA);
+        floor[..SECRET.len()].copy_from_slice(&SECRET);
 
         return core::hint::black_box(&floor)[0];
     }
@@ -315,7 +298,7 @@ fn test_the_sweep_reaches_a_copy_left_deep_in_the_stack() -> Result<(), Reason> 
     // Everything reserved first, and on purpose. Anything done between leaving
     // the frame and freezing the memory is written into that frame — which is
     // the whole reason the instrument is a value rather than a function.
-    let needle = backwards(&ALPHA);
+    let needle = backwards(&SECRET);
     let mut watch = Forensics::watching(&needle)?;
 
     core::hint::black_box(deeper(DEEP));
@@ -340,7 +323,7 @@ fn test_the_sweep_reaches_a_copy_left_deep_in_the_stack() -> Result<(), Reason> 
 fn test_a_plain_count_finds_a_plain_copy() -> Result<(), Reason> {
     alone!();
 
-    let held = core::hint::black_box(ALPHA.to_vec());
+    let held = core::hint::black_box(SECRET.to_vec());
 
     assert!(occurrences(&held)? > 0);
 
@@ -366,8 +349,8 @@ fn test_a_plain_count_finds_a_plain_copy() -> Result<(), Reason> {
 fn test_two_copies_with_the_second_reversed_finds_the_first() -> Result<(), Reason> {
     alone!();
 
-    let first = core::hint::black_box(ALPHA.to_vec());
-    let mut second = ALPHA.to_vec();
+    let first = core::hint::black_box(SECRET.to_vec());
+    let mut second = SECRET.to_vec();
 
     second.reverse();
 
@@ -385,7 +368,7 @@ fn test_two_copies_with_the_second_reversed_finds_the_first() -> Result<(), Reas
 fn test_a_value_held_only_backwards_is_not_found_forwards() -> Result<(), Reason> {
     alone!();
 
-    let held = core::hint::black_box(backwards(&ALPHA));
+    let held = core::hint::black_box(backwards(&SECRET));
 
     assert_eq!(occurrences_reversed(&held)?, 0);
 
@@ -521,8 +504,8 @@ fn test_snapshot_propagates_the_reason_the_analysis_gave() {
 fn test_the_one_call_form_finds_a_copy_on_the_heap() -> Result<(), Reason> {
     alone!();
 
-    let held = core::hint::black_box(ALPHA.to_vec());
-    let report = Forensics::snapshot_reversed(&backwards(&ALPHA))?;
+    let held = core::hint::black_box(SECRET.to_vec());
+    let report = Forensics::snapshot_reversed(&backwards(&SECRET))?;
 
     assert!(report.found, "{report}");
 
@@ -564,7 +547,7 @@ fn test_snapshot_reversed_propagates_the_reason_the_photograph_gave() {
 fn test_holding_one_value_does_not_find_another() -> Result<(), Reason> {
     alone!();
 
-    let held = core::hint::black_box(ALPHA.to_vec());
+    let held = core::hint::black_box(SECRET.to_vec());
     let report = photograph(&mut watching(&BETA)?)?;
 
     assert!(!report.found, "{report}");
@@ -610,7 +593,7 @@ fn test_a_value_that_is_nowhere_is_counted_zero_times() -> Result<(), Reason> {
 fn test_a_constant_nobody_copied_is_not_found() -> Result<(), Reason> {
     alone!();
 
-    assert_eq!(occurrences(&ALPHA)?, 0);
+    assert_eq!(occurrences(&SECRET)?, 0);
 
     Ok(())
 }
@@ -715,19 +698,19 @@ fn test_reads_the_process_into_a_file_from_one_inlined_frame()
     File::open("/tmp/analysis.txt")?.read_to_end(&mut dumped)?;
 
     let whole = dumped
-        .windows(ALPHA.len())
-        .filter(|at| *at == ALPHA)
+        .windows(SECRET.len())
+        .filter(|at| *at == SECRET)
         .count();
 
-    let widest = (1..=ALPHA.len())
+    let widest = (1..=SECRET.len())
         .rev()
-        .find(|take| dumped.windows(*take).any(|at| at == &ALPHA[..*take]))
+        .find(|take| dumped.windows(*take).any(|at| at == &SECRET[..*take]))
         .unwrap_or(0);
 
     eprintln!();
     eprintln!("    dumped              {} bytes", dumped.len());
     eprintln!("    the whole secret    {whole} times");
-    eprintln!("    longest prefix      {widest} of {}", ALPHA.len());
+    eprintln!("    longest prefix      {widest} of {}", SECRET.len());
     eprintln!();
 
     Ok(())

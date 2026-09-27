@@ -52,16 +52,7 @@ use redoubt_forensics_core::{AnyError, Forensics, forensics, freeze, pick_spille
 mod support;
 
 use support::helpers::alone;
-
-/// Thirty-two distinct bytes: no value repeats, so a run that extends did not
-/// extend by luck.
-///
-/// A `const`, so it lives in a mapping nothing may write — and the sweep reads
-/// only writable ones, so the original is never found as a copy of itself.
-const SECRET: [u8; 32] = [
-    0x9E, 0x41, 0x17, 0xC3, 0x5A, 0xF0, 0x2B, 0x88, 0x6D, 0xB4, 0x0A, 0xE7, 0x39, 0x52, 0xCE, 0x71,
-    0x84, 0x1D, 0xA6, 0x3F, 0xD8, 0x60, 0x95, 0x2E, 0xBB, 0x07, 0x4C, 0xE1, 0x76, 0xAF, 0x13, 0xCA,
-];
+use support::needles::{SECRET, backwards};
 
 /// Sixteen distinct bytes, for the half of this file that is about registers.
 ///
@@ -77,14 +68,6 @@ const NARROW: [u8; 16] = [
 /// How much a cleanup allocates, so that freeing it is a real call and not
 /// something the compiler folds away.
 const WASTE: usize = 1024;
-
-/// A needle, built from its last byte to its first.
-///
-/// Never turned around in this process: the forward bytes must not exist here
-/// even for as long as it would take to reverse them.
-fn backwards(of: &[u8]) -> Vec<u8> {
-    of.iter().rev().copied().collect()
-}
 
 /// A secret into somewhere the caller owns, one byte at a time through a
 /// pointer.

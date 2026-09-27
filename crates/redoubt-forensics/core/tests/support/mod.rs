@@ -5,3 +5,4 @@
 //! What the three test files here share, so that each says it once.
 
 pub mod helpers;
+pub mod needles;

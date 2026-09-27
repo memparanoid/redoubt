@@ -30,19 +30,13 @@ use redoubt_forensics_core::{Forensics, Reason, Report, forensics, freeze};
 mod support;
 
 use support::helpers::alone;
+use support::needles::{SECRET, backwards};
 
 // ============================================================================
 // The material
 // ============================================================================
 
-/// Thirty-two distinct bytes, so that a stretch of it is a stretch of it and
-/// not a walk that happened to agree.
-const ALPHA: [u8; 32] = [
-    0x9E, 0x41, 0x17, 0xC3, 0x5A, 0xF0, 0x2B, 0x88, 0x6D, 0xB4, 0x0A, 0xE7, 0x39, 0x52, 0xCE, 0x71,
-    0x84, 0x1D, 0xA6, 0x3F, 0xD8, 0x60, 0x95, 0x2E, 0xBB, 0x07, 0x4C, 0xE1, 0x76, 0xAF, 0x13, 0xCA,
-];
-
-/// [`ALPHA`] with one byte doubled, so that its table has one pair a byte can
+/// [`SECRET`] with one byte doubled, so that its table has one pair a byte can
 /// walk without end. A page of that byte walks it a page wide, and the secret
 /// has two of it.
 ///
@@ -78,16 +72,6 @@ const QUIET: u64 = 4;
 // The tools
 // ============================================================================
 
-/// A needle, built from its last byte to its first.
-///
-/// Backwards from the start and never turned around. A `to_vec` followed by a
-/// `reverse` would put the value forwards on the heap for as long as it takes
-/// to turn it over, and a vectorised reverse can spill half of it to the stack
-/// on the way — which is the very thing being measured.
-fn backwards(of: &[u8]) -> Vec<u8> {
-    of.iter().rev().copied().collect()
-}
-
 /// An instrument watching for that value, reserved before anything happens.
 fn watching(of: &[u8]) -> Result<Forensics, Reason> {
     Forensics::watching(&backwards(of))
@@ -121,8 +105,8 @@ fn test_a_quiet_process_scores_nothing() -> Result<(), Reason> {
 fn test_a_piece_kept_is_as_wide_as_the_piece() -> Result<(), Reason> {
     alone!();
 
-    let kept = core::hint::black_box(ALPHA[8..24].to_vec());
-    let report = photograph(&mut watching(&ALPHA)?)?;
+    let kept = core::hint::black_box(SECRET[8..24].to_vec());
+    let report = photograph(&mut watching(&SECRET)?)?;
 
     assert!(report.widest >= 16, "{report}");
     assert!(report.score >= LEAK, "{report}");
@@ -139,12 +123,12 @@ fn test_a_piece_kept_is_as_wide_as_the_piece() -> Result<(), Reason> {
 fn test_a_wider_piece_is_worth_more_than_a_narrower_one() -> Result<(), Reason> {
     alone!();
 
-    let mut watch = watching(&ALPHA)?;
+    let mut watch = watching(&SECRET)?;
 
-    let narrow = core::hint::black_box(ALPHA[..8].to_vec());
+    let narrow = core::hint::black_box(SECRET[..8].to_vec());
     let less = photograph(&mut watch)?;
 
-    let wide = core::hint::black_box(ALPHA[8..].to_vec());
+    let wide = core::hint::black_box(SECRET[8..].to_vec());
     let more = photograph(&mut watch)?;
 
     assert!(more.score > less.score, "{less} then {more}");
@@ -158,7 +142,7 @@ fn test_a_wider_piece_is_worth_more_than_a_narrower_one() -> Result<(), Reason> 
 /// A piece of [`DOUBLED`] that is really there is found and weighed, which is
 /// what the absence below is worth.
 ///
-/// Its own presence rather than [`ALPHA`]'s: the two differ in the byte at
+/// Its own presence rather than [`SECRET`]'s: the two differ in the byte at
 /// fifteen, and that byte is the whole of what the absence is about. A sweep
 /// that answered nothing for this needle whatever the process held would leave
 /// that absence saying only that the sweep is broken.
@@ -209,7 +193,7 @@ fn test_a_page_of_a_byte_the_secret_doubles_is_a_run_of_two() -> Result<(), Reas
 fn test_the_difference_shows_what_an_operation_kept() -> Result<(), Reason> {
     alone!();
 
-    let mut watch = watching(&ALPHA)?;
+    let mut watch = watching(&SECRET)?;
     let before = photograph(&mut watch)?;
 
     forensics!({
@@ -218,10 +202,10 @@ fn test_the_difference_shows_what_an_operation_kept() -> Result<(), Reason> {
         // Through the copy whose registers are probed: one the compiler emits
         // leaves the piece in a vector register too, and the capture then puts
         // it in the difference whether or not the copy on the heap is read.
-        // SAFETY: sixteen bytes from inside `ALPHA` into a vector of sixteen,
+        // SAFETY: sixteen bytes from inside `SECRET` into a vector of sixteen,
         // two allocations apart.
         unsafe {
-            redoubt_mem_core::copy_nonoverlapping(ALPHA[8..].as_ptr(), kept.as_mut_ptr(), 16)
+            redoubt_mem_core::copy_nonoverlapping(SECRET[8..].as_ptr(), kept.as_mut_ptr(), 16)
         };
 
         core::hint::black_box(&kept);
@@ -285,13 +269,13 @@ fn test_the_difference_shows_nothing_for_an_operation_that_kept_nothing() -> Res
 fn test_reads_out_a_leak_beside_no_leak() -> Result<(), Reason> {
     alone!();
 
-    let mut watch = watching(&ALPHA)?;
+    let mut watch = watching(&SECRET)?;
 
     let quiet_before = photograph(&mut watch)?;
     let quiet_after = photograph(&mut watch)?;
 
     let loud_before = photograph(&mut watch)?;
-    let kept = core::hint::black_box(ALPHA[8..24].to_vec());
+    let kept = core::hint::black_box(SECRET[8..24].to_vec());
     let loud_after = photograph(&mut watch)?;
 
     eprintln!();
