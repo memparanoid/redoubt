@@ -24,7 +24,7 @@ use crate::tests::forensics::support::{
 // PortableBuffer, at rest
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_a_portable_buffer_holds_is_found() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -45,7 +45,7 @@ fn test_the_secret_a_portable_buffer_holds_is_found() -> Result<(), AnyError> {
 // PortableBuffer, dropped
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_dropping_a_portable_buffer_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -74,7 +74,7 @@ fn test_dropping_a_portable_buffer_leaves_nothing() -> Result<(), AnyError> {
 // PortableBuffer, moved
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_portable_buffer_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -97,7 +97,7 @@ fn test_a_portable_buffer_given_away_is_found_while_it_is_held() -> Result<(), A
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_portable_buffer_given_away_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -150,7 +150,7 @@ fn test_printing_a_portable_buffer_leaves_nothing() {
 // PortableBuffer::open
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_portable_buffer_read_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -173,7 +173,7 @@ fn test_a_portable_buffer_read_is_found_while_it_is_held() -> Result<(), AnyErro
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_reading_a_portable_buffer_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -205,7 +205,7 @@ fn test_reading_a_portable_buffer_leaves_nothing() -> Result<(), AnyError> {
 // PortableBuffer::open_mut
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_portable_buffer_written_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -226,7 +226,7 @@ fn test_a_portable_buffer_written_is_found_while_it_is_held() -> Result<(), AnyE
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_writing_a_portable_buffer_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 

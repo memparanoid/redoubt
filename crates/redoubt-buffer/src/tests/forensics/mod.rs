@@ -20,3 +20,7 @@ mod support;
 mod page;
 mod page_buffer;
 mod portable_buffer;
+
+#[global_allocator]
+static ALLOCATOR: redoubt_forensics::ForensicsAllocator<std::alloc::System> =
+    redoubt_forensics::ForensicsAllocator::new(std::alloc::System);

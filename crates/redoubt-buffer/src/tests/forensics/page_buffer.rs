@@ -19,7 +19,7 @@ use crate::tests::forensics::support::{fill, leaves_nothing, let_go, used, writi
 // PageBuffer, dropped
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_dropping_a_page_buffer_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -48,7 +48,7 @@ fn test_dropping_a_page_buffer_leaves_nothing() -> Result<(), AnyError> {
 // PageBuffer, moved
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_page_buffer_given_away_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -117,7 +117,7 @@ fn test_asking_whether_a_page_buffer_is_empty_leaves_nothing() {
 // PageBuffer::open
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_reading_a_page_buffer_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -146,7 +146,7 @@ fn test_reading_a_page_buffer_leaves_nothing() -> Result<(), AnyError> {
 // PageBuffer::open_mut
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_writing_a_page_buffer_leaves_nothing_outside_the_page() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
