@@ -47,12 +47,19 @@
     any(target_arch = "x86_64", target_arch = "aarch64")
 ))]
 
-use redoubt_forensics_core::{AnyError, Forensics, forensics, freeze, pick_spiller};
+use std::alloc::System;
+
+use redoubt_forensics_core::{
+    AnyError, Forensics, ForensicsAllocator, forensics, freeze, pick_spiller,
+};
 
 mod support;
 
 use support::helpers::alone;
 use support::needles::{SECRET, backwards};
+
+#[global_allocator]
+static ALLOCATOR: ForensicsAllocator<System> = ForensicsAllocator::new(System);
 
 /// Sixteen distinct bytes, for the half of this file that is about registers.
 ///
@@ -65,8 +72,8 @@ const NARROW: [u8; 16] = [
     0x3D, 0xB2, 0x7F, 0x08, 0xE4, 0x59, 0xAC, 0x16, 0xC7, 0x2A, 0x93, 0xF1, 0x6B, 0xD0, 0x45, 0x8E,
 ];
 
-/// How much a cleanup allocates, so that freeing it is a real call and not
-/// something the compiler folds away.
+/// How wide a frame the cleanup writes: wider than the one the operation left,
+/// so the cleanup reaches all of it.
 const WASTE: usize = 1024;
 
 /// A secret into somewhere the caller owns, one byte at a time through a
@@ -160,6 +167,17 @@ fn a_frame_emptied() {
     taking(&mut held);
 
     core::hint::black_box(&held);
+}
+
+/// A call that writes a frame of `WASTE` bytes, whatever allocator is below.
+///
+/// A `drop` of something allocated would write as much stack as the allocator's
+/// free does, and one that gives nothing back writes almost none.
+#[inline(never)]
+fn a_cleanup() {
+    let scratch = [0_u8; WASTE];
+
+    core::hint::black_box(&scratch);
 }
 
 /// Said out loud when the machine has no register to hide a secret in.
@@ -362,7 +380,7 @@ fn erase(from: &mut [u8]) {
 /// in `xmm0` or `v0`. Finding it afterwards means the capture wrote the
 /// register file somewhere a sweep reaches, which is the whole of what the
 /// register half is for.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_the_capture_finds_a_secret_that_is_only_in_a_register() -> Result<(), AnyError> {
     alone!();
 
@@ -399,7 +417,7 @@ fn test_the_capture_finds_a_secret_that_is_only_in_a_register() -> Result<(), An
 /// find a register's contents on its own would pass that one whether or not
 /// the capture ever ran — and a sweep that finds this one is finding a copy in
 /// memory that the load was supposed to have left nowhere.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_register_is_out_of_reach_without_the_capture() -> Result<(), AnyError> {
     alone!();
 
@@ -439,7 +457,7 @@ fn test_a_register_is_out_of_reach_without_the_capture() -> Result<(), AnyError>
 /// test here leaves its secret in memory as well, and would stay green.
 macro_rules! test_a_wide_register_is_reached {
     ($found:ident, $unseen:ident, $load:tt, $declared:tt) => {
-        #[test]
+        #[redoubt_forensics_macros::test]
         fn $found() -> Result<(), AnyError> {
             alone!();
 
@@ -469,7 +487,7 @@ macro_rules! test_a_wide_register_is_reached {
             Ok(())
         }
 
-        #[test]
+        #[redoubt_forensics_macros::test]
         fn $unseen() -> Result<(), AnyError> {
             alone!();
 
@@ -807,7 +825,7 @@ mod every_wide_register {
 ///
 /// Everything below is an absence, and an absence is worth exactly this: the
 /// photograph would have spoken had there been something in that frame.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_the_capture_finds_a_frame_that_was_left_full() -> Result<(), AnyError> {
     alone!();
 
@@ -837,7 +855,7 @@ fn test_the_capture_finds_a_frame_that_was_left_full() -> Result<(), AnyError> {
 ///
 /// The pair with the one above: the same call site and the same shape, and the
 /// only difference is whether the operation wiped.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_frame_emptied_before_it_is_left_holds_nothing() -> Result<(), AnyError> {
     alone!();
 
@@ -866,7 +884,7 @@ fn test_a_frame_emptied_before_it_is_left_holds_nothing() -> Result<(), AnyError
 /// report: a score on its own is a number about a process that was already
 /// running, and what is being asked is what one operation added to it. So the
 /// difference has to be able to speak, and this is what says it can.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_the_difference_says_the_secret_surfaced() -> Result<(), AnyError> {
     alone!();
 
@@ -908,7 +926,7 @@ fn test_the_difference_says_the_secret_surfaced() -> Result<(), AnyError> {
 /// The other half: a difference that were never noise would call every clean
 /// measurement dirty, and one that is always noise would call every dirty one
 /// clean. This is the side that says it can be quiet.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_the_difference_is_quiet_when_the_frame_was_emptied() -> Result<(), AnyError> {
     alone!();
 
@@ -949,19 +967,18 @@ fn test_the_difference_is_quiet_when_the_frame_was_emptied() -> Result<(), AnyEr
 ///
 /// The trap, pinned, and the reason the one remaining rule is a rule. The
 /// operation left the secret in its frame — the control above says the
-/// instrument would find it — and one `drop` before the capture is enough for
+/// instrument would find it — and one call before the capture is enough for
 /// the photograph to report a clean process.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_cleanup_run_before_the_capture_erases_the_evidence() -> Result<(), AnyError> {
     alone!();
 
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
-    let waste = vec![0_u8; WASTE];
 
     forensics!({
         a_frame_left_full();
 
-        drop(core::hint::black_box(waste));
+        a_cleanup();
 
         freeze!();
     });
@@ -987,18 +1004,17 @@ fn test_a_cleanup_run_before_the_capture_erases_the_evidence() -> Result<(), Any
 /// This is what the instrument is for. The cleanup writes over the frames the
 /// operation left, exactly as it does above — and the answer no longer depends
 /// on that, because the window was copied out of the stack before it ran.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_cleanup_run_after_the_capture_leaves_the_evidence() -> Result<(), AnyError> {
     alone!();
 
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
-    let waste = vec![0_u8; WASTE];
 
     forensics!({
         a_frame_left_full();
         freeze!();
 
-        drop(core::hint::black_box(waste));
+        a_cleanup();
     });
 
     let report = watch.snapshot()?;
@@ -1024,7 +1040,7 @@ fn test_a_cleanup_run_after_the_capture_leaves_the_evidence() -> Result<(), AnyE
 /// beforehand, so its watch is built after the capture. The capture has already
 /// written the registers and the window into memory by then, and building the
 /// watch writes over neither.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_wide_register_is_found_by_a_watch_built_after_the_capture() -> Result<(), AnyError> {
     alone!();
 
@@ -1052,7 +1068,7 @@ fn test_a_wide_register_is_found_by_a_watch_built_after_the_capture() -> Result<
 
 /// A capture that runs before any form is picked runs the narrowest one, which
 /// does not reach a wide register; a watch built afterwards picks too late.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_wide_register_is_out_of_reach_when_the_form_is_picked_after_the_capture()
 -> Result<(), AnyError> {
     alone!();
@@ -1078,7 +1094,7 @@ fn test_a_wide_register_is_out_of_reach_when_the_form_is_picked_after_the_captur
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_frame_left_full_is_found_by_a_watch_built_after_the_capture() -> Result<(), AnyError> {
     alone!();
 

@@ -1047,6 +1047,7 @@ dependencies = [
  "libc",
  "proptest",
  "quiesce",
+ "redoubt-forensics-macros",
  "redoubt-mem-core",
 ]
 

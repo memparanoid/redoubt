@@ -25,12 +25,17 @@
 
 #![cfg(target_os = "linux")]
 
-use redoubt_forensics_core::{Forensics, Reason, Report, forensics, freeze};
+use std::alloc::System;
+
+use redoubt_forensics_core::{Forensics, ForensicsAllocator, Reason, Report, forensics, freeze};
 
 mod support;
 
 use support::helpers::alone;
 use support::needles::{SECRET, backwards};
+
+#[global_allocator]
+static ALLOCATOR: ForensicsAllocator<System> = ForensicsAllocator::new(System);
 
 // ============================================================================
 // The material
@@ -88,7 +93,7 @@ fn photograph(watch: &mut Forensics) -> Result<Report, Reason> {
 
 /// A process holding none of it scores nothing at all — not "little", nothing.
 /// The floor is arithmetic and not a threshold somebody chose.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_quiet_process_scores_nothing() -> Result<(), Reason> {
     alone!();
 
@@ -101,7 +106,7 @@ fn test_a_quiet_process_scores_nothing() -> Result<(), Reason> {
 }
 
 /// A piece kept is a run as wide as the piece.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_piece_kept_is_as_wide_as_the_piece() -> Result<(), Reason> {
     alone!();
 
@@ -119,7 +124,7 @@ fn test_a_piece_kept_is_as_wide_as_the_piece() -> Result<(), Reason> {
 
 /// A wider piece is worth more than a narrower one, which is the whole point of
 /// weighing rather than counting.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_wider_piece_is_worth_more_than_a_narrower_one() -> Result<(), Reason> {
     alone!();
 
@@ -146,7 +151,7 @@ fn test_a_wider_piece_is_worth_more_than_a_narrower_one() -> Result<(), Reason> 
 /// fifteen, and that byte is the whole of what the absence is about. A sweep
 /// that answered nothing for this needle whatever the process held would leave
 /// that absence saying only that the sweep is broken.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_piece_of_a_secret_that_doubles_a_byte_is_still_weighed() -> Result<(), Reason> {
     alone!();
 
@@ -168,7 +173,7 @@ fn test_a_piece_of_a_secret_that_doubles_a_byte_is_still_weighed() -> Result<(),
 /// This is what a vector register broadcast leaves on the stack — sixteen
 /// copies of one byte — and it was read as a run of sixteen whenever the byte
 /// happened to be one the secret doubles.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_page_of_a_byte_the_secret_doubles_is_a_run_of_two() -> Result<(), Reason> {
     alone!();
 
@@ -189,7 +194,7 @@ fn test_a_page_of_a_byte_the_secret_doubles_is_a_run_of_two() -> Result<(), Reas
 
 /// An operation that keeps a piece shows up in the difference between the
 /// photograph before it and the one after.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_the_difference_shows_what_an_operation_kept() -> Result<(), Reason> {
     alone!();
 
@@ -237,7 +242,7 @@ fn test_the_difference_shows_what_an_operation_kept() -> Result<(), Reason> {
 /// a `free` hands the chunk back without emptying it, so the same needle with
 /// the copy dropped is a needle still lying in a mapping the sweep reads. The
 /// only operation that keeps nothing is one that never wrote it.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_the_difference_shows_nothing_for_an_operation_that_kept_nothing() -> Result<(), Reason> {
     alone!();
 
@@ -265,7 +270,7 @@ fn test_the_difference_shows_nothing_for_an_operation_that_kept_nothing() -> Res
 /// Every number this crate answers with, for a process holding nothing and the
 /// same process holding sixteen bytes. Asserts nothing; run it with
 /// `cargo nextest run --no-capture`.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_reads_out_a_leak_beside_no_leak() -> Result<(), Reason> {
     alone!();
 

@@ -28,14 +28,20 @@
 
 #![cfg(target_os = "linux")]
 
+use std::alloc::System;
+
 use redoubt_forensics_core::{
-    Forensics, Reason, Report, forensics, freeze, occurrences, occurrences_reversed,
+    Forensics, ForensicsAllocator, Reason, Report, forensics, freeze, occurrences,
+    occurrences_reversed,
 };
 
 mod support;
 
 use support::helpers::alone;
 use support::needles::{SECRET, backwards};
+
+#[global_allocator]
+static ALLOCATOR: ForensicsAllocator<System> = ForensicsAllocator::new(System);
 
 // ============================================================================
 // The material
@@ -135,7 +141,7 @@ fn spill(of: &[u8; 32]) -> u8 {
 
 /// The heap. The easiest place there is, and the one every other test here
 /// leans on being true.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_copy_on_the_heap_is_found() -> Result<(), Reason> {
     alone!();
 
@@ -155,7 +161,7 @@ fn test_a_copy_on_the_heap_is_found() -> Result<(), Reason> {
 
 /// A live local of the test itself, which is the caller's own frame and the one
 /// place nothing can write over.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_copy_in_a_live_local_is_found() -> Result<(), Reason> {
     alone!();
 
@@ -171,7 +177,7 @@ fn test_a_copy_in_a_live_local_is_found() -> Result<(), Reason> {
 
 /// A frame that has been returned from. This is the first hard one: the space
 /// is free, and the next call takes it.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_copy_in_a_frame_that_returned_is_found() -> Result<(), Reason> {
     alone!();
 
@@ -193,7 +199,7 @@ fn test_a_copy_in_a_frame_that_returned_is_found() -> Result<(), Reason> {
 /// A register spilled onto a dead frame. The case this crate exists for, and
 /// the one a search for the whole secret answers `no` to while being perfectly
 /// truthful — because what a spill leaves is a piece.
-#[test]
+#[redoubt_forensics_macros::test]
 #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 fn test_a_register_spilled_onto_a_dead_frame_is_found() -> Result<(), Reason> {
     alone!();
@@ -216,7 +222,7 @@ fn test_a_register_spilled_onto_a_dead_frame_is_found() -> Result<(), Reason> {
 /// A buffer large enough that the allocator gives it a mapping of its own,
 /// rather than a corner of the heap. Those are reached through a different
 /// line of `/proc/<pid>/maps` and there is no reason to assume they are read.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_copy_in_a_mapping_of_its_own_is_found() -> Result<(), Reason> {
     alone!();
 
@@ -236,7 +242,7 @@ fn test_a_copy_in_a_mapping_of_its_own_is_found() -> Result<(), Reason> {
 
 /// A writable static, which is neither heap nor stack but a third mapping the
 /// binary was born with.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_copy_in_a_writable_static_is_found() -> Result<(), Reason> {
     alone!();
 
@@ -293,7 +299,7 @@ fn deeper(left: usize) -> u8 {
 /// A failure here does not say the stack is clean. It says this crate cannot
 /// see the stack, and that every zero it has ever answered about one was the
 /// instrument standing where the evidence was.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_the_sweep_reaches_a_copy_left_deep_in_the_stack() -> Result<(), Reason> {
     // Everything reserved first, and on purpose. Anything done between leaving
     // the frame and freezing the memory is written into that frame — which is
@@ -319,7 +325,7 @@ fn test_the_sweep_reaches_a_copy_left_deep_in_the_stack() -> Result<(), Reason> 
 
 /// A plain count finds what is plainly there, which is the other half of the
 /// pair: one direction cannot be trusted without the other.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_plain_count_finds_a_plain_copy() -> Result<(), Reason> {
     alone!();
 
@@ -345,7 +351,7 @@ fn test_a_plain_count_finds_a_plain_copy() -> Result<(), Reason> {
 /// — one nobody reversed — is anywhere. Here there is one on purpose, so the
 /// search has to find it. A reversed search that always answered zero would
 /// pass every absence in this file without looking at anything.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_two_copies_with_the_second_reversed_finds_the_first() -> Result<(), Reason> {
     alone!();
 
@@ -364,7 +370,7 @@ fn test_two_copies_with_the_second_reversed_finds_the_first() -> Result<(), Reas
 /// The same, with nothing but the reversed copy. The value is nowhere forwards,
 /// so the reversed search finds nothing — and it stays nothing because asking
 /// never writes it down.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_value_held_only_backwards_is_not_found_forwards() -> Result<(), Reason> {
     alone!();
 
@@ -383,7 +389,7 @@ fn test_a_value_held_only_backwards_is_not_found_forwards() -> Result<(), Reason
 
 /// Nothing to look for is not the same as finding nothing, and the difference
 /// has to survive the door.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_an_empty_needle_is_refused() {
     assert!(Forensics::watching(&[]).is_err());
     assert_eq!(occurrences(&[]).err(), Some(Reason::Needle));
@@ -392,7 +398,7 @@ fn test_an_empty_needle_is_refused() {
 
 /// Longer than there is room for is refused rather than truncated. A needle
 /// quietly cut in half would answer about a value nobody asked about.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_needle_longer_than_there_is_room_for_is_refused() {
     let far_too_long = vec![0x5A_u8; 8193];
 
@@ -401,7 +407,7 @@ fn test_a_needle_longer_than_there_is_room_for_is_refused() {
 }
 
 /// The longest needle there is room for is taken.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_the_longest_needle_there_is_room_for_is_taken() -> Result<(), Reason> {
     alone!();
 
@@ -414,7 +420,7 @@ fn test_the_longest_needle_there_is_room_for_is_taken() -> Result<(), Reason> {
 }
 
 /// One byte is a needle, and the door is not where it should be turned away.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_needle_of_one_byte_is_taken() -> Result<(), Reason> {
     alone!();
 
@@ -431,7 +437,7 @@ fn test_a_needle_of_one_byte_is_taken() -> Result<(), Reason> {
 
 /// A sweep that read nothing would answer every question here with silence, so
 /// what it read is worth asserting on its own.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_photograph_reaches_a_real_amount_of_memory() -> Result<(), Reason> {
     alone!();
 
@@ -446,7 +452,7 @@ fn test_a_photograph_reaches_a_real_amount_of_memory() -> Result<(), Reason> {
 /// Two photographs of the same process are photographs of about the same
 /// process. They are never identical — a process breathes, and `swept` says so
 /// — but a difference of any size would make every comparison here meaningless.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_two_photographs_of_a_quiet_process_agree() -> Result<(), Reason> {
     alone!();
 
@@ -466,7 +472,7 @@ fn test_two_photographs_of_a_quiet_process_agree() -> Result<(), Reason> {
 /// The instrument holds the value it is looking for, in a block of its own,
 /// in this process. Taking one photograph after another must not accumulate
 /// anything: the blocks are skipped by the phrase in front of them.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_taking_many_photographs_accumulates_nothing() -> Result<(), Reason> {
     alone!();
 
@@ -484,7 +490,7 @@ fn test_taking_many_photographs_accumulates_nothing() -> Result<(), Reason> {
 }
 
 /// The reason the analysis gave, carried out to the caller.
-#[test]
+#[redoubt_forensics_macros::test]
 #[ignore = "wants the syscall blocked from under it: the analysis fails only \
             where the machine refuses it a pipe, a process or a trace, and \
             `snapshot` takes nothing that decides which. Reachable with \
@@ -500,7 +506,7 @@ fn test_snapshot_propagates_the_reason_the_analysis_gave() {
 
 /// The one-call form answers, and answers the same as the other about anything
 /// on the heap — which is where it is honest and where it is meant to be used.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_the_one_call_form_finds_a_copy_on_the_heap() -> Result<(), Reason> {
     alone!();
 
@@ -515,7 +521,7 @@ fn test_the_one_call_form_finds_a_copy_on_the_heap() -> Result<(), Reason> {
 }
 
 /// It says nothing is there when nothing is.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_the_one_call_form_finds_nothing_when_there_is_nothing() -> Result<(), Reason> {
     alone!();
 
@@ -528,7 +534,7 @@ fn test_the_one_call_form_finds_nothing_when_there_is_nothing() -> Result<(), Re
 }
 
 /// The photograph’s own failure, which this only carries.
-#[test]
+#[redoubt_forensics_macros::test]
 #[ignore = "the same as the analysis failing under `snapshot`, reached through \
             one more call: it wants the syscall blocked from under it, which \
             needs seccomp in a subprocess and no harness here has one."]
@@ -543,7 +549,7 @@ fn test_snapshot_reversed_propagates_the_reason_the_photograph_gave() {
 /// Two values that share no adjacent pair. Holding one must not answer for the
 /// other, or every absence in this file is an accident of which bytes were
 /// picked.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_holding_one_value_does_not_find_another() -> Result<(), Reason> {
     alone!();
 
@@ -559,7 +565,7 @@ fn test_holding_one_value_does_not_find_another() -> Result<(), Reason> {
 }
 
 /// A value this file never copies anywhere is not found anywhere.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_value_that_is_nowhere_is_not_found() -> Result<(), Reason> {
     alone!();
 
@@ -578,7 +584,7 @@ fn test_a_value_that_is_nowhere_is_not_found() -> Result<(), Reason> {
 /// process, holding the thing being searched for. The answer is zero only
 /// because the sweep steps over its own block. Were the phrase at the front of
 /// it ever to stop working, this is the test that would say so.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_value_that_is_nowhere_is_counted_zero_times() -> Result<(), Reason> {
     alone!();
 
@@ -589,7 +595,7 @@ fn test_a_value_that_is_nowhere_is_counted_zero_times() -> Result<(), Reason> {
 
 /// A constant that was never copied lives where nothing can write, and only
 /// writable mappings are read. So even the original is not found.
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_constant_nobody_copied_is_not_found() -> Result<(), Reason> {
     alone!();
 

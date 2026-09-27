@@ -7,9 +7,7 @@
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicPtr, Ordering};
 
-use redoubt_forensics_core::{
-    Forensics, ForensicsAllocator, QUIET, Reason, enable_forensics_allocator,
-};
+use redoubt_forensics_core::{Forensics, ForensicsAllocator, QUIET, Reason};
 
 mod support;
 
@@ -122,12 +120,10 @@ fn test_a_vec_let_go_unwiped_is_not_found_once_its_block_is_handed_out_again_whi
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_vec_let_go_unwiped_is_found_while_enabled_although_its_size_is_asked_for_again()
 -> Result<(), Reason> {
     alone!();
-
-    enable_forensics_allocator(None);
 
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
 
@@ -149,11 +145,9 @@ fn test_a_vec_let_go_unwiped_is_found_while_enabled_although_its_size_is_asked_f
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_vec_wiped_before_it_is_let_go_is_not_found_while_enabled() -> Result<(), Reason> {
     alone!();
-
-    enable_forensics_allocator(None);
 
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
 

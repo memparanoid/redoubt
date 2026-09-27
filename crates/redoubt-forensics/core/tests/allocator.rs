@@ -6,9 +6,7 @@
 
 use std::alloc::System;
 
-use redoubt_forensics_core::{
-    Forensics, ForensicsAllocator, QUIET, Reason, enable_forensics_allocator,
-};
+use redoubt_forensics_core::{Forensics, ForensicsAllocator, QUIET, Reason};
 
 mod support;
 
@@ -36,11 +34,9 @@ fn plant() -> Box<[u8; 32]> {
 // dealloc
 // ============================================================================
 
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_block_let_go_unwiped_is_found_after_its_size_is_asked_for_again() -> Result<(), Reason> {
     alone!();
-
-    enable_forensics_allocator(None);
 
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
 
@@ -59,11 +55,9 @@ fn test_a_block_let_go_unwiped_is_found_after_its_size_is_asked_for_again() -> R
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics_macros::test]
 fn test_a_block_wiped_before_it_is_let_go_is_not_found() -> Result<(), Reason> {
     alone!();
-
-    enable_forensics_allocator(None);
 
     let mut watch = Forensics::watching(&backwards(&SECRET))?;
 
