@@ -206,7 +206,7 @@ impl Page {
         unsafe { libc::munmap(self.ptr as *mut libc::c_void, self.capacity) };
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, target_os = "linux"))]
     pub(crate) fn address(&self) -> usize {
         self.ptr as usize
     }
