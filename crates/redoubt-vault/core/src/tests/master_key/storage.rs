@@ -8,10 +8,10 @@ use std::thread;
 use std::time::Duration;
 
 use redoubt_buffer::BufferError;
+use redoubt_test_utils::run_test_as_subprocess;
 
 use crate::master_key::consts::MASTER_KEY_LEN;
 use crate::master_key::storage::open;
-use crate::tests::utils::run_test_as_subprocess;
 
 const DEADLINE: Duration = Duration::from_secs(10);
 

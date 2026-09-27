@@ -9,5 +9,4 @@ mod cipherbox;
 mod consts;
 mod helpers;
 mod master_key;
-mod utils;
 mod workspace;

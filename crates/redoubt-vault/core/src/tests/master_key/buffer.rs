@@ -7,12 +7,10 @@ use redoubt_zero::ZeroizationProbe;
 #[cfg(target_os = "linux")]
 use redoubt_buffer::BufferError;
 #[cfg(target_os = "linux")]
-use redoubt_test_utils::{block_syscall, is_seccomp_available};
+use redoubt_test_utils::{block_syscall, is_seccomp_available, run_test_as_subprocess};
 
 use crate::master_key::buffer::{create_buffer, create_initialized_buffer};
 use crate::master_key::consts::MASTER_KEY_LEN;
-#[cfg(target_os = "linux")]
-use crate::tests::utils::run_test_as_subprocess;
 
 // ============================================================================
 // create_buffer
