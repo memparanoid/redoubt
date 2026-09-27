@@ -11,3 +11,7 @@ repository.workspace = true
 version.workspace    = true
 
 [dependencies]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc.workspace       = true
+libseccomp.workspace = true

@@ -60,23 +60,24 @@ fn test_fill_returns_different_bytes_each_time(
 #[cfg(all(target_os = "linux", rand_asm))]
 mod seccomp_getrandom {
     use redoubt_asm::Backend;
-    use redoubt_test_utils::run_test_as_subprocess;
+    use redoubt_test_utils::{block_syscall, run_test_as_subprocess};
 
     use crate::backend::fill;
     use crate::error::EntropyError;
 
-    use crate::tests::utils::block_getrandom;
-
     #[test]
     #[ignore]
-    fn subprocess_test_fill_reports_entropy_not_available_when_getrandom_is_refused() {
+    fn subprocess_test_fill_reports_entropy_not_available_when_getrandom_is_refused()
+    -> Result<(), Box<dyn std::error::Error>> {
         let mut bytes = [0_u8; 32];
 
-        block_getrandom();
+        block_syscall("getrandom")?;
 
         let result = fill(Backend::Auto, &mut bytes);
 
         assert!(matches!(result, Err(EntropyError::EntropyNotAvailable)));
+
+        Ok(())
     }
 
     #[test]

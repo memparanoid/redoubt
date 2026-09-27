@@ -159,9 +159,7 @@ mod page_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_lock {
-        use redoubt_test_utils::run_test_as_subprocess;
-
-        use crate::tests::utils::block_mlock;
+        use redoubt_test_utils::{block_syscall, run_test_as_subprocess};
 
         use super::*;
 
@@ -171,7 +169,7 @@ mod page_tests {
         {
             let page = Page::new(32)?;
 
-            block_mlock();
+            block_syscall("mlock")?;
 
             let result = page.lock();
 
@@ -232,9 +230,7 @@ mod page_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_mark_dontdump {
-        use redoubt_test_utils::run_test_as_subprocess;
-
-        use crate::tests::utils::block_madvise;
+        use redoubt_test_utils::{block_syscall, run_test_as_subprocess};
 
         use super::*;
 
@@ -244,7 +240,7 @@ mod page_tests {
         -> Result<(), Box<dyn std::error::Error>> {
             let page = Page::new(32)?;
 
-            block_madvise();
+            block_syscall("madvise")?;
 
             let result = page.mark_dontdump();
 
@@ -321,9 +317,7 @@ mod page_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_protect {
-        use redoubt_test_utils::run_test_as_subprocess;
-
-        use crate::tests::utils::block_mprotect;
+        use redoubt_test_utils::{block_syscall, run_test_as_subprocess};
 
         use super::*;
 
@@ -333,7 +327,7 @@ mod page_tests {
         -> Result<(), Box<dyn std::error::Error>> {
             let page = Page::new(32)?;
 
-            block_mprotect();
+            block_syscall("mprotect")?;
 
             let result = page.protect();
 
@@ -407,9 +401,7 @@ mod page_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_unprotect {
-        use redoubt_test_utils::run_test_as_subprocess;
-
-        use crate::tests::utils::block_mprotect;
+        use redoubt_test_utils::{block_syscall, run_test_as_subprocess};
 
         use super::*;
 
@@ -420,7 +412,7 @@ mod page_tests {
             let page = Page::new(32)?;
 
             page.protect()?;
-            block_mprotect();
+            block_syscall("mprotect")?;
 
             let result = page.unprotect();
 
@@ -604,9 +596,7 @@ mod page_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_drop {
-        use redoubt_test_utils::run_test_as_subprocess;
-
-        use crate::tests::utils::block_mprotect;
+        use redoubt_test_utils::{block_syscall, run_test_as_subprocess};
 
         use super::*;
 
@@ -622,7 +612,7 @@ mod page_tests {
             unsafe { page.as_mut_slice().fill(0xFF) };
             page.protect()?;
 
-            block_mprotect();
+            block_syscall("mprotect")?;
 
             drop(page);
 

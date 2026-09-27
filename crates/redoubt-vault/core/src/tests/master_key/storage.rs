@@ -22,7 +22,7 @@ const DEADLINE: Duration = Duration::from_secs(10);
 #[cfg(target_os = "linux")]
 #[test]
 fn test_open_propagates_a_key_that_cannot_be_made() {
-    if !crate::tests::utils::is_seccomp_available() {
+    if !redoubt_test_utils::is_seccomp_available() {
         eprintln!("Skipping: seccomp not available (QEMU/unsupported platform)");
         return;
     }
@@ -95,19 +95,21 @@ fn test_open_is_taken_again_after_a_callback_panicked() {
 #[cfg(target_os = "linux")]
 #[test]
 #[ignore]
-fn subprocess_a_key_that_cannot_be_made() {
-    use crate::tests::utils::{block_madvise, block_mlock, block_mprotect, block_munlock};
+fn subprocess_a_key_that_cannot_be_made() -> Result<(), Box<dyn Error>> {
+    use redoubt_test_utils::block_syscall;
 
-    block_mprotect();
-    block_mlock();
-    block_munlock();
-    block_madvise();
+    block_syscall("mprotect")?;
+    block_syscall("mlock")?;
+    block_syscall("munlock")?;
+    block_syscall("madvise")?;
 
     for _ in 0..2 {
         let result = open(&mut |_| Ok(()));
 
         assert!(matches!(result, Err(BufferError::Page(_))));
     }
+
+    Ok(())
 }
 
 #[test]

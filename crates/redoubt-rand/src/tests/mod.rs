@@ -10,6 +10,3 @@ mod fill;
 mod session;
 mod support;
 mod system;
-
-#[cfg(target_os = "linux")]
-mod utils;

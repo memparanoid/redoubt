@@ -31,8 +31,5 @@ redoubt-mem.workspace        = true
 redoubt-test-utils.workspace = true
 rstest.workspace             = true
 
-[target.'cfg(target_os = "linux")'.dev-dependencies]
-libseccomp.workspace = true
-
 [features]
 test-utils = []

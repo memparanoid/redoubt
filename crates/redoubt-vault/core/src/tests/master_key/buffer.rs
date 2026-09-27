@@ -6,14 +6,13 @@ use redoubt_zero::ZeroizationProbe;
 
 #[cfg(target_os = "linux")]
 use redoubt_buffer::BufferError;
+#[cfg(target_os = "linux")]
+use redoubt_test_utils::{block_syscall, is_seccomp_available};
 
 use crate::master_key::buffer::{create_buffer, create_initialized_buffer};
 use crate::master_key::consts::MASTER_KEY_LEN;
 #[cfg(target_os = "linux")]
-use crate::tests::utils::{
-    block_getrandom, block_madvise, block_mlock, block_mprotect, block_munlock, block_openat,
-    block_read, is_seccomp_available, run_test_as_subprocess,
-};
+use crate::tests::utils::run_test_as_subprocess;
 
 // ============================================================================
 // create_buffer
@@ -102,44 +101,52 @@ fn test_create_initialized_buffer_returns_a_filled_key() -> Result<(), Box<dyn s
 // ==============================
 
 #[cfg(target_os = "linux")]
-fn block_the_page() {
-    block_mprotect();
-    block_mlock();
-    block_munlock();
-    block_madvise();
+fn block_the_page() -> Result<(), Box<dyn std::error::Error>> {
+    block_syscall("mprotect")?;
+    block_syscall("mlock")?;
+    block_syscall("munlock")?;
+    block_syscall("madvise")?;
+
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
 #[test]
 #[ignore]
-fn subprocess_create_buffer_page_error() {
-    block_the_page();
+fn subprocess_create_buffer_page_error() -> Result<(), Box<dyn std::error::Error>> {
+    block_the_page()?;
 
     assert!(matches!(create_buffer(), Err(BufferError::Page(_))));
+
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
 #[test]
 #[ignore]
-fn subprocess_create_initialized_buffer_page_error() {
-    block_the_page();
+fn subprocess_create_initialized_buffer_page_error() -> Result<(), Box<dyn std::error::Error>> {
+    block_the_page()?;
 
     assert!(matches!(
         create_initialized_buffer(),
         Err(BufferError::Page(_))
     ));
+
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
 #[test]
 #[ignore]
-fn subprocess_create_initialized_buffer_entropy_error() {
-    block_getrandom();
-    block_read();
-    block_openat();
+fn subprocess_create_initialized_buffer_entropy_error() -> Result<(), Box<dyn std::error::Error>> {
+    block_syscall("getrandom")?;
+    block_syscall("read")?;
+    block_syscall("openat")?;
 
     assert!(matches!(
         create_initialized_buffer(),
         Err(BufferError::CallbackError(_))
     ));
+
+    Ok(())
 }

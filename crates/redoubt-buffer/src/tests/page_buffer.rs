@@ -89,22 +89,23 @@ mod page_buffer_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_new {
-        use redoubt_test_utils::run_test_as_subprocess;
+        use redoubt_test_utils::{block_syscall, run_test_as_subprocess};
 
         use crate::error::PageError;
-
-        use crate::tests::utils::{block_madvise, block_mlock, block_mprotect};
 
         use super::*;
 
         #[test]
         #[ignore]
-        fn subprocess_test_new_propagates_page_lock_error() {
-            block_mlock();
+        fn subprocess_test_new_propagates_page_lock_error() -> Result<(), Box<dyn std::error::Error>>
+        {
+            block_syscall("mlock")?;
 
             let result = PageBuffer::new(32);
 
             assert!(matches!(result, Err(PageError::Lock)));
+
+            Ok(())
         }
 
         #[test]
@@ -122,12 +123,15 @@ mod page_buffer_tests {
 
         #[test]
         #[ignore]
-        fn subprocess_test_new_propagates_page_madvise_error() {
-            block_madvise();
+        fn subprocess_test_new_propagates_page_madvise_error()
+        -> Result<(), Box<dyn std::error::Error>> {
+            block_syscall("madvise")?;
 
             let result = PageBuffer::new(32);
 
             assert!(matches!(result, Err(PageError::Madvise)));
+
+            Ok(())
         }
 
         #[test]
@@ -145,12 +149,15 @@ mod page_buffer_tests {
 
         #[test]
         #[ignore]
-        fn subprocess_test_new_propagates_page_protect_error() {
-            block_mprotect();
+        fn subprocess_test_new_propagates_page_protect_error()
+        -> Result<(), Box<dyn std::error::Error>> {
+            block_syscall("mprotect")?;
 
             let result = PageBuffer::new(32);
 
             assert!(matches!(result, Err(PageError::Protect)));
+
+            Ok(())
         }
 
         #[test]
@@ -227,11 +234,9 @@ mod page_buffer_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_unseal {
-        use redoubt_test_utils::run_test_as_subprocess;
+        use redoubt_test_utils::{block_syscall, run_test_as_subprocess};
 
         use crate::error::PageError;
-
-        use crate::tests::utils::block_mprotect;
 
         use super::*;
 
@@ -241,7 +246,7 @@ mod page_buffer_tests {
         -> Result<(), Box<dyn std::error::Error>> {
             let mut buffer = protected()?;
 
-            block_mprotect();
+            block_syscall("mprotect")?;
 
             assert!(matches!(
                 buffer.unseal(),
@@ -291,11 +296,9 @@ mod page_buffer_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_seal {
-        use redoubt_test_utils::run_test_as_subprocess;
+        use redoubt_test_utils::{block_syscall, run_test_as_subprocess};
 
         use crate::error::PageError;
-
-        use crate::tests::utils::block_mprotect;
 
         use super::*;
 
@@ -308,7 +311,7 @@ mod page_buffer_tests {
             buffer.unseal()?;
             unsafe { buffer.page.as_mut_slice().fill(0xFF) };
 
-            block_mprotect();
+            block_syscall("mprotect")?;
 
             assert!(matches!(
                 buffer.seal(),
@@ -460,11 +463,9 @@ mod page_buffer_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_open {
-        use redoubt_test_utils::run_test_as_subprocess;
+        use redoubt_test_utils::{block_syscall, run_test_as_subprocess};
 
         use crate::error::PageError;
-
-        use crate::tests::utils::block_mprotect;
 
         use super::*;
 
@@ -474,7 +475,7 @@ mod page_buffer_tests {
             let mut buffer = protected()?;
 
             let result = buffer.open(&mut |_| {
-                block_mprotect();
+                block_syscall("mprotect").map_err(BufferError::callback_error)?;
                 Ok(())
             });
 
@@ -614,11 +615,9 @@ mod page_buffer_tests {
 
     #[cfg(target_os = "linux")]
     mod seccomp_open_mut {
-        use redoubt_test_utils::run_test_as_subprocess;
+        use redoubt_test_utils::{block_syscall, run_test_as_subprocess};
 
         use crate::error::PageError;
-
-        use crate::tests::utils::block_mprotect;
 
         use super::*;
 
@@ -629,7 +628,7 @@ mod page_buffer_tests {
             let mut buffer = protected()?;
 
             let result = buffer.open_mut(&mut |_| {
-                block_mprotect();
+                block_syscall("mprotect").map_err(BufferError::callback_error)?;
                 Ok(())
             });
 

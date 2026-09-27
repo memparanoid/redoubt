@@ -966,7 +966,6 @@ name = "redoubt-buffer"
 version = "0.1.0-rc.13"
 dependencies = [
  "libc",
- "libseccomp",
  "redoubt-forensics",
  "redoubt-mem",
  "redoubt-rand",
@@ -1126,7 +1125,6 @@ dependencies = [
  "cc",
  "getrandom",
  "libc",
- "libseccomp",
  "proptest",
  "redoubt-asm",
  "redoubt-forensics",
@@ -1151,6 +1149,10 @@ dependencies = [
 [[package]]
 name = "redoubt-test-utils"
 version = "0.1.0-rc.13"
+dependencies = [
+ "libc",
+ "libseccomp",
+]
 
 [[package]]
 name = "redoubt-util"
@@ -1180,7 +1182,6 @@ name = "redoubt-vault-core"
 version = "0.1.0-rc.13"
 dependencies = [
  "libc",
- "libseccomp",
  "quiesce",
  "redoubt-aead",
  "redoubt-alloc",
