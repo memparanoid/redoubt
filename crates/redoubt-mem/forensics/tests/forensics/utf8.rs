@@ -59,7 +59,7 @@ fn hold_broken() -> Vec<u8> {
 // is_utf8
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_text_checked_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&text_backwards())?;
 
@@ -81,7 +81,7 @@ fn test_text_checked_is_found_while_it_is_held() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_checking_text_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&text_backwards())?;
 

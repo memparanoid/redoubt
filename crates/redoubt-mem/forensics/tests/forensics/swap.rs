@@ -24,7 +24,7 @@ fn hold() -> Box<[u8; 32]> {
 // swap
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -46,7 +46,7 @@ fn test_a_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_swapping_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -81,7 +81,7 @@ fn test_swapping_leaves_nothing() -> Result<(), AnyError> {
 // swap_nonoverlapping
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_sized_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -111,7 +111,7 @@ fn test_a_sized_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError
 
 macro_rules! swapped {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 

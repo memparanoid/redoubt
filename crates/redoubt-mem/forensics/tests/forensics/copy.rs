@@ -16,7 +16,7 @@ const ROUNDS: usize = 200;
 // copy_nonoverlapping
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_copy_is_found_in_its_destination() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -41,7 +41,7 @@ fn test_a_copy_is_found_in_its_destination() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_copying_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -71,7 +71,7 @@ fn test_copying_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_two_hundred_copies_leave_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -110,7 +110,7 @@ fn test_two_hundred_copies_leave_nothing() -> Result<(), AnyError> {
 
 macro_rules! copied {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 

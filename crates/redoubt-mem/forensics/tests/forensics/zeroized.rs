@@ -29,7 +29,7 @@ fn hold() -> Vec<u8> {
 // is_zeroized
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_bytes_probed_are_found_while_they_are_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -51,7 +51,7 @@ fn test_bytes_probed_are_found_while_they_are_held() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_probing_bytes_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
