@@ -88,7 +88,7 @@ fn test_making_one_leaves_nothing() {
 // Poly1305::init
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_init_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&R))?;
 
@@ -110,7 +110,7 @@ fn test_what_init_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyErr
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_init_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[("key", &KEY), ("r", &R)])?;
 
@@ -139,7 +139,7 @@ fn test_init_leaves_nothing() -> Result<(), AnyError> {
 // Poly1305::update
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_update_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&ACC))?;
 
@@ -162,7 +162,7 @@ fn test_what_update_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyE
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_update_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[("key", &KEY), ("r", &R), ("accumulator", &ACC)])?;
 
@@ -192,7 +192,7 @@ fn test_update_leaves_nothing() -> Result<(), AnyError> {
 // Poly1305::update_padded
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_update_padded_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&ACC_PADDED))?;
 
@@ -215,7 +215,7 @@ fn test_what_update_padded_wrote_is_found_while_the_state_holds_it() -> Result<(
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_update_padded_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
         ("key", &KEY),
@@ -250,7 +250,7 @@ fn test_update_padded_leaves_nothing() -> Result<(), AnyError> {
 // Poly1305::finalize_mut
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_finalize_wrote_is_found_while_the_caller_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&TAG))?;
 
@@ -275,7 +275,7 @@ fn test_what_finalize_wrote_is_found_while_the_caller_holds_it() -> Result<(), A
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_finalize_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
         ("key", &KEY),
@@ -317,7 +317,7 @@ fn test_finalize_leaves_nothing() -> Result<(), AnyError> {
 /// A drop takes the state by value, and a value moved is a copy: the drop
 /// empties the one it was handed, and the slot it was moved out of keeps
 /// everything.
-#[test]
+#[redoubt_forensics::test]
 fn test_what_a_state_dropped_by_value_held_is_found_where_it_was() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&R))?;
 
@@ -343,7 +343,7 @@ fn test_what_a_state_dropped_by_value_held_is_found_where_it_was() -> Result<(),
 
 /// What a caller that lets go of one by hand owes it: emptied in place first,
 /// so what the move copies is nothing.
-#[test]
+#[redoubt_forensics::test]
 fn test_a_state_zeroized_and_then_dropped_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[("key", &KEY), ("r", &R), ("accumulator", &ACC)])?;
 
@@ -373,7 +373,7 @@ fn test_a_state_zeroized_and_then_dropped_leaves_nothing() -> Result<(), AnyErro
 // tag
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_tag_wrote_is_found_while_the_caller_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&TAG))?;
 
@@ -395,7 +395,7 @@ fn test_what_tag_wrote_is_found_while_the_caller_holds_it() -> Result<(), AnyErr
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_tag_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
         ("key", &KEY),
