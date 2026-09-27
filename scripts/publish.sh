@@ -33,8 +33,10 @@ set -euo pipefail
 # Each crate depends on ones above it and on none below.
 CRATES=(
   redoubt-asm
-  redoubt-forensics-core
+  redoubt-mem-core
+  redoubt-forensics-allocator
   redoubt-forensics-macros
+  redoubt-forensics-core
   redoubt-forensics
   redoubt-test-utils
   redoubt-util
@@ -45,20 +47,20 @@ CRATES=(
   redoubt-zero-derive
   redoubt-zero
 
-  redoubt-aead-aegis128l
   redoubt-alloc
   redoubt-chacha
   redoubt-hkdf
   redoubt-poly1305
+  redoubt-aead-aegis128l
 
   redoubt-aead-xchachapoly1305
+  redoubt-secret
   redoubt-codec-core
   redoubt-rand
   redoubt-buffer
   redoubt-codec-derive
   redoubt-codec
   redoubt-aead
-  redoubt-secret
 
   redoubt-vault-core
   redoubt-vault-derive
