@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-pub mod allocked_vec;
-pub mod array;
-pub mod helpers;
-pub mod option;
-pub mod string;
-pub mod vec;
+mod redoubt_array;
+mod redoubt_option;
+mod redoubt_string;
+mod redoubt_vec;

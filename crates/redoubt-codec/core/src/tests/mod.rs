@@ -14,4 +14,5 @@ mod collections;
 mod decode_buffer;
 mod error;
 mod primitives;
+mod structs;
 mod support;
