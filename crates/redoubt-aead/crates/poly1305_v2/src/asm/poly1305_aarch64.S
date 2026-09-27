@@ -117,6 +117,77 @@
     add sp, sp, #FRAME
 .endm
 
+// acc = acc * r, reduced only as far as the next block needs:
+//
+//   d0 = h0·r0 + h1·s1            in x11:x10
+//   d1 = h0·r1 + h1·r0 + h2·s1    in x13:x12
+//   d2 = h2·r0                    in x14
+//
+// then carried into three words and the bits of the third above two folded
+// back. h2 is a few bits, so its products fit a word and take `mul` alone.
+.macro POLY1305_MULTIPLY
+    ldr x11, [sp, #RPTR]
+    ldp x7, x8, [x11]
+    // s1 = r1 + r1/4. 2^130 is 5 modulo the prime and the clamp leaves the
+    // bottom two bits of r1 empty, so a product with r1 that lands on 2^128
+    // comes back as a product with s1.
+    add x9, x8, x8, lsr #2
+    ldp x4, x5, [sp, #ACC]
+    ldr x6, [sp, #(ACC + 16)]
+
+    mul x10, x4, x7
+    umulh x11, x4, x7
+    mul x12, x5, x9
+    umulh x13, x5, x9
+    adds x10, x10, x12
+    adc x11, x11, x13
+
+    mul x12, x4, x8
+    umulh x13, x4, x8
+    mul x14, x5, x7
+    umulh x15, x5, x7
+    adds x12, x12, x14
+    adc x13, x13, x15
+    mul x14, x6, x9
+    adds x12, x12, x14
+    adc x13, x13, xzr
+
+    mul x14, x6, x7
+
+    adds x12, x12, x11
+    adc x13, x13, xzr
+    add x14, x14, x13
+
+    // What stands at or above 2^130 comes back down worth five.
+    lsr x15, x14, #2
+    add x15, x15, x15, lsl #2
+    and x14, x14, #3
+    adds x10, x10, x15
+    adcs x12, x12, xzr
+    adc x14, x14, xzr
+
+    stp x10, x12, [sp, #ACC]
+    str x14, [sp, #(ACC + 16)]
+.endm
+
+// acc += the sixteen bytes at `src`, with `hibit` above them, then acc *= r.
+// `src` is not written.
+.macro POLY1305_BLOCK src, hibit
+    ldp x2, x3, [\src]
+    ldp x4, x5, [sp, #ACC]
+    ldr x6, [sp, #(ACC + 16)]
+    adds x4, x4, x2
+    adcs x5, x5, x3
+    adc x6, x6, xzr
+    .if \hibit
+    add x6, x6, #1
+    .endif
+    stp x4, x5, [sp, #ACC]
+    str x6, [sp, #(ACC + 16)]
+
+    POLY1305_MULTIPLY
+.endm
+
 // ============================================================================
 // poly1305_init
 // ============================================================================
@@ -150,6 +221,139 @@ FUNC(redoubt_poly1305_v2_init):
 
     ldp x3, x4, [x2, #16]
     stp x3, x4, [x1]
+
+    POLY1305_ZEROIZE_ALL
+    ret
+
+// ============================================================================
+// poly1305_update
+// ============================================================================
+//
+// C signature:
+//   void redoubt_poly1305_v2_update(uint64_t acc[3], const uint64_t r[2],
+//                                   uint8_t block[16], size_t *filled,
+//                                   const uint8_t *said, size_t said_len);
+//
+// Parameters (AAPCS):
+//   x0: acc (read and written), x1: r (read only), x2: block (read and
+//   written), x3: filled (read and written), x4: said (read only),
+//   x5: said_len
+//
+// Whole blocks are read where they lie; only a tail short of a block is copied
+// into the caller's `block`.
+.p2align 4
+.globl FUNC(redoubt_poly1305_v2_update)
+HIDDEN_FUNC(redoubt_poly1305_v2_update)
+FUNC(redoubt_poly1305_v2_update):
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: ACC holds the polynomial over everything counted so
+// ║ far. The partial block is not in here — it is the caller's, written
+// ║ where the caller keeps it, and emptied there as soon as the block it
+// ║ completes has been counted.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before sp is
+// ║ advanced.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
+    sub sp, sp, #FRAME
+    str x0, [sp, #ACCPTR]
+    str x1, [sp, #RPTR]
+    str x2, [sp, #BLOCKPTR]
+    str x3, [sp, #FILLEDPTR]
+    str x4, [sp, #SAID]
+    str x5, [sp, #LEN]
+
+    ldp x6, x7, [x0]
+    stp x6, x7, [sp, #ACC]
+    ldr x6, [x0, #16]
+    str x6, [sp, #(ACC + 16)]
+
+    ldr x6, [x3]
+    cbz x6, .Lupdate_stream
+
+    mov x7, #16
+    sub x7, x7, x6
+    ldr x8, [sp, #LEN]
+    cmp x7, x8
+    csel x7, x7, x8, lo
+
+    cbz x7, .Lupdate_flush
+
+    ldr x9, [sp, #SAID]
+    ldr x10, [sp, #BLOCKPTR]
+    add x10, x10, x6
+    mov x11, xzr
+.Lupdate_fill_byte:
+    ldrb w12, [x9, x11]
+    strb w12, [x10, x11]
+    add x11, x11, #1
+    cmp x11, x7
+    b.lo .Lupdate_fill_byte
+
+    add x6, x6, x7
+    ldr x9, [sp, #FILLEDPTR]
+    str x6, [x9]
+    ldr x9, [sp, #SAID]
+    add x9, x9, x7
+    str x9, [sp, #SAID]
+    ldr x9, [sp, #LEN]
+    sub x9, x9, x7
+    str x9, [sp, #LEN]
+
+.Lupdate_flush:
+    cmp x6, #16
+    b.ne .Lupdate_stream
+
+    ldr x7, [sp, #BLOCKPTR]
+    POLY1305_BLOCK x7, 1
+
+    // Counted, so emptied: the next tail may not cover all of it.
+    ldr x7, [sp, #BLOCKPTR]
+    stp xzr, xzr, [x7]
+    ldr x7, [sp, #FILLEDPTR]
+    str xzr, [x7]
+
+.Lupdate_stream:
+    ldr x6, [sp, #LEN]
+    cmp x6, #16
+    b.lo .Lupdate_tail
+    ldr x7, [sp, #SAID]
+    POLY1305_BLOCK x7, 1
+    ldr x6, [sp, #SAID]
+    add x6, x6, #16
+    str x6, [sp, #SAID]
+    ldr x6, [sp, #LEN]
+    sub x6, x6, #16
+    str x6, [sp, #LEN]
+    b .Lupdate_stream
+
+.Lupdate_tail:
+    ldr x6, [sp, #LEN]
+    cbz x6, .Lupdate_done
+
+    ldr x9, [sp, #SAID]
+    ldr x10, [sp, #BLOCKPTR]
+    mov x11, xzr
+.Lupdate_keep_byte:
+    ldrb w12, [x9, x11]
+    strb w12, [x10, x11]
+    add x11, x11, #1
+    cmp x11, x6
+    b.lo .Lupdate_keep_byte
+
+    ldr x9, [sp, #FILLEDPTR]
+    str x6, [x9]
+
+.Lupdate_done:
+    ldr x9, [sp, #ACCPTR]
+    ldp x6, x7, [sp, #ACC]
+    stp x6, x7, [x9]
+    ldr x6, [sp, #(ACC + 16)]
+    str x6, [x9, #16]
+
+    POLY1305_EMPTY_FRAME
+// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
 
     POLY1305_ZEROIZE_ALL
     ret

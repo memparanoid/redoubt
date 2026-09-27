@@ -23,10 +23,10 @@ use redoubt_asm::Backend;
 use rust as chosen;
 
 #[cfg(poly1305_asm)]
-use asm::init as chosen_init;
+use asm::{init as chosen_init, update as chosen_update};
 
 #[cfg(not(poly1305_asm))]
-use rust::init as chosen_init;
+use rust::{init as chosen_init, update as chosen_update};
 
 use crate::consts::{ACC_WORDS, R_WORDS};
 
@@ -66,7 +66,7 @@ pub(crate) fn update(
 ) {
     match backend {
         Backend::Rust => rust::update(acc, r, block, filled, said),
-        Backend::Auto => chosen::update(acc, r, block, filled, said),
+        Backend::Auto => chosen_update(acc, r, block, filled, said),
     }
 }
 

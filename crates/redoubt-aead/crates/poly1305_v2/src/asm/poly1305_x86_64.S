@@ -124,6 +124,80 @@
     add rsp, FRAME
 .endm
 
+// acc = acc * r, reduced only as far as the next block needs:
+//
+//   d0 = h0·r0 + h1·s1            in rdi:rsi
+//   d1 = h0·r1 + h1·r0 + h2·s1    in r11:rcx
+//   d2 = h2·r0                    in rax
+//
+// then carried into three words and the bits of the third above two folded
+// back. h2 is a few bits, so its products fit a word and take `imul`.
+.macro POLY1305_MULTIPLY
+    mov r11, [rsp + RPTR]
+    mov r8, [r11]
+    mov r9, [r11 + 8]
+    // s1 = r1 + r1/4. 2^130 is 5 modulo the prime and the clamp leaves the
+    // bottom two bits of r1 empty, so a product with r1 that lands on 2^128
+    // comes back as a product with s1.
+    mov r10, r9
+    shr r10, 2
+    add r10, r9
+
+    mov rax, [rsp + ACC]
+    mul r8
+    mov rsi, rax
+    mov rdi, rdx
+    mov rax, [rsp + ACC + 8]
+    mul r10
+    add rsi, rax
+    adc rdi, rdx
+
+    mov rax, [rsp + ACC]
+    mul r9
+    mov rcx, rax
+    mov r11, rdx
+    mov rax, [rsp + ACC + 8]
+    mul r8
+    add rcx, rax
+    adc r11, rdx
+    mov rax, [rsp + ACC + 16]
+    imul rax, r10
+    add rcx, rax
+    adc r11, 0
+
+    mov rax, [rsp + ACC + 16]
+    imul rax, r8
+
+    add rcx, rdi
+    adc r11, 0
+    add rax, r11
+
+    // What stands at or above 2^130 comes back down worth five.
+    mov rdx, rax
+    shr rdx, 2
+    lea rdx, [rdx + rdx*4]
+    and rax, 3
+    add rsi, rdx
+    adc rcx, 0
+    adc rax, 0
+
+    mov [rsp + ACC], rsi
+    mov [rsp + ACC + 8], rcx
+    mov [rsp + ACC + 16], rax
+.endm
+
+// acc += the sixteen bytes at `src`, with `hibit` above them, then acc *= r.
+// `src` is not written.
+.macro POLY1305_BLOCK src, hibit
+    mov rax, [\src]
+    mov rdx, [\src + 8]
+    add [rsp + ACC], rax
+    adc [rsp + ACC + 8], rdx
+    adc qword ptr [rsp + ACC + 16], \hibit
+
+    POLY1305_MULTIPLY
+.endm
+
 // ============================================================================
 // poly1305_init
 // ============================================================================
@@ -163,6 +237,142 @@ FUNC(redoubt_poly1305_v2_init):
 
 #if !defined(__APPLE__)
 .size FUNC(redoubt_poly1305_v2_init), .-FUNC(redoubt_poly1305_v2_init)
+#endif
+
+// ============================================================================
+// poly1305_update
+// ============================================================================
+//
+// C signature:
+//   void redoubt_poly1305_v2_update(uint64_t acc[3], const uint64_t r[2],
+//                                   uint8_t block[16], size_t *filled,
+//                                   const uint8_t *said, size_t said_len);
+//
+// Parameters (SysV ABI):
+//   rdi: acc (read and written), rsi: r (read only), rdx: block (read and
+//   written), rcx: filled (read and written), r8: said (read only),
+//   r9: said_len
+//
+// Whole blocks are read where they lie; only a tail short of a block is copied
+// into the caller's `block`.
+.p2align 4
+.globl FUNC(redoubt_poly1305_v2_update)
+HIDDEN_FUNC(redoubt_poly1305_v2_update)
+#if !defined(__APPLE__)
+.type FUNC(redoubt_poly1305_v2_update), @function
+#endif
+FUNC(redoubt_poly1305_v2_update):
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: ACC holds the polynomial over everything counted so
+// ║ far. The partial block is not in here — it is the caller's, written
+// ║ where the caller keeps it, and emptied there as soon as the block it
+// ║ completes has been counted.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before rsp is
+// ║ advanced.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
+    sub rsp, FRAME
+    mov [rsp + ACCPTR], rdi
+    mov [rsp + RPTR], rsi
+    mov [rsp + BLOCKPTR], rdx
+    mov [rsp + FILLEDPTR], rcx
+    mov [rsp + SAID], r8
+    mov [rsp + LEN], r9
+
+    .irp offset,0,8,16
+        mov rax, [rdi + \offset]
+        mov [rsp + ACC + \offset], rax
+    .endr
+
+    mov rcx, [rcx]
+    test rcx, rcx
+    jz .Lupdate_stream
+
+    mov rax, 16
+    sub rax, rcx
+    mov rdx, [rsp + LEN]
+    cmp rax, rdx
+    jbe .Lupdate_fill
+    mov rax, rdx
+.Lupdate_fill:
+    test rax, rax
+    jz .Lupdate_flush
+
+    mov rsi, [rsp + SAID]
+    mov rdi, [rsp + BLOCKPTR]
+    add rdi, rcx
+    xor rdx, rdx
+.Lupdate_fill_byte:
+    mov r8b, [rsi + rdx]
+    mov [rdi + rdx], r8b
+    inc rdx
+    cmp rdx, rax
+    jb .Lupdate_fill_byte
+
+    add rcx, rax
+    mov rdx, [rsp + FILLEDPTR]
+    mov [rdx], rcx
+    add [rsp + SAID], rax
+    sub [rsp + LEN], rax
+
+.Lupdate_flush:
+    cmp rcx, 16
+    jne .Lupdate_stream
+
+    mov rsi, [rsp + BLOCKPTR]
+    POLY1305_BLOCK rsi, 1
+
+    // Counted, so emptied: the next tail may not cover all of it.
+    mov rsi, [rsp + BLOCKPTR]
+    mov qword ptr [rsi], 0
+    mov qword ptr [rsi + 8], 0
+    mov rdx, [rsp + FILLEDPTR]
+    mov qword ptr [rdx], 0
+
+.Lupdate_stream:
+    cmp qword ptr [rsp + LEN], 16
+    jb .Lupdate_tail
+    mov rsi, [rsp + SAID]
+    POLY1305_BLOCK rsi, 1
+    add qword ptr [rsp + SAID], 16
+    sub qword ptr [rsp + LEN], 16
+    jmp .Lupdate_stream
+
+.Lupdate_tail:
+    mov rcx, [rsp + LEN]
+    test rcx, rcx
+    jz .Lupdate_done
+
+    mov rsi, [rsp + SAID]
+    mov rdi, [rsp + BLOCKPTR]
+    xor rdx, rdx
+.Lupdate_keep_byte:
+    mov r8b, [rsi + rdx]
+    mov [rdi + rdx], r8b
+    inc rdx
+    cmp rdx, rcx
+    jb .Lupdate_keep_byte
+
+    mov rdx, [rsp + FILLEDPTR]
+    mov [rdx], rcx
+
+.Lupdate_done:
+    mov r9, [rsp + ACCPTR]
+    .irp offset,0,8,16
+        mov rax, [rsp + ACC + \offset]
+        mov [r9 + \offset], rax
+    .endr
+
+    POLY1305_EMPTY_FRAME
+// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
+
+    POLY1305_ZEROIZE_ALL
+    ret
+
+#if !defined(__APPLE__)
+.size FUNC(redoubt_poly1305_v2_update), .-FUNC(redoubt_poly1305_v2_update)
 #endif
 
 // ============================================================================

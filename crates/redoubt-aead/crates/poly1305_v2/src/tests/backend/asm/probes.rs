@@ -5,14 +5,24 @@
 //! What each routine in the assembly leaves in the registers and in its frame,
 //! and whether the verifiers that answer that read all of what they claim to.
 
+use std::vec::Vec;
+
 use rstest::rstest;
 
 use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE};
 
-use crate::consts::R_WORDS;
+use crate::consts::{ACC_WORDS, R_WORDS};
 
 unsafe extern "C" {
     fn redoubt_poly1305_v2_init(r: *mut u64, s: *mut u8, key: *const u8);
+    fn redoubt_poly1305_v2_update(
+        acc: *mut u64,
+        r: *const u64,
+        block: *mut u8,
+        filled: *mut usize,
+        said: *const u8,
+        said_len: usize,
+    );
 
     fn redoubt_poly1305_v2_registers_are_zeroized() -> u64;
     fn redoubt_poly1305_v2_dirty_registers();
@@ -806,6 +816,34 @@ fn test_dirty_frame_clears_every_byte_except_the_requested_one() {
 }
 
 // ============================================================================
+// What the routines leave
+// ============================================================================
+
+/// The key the routines after `init` are given, clamped by `init` itself: what
+/// they leave does not depend on the value being right, and asking the other
+/// backend for it would put a second implementation in this file.
+fn clamped() -> ([u64; R_WORDS], [u8; BLOCK_SIZE]) {
+    let key: [u8; KEY_SIZE] = core::array::from_fn(|at| 0x40 + at as u8);
+    let mut r = [0_u64; R_WORDS];
+    let mut s = [0_u8; BLOCK_SIZE];
+
+    // SAFETY: the arrays are disjoint and have the widths the routine reads and
+    // writes.
+    unsafe { redoubt_poly1305_v2_init(r.as_mut_ptr(), s.as_mut_ptr(), key.as_ptr()) };
+
+    (r, s)
+}
+
+/// Every way the partial block can be on the way in, against every way the
+/// next piece of message can leave it: short of a block, exactly one, and past
+/// it with a tail.
+fn fills_and_lengths() -> impl Iterator<Item = (usize, usize)> {
+    [0, 1, 8, 15]
+        .into_iter()
+        .flat_map(|filled| [0, 1, 15, 16, 17, 31, 32, 64, 65].map(move |length| (filled, length)))
+}
+
+// ============================================================================
 // init
 // ============================================================================
 
@@ -824,6 +862,33 @@ test_what_the_routine_leaves!(
         let key = key.as_ptr();
     },
     (r, s, key)
+);
+
+// ============================================================================
+// update
+// ============================================================================
+
+test_what_the_routine_leaves!(
+    test_update_leaves_the_residue_its_case_declares,
+    redoubt_poly1305_v2_update,
+    fn(*mut u64, *const u64, *mut u8, *mut usize, *const u8, usize),
+    [dirty_update_registers, dirty_update_frame, untouched_update],
+    true,
+    for (filled, length) in fills_and_lengths(),
+    {
+        let (r, _) = clamped();
+        let said: Vec<u8> = (0..length).map(|at| (at as u8) ^ 0x5a).collect();
+        let mut acc = [0_u64; ACC_WORDS];
+        let mut block = [0_u8; BLOCK_SIZE];
+        let mut held = filled;
+        block[..filled].fill(0xc3);
+        let acc = acc.as_mut_ptr();
+        let key = r.as_ptr();
+        let block = block.as_mut_ptr();
+        let held = &raw mut held;
+        let said = said.as_ptr();
+    },
+    (acc, key, block, held, said, length)
 );
 
 // ============================================================================
@@ -860,4 +925,24 @@ test_the_measurement_reads_the_window!(
         let key = key.as_ptr();
     },
     (r, s, key)
+);
+
+test_the_measurement_reads_the_window!(
+    test_the_measurement_of_update_reads_the_window_the_writer_filled,
+    untouched_update,
+    fn(*mut u64, *const u64, *mut u8, *mut usize, *const u8, usize),
+    {
+        let (r, _) = clamped();
+        let said: Vec<u8> = (0..65_u8).collect();
+        let mut acc = [0_u64; ACC_WORDS];
+        let mut block = [0_u8; BLOCK_SIZE];
+        let mut held = 0_usize;
+        let acc = acc.as_mut_ptr();
+        let key = r.as_ptr();
+        let block = block.as_mut_ptr();
+        let held = &raw mut held;
+        let length = said.len();
+        let said = said.as_ptr();
+    },
+    (acc, key, block, held, said, length)
 );
