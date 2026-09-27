@@ -45,7 +45,6 @@ dependencies = [
  "redoubt-codec",
  "redoubt-hkdf",
  "redoubt-poly1305",
- "redoubt-util",
  "redoubt-vault",
  "redoubt-zero",
 ]
