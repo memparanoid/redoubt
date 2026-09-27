@@ -47,7 +47,7 @@
     any(target_arch = "x86_64", target_arch = "aarch64")
 ))]
 
-use redoubt_forensics::{AnyError, Forensics, forensics, freeze, pick_spiller};
+use redoubt_forensics_core::{AnyError, Forensics, forensics, freeze, pick_spiller};
 
 mod support;
 

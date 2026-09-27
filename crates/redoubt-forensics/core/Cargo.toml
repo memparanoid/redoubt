@@ -1,0 +1,29 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["development-tools::testing", "memory-management"]
+description          = "The instrument behind redoubt-forensics"
+edition.workspace    = true
+keywords             = ["security", "forensics", "memory", "zeroize"]
+license.workspace    = true
+name                 = "redoubt-forensics-core"
+readme.workspace     = true
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+libc.workspace = true
+
+[build-dependencies]
+cc.workspace = true
+
+[dev-dependencies]
+proptest.workspace         = true
+redoubt-mem-core.workspace = true
+
+# Set by the coverage run and by nothing else. Declared so that a build without
+# it is not a build with an unknown `cfg`.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

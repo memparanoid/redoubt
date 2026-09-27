@@ -25,7 +25,7 @@
 
 #![cfg(target_os = "linux")]
 
-use redoubt_forensics::{Forensics, Reason, Report, forensics, freeze};
+use redoubt_forensics_core::{Forensics, Reason, Report, forensics, freeze};
 
 mod support;
 

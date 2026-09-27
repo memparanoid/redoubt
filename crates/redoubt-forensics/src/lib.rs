@@ -63,53 +63,10 @@
 //! another place the value could be and another test's needle to trip over.
 //! `nextest`, not `cargo test`.
 
-#[cfg(test)]
-mod tests;
+#![warn(missing_docs)]
 
 #[cfg(target_os = "linux")]
-mod analysis;
-
-#[cfg(target_os = "linux")]
-mod errors;
-
-#[cfg(target_os = "linux")]
-mod forensics;
-
-#[cfg(target_os = "linux")]
-mod frame;
-
-#[cfg(target_os = "linux")]
-mod macros;
-
-#[cfg(target_os = "linux")]
-mod spiller;
-
-#[cfg(target_os = "linux")]
-mod window;
-
-// The whole of it. Everything else — the block, the three processes, the
-// weighing — is reachable only through these, and a caller that needed one of
-// them directly would be doing something this crate has not thought about.
-#[cfg(target_os = "linux")]
-pub use analysis::report::{Change, QUIET, Report};
-
-#[cfg(target_os = "linux")]
-pub use errors::{AnyError, Reason};
-
-#[cfg(target_os = "linux")]
-pub use forensics::{Forensics, occurrences, occurrences_reversed};
-
-#[cfg(target_os = "linux")]
-pub use frame::capture;
-
-#[cfg(target_os = "linux")]
-pub use spiller::pick_spiller;
-
-// What `freeze!` expands into reaches by name, and nothing else has a use for
-// any of it: the room's address, the entry that writes the vectors alone, and
-// the numbers the window is made of.
-#[cfg(target_os = "linux")]
-pub use spiller::{SPILL, redoubt_spill_room, redoubt_spill_vectors};
-
-#[cfg(target_os = "linux")]
-pub use window::{COPY, FLOOR, SP, TOP, open};
+pub use redoubt_forensics_core::{
+    AnyError, Change, Forensics, QUIET, Reason, Report, capture, forensics, freeze, occurrences,
+    occurrences_reversed, pick_spiller,
+};

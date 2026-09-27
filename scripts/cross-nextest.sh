@@ -23,7 +23,7 @@
 # # Arguments
 #
 # Whatever `nextest` takes, which is what this is named for:
-# `cross-nextest.sh -p redoubt-forensics`. With none, the whole workspace.
+# `cross-nextest.sh -p redoubt-forensics-core`. With none, the whole workspace.
 #
 # Which machines is `ARCH`. With none, every machine that has been built —
 # which on a host that develops away from one architecture is the one, and on

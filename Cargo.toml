@@ -26,6 +26,7 @@ members = [
   "crates/redoubt-buffer",
   "crates/redoubt-test-utils",
   "crates/redoubt-forensics",
+  "crates/redoubt-forensics/core",
   "crates/redoubt-mem",
   "crates/redoubt-mem/core",
   "crates/redoubt-mem/forensics",
@@ -58,6 +59,7 @@ resolver = "2"
   redoubt-codec-core           = { path = "crates/redoubt-codec/core", version = "0.1.0-rc.13" }
   redoubt-codec-derive         = { path = "crates/redoubt-codec/derive", version = "0.1.0-rc.13" }
   redoubt-forensics            = { path = "crates/redoubt-forensics", version = "0.1.0-rc.13" }
+  redoubt-forensics-core       = { path = "crates/redoubt-forensics/core", version = "0.1.0-rc.13" }
   redoubt-hkdf                 = { path = "crates/redoubt-hkdf", version = "0.1.0-rc.13" }
   redoubt-mem                  = { path = "crates/redoubt-mem", version = "0.1.0-rc.13" }
   redoubt-mem-core             = { path = "crates/redoubt-mem/core", version = "0.1.0-rc.13" }
@@ -129,7 +131,7 @@ opt-level = 3
 # its own has an epilogue that restores the callee-saved registers a seeding
 # wrote, before the freeze reads them. Optimized, the closure folds into the
 # frame the freeze runs in, as an inlined operation does in a release build.
-[profile.dev.package.redoubt-forensics]
+[profile.dev.package.redoubt-forensics-core]
 opt-level = 3
 
 [profile.release]

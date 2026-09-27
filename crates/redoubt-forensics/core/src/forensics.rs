@@ -27,7 +27,7 @@ use crate::errors::Reason;
 /// a call pushes a return address whatever else it does.
 ///
 /// ```no_run
-/// # use redoubt_forensics::{Forensics, Reason};
+/// # use redoubt_forensics_core::{Forensics, Reason};
 /// # fn operation() {}
 /// # fn main() -> Result<(), Reason> {
 /// # let needle: Vec<u8> = Vec::new();

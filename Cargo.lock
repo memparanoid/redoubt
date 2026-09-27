@@ -1035,6 +1035,13 @@ dependencies = [
 name = "redoubt-forensics"
 version = "0.1.0-rc.13"
 dependencies = [
+ "redoubt-forensics-core",
+]
+
+[[package]]
+name = "redoubt-forensics-core"
+version = "0.1.0-rc.13"
+dependencies = [
  "cc",
  "libc",
  "proptest",

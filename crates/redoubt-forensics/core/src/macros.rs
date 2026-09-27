@@ -206,7 +206,7 @@ macro_rules! freeze {
 /// A measurement, with the window open around it.
 ///
 /// ```no_run
-/// # use redoubt_forensics::{Forensics, Reason, freeze, forensics};
+/// # use redoubt_forensics_core::{Forensics, Reason, freeze, forensics};
 /// # fn seal(into: &mut [u8]) {}
 /// # fn measured() -> Result<(), Reason> {
 /// # let needle: Vec<u8> = Vec::new();
