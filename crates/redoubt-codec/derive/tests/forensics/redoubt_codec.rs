@@ -138,7 +138,7 @@ fn test_sizing_a_struct_leaves_nothing() {
 macro_rules! encoding_one_field_is_found {
     ($($name:ident: $field:ident => $fill:expr;)*) => {
         $(
-            #[test]
+            #[redoubt_forensics::test]
             fn $name() -> Result<(), AnyError> {
                 let mut arsenal = Arsenal::default();
                 let fill: fn(&mut Arsenal) -> Result<(), AnyError> = $fill;
@@ -196,7 +196,7 @@ encoding_one_field_is_found! {
         maybe_keys => |arsenal| { maybe_keys(&mut arsenal.maybe_keys); Ok(()) };
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encoding_a_struct_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -230,7 +230,7 @@ fn test_encoding_a_struct_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encoding_a_struct_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -275,7 +275,7 @@ fn test_encoding_a_struct_into_a_buffer_too_small_leaves_nothing() -> Result<(),
 macro_rules! decoding_one_field_is_found {
     ($($name:ident: $field:ident => $fill:expr;)*) => {
         $(
-            #[test]
+            #[redoubt_forensics::test]
             fn $name() -> Result<(), AnyError> {
                 let mut arsenal = Arsenal::default();
                 let fill: fn(&mut Arsenal) -> Result<(), AnyError> = $fill;
@@ -332,7 +332,7 @@ decoding_one_field_is_found! {
         maybe_keys => |arsenal| { maybe_keys(&mut arsenal.maybe_keys); Ok(()) };
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decoding_a_struct_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -368,7 +368,7 @@ fn test_decoding_a_struct_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decoding_a_struct_over_one_that_holds_a_secret_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -405,7 +405,7 @@ fn test_decoding_a_struct_over_one_that_holds_a_secret_leaves_nothing() -> Resul
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decoding_a_struct_from_a_wire_cut_short_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 

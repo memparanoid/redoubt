@@ -12,3 +12,7 @@
 mod support;
 
 mod redoubt_codec;
+
+#[global_allocator]
+static ALLOCATOR: redoubt_forensics::ForensicsAllocator<std::alloc::System> =
+    redoubt_forensics::ForensicsAllocator::new(std::alloc::System);
