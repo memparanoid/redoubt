@@ -153,6 +153,13 @@ fn test_dirty_byte_reports_an_argument_that_is_not_dirty() {
 }
 
 #[test]
+fn test_dirty_byte_propagates_a_dirty_without_a_value() {
+    let result = dirty_byte_of(quote!(dirty));
+
+    assert!(result.is_err_and(|error| error.to_string().contains("expected `=`")));
+}
+
+#[test]
 fn test_dirty_byte_propagates_a_value_that_is_not_an_integer() {
     let result = dirty_byte_of(quote!(dirty = "0xFF"));
 
