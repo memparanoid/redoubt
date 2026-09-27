@@ -40,7 +40,7 @@ fn test_making_one_leaves_nothing() {
 // HChaCha20::subkey
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_subkey_wrote_is_found_while_the_caller_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&SUBKEY))?;
 
@@ -64,7 +64,7 @@ fn test_what_subkey_wrote_is_found_while_the_caller_holds_it() -> Result<(), Any
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_subkey_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[("key", &KEY), ("subkey", &SUBKEY)])?;
 

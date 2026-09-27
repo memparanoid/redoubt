@@ -13,3 +13,7 @@ mod support;
 mod chacha20;
 mod hchacha20;
 mod xchacha20;
+
+#[global_allocator]
+static ALLOCATOR: redoubt_forensics::ForensicsAllocator<std::alloc::System> =
+    redoubt_forensics::ForensicsAllocator::new(std::alloc::System);

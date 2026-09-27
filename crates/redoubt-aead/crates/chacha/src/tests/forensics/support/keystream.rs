@@ -19,7 +19,7 @@ macro_rules! test_what_a_keystream_leaves {
         [$(($name:literal, $needle:expr)),* $(,)?],
         |$key:ident, $data:ident| $operation:expr $(,)?
     ) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $encrypted_is_found() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards(&$ciphertext))?;
 
@@ -41,7 +41,7 @@ macro_rules! test_what_a_keystream_leaves {
             Ok(())
         }
 
-        #[test]
+        #[redoubt_forensics::test]
         fn $decrypted_is_found() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards(&PLAINTEXT))?;
 
@@ -63,7 +63,7 @@ macro_rules! test_what_a_keystream_leaves {
             Ok(())
         }
 
-        #[test]
+        #[redoubt_forensics::test]
         fn $encrypting_leaves_nothing() -> Result<(), AnyError> {
             let mut watching = Watching::start(&[
                 ("key", &KEY),
@@ -92,7 +92,7 @@ macro_rules! test_what_a_keystream_leaves {
             watching.none_left(concat!($what, ", encrypting"))
         }
 
-        #[test]
+        #[redoubt_forensics::test]
         fn $decrypting_leaves_nothing() -> Result<(), AnyError> {
             let mut watching = Watching::start(&[
                 ("key", &KEY),

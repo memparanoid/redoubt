@@ -114,7 +114,7 @@ fn test_making_one_leaves_nothing() {
 /// `xor` never hands its subkey back, so nothing it leaves can be photographed
 /// holding it. The same derivation into storage that is kept is what vouches
 /// for the needle.
-#[test]
+#[redoubt_forensics::test]
 fn test_the_subkey_xor_derives_is_found_while_a_derivation_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&SUBKEY))?;
 
