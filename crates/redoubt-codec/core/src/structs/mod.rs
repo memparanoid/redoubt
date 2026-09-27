@@ -4,5 +4,6 @@
 
 pub mod redoubt_array;
 pub mod redoubt_option;
+pub mod redoubt_secret;
 pub mod redoubt_string;
 pub mod redoubt_vec;

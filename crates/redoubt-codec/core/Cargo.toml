@@ -18,11 +18,12 @@ benchmark  = []
 test-utils = []
 
 [dependencies]
-redoubt-mem.workspace  = true
-redoubt-util.workspace = true
-redoubt-zero.workspace = true
-smallvec.workspace     = true
-thiserror.workspace    = true
+redoubt-mem.workspace    = true
+redoubt-secret.workspace = true
+redoubt-util.workspace   = true
+redoubt-zero.workspace   = true
+smallvec.workspace       = true
+thiserror.workspace      = true
 
   [dependencies.redoubt-alloc]
   features  = ["unsafe"]

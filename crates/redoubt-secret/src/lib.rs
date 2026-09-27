@@ -21,7 +21,6 @@ mod tests;
 
 use core::fmt;
 
-use redoubt_codec::{BytesRequired, Decode, Encode, RedoubtCodec};
 use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe};
 
 /// Wrapper that prevents accidental exposure of sensitive data.
@@ -78,11 +77,11 @@ use redoubt_zero::{FastZeroizable, RedoubtZero, ZeroizationProbe};
 /// // ✅ SAFE: Only uses a reference
 /// assert_eq!(secret.as_ref(), &0xDEADBEEF);
 /// ```
-#[derive(RedoubtZero, RedoubtCodec)]
+#[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
 pub struct RedoubtSecret<T>
 where
-    T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
+    T: FastZeroizable + ZeroizationProbe,
 {
     inner: Box<T>,
     /// Runtime verification that zeroization happened, for the tests that
@@ -92,14 +91,13 @@ where
     /// value, in a type whose whole reason for existing is to leave nothing
     /// in memory. Nothing reads it outside this crate's own tests, and the
     /// `RedoubtZero` derive treats the field as optional.
-    #[codec(default)]
     #[cfg(test)]
     __sentinel: redoubt_zero::ZeroizeOnDropSentinel,
 }
 
 impl<T> Default for RedoubtSecret<T>
 where
-    T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired + Default,
+    T: FastZeroizable + ZeroizationProbe + Default,
 {
     fn default() -> Self {
         Self {
@@ -112,7 +110,7 @@ where
 
 impl<T> fmt::Debug for RedoubtSecret<T>
 where
-    T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
+    T: FastZeroizable + ZeroizationProbe,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[REDACTED RedoubtSecret]")
@@ -121,7 +119,7 @@ where
 
 impl<T> RedoubtSecret<T>
 where
-    T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
+    T: FastZeroizable + ZeroizationProbe,
 {
     /// Creates a new `RedoubtSecret` by moving data from `sensitive_data`, zeroizing the source.
     ///
@@ -201,7 +199,7 @@ where
 
 impl<T> AsRef<T> for RedoubtSecret<T>
 where
-    T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
+    T: FastZeroizable + ZeroizationProbe,
 {
     #[inline]
     fn as_ref(&self) -> &T {
@@ -211,7 +209,7 @@ where
 
 impl<T> AsMut<T> for RedoubtSecret<T>
 where
-    T: FastZeroizable + ZeroizationProbe + Encode + Decode + BytesRequired,
+    T: FastZeroizable + ZeroizationProbe,
 {
     #[inline]
     fn as_mut(&mut self) -> &mut T {

@@ -15,7 +15,6 @@ path = "src/lib.rs"
 
 [dependencies]
 redoubt-alloc.workspace = true
-redoubt-codec.workspace = true
 redoubt-mem.workspace   = true
 redoubt-util.workspace  = true
 redoubt-zero.workspace  = true
