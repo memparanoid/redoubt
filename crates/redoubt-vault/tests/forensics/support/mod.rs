@@ -6,9 +6,9 @@ pub(crate) mod needles;
 
 use redoubt_forensics::{AnyError, Forensics, QUIET, Report};
 
-use needles::{SECRET, backwards, master_key_backwards};
+use needles::{SECRET, backwards, next_box_key_backwards};
 
-/// The needles an operation of a box is held to, the secret and the master key,
+/// The needles an operation of a box is held to, the secret and the box's key,
 /// each with its photograph from before.
 pub(crate) struct Watching {
     pub(crate) secret: Forensics,
@@ -20,7 +20,7 @@ pub(crate) struct Watching {
 impl Watching {
     pub(crate) fn start() -> Result<Self, AnyError> {
         let mut secret = Forensics::watching(&backwards())?;
-        let mut key = Forensics::watching(&master_key_backwards()?)?;
+        let mut key = Forensics::watching(&next_box_key_backwards()?)?;
 
         let secret_before = secret.snapshot()?;
         let key_before = key.snapshot()?;
@@ -43,7 +43,7 @@ impl Watching {
             &self.key_before,
             before,
             &key_after,
-            &format!("{what}, in the master key"),
+            &format!("{what}, in the box's key"),
         );
 
         Ok(())

@@ -7,10 +7,10 @@
 use redoubt_alloc::{RedoubtArray, RedoubtOption, RedoubtVec};
 use redoubt_codec::RedoubtCodec;
 use redoubt_forensics::{AnyError, Forensics, Reason, capture, forensics};
-use redoubt_vault::{CipherBoxError, cipherbox, leak_master_key};
+use redoubt_vault::{CipherBoxError, cipherbox, derive_next_cipherbox_key};
 use redoubt_zero::RedoubtZero;
 
-use crate::support::needles::{SECRET, master_key_backwards, master_key_width};
+use crate::support::needles::{SECRET, box_key_width, next_box_key_backwards};
 use crate::support::{Watching, giving, is_found};
 
 /// Rounds per absence, so a residue that survives only now and then still
@@ -201,20 +201,20 @@ fn test_the_secret_is_found_while_the_box_is_open() -> Result<(), AnyError> {
 }
 
 /// Most methods let the key go before anything could photograph it, so what
-/// vouches for its needle is the same brick, `leak_master_key`, held.
+/// vouches for its needle is the same key, derived and held.
 #[redoubt_forensics::test]
-fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&master_key_backwards()?)?;
+fn test_the_box_key_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&next_box_key_backwards()?)?;
 
     forensics!({
-        let held = capture(|| leak_master_key(master_key_width()))?;
+        let held = capture(|| derive_next_cipherbox_key(box_key_width()))?;
 
         core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;
 
-    is_found(&report, "the master key, held");
+    is_found(&report, "the box's key, held");
 
     Ok(())
 }
@@ -289,7 +289,7 @@ fn test_the_secret_is_found_while_the_box_is_open_for_writing() -> Result<(), An
     is_found(&report, "the secret, while the box is open for writing");
     is_found(
         &key_report,
-        "the master key, while the box is open for writing",
+        "the box's key, while the box is open for writing",
     );
 
     drop(core::hint::black_box(secrets_box));
@@ -892,7 +892,7 @@ fn test_the_secret_is_found_while_a_vec_is_open_for_writing() -> Result<(), AnyE
     is_found(&report, "the secret, while a vec is open for writing");
     is_found(
         &key_report,
-        "the master key, while a vec is open for writing",
+        "the box's key, while a vec is open for writing",
     );
 
     drop(core::hint::black_box(secrets_box));
@@ -970,7 +970,7 @@ fn test_the_secret_is_found_while_an_array_is_open_for_writing() -> Result<(), A
     is_found(&report, "the secret, while an array is open for writing");
     is_found(
         &key_report,
-        "the master key, while an array is open for writing",
+        "the box's key, while an array is open for writing",
     );
 
     drop(core::hint::black_box(secrets_box));
@@ -1052,7 +1052,7 @@ fn test_the_secret_is_found_while_an_option_is_open_for_writing() -> Result<(), 
     is_found(&report, "the secret, while an option is open for writing");
     is_found(
         &key_report,
-        "the master key, while an option is open for writing",
+        "the box's key, while an option is open for writing",
     );
 
     drop(core::hint::black_box(secrets_box));
@@ -1134,7 +1134,7 @@ fn test_the_secret_is_found_while_one_field_is_open_for_writing() -> Result<(), 
     is_found(&report, "the secret, while one field is open for writing");
     is_found(
         &key_report,
-        "the master key, while one field is open for writing",
+        "the box's key, while one field is open for writing",
     );
 
     drop(core::hint::black_box(secrets_box));
