@@ -18,6 +18,10 @@ use redoubt_zero::FastZeroizable;
 
 use crate::RedoubtSecret;
 
+#[global_allocator]
+static ALLOCATOR: redoubt_forensics::ForensicsAllocator<std::alloc::System> =
+    redoubt_forensics::ForensicsAllocator::new(std::alloc::System);
+
 /// Thirty-two distinct bytes: no value repeats, so a run that extends did not
 /// extend by luck.
 ///
@@ -149,7 +153,7 @@ fn leaves_nothing(report_before: &Report, report_after: &Report, what: &str) {
 // RedoubtSecret, dropped
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_dropping_a_secret_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -178,7 +182,7 @@ fn test_dropping_a_secret_leaves_nothing() -> Result<(), AnyError> {
 // RedoubtSecret, moved
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_secret_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -205,7 +209,7 @@ fn test_a_secret_given_away_is_found_while_it_is_held() -> Result<(), AnyError> 
 /// slot left behind holds no secret. Read a failure as the value having come
 /// out of the box and into the struct, where a move carries the bytes and
 /// empties nothing.
-#[test]
+#[redoubt_forensics::test]
 fn test_a_secret_given_away_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -234,7 +238,7 @@ fn test_a_secret_given_away_leaves_nothing() -> Result<(), AnyError> {
 // FastZeroizable for RedoubtSecret
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_secret_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -273,7 +277,7 @@ fn test_sizing_a_secret_leaves_nothing() {
 // Encode for RedoubtSecret
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -301,7 +305,7 @@ fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), A
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encoding_a_secret_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -328,7 +332,7 @@ fn test_encoding_a_secret_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encoding_a_secret_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -367,7 +371,7 @@ fn test_encoding_a_secret_into_a_buffer_too_small_leaves_nothing() -> Result<(),
 // Decode for RedoubtSecret
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_decoding_wrote_is_found_while_the_secret_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -390,7 +394,7 @@ fn test_what_decoding_wrote_is_found_while_the_secret_holds_it() -> Result<(), A
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decoding_a_secret_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -419,7 +423,7 @@ fn test_decoding_a_secret_leaves_nothing() -> Result<(), AnyError> {
 
 /// The value the secret held before is what is watched for, and the secret is
 /// kept holding the one decoded: nothing of the old may be left anywhere.
-#[test]
+#[redoubt_forensics::test]
 fn test_decoding_over_a_secret_that_holds_one_leaves_nothing_of_the_old() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -446,7 +450,7 @@ fn test_decoding_over_a_secret_that_holds_one_leaves_nothing_of_the_old() -> Res
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decoding_a_secret_from_a_wire_cut_short_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -506,7 +510,7 @@ fn test_printing_a_secret_leaves_nothing() {
 // RedoubtSecret::from
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_was_taken_is_found_while_the_secret_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -525,7 +529,7 @@ fn test_what_was_taken_is_found_while_the_secret_holds_it() -> Result<(), AnyErr
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_taking_a_secret_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -549,7 +553,7 @@ fn test_taking_a_secret_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_taking_a_narrow_secret_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&narrow_backwards())?;
 
@@ -579,7 +583,7 @@ fn test_taking_a_narrow_secret_leaves_nothing() -> Result<(), AnyError> {
 // RedoubtSecret::replace
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_replaced_is_found_while_the_secret_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -600,7 +604,7 @@ fn test_what_replaced_is_found_while_the_secret_holds_it() -> Result<(), AnyErro
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_replacing_a_secret_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -628,7 +632,7 @@ fn test_replacing_a_secret_leaves_nothing() -> Result<(), AnyError> {
 
 /// The value the secret held before is what is watched for, and the secret is
 /// kept holding the new one: nothing of the old may be left anywhere.
-#[test]
+#[redoubt_forensics::test]
 fn test_replacing_a_secret_that_holds_one_leaves_nothing_of_the_old() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
