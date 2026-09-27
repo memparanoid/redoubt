@@ -5,92 +5,54 @@
 //! The arithmetic in Rust: what answers on a target nobody wrote assembly for,
 //! and what the assembly is held against everywhere else.
 //!
-//! It answers the same and promises less. A block holds twenty-five products
-//! and five sums, more than there are registers on most targets that get here,
-//! so some go to a slot the compiler chose. Best effort, and named as such:
-//! whether a value was ever in memory is not a thing the source says.
-//!
-//! That is also where the effort stops. The arrays below live in structs that
-//! empty themselves on drop, because five `u64` are going to memory whatever
-//! anybody wants; a single word mid-shift stays an expression, because giving
-//! it a home is how you force into memory something that was in a register —
-//! the wipe would create the slot it then clears.
+//! It answers the same and promises less. The products are `u128`, which on a
+//! target with no widening multiply is a call, and whatever the compiler spills
+//! goes to a slot it chose. Best effort, and named as such: the words below live
+//! in structs that empty themselves on drop, and a single word mid-sum stays an
+//! expression, because giving it a home would put in memory what was in a
+//! register.
 
 use redoubt_zero::{FastZeroizable, RedoubtZero};
 
 use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 
-use crate::consts::{LIMB_MASK, LIMBS};
+use crate::consts::{ACC_WORDS, R_WORDS};
 
-/// The four words a sixteen-byte block is read as, and the products of one
-/// multiplication by `r`.
+/// The accumulator with a block added, and the two sums it is multiplied into.
 #[derive(Default, RedoubtZero)]
 #[fast_zeroize(drop)]
 struct BlockWork {
-    /// The block as four words of thirty-two bits.
-    words: [u32; 4],
-    /// Each of the upper four limbs of `r` multiplied by five, which is what a
-    /// limb above the fifth is worth once it wraps.
-    folded: [u64; 4],
-    /// The five sums, before they are carried back into the accumulator.
-    sums: [u64; LIMBS],
+    h: [u64; ACC_WORDS],
+    d: [u128; 2],
 }
 
-/// The accumulator on its way to being a tag.
+/// The accumulator, the same plus five, and then the tag.
 #[derive(Default, RedoubtZero)]
 #[fast_zeroize(drop)]
 struct FinalWork {
-    /// The accumulator, carried and then reduced.
-    reduced: [u64; LIMBS],
-    /// The accumulator plus five, which is the same number below the modulus
-    /// whenever the accumulator was above it.
-    above: [u64; 4],
-    /// The answer as four words of thirty-two bits, before `s` is added.
-    words: [u64; 4],
+    h: [u64; ACC_WORDS],
+    g: [u64; ACC_WORDS],
 }
 
 /// The last of the message, with the marker written after it.
 #[derive(Default, RedoubtZero)]
 #[fast_zeroize(drop)]
 struct TailWork {
-    /// A whole block's worth, of which only the front came from the message.
     block: [u8; BLOCK_SIZE],
 }
 
-pub(crate) fn init(r: &mut [u32; LIMBS], s: &mut [u8; BLOCK_SIZE], key: &[u8; KEY_SIZE]) {
-    let mut work = BlockWork::default();
-
-    // RFC 8439 §2.5: the top half of four bytes goes, and the bottom two bits
-    // of three others. What is left is short enough that a limb times it
-    // cannot overflow the sums in `whole`.
-    word(&mut work.words[0], &[key[0], key[1], key[2], key[3] & 0x0f]);
-    word(
-        &mut work.words[1],
-        &[key[4] & 0xfc, key[5], key[6], key[7] & 0x0f],
-    );
-    word(
-        &mut work.words[2],
-        &[key[8] & 0xfc, key[9], key[10], key[11] & 0x0f],
-    );
-    word(
-        &mut work.words[3],
-        &[key[12] & 0xfc, key[13], key[14], key[15] & 0x0f],
-    );
-
-    spread(&mut work.sums, &work.words, 0);
-
-    r[0] = work.sums[0] as u32;
-    r[1] = work.sums[1] as u32;
-    r[2] = work.sums[2] as u32;
-    r[3] = work.sums[3] as u32;
-    r[4] = work.sums[4] as u32;
+pub(crate) fn init(r: &mut [u64; R_WORDS], s: &mut [u8; BLOCK_SIZE], key: &[u8; KEY_SIZE]) {
+    // RFC 8439 §2.5: the top four bits of four bytes go, and the bottom two of
+    // three others, as one mask over each half.
+    r[0] = le_u64(&key[0..8]) & 0x0fff_fffc_0fff_ffff;
+    r[1] = le_u64(&key[8..16]) & 0x0fff_fffc_0fff_fffc;
 
     s.copy_from_slice(&key[BLOCK_SIZE..KEY_SIZE]);
 }
 
 pub(crate) fn update(
-    acc: &mut [u64; LIMBS],
-    r: &[u32; LIMBS],
+    acc: &mut [u64; ACC_WORDS],
+    r: &[u64; R_WORDS],
     block: &mut [u8; BLOCK_SIZE],
     filled: &mut usize,
     said: &[u8],
@@ -120,8 +82,8 @@ pub(crate) fn update(
 }
 
 pub(crate) fn finalize(
-    acc: &mut [u64; LIMBS],
-    r: &[u32; LIMBS],
+    acc: &mut [u64; ACC_WORDS],
+    r: &[u64; R_WORDS],
     s: &[u8; BLOCK_SIZE],
     said: &[u8],
     out: &mut [u8; TAG_SIZE],
@@ -145,10 +107,7 @@ pub(crate) fn finalize(
 
 /// Every whole block of `said` into the accumulator, and how many bytes that
 /// was.
-///
-/// Where a message handed over in one piece goes through all of itself without
-/// the bytes being copied anywhere in between.
-fn straight_through(acc: &mut [u64; LIMBS], r: &[u32; LIMBS], said: &[u8]) -> usize {
+fn straight_through(acc: &mut [u64; ACC_WORDS], r: &[u64; R_WORDS], said: &[u8]) -> usize {
     let mut at = 0;
 
     while at + BLOCK_SIZE <= said.len() {
@@ -167,156 +126,83 @@ fn straight_through(acc: &mut [u64; LIMBS], r: &[u32; LIMBS], said: &[u8]) -> us
     at
 }
 
-/// `acc = (acc + block) * r`, modulo 2^130 - 5.
-fn whole(acc: &mut [u64; LIMBS], r: &[u32; LIMBS], block: &[u8; BLOCK_SIZE], hibit: u32) {
+/// `acc = (acc + block + hibit·2^128) · r`, reduced only as far as the next
+/// block needs: the third word keeps two bits and whatever the last carry
+/// brings.
+fn whole(acc: &mut [u64; ACC_WORDS], r: &[u64; R_WORDS], block: &[u8; BLOCK_SIZE], hibit: u64) {
     let mut work = BlockWork::default();
 
-    word(&mut work.words[0], &block[0..4]);
-    word(&mut work.words[1], &block[4..8]);
-    word(&mut work.words[2], &block[8..12]);
-    word(&mut work.words[3], &block[12..16]);
+    work.d[0] = u128::from(acc[0]) + u128::from(le_u64(&block[0..8]));
+    work.d[1] = u128::from(acc[1]) + (work.d[0] >> 64) + u128::from(le_u64(&block[8..16]));
+    work.h[0] = work.d[0] as u64;
+    work.h[1] = work.d[1] as u64;
+    work.h[2] = acc[2] + (work.d[1] >> 64) as u64 + hibit;
 
-    spread(&mut work.sums, &work.words, hibit);
+    // A product with r1 that lands on 2^128 wraps: 2^130 is 5 modulo the
+    // prime, and the clamp leaves the bottom two bits of r1 empty, so
+    // r1·2^128 = (r1/4)·2^130 comes back as r1 + r1/4 exactly.
+    let s1 = r[1] + (r[1] >> 2);
 
-    acc[0] += work.sums[0];
-    acc[1] += work.sums[1];
-    acc[2] += work.sums[2];
-    acc[3] += work.sums[3];
-    acc[4] += work.sums[4];
+    work.d[0] = u128::from(work.h[0]) * u128::from(r[0]) + u128::from(work.h[1]) * u128::from(s1);
+    work.d[1] = u128::from(work.h[0]) * u128::from(r[1])
+        + u128::from(work.h[1]) * u128::from(r[0])
+        + u128::from(work.h[2]) * u128::from(s1);
+    work.h[2] *= r[0];
 
-    // A product that lands above the fifth limb comes back down worth five
-    // times less a power, because the modulus is 2^130 - 5. Taking that
-    // multiplication now is what keeps it out of the sums.
-    work.folded[0] = u64::from(r[1]) * 5;
-    work.folded[1] = u64::from(r[2]) * 5;
-    work.folded[2] = u64::from(r[3]) * 5;
-    work.folded[3] = u64::from(r[4]) * 5;
+    work.h[0] = work.d[0] as u64;
+    work.d[1] += work.d[0] >> 64;
+    work.h[1] = work.d[1] as u64;
+    work.h[2] += (work.d[1] >> 64) as u64;
 
-    // Twenty-five products, gathered by which power of 2^26 they land on.
-    work.sums[0] = acc[0] * u64::from(r[0])
-        + acc[1] * work.folded[3]
-        + acc[2] * work.folded[2]
-        + acc[3] * work.folded[1]
-        + acc[4] * work.folded[0];
-    work.sums[1] = acc[0] * u64::from(r[1])
-        + acc[1] * u64::from(r[0])
-        + acc[2] * work.folded[3]
-        + acc[3] * work.folded[2]
-        + acc[4] * work.folded[1];
-    work.sums[2] = acc[0] * u64::from(r[2])
-        + acc[1] * u64::from(r[1])
-        + acc[2] * u64::from(r[0])
-        + acc[3] * work.folded[3]
-        + acc[4] * work.folded[2];
-    work.sums[3] = acc[0] * u64::from(r[3])
-        + acc[1] * u64::from(r[2])
-        + acc[2] * u64::from(r[1])
-        + acc[3] * u64::from(r[0])
-        + acc[4] * work.folded[3];
-    work.sums[4] = acc[0] * u64::from(r[4])
-        + acc[1] * u64::from(r[3])
-        + acc[2] * u64::from(r[2])
-        + acc[3] * u64::from(r[1])
-        + acc[4] * u64::from(r[0]);
+    // What stands at or above 2^130 comes back down worth five.
+    let folded = (work.h[2] >> 2) * 5;
+    work.h[2] &= 3;
 
-    carry(&mut work.sums);
+    work.d[0] = u128::from(work.h[0]) + u128::from(folded);
+    work.d[1] = u128::from(work.h[1]) + (work.d[0] >> 64);
 
-    acc.copy_from_slice(&work.sums);
+    acc[0] = work.d[0] as u64;
+    acc[1] = work.d[1] as u64;
+    acc[2] = work.h[2] + (work.d[1] >> 64) as u64;
 }
 
 /// The accumulator reduced below the modulus, added to `s`, and written out.
-fn settle(acc: &[u64; LIMBS], s: &[u8; BLOCK_SIZE], out: &mut [u8; TAG_SIZE]) {
+fn settle(acc: &[u64; ACC_WORDS], s: &[u8; BLOCK_SIZE], out: &mut [u8; TAG_SIZE]) {
     let mut work = FinalWork::default();
 
-    work.reduced.copy_from_slice(acc);
-    carry(&mut work.reduced);
+    work.h.copy_from_slice(acc);
 
-    // The accumulator is now below 2^130 but may still be at or above the
-    // modulus, and there is exactly one subtraction that could be owed. Adding
-    // five says whether it is: if the sum carries past the hundred and
-    // thirtieth bit, the accumulator was at least 2^130 - 5.
-    work.above[0] = work.reduced[0] + 5;
-    work.above[1] = work.reduced[1] + (work.above[0] >> 26);
-    work.above[0] &= LIMB_MASK;
-    work.above[2] = work.reduced[2] + (work.above[1] >> 26);
-    work.above[1] &= LIMB_MASK;
-    work.above[3] = work.reduced[3] + (work.above[2] >> 26);
-    work.above[2] &= LIMB_MASK;
+    // At most one subtraction of the modulus is owed, and adding five says
+    // whether: the sum reaches 2^130 exactly when the accumulator was at least
+    // 2^130 - 5, and then the sum's low 130 bits are the difference.
+    let t = u128::from(work.h[0]) + 5;
+    work.g[0] = t as u64;
+    let t = u128::from(work.h[1]) + (t >> 64);
+    work.g[1] = t as u64;
+    work.g[2] = work.h[2] + (t >> 64) as u64;
 
-    // All ones where the accumulator was already below the modulus, and all
-    // zeros where it was not. A comparison instead of a mask would be a branch
-    // on the tag, which is a branch on the key that made it.
-    let take_reduced = ((work.reduced[4] + (work.above[3] >> 26)) >> 26).wrapping_sub(1);
-    work.above[3] &= LIMB_MASK;
+    // All ones where the difference is taken, all zeros where it is not. A
+    // comparison instead of a mask would be a branch on the tag, which is a
+    // branch on the key that made it.
+    let take_above = 0u64.wrapping_sub(work.g[2] >> 2);
 
-    work.reduced[0] = (work.reduced[0] & take_reduced) | (work.above[0] & !take_reduced);
-    work.reduced[1] = (work.reduced[1] & take_reduced) | (work.above[1] & !take_reduced);
-    work.reduced[2] = (work.reduced[2] & take_reduced) | (work.above[2] & !take_reduced);
-    work.reduced[3] = (work.reduced[3] & take_reduced) | (work.above[3] & !take_reduced);
-    // The sum has no fifth limb, so where it is taken the fifth goes.
-    work.reduced[4] &= take_reduced;
+    work.h[0] = (work.h[0] & !take_above) | (work.g[0] & take_above);
+    work.h[1] = (work.h[1] & !take_above) | (work.g[1] & take_above);
 
-    // Five limbs of twenty-six into four words of thirty-two.
-    work.words[0] = work.reduced[0] | (work.reduced[1] & 0x3f) << 26;
-    work.words[1] = work.reduced[1] >> 6 | (work.reduced[2] & 0xfff) << 20;
-    work.words[2] = work.reduced[2] >> 12 | (work.reduced[3] & 0x3_ffff) << 14;
-    work.words[3] = work.reduced[3] >> 18 | (work.reduced[4] & 0xff_ffff) << 8;
+    // + s, modulo 2^128: the carry out of the second word is dropped.
+    let t = u128::from(work.h[0]) + u128::from(le_u64(&s[0..8]));
+    work.g[0] = t as u64;
+    work.g[1] = (u128::from(work.h[1]) + (t >> 64) + u128::from(le_u64(&s[8..16]))) as u64;
 
-    work.words[0] += u64::from(le_word(&s[0..4]));
-    work.words[1] += u64::from(le_word(&s[4..8])) + (work.words[0] >> 32);
-    work.words[2] += u64::from(le_word(&s[8..12])) + (work.words[1] >> 32);
-    work.words[3] += u64::from(le_word(&s[12..16])) + (work.words[2] >> 32);
-
-    out[0..4].copy_from_slice(&(work.words[0] as u32).to_le_bytes());
-    out[4..8].copy_from_slice(&(work.words[1] as u32).to_le_bytes());
-    out[8..12].copy_from_slice(&(work.words[2] as u32).to_le_bytes());
-    out[12..16].copy_from_slice(&(work.words[3] as u32).to_le_bytes());
+    out[0..8].copy_from_slice(&work.g[0].to_le_bytes());
+    out[8..16].copy_from_slice(&work.g[1].to_le_bytes());
 }
 
-/// The five limbs of the number four words spell, into `out`.
-///
-/// `hibit` is added above the hundred and twenty-eighth bit, which is where a
-/// block's marker goes and where `r` has nothing.
-fn spread(out: &mut [u64; LIMBS], words: &[u32; 4], hibit: u32) {
-    out[0] = u64::from(words[0]) & LIMB_MASK;
-    out[1] = u64::from(words[0] >> 26 | words[1] << 6) & LIMB_MASK;
-    out[2] = u64::from(words[1] >> 20 | words[2] << 12) & LIMB_MASK;
-    out[3] = u64::from(words[2] >> 14 | words[3] << 18) & LIMB_MASK;
-    out[4] = u64::from(words[3] >> 8 | hibit << 24);
-}
-
-/// Every limb back under its twenty-six bits, and what ran off the top folded
-/// back in worth five.
-fn carry(limbs: &mut [u64; LIMBS]) {
-    limbs[1] += limbs[0] >> 26;
-    limbs[0] &= LIMB_MASK;
-    limbs[2] += limbs[1] >> 26;
-    limbs[1] &= LIMB_MASK;
-    limbs[3] += limbs[2] >> 26;
-    limbs[2] &= LIMB_MASK;
-    limbs[4] += limbs[3] >> 26;
-    limbs[3] &= LIMB_MASK;
-    limbs[0] += (limbs[4] >> 26) * 5;
-    limbs[4] &= LIMB_MASK;
-    limbs[1] += limbs[0] >> 26;
-    limbs[0] &= LIMB_MASK;
-}
-
-/// `dst` gets the little-endian word `bytes` spells.
-fn word(dst: &mut u32, bytes: &[u8]) {
-    *dst = u32::from(bytes[0])
-        | u32::from(bytes[1]) << 8
-        | u32::from(bytes[2]) << 16
-        | u32::from(bytes[3]) << 24;
-}
-
-/// The little-endian word `bytes` spells.
-///
-/// The one thing here that hands a value back, and only `s` goes through it:
-/// what it reads is added into the tag and leaves in it.
-fn le_word(bytes: &[u8]) -> u32 {
-    u32::from(bytes[0])
-        | u32::from(bytes[1]) << 8
-        | u32::from(bytes[2]) << 16
-        | u32::from(bytes[3]) << 24
+/// The little-endian word eight bytes spell.
+fn le_u64(bytes: &[u8]) -> u64 {
+    u64::from_le_bytes(
+        bytes
+            .try_into()
+            .expect("Infallible: every caller hands exactly 8 bytes"),
+    )
 }

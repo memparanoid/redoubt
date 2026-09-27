@@ -11,13 +11,13 @@ use rstest::rstest;
 
 use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 
-use crate::consts::LIMBS;
+use crate::consts::{ACC_WORDS, R_WORDS};
 
 unsafe extern "C" {
-    fn redoubt_poly1305_init(r: *mut u32, s: *mut u8, key: *const u8);
+    fn redoubt_poly1305_init(r: *mut u64, s: *mut u8, key: *const u8);
     fn redoubt_poly1305_update(
         acc: *mut u64,
-        r: *const u32,
+        r: *const u64,
         block: *mut u8,
         filled: *mut usize,
         said: *const u8,
@@ -25,7 +25,7 @@ unsafe extern "C" {
     );
     fn redoubt_poly1305_finalize(
         acc: *mut u64,
-        r: *const u32,
+        r: *const u64,
         s: *const u8,
         said: *const u8,
         said_len: usize,
@@ -65,13 +65,14 @@ const GENERAL: [&str; 18] = [
     "x15", "x16", "x17",
 ];
 
-/// The frame, as its `.set FRAME` declares it. x86-64 takes eight more, so that
-/// the stack is sixteen-aligned inside the routine.
+/// The frame, as its `.set FRAME` declares it: congruent to eight modulo
+/// sixteen on x86-64, a multiple of sixteen on AArch64, which pads its slots by
+/// eight to get there.
 #[cfg(target_arch = "x86_64")]
-const FRAME: usize = 168;
+const FRAME: usize = 104;
 
 #[cfg(target_arch = "aarch64")]
-const FRAME: usize = 160;
+const FRAME: usize = 112;
 
 /// One line per register: a loop needs a counter, and the counter would be one
 /// of the registers being emptied.
@@ -829,9 +830,9 @@ fn test_dirty_frame_clears_every_byte_except_the_requested_one() {
 /// The key the routines after `init` are given, clamped by `init` itself: what
 /// they leave does not depend on the value being right, and asking the other
 /// backend for it would put a second implementation in this file.
-fn clamped() -> ([u32; LIMBS], [u8; BLOCK_SIZE]) {
+fn clamped() -> ([u64; R_WORDS], [u8; BLOCK_SIZE]) {
     let key: [u8; KEY_SIZE] = core::array::from_fn(|at| 0x40 + at as u8);
-    let mut r = [0_u32; LIMBS];
+    let mut r = [0_u64; R_WORDS];
     let mut s = [0_u8; BLOCK_SIZE];
 
     // SAFETY: the arrays are disjoint and have the widths the routine reads and
@@ -857,12 +858,12 @@ fn fills_and_lengths() -> impl Iterator<Item = (usize, usize)> {
 test_what_the_routine_leaves!(
     test_init_leaves_the_residue_its_case_declares,
     redoubt_poly1305_init,
-    fn(*mut u32, *mut u8, *const u8),
+    fn(*mut u64, *mut u8, *const u8),
     [dirty_init_registers, dirty_init_frame, untouched_init],
     false,
     {
         let key: [u8; KEY_SIZE] = core::array::from_fn(|at| 0x40 + at as u8);
-        let mut r = [0_u32; LIMBS];
+        let mut r = [0_u64; R_WORDS];
         let mut s = [0_u8; BLOCK_SIZE];
         let r = r.as_mut_ptr();
         let s = s.as_mut_ptr();
@@ -878,14 +879,14 @@ test_what_the_routine_leaves!(
 test_what_the_routine_leaves!(
     test_update_leaves_the_residue_its_case_declares,
     redoubt_poly1305_update,
-    fn(*mut u64, *const u32, *mut u8, *mut usize, *const u8, usize),
+    fn(*mut u64, *const u64, *mut u8, *mut usize, *const u8, usize),
     [dirty_update_registers, dirty_update_frame, untouched_update],
     true,
     for (filled, length) in fills_and_lengths(),
     {
         let (r, _) = clamped();
         let said: Vec<u8> = (0..length).map(|at| (at as u8) ^ 0x5a).collect();
-        let mut acc = [0_u64; LIMBS];
+        let mut acc = [0_u64; ACC_WORDS];
         let mut block = [0_u8; BLOCK_SIZE];
         let mut held = filled;
         block[..filled].fill(0xc3);
@@ -905,7 +906,7 @@ test_what_the_routine_leaves!(
 test_what_the_routine_leaves!(
     test_finalize_leaves_the_residue_its_case_declares,
     redoubt_poly1305_finalize,
-    fn(*mut u64, *const u32, *const u8, *const u8, usize, *mut u8),
+    fn(*mut u64, *const u64, *const u8, *const u8, usize, *mut u8),
     [dirty_finalize_registers, dirty_finalize_frame, untouched_finalize],
     true,
     // Every tail a message can end on, and one that spans several blocks.
@@ -913,7 +914,7 @@ test_what_the_routine_leaves!(
     {
         let (r, s) = clamped();
         let said: Vec<u8> = (0..length).map(|at| (at as u8) ^ 0x5a).collect();
-        let mut acc = [0_u64; LIMBS];
+        let mut acc = [0_u64; ACC_WORDS];
         let mut tag = [0_u8; TAG_SIZE];
         let acc = acc.as_mut_ptr();
         let key = r.as_ptr();
@@ -948,10 +949,10 @@ fn test_no_offset_expects_an_empty_window() {
 test_the_measurement_reads_the_window!(
     test_the_measurement_of_init_reads_the_window_the_writer_filled,
     untouched_init,
-    fn(*mut u32, *mut u8, *const u8),
+    fn(*mut u64, *mut u8, *const u8),
     {
         let key: [u8; KEY_SIZE] = core::array::from_fn(|at| 0x40 + at as u8);
-        let mut r = [0_u32; LIMBS];
+        let mut r = [0_u64; R_WORDS];
         let mut s = [0_u8; BLOCK_SIZE];
         let r = r.as_mut_ptr();
         let s = s.as_mut_ptr();
@@ -963,11 +964,11 @@ test_the_measurement_reads_the_window!(
 test_the_measurement_reads_the_window!(
     test_the_measurement_of_update_reads_the_window_the_writer_filled,
     untouched_update,
-    fn(*mut u64, *const u32, *mut u8, *mut usize, *const u8, usize),
+    fn(*mut u64, *const u64, *mut u8, *mut usize, *const u8, usize),
     {
         let (r, _) = clamped();
         let said: Vec<u8> = (0..65_u8).collect();
-        let mut acc = [0_u64; LIMBS];
+        let mut acc = [0_u64; ACC_WORDS];
         let mut block = [0_u8; BLOCK_SIZE];
         let mut held = 0_usize;
         let acc = acc.as_mut_ptr();
@@ -983,11 +984,11 @@ test_the_measurement_reads_the_window!(
 test_the_measurement_reads_the_window!(
     test_the_measurement_of_finalize_reads_the_window_the_writer_filled,
     untouched_finalize,
-    fn(*mut u64, *const u32, *const u8, *const u8, usize, *mut u8),
+    fn(*mut u64, *const u64, *const u8, *const u8, usize, *mut u8),
     {
         let (r, s) = clamped();
         let said: Vec<u8> = (0..65_u8).collect();
-        let mut acc = [0_u64; LIMBS];
+        let mut acc = [0_u64; ACC_WORDS];
         let mut tag = [0_u8; TAG_SIZE];
         let acc = acc.as_mut_ptr();
         let key = r.as_ptr();

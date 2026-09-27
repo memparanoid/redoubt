@@ -4,19 +4,15 @@
 
 //! The arithmetic, once in Rust and once by hand.
 //!
-//! Everything that reads a byte of the message or touches a limb is here. What
+//! Everything that reads a byte of the message or touches a word is here. What
 //! is above holds the storage and says in what order these are called, and
 //! that is all it does — the buffering included, because deciding where a
 //! block ends means reading the message.
 //!
-//! Nothing crosses the boundary by value, and nothing is returned. Not a limb,
-//! not a byte of key, not the state, and not a length either: every one of them
-//! is a pointer to storage the caller declared.
-//!
-//! The lengths are there for a different reason than the secrets. A returned
-//! value leaves in a register, and a register carrying the answer out is a
-//! register the wipe at the end of an assembly routine cannot touch. So the
-//! answer goes to memory the caller named and every register is free to go.
+//! Nothing crosses the boundary by value, and nothing is returned: every
+//! secret and every length is a pointer to storage the caller declared. A
+//! returned value leaves in a register, and a register carrying the answer out
+//! is a register the wipe at the end of an assembly routine cannot touch.
 //!
 //! `poly1305_asm` is set by the build script for a target it compiled assembly
 //! for, and is named nowhere but the alias below.
@@ -35,7 +31,7 @@ use asm as chosen;
 #[cfg(not(poly1305_asm))]
 use rust as chosen;
 
-use crate::consts::LIMBS;
+use crate::consts::{ACC_WORDS, R_WORDS};
 
 /// Whether this target was built with assembly, which is what `Auto` goes to.
 ///
@@ -48,10 +44,10 @@ use crate::consts::LIMBS;
 ))]
 pub(crate) const HAS_ASM: bool = cfg!(poly1305_asm);
 
-/// The key split in two: `r` as five clamped limbs, `s` as it arrived.
+/// The key split in two: `r` clamped, `s` as it arrived.
 pub(crate) fn init(
     backend: Backend,
-    r: &mut [u32; LIMBS],
+    r: &mut [u64; R_WORDS],
     s: &mut [u8; BLOCK_SIZE],
     key: &[u8; KEY_SIZE],
 ) {
@@ -65,8 +61,8 @@ pub(crate) fn init(
 /// the buffer is used and leaving as how far it is used now.
 pub(crate) fn update(
     backend: Backend,
-    acc: &mut [u64; LIMBS],
-    r: &[u32; LIMBS],
+    acc: &mut [u64; ACC_WORDS],
+    r: &[u64; R_WORDS],
     block: &mut [u8; BLOCK_SIZE],
     filled: &mut usize,
     said: &[u8],
@@ -84,8 +80,8 @@ pub(crate) fn update(
 /// between.
 pub(crate) fn finalize(
     backend: Backend,
-    acc: &mut [u64; LIMBS],
-    r: &[u32; LIMBS],
+    acc: &mut [u64; ACC_WORDS],
+    r: &[u64; R_WORDS],
     s: &[u8; BLOCK_SIZE],
     said: &[u8],
     out: &mut [u8; TAG_SIZE],

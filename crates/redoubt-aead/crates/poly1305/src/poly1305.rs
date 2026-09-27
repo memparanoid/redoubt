@@ -5,7 +5,7 @@
 //! The authenticator: what it holds, and the order things are done to it.
 //!
 //! Storage and sequence, and nothing else. Rust owns the key and empties it
-//! when it dies; every byte of the message that is read and every limb that is
+//! when it dies; every byte of the message that is read and every word that is
 //! multiplied or carried belongs to the backend, the buffering included —
 //! deciding where a block ends means reading the message.
 //!
@@ -20,7 +20,7 @@ use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 use redoubt_asm::Backend;
 
 use crate::backend::{finalize, init, update};
-use crate::consts::LIMBS;
+use crate::consts::{ACC_WORDS, R_WORDS};
 
 /// A one-time authenticator over 2^130 - 5.
 ///
@@ -36,12 +36,12 @@ use crate::consts::LIMBS;
 #[derive(Default, RedoubtZero)]
 #[fast_zeroize(drop)]
 pub struct Poly1305 {
-    /// What the message is evaluated at, clamped and spread over five limbs.
-    r: [u32; LIMBS],
+    /// What the message is evaluated at, clamped.
+    r: [u64; R_WORDS],
     /// The pad added at the end, kept as it arrived.
     s: [u8; BLOCK_SIZE],
-    /// The polynomial so far.
-    acc: [u64; LIMBS],
+    /// The polynomial so far, reduced only as far as the next block needs.
+    acc: [u64; ACC_WORDS],
     /// What has arrived since the last whole block.
     block: [u8; BLOCK_SIZE],
     /// How much of `block` is that.
@@ -85,7 +85,7 @@ impl Poly1305 {
         );
     }
 
-    /// The same, and then zeros up to the next block boundary.
+    /// `said`, then zeros up to the next block boundary.
     ///
     /// What an AEAD counts its associated data and its ciphertext with, so
     /// that neither can be read as part of the other.
@@ -103,13 +103,8 @@ impl Poly1305 {
     ///
     /// Takes a pointer and not the value. A parameter taken by value is an
     /// instruction to copy: the caller holds one of these in a slot of its own
-    /// frame, and handing it over duplicates it. A drop at the end would then
-    /// empty the copy it was given, while the slot it was copied from is a
-    /// value nobody owns any more — so nothing drops it, and the last block of
-    /// the message stays there until the frame is reused.
-    ///
-    /// There is one of this one, and the wipe below is what that drop would
-    /// have done, on the only copy there is.
+    /// frame, and handing it over duplicates it, leaving the original where no
+    /// drop reaches. There is one of this one, and the wipe below is on it.
     ///
     /// What it cannot do is refuse a second call. The emptied state is what
     /// that call would answer for.
@@ -129,7 +124,7 @@ impl Poly1305 {
     /// Something in it that a zeroization has to remove.
     #[cfg(test)]
     pub(crate) fn unzeroize(&mut self) {
-        self.r = [1, 2, 3, 4, 5];
+        self.r = [1, 2];
     }
 }
 

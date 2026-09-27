@@ -6,13 +6,13 @@
 
 use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 
-use crate::consts::LIMBS;
+use crate::consts::{ACC_WORDS, R_WORDS};
 
 unsafe extern "C" {
-    fn redoubt_poly1305_init(r: *mut u32, s: *mut u8, key: *const u8);
+    fn redoubt_poly1305_init(r: *mut u64, s: *mut u8, key: *const u8);
     fn redoubt_poly1305_update(
         acc: *mut u64,
-        r: *const u32,
+        r: *const u64,
         block: *mut u8,
         filled: *mut usize,
         said: *const u8,
@@ -20,7 +20,7 @@ unsafe extern "C" {
     );
     fn redoubt_poly1305_finalize(
         acc: *mut u64,
-        r: *const u32,
+        r: *const u64,
         s: *const u8,
         said: *const u8,
         said_len: usize,
@@ -28,7 +28,7 @@ unsafe extern "C" {
     );
 }
 
-pub(crate) fn init(r: &mut [u32; LIMBS], s: &mut [u8; BLOCK_SIZE], key: &[u8; KEY_SIZE]) {
+pub(crate) fn init(r: &mut [u64; R_WORDS], s: &mut [u8; BLOCK_SIZE], key: &[u8; KEY_SIZE]) {
     // SAFETY: the three arrays are the widths the routine reads and writes,
     // and `r` and `s` are distinct fields of one struct, so neither overlaps
     // the other nor the key the caller lent.
@@ -36,8 +36,8 @@ pub(crate) fn init(r: &mut [u32; LIMBS], s: &mut [u8; BLOCK_SIZE], key: &[u8; KE
 }
 
 pub(crate) fn update(
-    acc: &mut [u64; LIMBS],
-    r: &[u32; LIMBS],
+    acc: &mut [u64; ACC_WORDS],
+    r: &[u64; R_WORDS],
     block: &mut [u8; BLOCK_SIZE],
     filled: &mut usize,
     said: &[u8],
@@ -58,8 +58,8 @@ pub(crate) fn update(
 }
 
 pub(crate) fn finalize(
-    acc: &mut [u64; LIMBS],
-    r: &[u32; LIMBS],
+    acc: &mut [u64; ACC_WORDS],
+    r: &[u64; R_WORDS],
     s: &[u8; BLOCK_SIZE],
     said: &[u8],
     out: &mut [u8; TAG_SIZE],

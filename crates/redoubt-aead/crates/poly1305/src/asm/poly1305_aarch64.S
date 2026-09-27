@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-// Poly1305 - AArch64 (AAPCS) Implementation
+// Poly1305 - AArch64 (AAPCS) Implementation, radix 2^64
 //
 // Armv8-A baseline: scalar integer instructions only, nothing detected at
 // runtime.
@@ -83,38 +83,37 @@
 // Frame layout
 // ============================================================================
 //
-//   ACC        0..39    the accumulator, five limbs of twenty-six bits
-//   SUMS      40..79    one block's five products, then the reduced answer
-//   BLOCK     80..95    the last block of the message, padded here
-//   SAID      96..103   where the message is up to
-//   LEN      104..111   how much of it is left
-//   RPTR     112..119   the caller's `r`, read where it lies
-//   SPTR     120..127   the caller's `s`
-//   OUT      128..135   where the tag goes
-//   ACCPTR   136..143   the caller's accumulator
-//   BLOCKPTR 144..151   the caller's partial block
-//   FILLEDPTR 152..159  how much of it is filled
+//   ACC         0..23   the accumulator: two whole words and the bits above
+//   BLOCK      24..39   the last block of the message, padded here
+//   SAID       40..47   where the message is up to
+//   LEN        48..55   how much of it is left
+//   RPTR       56..63   the caller's `r`, read where it lies
+//   SPTR       64..71   the caller's `s`
+//   OUT        72..79   where the tag goes
+//   ACCPTR     80..87   the caller's accumulator
+//   BLOCKPTR   88..95   the caller's partial block
+//   FILLEDPTR  96..103  how much of it is filled
+//             104..111  padding
 //
 // FRAME is a multiple of sixteen: AArch64 faults on a load or store through an
 // sp that is not sixteen-aligned.
 .set ACC, 0
-.set SUMS, 40
-.set BLOCK, 80
-.set SAID, 96
-.set LEN, 104
-.set RPTR, 112
-.set SPTR, 120
-.set OUT, 128
-.set ACCPTR, 136
-.set BLOCKPTR, 144
-.set FILLEDPTR, 152
-.set FRAME, 160
+.set BLOCK, 24
+.set SAID, 40
+.set LEN, 48
+.set RPTR, 56
+.set SPTR, 64
+.set OUT, 72
+.set ACCPTR, 80
+.set BLOCKPTR, 88
+.set FILLEDPTR, 96
+.set FRAME, 112
 
 // ============================================================================
 // Frame wipe
 // ============================================================================
 
-// Every byte of the frame, then the frame given back.
+// Every byte of the frame, padding included, then the frame given back.
 .macro POLY1305_EMPTY_FRAME
     .set _empty_at, 0
     .rept FRAME / 16
@@ -124,140 +123,73 @@
     add sp, sp, #FRAME
 .endm
 
-// One of the twenty-five products, added into x2. `five` scales the limb of
-// `r` by five, for a product that lands past 2^130 and wraps modulo 2^130 - 5.
-.macro POLY1305_TERM at, limb, five
-    ldr w3, [x11, #(4 * \limb)]
-    .if \five
-    add x3, x3, x3, lsl #2
-    .endif
-    ldr x4, [sp, #(ACC + 8 * \at)]
-    madd x2, x3, x4, x2
-.endm
-
-// The first product of a sum, which starts x2 rather than adding to it.
-.macro POLY1305_FIRST at, limb, five
-    ldr w3, [x11, #(4 * \limb)]
-    .if \five
-    add x3, x3, x3, lsl #2
-    .endif
-    ldr x4, [sp, #(ACC + 8 * \at)]
-    mul x2, x3, x4
-.endm
-
-// Every limb of the five at `at` carried back under twenty-six bits; what runs
-// off the top comes back into the first worth five.
-.macro POLY1305_CARRY at
-    .irp step,0,8,16,24
-        ldr x2, [sp, #(\at + \step)]
-        lsr x3, x2, #26
-        ldr x4, [sp, #(\at + \step + 8)]
-        add x4, x4, x3
-        str x4, [sp, #(\at + \step + 8)]
-        and x2, x2, #0x3ffffff
-        str x2, [sp, #(\at + \step)]
-    .endr
-
-    ldr x2, [sp, #(\at + 32)]
-    lsr x3, x2, #26
-    add x3, x3, x3, lsl #2
-    ldr x4, [sp, #\at]
-    add x4, x4, x3
-    str x4, [sp, #\at]
-    and x2, x2, #0x3ffffff
-    str x2, [sp, #(\at + 32)]
-
-    ldr x2, [sp, #\at]
-    lsr x3, x2, #26
-    ldr x4, [sp, #(\at + 8)]
-    add x4, x4, x3
-    str x4, [sp, #(\at + 8)]
-    and x2, x2, #0x3ffffff
-    str x2, [sp, #\at]
-.endm
-
-// acc = acc * r modulo 2^130 - 5: the products summed by the power of 2^26
-// they land on, then every limb carried back under twenty-six bits.
+// acc = acc * r, reduced only as far as the next block needs:
+//
+//   d0 = h0·r0 + h1·s1            in x11:x10
+//   d1 = h0·r1 + h1·r0 + h2·s1    in x13:x12
+//   d2 = h2·r0                    in x14
+//
+// then carried into three words and the bits of the third above two folded
+// back. h2 is a few bits, so its products fit a word and take `mul` alone.
 .macro POLY1305_MULTIPLY
     ldr x11, [sp, #RPTR]
+    ldp x7, x8, [x11]
+    // s1 = r1 + r1/4. 2^130 is 5 modulo the prime and the clamp leaves the
+    // bottom two bits of r1 empty, so a product with r1 that lands on 2^128
+    // comes back as a product with s1.
+    add x9, x8, x8, lsr #2
+    ldp x4, x5, [sp, #ACC]
+    ldr x6, [sp, #(ACC + 16)]
 
-    POLY1305_FIRST 0, 0, 0
-    POLY1305_TERM  1, 4, 1
-    POLY1305_TERM  2, 3, 1
-    POLY1305_TERM  3, 2, 1
-    POLY1305_TERM  4, 1, 1
-    str x2, [sp, #SUMS]
+    mul x10, x4, x7
+    umulh x11, x4, x7
+    mul x12, x5, x9
+    umulh x13, x5, x9
+    adds x10, x10, x12
+    adc x11, x11, x13
 
-    POLY1305_FIRST 0, 1, 0
-    POLY1305_TERM  1, 0, 0
-    POLY1305_TERM  2, 4, 1
-    POLY1305_TERM  3, 3, 1
-    POLY1305_TERM  4, 2, 1
-    str x2, [sp, #(SUMS + 8)]
+    mul x12, x4, x8
+    umulh x13, x4, x8
+    mul x14, x5, x7
+    umulh x15, x5, x7
+    adds x12, x12, x14
+    adc x13, x13, x15
+    mul x14, x6, x9
+    adds x12, x12, x14
+    adc x13, x13, xzr
 
-    POLY1305_FIRST 0, 2, 0
-    POLY1305_TERM  1, 1, 0
-    POLY1305_TERM  2, 0, 0
-    POLY1305_TERM  3, 4, 1
-    POLY1305_TERM  4, 3, 1
-    str x2, [sp, #(SUMS + 16)]
+    mul x14, x6, x7
 
-    POLY1305_FIRST 0, 3, 0
-    POLY1305_TERM  1, 2, 0
-    POLY1305_TERM  2, 1, 0
-    POLY1305_TERM  3, 0, 0
-    POLY1305_TERM  4, 4, 1
-    str x2, [sp, #(SUMS + 24)]
+    adds x12, x12, x11
+    adc x13, x13, xzr
+    add x14, x14, x13
 
-    POLY1305_FIRST 0, 4, 0
-    POLY1305_TERM  1, 3, 0
-    POLY1305_TERM  2, 2, 0
-    POLY1305_TERM  3, 1, 0
-    POLY1305_TERM  4, 0, 0
-    str x2, [sp, #(SUMS + 32)]
+    // What stands at or above 2^130 comes back down worth five.
+    lsr x15, x14, #2
+    add x15, x15, x15, lsl #2
+    and x14, x14, #3
+    adds x10, x10, x15
+    adcs x12, x12, xzr
+    adc x14, x14, xzr
 
-    POLY1305_CARRY SUMS
-
-    .irp offset,0,8,16,24,32
-        ldr x2, [sp, #(SUMS + \offset)]
-        str x2, [sp, #(ACC + \offset)]
-    .endr
+    stp x10, x12, [sp, #ACC]
+    str x14, [sp, #(ACC + 16)]
 .endm
 
 // acc += the sixteen bytes at `src`, with `hibit` above them, then acc *= r.
 // `src` is not written.
 .macro POLY1305_BLOCK src, hibit
     ldp x2, x3, [\src]
-
-    and x4, x2, #0x3ffffff
-    ldr x5, [sp, #ACC]
-    add x5, x5, x4
-    str x5, [sp, #ACC]
-
-    ubfx x4, x2, #26, #26
-    ldr x5, [sp, #(ACC + 8)]
-    add x5, x5, x4
-    str x5, [sp, #(ACC + 8)]
-
-    lsr x4, x2, #52
-    orr x4, x4, x3, lsl #12
-    and x4, x4, #0x3ffffff
-    ldr x5, [sp, #(ACC + 16)]
-    add x5, x5, x4
-    str x5, [sp, #(ACC + 16)]
-
-    ubfx x4, x3, #14, #26
-    ldr x5, [sp, #(ACC + 24)]
-    add x5, x5, x4
-    str x5, [sp, #(ACC + 24)]
-
-    lsr x4, x3, #40
+    ldp x4, x5, [sp, #ACC]
+    ldr x6, [sp, #(ACC + 16)]
+    adds x4, x4, x2
+    adcs x5, x5, x3
+    adc x6, x6, xzr
     .if \hibit
-    orr x4, x4, #0x1000000
+    add x6, x6, #1
     .endif
-    ldr x5, [sp, #(ACC + 32)]
-    add x5, x5, x4
-    str x5, [sp, #(ACC + 32)]
+    stp x4, x5, [sp, #ACC]
+    str x6, [sp, #(ACC + 16)]
 
     POLY1305_MULTIPLY
 .endm
@@ -267,8 +199,8 @@
 // ============================================================================
 //
 // C signature:
-//   void redoubt_poly1305_init(uint32_t r[5], uint8_t s[16],
-//                              const uint8_t key[32]);
+//   void redoubt_poly1305_init(uint64_t r[2], uint8_t s[16],
+//                                 const uint8_t key[32]);
 //
 // Parameters (AAPCS):
 //   x0: r (written), x1: s (written), x2: key (read only)
@@ -291,18 +223,7 @@ FUNC(redoubt_poly1305_init):
     movk x6, #0x0fff, lsl #48
     and x3, x3, x5
     and x4, x4, x6
-
-    ubfx x7, x3, #0, #26
-    ubfx x8, x3, #26, #26
-    lsr  x9, x3, #52
-    orr  x9, x9, x4, lsl #12
-    ubfx x9, x9, #0, #26
-    ubfx x10, x4, #14, #26
-    lsr  x11, x4, #40
-
-    stp w7, w8, [x0]
-    stp w9, w10, [x0, #8]
-    str w11, [x0, #16]
+    stp x3, x4, [x0]
 
     ldp x3, x4, [x2, #16]
     stp x3, x4, [x1]
@@ -315,9 +236,9 @@ FUNC(redoubt_poly1305_init):
 // ============================================================================
 //
 // C signature:
-//   void redoubt_poly1305_update(uint64_t acc[5], const uint32_t r[5],
-//                                uint8_t block[16], size_t *filled,
-//                                const uint8_t *said, size_t said_len);
+//   void redoubt_poly1305_update(uint64_t acc[3], const uint64_t r[2],
+//                                   uint8_t block[16], size_t *filled,
+//                                   const uint8_t *said, size_t said_len);
 //
 // Parameters (AAPCS):
 //   x0: acc (read and written), x1: r (read only), x2: block (read and
@@ -333,9 +254,9 @@ FUNC(redoubt_poly1305_update):
 // ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
 // ║
 // ║ SECURITY WARNING: ACC holds the polynomial over everything counted so
-// ║ far, and SUMS its products by `r`. The partial block is not in here —
-// ║ it is the caller's, written where the caller keeps it, and emptied
-// ║ there as soon as the block it completes has been counted.
+// ║ far. The partial block is not in here — it is the caller's, written
+// ║ where the caller keeps it, and emptied there as soon as the block it
+// ║ completes has been counted.
 // ║
 // ║ Frame is written before it is read, and zeroized in full before sp is
 // ║ advanced.
@@ -351,10 +272,8 @@ FUNC(redoubt_poly1305_update):
 
     ldp x6, x7, [x0]
     stp x6, x7, [sp, #ACC]
-    ldp x6, x7, [x0, #16]
-    stp x6, x7, [sp, #(ACC + 16)]
-    ldr x6, [x0, #32]
-    str x6, [sp, #(ACC + 32)]
+    ldr x6, [x0, #16]
+    str x6, [sp, #(ACC + 16)]
 
     ldr x6, [x3]
     cbz x6, .Lupdate_stream
@@ -436,10 +355,8 @@ FUNC(redoubt_poly1305_update):
     ldr x9, [sp, #ACCPTR]
     ldp x6, x7, [sp, #ACC]
     stp x6, x7, [x9]
-    ldp x6, x7, [sp, #(ACC + 16)]
-    stp x6, x7, [x9, #16]
-    ldr x6, [sp, #(ACC + 32)]
-    str x6, [x9, #32]
+    ldr x6, [sp, #(ACC + 16)]
+    str x6, [x9, #16]
 
     POLY1305_EMPTY_FRAME
 // ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
@@ -452,9 +369,9 @@ FUNC(redoubt_poly1305_update):
 // ============================================================================
 //
 // C signature:
-//   void redoubt_poly1305_finalize(uint64_t acc[5], const uint32_t r[5],
-//                                  const uint8_t s[16], const uint8_t *said,
-//                                  size_t said_len, uint8_t out[16]);
+//   void redoubt_poly1305_finalize(uint64_t acc[3], const uint64_t r[2],
+//                                     const uint8_t s[16], const uint8_t *said,
+//                                     size_t said_len, uint8_t out[16]);
 //
 // Parameters (AAPCS):
 //   x0: acc (read and written), x1: r (read only), x2: s (read only),
@@ -466,10 +383,10 @@ FUNC(redoubt_poly1305_finalize):
 // ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
 // ║
 // ║ SECURITY WARNING: ACC holds the polynomial and then the number the tag
-// ║ is made from, SUMS its products by `r`, and BLOCK the last bytes of the
-// ║ message with the marker written after them. That last one is message in
-// ║ the clear, and it is here rather than in the caller's buffer because a
-// ║ caller that handed over a whole message has no buffer to pad.
+// ║ is made from, and BLOCK the last bytes of the message with the marker
+// ║ written after them. That last one is message in the clear, and it is
+// ║ here rather than in the caller's buffer because a caller that handed
+// ║ over a whole message has no buffer to pad.
 // ║
 // ║ Frame is written before it is read, and zeroized in full before sp is
 // ║ advanced.
@@ -485,10 +402,8 @@ FUNC(redoubt_poly1305_finalize):
 
     ldp x6, x7, [x0]
     stp x6, x7, [sp, #ACC]
-    ldp x6, x7, [x0, #16]
-    stp x6, x7, [sp, #(ACC + 16)]
-    ldr x6, [x0, #32]
-    str x6, [sp, #(ACC + 32)]
+    ldr x6, [x0, #16]
+    str x6, [sp, #(ACC + 16)]
 
 .Lwhole:
     ldr x6, [sp, #LEN]
@@ -532,92 +447,38 @@ FUNC(redoubt_poly1305_finalize):
     ldr x9, [sp, #ACCPTR]
     ldp x6, x7, [sp, #ACC]
     stp x6, x7, [x9]
-    ldp x6, x7, [sp, #(ACC + 16)]
-    stp x6, x7, [x9, #16]
-    ldr x6, [sp, #(ACC + 32)]
-    str x6, [x9, #32]
+    ldr x6, [sp, #(ACC + 16)]
+    str x6, [x9, #16]
 
-    POLY1305_CARRY ACC
+    ldp x2, x3, [sp, #ACC]
+    ldr x4, [sp, #(ACC + 16)]
 
-    // acc + 5 into SUMS: it carries past bit 130 exactly when acc is at least
-    // 2^130 - 5.
-    ldr x2, [sp, #ACC]
-    add x2, x2, #5
-    lsr x3, x2, #26
-    and x2, x2, #0x3ffffff
-    str x2, [sp, #SUMS]
+    // acc + 5 into x7:x6:x5: it reaches 2^130 exactly when acc is at least
+    // 2^130 - 5, and then its low 128 bits are acc less the modulus.
+    adds x5, x2, #5
+    adcs x6, x3, xzr
+    adc x7, x4, xzr
 
-    .irp offset,8,16,24
-        ldr x2, [sp, #(ACC + \offset)]
-        add x2, x2, x3
-        lsr x3, x2, #26
-        and x2, x2, #0x3ffffff
-        str x2, [sp, #(SUMS + \offset)]
-    .endr
+    // All ones in x7 where the difference is taken, all zeros where it is
+    // not. A mask and not a branch: which one is a fact about the key.
+    lsr x7, x7, #2
+    neg x7, x7
+    and x5, x5, x7
+    and x6, x6, x7
+    mvn x7, x7
+    and x2, x2, x7
+    and x3, x3, x7
+    orr x2, x2, x5
+    orr x3, x3, x6
 
-    // All ones in x10 if acc is below the modulus, all zeros if not, and x11
-    // the opposite. A mask and not a branch: which one is a fact about the key.
-    ldr x2, [sp, #(ACC + 32)]
-    add x2, x2, x3
-    lsr x2, x2, #26
-    sub x10, x2, #1
-    mvn x11, x10
-
-    .irp offset,0,8,16,24
-        ldr x2, [sp, #(ACC + \offset)]
-        and x2, x2, x10
-        ldr x3, [sp, #(SUMS + \offset)]
-        and x3, x3, x11
-        orr x2, x2, x3
-        str x2, [sp, #(ACC + \offset)]
-    .endr
-
-    // acc - (2^130 - 5) has no fifth limb, so the fifth is kept only where acc
-    // is.
-    ldr x2, [sp, #(ACC + 32)]
-    and x2, x2, x10
-    str x2, [sp, #(ACC + 32)]
-
-    // Five limbs of twenty-six bits into four words of thirty-two.
-    ldr x2, [sp, #ACC]
-    ldr x3, [sp, #(ACC + 8)]
-    and x4, x3, #0x3f
-    orr x2, x2, x4, lsl #26
-
-    lsr x5, x3, #6
-    ldr x3, [sp, #(ACC + 16)]
-    and x4, x3, #0xfff
-    orr x5, x5, x4, lsl #20
-
-    lsr x6, x3, #12
-    ldr x3, [sp, #(ACC + 24)]
-    and x4, x3, #0x3ffff
-    orr x6, x6, x4, lsl #14
-
-    lsr x7, x3, #18
-    ldr x3, [sp, #(ACC + 32)]
-    and x4, x3, #0xffffff
-    orr x7, x7, x4, lsl #8
-
-    // + s, modulo 2^128: the carry out of the fourth word is dropped.
+    // + s, modulo 2^128: the carry out of the second word is dropped.
     ldr x9, [sp, #SPTR]
-    ldr w4, [x9]
-    add x2, x2, x4
-    ldr w4, [x9, #4]
-    add x5, x5, x4
-    add x5, x5, x2, lsr #32
-    ldr w4, [x9, #8]
-    add x6, x6, x4
-    add x6, x6, x5, lsr #32
-    ldr w4, [x9, #12]
-    add x7, x7, x4
-    add x7, x7, x6, lsr #32
+    ldp x5, x6, [x9]
+    adds x2, x2, x5
+    adc x3, x3, x6
 
     ldr x9, [sp, #OUT]
-    str w2, [x9]
-    str w5, [x9, #4]
-    str w6, [x9, #8]
-    str w7, [x9, #12]
+    stp x2, x3, [x9]
 
     POLY1305_EMPTY_FRAME
 // ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════

@@ -149,8 +149,8 @@ fn test_tag_returns_what_the_oracle_returns_at_the_widest(#[case] backend: Backe
     // Every part of this input is the largest it can be. The clamp takes the
     // top four bits of four bytes of `r` and the bottom two of three others,
     // so a key of all ones is the largest `r` it lets through — which makes
-    // every one of the twenty-five partial products as wide as it gets, and
-    // the carry chain across the five limbs of twenty-six bits as long. A
+    // every product of a word of `r` as wide as it gets, and every carry
+    // between the words of the accumulator as long. A
     // message of all ones adds the largest block there is before every
     // multiplication, and an `s` of all ones is the widest carry the final
     // addition can take.

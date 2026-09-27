@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-// Poly1305 - x86_64 (SysV ABI) Implementation
+// Poly1305 - x86_64 (SysV ABI) Implementation, radix 2^64
 //
 // The floor is the x86-64 baseline: scalar integer instructions only, nothing
 // detected at runtime.
@@ -91,42 +91,36 @@
 // Frame layout
 // ============================================================================
 //
-//   ACC        0..39    the accumulator, five limbs of twenty-six bits
-//   SUMS      40..79    one block's five products, then the reduced answer
-//   BLOCK     80..95    the last block of the message, padded here
-//   SAID      96..103   where the message is up to
-//   LEN      104..111   how much of it is left
-//   RPTR     112..119   the caller's `r`, read where it lies
-//   SPTR     120..127   the caller's `s`
-//   OUT      128..135   where the tag goes
-//   ACCPTR   136..143   the caller's accumulator
-//   BLOCKPTR 144..151   the caller's partial block
-//   FILLEDPTR 152..159  how much of it is filled
-//            160..167   padding
+//   ACC         0..23   the accumulator: two whole words and the bits above
+//   BLOCK      24..39   the last block of the message, padded here
+//   SAID       40..47   where the message is up to
+//   LEN        48..55   how much of it is left
+//   RPTR       56..63   the caller's `r`, read where it lies
+//   SPTR       64..71   the caller's `s`
+//   OUT        72..79   where the tag goes
+//   ACCPTR     80..87   the caller's accumulator
+//   BLOCKPTR   88..95   the caller's partial block
+//   FILLEDPTR  96..103  how much of it is filled
 //
 // FRAME is congruent to eight modulo sixteen, which puts rsp back on a boundary
 // after `call`.
 .set ACC, 0
-.set SUMS, 40
-.set BLOCK, 80
-.set SAID, 96
-.set LEN, 104
-.set RPTR, 112
-.set SPTR, 120
-.set OUT, 128
-.set ACCPTR, 136
-.set BLOCKPTR, 144
-.set FILLEDPTR, 152
-.set FRAME, 168
-
-// One limb's twenty-six bits.
-.set LIMB, 0x3ffffff
+.set BLOCK, 24
+.set SAID, 40
+.set LEN, 48
+.set RPTR, 56
+.set SPTR, 64
+.set OUT, 72
+.set ACCPTR, 80
+.set BLOCKPTR, 88
+.set FILLEDPTR, 96
+.set FRAME, 104
 
 // ============================================================================
 // Frame wipe
 // ============================================================================
 
-// Every qword of the frame, padding included, then the frame given back.
+// Every qword of the frame, then the frame given back.
 .macro POLY1305_EMPTY_FRAME
     .set _empty_at, 0
     .rept FRAME / 8
@@ -136,103 +130,66 @@
     add rsp, FRAME
 .endm
 
-// One of the twenty-five products, added into rax. `five` scales the limb of
-// `r` by five, for a product that lands past 2^130 and wraps modulo 2^130 - 5.
-.macro POLY1305_TERM at, limb, five
-    mov ecx, [r11 + 4*\limb]
-    .if \five
-    lea rcx, [rcx + rcx*4]
-    .endif
-    imul rcx, qword ptr [rsp + ACC + 8*\at]
-    add rax, rcx
-.endm
-
-// The first product of a sum, which starts rax rather than adding to it.
-.macro POLY1305_FIRST at, limb, five
-    mov ecx, [r11 + 4*\limb]
-    .if \five
-    lea rcx, [rcx + rcx*4]
-    .endif
-    mov rax, rcx
-    imul rax, qword ptr [rsp + ACC + 8*\at]
-.endm
-
-// acc = acc * r modulo 2^130 - 5: the products summed by the power of 2^26
-// they land on, then every limb carried back under twenty-six bits.
+// acc = acc * r, reduced only as far as the next block needs:
+//
+//   d0 = h0·r0 + h1·s1            in rdi:rsi
+//   d1 = h0·r1 + h1·r0 + h2·s1    in r11:rcx
+//   d2 = h2·r0                    in rax
+//
+// then carried into three words and the bits of the third above two folded
+// back. h2 is a few bits, so its products fit a word and take `imul`.
 .macro POLY1305_MULTIPLY
     mov r11, [rsp + RPTR]
+    mov r8, [r11]
+    mov r9, [r11 + 8]
+    // s1 = r1 + r1/4. 2^130 is 5 modulo the prime and the clamp leaves the
+    // bottom two bits of r1 empty, so a product with r1 that lands on 2^128
+    // comes back as a product with s1.
+    mov r10, r9
+    shr r10, 2
+    add r10, r9
 
-    POLY1305_FIRST 0, 0, 0
-    POLY1305_TERM  1, 4, 1
-    POLY1305_TERM  2, 3, 1
-    POLY1305_TERM  3, 2, 1
-    POLY1305_TERM  4, 1, 1
-    mov [rsp + SUMS], rax
+    mov rax, [rsp + ACC]
+    mul r8
+    mov rsi, rax
+    mov rdi, rdx
+    mov rax, [rsp + ACC + 8]
+    mul r10
+    add rsi, rax
+    adc rdi, rdx
 
-    POLY1305_FIRST 0, 1, 0
-    POLY1305_TERM  1, 0, 0
-    POLY1305_TERM  2, 4, 1
-    POLY1305_TERM  3, 3, 1
-    POLY1305_TERM  4, 2, 1
-    mov [rsp + SUMS + 8], rax
-
-    POLY1305_FIRST 0, 2, 0
-    POLY1305_TERM  1, 1, 0
-    POLY1305_TERM  2, 0, 0
-    POLY1305_TERM  3, 4, 1
-    POLY1305_TERM  4, 3, 1
-    mov [rsp + SUMS + 16], rax
-
-    POLY1305_FIRST 0, 3, 0
-    POLY1305_TERM  1, 2, 0
-    POLY1305_TERM  2, 1, 0
-    POLY1305_TERM  3, 0, 0
-    POLY1305_TERM  4, 4, 1
-    mov [rsp + SUMS + 24], rax
-
-    POLY1305_FIRST 0, 4, 0
-    POLY1305_TERM  1, 3, 0
-    POLY1305_TERM  2, 2, 0
-    POLY1305_TERM  3, 1, 0
-    POLY1305_TERM  4, 0, 0
-    mov [rsp + SUMS + 32], rax
-
-    POLY1305_CARRY SUMS
-
-    .irp offset,0,8,16,24,32
-        mov rax, [rsp + SUMS + \offset]
-        mov [rsp + ACC + \offset], rax
-    .endr
-.endm
-
-// Every limb of the five at `at` carried back under twenty-six bits; what runs
-// off the top comes back into the first worth five.
-.macro POLY1305_CARRY at
-    mov r8d, LIMB
-
-    .irp step,0,8,16,24
-        mov rax, [rsp + \at + \step]
-        mov rcx, rax
-        shr rcx, 26
-        add [rsp + \at + \step + 8], rcx
-        and eax, r8d
-        mov [rsp + \at + \step], rax
-    .endr
-
-    mov rax, [rsp + \at + 32]
+    mov rax, [rsp + ACC]
+    mul r9
     mov rcx, rax
-    shr rcx, 26
-    lea rcx, [rcx + rcx*4]
-    add [rsp + \at], rcx
-    and eax, r8d
-    mov [rsp + \at + 32], rax
+    mov r11, rdx
+    mov rax, [rsp + ACC + 8]
+    mul r8
+    add rcx, rax
+    adc r11, rdx
+    mov rax, [rsp + ACC + 16]
+    imul rax, r10
+    add rcx, rax
+    adc r11, 0
 
-    mov rax, [rsp + \at]
-    mov rcx, rax
-    shr rcx, 26
-    add [rsp + \at + 8], rcx
-    and eax, r8d
-    mov [rsp + \at], rax
+    mov rax, [rsp + ACC + 16]
+    imul rax, r8
+
+    add rcx, rdi
+    adc r11, 0
+    add rax, r11
+
+    // What stands at or above 2^130 comes back down worth five.
+    mov rdx, rax
+    shr rdx, 2
+    lea rdx, [rdx + rdx*4]
+    and rax, 3
+    add rsi, rdx
+    adc rcx, 0
+    adc rax, 0
+
+    mov [rsp + ACC], rsi
+    mov [rsp + ACC + 8], rcx
+    mov [rsp + ACC + 16], rax
 .endm
 
 // acc += the sixteen bytes at `src`, with `hibit` above them, then acc *= r.
@@ -240,36 +197,9 @@
 .macro POLY1305_BLOCK src, hibit
     mov rax, [\src]
     mov rdx, [\src + 8]
-    mov r8d, LIMB
-
-    mov r9, rax
-    and r9d, r8d
-    add [rsp + ACC], r9
-
-    mov r9, rax
-    shr r9, 26
-    and r9d, r8d
-    add [rsp + ACC + 8], r9
-
-    mov r9, rax
-    shr r9, 52
-    mov r10, rdx
-    shl r10, 12
-    or r9, r10
-    and r9d, r8d
-    add [rsp + ACC + 16], r9
-
-    mov r9, rdx
-    shr r9, 14
-    and r9d, r8d
-    add [rsp + ACC + 24], r9
-
-    mov r9, rdx
-    shr r9, 40
-    .if \hibit
-    or r9, 0x1000000
-    .endif
-    add [rsp + ACC + 32], r9
+    add [rsp + ACC], rax
+    adc [rsp + ACC + 8], rdx
+    adc qword ptr [rsp + ACC + 16], \hibit
 
     POLY1305_MULTIPLY
 .endm
@@ -279,8 +209,8 @@
 // ============================================================================
 //
 // C signature:
-//   void redoubt_poly1305_init(uint32_t r[5], uint8_t s[16],
-//                              const uint8_t key[32]);
+//   void redoubt_poly1305_init(uint64_t r[2], uint8_t s[16],
+//                                 const uint8_t key[32]);
 //
 // Parameters (SysV ABI):
 //   rdi: r (written), rsi: s (written), rdx: key (read only)
@@ -300,34 +230,8 @@ FUNC(redoubt_poly1305_init):
     and rax, r8
     mov r8,  0x0ffffffc0ffffffc
     and rcx, r8
-
-    mov r8d, 0x3ffffff
-
-    mov r9, rax
-    and r9d, r8d
-    mov [rdi], r9d
-
-    mov r9, rax
-    shr r9, 26
-    and r9d, r8d
-    mov [rdi + 4], r9d
-
-    mov r9, rax
-    shr r9, 52
-    mov r10, rcx
-    shl r10, 12
-    or  r9, r10
-    and r9d, r8d
-    mov [rdi + 8], r9d
-
-    mov r9, rcx
-    shr r9, 14
-    and r9d, r8d
-    mov [rdi + 12], r9d
-
-    mov r9, rcx
-    shr r9, 40
-    mov [rdi + 16], r9d
+    mov [rdi], rax
+    mov [rdi + 8], rcx
 
     mov rax, [rdx + 16]
     mov rcx, [rdx + 24]
@@ -346,9 +250,9 @@ FUNC(redoubt_poly1305_init):
 // ============================================================================
 //
 // C signature:
-//   void redoubt_poly1305_update(uint64_t acc[5], const uint32_t r[5],
-//                                uint8_t block[16], size_t *filled,
-//                                const uint8_t *said, size_t said_len);
+//   void redoubt_poly1305_update(uint64_t acc[3], const uint64_t r[2],
+//                                   uint8_t block[16], size_t *filled,
+//                                   const uint8_t *said, size_t said_len);
 //
 // Parameters (SysV ABI):
 //   rdi: acc (read and written), rsi: r (read only), rdx: block (read and
@@ -367,9 +271,9 @@ FUNC(redoubt_poly1305_update):
 // ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
 // ║
 // ║ SECURITY WARNING: ACC holds the polynomial over everything counted so
-// ║ far, and SUMS its products by `r`. The partial block is not in here —
-// ║ it is the caller's, written where the caller keeps it, and emptied
-// ║ there as soon as the block it completes has been counted.
+// ║ far. The partial block is not in here — it is the caller's, written
+// ║ where the caller keeps it, and emptied there as soon as the block it
+// ║ completes has been counted.
 // ║
 // ║ Frame is written before it is read, and zeroized in full before rsp is
 // ║ advanced.
@@ -383,7 +287,7 @@ FUNC(redoubt_poly1305_update):
     mov [rsp + SAID], r8
     mov [rsp + LEN], r9
 
-    .irp offset,0,8,16,24,32
+    .irp offset,0,8,16
         mov rax, [rdi + \offset]
         mov [rsp + ACC + \offset], rax
     .endr
@@ -462,7 +366,7 @@ FUNC(redoubt_poly1305_update):
 
 .Lupdate_done:
     mov r9, [rsp + ACCPTR]
-    .irp offset,0,8,16,24,32
+    .irp offset,0,8,16
         mov rax, [rsp + ACC + \offset]
         mov [r9 + \offset], rax
     .endr
@@ -482,9 +386,9 @@ FUNC(redoubt_poly1305_update):
 // ============================================================================
 //
 // C signature:
-//   void redoubt_poly1305_finalize(uint64_t acc[5], const uint32_t r[5],
-//                                  const uint8_t s[16], const uint8_t *said,
-//                                  size_t said_len, uint8_t out[16]);
+//   void redoubt_poly1305_finalize(uint64_t acc[3], const uint64_t r[2],
+//                                     const uint8_t s[16], const uint8_t *said,
+//                                     size_t said_len, uint8_t out[16]);
 //
 // Parameters (SysV ABI):
 //   rdi: acc (read and written), rsi: r (read only), rdx: s (read only),
@@ -499,10 +403,10 @@ FUNC(redoubt_poly1305_finalize):
 // ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
 // ║
 // ║ SECURITY WARNING: ACC holds the polynomial and then the number the tag
-// ║ is made from, SUMS its products by `r`, and BLOCK the last bytes of the
-// ║ message with the marker written after them. That last one is message in
-// ║ the clear, and it is here rather than in the caller's buffer because a
-// ║ caller that handed over a whole message has no buffer to pad.
+// ║ is made from, and BLOCK the last bytes of the message with the marker
+// ║ written after them. That last one is message in the clear, and it is
+// ║ here rather than in the caller's buffer because a caller that handed
+// ║ over a whole message has no buffer to pad.
 // ║
 // ║ Frame is written before it is read, and zeroized in full before rsp is
 // ║ advanced.
@@ -516,7 +420,7 @@ FUNC(redoubt_poly1305_finalize):
     mov [rsp + LEN], r8
     mov [rsp + OUT], r9
 
-    .irp offset,0,8,16,24,32
+    .irp offset,0,8,16
         mov rax, [rdi + \offset]
         mov [rsp + ACC + \offset], rax
     .endr
@@ -556,114 +460,44 @@ FUNC(redoubt_poly1305_finalize):
     // Written back before the reduction below: the caller's accumulator is the
     // polynomial, not the tag.
     mov r9, [rsp + ACCPTR]
-    .irp offset,0,8,16,24,32
+    .irp offset,0,8,16
         mov rax, [rsp + ACC + \offset]
         mov [r9 + \offset], rax
     .endr
 
-    POLY1305_CARRY ACC
-
-    mov r8d, LIMB
-
-    // acc + 5 into SUMS: it carries past bit 130 exactly when acc is at least
-    // 2^130 - 5.
-    mov rax, [rsp + ACC]
-    add rax, 5
-    mov rcx, rax
-    shr rcx, 26
-    and eax, r8d
-    mov [rsp + SUMS], rax
-
-    .irp offset,8,16,24
-        mov rax, [rsp + ACC + \offset]
-        add rax, rcx
-        mov rcx, rax
-        shr rcx, 26
-        and eax, r8d
-        mov [rsp + SUMS + \offset], rax
-    .endr
-
-    // All ones in r10 if acc is below the modulus, all zeros if not, and r11
-    // the opposite. A mask and not a branch: which one is a fact about the key.
-    mov rax, [rsp + ACC + 32]
-    add rax, rcx
-    shr rax, 26
-    sub rax, 1
-    mov r10, rax
-    mov r11, rax
-    not r11
-
-    .irp offset,0,8,16,24
-        mov rax, [rsp + ACC + \offset]
-        and rax, r10
-        mov rcx, [rsp + SUMS + \offset]
-        and rcx, r11
-        or rax, rcx
-        mov [rsp + ACC + \offset], rax
-    .endr
-
-    // acc - (2^130 - 5) has no fifth limb, so the fifth is kept only where acc
-    // is.
-    mov rax, [rsp + ACC + 32]
-    and rax, r10
-    mov [rsp + ACC + 32], rax
-
-    // Five limbs of twenty-six bits into four words of thirty-two.
-    mov rax, [rsp + ACC]
+    mov rsi, [rsp + ACC]
     mov rcx, [rsp + ACC + 8]
-    mov rdx, rcx
-    and edx, 0x3f
-    shl rdx, 26
-    or rax, rdx
+    mov rax, [rsp + ACC + 16]
 
-    mov rsi, rcx
-    shr rsi, 6
-    mov rcx, [rsp + ACC + 16]
-    mov rdx, rcx
-    and edx, 0xfff
-    shl rdx, 20
-    or rsi, rdx
+    // acc + 5 into r10:r9:r8: it reaches 2^130 exactly when acc is at least
+    // 2^130 - 5, and then its low 128 bits are acc less the modulus.
+    mov r8, rsi
+    add r8, 5
+    mov r9, rcx
+    adc r9, 0
+    mov r10, rax
+    adc r10, 0
 
-    mov rdi, rcx
-    shr rdi, 12
-    mov rcx, [rsp + ACC + 24]
-    mov rdx, rcx
-    and edx, 0x3ffff
-    shl rdx, 14
-    or rdi, rdx
+    // All ones in r10 where the difference is taken, all zeros where it is
+    // not. A mask and not a branch: which one is a fact about the key.
+    shr r10, 2
+    neg r10
+    and r8, r10
+    and r9, r10
+    not r10
+    and rsi, r10
+    and rcx, r10
+    or rsi, r8
+    or rcx, r9
 
-    mov r8, rcx
-    shr r8, 18
-    mov rcx, [rsp + ACC + 32]
-    and ecx, 0xffffff
-    shl rcx, 8
-    or r8, rcx
+    // + s, modulo 2^128: the carry out of the second word is dropped.
+    mov r11, [rsp + SPTR]
+    add rsi, [r11]
+    adc rcx, [r11 + 8]
 
-    // + s, modulo 2^128: the carry out of the fourth word is dropped.
-    mov r9, [rsp + SPTR]
-    mov ecx, [r9]
-    add rax, rcx
-    mov ecx, [r9 + 4]
-    add rsi, rcx
-    mov rdx, rax
-    shr rdx, 32
-    add rsi, rdx
-    mov ecx, [r9 + 8]
-    add rdi, rcx
-    mov rdx, rsi
-    shr rdx, 32
-    add rdi, rdx
-    mov ecx, [r9 + 12]
-    add r8, rcx
-    mov rdx, rdi
-    shr rdx, 32
-    add r8, rdx
-
-    mov r9, [rsp + OUT]
-    mov [r9], eax
-    mov [r9 + 4], esi
-    mov [r9 + 8], edi
-    mov [r9 + 12], r8d
+    mov r11, [rsp + OUT]
+    mov [r11], rsi
+    mov [r11 + 8], rcx
 
     POLY1305_EMPTY_FRAME
 // ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════

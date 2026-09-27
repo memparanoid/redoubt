@@ -1119,21 +1119,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "redoubt-poly1305-v2"
-version = "0.1.0-rc.13"
-dependencies = [
- "cc",
- "num-bigint",
- "proptest",
- "redoubt-aead-core",
- "redoubt-asm",
- "redoubt-forensics",
- "redoubt-mem",
- "redoubt-zero",
- "rstest",
-]
-
-[[package]]
 name = "redoubt-rand"
 version = "0.1.0-rc.13"
 dependencies = [
