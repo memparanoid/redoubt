@@ -24,7 +24,7 @@ pub(crate) fn run_test_as_subprocess_with(
     binary: std::io::Result<PathBuf>,
     test: &str,
 ) -> Option<i32> {
-    let binary = binary.expect("this process cannot name its own binary");
+    let binary = binary.expect("this process should be able to name its own binary");
 
     let run = Command::new(binary)
         .args([
@@ -41,7 +41,7 @@ pub(crate) fn run_test_as_subprocess_with(
 
 /// What the spawn amounted to, once it is known to have started.
 pub(crate) fn concluded(run: std::io::Result<Output>, test: &str) -> Option<i32> {
-    let run = run.expect("the test binary did not start");
+    let run = run.expect("the test binary should start");
 
     verdict(
         &String::from_utf8_lossy(&run.stdout),

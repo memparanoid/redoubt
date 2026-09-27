@@ -65,7 +65,7 @@ fn test_run_test_as_subprocess_returns_nothing_for_a_test_a_signal_ended() {
 // ============================================================================
 
 #[test]
-#[should_panic(expected = "cannot name its own binary")]
+#[should_panic(expected = "should be able to name its own binary")]
 fn test_run_test_as_subprocess_with_panics_when_the_process_cannot_name_its_binary() {
     let nameless = Err(std::io::Error::from(std::io::ErrorKind::NotFound));
 
@@ -77,7 +77,7 @@ fn test_run_test_as_subprocess_with_panics_when_the_process_cannot_name_its_bina
 // ============================================================================
 
 #[test]
-#[should_panic(expected = "did not start")]
+#[should_panic(expected = "the test binary should start")]
 fn test_concluded_panics_when_the_binary_did_not_start() {
     let never = Err(std::io::Error::from(std::io::ErrorKind::NotFound));
 

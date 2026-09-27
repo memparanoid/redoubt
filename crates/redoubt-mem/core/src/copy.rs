@@ -57,7 +57,7 @@ pub unsafe fn copy_nonoverlapping_with_backend<T>(
 ) {
     let bytes = count
         .checked_mul(core::mem::size_of::<T>())
-        .expect("a copy of more bytes than there are addresses");
+        .expect("a copy's byte count should fit in a usize, as every valid range does");
 
     // A zero-length copy is a call that does nothing, and for a zero-sized `T`
     // the pointers are allowed to be dangling — which the routine would still

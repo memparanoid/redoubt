@@ -68,7 +68,7 @@ fn state(key: &[u8; 32], suffix: &[u8; 16]) -> [u32; 16] {
         u32::from_le_bytes(
             bytes[at * 4..at * 4 + 4]
                 .try_into()
-                .expect("infallible: the slice is exactly 4 bytes"),
+                .expect("Infallible: the slice is exactly 4 bytes"),
         )
     })
 }
@@ -124,7 +124,7 @@ pub(crate) fn xxor(key: &[u8; 32], nonce: &[u8; 24], counter: u32, data: &[u8]) 
         key,
         nonce[..16]
             .try_into()
-            .expect("infallible: nonce[0..16] is exactly 16 bytes"),
+            .expect("Infallible: nonce[0..16] is exactly 16 bytes"),
     );
     let mut short = [0u8; 12];
     short[4..].copy_from_slice(&nonce[16..]);

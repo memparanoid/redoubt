@@ -22,8 +22,8 @@ const HAS_ASM: &str = "ct_asm";
 fn main() {
     println!("cargo::rustc-check-cfg=cfg({HAS_ASM})");
 
-    let arch = std::env::var("CARGO_CFG_TARGET_ARCH").expect("cargo names the target architecture");
-    let os = std::env::var("CARGO_CFG_TARGET_OS").expect("cargo names the target operating system");
+    let arch = std::env::var("CARGO_CFG_TARGET_ARCH").expect("CARGO_CFG_TARGET_ARCH should be set by cargo for every build script");
+    let os = std::env::var("CARGO_CFG_TARGET_OS").expect("CARGO_CFG_TARGET_OS should be set by cargo for every build script");
 
     let Some(file) = for_target(&os, &arch) else {
         return;

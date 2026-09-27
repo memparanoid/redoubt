@@ -18,8 +18,11 @@ use crate::error::EntropyError;
 /// ```rust
 /// use redoubt_rand::fill_with_random_bytes;
 ///
+/// # fn main() -> Result<(), redoubt_rand::EntropyError> {
 /// let mut key = [0u8; 32];
-/// fill_with_random_bytes(&mut key).expect("Failed to generate random bytes");
+/// fill_with_random_bytes(&mut key)?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn fill_with_random_bytes(dest: &mut [u8]) -> Result<(), EntropyError> {
     backend::fill(Backend::default(), dest)

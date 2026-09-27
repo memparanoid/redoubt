@@ -24,16 +24,19 @@
 //! ```rust
 //! use redoubt_rand::{SystemEntropySource, NonceSessionGenerator, NonceGenerator, EntropySource};
 //!
+//! # fn main() -> Result<(), redoubt_rand::EntropyError> {
 //! // Create entropy source
 //! let entropy = SystemEntropySource {};
 //!
 //! // Generate random bytes
 //! let mut key = [0u8; 32];
-//! entropy.fill_bytes(&mut key).expect("Failed to generate entropy");
+//! entropy.fill_bytes(&mut key)?;
 //!
 //! // Create nonce generator
 //! let mut nonce_gen = NonceSessionGenerator::<SystemEntropySource, 24>::new(SystemEntropySource {});
-//! let nonce = nonce_gen.generate_nonce().expect("Failed to generate nonce");
+//! let nonce = nonce_gen.generate_nonce()?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Integration with Redoubt

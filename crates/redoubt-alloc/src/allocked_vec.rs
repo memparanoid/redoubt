@@ -176,7 +176,7 @@ where
             let mut allocked_vec = AllockedVec::<T>::with_capacity(capacity);
             allocked_vec
                 .drain_from(self.as_mut_slice())
-                .expect("realloc_with: drain_from cannot fail - new vec has sufficient capacity");
+                .expect("Infallible: the vec was truncated to fit the new capacity");
             allocked_vec
         };
 
@@ -611,7 +611,7 @@ where
         let remaining = self.capacity() - self.len();
         let mut source: Vec<T> = (0..remaining).map(|_| T::default()).collect();
         self.drain_from(&mut source)
-            .expect("infallible: remaining = capacity - len");
+            .expect("Infallible: the source holds exactly the room left");
     }
 
     /// Changes the test behaviour for this vector.

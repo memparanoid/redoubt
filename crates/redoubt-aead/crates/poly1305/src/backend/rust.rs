@@ -157,7 +157,7 @@ fn straight_through(acc: &mut [u64; LIMBS], r: &[u32; LIMBS], said: &[u8]) -> us
             r,
             said[at..at + BLOCK_SIZE]
                 .try_into()
-                .expect("infallible: the slice is exactly 16 bytes"),
+                .expect("Infallible: the slice is exactly 16 bytes"),
             1,
         );
 

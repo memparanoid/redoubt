@@ -105,7 +105,7 @@ pub(crate) fn xxor(key: &[u8; KEY_SIZE], nonce: &[u8; XNONCE_SIZE], counter: u64
         key,
         nonce[..HNONCE_SIZE]
             .try_into()
-            .expect("infallible: nonce[0..16] is exactly 16 bytes"),
+            .expect("Infallible: nonce[0..16] is exactly 16 bytes"),
     );
 
     // Four zero bytes and then what is left of the nonce, which is how the

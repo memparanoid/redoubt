@@ -92,7 +92,7 @@ pub unsafe fn swap_nonoverlapping_with_backend<T>(
 ) {
     let bytes = count
         .checked_mul(core::mem::size_of::<T>())
-        .expect("a swap of more bytes than there are addresses");
+        .expect("a swap's byte count should fit in a usize, as every valid range does");
 
     // A zero-length swap is a call that does nothing, and for a zero-sized `T`
     // the pointers are allowed to be dangling — which the routine would still
