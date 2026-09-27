@@ -14,7 +14,7 @@ use crate::support::{Block, blocks, giving, hold_on, is_found, leaves_nothing, l
 
 macro_rules! an_allocked_vec_dropped {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -69,7 +69,7 @@ an_allocked_vec_dropped!(test_an_allocked_vec_of_65536_dropped_leaves_nothing, 6
 // AllockedVec: ownership
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_an_allocked_vec_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -93,7 +93,7 @@ fn test_an_allocked_vec_given_away_is_found_while_it_is_held() -> Result<(), Any
 
 macro_rules! an_allocked_vec_given_away {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -208,7 +208,7 @@ fn test_an_allocked_vec_reserved_leaves_nothing() {
 
 /// The value is a temporary that `push` exchanges for a default, so the only
 /// copy left to find is the one it stored.
-#[test]
+#[redoubt_forensics::test]
 fn test_what_was_pushed_is_found_while_the_allocked_vec_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -230,7 +230,7 @@ fn test_what_was_pushed_is_found_while_the_allocked_vec_holds_it() -> Result<(),
 /// left is only what the exchanges left.
 macro_rules! an_allocked_vec_pushed_into {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -350,7 +350,7 @@ fn test_an_allocked_vec_as_a_mut_slice_leaves_nothing() {
 // AllockedVec::truncate
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_a_truncation_keeps_is_found_while_the_allocked_vec_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -373,7 +373,7 @@ fn test_what_a_truncation_keeps_is_found_while_the_allocked_vec_holds_it() -> Re
 
 macro_rules! an_allocked_vec_truncated {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -435,7 +435,7 @@ an_allocked_vec_truncated!(
 // AllockedVec::drain_from
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_was_drained_is_found_while_the_allocked_vec_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -463,7 +463,7 @@ fn test_what_was_drained_is_found_while_the_allocked_vec_holds_it() -> Result<()
 /// call left of its own and what it left in the slice it was handed.
 macro_rules! an_allocked_vec_drained_into {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -526,7 +526,7 @@ an_allocked_vec_drained_into!(
 // AllockedVec::realloc_with_capacity
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_was_carried_over_is_found_while_the_allocked_vec_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -548,7 +548,7 @@ fn test_what_was_carried_over_is_found_while_the_allocked_vec_holds_it() -> Resu
 
 macro_rules! an_allocked_vec_reallocated {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 

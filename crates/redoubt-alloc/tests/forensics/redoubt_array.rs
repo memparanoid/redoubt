@@ -12,7 +12,7 @@ use crate::support::{giving, hold_on, is_found, leaves_nothing, let_go};
 // RedoubtArray::drop
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_array_dropped_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -46,7 +46,7 @@ fn test_a_redoubt_array_dropped_leaves_nothing() -> Result<(), AnyError> {
 // RedoubtArray: ownership
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_array_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -74,7 +74,7 @@ fn test_a_redoubt_array_given_away_is_found_while_it_is_held() -> Result<(), Any
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_array_given_away_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -128,7 +128,7 @@ fn test_making_a_redoubt_array_leaves_nothing() {
 // RedoubtArray::from_mut_array
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_array_from_a_mut_array_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -151,7 +151,7 @@ fn test_a_redoubt_array_from_a_mut_array_is_found_while_it_is_held() -> Result<(
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_array_from_a_mut_array_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -203,7 +203,7 @@ fn test_whether_a_redoubt_array_is_empty_leaves_nothing() {
 // RedoubtArray::replace_from_mut_array
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_array_replaced_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -229,7 +229,7 @@ fn test_a_redoubt_array_replaced_is_found_while_it_holds_it() -> Result<(), AnyE
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_array_replaced_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 

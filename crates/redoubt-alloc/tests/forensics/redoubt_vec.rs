@@ -14,7 +14,7 @@ use crate::support::{giving, hold_on, is_found, leaves_nothing, let_go};
 
 macro_rules! a_redoubt_vec_dropped {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -66,7 +66,7 @@ a_redoubt_vec_dropped!(test_a_redoubt_vec_of_65536_dropped_leaves_nothing, 65536
 // RedoubtVec: ownership
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_vec_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -96,7 +96,7 @@ fn test_a_redoubt_vec_given_away_is_found_while_it_is_held() -> Result<(), AnyEr
 
 macro_rules! a_redoubt_vec_given_away {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -179,7 +179,7 @@ fn test_making_a_redoubt_vec_with_capacity_leaves_nothing() {
 // RedoubtVec::from_mut_slice
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_vec_from_a_mut_slice_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -204,7 +204,7 @@ fn test_a_redoubt_vec_from_a_mut_slice_is_found_while_it_is_held() -> Result<(),
 
 macro_rules! a_redoubt_vec_from_a_mut_slice {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -330,7 +330,7 @@ fn test_a_redoubt_vec_maybe_grown_leaves_nothing() {
 // RedoubtVec::extend_from_mut_slice
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_vec_extended_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -358,7 +358,7 @@ fn test_a_redoubt_vec_extended_is_found_while_it_holds_it() -> Result<(), AnyErr
 /// way up, and what the sweep asks about is the blocks it outgrew.
 macro_rules! a_redoubt_vec_extended {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -420,7 +420,7 @@ a_redoubt_vec_extended!(test_a_redoubt_vec_extended_to_65536_leaves_nothing, 655
 // RedoubtVec::replace_from_mut_slice
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_vec_replaced_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -446,7 +446,7 @@ fn test_a_redoubt_vec_replaced_is_found_while_it_holds_it() -> Result<(), AnyErr
 
 macro_rules! a_redoubt_vec_replaced {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -516,7 +516,7 @@ fn wide_values(of: usize) -> Vec<u128> {
     values
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_vec_drained_into_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -545,7 +545,7 @@ fn test_a_redoubt_vec_drained_into_is_found_while_it_holds_it() -> Result<(), An
 
 macro_rules! a_redoubt_vec_drained_into {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -610,7 +610,7 @@ a_redoubt_vec_drained_into!(
 
 macro_rules! a_redoubt_vec_cleared {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 

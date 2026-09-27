@@ -69,7 +69,7 @@ fn emptying(text: &mut str) {
 
 macro_rules! a_redoubt_string_dropped {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&spelling_backwards())?;
 
@@ -119,7 +119,7 @@ a_redoubt_string_dropped!(test_a_redoubt_string_of_65536_dropped_leaves_nothing,
 // RedoubtString: ownership
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_string_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&spelling_backwards())?;
 
@@ -147,7 +147,7 @@ fn test_a_redoubt_string_given_away_is_found_while_it_is_held() -> Result<(), An
 
 macro_rules! a_redoubt_string_given_away {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&spelling_backwards())?;
 
@@ -246,7 +246,7 @@ fn test_making_a_redoubt_string_with_capacity_leaves_nothing() {
 // RedoubtString::from_mut_string
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_string_from_a_mut_string_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&spelling_backwards())?;
 
@@ -269,7 +269,7 @@ fn test_a_redoubt_string_from_a_mut_string_is_found_while_it_is_held() -> Result
 
 macro_rules! a_redoubt_string_from_a_mut_string {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&spelling_backwards())?;
 
@@ -347,7 +347,7 @@ a_redoubt_string_from_a_mut_string!(
 // RedoubtString::from_str
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_string_from_a_str_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&spelling_backwards())?;
 
@@ -372,7 +372,7 @@ fn test_a_redoubt_string_from_a_str_is_found_while_it_is_held() -> Result<(), An
 
 macro_rules! a_redoubt_string_from_a_str {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&spelling_backwards())?;
 
@@ -492,7 +492,7 @@ fn test_a_redoubt_string_maybe_grown_leaves_nothing() {
 // RedoubtString::extend_from_mut_string
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_string_extended_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&spelling_backwards())?;
 
@@ -518,7 +518,7 @@ fn test_a_redoubt_string_extended_is_found_while_it_holds_it() -> Result<(), Any
 /// way up, and what the sweep asks about is the blocks it outgrew.
 macro_rules! a_redoubt_string_extended {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&spelling_backwards())?;
 
@@ -583,7 +583,7 @@ a_redoubt_string_extended!(
 // RedoubtString::replace_from_mut_string
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_string_replaced_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&spelling_backwards())?;
 
@@ -607,7 +607,7 @@ fn test_a_redoubt_string_replaced_is_found_while_it_holds_it() -> Result<(), Any
 
 macro_rules! a_redoubt_string_replaced {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&spelling_backwards())?;
 
@@ -665,7 +665,7 @@ a_redoubt_string_replaced!(
 // RedoubtString::extend_from_str
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_string_extended_from_a_str_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&spelling_backwards())?;
 
@@ -691,7 +691,7 @@ fn test_a_redoubt_string_extended_from_a_str_is_found_while_it_holds_it() -> Res
 
 macro_rules! a_redoubt_string_extended_from_a_str {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&spelling_backwards())?;
 
@@ -774,7 +774,7 @@ a_redoubt_string_extended_from_a_str!(
 
 macro_rules! a_redoubt_string_cleared {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&spelling_backwards())?;
 

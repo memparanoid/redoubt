@@ -15,7 +15,7 @@ use crate::support::{Block, giving, hold_on, is_found, leaves_nothing, let_go};
 
 macro_rules! a_redoubt_option_dropped {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -76,7 +76,7 @@ a_redoubt_option_dropped!(test_a_redoubt_option_dropped_of_65536_leaves_nothing,
 // RedoubtOption: ownership
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_option_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -114,7 +114,7 @@ fn test_a_redoubt_option_given_away_is_found_while_it_is_held() -> Result<(), An
 
 macro_rules! a_redoubt_option_given_away {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -213,7 +213,7 @@ fn test_a_redoubt_option_as_a_mut_leaves_nothing() {
 // RedoubtOption::replace
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_option_replaced_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -244,7 +244,7 @@ fn test_a_redoubt_option_replaced_is_found_while_it_holds_it() -> Result<(), Any
 
 macro_rules! a_redoubt_option_replaced {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -306,7 +306,7 @@ a_redoubt_option_replaced!(
 
 /// Over a vec, `replace` moves a pointer and nothing a move leaves is the
 /// secret; over a block, the value it moves is the secret itself.
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_option_of_a_block_replaced_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -330,7 +330,7 @@ fn test_a_redoubt_option_of_a_block_replaced_is_found_while_it_holds_it() -> Res
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_redoubt_option_of_a_block_replaced_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 

@@ -23,3 +23,7 @@ mod redoubt_array;
 mod redoubt_option;
 mod redoubt_string;
 mod redoubt_vec;
+
+#[global_allocator]
+static ALLOCATOR: redoubt_forensics::ForensicsAllocator<std::alloc::System> =
+    redoubt_forensics::ForensicsAllocator::new(std::alloc::System);
