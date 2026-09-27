@@ -24,9 +24,7 @@ use proc_macro::TokenStream;
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
-use syn::{
-    Attribute, Data, DeriveInput, Field, Fields, Ident, LitStr, Meta, Type, parse_macro_input,
-};
+use syn::{Attribute, Data, DeriveInput, Field, Fields, Ident, LitStr, Meta, Type};
 
 /// Derives a CipherBox wrapper struct with per-field access methods.
 ///
@@ -96,14 +94,21 @@ use syn::{
 /// ```
 #[proc_macro_attribute]
 pub fn cipherbox(attr: TokenStream, item: TokenStream) -> TokenStream {
+    cipherbox_with(attr.into(), item.into()).into()
+}
+
+pub(crate) fn cipherbox_with(attr: TokenStream2, item: TokenStream2) -> TokenStream2 {
     let (wrapper_name, custom_error, testing_feature) = match parse_cipherbox_attr(attr) {
         Ok(parsed) => parsed,
-        Err(error) => return error.to_compile_error().into(),
+        Err(error) => return error.to_compile_error(),
     };
-    let input = parse_macro_input!(item as DeriveInput);
-    expand(wrapper_name, custom_error, testing_feature, input)
-        .unwrap_or_else(|e| e)
-        .into()
+
+    let input = match syn::parse2::<DeriveInput>(item) {
+        Ok(input) => input,
+        Err(error) => return error.to_compile_error(),
+    };
+
+    expand(wrapper_name, custom_error, testing_feature, input).unwrap_or_else(|e| e)
 }
 
 // Extract custom error type and testing_feature from attribute tokens.
@@ -113,7 +118,7 @@ pub fn cipherbox(attr: TokenStream, item: TokenStream) -> TokenStream {
 //   - "WrapperName, testing_feature = \"feature-name\""
 // Returns (wrapper_name, custom_error_type, testing_feature)
 fn parse_cipherbox_attr(
-    attr: TokenStream,
+    attr: TokenStream2,
 ) -> Result<(Ident, Option<Type>, Option<String>), syn::Error> {
     parse_cipherbox_attr_inner(attr.to_string())
 }

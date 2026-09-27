@@ -4,7 +4,7 @@
 
 use syn::parse_quote;
 
-use crate::{expand, find_root_with_candidates};
+use crate::{cipherbox_with, expand, find_root_with_candidates};
 
 fn pretty(ts: proc_macro2::TokenStream) -> String {
     let file = syn::parse2(ts).unwrap_or_else(|_| {
@@ -20,6 +20,54 @@ fn pretty(ts: proc_macro2::TokenStream) -> String {
 /// reader wants anyway.
 fn refusal(it: proc_macro2::TokenStream) -> Box<dyn std::error::Error> {
     it.to_string().into()
+}
+
+// === === === === === === === === === ===
+// cipherbox_with
+// === === === === === === === === === ===
+
+#[test]
+fn test_cipherbox_with_reports_an_argument_that_does_not_parse() {
+    let expanded = cipherbox_with(
+        quote::quote!(1Box),
+        quote::quote!(
+            struct Data {}
+        ),
+    );
+
+    let text = expanded.to_string();
+
+    assert!(text.contains("compile_error"));
+    assert!(text.contains("first argument must be wrapper name"));
+}
+
+#[test]
+fn test_cipherbox_with_reports_an_item_that_is_not_a_type() {
+    let expanded = cipherbox_with(
+        quote::quote!(DataBox),
+        quote::quote!(
+            fn data() {}
+        ),
+    );
+
+    assert!(expanded.to_string().contains("compile_error"));
+}
+
+#[test]
+fn test_cipherbox_with_returns_the_box_for_a_struct() {
+    let expanded = cipherbox_with(
+        quote::quote!(DataBox),
+        quote::quote!(
+            struct Data {
+                pub alpha: Vec<u8>,
+            }
+        ),
+    );
+
+    let text = expanded.to_string();
+
+    assert!(!text.contains("compile_error"));
+    assert!(text.contains("struct DataBox"));
 }
 
 // === === === === === === === === === ===
