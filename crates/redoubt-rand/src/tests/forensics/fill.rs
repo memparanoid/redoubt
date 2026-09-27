@@ -51,7 +51,7 @@ fn asking_leaves_nothing(len: usize) -> Result<(), AnyError> {
 // fill_with_random_bytes
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_was_asked_for_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     // CORRECTNESS: before the block. The capture runs the form this picks, and
     // the watch that would otherwise pick it is built after the capture.
@@ -76,19 +76,19 @@ fn test_what_was_asked_for_is_found_while_the_buffer_holds_it() -> Result<(), An
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_asking_for_bytes_leaves_nothing() -> Result<(), AnyError> {
     asking_leaves_nothing(WIDE)
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_asking_for_more_than_one_piece_leaves_nothing() -> Result<(), AnyError> {
     asking_leaves_nothing(WIDER)
 }
 
 /// Each round asks for bytes of its own and wipes them; the needle is the first
 /// request's, which exists before the photograph that opens the test.
-#[test]
+#[redoubt_forensics::test]
 fn test_two_hundred_requests_leave_nothing_of_the_first() -> Result<(), AnyError> {
     let mut got = vec![0_u8; WIDE];
 

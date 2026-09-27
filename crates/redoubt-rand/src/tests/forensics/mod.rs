@@ -17,3 +17,7 @@ mod support;
 mod fill;
 mod session;
 mod system;
+
+#[global_allocator]
+static ALLOCATOR: redoubt_forensics::ForensicsAllocator<std::alloc::System> =
+    redoubt_forensics::ForensicsAllocator::new(std::alloc::System);

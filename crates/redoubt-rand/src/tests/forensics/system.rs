@@ -13,7 +13,7 @@ use crate::tests::forensics::support::{WIDE, backwards, is_found, leaves_nothing
 // SystemEntropySource::fill_bytes
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_the_source_produced_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     // CORRECTNESS: before the block. The capture runs the form this picks, and
     // the watch that would otherwise pick it is built after the capture.
@@ -42,7 +42,7 @@ fn test_what_the_source_produced_is_found_while_the_buffer_holds_it() -> Result<
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_asking_the_source_leaves_nothing() -> Result<(), AnyError> {
     // CORRECTNESS: before the block. The capture runs the form this picks, and
     // the watch that would otherwise pick it is built after the capture.
