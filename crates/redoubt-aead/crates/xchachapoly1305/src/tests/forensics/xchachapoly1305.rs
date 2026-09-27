@@ -262,7 +262,7 @@ fn test_making_one_leaves_nothing() {
 // XChaCha20Poly1305::one_time_key
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_one_time_key_wrote_is_found_while_the_caller_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&OTK))?;
 
@@ -286,7 +286,7 @@ fn test_what_one_time_key_wrote_is_found_while_the_caller_holds_it() -> Result<(
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_one_time_key_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[("key", &KEY), ("one-time key", &OTK)])?;
 
@@ -316,7 +316,7 @@ fn test_one_time_key_leaves_nothing() -> Result<(), AnyError> {
 // XChaCha20Poly1305::tag
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_tag_wrote_is_found_while_the_caller_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&TAG))?;
 
@@ -341,7 +341,7 @@ fn test_what_tag_wrote_is_found_while_the_caller_holds_it() -> Result<(), AnyErr
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_tag_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
         ("one-time key", &OTK),
@@ -378,7 +378,7 @@ fn test_tag_leaves_nothing() -> Result<(), AnyError> {
 // XChaCha20Poly1305::tag_with
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_tag_with_wrote_is_found_while_the_authenticator_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&ACC))?;
 
@@ -405,7 +405,7 @@ fn test_what_tag_with_wrote_is_found_while_the_authenticator_holds_it() -> Resul
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_tag_with_leaves_nothing() -> Result<(), AnyError> {
     let mut watching =
         Watching::start(&[("one-time key", &OTK), ("r", &R), ("accumulator", &ACC)])?;
@@ -437,7 +437,7 @@ fn test_tag_with_leaves_nothing() -> Result<(), AnyError> {
 // XChaCha20Poly1305::encrypt
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_encrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&CIPHERTEXT))?;
 
@@ -465,7 +465,7 @@ fn test_what_encrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(),
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_tag_encrypting_wrote_is_found_while_the_caller_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&TAG))?;
 
@@ -493,7 +493,7 @@ fn test_the_tag_encrypting_wrote_is_found_while_the_caller_holds_it() -> Result<
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encrypting_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
         ("key", &KEY),
@@ -530,7 +530,7 @@ fn test_encrypting_leaves_nothing() -> Result<(), AnyError> {
 // XChaCha20Poly1305::decrypt
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_decrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&PLAINTEXT))?;
 
@@ -557,7 +557,7 @@ fn test_what_decrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(),
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
         ("key", &KEY),
@@ -594,7 +594,7 @@ fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decrypting_under_a_wrong_tag_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
         ("key", &KEY),
