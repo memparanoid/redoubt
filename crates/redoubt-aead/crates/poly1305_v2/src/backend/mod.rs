@@ -14,12 +14,26 @@
 
 pub(crate) mod rust;
 
+#[cfg(poly1305_asm)]
+pub(crate) mod asm;
+
 use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 use redoubt_asm::Backend;
 
 use rust as chosen;
 
 use crate::consts::{ACC_WORDS, R_WORDS};
+
+/// Whether this target was built with assembly, which is what `Auto` goes to.
+///
+/// Where it is false the two backends are the same code, and a test that finds
+/// them agreeing has proved nothing.
+#[cfg(all(
+    test,
+    not(target_os = "windows"),
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
+pub(crate) const HAS_ASM: bool = cfg!(poly1305_asm);
 
 /// The key split in two: `r` clamped, `s` as it arrived.
 pub(crate) fn init(

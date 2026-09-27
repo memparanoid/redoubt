@@ -19,6 +19,9 @@ redoubt-aead-core.workspace = true
 redoubt-asm.workspace       = true
 redoubt-zero.workspace      = true
 
+[build-dependencies]
+cc.workspace = true
+
 [dev-dependencies]
 num-bigint.workspace = true
 proptest.workspace   = true
