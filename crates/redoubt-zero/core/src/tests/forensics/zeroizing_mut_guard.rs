@@ -15,7 +15,7 @@ use crate::tests::forensics::support::{Wide, giving, hold_on, is_found, leaves_n
 
 macro_rules! a_borrowed_vec_dropped {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -72,7 +72,7 @@ a_borrowed_vec_dropped!(
     65536
 );
 
-#[test]
+#[redoubt_forensics::test]
 fn test_dropping_a_guard_over_a_wide_value_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -109,7 +109,7 @@ fn test_dropping_a_guard_over_a_wide_value_leaves_nothing() -> Result<(), AnyErr
 // ZeroizingMutGuard: ownership
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_borrowing_guard_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -136,7 +136,7 @@ fn test_a_borrowing_guard_given_away_is_found_while_it_is_held() -> Result<(), A
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_borrowing_guard_given_away_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -173,7 +173,7 @@ fn test_a_borrowing_guard_given_away_leaves_nothing() -> Result<(), AnyError> {
 // ZeroizingMutGuard::from
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_borrowed_vec_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -196,7 +196,7 @@ fn test_a_borrowed_vec_is_found_while_the_guard_holds_it() -> Result<(), AnyErro
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_borrowed_wide_value_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -219,7 +219,7 @@ fn test_a_borrowed_wide_value_is_found_while_the_guard_holds_it() -> Result<(), 
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_borrowing_a_vec_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -247,7 +247,7 @@ fn test_borrowing_a_vec_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_borrowing_a_wide_value_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -299,7 +299,7 @@ fn test_dereferencing_a_borrowing_guard_mutably_leaves_nothing() {
 // ZeroizingMutGuard::fast_zeroize
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_borrowed_vec_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -325,7 +325,7 @@ fn test_zeroizing_a_borrowed_vec_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_borrowed_wide_value_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -359,7 +359,7 @@ fn test_zeroizing_a_borrowed_wide_value_leaves_nothing() -> Result<(), AnyError>
 // ZeroizingMutGuard::is_zeroized
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_borrowed_vec_probed_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -383,7 +383,7 @@ fn test_a_borrowed_vec_probed_is_found_while_the_guard_holds_it() -> Result<(), 
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_borrowed_wide_value_probed_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -407,7 +407,7 @@ fn test_a_borrowed_wide_value_probed_is_found_while_the_guard_holds_it() -> Resu
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_probing_a_borrowed_vec_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -437,7 +437,7 @@ fn test_probing_a_borrowed_vec_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_probing_a_borrowed_wide_value_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 

@@ -15,3 +15,7 @@ mod pointers;
 mod primitives;
 mod zeroizing_guard;
 mod zeroizing_mut_guard;
+
+#[global_allocator]
+static ALLOCATOR: redoubt_forensics::ForensicsAllocator<std::alloc::System> =
+    redoubt_forensics::ForensicsAllocator::new(std::alloc::System);

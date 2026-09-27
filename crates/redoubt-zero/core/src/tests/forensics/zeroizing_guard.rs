@@ -20,7 +20,7 @@ use crate::tests::forensics::support::{Wide, giving, hold_on, is_found, leaves_n
 // ZeroizingGuard::drop
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_dropping_a_guarded_vec_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -49,7 +49,7 @@ fn test_dropping_a_guarded_vec_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_dropping_a_guarded_array_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -78,7 +78,7 @@ fn test_dropping_a_guarded_array_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_dropping_a_guarded_wide_value_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -111,7 +111,7 @@ fn test_dropping_a_guarded_wide_value_leaves_nothing() -> Result<(), AnyError> {
 // ZeroizingGuard: ownership
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_guarded_vec_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -138,7 +138,7 @@ fn test_a_guarded_vec_given_away_is_found_while_it_is_held() -> Result<(), AnyEr
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_guarded_array_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -165,7 +165,7 @@ fn test_a_guarded_array_given_away_is_found_while_it_is_held() -> Result<(), Any
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_guarded_wide_value_given_away_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -192,7 +192,7 @@ fn test_a_guarded_wide_value_given_away_is_found_while_it_is_held() -> Result<()
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_guarded_vec_given_away_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -221,7 +221,7 @@ fn test_a_guarded_vec_given_away_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_guarded_array_given_away_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -250,7 +250,7 @@ fn test_a_guarded_array_given_away_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_guarded_wide_value_given_away_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -283,7 +283,7 @@ fn test_a_guarded_wide_value_given_away_leaves_nothing() -> Result<(), AnyError>
 // ZeroizingGuard::from_mut
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_guarded_vec_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -306,7 +306,7 @@ fn test_a_guarded_vec_is_found_while_the_guard_holds_it() -> Result<(), AnyError
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_guarded_array_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -329,7 +329,7 @@ fn test_a_guarded_array_is_found_while_the_guard_holds_it() -> Result<(), AnyErr
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_guarded_wide_value_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -354,7 +354,7 @@ fn test_a_guarded_wide_value_is_found_while_the_guard_holds_it() -> Result<(), A
 
 macro_rules! a_guarded_vec {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -398,7 +398,7 @@ a_guarded_vec!(test_guarding_a_vec_of_4096_leaves_nothing, 4096);
 a_guarded_vec!(test_guarding_a_vec_of_16384_leaves_nothing, 16384);
 a_guarded_vec!(test_guarding_a_vec_of_65536_leaves_nothing, 65536);
 
-#[test]
+#[redoubt_forensics::test]
 fn test_guarding_an_array_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -426,7 +426,7 @@ fn test_guarding_an_array_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_guarding_a_wide_value_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -488,7 +488,7 @@ fn test_dereferencing_a_guard_mutably_leaves_nothing() {
 // ZeroizingGuard::fast_zeroize
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_guarded_vec_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -514,7 +514,7 @@ fn test_zeroizing_a_guarded_vec_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_guarded_array_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -540,7 +540,7 @@ fn test_zeroizing_a_guarded_array_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_guarded_wide_value_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -570,7 +570,7 @@ fn test_zeroizing_a_guarded_wide_value_leaves_nothing() -> Result<(), AnyError> 
 // ZeroizingGuard::is_zeroized
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_guarded_vec_probed_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -594,7 +594,7 @@ fn test_a_guarded_vec_probed_is_found_while_the_guard_holds_it() -> Result<(), A
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_guarded_array_probed_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -618,7 +618,7 @@ fn test_a_guarded_array_probed_is_found_while_the_guard_holds_it() -> Result<(),
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_guarded_wide_value_probed_is_found_while_the_guard_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -642,7 +642,7 @@ fn test_a_guarded_wide_value_probed_is_found_while_the_guard_holds_it() -> Resul
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_probing_a_guarded_vec_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -672,7 +672,7 @@ fn test_probing_a_guarded_vec_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_probing_a_guarded_array_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -702,7 +702,7 @@ fn test_probing_a_guarded_array_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_probing_a_guarded_wide_value_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 

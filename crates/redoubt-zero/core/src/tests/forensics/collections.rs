@@ -79,7 +79,7 @@ fn test_a_probe_seen_as_a_trait_object_leaves_nothing() {
 // zeroize_collection
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_collection_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -110,7 +110,7 @@ fn test_zeroizing_a_collection_leaves_nothing() -> Result<(), AnyError> {
 // collection_zeroed
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_collection_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -135,7 +135,7 @@ fn test_a_collection_probed_is_found_while_it_is_held() -> Result<(), AnyError> 
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_probing_a_collection_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -172,7 +172,7 @@ fn test_probing_a_collection_leaves_nothing() -> Result<(), AnyError> {
 // slice_fast_zeroize
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_slice_in_bulk_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -193,7 +193,7 @@ fn test_zeroizing_a_slice_in_bulk_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_slice_one_element_at_a_time_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -222,7 +222,7 @@ fn test_zeroizing_a_slice_one_element_at_a_time_leaves_nothing() -> Result<(), A
 // [T]::fast_zeroize
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_slice_of_bytes_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -245,7 +245,7 @@ fn test_zeroizing_a_slice_of_bytes_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_slice_of_boxes_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -272,7 +272,7 @@ fn test_zeroizing_a_slice_of_boxes_leaves_nothing() -> Result<(), AnyError> {
 // [T]::is_zeroized
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_slice_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -293,7 +293,7 @@ fn test_a_slice_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_probing_a_slice_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -325,7 +325,7 @@ fn test_probing_a_slice_leaves_nothing() -> Result<(), AnyError> {
 // [T; N]::fast_zeroize
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_an_array_of_bytes_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -348,7 +348,7 @@ fn test_zeroizing_an_array_of_bytes_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_an_array_of_boxes_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -375,7 +375,7 @@ fn test_zeroizing_an_array_of_boxes_leaves_nothing() -> Result<(), AnyError> {
 // [T; N]::is_zeroized
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_an_array_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -396,7 +396,7 @@ fn test_an_array_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_probing_an_array_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -428,7 +428,7 @@ fn test_probing_an_array_leaves_nothing() -> Result<(), AnyError> {
 // vec_fast_zeroize
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_vec_in_bulk_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -451,7 +451,7 @@ fn test_zeroizing_a_vec_in_bulk_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_vec_one_element_at_a_time_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -482,7 +482,7 @@ fn test_zeroizing_a_vec_one_element_at_a_time_leaves_nothing() -> Result<(), Any
 // Vec<T>::fast_zeroize
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_vec_of_bytes_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -505,7 +505,7 @@ fn test_zeroizing_a_vec_of_bytes_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_vec_of_boxes_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -530,7 +530,7 @@ fn test_zeroizing_a_vec_of_boxes_leaves_nothing() -> Result<(), AnyError> {
 // Vec<T>::is_zeroized
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_vec_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -549,7 +549,7 @@ fn test_a_vec_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_probing_a_vec_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -579,7 +579,7 @@ fn test_probing_a_vec_leaves_nothing() -> Result<(), AnyError> {
 // String::fast_zeroize
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_string_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&text_backwards())?;
 
@@ -604,7 +604,7 @@ fn test_zeroizing_a_string_leaves_nothing() -> Result<(), AnyError> {
 // String::is_zeroized
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_string_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&text_backwards())?;
 
@@ -623,7 +623,7 @@ fn test_a_string_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_probing_a_string_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&text_backwards())?;
 
@@ -653,7 +653,7 @@ fn test_probing_a_string_leaves_nothing() -> Result<(), AnyError> {
 // Box<T>::fast_zeroize
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_box_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -678,7 +678,7 @@ fn test_zeroizing_a_box_leaves_nothing() -> Result<(), AnyError> {
 // Box<T>::is_zeroized
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_box_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -697,7 +697,7 @@ fn test_a_box_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_probing_a_box_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -727,7 +727,7 @@ fn test_probing_a_box_leaves_nothing() -> Result<(), AnyError> {
 // Option<T>::fast_zeroize
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_an_option_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -756,7 +756,7 @@ fn test_zeroizing_an_option_leaves_nothing() -> Result<(), AnyError> {
 // Option<T>::is_zeroized
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_an_option_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -779,7 +779,7 @@ fn test_an_option_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_probing_an_option_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 

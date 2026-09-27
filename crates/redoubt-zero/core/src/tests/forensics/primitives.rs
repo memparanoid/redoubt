@@ -32,7 +32,7 @@ fn a_u128() -> Box<u128> {
 // u128::is_zeroized
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_u128_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&half_backwards())?;
 
@@ -51,7 +51,7 @@ fn test_a_u128_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_probing_a_u128_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&half_backwards())?;
 
@@ -101,7 +101,7 @@ fn test_probing_a_char_leaves_nothing() {
 // u128::fast_zeroize
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_zeroizing_a_u128_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&half_backwards())?;
 
