@@ -14,8 +14,8 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [features]
-default            = []
-test-utils         = ["redoubt-vault-core/test-utils"]
+default    = []
+test-utils = ["redoubt-vault-core/test-utils"]
 
 [dependencies]
 redoubt-vault-core.workspace   = true

@@ -14,8 +14,8 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [features]
-default            = []
-test-utils         = []
+default    = []
+test-utils = []
 
 [dependencies]
 quiesce.workspace        = true
