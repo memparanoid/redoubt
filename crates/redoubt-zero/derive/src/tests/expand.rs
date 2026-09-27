@@ -397,7 +397,7 @@ fn snapshot_tuple_struct_with_multiple_memzer_attrs() -> Result<(), Box<dyn std:
 /// must never wipe fields directly. If a refactor of the derive ever emits
 /// direct wipes, the fence chain silently breaks — this is the tripwire.
 #[test]
-fn test_fast_zeroize_routes_through_zeroize_collection() {
+fn test_fast_zeroize_routes_through_zeroize_collection() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
         #[fast_zeroize(drop)]
@@ -408,10 +408,8 @@ fn test_fast_zeroize_routes_through_zeroize_collection() {
         }
     };
 
-    let expanded = pretty(expand(derive_input).expect("expand failed"));
-
     // prettyplease wraps long calls across lines; flatten before matching.
-    let flat: String = expanded.split_whitespace().collect();
+    let flat: String = expanded(derive_input)?.split_whitespace().collect();
 
     // The one path that carries the fence.
     assert!(flat.contains("zeroize_collection"));
@@ -426,6 +424,8 @@ fn test_fast_zeroize_routes_through_zeroize_collection() {
     // the helper, not copy-pasted into every expansion.
     assert!(!flat.contains("write_volatile"));
     assert!(!flat.contains("compiler_fence"));
+
+    Ok(())
 }
 
 // === === === === === === === === === ===

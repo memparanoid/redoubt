@@ -79,7 +79,9 @@ fn test_encrypt_returns_the_published_ciphertext_and_tag(#[case] backend: Backen
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_decrypt_returns_the_published_plaintext(#[case] backend: Backend) {
+fn test_decrypt_returns_the_published_plaintext(
+    #[case] backend: Backend,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut aead = XChaCha20Poly1305::with_backend(backend);
     let (key, nonce) = widths();
 
@@ -87,12 +89,13 @@ fn test_decrypt_returns_the_published_plaintext(#[case] backend: Backend) {
     let mut data = hex_to_bytes(published::CIPHERTEXT);
     let tag: [u8; TAG_SIZE] = hex_to_bytes(published::TAG)
         .try_into()
-        .expect("the published tag is sixteen bytes");
+        .map_err(|_| "the published tag is not sixteen bytes")?;
 
-    aead.decrypt(&key, &nonce, &aad, &mut data, &tag)
-        .expect("the published vector is one to accept");
+    aead.decrypt(&key, &nonce, &aad, &mut data, &tag)?;
 
     assert_eq!(data, hex_to_bytes(published::PLAINTEXT), "the plaintext");
+
+    Ok(())
 }
 
 // === === === === === === === === === ===

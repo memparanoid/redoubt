@@ -137,17 +137,18 @@ fn test_decrypt_returns_the_published_plaintext(
     #[case] ct: &str,
     #[case] tag: &str,
     #[case] expected: &str,
-) {
+) -> Result<(), AeadCoreError> {
     let mut aead = Aegis128L::new();
     let (key, nonce) = widths(published::KEY, published::NONCE);
 
     let aad = hex_to_bytes(ad);
     let mut data = hex_to_bytes(ct);
 
-    aead.decrypt(&key, &nonce, &aad, &mut data, &tag_of(tag))
-        .expect("the published tag is the one that sealed this");
+    aead.decrypt(&key, &nonce, &aad, &mut data, &tag_of(tag))?;
 
     assert_eq!(data, hex_to_bytes(expected), "the plaintext");
+
+    Ok(())
 }
 
 /// The four the draft says MUST come back as a verification failure.
