@@ -33,7 +33,7 @@ fn test_making_a_buffer_leaves_nothing() {
 // ============================================================================
 
 /// The page the key is made in is guarded, and a guarded page is never swept.
-#[test]
+#[redoubt_forensics::test]
 fn test_the_key_made_is_found_once_copied_out_of_its_page() -> Result<(), AnyError> {
     // CORRECTNESS: before the block. The capture runs the form this picks, and
     // the watch that would otherwise pick it is built after the capture.
@@ -62,7 +62,7 @@ fn test_the_key_made_is_found_once_copied_out_of_its_page() -> Result<(), AnyErr
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_making_the_key_leaves_nothing() -> Result<(), AnyError> {
     // CORRECTNESS: before the block. The capture runs the form this picks, and
     // the watch that would otherwise pick it is built after the capture.

@@ -15,7 +15,7 @@ use crate::tests::forensics::support::{copying_into, is_found, leaves_nothing};
 // open
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_key_opened_is_found_while_it_is_kept() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards_through(open)?)?;
     let mut kept = vec![0_u8; MASTER_KEY_LEN];
@@ -33,7 +33,7 @@ fn test_the_key_opened_is_found_while_it_is_kept() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_the_key_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards_through(open)?)?;
 

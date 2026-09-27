@@ -103,7 +103,7 @@ fn test_sizing_the_fields_leaves_nothing() {
 
 /// Encrypting empties the fields it is handed, so the presence is a field
 /// before it.
-#[test]
+#[redoubt_forensics::test]
 fn test_the_field_encrypting_is_handed_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -122,7 +122,7 @@ fn test_the_field_encrypting_is_handed_is_found_while_it_holds_it() -> Result<()
 
 /// Nothing here holds the key after it returns, so what vouches for its needle
 /// is `leak_master_key`, held.
-#[test]
+#[redoubt_forensics::test]
 fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&master_key_backwards()?)?;
 
@@ -139,7 +139,7 @@ fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encrypting_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -182,7 +182,7 @@ fn test_encrypting_leaves_nothing() -> Result<(), AnyError> {
 // try_encrypt_into_buffers
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_encrypting_exported_and_did_not_encrypt_is_found() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -227,7 +227,7 @@ fn test_what_encrypting_exported_and_did_not_encrypt_is_found() -> Result<(), An
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_trying_to_encrypt_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -274,7 +274,7 @@ fn test_trying_to_encrypt_leaves_nothing() -> Result<(), AnyError> {
 // encrypt_into_buffers
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encrypting_into_buffers_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -317,7 +317,7 @@ fn test_encrypting_into_buffers_leaves_nothing() -> Result<(), AnyError> {
     watching.none_left("nothing held yet", "encrypting into buffers")
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encrypting_into_buffers_refused_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -367,7 +367,7 @@ fn test_encrypting_into_buffers_refused_leaves_nothing() -> Result<(), AnyError>
 // try_decrypt_from
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_decrypting_decoded_is_found_while_the_fields_hold_it() -> Result<(), AnyError> {
     let mut sealed = seal()?;
 
@@ -405,7 +405,7 @@ fn test_what_decrypting_decoded_is_found_while_the_fields_hold_it() -> Result<()
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_decrypting_decrypted_and_did_not_decode_is_found() -> Result<(), AnyError> {
     let mut sealed = seal()?;
 
@@ -452,7 +452,7 @@ fn test_what_decrypting_decrypted_and_did_not_decode_is_found() -> Result<(), An
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_trying_to_decrypt_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -498,7 +498,7 @@ fn test_trying_to_decrypt_leaves_nothing() -> Result<(), AnyError> {
 // decrypt_from
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -540,7 +540,7 @@ fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
     watching.none_left("nothing held yet", "decrypting")
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decrypting_refused_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 

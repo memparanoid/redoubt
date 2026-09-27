@@ -125,7 +125,7 @@ fn seal_while_watching() -> Result<(OneFieldBox, Watching), AnyError> {
 // CipherBox::drop
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_cipherbox_dropped_leaves_nothing() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -166,7 +166,7 @@ fn test_asserting_a_cipherbox_is_healthy_leaves_nothing() {
 
 /// `encrypt_struct` empties what it is handed, so there is nothing of it to
 /// find after the call: the presence is the value it is handed, before it.
-#[test]
+#[redoubt_forensics::test]
 fn test_the_value_encrypting_is_handed_is_found_while_it_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -185,7 +185,7 @@ fn test_the_value_encrypting_is_handed_is_found_while_it_holds_it() -> Result<()
 
 /// Most methods let the key go before anything could photograph it, so what
 /// vouches for its needle is the same brick, `leak_master_key`, held.
-#[test]
+#[redoubt_forensics::test]
 fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&master_key_backwards()?)?;
 
@@ -204,7 +204,7 @@ fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
 
 macro_rules! encrypted {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
             let mut key_watch = Forensics::watching(&master_key_backwards()?)?;
@@ -267,7 +267,7 @@ encrypted!(test_encrypting_32768_bytes_leaves_nothing, 32768);
 // CipherBox::decrypt_struct
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_was_decrypted_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (mut one_field_box, key) = a_box()?;
 
@@ -299,7 +299,7 @@ fn test_what_was_decrypted_is_found_while_it_is_held() -> Result<(), AnyError> {
 
 macro_rules! decrypted {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
             let mut key_watch = Forensics::watching(&master_key_backwards()?)?;
@@ -366,7 +366,7 @@ decrypted!(test_decrypting_32768_bytes_leaves_nothing, 32768);
 // CipherBox::decrypt_struct_from
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_was_decrypted_from_buffers_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (one_field_box, key) = seal()?;
 
@@ -389,7 +389,7 @@ fn test_what_was_decrypted_from_buffers_is_found_while_it_is_held() -> Result<()
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decrypting_a_struct_from_buffers_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -420,7 +420,7 @@ fn test_decrypting_a_struct_from_buffers_leaves_nothing() -> Result<(), AnyError
 // CipherBox::maybe_initialize
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_sealing_an_unsealed_box_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -441,7 +441,7 @@ fn test_sealing_an_unsealed_box_leaves_nothing() -> Result<(), AnyError> {
 // CipherBox::try_decrypt_field
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_a_field_was_tried_into_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (one_field_box, key) = seal()?;
 
@@ -466,7 +466,7 @@ fn test_what_a_field_was_tried_into_is_found_while_it_is_held() -> Result<(), An
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_trying_to_decrypt_a_field_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -497,7 +497,7 @@ fn test_trying_to_decrypt_a_field_leaves_nothing() -> Result<(), AnyError> {
 // CipherBox::decrypt_field
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_a_field_was_decrypted_into_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (one_field_box, key) = seal()?;
 
@@ -520,7 +520,7 @@ fn test_what_a_field_was_decrypted_into_is_found_while_it_is_held() -> Result<()
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decrypting_a_field_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -549,7 +549,7 @@ fn test_decrypting_a_field_leaves_nothing() -> Result<(), AnyError> {
 // CipherBox::decrypt_field_into
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_a_field_was_decrypted_into_through_a_buffer_is_found_while_it_is_held()
 -> Result<(), AnyError> {
     let (one_field_box, key) = seal()?;
@@ -575,7 +575,7 @@ fn test_what_a_field_was_decrypted_into_through_a_buffer_is_found_while_it_is_he
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decrypting_a_field_into_a_buffer_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -606,7 +606,7 @@ fn test_decrypting_a_field_into_a_buffer_leaves_nothing() -> Result<(), AnyError
 // CipherBox::try_encrypt_field
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_trying_to_encrypt_a_field_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -637,7 +637,7 @@ fn test_trying_to_encrypt_a_field_leaves_nothing() -> Result<(), AnyError> {
 // CipherBox::encrypt_field
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encrypting_a_field_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -668,7 +668,7 @@ fn test_encrypting_a_field_leaves_nothing() -> Result<(), AnyError> {
 // CipherBox::open_dyn
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_it_is_open_through_a_dyn() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -688,7 +688,7 @@ fn test_the_secret_is_found_while_it_is_open_through_a_dyn() -> Result<(), AnyEr
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_through_a_dyn_leaves_nothing() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -699,7 +699,7 @@ fn test_opening_through_a_dyn_leaves_nothing() -> Result<(), AnyError> {
     watching.none_left("nothing held yet", "opened through a dyn")
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_through_a_dyn_that_fails_leaves_nothing() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -718,7 +718,7 @@ fn test_opening_through_a_dyn_that_fails_leaves_nothing() -> Result<(), AnyError
 // CipherBox::open_value
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_value_a_read_sees_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -733,7 +733,7 @@ fn test_the_value_a_read_sees_is_found_while_it_is_held() -> Result<(), AnyError
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_value_a_read_sees_leaves_nothing() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -753,7 +753,7 @@ fn test_the_value_a_read_sees_leaves_nothing() -> Result<(), AnyError> {
 // CipherBox::open_mut_dyn
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_it_is_open_for_writing_through_a_dyn() -> Result<(), AnyError> {
     let (mut one_field_box, mut watching) = seal_while_watching()?;
 
@@ -779,7 +779,7 @@ fn test_the_secret_is_found_while_it_is_open_for_writing_through_a_dyn() -> Resu
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_for_writing_through_a_dyn_leaves_nothing() -> Result<(), AnyError> {
     let (mut one_field_box, mut watching) = seal_while_watching()?;
 
@@ -792,7 +792,7 @@ fn test_opening_for_writing_through_a_dyn_leaves_nothing() -> Result<(), AnyErro
     watching.none_left("nothing held yet", "opened for writing through a dyn")
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_for_writing_through_a_dyn_that_fails_leaves_nothing() -> Result<(), AnyError> {
     let (mut one_field_box, mut watching) = seal_while_watching()?;
 
@@ -815,7 +815,7 @@ fn test_opening_for_writing_through_a_dyn_that_fails_leaves_nothing() -> Result<
 // CipherBox::open_field_dyn
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_a_field_is_open_through_a_dyn() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -835,7 +835,7 @@ fn test_the_secret_is_found_while_a_field_is_open_through_a_dyn() -> Result<(), 
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_a_field_through_a_dyn_leaves_nothing() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -848,7 +848,7 @@ fn test_opening_a_field_through_a_dyn_leaves_nothing() -> Result<(), AnyError> {
     watching.none_left("nothing held yet", "a field opened through a dyn")
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_a_field_through_a_dyn_that_fails_leaves_nothing() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -872,7 +872,7 @@ fn test_opening_a_field_through_a_dyn_that_fails_leaves_nothing() -> Result<(), 
 // CipherBox::open_field_value
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_field_a_read_sees_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -887,7 +887,7 @@ fn test_the_field_a_read_sees_is_found_while_it_is_held() -> Result<(), AnyError
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_field_a_read_sees_leaves_nothing() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -907,7 +907,7 @@ fn test_the_field_a_read_sees_leaves_nothing() -> Result<(), AnyError> {
 // CipherBox::open_field_mut_dyn
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_a_field_is_open_for_writing_through_a_dyn() -> Result<(), AnyError>
 {
     let (mut one_field_box, mut watching) = seal_while_watching()?;
@@ -934,7 +934,7 @@ fn test_the_secret_is_found_while_a_field_is_open_for_writing_through_a_dyn() ->
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_a_field_for_writing_through_a_dyn_leaves_nothing() -> Result<(), AnyError> {
     let (mut one_field_box, mut watching) = seal_while_watching()?;
 
@@ -951,7 +951,7 @@ fn test_opening_a_field_for_writing_through_a_dyn_leaves_nothing() -> Result<(),
     )
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_a_field_for_writing_through_a_dyn_that_fails_leaves_nothing() -> Result<(), AnyError>
 {
     let (mut one_field_box, mut watching) = seal_while_watching()?;
@@ -976,7 +976,7 @@ fn test_opening_a_field_for_writing_through_a_dyn_that_fails_leaves_nothing() ->
 // CipherBox::open
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_a_cipherbox_is_open() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -996,7 +996,7 @@ fn test_the_secret_is_found_while_a_cipherbox_is_open() -> Result<(), AnyError> 
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_a_cipherbox_leaves_nothing() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -1011,7 +1011,7 @@ fn test_opening_a_cipherbox_leaves_nothing() -> Result<(), AnyError> {
 // CipherBox::open_mut
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_a_cipherbox_is_open_for_writing() -> Result<(), AnyError> {
     let (mut one_field_box, mut watching) = seal_while_watching()?;
 
@@ -1037,7 +1037,7 @@ fn test_the_secret_is_found_while_a_cipherbox_is_open_for_writing() -> Result<()
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_a_cipherbox_for_writing_leaves_nothing() -> Result<(), AnyError> {
     let (mut one_field_box, mut watching) = seal_while_watching()?;
 
@@ -1052,7 +1052,7 @@ fn test_opening_a_cipherbox_for_writing_leaves_nothing() -> Result<(), AnyError>
 // CipherBox::open_field
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_a_field_of_a_cipherbox_is_open() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -1072,7 +1072,7 @@ fn test_the_secret_is_found_while_a_field_of_a_cipherbox_is_open() -> Result<(),
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_a_field_of_a_cipherbox_leaves_nothing() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -1089,7 +1089,7 @@ fn test_opening_a_field_of_a_cipherbox_leaves_nothing() -> Result<(), AnyError> 
 // CipherBox::open_field_mut
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_a_field_of_a_cipherbox_is_open_for_writing()
 -> Result<(), AnyError> {
     let (mut one_field_box, mut watching) = seal_while_watching()?;
@@ -1116,7 +1116,7 @@ fn test_the_secret_is_found_while_a_field_of_a_cipherbox_is_open_for_writing()
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_a_field_of_a_cipherbox_for_writing_leaves_nothing() -> Result<(), AnyError> {
     let (mut one_field_box, mut watching) = seal_while_watching()?;
 
@@ -1136,7 +1136,7 @@ fn test_opening_a_field_of_a_cipherbox_for_writing_leaves_nothing() -> Result<()
 // CipherBox::leak_field
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_a_field_of_a_cipherbox_leaked_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 
@@ -1151,7 +1151,7 @@ fn test_what_a_field_of_a_cipherbox_leaked_is_found_while_it_is_held() -> Result
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_leaking_a_field_of_a_cipherbox_leaves_nothing() -> Result<(), AnyError> {
     let (one_field_box, mut watching) = seal_while_watching()?;
 

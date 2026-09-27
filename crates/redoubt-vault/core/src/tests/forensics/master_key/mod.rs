@@ -25,7 +25,7 @@ const ROUNDS: usize = 200;
 // leak_master_key
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards_through(open)?)?;
 
@@ -42,7 +42,7 @@ fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_piece_of_the_master_key_kept_is_not_read_as_chance() -> Result<(), AnyError> {
     /// As wide as the widest run [`QUIET`] allows.
     const PIECE: usize = QUIET as usize;
@@ -91,7 +91,7 @@ fn test_a_piece_of_the_master_key_kept_is_not_read_as_chance() -> Result<(), Any
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_the_master_key_too_wide_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards_through(open)?)?;
 
@@ -118,7 +118,7 @@ fn test_opening_the_master_key_too_wide_leaves_nothing() -> Result<(), AnyError>
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_the_master_key_once_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards_through(open)?)?;
 
@@ -145,7 +145,7 @@ fn test_opening_the_master_key_once_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_opening_the_master_key_often_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards_through(open)?)?;
 
