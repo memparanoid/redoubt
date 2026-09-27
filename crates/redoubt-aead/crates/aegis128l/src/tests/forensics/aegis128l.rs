@@ -217,7 +217,7 @@ fn test_making_one_leaves_nothing() {
 // Aegis128L::encrypt
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_encrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&CIPHERTEXT))?;
 
@@ -245,7 +245,7 @@ fn test_what_encrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(),
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_tag_encrypting_wrote_is_found_while_the_caller_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&SEALED_TAG))?;
 
@@ -273,7 +273,7 @@ fn test_the_tag_encrypting_wrote_is_found_while_the_caller_holds_it() -> Result<
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encrypting_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[("key", &KEY), ("plaintext", &PLAINTEXT)])?;
 
@@ -301,7 +301,7 @@ fn test_encrypting_leaves_nothing() -> Result<(), AnyError> {
 // Aegis128L::decrypt
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_decrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&PLAINTEXT))?;
 
@@ -328,7 +328,7 @@ fn test_what_decrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(),
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
         ("key", &KEY),
@@ -362,7 +362,7 @@ fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decrypting_under_a_wrong_tag_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
         ("key", &KEY),
