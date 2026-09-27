@@ -5,8 +5,9 @@
 use proc_macro_crate::FoundCrate;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
+use syn::parse::Parser;
 
-use crate::{dirt, expand, forensics_path, named};
+use crate::{dirt, dirty_byte, expand, forensics_path, named};
 
 fn every_one_found(_: &str) -> Option<FoundCrate> {
     Some(FoundCrate::Itself)
@@ -14,6 +15,19 @@ fn every_one_found(_: &str) -> Option<FoundCrate> {
 
 fn only(wanted: &'static str, as_name: &'static str) -> impl Fn(&str) -> Option<FoundCrate> {
     move |name| (name == wanted).then(|| FoundCrate::Name(as_name.to_owned()))
+}
+
+fn dirty_byte_of(args: TokenStream2) -> Result<u8, syn::Error> {
+    let mut byte = 0;
+
+    syn::meta::parser(|meta| {
+        byte = dirty_byte(meta)?;
+
+        Ok(())
+    })
+    .parse2(args)?;
+
+    Ok(byte)
 }
 
 fn same(left: TokenStream2, right: TokenStream2) {
@@ -37,7 +51,7 @@ fn test_test_expands_the_function_it_is_put_on() {
 
 #[test]
 fn test_forensics_path_reports_no_crate_to_reach() {
-    let result = forensics_path(|_| None);
+    let result = forensics_path(&|_| None);
 
     assert!(result.is_err_and(|error| error.to_string().contains("is a dependency")));
 }
@@ -45,7 +59,7 @@ fn test_forensics_path_reports_no_crate_to_reach() {
 #[test]
 fn test_forensics_path_returns_redoubt_forensics_first() -> Result<(), syn::Error> {
     same(
-        forensics_path(every_one_found)?,
+        forensics_path(&every_one_found)?,
         quote!(::redoubt_forensics),
     );
 
@@ -56,7 +70,7 @@ fn test_forensics_path_returns_redoubt_forensics_first() -> Result<(), syn::Erro
 fn test_forensics_path_returns_the_facade_s_forensics_without_redoubt_forensics()
 -> Result<(), syn::Error> {
     same(
-        forensics_path(only("redoubt", "redoubt"))?,
+        forensics_path(&only("redoubt", "redoubt"))?,
         quote!(::redoubt::forensics),
     );
 
@@ -67,7 +81,7 @@ fn test_forensics_path_returns_the_facade_s_forensics_without_redoubt_forensics(
 fn test_forensics_path_returns_redoubt_forensics_core_without_the_other_two()
 -> Result<(), syn::Error> {
     same(
-        forensics_path(only("redoubt-forensics-core", "redoubt_forensics_core"))?,
+        forensics_path(&only("redoubt-forensics-core", "redoubt_forensics_core"))?,
         quote!(::redoubt_forensics_core),
     );
 
@@ -78,7 +92,7 @@ fn test_forensics_path_returns_redoubt_forensics_core_without_the_other_two()
 fn test_forensics_path_returns_a_dependency_under_the_name_it_was_given() -> Result<(), syn::Error>
 {
     same(
-        forensics_path(only("redoubt-forensics", "renamed"))?,
+        forensics_path(&only("redoubt-forensics", "renamed"))?,
         quote!(::renamed),
     );
 
@@ -107,24 +121,10 @@ fn test_named_returns_the_name_the_dependency_was_given() {
 // ============================================================================
 
 #[test]
-fn test_dirt_reports_an_argument_that_is_not_dirty() {
+fn test_dirt_propagates_dirty_byte_error() {
     let result = dirt(quote!(clean = 1));
 
     assert!(result.is_err_and(|error| error.to_string().contains("dirty = <byte>")));
-}
-
-#[test]
-fn test_dirt_propagates_a_value_that_is_not_an_integer() {
-    let result = dirt(quote!(dirty = "0xFF"));
-
-    assert!(result.is_err_and(|error| error.to_string().contains("expected integer literal")));
-}
-
-#[test]
-fn test_dirt_propagates_a_value_wider_than_a_byte() {
-    let result = dirt(quote!(dirty = 256));
-
-    assert!(result.is_err_and(|error| error.to_string().contains("too large")));
 }
 
 #[test]
@@ -137,6 +137,38 @@ fn test_dirt_returns_none_without_arguments() -> Result<(), syn::Error> {
 #[test]
 fn test_dirt_returns_the_byte_it_is_given() -> Result<(), syn::Error> {
     assert_eq!(dirt(quote!(dirty = 0xFC))?, Some(0xFC));
+
+    Ok(())
+}
+
+// ============================================================================
+// dirty_byte
+// ============================================================================
+
+#[test]
+fn test_dirty_byte_reports_an_argument_that_is_not_dirty() {
+    let result = dirty_byte_of(quote!(clean = 1));
+
+    assert!(result.is_err_and(|error| error.to_string().contains("dirty = <byte>")));
+}
+
+#[test]
+fn test_dirty_byte_propagates_a_value_that_is_not_an_integer() {
+    let result = dirty_byte_of(quote!(dirty = "0xFF"));
+
+    assert!(result.is_err_and(|error| error.to_string().contains("expected integer literal")));
+}
+
+#[test]
+fn test_dirty_byte_propagates_a_value_wider_than_a_byte() {
+    let result = dirty_byte_of(quote!(dirty = 256));
+
+    assert!(result.is_err_and(|error| error.to_string().contains("too large")));
+}
+
+#[test]
+fn test_dirty_byte_returns_the_byte_it_is_given() -> Result<(), syn::Error> {
+    assert_eq!(dirty_byte_of(quote!(dirty = 0xFC))?, 0xFC);
 
     Ok(())
 }

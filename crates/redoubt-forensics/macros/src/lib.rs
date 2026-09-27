@@ -11,14 +11,24 @@ use proc_macro::TokenStream;
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
+use syn::meta::ParseNestedMeta;
 use syn::parse::Parser;
 use syn::{Ident, ItemFn, LitInt};
+
+/// Every crate that exports the allocator: the dependency's name, its own name
+/// inside itself, and the path to the allocator within it. The first one the
+/// caller depends on is the one reached.
+const REACHES: [(&str, &str, &[&str]); 3] = [
+    ("redoubt-forensics", "redoubt_forensics", &[]),
+    ("redoubt", "redoubt", &["forensics"]),
+    ("redoubt-forensics-core", "redoubt_forensics_core", &[]),
+];
 
 /// A `#[test]` whose first statement turns the forensics allocator on, filling
 /// what it hands out with the byte `dirty = <byte>` names, when there is one.
 #[proc_macro_attribute]
 pub fn test(args: TokenStream, item: TokenStream) -> TokenStream {
-    forensics_path(|name| crate_name(name).ok())
+    forensics_path(&|name| crate_name(name).ok())
         .and_then(|forensics| expand(args.into(), item.into(), forensics))
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
@@ -26,25 +36,25 @@ pub fn test(args: TokenStream, item: TokenStream) -> TokenStream {
 
 /// The path the expansion reaches the allocator through, from whichever of the
 /// crates that export it the caller depends on.
-fn forensics_path(find: impl Fn(&str) -> Option<FoundCrate>) -> Result<TokenStream2, syn::Error> {
-    if let Some(found) = find("redoubt-forensics") {
-        return Ok(named(found, "redoubt_forensics"));
-    }
+fn forensics_path(find: &dyn Fn(&str) -> Option<FoundCrate>) -> Result<TokenStream2, syn::Error> {
+    REACHES
+        .iter()
+        .find_map(|(dependency, itself, within)| {
+            find(dependency).map(|found| {
+                let reached = named(found, itself);
+                let within = within
+                    .iter()
+                    .map(|segment| Ident::new(segment, Span::call_site()));
 
-    if let Some(found) = find("redoubt") {
-        let redoubt = named(found, "redoubt");
-
-        return Ok(quote!(#redoubt::forensics));
-    }
-
-    if let Some(found) = find("redoubt-forensics-core") {
-        return Ok(named(found, "redoubt_forensics_core"));
-    }
-
-    Err(syn::Error::new(
-        Span::call_site(),
-        "none of redoubt-forensics, redoubt or redoubt-forensics-core is a dependency",
-    ))
+                quote!(#reached #(::#within)*)
+            })
+        })
+        .ok_or_else(|| {
+            syn::Error::new(
+                Span::call_site(),
+                "none of redoubt-forensics, redoubt or redoubt-forensics-core is a dependency",
+            )
+        })
 }
 
 /// The crate as the caller reaches it: the name its dependency goes by, or
@@ -66,13 +76,7 @@ fn dirt(args: TokenStream2) -> Result<Option<u8>, syn::Error> {
     let mut dirt = None;
 
     let parser = syn::meta::parser(|meta| {
-        if !meta.path.is_ident("dirty") {
-            return Err(meta.error("the only argument is `dirty = <byte>`"));
-        }
-
-        let byte: LitInt = meta.value()?.parse()?;
-
-        dirt = Some(byte.base10_parse::<u8>()?);
+        dirt = Some(dirty_byte(meta)?);
 
         Ok(())
     });
@@ -82,15 +86,25 @@ fn dirt(args: TokenStream2) -> Result<Option<u8>, syn::Error> {
     Ok(dirt)
 }
 
+fn dirty_byte(meta: ParseNestedMeta<'_>) -> Result<u8, syn::Error> {
+    if !meta.path.is_ident("dirty") {
+        return Err(meta.error("the only argument is `dirty = <byte>`"));
+    }
+
+    let byte: LitInt = meta.value()?.parse()?;
+
+    byte.base10_parse()
+}
+
 fn expand(
     args: TokenStream2,
     item: TokenStream2,
     forensics: TokenStream2,
 ) -> Result<TokenStream2, syn::Error> {
-    let dirt = match dirt(args)? {
-        Some(byte) => quote!(::core::option::Option::Some(#byte)),
-        None => quote!(::core::option::Option::None),
-    };
+    let dirt = dirt(args)?.map_or_else(
+        || quote!(::core::option::Option::None),
+        |byte| quote!(::core::option::Option::Some(#byte)),
+    );
 
     let ItemFn {
         attrs,
