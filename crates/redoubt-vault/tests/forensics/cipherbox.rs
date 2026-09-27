@@ -97,7 +97,7 @@ fn let_go<T>(value: T) {
 // SecretsBox::drop
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_box_dropped_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -119,7 +119,7 @@ fn test_a_box_dropped_leaves_nothing() -> Result<(), AnyError> {
 /// No presence of its own: at rest the box holds ciphertext, so a moved box has
 /// no plaintext to find. The absence leans on the presences of the opening
 /// methods.
-#[test]
+#[redoubt_forensics::test]
 fn test_a_box_given_away_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -144,7 +144,7 @@ fn test_a_box_given_away_leaves_nothing() -> Result<(), AnyError> {
 
 /// The box is alive and full when the photograph is taken. Its control is the
 /// `open` presence: the same box, open, holds the whole secret.
-#[test]
+#[redoubt_forensics::test]
 fn test_a_filled_box_holds_nothing_at_rest() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -179,7 +179,7 @@ fn test_making_a_box_leaves_nothing() {
 // SecretsBox::open
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_the_box_is_open() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -202,7 +202,7 @@ fn test_the_secret_is_found_while_the_box_is_open() -> Result<(), AnyError> {
 
 /// Most methods let the key go before anything could photograph it, so what
 /// vouches for its needle is the same brick, `leak_master_key`, held.
-#[test]
+#[redoubt_forensics::test]
 fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&master_key_backwards()?)?;
 
@@ -219,7 +219,7 @@ fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -244,7 +244,7 @@ fn test_open_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_that_fails_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -269,7 +269,7 @@ fn test_open_that_fails_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::open_mut
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_the_box_is_open_for_writing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
@@ -297,7 +297,7 @@ fn test_the_secret_is_found_while_the_box_is_open_for_writing() -> Result<(), An
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_mut_leaves_nothing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
@@ -324,7 +324,7 @@ fn test_open_mut_leaves_nothing() -> Result<(), AnyError> {
 
 /// Every field replaced inside one `open_mut`, which is the fill every other
 /// test here starts from.
-#[test]
+#[redoubt_forensics::test]
 fn test_filling_every_field_once_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -343,7 +343,7 @@ fn test_filling_every_field_once_leaves_nothing() -> Result<(), AnyError> {
 
 /// Only a residue that accumulates across fills, or a container that leaves its
 /// old contents as it grows, fails here and not after a single fill.
-#[test]
+#[redoubt_forensics::test]
 fn test_filling_every_field_many_times_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start()?;
 
@@ -366,7 +366,7 @@ fn test_filling_every_field_many_times_leaves_nothing() -> Result<(), AnyError> 
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
@@ -391,7 +391,7 @@ fn test_open_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::leak_a_vec
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_a_leaked_vec_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -410,7 +410,7 @@ fn test_what_a_leaked_vec_handed_back_is_found_while_it_is_held() -> Result<(), 
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -440,7 +440,7 @@ fn test_leak_a_vec_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::leak_an_array
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_a_leaked_array_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -459,7 +459,7 @@ fn test_what_a_leaked_array_handed_back_is_found_while_it_is_held() -> Result<()
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -489,7 +489,7 @@ fn test_leak_an_array_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::leak_an_option
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_a_leaked_option_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -508,7 +508,7 @@ fn test_what_a_leaked_option_handed_back_is_found_while_it_is_held() -> Result<(
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -538,7 +538,7 @@ fn test_leak_an_option_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::leak_two_options
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_two_leaked_options_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -557,7 +557,7 @@ fn test_what_two_leaked_options_handed_back_is_found_while_it_is_held() -> Resul
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -587,7 +587,7 @@ fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::open_a_vec
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_a_vec_is_open() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -608,7 +608,7 @@ fn test_the_secret_is_found_while_a_vec_is_open() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_a_vec_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -633,7 +633,7 @@ fn test_open_a_vec_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_a_vec_that_fails_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -658,7 +658,7 @@ fn test_open_a_vec_that_fails_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::open_an_array
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_an_array_is_open() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -679,7 +679,7 @@ fn test_the_secret_is_found_while_an_array_is_open() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_an_array_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -704,7 +704,7 @@ fn test_open_an_array_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_an_array_that_fails_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -729,7 +729,7 @@ fn test_open_an_array_that_fails_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::open_an_option
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_an_option_is_open() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -750,7 +750,7 @@ fn test_the_secret_is_found_while_an_option_is_open() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_an_option_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -775,7 +775,7 @@ fn test_open_an_option_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_an_option_that_fails_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -800,7 +800,7 @@ fn test_open_an_option_that_fails_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::open_two_options
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_one_field_is_open() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -821,7 +821,7 @@ fn test_the_secret_is_found_while_one_field_is_open() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -846,7 +846,7 @@ fn test_open_field_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_two_options_that_fails_leaves_nothing() -> Result<(), AnyError> {
     let (secrets_box, mut watching) = fill_while_watching()?;
 
@@ -872,7 +872,7 @@ fn test_open_two_options_that_fails_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::open_a_vec_mut
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_a_vec_is_open_for_writing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
@@ -900,7 +900,7 @@ fn test_the_secret_is_found_while_a_vec_is_open_for_writing() -> Result<(), AnyE
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_a_vec_mut_leaves_nothing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
@@ -925,7 +925,7 @@ fn test_open_a_vec_mut_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_a_vec_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
@@ -950,7 +950,7 @@ fn test_open_a_vec_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::open_an_array_mut
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_an_array_is_open_for_writing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
@@ -978,7 +978,7 @@ fn test_the_secret_is_found_while_an_array_is_open_for_writing() -> Result<(), A
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_an_array_mut_leaves_nothing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
@@ -1003,7 +1003,7 @@ fn test_open_an_array_mut_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_an_array_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
@@ -1032,7 +1032,7 @@ fn test_open_an_array_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::open_an_option_mut
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_an_option_is_open_for_writing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
@@ -1060,7 +1060,7 @@ fn test_the_secret_is_found_while_an_option_is_open_for_writing() -> Result<(), 
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_an_option_mut_leaves_nothing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
@@ -1085,7 +1085,7 @@ fn test_open_an_option_mut_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_an_option_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
@@ -1114,7 +1114,7 @@ fn test_open_an_option_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
 // SecretsBox::open_two_options_mut
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_the_secret_is_found_while_one_field_is_open_for_writing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
@@ -1142,7 +1142,7 @@ fn test_the_secret_is_found_while_one_field_is_open_for_writing() -> Result<(), 
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_field_mut_leaves_nothing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
@@ -1167,7 +1167,7 @@ fn test_open_field_mut_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_open_two_options_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
     let (mut secrets_box, mut watching) = fill_while_watching()?;
 
