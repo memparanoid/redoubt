@@ -20,39 +20,6 @@ use alloc::vec::Vec;
 #[cfg(test)]
 mod tests;
 
-/// Constant-time equality comparison for byte slices.
-///
-/// Returns `true` if slices are equal, `false` otherwise.
-/// The comparison time is constant regardless of where differences occur,
-/// preventing timing side-channel attacks.
-///
-/// # Example
-///
-/// ```
-/// use redoubt_util::constant_time_eq;
-///
-/// let a = [1, 2, 3, 4];
-/// let b = [1, 2, 3, 4];
-/// let c = [1, 2, 3, 5];
-///
-/// assert!(constant_time_eq(&a, &b));
-/// assert!(!constant_time_eq(&a, &c));
-/// ```
-#[inline]
-pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-
-    let mut acc = 0u8;
-
-    for (x, y) in a.iter().zip(b.iter()) {
-        acc |= x ^ y;
-    }
-
-    core::hint::black_box(acc) == 0
-}
-
 /// Parses a hexadecimal string into bytes.
 ///
 /// The string must have an even number of characters and contain only
