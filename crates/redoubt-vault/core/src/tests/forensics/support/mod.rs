@@ -8,11 +8,11 @@ use redoubt_alloc::RedoubtVec;
 use redoubt_buffer::BufferError;
 use redoubt_forensics::{AnyError, Forensics, QUIET, Report};
 
-use crate::master_key::leak_master_key;
+use crate::master_key::derive_next_cipherbox_key;
 
-use needles::{SECRET, backwards, master_key_backwards, master_key_width};
+use needles::{SECRET, backwards, box_key_width};
 
-/// The needles an operation of a box is held to, the secret and the master key,
+/// The needles an operation is held to, the secret and the key it works with,
 /// each with its photograph from before.
 pub(crate) struct Watching {
     pub(crate) secret: Forensics,
@@ -22,9 +22,9 @@ pub(crate) struct Watching {
 }
 
 impl Watching {
-    pub(crate) fn start() -> Result<Self, AnyError> {
+    pub(crate) fn start(key_backwards: &[u8]) -> Result<Self, AnyError> {
         let mut secret = Forensics::watching(&backwards())?;
-        let mut key = Forensics::watching(&master_key_backwards()?)?;
+        let mut key = Forensics::watching(key_backwards)?;
 
         let secret_before = secret.snapshot()?;
         let key_before = key.snapshot()?;
@@ -47,7 +47,7 @@ impl Watching {
             &self.key_before,
             before,
             &key_after,
-            &format!("{what}, in the master key"),
+            &format!("{what}, in the key"),
         );
 
         Ok(())
@@ -80,7 +80,7 @@ pub(crate) fn a_field() -> RedoubtVec<u8> {
 /// A copy of the key a box encrypts with, made by the copy that erases what it
 /// used: `to_vec` would be the C library's `memcpy`.
 pub(crate) fn a_key() -> Result<Vec<u8>, AnyError> {
-    let opened = leak_master_key(master_key_width())?;
+    let opened = derive_next_cipherbox_key(box_key_width())?;
     let mut key = vec![0_u8; opened.len()];
 
     // SAFETY: `key` was made as long as `opened`, and the two are different

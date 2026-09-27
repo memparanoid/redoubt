@@ -13,12 +13,11 @@ use redoubt_zero::{FastZeroizable, RedoubtZero};
 use crate::cipherbox::CipherBox;
 use crate::error::CipherBoxError;
 use crate::helpers::{decrypt_from, encrypt_into};
-use crate::master_key::leak_master_key;
 use crate::traits::{CipherBoxDyns, DecryptStruct, Decryptable, EncryptStruct, Encryptable};
 use crate::types::{Ciphertexts, Data, DataBuffers, Nonces, Tags};
 
-use super::support::needles::{backwards, master_key_backwards, master_key_width};
-use super::support::{Watching, a_field, a_key, giving, is_found, leaves_nothing};
+use super::support::needles::{backwards, next_box_key_backwards};
+use super::support::{Watching, a_field, giving, is_found, leaves_nothing};
 
 #[derive(Default, RedoubtZero, RedoubtCodec)]
 #[fast_zeroize(drop)]
@@ -91,9 +90,18 @@ fn value(of: usize) -> OneField {
     one_field
 }
 
-/// An empty box and a copy of the key it works with.
+/// An empty box and a copy of the key it works with, made by the copy that
+/// erases what it used: `to_vec` would be the C library's `memcpy`.
 fn a_box() -> Result<(OneFieldBox, Vec<u8>), AnyError> {
-    Ok((OneFieldBox::new(Aead::default()), a_key()?))
+    let one_field_box = OneFieldBox::new(Aead::default());
+    let derived = one_field_box.__unsafe_derive_key()?;
+    let mut key = vec![0_u8; derived.len()];
+
+    // SAFETY: `key` was made as long as `derived`, and neither is inside the
+    // other's allocation.
+    unsafe { redoubt_mem::copy_nonoverlapping(derived.as_ptr(), key.as_mut_ptr(), key.len()) };
+
+    Ok((one_field_box, key))
 }
 
 /// A box sealed over a value of the secret, and the key it was sealed with.
@@ -109,7 +117,7 @@ fn seal() -> Result<(OneFieldBox, Vec<u8>), AnyError> {
 /// A sealed box and its key's copy emptied, photographed from a clean process
 /// and held to leaving nothing before any test reads what its operation left.
 fn seal_while_watching() -> Result<(OneFieldBox, Watching), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let (one_field_box, mut key) = seal()?;
 
@@ -184,20 +192,23 @@ fn test_the_value_encrypting_is_handed_is_found_while_it_holds_it() -> Result<()
 }
 
 /// Most methods let the key go before anything could photograph it, so what
-/// vouches for its needle is the same brick, `leak_master_key`, held.
+/// vouches for its needle is the same brick, `derive_cipherbox_key`, held.
 #[redoubt_forensics::test]
-fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&master_key_backwards()?)?;
+fn test_the_box_key_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&next_box_key_backwards()?)?;
+    let one_field_box = OneFieldBox::new(Aead::default());
 
     forensics!({
-        let held = capture(|| leak_master_key(master_key_width()))?;
+        let held = capture(|| one_field_box.__unsafe_derive_key())?;
 
         core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;
 
-    is_found(&report, "the master key, held");
+    is_found(&report, "the box's key, held");
+
+    drop(core::hint::black_box(one_field_box));
 
     Ok(())
 }
@@ -207,7 +218,7 @@ macro_rules! encrypted {
         #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
-            let mut key_watch = Forensics::watching(&master_key_backwards()?)?;
+            let mut key_watch = Forensics::watching(&next_box_key_backwards()?)?;
 
             let report_before = watch.snapshot()?;
             let key_report_before = key_watch.snapshot()?;
@@ -302,7 +313,7 @@ macro_rules! decrypted {
         #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
-            let mut key_watch = Forensics::watching(&master_key_backwards()?)?;
+            let mut key_watch = Forensics::watching(&next_box_key_backwards()?)?;
 
             let report_before = watch.snapshot()?;
             let key_report_before = key_watch.snapshot()?;
@@ -391,7 +402,7 @@ fn test_what_was_decrypted_from_buffers_is_found_while_it_is_held() -> Result<()
 
 #[redoubt_forensics::test]
 fn test_decrypting_a_struct_from_buffers_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let (one_field_box, mut key) = seal()?;
 
@@ -422,7 +433,7 @@ fn test_decrypting_a_struct_from_buffers_leaves_nothing() -> Result<(), AnyError
 
 #[redoubt_forensics::test]
 fn test_sealing_an_unsealed_box_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let mut one_field_box = OneFieldBox::new(Aead::default());
 
@@ -468,7 +479,7 @@ fn test_what_a_field_was_tried_into_is_found_while_it_is_held() -> Result<(), An
 
 #[redoubt_forensics::test]
 fn test_trying_to_decrypt_a_field_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let (one_field_box, mut key) = seal()?;
 
@@ -522,7 +533,7 @@ fn test_what_a_field_was_decrypted_into_is_found_while_it_is_held() -> Result<()
 
 #[redoubt_forensics::test]
 fn test_decrypting_a_field_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let (one_field_box, mut key) = seal()?;
 
@@ -577,7 +588,7 @@ fn test_what_a_field_was_decrypted_into_through_a_buffer_is_found_while_it_is_he
 
 #[redoubt_forensics::test]
 fn test_decrypting_a_field_into_a_buffer_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let (one_field_box, mut key) = seal()?;
 
@@ -608,7 +619,7 @@ fn test_decrypting_a_field_into_a_buffer_leaves_nothing() -> Result<(), AnyError
 
 #[redoubt_forensics::test]
 fn test_trying_to_encrypt_a_field_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let (mut one_field_box, mut key) = seal()?;
 
@@ -639,7 +650,7 @@ fn test_trying_to_encrypt_a_field_leaves_nothing() -> Result<(), AnyError> {
 
 #[redoubt_forensics::test]
 fn test_encrypting_a_field_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let (mut one_field_box, mut key) = seal()?;
 
@@ -773,7 +784,7 @@ fn test_the_secret_is_found_while_it_is_open_for_writing_through_a_dyn() -> Resu
     );
     is_found(
         &key_inside.ok_or(Reason::NoAnswer)?,
-        "the master key, open for writing through a dyn",
+        "the box's key, open for writing through a dyn",
     );
 
     Ok(())
@@ -928,7 +939,7 @@ fn test_the_secret_is_found_while_a_field_is_open_for_writing_through_a_dyn() ->
     );
     is_found(
         &key_inside.ok_or(Reason::NoAnswer)?,
-        "the master key, a field open for writing through a dyn",
+        "the box's key, a field open for writing through a dyn",
     );
 
     Ok(())
@@ -1031,7 +1042,7 @@ fn test_the_secret_is_found_while_a_cipherbox_is_open_for_writing() -> Result<()
     );
     is_found(
         &key_inside.ok_or(Reason::NoAnswer)?,
-        "the master key, a cipherbox open for writing",
+        "the box's key, a cipherbox open for writing",
     );
 
     Ok(())
@@ -1110,7 +1121,7 @@ fn test_the_secret_is_found_while_a_field_of_a_cipherbox_is_open_for_writing()
     );
     is_found(
         &key_inside.ok_or(Reason::NoAnswer)?,
-        "the master key, a field of a cipherbox open for writing",
+        "the box's key, a field of a cipherbox open for writing",
     );
 
     Ok(())

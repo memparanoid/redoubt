@@ -15,10 +15,10 @@ use crate::helpers::{
     decrypt_from, encrypt_into, encrypt_into_buffers, get_sizes, to_decryptable_mut_dyn,
     to_encryptable_mut_dyn, try_decrypt_from, try_encrypt_into_buffers,
 };
-use crate::master_key::leak_master_key;
+use crate::master_key::derive_next_cipherbox_key;
 use crate::types::{Ciphertexts, Nonces, Tags};
 
-use super::support::needles::{backwards, master_key_backwards, master_key_width};
+use super::support::needles::{backwards, box_key_width, next_box_key_backwards};
 use super::support::{Watching, a_field, a_key, is_found};
 
 type Field = RedoubtVec<u8>;
@@ -121,27 +121,27 @@ fn test_the_field_encrypting_is_handed_is_found_while_it_holds_it() -> Result<()
 }
 
 /// Nothing here holds the key after it returns, so what vouches for its needle
-/// is `leak_master_key`, held.
+/// is the same key, derived and held.
 #[redoubt_forensics::test]
-fn test_the_master_key_is_found_while_it_is_held() -> Result<(), AnyError> {
-    let mut watch = Forensics::watching(&master_key_backwards()?)?;
+fn test_the_box_key_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let mut watch = Forensics::watching(&next_box_key_backwards()?)?;
 
     forensics!({
-        let held = capture(|| leak_master_key(master_key_width()))?;
+        let held = capture(|| derive_next_cipherbox_key(box_key_width()))?;
 
         core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;
 
-    is_found(&report, "the master key, held");
+    is_found(&report, "the box's key, held");
 
     Ok(())
 }
 
 #[redoubt_forensics::test]
 fn test_encrypting_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let mut aead = Aead::default();
     let mut key = a_key()?;
@@ -229,7 +229,7 @@ fn test_what_encrypting_exported_and_did_not_encrypt_is_found() -> Result<(), An
 
 #[redoubt_forensics::test]
 fn test_trying_to_encrypt_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let mut aead = Aead::default();
     let mut key = a_key()?;
@@ -276,7 +276,7 @@ fn test_trying_to_encrypt_leaves_nothing() -> Result<(), AnyError> {
 
 #[redoubt_forensics::test]
 fn test_encrypting_into_buffers_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let mut aead = Aead::default();
     let mut key = a_key()?;
@@ -319,7 +319,7 @@ fn test_encrypting_into_buffers_leaves_nothing() -> Result<(), AnyError> {
 
 #[redoubt_forensics::test]
 fn test_encrypting_into_buffers_refused_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let mut aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(2));
     let mut key = a_key()?;
@@ -454,7 +454,7 @@ fn test_what_decrypting_decrypted_and_did_not_decode_is_found() -> Result<(), An
 
 #[redoubt_forensics::test]
 fn test_trying_to_decrypt_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let mut sealed = seal()?;
 
@@ -500,7 +500,7 @@ fn test_trying_to_decrypt_leaves_nothing() -> Result<(), AnyError> {
 
 #[redoubt_forensics::test]
 fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let mut sealed = seal()?;
 
@@ -542,7 +542,7 @@ fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
 
 #[redoubt_forensics::test]
 fn test_decrypting_refused_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start()?;
+    let mut watching = Watching::start(&next_box_key_backwards()?)?;
 
     let mut sealed = seal()?;
 

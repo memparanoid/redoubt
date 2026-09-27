@@ -6,7 +6,7 @@ use redoubt_aead::Aead;
 use redoubt_buffer::BufferError;
 use redoubt_forensics::AnyError;
 
-use crate::master_key::leak_master_key;
+use crate::master_key::derive_next_cipherbox_key;
 
 /// The secret: thirty-two bytes, none repeated, so a run that extends did not
 /// extend by luck.
@@ -25,15 +25,14 @@ pub(crate) fn backwards() -> Vec<u8> {
     SECRET.iter().rev().copied().collect()
 }
 
-/// How much of the master key a box encrypts with: the default cipher's key.
-pub(crate) fn master_key_width() -> usize {
+pub(crate) fn box_key_width() -> usize {
     Aead::default().key_size()
 }
 
-/// The key needle, opened once and turned around where it lies: what is held
-/// from then on is the key backwards, which is not the key.
-pub(crate) fn master_key_backwards() -> Result<Vec<u8>, AnyError> {
-    let mut needle = leak_master_key(master_key_width())?;
+/// The key the next box made in this process encrypts with, derived the way
+/// the box derives it and turned around where it lies.
+pub(crate) fn next_box_key_backwards() -> Result<Vec<u8>, AnyError> {
+    let mut needle = derive_next_cipherbox_key(box_key_width())?;
 
     needle.reverse();
 
