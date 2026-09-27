@@ -146,7 +146,7 @@ fn test_summing_bytes_required_leaves_nothing() {
 // encode_fields
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_encoding_fields_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     let (mut first, mut second) = (secret_bytes(32), secret_bytes(32));
     let mut watch = Forensics::watching(&backwards())?;
@@ -175,7 +175,7 @@ fn test_what_encoding_fields_wrote_is_found_while_the_buffer_holds_it() -> Resul
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encoding_fields_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -221,7 +221,7 @@ fn test_encoding_fields_leaves_nothing() -> Result<(), AnyError> {
 /// Room for the first field and not the second, so the third is never reached:
 /// the encode that failed and the one that never ran are both emptied by the
 /// loop.
-#[test]
+#[redoubt_forensics::test]
 fn test_encoding_fields_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -271,7 +271,7 @@ fn test_encoding_fields_into_a_buffer_too_small_leaves_nothing() -> Result<(), A
 // decode_fields
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_decoding_fields_wrote_is_found_while_the_fields_hold_it() -> Result<(), AnyError> {
     let mut wire = two_wire()?;
     let mut watch = Forensics::watching(&backwards())?;
@@ -298,7 +298,7 @@ fn test_what_decoding_fields_wrote_is_found_while_the_fields_hold_it() -> Result
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decoding_fields_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -343,7 +343,7 @@ fn test_decoding_fields_leaves_nothing() -> Result<(), AnyError> {
 /// The first field decodes and the second refuses without touching the
 /// buffer, so what empties the first field and what is left of the wire is the
 /// loop.
-#[test]
+#[redoubt_forensics::test]
 fn test_decoding_fields_refused_by_one_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 

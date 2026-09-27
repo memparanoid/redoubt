@@ -21,7 +21,7 @@ use crate::tests::forensics::support::{
 // RedoubtCodecBuffer::drop
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_buffer_dropped_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -51,7 +51,7 @@ fn test_a_buffer_dropped_leaves_nothing() -> Result<(), AnyError> {
 // RedoubtCodecBuffer, moved
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_buffer_given_away_is_found_while_it_is_kept() -> Result<(), AnyError> {
     let buffer = a_buffer_holding()?;
     let mut watch = Forensics::watching(&backwards())?;
@@ -69,7 +69,7 @@ fn test_a_buffer_given_away_is_found_while_it_is_kept() -> Result<(), AnyError> 
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_a_buffer_given_away_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -119,7 +119,7 @@ fn test_making_a_buffer_leaves_nothing() {
 // RedoubtCodecBuffer::realloc_with_capacity
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_reallocating_a_buffer_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -152,7 +152,7 @@ fn test_reallocating_a_buffer_leaves_nothing() -> Result<(), AnyError> {
 // RedoubtCodecBuffer::clear
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_clearing_a_buffer_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -225,7 +225,7 @@ fn test_asking_whether_a_buffer_is_empty_leaves_nothing() {
 // RedoubtCodecBuffer::write
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_writing_a_value_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     let mut value = a_u128();
     let mut watch = Forensics::watching(&half_backwards())?;
@@ -246,7 +246,7 @@ fn test_what_writing_a_value_wrote_is_found_while_the_buffer_holds_it() -> Resul
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_writing_a_value_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&half_backwards())?;
 
@@ -282,7 +282,7 @@ fn test_writing_a_value_leaves_nothing() -> Result<(), AnyError> {
 // RedoubtCodecBuffer::write_slice
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_writing_a_slice_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     let mut source = secret_bytes(32);
     let mut watch = Forensics::watching(&backwards())?;
@@ -303,7 +303,7 @@ fn test_what_writing_a_slice_wrote_is_found_while_the_buffer_holds_it() -> Resul
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_writing_a_slice_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -339,7 +339,7 @@ fn test_writing_a_slice_leaves_nothing() -> Result<(), AnyError> {
 // RedoubtCodecBuffer::export_as_vec
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_exporting_wrote_is_found_while_the_vec_holds_it() -> Result<(), AnyError> {
     let mut buffer = a_buffer_holding()?;
     let mut watch = Forensics::watching(&backwards())?;
@@ -357,7 +357,7 @@ fn test_what_exporting_wrote_is_found_while_the_vec_holds_it() -> Result<(), Any
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_exporting_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 

@@ -50,7 +50,7 @@ fn test_sizing_a_redoubt_vec_leaves_nothing() {
 // RedoubtVec::encode_into
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     let mut value = hold(32);
     let mut watch = Forensics::watching(&backwards())?;
@@ -70,7 +70,7 @@ fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), A
 
 macro_rules! encoded {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 
@@ -118,7 +118,7 @@ encoded!(test_encoding_32768_bytes_leaves_nothing, 32768);
 // RedoubtVec::decode_from
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_decoding_wrote_is_found_while_the_redoubt_vec_holds_it() -> Result<(), AnyError> {
     let mut wire = wire(32)?;
     let mut watch = Forensics::watching(&backwards())?;
@@ -138,7 +138,7 @@ fn test_what_decoding_wrote_is_found_while_the_redoubt_vec_holds_it() -> Result<
 
 macro_rules! decoded {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 

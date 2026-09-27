@@ -24,7 +24,7 @@ fn source(of: usize) -> Vec<u8> {
 // <&mut [u8]>::read
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_reading_a_value_wrote_is_found_while_the_value_holds_it() -> Result<(), AnyError> {
     let mut source = source(4096);
     let mut watch = Forensics::watching(&backwards())?;
@@ -45,7 +45,7 @@ fn test_what_reading_a_value_wrote_is_found_while_the_value_holds_it() -> Result
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_reading_a_value_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -82,7 +82,7 @@ fn test_reading_a_value_leaves_nothing() -> Result<(), AnyError> {
 // <&mut [u8]>::read_slice
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_reading_a_slice_wrote_is_found_while_the_slice_holds_it() -> Result<(), AnyError> {
     let mut source = source(4096);
     let mut watch = Forensics::watching(&backwards())?;
@@ -104,7 +104,7 @@ fn test_what_reading_a_slice_wrote_is_found_while_the_slice_holds_it() -> Result
 
 macro_rules! read_slice_of {
     ($name:ident, $of:expr) => {
-        #[test]
+        #[redoubt_forensics::test]
         fn $name() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards())?;
 

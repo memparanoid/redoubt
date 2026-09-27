@@ -14,3 +14,7 @@ mod codec_buffer;
 mod collections;
 mod decode_buffer;
 mod primitives;
+
+#[global_allocator]
+static ALLOCATOR: redoubt_forensics::ForensicsAllocator<std::alloc::System> =
+    redoubt_forensics::ForensicsAllocator::new(std::alloc::System);

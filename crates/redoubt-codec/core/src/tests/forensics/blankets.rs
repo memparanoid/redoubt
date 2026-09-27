@@ -47,7 +47,7 @@ fn test_sizing_a_box_leaves_nothing() {
 // Box::encode_into
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_encoding_a_box_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     let mut boxed = a_box();
     let mut watch = Forensics::watching(&backwards())?;
@@ -65,7 +65,7 @@ fn test_what_encoding_a_box_wrote_is_found_while_the_buffer_holds_it() -> Result
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encoding_a_box_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -101,7 +101,7 @@ fn test_encoding_a_box_leaves_nothing() -> Result<(), AnyError> {
 // Box::decode_from
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_decoding_a_box_wrote_is_found_while_the_box_holds_it() -> Result<(), AnyError> {
     let mut wire = wire()?;
     let mut watch = Forensics::watching(&backwards())?;
@@ -119,7 +119,7 @@ fn test_what_decoding_a_box_wrote_is_found_while_the_box_holds_it() -> Result<()
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decoding_a_box_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 

@@ -52,7 +52,7 @@ fn test_sizing_a_redoubt_array_leaves_nothing() {
 // RedoubtArray::encode_into
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     let mut held = hold();
     let mut watch = Forensics::watching(&backwards())?;
@@ -70,7 +70,7 @@ fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), A
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -106,7 +106,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
 // RedoubtArray::decode_from
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_decoding_wrote_is_found_while_the_redoubt_array_holds_it() -> Result<(), AnyError> {
     let mut wire = wire()?;
     let mut watch = Forensics::watching(&backwards())?;
@@ -124,7 +124,7 @@ fn test_what_decoding_wrote_is_found_while_the_redoubt_array_holds_it() -> Resul
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decoding_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -156,7 +156,7 @@ fn test_decoding_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decoding_over_a_redoubt_array_that_holds_a_secret_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 

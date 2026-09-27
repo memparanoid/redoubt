@@ -59,7 +59,7 @@ fn wire_of_neither() -> Result<Vec<u8>, AnyError> {
 // cleanup_encode_error
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -93,7 +93,7 @@ fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
 // cleanup_decode_error
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_cleaning_up_a_refused_decode_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -137,7 +137,7 @@ fn test_sizing_an_option_leaves_nothing() {
 // Option::try_encode_into
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_trying_to_encode_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     let mut held = some();
     let mut watch = Forensics::watching(&backwards())?;
@@ -158,7 +158,7 @@ fn test_what_trying_to_encode_wrote_is_found_while_the_buffer_holds_it() -> Resu
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -194,7 +194,7 @@ fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
 // Option::encode_into
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), AnyError> {
     let mut held = some();
     let mut watch = Forensics::watching(&backwards())?;
@@ -212,7 +212,7 @@ fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), A
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -244,7 +244,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_encoding_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -284,7 +284,7 @@ fn test_encoding_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError
 // Option::try_decode_from
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_trying_to_decode_some_wrote_is_found_while_the_option_holds_it() -> Result<(), AnyError>
 {
     let mut wire = wire()?;
@@ -303,7 +303,7 @@ fn test_what_trying_to_decode_some_wrote_is_found_while_the_option_holds_it() ->
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_trying_to_decode_some_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -339,7 +339,7 @@ fn test_trying_to_decode_some_leaves_nothing() -> Result<(), AnyError> {
 // Option::decode_from
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_decoding_some_wrote_is_found_while_the_option_holds_it() -> Result<(), AnyError> {
     let mut wire = wire()?;
     let mut watch = Forensics::watching(&backwards())?;
@@ -357,7 +357,7 @@ fn test_what_decoding_some_wrote_is_found_while_the_option_holds_it() -> Result<
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decoding_some_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -389,7 +389,7 @@ fn test_decoding_some_leaves_nothing() -> Result<(), AnyError> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decoding_none_over_an_option_that_holds_a_secret_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
@@ -420,7 +420,7 @@ fn test_decoding_none_over_an_option_that_holds_a_secret_leaves_nothing() -> Res
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_decoding_a_wire_that_says_neither_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
