@@ -32,7 +32,7 @@ const AEGIS_KEY: [u8; aegis::KEY_SIZE] = [
 // chacha_widths
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_chacha_widths_finds_the_key_while_the_caller_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&CHACHA_KEY))?;
 
@@ -53,7 +53,7 @@ fn test_chacha_widths_finds_the_key_while_the_caller_holds_it() -> Result<(), An
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_chacha_widths_leaves_no_key_behind() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[("key", &CHACHA_KEY)])?;
 
@@ -82,7 +82,7 @@ fn test_chacha_widths_leaves_no_key_behind() -> Result<(), AnyError> {
 // chacha_widths_mut
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_chacha_widths_mut_finds_the_key_while_the_caller_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&CHACHA_KEY))?;
 
@@ -103,7 +103,7 @@ fn test_chacha_widths_mut_finds_the_key_while_the_caller_holds_it() -> Result<()
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_chacha_widths_mut_leaves_no_key_behind() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[("key", &CHACHA_KEY)])?;
 
@@ -132,7 +132,7 @@ fn test_chacha_widths_mut_leaves_no_key_behind() -> Result<(), AnyError> {
 // aegis_widths
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_aegis_widths_finds_the_key_while_the_caller_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&AEGIS_KEY))?;
 
@@ -153,7 +153,7 @@ fn test_aegis_widths_finds_the_key_while_the_caller_holds_it() -> Result<(), Any
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_aegis_widths_leaves_no_key_behind() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[("key", &AEGIS_KEY)])?;
 
@@ -182,7 +182,7 @@ fn test_aegis_widths_leaves_no_key_behind() -> Result<(), AnyError> {
 // aegis_widths_mut
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_aegis_widths_mut_finds_the_key_while_the_caller_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards(&AEGIS_KEY))?;
 
@@ -203,7 +203,7 @@ fn test_aegis_widths_mut_finds_the_key_while_the_caller_holds_it() -> Result<(),
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_aegis_widths_mut_leaves_no_key_behind() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[("key", &AEGIS_KEY)])?;
 

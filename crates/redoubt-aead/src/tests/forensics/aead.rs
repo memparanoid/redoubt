@@ -439,7 +439,7 @@ macro_rules! test_what_encrypting_leaves {
         $algorithm:expr, $key:expr, $nonce:expr, $plaintext:expr, $ciphertext:expr $(,)?
     ) => {
         $(#[$gate])*
-        #[test]
+        #[redoubt_forensics::test]
         fn $found() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards(&$ciphertext))?;
 
@@ -464,7 +464,7 @@ macro_rules! test_what_encrypting_leaves {
         }
 
         $(#[$gate])*
-        #[test]
+        #[redoubt_forensics::test]
         fn $leaves() -> Result<(), AnyError> {
             let mut watching = Watching::start(&[("key", &$key), ("plaintext", &$plaintext)])?;
 
@@ -494,7 +494,7 @@ macro_rules! test_what_encrypting_leaves {
         /// The key is converted before the nonce is, so it has been read
         /// when the width is refused.
         $(#[$gate])*
-        #[test]
+        #[redoubt_forensics::test]
         fn $refused() -> Result<(), AnyError> {
             let mut watching = Watching::start(&[("key", &$key), ("plaintext", &$plaintext)])?;
 
@@ -566,7 +566,7 @@ macro_rules! test_what_decrypting_leaves {
         $tag:expr $(,)?
     ) => {
         $(#[$gate])*
-        #[test]
+        #[redoubt_forensics::test]
         fn $found() -> Result<(), AnyError> {
             let mut watch = Forensics::watching(&backwards(&$plaintext))?;
 
@@ -590,7 +590,7 @@ macro_rules! test_what_decrypting_leaves {
         }
 
         $(#[$gate])*
-        #[test]
+        #[redoubt_forensics::test]
         fn $leaves() -> Result<(), AnyError> {
             let mut watching = Watching::start(&[
                 ("key", &$key),
@@ -624,7 +624,7 @@ macro_rules! test_what_decrypting_leaves {
         }
 
         $(#[$gate])*
-        #[test]
+        #[redoubt_forensics::test]
         fn $refused() -> Result<(), AnyError> {
             let mut watching = Watching::start(&[
                 ("key", &$key),
@@ -663,7 +663,7 @@ macro_rules! test_what_decrypting_leaves {
         /// The key is converted before the nonce is, so it has been read
         /// when the width is refused.
         $(#[$gate])*
-        #[test]
+        #[redoubt_forensics::test]
         fn $narrow() -> Result<(), AnyError> {
             let mut watching = Watching::start(&[("key", &$key)])?;
 
