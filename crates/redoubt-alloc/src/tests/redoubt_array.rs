@@ -10,7 +10,7 @@ use crate::RedoubtArray;
 // ║ ZEROIZATION                                                                ║
 // ╚════════════════════════════════════════════════════════════════════════════╝
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_array_is_zeroizable() {
     let mut data = [1u8, 2, 3, 4, 5];
     let mut arr = RedoubtArray::from_mut_array(&mut data);
@@ -21,7 +21,7 @@ fn test_redoubt_array_is_zeroizable() {
     assert!(arr.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_array_zeroizes_on_drop() {
     let mut data = [1u8, 2, 3, 4, 5];
     let arr = RedoubtArray::from_mut_array(&mut data);
@@ -35,7 +35,7 @@ fn test_redoubt_array_zeroizes_on_drop() {
 // new()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_new() {
     let arr: RedoubtArray<u8, 32> = RedoubtArray::new();
 
@@ -47,7 +47,7 @@ fn test_new() {
 // from_mut_array()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_from_mut_array() {
     let mut data = [1u8, 2, 3, 4, 5];
     let arr = RedoubtArray::from_mut_array(&mut data);
@@ -60,7 +60,7 @@ fn test_from_mut_array() {
 // len(), is_empty()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_len_and_is_empty() {
     let arr: RedoubtArray<u8, 32> = RedoubtArray::new();
 
@@ -77,7 +77,7 @@ fn test_len_and_is_empty() {
 // replace_from_mut_array()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_replace_from_mut_array() {
     let mut arr = RedoubtArray::<u8, 32>::new();
     let mut src = [42u8; 32];
@@ -91,7 +91,7 @@ fn test_replace_from_mut_array() {
     assert!(src.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_replace_from_mut_array_replaces_existing() {
     let mut arr = RedoubtArray::<u8, 32>::new();
 
@@ -108,7 +108,7 @@ fn test_replace_from_mut_array_replaces_existing() {
     assert!(src2.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_replace_from_mut_array_pattern() {
     let mut arr = RedoubtArray::<u8, 32>::new();
     let mut src = [0u8; 32];
@@ -131,7 +131,7 @@ fn test_replace_from_mut_array_pattern() {
 // as_slice()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_slice() {
     let mut arr = RedoubtArray::<u8, 32>::new();
     let mut src = [7u8; 32];
@@ -149,7 +149,7 @@ fn test_as_slice() {
 // as_mut_slice()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_mut_slice() {
     let mut arr = RedoubtArray::<u8, 32>::new();
     let mut src = [1u8; 32];
@@ -167,7 +167,7 @@ fn test_as_mut_slice() {
 // as_array()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_array() {
     let mut arr = RedoubtArray::<u8, 32>::new();
     let mut src = [7u8; 32];
@@ -181,7 +181,7 @@ fn test_as_array() {
     assert_eq!(array_ref[0], 7);
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_array_pattern_matching() {
     let mut arr = RedoubtArray::<u8, 3>::new();
     let mut src = [10u8, 20u8, 30u8];
@@ -200,7 +200,7 @@ fn test_as_array_pattern_matching() {
 // as_mut_array()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_mut_array() {
     let mut arr = RedoubtArray::<u8, 32>::new();
     let mut src = [1u8; 32];
@@ -216,7 +216,7 @@ fn test_as_mut_array() {
     assert_eq!(arr[31], 88);
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_mut_array_full_replacement() {
     let mut arr = RedoubtArray::<u8, 4>::new();
     let mut src = [1u8, 2u8, 3u8, 4u8];
@@ -237,7 +237,7 @@ fn test_as_mut_array_full_replacement() {
 // Default
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_default() {
     let arr: RedoubtArray<u8, 32> = RedoubtArray::default();
 
@@ -249,7 +249,7 @@ fn test_default() {
 // PartialEq / Eq
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_partial_eq_equal_arrays() {
     let mut arr1 = RedoubtArray::<u8, 32>::new();
     let mut src1 = [5u8; 32];
@@ -267,7 +267,7 @@ fn test_partial_eq_equal_arrays() {
     assert!(arr1 == arr2);
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_partial_eq_different_arrays() {
     let mut arr1 = RedoubtArray::<u8, 32>::new();
     let mut src1 = [1u8; 32];
@@ -289,7 +289,7 @@ fn test_partial_eq_different_arrays() {
 // Deref / DerefMut
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_deref() {
     let mut arr = RedoubtArray::<u8, 32>::new();
     let mut src = [42u8; 32];
@@ -312,7 +312,7 @@ fn test_deref() {
 // Debug
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_debug_redacted() {
     let mut arr = RedoubtArray::<u8, 32>::new();
     let mut src = [42u8; 32];

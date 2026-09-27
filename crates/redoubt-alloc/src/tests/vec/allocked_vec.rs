@@ -14,7 +14,7 @@ use crate::error::AllockedVecError;
 
 /// A `#[default]` that moved would leave everything constructed without a
 /// behaviour injecting a failure instead of nothing.
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_behaviour_default_returns_none() {
     assert_eq!(AllockedVecBehaviour::default(), AllockedVecBehaviour::None);
 }
@@ -23,7 +23,7 @@ fn test_behaviour_default_returns_none() {
 // ║ ZEROIZATION                                                                ║
 // ╚════════════════════════════════════════════════════════════════════════════╝
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_is_zeroizable() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
@@ -36,7 +36,7 @@ fn test_allocked_vec_is_zeroizable() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_zeroizes_on_drop() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
@@ -58,7 +58,7 @@ fn test_allocked_vec_zeroizes_on_drop() -> Result<(), Box<dyn std::error::Error>
 // with_capacity()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_with_capacity_seals_allocked_vec() {
     let vec: AllockedVec<u8> = AllockedVec::with_capacity(10);
 
@@ -80,7 +80,7 @@ fn test_allocked_vec_with_capacity_seals_allocked_vec() {
 // reserve_exact()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_reserve_exact_seals_vector() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec: AllockedVec<u8> = AllockedVec::default();
 
@@ -105,7 +105,7 @@ fn test_allocked_vec_reserve_exact_seals_vector() -> Result<(), Box<dyn std::err
 
 /// The allocator hands out a freed block, or a piece of one, as its last owner
 /// left it.
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_reserve_exact_zeroizes_the_block_the_allocator_hands_it()
 -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<u8>::new();
@@ -125,7 +125,7 @@ fn test_allocked_vec_reserve_exact_zeroizes_the_block_the_allocator_hands_it()
 // push()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_push_within_capacity() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(3);
 
@@ -145,7 +145,7 @@ fn test_allocked_vec_push_within_capacity() -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_push_exceeds_capacity() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(2);
 
@@ -170,7 +170,7 @@ fn test_allocked_vec_push_exceeds_capacity() -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_push_empties_what_it_was_handed() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(1);
     let mut one = 7u8;
@@ -185,7 +185,7 @@ fn test_allocked_vec_push_empties_what_it_was_handed() -> Result<(), Box<dyn std
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_push_carries_an_array_whole() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(1);
     let mut one = [9u8; 32];
@@ -206,7 +206,7 @@ fn test_allocked_vec_push_carries_an_array_whole() -> Result<(), Box<dyn std::er
 /// which is what says the exchange moved the value rather than copying it. A
 /// copy of a value like this would leave two of them naming one buffer, and the
 /// second free of it is what this test would not survive.
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_push_carries_a_vec_by_its_buffer() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(1);
     let mut one = alloc::vec![1u8, 2, 3];
@@ -228,7 +228,7 @@ fn test_allocked_vec_push_carries_a_vec_by_its_buffer() -> Result<(), Box<dyn st
 /// Load-bearing rather than a matter of speed: a `Vec` that grew would copy
 /// what it holds into a new block and free the old one without emptying it, and
 /// what was in the old one is the whole of what this type exists to protect.
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_push_does_not_reallocate() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<[u8; 32]>::with_capacity(8);
 
@@ -255,7 +255,7 @@ fn test_allocked_vec_push_does_not_reallocate() -> Result<(), Box<dyn std::error
 // as_slice()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_as_slice_and_as_mut_slice() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(3);
 
@@ -286,7 +286,7 @@ fn test_allocked_vec_as_slice_and_as_mut_slice() -> Result<(), Box<dyn std::erro
 // truncate()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_truncate_zeroizes_removed_elements() -> Result<(), Box<dyn std::error::Error>>
 {
     let mut vec = AllockedVec::with_capacity(5);
@@ -320,7 +320,7 @@ fn test_allocked_vec_truncate_zeroizes_removed_elements() -> Result<(), Box<dyn 
 // drain_from()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_drain_from_success() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
@@ -345,7 +345,7 @@ fn test_allocked_vec_drain_from_success() -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_drain_from_exceeds_capacity() {
     let mut vec = AllockedVec::with_capacity(3);
 
@@ -368,7 +368,7 @@ fn test_allocked_vec_drain_from_exceeds_capacity() {
     assert!(!vec.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_drain_from_partial_fill() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(10);
 
@@ -390,7 +390,7 @@ fn test_allocked_vec_drain_from_partial_fill() -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_drain_from_carries_arrays_whole() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(2);
     let mut data = [[9u8; 32], [8u8; 32]];
@@ -411,7 +411,7 @@ fn test_allocked_vec_drain_from_carries_arrays_whole() -> Result<(), Box<dyn std
 /// is what says they were exchanged rather than copied. Different lengths on
 /// purpose: a length that stayed behind is then visible as a length rather than
 /// as bytes that happen to agree.
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_drain_from_carries_vecs_by_their_buffers()
 -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(2);
@@ -440,7 +440,7 @@ fn test_allocked_vec_drain_from_carries_vecs_by_their_buffers()
 /// Load-bearing rather than a matter of speed: a `Vec` that grew would copy
 /// what it holds into a new block and free the old one without emptying it, and
 /// what was in the old one is the whole of what this type exists to protect.
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_drain_from_does_not_reallocate() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<[u8; 32]>::with_capacity(8);
 
@@ -461,7 +461,7 @@ fn test_allocked_vec_drain_from_does_not_reallocate() -> Result<(), Box<dyn std:
 // realloc_with_capacity()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_realloc_with_noop_when_sufficient() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
@@ -497,7 +497,7 @@ fn test_allocked_vec_realloc_with_noop_when_sufficient() -> Result<(), Box<dyn s
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_realloc_with_zeroizes_old_allocation() -> Result<(), Box<dyn std::error::Error>>
 {
     let mut vec = AllockedVec::with_capacity(2);
@@ -539,7 +539,7 @@ fn test_allocked_vec_realloc_with_zeroizes_old_allocation() -> Result<(), Box<dy
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_realloc_with_capacity_noop_when_sufficient()
 -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
@@ -571,7 +571,7 @@ fn test_allocked_vec_realloc_with_capacity_noop_when_sufficient()
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_realloc_with_capacity_preserves_len() -> Result<(), Box<dyn std::error::Error>>
 {
     let mut vec = AllockedVec::with_capacity(5);
@@ -596,7 +596,7 @@ fn test_allocked_vec_realloc_with_capacity_preserves_len() -> Result<(), Box<dyn
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_realloc_with_capacity_ok() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(0);
 
@@ -626,7 +626,7 @@ fn test_allocked_vec_realloc_with_capacity_ok() -> Result<(), Box<dyn std::error
 // fill_with_default()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_fill_with_default_empty_vec() {
     let mut vec = AllockedVec::<u8>::with_capacity(5);
 
@@ -644,7 +644,7 @@ fn test_allocked_vec_fill_with_default_empty_vec() {
     assert!(!vec.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_fill_with_default_partial_vec() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<u8>::with_capacity(5);
 
@@ -667,7 +667,7 @@ fn test_allocked_vec_fill_with_default_partial_vec() -> Result<(), Box<dyn std::
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_fill_with_default_full_vec() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<u8>::with_capacity(3);
 
@@ -695,7 +695,7 @@ fn test_allocked_vec_fill_with_default_full_vec() -> Result<(), Box<dyn std::err
 // change_behaviour() (test-utils feature)
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_behaviour_fail_at_push() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(10);
 
@@ -728,7 +728,7 @@ fn test_allocked_vec_behaviour_fail_at_push() -> Result<(), Box<dyn std::error::
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_behaviour_fail_at_drain_from() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(10);
 
@@ -772,7 +772,7 @@ fn test_allocked_vec_behaviour_fail_at_drain_from() -> Result<(), Box<dyn std::e
 // as_mut_ptr() (unsafe feature)
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_as_mut_ptr_write_single_byte() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<u8>::with_capacity(1);
 
@@ -799,7 +799,7 @@ fn test_allocked_vec_as_mut_ptr_write_single_byte() -> Result<(), Box<dyn std::e
 // as_capacity_slice() (unsafe feature)
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_as_capacity_slice_returns_full_capacity()
 -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<u8>::with_capacity(5);
@@ -831,7 +831,7 @@ fn test_allocked_vec_as_capacity_slice_returns_full_capacity()
 // as_capacity_mut_slice() (unsafe feature)
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_as_capacity_mut_slice_allows_writing_beyond_len()
 -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::<u8>::with_capacity(5);
@@ -867,7 +867,7 @@ fn test_allocked_vec_as_capacity_mut_slice_allows_writing_beyond_len()
 
 /// A length past the capacity is refused where it is asked for, rather than
 /// handed to `Vec::set_len` for which it is undefined behaviour.
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 #[should_panic(expected = "a length of 6 past a capacity of 5")]
 fn test_allocked_vec_set_len_refuses_a_length_past_the_capacity() {
     let mut vec: AllockedVec<u8> = AllockedVec::with_capacity(5);
@@ -875,7 +875,7 @@ fn test_allocked_vec_set_len_refuses_a_length_past_the_capacity() {
     unsafe { vec.set_len(6) };
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_set_len_can_shrink() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
@@ -898,7 +898,7 @@ fn test_allocked_vec_set_len_can_shrink() -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_set_len_can_grow_within_capacity() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 
@@ -928,7 +928,7 @@ fn test_allocked_vec_set_len_can_grow_within_capacity() -> Result<(), Box<dyn st
 // Default
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_default() {
     let vec: AllockedVec<u8> = AllockedVec::default();
 
@@ -944,7 +944,7 @@ fn test_allocked_vec_default() {
 // Deref
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_deref_to_slice() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(3);
 
@@ -969,7 +969,7 @@ fn test_allocked_vec_deref_to_slice() -> Result<(), Box<dyn std::error::Error>> 
 // PartialEq / Eq
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_partial_eq_equal_vecs() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec1 = AllockedVec::with_capacity(5);
     vec1.push(&mut 1u8)?;
@@ -987,7 +987,7 @@ fn test_allocked_vec_partial_eq_equal_vecs() -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_partial_eq_different_data() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec1 = AllockedVec::with_capacity(5);
     vec1.push(&mut 1u8)?;
@@ -1003,7 +1003,7 @@ fn test_allocked_vec_partial_eq_different_data() -> Result<(), Box<dyn std::erro
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_partial_eq_different_lengths() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec1 = AllockedVec::with_capacity(5);
     vec1.push(&mut 1u8)?;
@@ -1020,7 +1020,7 @@ fn test_allocked_vec_partial_eq_different_lengths() -> Result<(), Box<dyn std::e
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_partial_eq_different_capacities() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec1 = AllockedVec::with_capacity(3);
     vec1.push(&mut 1u8)?;
@@ -1037,7 +1037,7 @@ fn test_allocked_vec_partial_eq_different_capacities() -> Result<(), Box<dyn std
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_partial_eq_empty_vecs() {
     let vec1 = AllockedVec::<u8>::with_capacity(5);
     let vec2 = AllockedVec::<u8>::with_capacity(5);
@@ -1050,7 +1050,7 @@ fn test_allocked_vec_partial_eq_empty_vecs() {
 // Debug
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_debug_redacted() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
     vec.push(&mut 41u8)?;
@@ -1070,7 +1070,7 @@ fn test_allocked_vec_debug_redacted() -> Result<(), Box<dyn std::error::Error>> 
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_debug_snapshot() -> Result<(), Box<dyn std::error::Error>> {
     let mut vec = AllockedVec::with_capacity(5);
 

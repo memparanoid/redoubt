@@ -10,7 +10,7 @@ use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 // ║ ZEROIZATION                                                                ║
 // ╚════════════════════════════════════════════════════════════════════════════╝
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_string_is_zeroizable() {
     let mut s = RedoubtString::from_str("sensitive");
 
@@ -20,7 +20,7 @@ fn test_redoubt_string_is_zeroizable() {
     assert!(s.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_string_zeroizes_on_drop() {
     let s = RedoubtString::from_str("sensitive");
 
@@ -33,7 +33,7 @@ fn test_redoubt_string_zeroizes_on_drop() {
 // new()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_new() {
     let s = RedoubtString::new();
 
@@ -45,7 +45,7 @@ fn test_new() {
 // with_capacity()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_with_capacity() {
     let s = RedoubtString::with_capacity(10);
 
@@ -57,7 +57,7 @@ fn test_with_capacity() {
 // from_mut_string() / from_str()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_from_mut_string() {
     let mut data = String::from("hello");
     let s = RedoubtString::from_mut_string(&mut data);
@@ -66,7 +66,7 @@ fn test_from_mut_string() {
     assert!(data.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_from_str() {
     let s = RedoubtString::from_str("world");
     assert_eq!(s.as_str(), "world");
@@ -82,7 +82,7 @@ fn test_from_str() {
 // extend_from_mut_string()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_mut_string() {
     let mut dest = RedoubtString::new();
     let mut src = String::from("secret password");
@@ -100,7 +100,7 @@ fn test_extend_from_mut_string() {
     assert!(src.is_empty());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_mut_string_appends() {
     let mut dest = RedoubtString::new();
     dest.extend_from_str("prefix: ");
@@ -113,7 +113,7 @@ fn test_extend_from_mut_string_appends() {
     assert_eq!(src.len(), 0);
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_mut_string_zeroizes_source() {
     let mut dest = RedoubtString::new();
     let mut src = String::from("sensitive_data_12345");
@@ -126,7 +126,7 @@ fn test_extend_from_mut_string_zeroizes_source() {
     assert!(src.is_empty());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_mut_string_with_sufficient_capacity() {
     use redoubt_zero::ZeroizationProbe;
 
@@ -156,7 +156,7 @@ fn test_extend_from_mut_string_with_sufficient_capacity() {
 // replace_from_mut_string()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_replace_from_mut_string() {
     let mut dest = RedoubtString::new();
     dest.extend_from_str("old content");
@@ -176,7 +176,7 @@ fn test_replace_from_mut_string() {
 // extend_from_str()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_str() {
     let mut s = RedoubtString::new();
     s.extend_from_str("hello");
@@ -185,7 +185,7 @@ fn test_extend_from_str() {
     assert_eq!(s.as_str(), "hello");
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_str_appends() {
     let mut s = RedoubtString::new();
     s.extend_from_str("hello ");
@@ -194,7 +194,7 @@ fn test_extend_from_str_appends() {
     assert_eq!(s.as_str(), "hello world");
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_str_grows_to_power_of_2() {
     let mut s = RedoubtString::new();
 
@@ -209,7 +209,7 @@ fn test_extend_from_str_grows_to_power_of_2() {
     assert!(s.capacity() >= s.len());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_str_chars() {
     let mut s = RedoubtString::new();
     s.extend_from_str("a");
@@ -219,7 +219,7 @@ fn test_extend_from_str_chars() {
     assert_eq!(s.as_str(), "abc");
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_str_emoji() {
     let mut s = RedoubtString::new();
     s.extend_from_str("🦀");
@@ -229,7 +229,7 @@ fn test_extend_from_str_emoji() {
     assert_eq!(s.as_str(), "🦀🔒✅");
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_str_redoubt_emoji() {
     let mut s = RedoubtString::new();
     s.extend_from_str("🇷🇪🇩🇴🇺🇧🇹");
@@ -238,7 +238,7 @@ fn test_extend_from_str_redoubt_emoji() {
     assert_eq!(s.len(), 28);
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_str_utf8_handling() {
     let mut s = RedoubtString::new();
     s.extend_from_str("Hello 世界 🦀");
@@ -246,7 +246,7 @@ fn test_extend_from_str_utf8_handling() {
     assert_eq!(s.as_str(), "Hello 世界 🦀");
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_str_single_allocation() {
     let mut s = RedoubtString::new();
 
@@ -263,7 +263,7 @@ fn test_extend_from_str_single_allocation() {
 // clear()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_clear() {
     let mut s = RedoubtString::new();
     s.extend_from_str("data");
@@ -278,7 +278,7 @@ fn test_clear() {
 // as_str()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_str() {
     let mut s = RedoubtString::new();
     s.extend_from_str("hello world");
@@ -290,7 +290,7 @@ fn test_as_str() {
 // as_mut_str()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_mut_str() {
     let mut s = RedoubtString::new();
     s.extend_from_str("hello");
@@ -305,7 +305,7 @@ fn test_as_mut_str() {
 // as_string()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_string() {
     let mut s = RedoubtString::new();
 
@@ -321,7 +321,7 @@ fn test_as_string() {
 // as_mut_string()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_mut_string() {
     let mut s = RedoubtString::new();
 
@@ -333,7 +333,7 @@ fn test_as_mut_string() {
     assert_eq!(s.as_str(), "secret data modified");
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_mut_string_drain() {
     let mut s1 = RedoubtString::new();
     s1.extend_from_str("destination");
@@ -353,7 +353,7 @@ fn test_as_mut_string_drain() {
 // Default
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_default() {
     let s = RedoubtString::default();
 
@@ -366,7 +366,7 @@ fn test_default() {
 // Deref / DerefMut
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_deref() {
     let mut s = RedoubtString::new();
 
@@ -387,7 +387,7 @@ fn test_deref() {
 // PartialEq / Eq
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_partial_eq_equal_strings() {
     let mut s1 = RedoubtString::new();
     s1.extend_from_str("hello world");
@@ -399,7 +399,7 @@ fn test_partial_eq_equal_strings() {
     assert!(s1 == s2);
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_partial_eq_different_strings() {
     let mut s1 = RedoubtString::new();
     s1.extend_from_str("hello world");
@@ -411,7 +411,7 @@ fn test_partial_eq_different_strings() {
     assert!(s1 != s2);
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_partial_eq_different_lengths() {
     let mut s1 = RedoubtString::new();
     s1.extend_from_str("hello");
@@ -423,7 +423,7 @@ fn test_partial_eq_different_lengths() {
     assert!(s1 != s2);
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_partial_eq_empty_strings() {
     let s1 = RedoubtString::new();
     let s2 = RedoubtString::new();
@@ -432,7 +432,7 @@ fn test_partial_eq_empty_strings() {
     assert!(s1 == s2);
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_partial_eq_with_unicode() {
     let mut s1 = RedoubtString::new();
     s1.extend_from_str("Hello 世界 🦀");
@@ -448,7 +448,7 @@ fn test_partial_eq_with_unicode() {
 // Debug
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_debug_redacted() {
     let mut s = RedoubtString::new();
 

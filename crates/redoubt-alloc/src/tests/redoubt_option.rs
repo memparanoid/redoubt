@@ -10,7 +10,7 @@ use crate::RedoubtOption;
 // ║ ZEROIZATION                                                                ║
 // ╚════════════════════════════════════════════════════════════════════════════╝
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_option_is_zeroizable() {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;
@@ -22,7 +22,7 @@ fn test_redoubt_option_is_zeroizable() {
     assert!(opt.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_option_zeroizes_on_drop() {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;
@@ -33,7 +33,7 @@ fn test_redoubt_option_zeroizes_on_drop() {
     opt.assert_zeroize_on_drop();
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_option_is_none_by_default() {
     let opt = RedoubtOption::<u64>::default();
 
@@ -41,21 +41,21 @@ fn test_redoubt_option_is_none_by_default() {
     assert!(!opt.is_some());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_option_as_ref_empty() {
     let opt = RedoubtOption::<u64>::default();
 
     assert!(opt.as_ref().is_none());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_option_as_mut_empty() {
     let mut opt = RedoubtOption::<u64>::default();
 
     assert!(opt.as_mut().is_none());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_option_replace() {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;
@@ -67,7 +67,7 @@ fn test_redoubt_option_replace() {
     assert!(value.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_option_replace_zeroizes_old_value() {
     let mut opt = RedoubtOption::<u64>::default();
 
@@ -82,7 +82,7 @@ fn test_redoubt_option_replace_zeroizes_old_value() {
     assert!(value2.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_option_as_mut() {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;
@@ -95,7 +95,7 @@ fn test_redoubt_option_as_mut() {
     assert_eq!(opt.as_ref(), Some(&99));
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_option_as_option() {
     let mut opt = RedoubtOption::<u64>::default();
 
@@ -112,7 +112,7 @@ fn test_redoubt_option_as_option() {
     assert_eq!(*inner, Some(42));
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_option_as_mut_option() {
     let mut opt = RedoubtOption::<u64>::default();
     let mut value = 42u64;

@@ -6,7 +6,7 @@ use redoubt_zero::{FastZeroizable, ZeroizationProbe};
 
 use crate::allocked_vec::AllockedVecBehaviour;
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_allocked_vec_behaviour() {
     let mut behaviour = AllockedVecBehaviour::FailAtDrainFrom;
 

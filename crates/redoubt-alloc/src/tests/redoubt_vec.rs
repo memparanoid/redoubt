@@ -9,7 +9,7 @@ use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 // ║ ZEROIZATION                                                                ║
 // ╚════════════════════════════════════════════════════════════════════════════╝
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_vec_is_zeroizable() {
     let mut data = [1u8, 2, 3];
     let mut vec = RedoubtVec::from_mut_slice(&mut data);
@@ -20,7 +20,7 @@ fn test_redoubt_vec_is_zeroizable() {
     assert!(vec.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_redoubt_vec_zeroizes_on_drop() {
     let mut data = [1u8, 2, 3];
     let vec = RedoubtVec::from_mut_slice(&mut data);
@@ -34,7 +34,7 @@ fn test_redoubt_vec_zeroizes_on_drop() {
 // new()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_new() {
     let vec: RedoubtVec<u8> = RedoubtVec::new();
 
@@ -46,7 +46,7 @@ fn test_new() {
 // with_capacity()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_with_capacity() {
     let vec: RedoubtVec<u8> = RedoubtVec::with_capacity(10);
 
@@ -56,7 +56,7 @@ fn test_with_capacity() {
 
 /// The allocator hands out a freed block, or a piece of one, as its last owner
 /// left it.
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_with_capacity_is_zeroized() {
     let vec: RedoubtVec<u8> = RedoubtVec::with_capacity(1024);
 
@@ -68,7 +68,7 @@ fn test_with_capacity_is_zeroized() {
 // from_mut_slice()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_from_mut_slice() {
     let mut data = [1u8, 2, 3, 4, 5];
     let vec = RedoubtVec::from_mut_slice(&mut data);
@@ -87,7 +87,7 @@ fn test_from_mut_slice() {
 // drain_value()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_drain_value_single() {
     let mut vec = RedoubtVec::new();
     let mut value = 42u8;
@@ -99,7 +99,7 @@ fn test_drain_value_single() {
     assert_eq!(value, 0); // zeroized
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_drain_value_grows_to_power_of_2() {
     let mut vec = RedoubtVec::new();
 
@@ -133,7 +133,7 @@ fn test_drain_value_grows_to_power_of_2() {
 // extend_from_mut_slice()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_mut_slice() {
     let mut vec = RedoubtVec::new();
     let mut src = [1u8, 2, 3, 4, 5];
@@ -148,7 +148,7 @@ fn test_extend_from_mut_slice() {
     assert!(src.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_mut_slice_grows() {
     let mut vec = RedoubtVec::with_capacity(2);
     let mut v1 = 1u8;
@@ -171,7 +171,7 @@ fn test_extend_from_mut_slice_grows() {
 
 /// The capacity a growth reserves comes from the allocator holding whatever
 /// its last owner left, and only the part up to the length is written over.
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_mut_slice_grows_into_zeroized_capacity() {
     let mut vec = RedoubtVec::default();
 
@@ -186,7 +186,7 @@ fn test_extend_from_mut_slice_grows_into_zeroized_capacity() {
     }
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_mut_slice_zeroizes_default_values() {
     #[derive(Debug, PartialEq, Clone, Copy, Default)]
     struct TestStruct {
@@ -227,7 +227,7 @@ fn test_extend_from_mut_slice_zeroizes_default_values() {
     assert!(src.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_extend_from_mut_slice_with_sufficient_capacity() {
     use redoubt_zero::ZeroizationProbe;
 
@@ -252,7 +252,7 @@ fn test_extend_from_mut_slice_with_sufficient_capacity() {
     assert_eq!(vec.capacity(), initial_capacity);
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_maybe_grow_to_single_allocation() {
     let mut vec = RedoubtVec::new();
 
@@ -278,7 +278,7 @@ fn test_maybe_grow_to_single_allocation() {
 // replace_from_mut_slice()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_replace_from_mut_slice() {
     let mut vec = RedoubtVec::new();
     let mut src1 = [1u8, 2, 3];
@@ -291,7 +291,7 @@ fn test_replace_from_mut_slice() {
     assert!(src2.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_replace_from_mut_slice_zeroizes_old_content() {
     let mut vec = RedoubtVec::new();
     let mut src1 = [0xAAu8; 100];
@@ -308,7 +308,7 @@ fn test_replace_from_mut_slice_zeroizes_old_content() {
 // drain_value()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_drain_value() {
     let mut vec = RedoubtVec::new();
     let mut value = 42u8;
@@ -326,7 +326,7 @@ fn test_drain_value() {
 // clear()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_clear() {
     let mut vec = RedoubtVec::new();
     let mut v1 = 1u8;
@@ -351,7 +351,7 @@ fn test_clear() {
 // as_slice()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_slice() {
     let mut vec = RedoubtVec::new();
     let mut v1 = 1u8;
@@ -374,7 +374,7 @@ fn test_as_slice() {
 // as_mut_slice()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_mut_slice() {
     let mut vec = RedoubtVec::new();
     let mut v1 = 1u8;
@@ -400,7 +400,7 @@ fn test_as_mut_slice() {
 // as_vec()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_vec() {
     let mut vec = RedoubtVec::new();
     let mut data = vec![1u8, 2, 3];
@@ -420,7 +420,7 @@ fn test_as_vec() {
 // as_mut_vec()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_as_mut_vec() {
     let mut vec = RedoubtVec::new();
     let mut data = vec![10u8, 20, 30];
@@ -439,7 +439,7 @@ fn test_as_mut_vec() {
 // Default
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_default() {
     let vec: RedoubtVec<u8> = RedoubtVec::default();
 
@@ -452,7 +452,7 @@ fn test_default() {
 // PartialEq / Eq
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_partial_eq_equal_vecs() {
     let mut vec1 = RedoubtVec::new();
     let mut src1 = [1u8, 2, 3];
@@ -468,7 +468,7 @@ fn test_partial_eq_equal_vecs() {
     assert!(vec1 == vec2);
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_partial_eq_different_vecs() {
     let mut vec1 = RedoubtVec::new();
     let mut src1 = [1u8, 2, 3];
@@ -484,7 +484,7 @@ fn test_partial_eq_different_vecs() {
     assert!(vec1 != vec2);
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_partial_eq_different_lengths() {
     let mut vec1 = RedoubtVec::new();
     let mut src1 = [1u8, 2];
@@ -500,7 +500,7 @@ fn test_partial_eq_different_lengths() {
     assert!(vec1 != vec2);
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_partial_eq_empty_vecs() {
     let vec1: RedoubtVec<u8> = RedoubtVec::new();
     let vec2: RedoubtVec<u8> = RedoubtVec::new();
@@ -513,7 +513,7 @@ fn test_partial_eq_empty_vecs() {
 // Deref / DerefMut
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_deref() {
     let mut vec = RedoubtVec::new();
     let mut src = [1u8, 2, 3];
@@ -536,7 +536,7 @@ fn test_deref() {
 // Debug
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 fn test_debug_redacted() {
     let mut vec = RedoubtVec::new();
     let mut src = [42u8, 43, 44];
@@ -560,7 +560,7 @@ fn test_debug_redacted() {
 // default_init_to_size()
 // =============================================================================
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 #[cfg(feature = "default_init")]
 fn test_default_init_to_size_with_bulk_zeroizable() {
     let mut vec = RedoubtVec::<u8>::new();
@@ -575,7 +575,7 @@ fn test_default_init_to_size_with_bulk_zeroizable() {
     assert!(vec.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 #[cfg(feature = "default_init")]
 fn test_default_init_to_size_with_complex_type() {
     #[derive(Debug, PartialEq, Clone, Copy)]
@@ -617,7 +617,7 @@ fn test_default_init_to_size_with_complex_type() {
     assert!(vec.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 #[cfg(feature = "default_init")]
 fn test_default_init_to_size_clears_existing_data() {
     let mut vec = RedoubtVec::<u8>::new();
@@ -635,7 +635,7 @@ fn test_default_init_to_size_clears_existing_data() {
     assert!(vec.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 #[cfg(feature = "default_init")]
 fn test_default_init_to_size_large() {
     let mut vec = RedoubtVec::<u8>::new();
@@ -648,7 +648,7 @@ fn test_default_init_to_size_large() {
     assert!(vec.is_zeroized());
 }
 
-#[test]
+#[redoubt_forensics::test(dirty = 0xFF)]
 #[cfg(feature = "default_init")]
 fn test_default_init_to_size_zero() {
     let mut vec = RedoubtVec::<u8>::new();
