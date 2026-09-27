@@ -149,7 +149,7 @@ fn test_open_hands_every_reader_the_whole_struct() -> Result<(), CipherBoxError>
 
                 Ok(())
             })
-            .expect("a read of a sealed box failed");
+            .expect("a read of a sealed box should succeed");
     });
 
     Ok(())
@@ -170,16 +170,20 @@ fn test_open_mut_between_reads_is_seen_whole_by_every_read() -> Result<(), Ciphe
     let writing = Arc::clone(&pair_box);
     let writer = thread::spawn(move || {
         for write_counter in 1..=WRITES {
-            let mut held = writing.write().expect("a reader panicked holding the box");
+            let mut held = writing
+                .write()
+                .expect("no reader should panic while holding the box");
 
             held.open_mut(|pair| stamp_every_field(pair, write_counter))
-                .expect("a write to a sealed box failed");
+                .expect("a write to a sealed box should succeed");
         }
     });
 
     let reading = Arc::clone(&pair_box);
     read_concurrently("reads between writes", move |_| {
-        let held = reading.read().expect("the writer panicked holding the box");
+        let held = reading
+            .read()
+            .expect("the writer should not panic while holding the box");
 
         held.open(|pair| {
             let write_counter = *pair.left.as_ref();
@@ -193,15 +197,17 @@ fn test_open_mut_between_reads_is_seen_whole_by_every_read() -> Result<(), Ciphe
 
             Ok(())
         })
-        .expect("a read of a sealed box failed");
+        .expect("a read of a sealed box should succeed");
 
-        let blob = held.leak_blob().expect("a read of a sealed box failed");
+        let blob = held
+            .leak_blob()
+            .expect("a read of a sealed box should succeed");
         let write_counter = (blob.len() - BLOB_LEN) / GROWTH;
 
         assert_stamped_by(blob.as_slice(), write_counter as u64);
     });
 
-    writer.join().expect("the writer panicked");
+    writer.join().expect("the writer should not panic");
 
     Ok(())
 }
@@ -216,7 +222,9 @@ fn test_leak_hands_every_reader_the_sealed_field() -> Result<(), CipherBoxError>
     let expected = Arc::new(blob());
 
     read_concurrently("leak", move |_| {
-        let blob = pair_box.leak_blob().expect("a read of a sealed box failed");
+        let blob = pair_box
+            .leak_blob()
+            .expect("a read of a sealed box should succeed");
 
         assert_eq!(blob.as_slice(), expected.as_slice());
     });
@@ -231,19 +239,23 @@ fn test_leak_of_different_fields_hands_each_its_own() -> Result<(), CipherBoxErr
 
     read_concurrently("leak of different fields", move |turn| match turn % 3 {
         0 => {
-            let left = pair_box.leak_left().expect("a read of a sealed box failed");
+            let left = pair_box
+                .leak_left()
+                .expect("a read of a sealed box should succeed");
 
             assert_eq!(*left.as_ref(), LEFT);
         }
         1 => {
             let right = pair_box
                 .leak_right()
-                .expect("a read of a sealed box failed");
+                .expect("a read of a sealed box should succeed");
 
             assert_eq!(*right.as_ref(), RIGHT);
         }
         _ => {
-            let blob = pair_box.leak_blob().expect("a read of a sealed box failed");
+            let blob = pair_box
+                .leak_blob()
+                .expect("a read of a sealed box should succeed");
 
             assert_eq!(blob.as_slice(), expected.as_slice());
         }

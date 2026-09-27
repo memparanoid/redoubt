@@ -316,7 +316,7 @@ fn perm_test_array_decode_from_propagates_error_at_any_position()
         let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
         arr_clone
             .encode_into(&mut buf)
-            .expect("Failed to encode_into(..)");
+            .expect("the encode should fit a buffer sized for it");
 
         // Decode
         {
@@ -384,7 +384,7 @@ fn perm_test_array_encode_decode_roundtrip() -> Result<(), Box<dyn std::error::E
         let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
         arr_clone
             .encode_into(&mut buf)
-            .expect("Failed to encode_into(..)");
+            .expect("the encode should fit a buffer sized for it");
 
         // Decode
         {

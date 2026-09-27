@@ -297,7 +297,7 @@ fn perm_test_allocked_vec_decode_from_propagates_error_at_any_position()
         let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
         vec_clone
             .encode_into(&mut buf)
-            .expect("Failed to encode_into(..)");
+            .expect("the encode should fit a buffer sized for it");
 
         // Decode
         {
@@ -363,7 +363,7 @@ fn perm_test_allocked_vec_encode_decode_roundtrip() -> Result<(), Box<dyn std::e
         let mut buf = RedoubtCodecBuffer::with_capacity(bytes_required);
         vec_clone
             .encode_into(&mut buf)
-            .expect("Failed to encode_into(..)");
+            .expect("the encode should fit a buffer sized for it");
 
         let mut decode_buf = buf.export_as_vec();
         let mut recovered: AllockedVec<AllockedVec<RedoubtCodecTestBreaker>> = AllockedVec::new();

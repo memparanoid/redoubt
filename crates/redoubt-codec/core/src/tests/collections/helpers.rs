@@ -318,7 +318,10 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
 
     let bytes_required = fields
         .iter()
-        .map(|tb| tb.encode_bytes_required().expect("Failed"))
+        .map(|tb| {
+            tb.encode_bytes_required()
+                .expect("the encoded size should be known")
+        })
         .sum();
 
     let mut recovered_fields = fields;
@@ -334,7 +337,7 @@ fn perm_test_decode_fields_propagates_error_at_any_position() {
             fields_clone.iter_mut().map(to_encode_zeroize_dyn_mut),
             &mut buf,
         )
-        .expect("Failed to encode");
+        .expect("the encode should succeed");
 
         // Decode
         {

@@ -203,7 +203,7 @@ fn test_encrypt_into_buffers_performs_zeroization_on_encode_failure() {
         let fields = test_breakers_cpy
             .each_mut()
             .map(|tb| to_encryptable_mut_dyn(tb));
-        let sizes = get_sizes(&fields).expect("Failed to get_sizes()");
+        let sizes = get_sizes(&fields).expect("the fields' sizes should be known");
         let mut buffers: [RedoubtCodecBuffer; NUM_FIELDS] =
             sizes.map(RedoubtCodecBuffer::with_capacity);
         let mut ciphertexts: [Vec<u8>; NUM_FIELDS] = core::array::from_fn(|_| vec![]);
