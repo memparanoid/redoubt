@@ -13,6 +13,12 @@
 //   - Windows x86_64 EXCLUDED: Win64 passes arguments in other registers and
 //     keeps rsi and rdi callee-saved. The build script compiles no assembly there.
 //
+// Every argument is a pointer to storage the caller declared, except the
+// lengths, which are public. Nothing is returned.
+//
+// The final subtraction of the modulus is a mask, not a branch: whether the
+// accumulator reached the modulus is a fact about the key.
+//
 // What this cannot answer for:
 //   A signal delivered mid-routine has the kernel write the whole register
 //   context to a frame on the user stack that nothing in user space wipes. The
@@ -373,6 +379,134 @@ FUNC(redoubt_poly1305_v2_update):
 
 #if !defined(__APPLE__)
 .size FUNC(redoubt_poly1305_v2_update), .-FUNC(redoubt_poly1305_v2_update)
+#endif
+
+// ============================================================================
+// poly1305_finalize
+// ============================================================================
+//
+// C signature:
+//   void redoubt_poly1305_v2_finalize(uint64_t acc[3], const uint64_t r[2],
+//                                     const uint8_t s[16], const uint8_t *said,
+//                                     size_t said_len, uint8_t out[16]);
+//
+// Parameters (SysV ABI):
+//   rdi: acc (read and written), rsi: r (read only), rdx: s (read only),
+//   rcx: said (read only), r8: said_len, r9: out (written)
+.p2align 4
+.globl FUNC(redoubt_poly1305_v2_finalize)
+HIDDEN_FUNC(redoubt_poly1305_v2_finalize)
+#if !defined(__APPLE__)
+.type FUNC(redoubt_poly1305_v2_finalize), @function
+#endif
+FUNC(redoubt_poly1305_v2_finalize):
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: ACC holds the polynomial and then the number the tag
+// ║ is made from, and BLOCK the last bytes of the message with the marker
+// ║ written after them. That last one is message in the clear, and it is
+// ║ here rather than in the caller's buffer because a caller that handed
+// ║ over a whole message has no buffer to pad.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before rsp is
+// ║ advanced.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
+    sub rsp, FRAME
+    mov [rsp + ACCPTR], rdi
+    mov [rsp + RPTR], rsi
+    mov [rsp + SPTR], rdx
+    mov [rsp + SAID], rcx
+    mov [rsp + LEN], r8
+    mov [rsp + OUT], r9
+
+    .irp offset,0,8,16
+        mov rax, [rdi + \offset]
+        mov [rsp + ACC + \offset], rax
+    .endr
+
+.Lwhole:
+    cmp qword ptr [rsp + LEN], 16
+    jb .Ltail
+    mov rsi, [rsp + SAID]
+    POLY1305_BLOCK rsi, 1
+    add qword ptr [rsp + SAID], 16
+    sub qword ptr [rsp + LEN], 16
+    jmp .Lwhole
+
+.Ltail:
+    mov rcx, [rsp + LEN]
+    test rcx, rcx
+    jz .Lwritten_back
+
+    mov qword ptr [rsp + BLOCK], 0
+    mov qword ptr [rsp + BLOCK + 8], 0
+    mov rsi, [rsp + SAID]
+    xor edx, edx
+.Lcopy:
+    mov al, [rsi + rdx]
+    mov [rsp + rdx + BLOCK], al
+    inc rdx
+    cmp rdx, rcx
+    jb .Lcopy
+
+    // The bit above the message, so that a tail ending in zeros does not read
+    // as a shorter message.
+    mov byte ptr [rsp + rcx + BLOCK], 1
+    lea rsi, [rsp + BLOCK]
+    POLY1305_BLOCK rsi, 0
+
+.Lwritten_back:
+    // Written back before the reduction below: the caller's accumulator is the
+    // polynomial, not the tag.
+    mov r9, [rsp + ACCPTR]
+    .irp offset,0,8,16
+        mov rax, [rsp + ACC + \offset]
+        mov [r9 + \offset], rax
+    .endr
+
+    mov rsi, [rsp + ACC]
+    mov rcx, [rsp + ACC + 8]
+    mov rax, [rsp + ACC + 16]
+
+    // acc + 5 into r10:r9:r8: it reaches 2^130 exactly when acc is at least
+    // 2^130 - 5, and then its low 128 bits are acc less the modulus.
+    mov r8, rsi
+    add r8, 5
+    mov r9, rcx
+    adc r9, 0
+    mov r10, rax
+    adc r10, 0
+
+    // All ones in r10 where the difference is taken, all zeros where it is
+    // not. A mask and not a branch: which one is a fact about the key.
+    shr r10, 2
+    neg r10
+    and r8, r10
+    and r9, r10
+    not r10
+    and rsi, r10
+    and rcx, r10
+    or rsi, r8
+    or rcx, r9
+
+    // + s, modulo 2^128: the carry out of the second word is dropped.
+    mov r11, [rsp + SPTR]
+    add rsi, [r11]
+    adc rcx, [r11 + 8]
+
+    mov r11, [rsp + OUT]
+    mov [r11], rsi
+    mov [r11 + 8], rcx
+
+    POLY1305_EMPTY_FRAME
+// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
+
+    POLY1305_ZEROIZE_ALL
+    ret
+
+#if !defined(__APPLE__)
+.size FUNC(redoubt_poly1305_v2_finalize), .-FUNC(redoubt_poly1305_v2_finalize)
 #endif
 
 // ============================================================================

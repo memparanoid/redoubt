@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! The arithmetic, in Rust until the assembly for each routine is written.
+//! The arithmetic, once in Rust and once by hand.
 //!
 //! Everything that reads a byte of the message or touches a word is here. What
 //! is above holds the storage and says in what order these are called, and
@@ -10,7 +10,12 @@
 //! block ends means reading the message.
 //!
 //! Nothing crosses the boundary by value, and nothing is returned: every
-//! secret and every length is a pointer to storage the caller declared.
+//! secret and every length is a pointer to storage the caller declared. A
+//! returned value leaves in a register, and a register carrying the answer out
+//! is a register the wipe at the end of an assembly routine cannot touch.
+//!
+//! `poly1305_asm` is set by the build script for a target it compiled assembly
+//! for, and is named nowhere but the alias below.
 
 pub(crate) mod rust;
 
@@ -20,13 +25,11 @@ pub(crate) mod asm;
 use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 use redoubt_asm::Backend;
 
-use rust as chosen;
-
 #[cfg(poly1305_asm)]
-use asm::{init as chosen_init, update as chosen_update};
+use asm as chosen;
 
 #[cfg(not(poly1305_asm))]
-use rust::{init as chosen_init, update as chosen_update};
+use rust as chosen;
 
 use crate::consts::{ACC_WORDS, R_WORDS};
 
@@ -50,7 +53,7 @@ pub(crate) fn init(
 ) {
     match backend {
         Backend::Rust => rust::init(r, s, key),
-        Backend::Auto => chosen_init(r, s, key),
+        Backend::Auto => chosen::init(r, s, key),
     }
 }
 
@@ -66,7 +69,7 @@ pub(crate) fn update(
 ) {
     match backend {
         Backend::Rust => rust::update(acc, r, block, filled, said),
-        Backend::Auto => chosen_update(acc, r, block, filled, said),
+        Backend::Auto => chosen::update(acc, r, block, filled, said),
     }
 }
 

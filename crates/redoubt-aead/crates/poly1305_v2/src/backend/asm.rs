@@ -4,7 +4,7 @@
 
 //! The arithmetic by hand, where a target has it.
 
-use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE};
+use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 
 use crate::consts::{ACC_WORDS, R_WORDS};
 
@@ -17,6 +17,14 @@ unsafe extern "C" {
         filled: *mut usize,
         said: *const u8,
         said_len: usize,
+    );
+    fn redoubt_poly1305_v2_finalize(
+        acc: *mut u64,
+        r: *const u64,
+        s: *const u8,
+        said: *const u8,
+        said_len: usize,
+        out: *mut u8,
     );
 }
 
@@ -45,6 +53,27 @@ pub(crate) fn update(
             filled,
             said.as_ptr(),
             said.len(),
+        );
+    }
+}
+
+pub(crate) fn finalize(
+    acc: &mut [u64; ACC_WORDS],
+    r: &[u64; R_WORDS],
+    s: &[u8; BLOCK_SIZE],
+    said: &[u8],
+    out: &mut [u8; TAG_SIZE],
+) {
+    // SAFETY: every pointer is to an array of the width the routine reads or
+    // writes, and `said` is as long as the length beside it says.
+    unsafe {
+        redoubt_poly1305_v2_finalize(
+            acc.as_mut_ptr(),
+            r.as_ptr(),
+            s.as_ptr(),
+            said.as_ptr(),
+            said.len(),
+            out.as_mut_ptr(),
         );
     }
 }

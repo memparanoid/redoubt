@@ -9,7 +9,7 @@ use std::vec::Vec;
 
 use rstest::rstest;
 
-use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE};
+use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 
 use crate::consts::{ACC_WORDS, R_WORDS};
 
@@ -22,6 +22,14 @@ unsafe extern "C" {
         filled: *mut usize,
         said: *const u8,
         said_len: usize,
+    );
+    fn redoubt_poly1305_v2_finalize(
+        acc: *mut u64,
+        r: *const u64,
+        s: *const u8,
+        said: *const u8,
+        said_len: usize,
+        out: *mut u8,
     );
 
     fn redoubt_poly1305_v2_registers_are_zeroized() -> u64;
@@ -892,6 +900,32 @@ test_what_the_routine_leaves!(
 );
 
 // ============================================================================
+// finalize
+// ============================================================================
+
+test_what_the_routine_leaves!(
+    test_finalize_leaves_the_residue_its_case_declares,
+    redoubt_poly1305_v2_finalize,
+    fn(*mut u64, *const u64, *const u8, *const u8, usize, *mut u8),
+    [dirty_finalize_registers, dirty_finalize_frame, untouched_finalize],
+    true,
+    // Every tail a message can end on, and one that spans several blocks.
+    for length in [0, 1, 2, 15, 16, 17, 31, 32, 33, 64, 65],
+    {
+        let (r, s) = clamped();
+        let said: Vec<u8> = (0..length).map(|at| (at as u8) ^ 0x5a).collect();
+        let mut acc = [0_u64; ACC_WORDS];
+        let mut tag = [0_u8; TAG_SIZE];
+        let acc = acc.as_mut_ptr();
+        let key = r.as_ptr();
+        let pad = s.as_ptr();
+        let said = said.as_ptr();
+        let tag = tag.as_mut_ptr();
+    },
+    (acc, key, pad, said, length, tag)
+);
+
+// ============================================================================
 // What the measurement reads
 // ============================================================================
 
@@ -945,4 +979,23 @@ test_the_measurement_reads_the_window!(
         let said = said.as_ptr();
     },
     (acc, key, block, held, said, length)
+);
+
+test_the_measurement_reads_the_window!(
+    test_the_measurement_of_finalize_reads_the_window_the_writer_filled,
+    untouched_finalize,
+    fn(*mut u64, *const u64, *const u8, *const u8, usize, *mut u8),
+    {
+        let (r, s) = clamped();
+        let said: Vec<u8> = (0..65_u8).collect();
+        let mut acc = [0_u64; ACC_WORDS];
+        let mut tag = [0_u8; TAG_SIZE];
+        let acc = acc.as_mut_ptr();
+        let key = r.as_ptr();
+        let pad = s.as_ptr();
+        let length = said.len();
+        let said = said.as_ptr();
+        let tag = tag.as_mut_ptr();
+    },
+    (acc, key, pad, said, length, tag)
 );

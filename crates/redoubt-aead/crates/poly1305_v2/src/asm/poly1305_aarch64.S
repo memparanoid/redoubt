@@ -12,6 +12,12 @@
 //   - macOS aarch64 (AAPCS, Mach-O naming)
 //   - Windows aarch64 EXCLUDED: the build script compiles no assembly there.
 //
+// Every argument is a pointer to storage the caller declared, except the
+// lengths, which are public. Nothing is returned.
+//
+// The final subtraction of the modulus is a mask, not a branch: whether the
+// accumulator reached the modulus is a fact about the key.
+//
 // What this cannot answer for:
 //   A signal delivered mid-routine has the kernel write the whole register
 //   context to a frame on the user stack that nothing in user space wipes. The
@@ -351,6 +357,128 @@ FUNC(redoubt_poly1305_v2_update):
     stp x6, x7, [x9]
     ldr x6, [sp, #(ACC + 16)]
     str x6, [x9, #16]
+
+    POLY1305_EMPTY_FRAME
+// ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
+
+    POLY1305_ZEROIZE_ALL
+    ret
+
+// ============================================================================
+// poly1305_finalize
+// ============================================================================
+//
+// C signature:
+//   void redoubt_poly1305_v2_finalize(uint64_t acc[3], const uint64_t r[2],
+//                                     const uint8_t s[16], const uint8_t *said,
+//                                     size_t said_len, uint8_t out[16]);
+//
+// Parameters (AAPCS):
+//   x0: acc (read and written), x1: r (read only), x2: s (read only),
+//   x3: said (read only), x4: said_len, x5: out (written)
+.p2align 4
+.globl FUNC(redoubt_poly1305_v2_finalize)
+HIDDEN_FUNC(redoubt_poly1305_v2_finalize)
+FUNC(redoubt_poly1305_v2_finalize):
+// ║ ⚠️  SPILL REGION BEGIN ═══════════════════════════════════════════════
+// ║
+// ║ SECURITY WARNING: ACC holds the polynomial and then the number the tag
+// ║ is made from, and BLOCK the last bytes of the message with the marker
+// ║ written after them. That last one is message in the clear, and it is
+// ║ here rather than in the caller's buffer because a caller that handed
+// ║ over a whole message has no buffer to pad.
+// ║
+// ║ Frame is written before it is read, and zeroized in full before sp is
+// ║ advanced.
+// ║
+// ║═══════════════════════════════════════════════════════════════════════
+    sub sp, sp, #FRAME
+    str x0, [sp, #ACCPTR]
+    str x1, [sp, #RPTR]
+    str x2, [sp, #SPTR]
+    str x3, [sp, #SAID]
+    str x4, [sp, #LEN]
+    str x5, [sp, #OUT]
+
+    ldp x6, x7, [x0]
+    stp x6, x7, [sp, #ACC]
+    ldr x6, [x0, #16]
+    str x6, [sp, #(ACC + 16)]
+
+.Lwhole:
+    ldr x6, [sp, #LEN]
+    cmp x6, #16
+    b.lo .Ltail
+    ldr x7, [sp, #SAID]
+    POLY1305_BLOCK x7, 1
+    ldr x6, [sp, #SAID]
+    add x6, x6, #16
+    str x6, [sp, #SAID]
+    ldr x6, [sp, #LEN]
+    sub x6, x6, #16
+    str x6, [sp, #LEN]
+    b .Lwhole
+
+.Ltail:
+    ldr x6, [sp, #LEN]
+    cbz x6, .Lwritten_back
+
+    stp xzr, xzr, [sp, #BLOCK]
+    add x10, sp, #BLOCK
+    ldr x7, [sp, #SAID]
+    mov x8, xzr
+.Lcopy:
+    ldrb w9, [x7, x8]
+    strb w9, [x10, x8]
+    add x8, x8, #1
+    cmp x8, x6
+    b.lo .Lcopy
+
+    // The bit above the message, so that a tail ending in zeros does not read
+    // as a shorter message.
+    mov w9, #1
+    strb w9, [x10, x6]
+    mov x7, x10
+    POLY1305_BLOCK x7, 0
+
+.Lwritten_back:
+    // Written back before the reduction below: the caller's accumulator is the
+    // polynomial, not the tag.
+    ldr x9, [sp, #ACCPTR]
+    ldp x6, x7, [sp, #ACC]
+    stp x6, x7, [x9]
+    ldr x6, [sp, #(ACC + 16)]
+    str x6, [x9, #16]
+
+    ldp x2, x3, [sp, #ACC]
+    ldr x4, [sp, #(ACC + 16)]
+
+    // acc + 5 into x7:x6:x5: it reaches 2^130 exactly when acc is at least
+    // 2^130 - 5, and then its low 128 bits are acc less the modulus.
+    adds x5, x2, #5
+    adcs x6, x3, xzr
+    adc x7, x4, xzr
+
+    // All ones in x7 where the difference is taken, all zeros where it is
+    // not. A mask and not a branch: which one is a fact about the key.
+    lsr x7, x7, #2
+    neg x7, x7
+    and x5, x5, x7
+    and x6, x6, x7
+    mvn x7, x7
+    and x2, x2, x7
+    and x3, x3, x7
+    orr x2, x2, x5
+    orr x3, x3, x6
+
+    // + s, modulo 2^128: the carry out of the second word is dropped.
+    ldr x9, [sp, #SPTR]
+    ldp x5, x6, [x9]
+    adds x2, x2, x5
+    adc x3, x3, x6
+
+    ldr x9, [sp, #OUT]
+    stp x2, x3, [x9]
 
     POLY1305_EMPTY_FRAME
 // ║ ⚠️  SPILL REGION END (ZEROIZED) ══════════════════════════════════════
