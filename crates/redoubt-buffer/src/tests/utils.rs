@@ -12,9 +12,59 @@ pub struct Region {
 }
 
 #[cfg(target_os = "linux")]
-pub fn region(address: usize) -> Result<Option<Region>, Box<dyn std::error::Error>> {
-    let smaps = std::fs::read_to_string("/proc/self/smaps")?;
+const SMAPS_ROOM: usize = 1 << 20;
 
+/// `/proc/self/smaps` opened, and the room it is read into, both made before
+/// what is measured, so the read allocates nothing.
+///
+/// An allocation after a `munmap` may be handed the hole it left (musl's
+/// allocator maps its memory, and the kernel reuses the highest free range),
+/// and then `smaps` shows the reader's own buffer where the page was.
+#[cfg(target_os = "linux")]
+pub struct Smaps {
+    file: std::fs::File,
+    text: Vec<u8>,
+}
+
+#[cfg(target_os = "linux")]
+impl Smaps {
+    pub fn open() -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(Self {
+            file: std::fs::File::open("/proc/self/smaps")?,
+            text: vec![0_u8; SMAPS_ROOM],
+        })
+    }
+
+    pub fn region(&mut self, address: usize) -> Result<Option<Region>, Box<dyn std::error::Error>> {
+        use std::io::Read;
+
+        let mut len = 0;
+
+        loop {
+            let read = self.file.read(&mut self.text[len..])?;
+
+            if read == 0 {
+                break;
+            }
+
+            len += read;
+
+            if len == self.text.len() {
+                return Err("smaps did not fit in the room made for it".into());
+            }
+        }
+
+        region_in(std::str::from_utf8(&self.text[..len])?, address)
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub fn region(address: usize) -> Result<Option<Region>, Box<dyn std::error::Error>> {
+    Smaps::open()?.region(address)
+}
+
+#[cfg(target_os = "linux")]
+fn region_in(smaps: &str, address: usize) -> Result<Option<Region>, Box<dyn std::error::Error>> {
     let mut found: Option<Region> = None;
 
     for line in smaps.lines() {

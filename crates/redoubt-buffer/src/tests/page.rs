@@ -13,7 +13,7 @@ mod page_tests {
     use crate::page::Page;
 
     #[cfg(target_os = "linux")]
-    use crate::tests::utils::{page_kb, region};
+    use crate::tests::utils::{Smaps, page_kb, region};
 
     // =============================================================================
     // new()
@@ -552,9 +552,11 @@ mod page_tests {
         page.lock()?;
         page.protect()?;
 
+        let mut smaps = Smaps::open()?;
+
         drop(page);
 
-        assert!(region(at)?.is_none());
+        assert!(smaps.region(at)?.is_none());
 
         Ok(())
     }
