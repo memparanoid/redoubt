@@ -25,7 +25,7 @@ use core::fmt::Write;
 use rstest::rstest;
 
 use redoubt_aead_core::consts::aegis::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
-use redoubt_aead_core::{AeadDecrypt, AeadEncrypt};
+use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt};
 use redoubt_hkdf::sha256;
 
 use crate::aegis128l::Aegis128L;
@@ -191,7 +191,7 @@ enum Turn {
 ///
 /// Each encryption is decrypted back as well, so a ciphertext that equals
 /// libaegis's is one this crate opens.
-fn row(msg_len: usize, turn: Turn) -> String {
+fn row(msg_len: usize, turn: Turn) -> Result<String, AeadCoreError> {
     let mut said = Vec::new();
 
     for aad_len in aad_lengths() {
@@ -215,8 +215,7 @@ fn row(msg_len: usize, turn: Turn) -> String {
             said.extend_from_slice(&data);
             said.extend_from_slice(&tag);
 
-            aead.decrypt(&key, &nonce, &aad, &mut data, &tag)
-                .expect("Infallible: it was just encrypted under the same key, nonce and aad");
+            aead.decrypt(&key, &nonce, &aad, &mut data, &tag)?;
 
             assert_eq!(
                 data, msg,
@@ -234,7 +233,7 @@ fn row(msg_len: usize, turn: Turn) -> String {
     let mut digest = [0_u8; DIGEST_SIZE];
     sha256(&said, &mut digest);
 
-    hex(&digest)
+    Ok(hex(&digest))
 }
 
 // === === === === === === === === === ===
@@ -332,19 +331,24 @@ fn a_row_with_a_message() -> (usize, &'static str) {
 /// The sweep below compares a digest with a digest, and a comparison that could
 /// not come out unequal would pass it at every length.
 #[test]
-fn test_a_row_with_one_ciphertext_bit_turned_over_disagrees_with_libaegis() {
+fn test_a_row_with_one_ciphertext_bit_turned_over_disagrees_with_libaegis()
+-> Result<(), AeadCoreError> {
     let (msg_len, expected) = a_row_with_a_message();
 
-    assert_ne!(row(msg_len, Turn::Ciphertext), expected);
+    assert_ne!(row(msg_len, Turn::Ciphertext)?, expected);
+
+    Ok(())
 }
 
 /// A fold that left the tag out would still agree on every ciphertext, and
 /// would go green here and nowhere else.
 #[test]
-fn test_a_row_with_one_tag_bit_turned_over_disagrees_with_libaegis() {
+fn test_a_row_with_one_tag_bit_turned_over_disagrees_with_libaegis() -> Result<(), AeadCoreError> {
     let (msg_len, expected) = a_row_with_a_message();
 
-    assert_ne!(row(msg_len, Turn::Tag), expected);
+    assert_ne!(row(msg_len, Turn::Tag)?, expected);
+
+    Ok(())
 }
 
 /// How many ways the walk is split, so that nextest runs the pieces side by
@@ -357,7 +361,9 @@ fn test_a_row_with_one_tag_bit_turned_over_disagrees_with_libaegis() {
 const SHARDS: usize = 8;
 
 #[rstest]
-fn test_every_length_agrees_with_libaegis(#[values(0, 1, 2, 3, 4, 5, 6, 7)] shard: usize) {
+fn test_every_length_agrees_with_libaegis(
+    #[values(0, 1, 2, 3, 4, 5, 6, 7)] shard: usize,
+) -> Result<(), AeadCoreError> {
     assert!(shard < SHARDS, "a shard the walk is not split into");
 
     for (at, (msg_len, expected)) in published().into_iter().enumerate() {
@@ -366,9 +372,11 @@ fn test_every_length_agrees_with_libaegis(#[values(0, 1, 2, 3, 4, 5, 6, 7)] shar
         }
 
         assert_eq!(
-            row(msg_len, Turn::Nothing),
+            row(msg_len, Turn::Nothing)?,
             expected,
             "the row libaegis answered for a message of {msg_len} bytes"
         );
     }
+
+    Ok(())
 }

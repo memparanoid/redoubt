@@ -112,7 +112,7 @@ proptest! {
 /// The other way round, which is what says the wipe above is the refusal and
 /// not something that happens either way.
 #[test]
-fn test_decrypt_leaves_the_plaintext_when_the_tag_matches() {
+fn test_decrypt_leaves_the_plaintext_when_the_tag_matches() -> Result<(), AeadCoreError> {
     let mut aead = Aegis128L::new();
 
     for length in LENGTHS {
@@ -121,11 +121,12 @@ fn test_decrypt_leaves_the_plaintext_when_the_tag_matches() {
         let mut tag = [0u8; TAG_SIZE];
 
         aead.encrypt(&KEY, &NONCE, b"", &mut data, &mut tag);
-        aead.decrypt(&KEY, &NONCE, b"", &mut data, &tag)
-            .expect("Infallible: the tag is the one encrypt just wrote");
+        aead.decrypt(&KEY, &NONCE, b"", &mut data, &tag)?;
 
         assert_eq!(data, plaintext, "{length} bytes in");
     }
+
+    Ok(())
 }
 
 /// The associated data is not the message, and is left where it was.

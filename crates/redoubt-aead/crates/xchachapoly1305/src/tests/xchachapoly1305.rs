@@ -145,7 +145,9 @@ proptest! {
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_decrypt_leaves_the_plaintext_when_the_tag_matches(#[case] backend: Backend) {
+fn test_decrypt_leaves_the_plaintext_when_the_tag_matches(
+    #[case] backend: Backend,
+) -> Result<(), AeadCoreError> {
     let mut aead = XChaCha20Poly1305::with_backend(backend);
 
     for length in [1usize, 15, 16, 17, 63, 64, 65, 1024] {
@@ -154,11 +156,12 @@ fn test_decrypt_leaves_the_plaintext_when_the_tag_matches(#[case] backend: Backe
         let mut tag = [0u8; TAG_SIZE];
 
         aead.encrypt(&KEY, &NONCE, b"", &mut data, &mut tag);
-        aead.decrypt(&KEY, &NONCE, b"", &mut data, &tag)
-            .expect("Infallible: the tag is the one encrypt just wrote");
+        aead.decrypt(&KEY, &NONCE, b"", &mut data, &tag)?;
 
         assert_eq!(data, plaintext, "{length} bytes in");
     }
+
+    Ok(())
 }
 
 proptest! {
