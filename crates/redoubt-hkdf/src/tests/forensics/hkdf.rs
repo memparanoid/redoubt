@@ -144,7 +144,7 @@ fn test_making_a_derivation_leaves_nothing() {
 macro_rules! deriving {
     ($($found:ident, $absent:ident: $len:expr;)*) => {
         $(
-            #[test]
+            #[redoubt_forensics::test]
             fn $found() -> Result<(), AnyError> {
                 let mut watch = Forensics::watching(&okm_backwards())?;
 
@@ -169,7 +169,7 @@ macro_rules! deriving {
                 Ok(())
             }
 
-            #[test]
+            #[redoubt_forensics::test]
             fn $absent() -> Result<(), AnyError> {
                 let mut ikm_watch = Forensics::watching(&ikm_backwards())?;
                 let mut okm_watch = Forensics::watching(&okm_backwards())?;
@@ -219,7 +219,7 @@ deriving! {
     test_deriving_8160_bytes_leaves_nothing: 8160;
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_deriving_more_than_the_counter_has_blocks_for_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&ikm_backwards())?;
 
@@ -251,7 +251,7 @@ fn test_deriving_more_than_the_counter_has_blocks_for_leaves_nothing() -> Result
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_deriving_nothing_leaves_nothing() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&ikm_backwards())?;
 
@@ -284,7 +284,7 @@ fn test_deriving_nothing_leaves_nothing() -> Result<(), AnyError> {
 // hkdf
 // ============================================================================
 
-#[test]
+#[redoubt_forensics::test]
 fn test_what_hkdf_wrote_is_found_while_the_output_holds_it() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&okm_backwards())?;
 
@@ -307,7 +307,7 @@ fn test_what_hkdf_wrote_is_found_while_the_output_holds_it() -> Result<(), AnyEr
     Ok(())
 }
 
-#[test]
+#[redoubt_forensics::test]
 fn test_hkdf_leaves_nothing() -> Result<(), AnyError> {
     let mut ikm_watch = Forensics::watching(&ikm_backwards())?;
     let mut okm_watch = Forensics::watching(&okm_backwards())?;
