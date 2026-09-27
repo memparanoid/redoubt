@@ -338,20 +338,45 @@ fn snapshot_union_fails() {
 }
 
 #[test]
-#[should_panic(expected = "cipherbox: unknown attribute parameter")]
-fn test_unknown_attribute_panics() {
-    let _ = crate::parse_cipherbox_attr_inner("DataBox, foo = \"bar\"".to_string());
+fn test_parse_reports_a_wrapper_name_that_is_not_an_identifier() {
+    let result = crate::parse_cipherbox_attr_inner("1Box".to_string());
+
+    assert!(result.is_err_and(|error| {
+        error
+            .to_string()
+            .contains("first argument must be wrapper name")
+    }));
 }
 
 #[test]
-fn test_parse_testing_feature() {
+fn test_parse_reports_an_error_type_that_is_not_a_type() {
+    let result = crate::parse_cipherbox_attr_inner("DataBox, error = 1".to_string());
+
+    assert!(result.is_err_and(|error| error.to_string().contains("invalid error type")));
+}
+
+#[test]
+fn test_parse_reports_an_unknown_attribute() {
+    let result = crate::parse_cipherbox_attr_inner("DataBox, foo = \"bar\"".to_string());
+
+    assert!(result.is_err_and(|error| {
+        error
+            .to_string()
+            .contains("unknown attribute parameter: foo = \"bar\"")
+    }));
+}
+
+#[test]
+fn test_parse_testing_feature() -> Result<(), syn::Error> {
     let (name, error, testing_feature) = crate::parse_cipherbox_attr_inner(
         "SecretsBox, testing_feature = \"test-utils\"".to_string(),
-    );
+    )?;
 
     assert_eq!(name.to_string(), "SecretsBox");
     assert!(error.is_none());
     assert_eq!(testing_feature, Some("test-utils".to_string()));
+
+    Ok(())
 }
 
 // === === === === === === === === === ===

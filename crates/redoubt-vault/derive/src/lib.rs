@@ -96,7 +96,10 @@ use syn::{
 /// ```
 #[proc_macro_attribute]
 pub fn cipherbox(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let (wrapper_name, custom_error, testing_feature) = parse_cipherbox_attr(attr);
+    let (wrapper_name, custom_error, testing_feature) = match parse_cipherbox_attr(attr) {
+        Ok(parsed) => parsed,
+        Err(error) => return error.to_compile_error().into(),
+    };
     let input = parse_macro_input!(item as DeriveInput);
     expand(wrapper_name, custom_error, testing_feature, input)
         .unwrap_or_else(|e| e)
@@ -109,18 +112,24 @@ pub fn cipherbox(attr: TokenStream, item: TokenStream) -> TokenStream {
 //   - "WrapperName, error = ErrorType"
 //   - "WrapperName, testing_feature = \"feature-name\""
 // Returns (wrapper_name, custom_error_type, testing_feature)
-fn parse_cipherbox_attr(attr: TokenStream) -> (Ident, Option<Type>, Option<String>) {
+fn parse_cipherbox_attr(
+    attr: TokenStream,
+) -> Result<(Ident, Option<Type>, Option<String>), syn::Error> {
     parse_cipherbox_attr_inner(attr.to_string())
 }
 
 // Internal parsing function that takes a string for testability
 pub(crate) fn parse_cipherbox_attr_inner(
     attr_str: String,
-) -> (Ident, Option<Type>, Option<String>) {
+) -> Result<(Ident, Option<Type>, Option<String>), syn::Error> {
     let parts: Vec<&str> = attr_str.split(',').map(|s| s.trim()).collect();
 
-    let wrapper_name =
-        syn::parse_str::<Ident>(parts[0]).expect("cipherbox: first argument must be wrapper name");
+    let wrapper_name = syn::parse_str::<Ident>(parts[0]).map_err(|_| {
+        syn::Error::new(
+            Span::call_site(),
+            "cipherbox: first argument must be wrapper name",
+        )
+    })?;
 
     let mut custom_error: Option<Type> = None;
     let mut testing_feature: Option<String> = None;
@@ -132,9 +141,9 @@ pub(crate) fn parse_cipherbox_attr_inner(
             .and_then(|s| s.trim().strip_prefix('='))
         {
             let error_type_str = value.trim();
-            custom_error = Some(
-                syn::parse_str::<Type>(error_type_str).expect("cipherbox: invalid error type"),
-            );
+            custom_error = Some(syn::parse_str::<Type>(error_type_str).map_err(|_| {
+                syn::Error::new(Span::call_site(), "cipherbox: invalid error type")
+            })?);
         } else if let Some(value) = part
             .strip_prefix("testing_feature")
             .and_then(|s| s.trim().strip_prefix('='))
@@ -142,11 +151,14 @@ pub(crate) fn parse_cipherbox_attr_inner(
             let feature_str = value.trim().trim_matches('"');
             testing_feature = Some(feature_str.to_string());
         } else {
-            panic!("cipherbox: unknown attribute parameter: {}", part);
+            return Err(syn::Error::new(
+                Span::call_site(),
+                format!("cipherbox: unknown attribute parameter: {part}"),
+            ));
         }
     }
 
-    (wrapper_name, custom_error, testing_feature)
+    Ok((wrapper_name, custom_error, testing_feature))
 }
 /// Find the root crate path from a list of candidates.
 /// Candidates can be crate names like "redoubt-vault" or paths like "redoubt::vault".
