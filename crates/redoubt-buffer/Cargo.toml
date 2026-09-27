@@ -15,7 +15,6 @@ path = "src/lib.rs"
 
 [dependencies]
 libc                   = { workspace = true, optional = true }
-redoubt-util.workspace = true
 redoubt-zero.workspace = true
 thiserror.workspace    = true
 

@@ -2,21 +2,24 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use core::cell::Cell;
-
-use redoubt_util::fill_bytes_with_pattern;
 use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 use crate::error::BufferError;
 use crate::portable_buffer::PortableBuffer;
 use crate::traits::Buffer;
 
-// ╔════════════════════════════════════════════════════════════════════════════╗
-// ║ ZEROIZATION                                                                ║
-// ╚════════════════════════════════════════════════════════════════════════════╝
+#[derive(Debug, thiserror::Error)]
+#[error("a test callback refused with code {code}")]
+struct TestCallbackError {
+    code: u32,
+}
+
+// ============================================================================
+// PortableBuffer
+// ============================================================================
 
 #[test]
-fn test_portable_buffer_is_zeroizable() {
+fn test_fast_zeroize_empties_the_buffer() {
     let mut portable_buffer = PortableBuffer::create(10);
 
     portable_buffer.unzeroize();
@@ -27,7 +30,7 @@ fn test_portable_buffer_is_zeroizable() {
 }
 
 #[test]
-fn test_portable_buffer_zeroizes_on_drop() {
+fn test_drop_zeroizes_the_buffer() {
     let mut portable_buffer = PortableBuffer::create(10);
 
     portable_buffer.unzeroize();
@@ -36,189 +39,122 @@ fn test_portable_buffer_zeroizes_on_drop() {
     portable_buffer.assert_zeroize_on_drop();
 }
 
+// ============================================================================
 // create
+// ============================================================================
 
 #[test]
-fn test_portable_buffer_happypath() -> Result<(), Box<dyn std::error::Error>> {
-    let mut portable_buffer = PortableBuffer::create(10);
+fn test_create_returns_an_empty_buffer() {
+    let portable_buffer = PortableBuffer::create(10);
 
-    // Fill with pattern
-    {
-        let callback_executed = Cell::new(false);
-        portable_buffer.open_mut(&mut |bytes| {
-            callback_executed.set(true);
-            fill_bytes_with_pattern(bytes, 0);
-            Ok(())
-        })?;
-        assert!(callback_executed.get());
-    }
-
-    // Zero initialized
-    {
-        let callback_executed = Cell::new(false);
-        portable_buffer.open_mut(&mut |bytes| {
-            callback_executed.set(true);
-            assert!(bytes.is_zeroized());
-            Ok(())
-        })?;
-        assert!(callback_executed.get());
-    }
-
-    // Fill with pattern
-    {
-        let callback_executed = Cell::new(false);
-        portable_buffer.open_mut(&mut |bytes| {
-            callback_executed.set(true);
-            fill_bytes_with_pattern(bytes, 1);
-            Ok(())
-        })?;
-        assert!(callback_executed.get());
-    }
-
-    // Not zeroized
-    {
-        let callback_executed = Cell::new(false);
-        portable_buffer.open_mut(&mut |bytes| {
-            callback_executed.set(true);
-            assert!(!bytes.is_zeroized());
-            Ok(())
-        })?;
-        assert!(callback_executed.get());
-    }
-
-    // Zeroize
-    {
-        let callback_executed = Cell::new(false);
-        portable_buffer.open_mut(&mut |bytes| {
-            callback_executed.set(true);
-            bytes.fast_zeroize();
-            Ok(())
-        })?;
-        assert!(callback_executed.get());
-    }
-
-    // Assert zeroization!
-    {
-        let callback_executed = Cell::new(false);
-        portable_buffer.open_mut(&mut |bytes| {
-            callback_executed.set(true);
-            assert!(bytes.is_zeroized());
-            Ok(())
-        })?;
-        assert!(callback_executed.get());
-    }
-
-    Ok(())
+    assert!(portable_buffer.is_zeroized());
 }
 
+// ============================================================================
+// Debug
+// ============================================================================
+
+#[test]
+fn test_debug_does_not_expose_contents() {
+    let buffer = PortableBuffer::create(32);
+    let debug_output = format!("{:?}", buffer);
+
+    assert!(debug_output.contains("PortableBuffer"));
+    assert!(debug_output.contains("len"));
+    assert!(debug_output.contains("32"));
+
+    assert!(!debug_output.contains("inner"));
+    assert!(!debug_output.contains("Vec"));
+}
+
+// ============================================================================
 // open
+// ============================================================================
 
 #[test]
-fn test_portable_buffer_open_happypath() -> Result<(), Box<dyn std::error::Error>> {
-    let mut portable_buffer = PortableBuffer::create(10);
-
-    portable_buffer.open_mut(&mut |bytes| {
-        fill_bytes_with_pattern(bytes, 0);
-        Ok(())
-    })?;
-
-    portable_buffer.open(&mut |bytes| {
-        assert!(bytes.is_zeroized());
-        Ok(())
-    })?;
-
-    Ok(())
-}
-
-#[test]
-fn test_portable_buffer_open_propagates_callback_error() {
-    #[derive(Debug, thiserror::Error)]
-    #[error("a test callback refused with code {code}")]
-    struct TestCallbackError {
-        code: u32,
-    }
-
+fn test_open_propagates_callback_error() {
     let mut portable_buffer = PortableBuffer::create(10);
 
     let result = portable_buffer
         .open(&mut |_bytes| Err(BufferError::callback_error(TestCallbackError { code: 42 })));
 
-    match result {
-        Err(BufferError::CallbackError(inner)) => {
-            let expected_inner = TestCallbackError { code: 42 };
-            let debug_str = format!("{:?}", inner);
-            let expected_debug_str = format!("{:?}", expected_inner);
-
-            assert_eq!(debug_str, expected_debug_str);
-        }
-        Err(other) => panic!("expected CallbackError, got {:?}", other),
-        Ok(_) => panic!("expected Err, got Ok"),
-    }
+    assert!(matches!(
+        result,
+        Err(BufferError::CallbackError(inner))
+            if format!("{inner:?}") == format!("{:?}", TestCallbackError { code: 42 })
+    ));
 }
 
+#[test]
+fn test_open_hands_the_callback_what_the_buffer_holds() -> Result<(), BufferError> {
+    let mut portable_buffer = PortableBuffer::create(10);
+
+    portable_buffer.unzeroize();
+
+    portable_buffer.open(&mut |bytes| {
+        assert_eq!(bytes, &[1_u8; 10]);
+        Ok(())
+    })
+}
+
+// ============================================================================
 // open_mut
+// ============================================================================
 
 #[test]
-fn test_portable_buffer_open_mut_propagates_callback_error() {
-    #[derive(Debug, thiserror::Error)]
-    #[error("a test callback refused with code {code}")]
-    struct TestCallbackError {
-        code: u32,
-    }
-
+fn test_open_mut_propagates_callback_error() {
     let mut portable_buffer = PortableBuffer::create(10);
 
     let result = portable_buffer
         .open_mut(&mut |_bytes| Err(BufferError::callback_error(TestCallbackError { code: 42 })));
 
-    match result {
-        Err(BufferError::CallbackError(inner)) => {
-            let expected_inner = TestCallbackError { code: 42 };
-            let debug_str = format!("{:?}", inner);
-            let expected_debug_str = format!("{:?}", expected_inner);
-
-            assert_eq!(debug_str, expected_debug_str);
-        }
-        Err(other) => panic!("expected CallbackError, got {:?}", other),
-        Ok(_) => panic!("expected Err, got Ok"),
-    }
+    assert!(matches!(
+        result,
+        Err(BufferError::CallbackError(inner))
+            if format!("{inner:?}") == format!("{:?}", TestCallbackError { code: 42 })
+    ));
 }
 
+#[test]
+fn test_open_mut_keeps_what_the_callback_wrote() -> Result<(), BufferError> {
+    let mut portable_buffer = PortableBuffer::create(10);
+
+    portable_buffer.open_mut(&mut |bytes| {
+        bytes.fill(0xAB);
+        Ok(())
+    })?;
+
+    portable_buffer.open(&mut |bytes| {
+        assert_eq!(bytes, &[0xAB_u8; 10]);
+        Ok(())
+    })
+}
+
+// ============================================================================
 // len
+// ============================================================================
 
 #[test]
-fn test_portable_buffer_len() {
+fn test_len_returns_the_length_it_was_created_with() {
     let portable_buffer = PortableBuffer::create(10);
+
     assert_eq!(portable_buffer.len(), 10);
 }
 
+// ============================================================================
 // is_empty
+// ============================================================================
 
 #[test]
-fn test_portable_buffer_is_empty_false() {
+fn test_is_empty_returns_false_when_it_holds_bytes() {
     let portable_buffer = PortableBuffer::create(10);
+
     assert!(!portable_buffer.is_empty());
 }
 
 #[test]
-fn test_portable_buffer_is_empty_true() {
+fn test_is_empty_returns_true_when_it_holds_none() {
     let portable_buffer = PortableBuffer::create(0);
+
     assert!(portable_buffer.is_empty());
-}
-
-// Debug
-
-#[test]
-fn test_portable_buffer_debug_does_not_expose_contents() {
-    let buffer = PortableBuffer::create(32);
-    let debug_output = format!("{:?}", buffer);
-
-    // Should contain struct name and length
-    assert!(debug_output.contains("PortableBuffer"));
-    assert!(debug_output.contains("len"));
-    assert!(debug_output.contains("32"));
-
-    // Should NOT contain raw buffer data
-    assert!(!debug_output.contains("inner"));
-    assert!(!debug_output.contains("Vec"));
 }
