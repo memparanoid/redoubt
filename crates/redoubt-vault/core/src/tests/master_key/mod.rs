@@ -118,7 +118,8 @@ fn test_derive_cipherbox_key_returns_another_key_for_another_info() -> Result<()
 #[test]
 fn test_derive_next_cipherbox_key_returns_the_key_under_this_process_and_the_next_uid()
 -> Result<(), Box<dyn Error>> {
-    let info = cipherbox_key_info(std::process::id(), CIPHERBOX_UID.load(Ordering::Relaxed));
+    let pid = if cfg!(unix) { std::process::id() } else { 0 };
+    let info = cipherbox_key_info(pid, CIPHERBOX_UID.load(Ordering::Relaxed));
     let expected = derive_cipherbox_key(MASTER_KEY_LEN, &info)?;
 
     let key = derive_next_cipherbox_key(MASTER_KEY_LEN)?;
