@@ -80,50 +80,6 @@ where
         + Decode
         + BytesRequired,
 {
-    #[cfg(test)]
-    pub(crate) fn unzeroize(&mut self) {
-        self.pristine = true;
-    }
-
-    #[cfg(test)]
-    pub(crate) fn __unsafe_change_api_key_size(&mut self, key_size: usize) {
-        self.key_size = key_size;
-    }
-
-    #[cfg(test)]
-    pub(crate) fn __unsafe_get_tmp_codec_buff(&self) -> &RedoubtCodecBuffer {
-        &self.tmp_field_codec_buff
-    }
-
-    #[cfg(test)]
-    pub(crate) fn __unsafe_get_workspaces(&self) -> &[Workspace; N] {
-        &self.workspaces
-    }
-
-    #[cfg(test)]
-    pub(crate) fn __unsafe_get_ciphertexts(&self) -> &Ciphertexts<N> {
-        &self.ciphertexts
-    }
-
-    #[cfg(test)]
-    pub(crate) fn __unsafe_get_key_info(&self) -> &[u8; CIPHERBOX_KEY_INFO_LEN] {
-        &self.key_info
-    }
-
-    #[cfg(test)]
-    pub(crate) fn __unsafe_derive_key(
-        &self,
-    ) -> Result<ZeroizingGuard<redoubt_alloc::RedoubtVec<u8>>, redoubt_buffer::BufferError> {
-        derive_cipherbox_key(self.key_size, &self.key_info)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn __unsafe_get_field_ciphertext<const M: usize>(
-        &self,
-    ) -> &super::types::Ciphertext {
-        &self.ciphertexts[M]
-    }
-
     pub fn new(aead: Aead) -> Self {
         let key_size = aead.key_size();
         let nonce_size = aead.nonce_size();
@@ -628,5 +584,49 @@ where
         self.assert_healthy()?;
 
         self.open_field_value::<Field, M>().map_err(E::from)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn unzeroize(&mut self) {
+        self.pristine = true;
+    }
+
+    #[cfg(test)]
+    pub(crate) fn __unsafe_change_api_key_size(&mut self, key_size: usize) {
+        self.key_size = key_size;
+    }
+
+    #[cfg(test)]
+    pub(crate) fn __unsafe_get_tmp_codec_buff(&self) -> &RedoubtCodecBuffer {
+        &self.tmp_field_codec_buff
+    }
+
+    #[cfg(test)]
+    pub(crate) fn __unsafe_get_workspaces(&self) -> &[Workspace; N] {
+        &self.workspaces
+    }
+
+    #[cfg(test)]
+    pub(crate) fn __unsafe_get_ciphertexts(&self) -> &Ciphertexts<N> {
+        &self.ciphertexts
+    }
+
+    #[cfg(test)]
+    pub(crate) fn __unsafe_get_key_info(&self) -> &[u8; CIPHERBOX_KEY_INFO_LEN] {
+        &self.key_info
+    }
+
+    #[cfg(test)]
+    pub(crate) fn __unsafe_derive_key(
+        &self,
+    ) -> Result<ZeroizingGuard<redoubt_alloc::RedoubtVec<u8>>, redoubt_buffer::BufferError> {
+        derive_cipherbox_key(self.key_size, &self.key_info)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn __unsafe_get_field_ciphertext<const M: usize>(
+        &self,
+    ) -> &super::types::Ciphertext {
+        &self.ciphertexts[M]
     }
 }
