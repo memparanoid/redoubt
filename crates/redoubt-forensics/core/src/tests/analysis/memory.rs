@@ -1197,7 +1197,7 @@ fn test_forked_analyse_hands_zero_to_the_analyst() -> Result<(), AnyError> {
     let word = u64::from_ne_bytes(
         into[OK * 8..OK * 8 + 8]
             .try_into()
-            .expect("eight bytes of the result"),
+            .expect("Infallible: the slice is cut to exactly eight bytes"),
     );
 
     assert_eq!(

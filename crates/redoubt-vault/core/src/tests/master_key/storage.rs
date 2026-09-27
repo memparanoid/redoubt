@@ -162,7 +162,7 @@ fn subprocess_every_thread_the_same_key() -> Result<(), Box<dyn Error>> {
 
 #[test]
 #[ignore]
-fn subprocess_taken_again_after_a_callback_panicked() {
+fn subprocess_taken_again_after_a_callback_panicked() -> Result<(), Box<dyn Error>> {
     let panicked = std::panic::catch_unwind(|| {
         open(&mut |_| {
             panic!("the callback panics while the storage is open");
@@ -179,7 +179,9 @@ fn subprocess_taken_again_after_a_callback_panicked() {
 
     let answer = opening
         .recv_timeout(DEADLINE)
-        .expect("the storage was not opened again after the panic");
+        .map_err(|_| "the storage was not opened again after the panic")?;
 
     assert!(answer, "the storage refused to open after the panic");
+
+    Ok(())
 }
