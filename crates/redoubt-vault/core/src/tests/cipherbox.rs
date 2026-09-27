@@ -9,14 +9,12 @@ use redoubt_codec::support::test_utils::{
 };
 use redoubt_zero::{
     AssertZeroizeOnDrop, FastZeroizable, RedoubtZero, ZeroizationProbe, ZeroizeOnDropSentinel,
-    ZeroizingGuard,
 };
 
 use crate::cipherbox::CipherBox;
 use crate::error::CipherBoxError;
 use crate::helpers::{decrypt_from, encrypt_into};
 use crate::master_key::consts::MASTER_KEY_LEN;
-use crate::master_key::leak_master_key;
 use crate::traits::{CipherBoxDyns, DecryptStruct, Decryptable, EncryptStruct, Encryptable};
 use crate::types::{Data, DataBuffers};
 
@@ -113,21 +111,6 @@ impl DecryptStruct<NUM_FIELDS> for TestBox {
     }
 }
 
-/// The key a box seals itself with, which is the only one an open reaches
-/// for.
-///
-/// A test that seals with any other key builds a box that cannot be opened
-/// through `open_value`: the tag is the one that other key wrote, so the read
-/// fails to authenticate and poisons the box instead of returning what was
-/// put in it.
-///
-/// Not a constant: `Aead::default()` picks AEGIS where the hardware has AES
-/// and XChaCha20-Poly1305 where it does not, and those take keys of different
-/// widths.
-fn master_key() -> Result<ZeroizingGuard<Vec<u8>>, BoxError> {
-    Ok(leak_master_key(Aead::default().key_size())?)
-}
-
 /// A box with every field sealed, which is the state a read has something to
 /// open in.
 ///
@@ -203,6 +186,44 @@ fn test_new_returns_a_box_holding_no_ciphertexts() {
     assert!(boxed.__unsafe_get_ciphertexts().iter().all(Vec::is_empty));
 }
 
+#[test]
+#[cfg(unix)]
+fn test_new_puts_this_process_in_the_key_info() {
+    let boxed = CipherBox::<TestBox, NUM_FIELDS>::new(Aead::default());
+
+    assert_eq!(
+        boxed.__unsafe_get_key_info()[20..24],
+        std::process::id().to_le_bytes()
+    );
+}
+
+#[test]
+fn test_new_gives_the_next_box_the_next_uid() {
+    let first = CipherBox::<TestBox, NUM_FIELDS>::new(Aead::default());
+    let second = CipherBox::<TestBox, NUM_FIELDS>::new(Aead::default());
+
+    let uid = |boxed: &CipherBox<TestBox, NUM_FIELDS>| {
+        let mut bytes = [0_u8; 8];
+        bytes.copy_from_slice(&boxed.__unsafe_get_key_info()[24..32]);
+        u64::from_le_bytes(bytes)
+    };
+
+    assert_eq!(uid(&second), uid(&first) + 1);
+}
+
+#[test]
+fn test_new_gives_each_box_its_own_key() -> Result<(), BoxError> {
+    let first = CipherBox::<TestBox, NUM_FIELDS>::new(Aead::default());
+    let second = CipherBox::<TestBox, NUM_FIELDS>::new(Aead::default());
+
+    assert_ne!(
+        first.__unsafe_derive_key()?.as_slice(),
+        second.__unsafe_derive_key()?.as_slice()
+    );
+
+    Ok(())
+}
+
 // ============================================================================
 // assert_healthy
 // ============================================================================
@@ -226,7 +247,7 @@ fn test_assert_healthy_reports_poisoned_once_an_operation_has_failed() -> Result
 
     assert!(
         boxed
-            .encrypt_struct(&master_key()?, &mut TestBox::default())
+            .encrypt_struct(&boxed.__unsafe_derive_key()?, &mut TestBox::default())
             .is_err()
     );
 
@@ -254,7 +275,7 @@ fn test_encrypt_struct_poisons_on_a_failed_seal() -> Result<(), BoxError> {
     let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
     let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(aead);
 
-    let result = boxed.encrypt_struct(&master_key()?, &mut TestBox::default());
+    let result = boxed.encrypt_struct(&boxed.__unsafe_derive_key()?, &mut TestBox::default());
 
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
     assert!(boxed.assert_healthy().is_err());
@@ -268,7 +289,7 @@ fn test_encrypt_struct_poisons_on_a_failed_seal() -> Result<(), BoxError> {
 fn test_encrypt_struct_leaves_every_field_sealed() -> Result<(), BoxError> {
     let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(Aead::default());
 
-    boxed.encrypt_struct(&master_key()?, &mut TestBox::default())?;
+    boxed.encrypt_struct(&boxed.__unsafe_derive_key()?, &mut TestBox::default())?;
 
     assert!(
         boxed
@@ -289,7 +310,7 @@ fn test_decrypt_struct_poisons_on_a_failed_open() -> Result<(), BoxError> {
     let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
     let boxed = sealed(aead)?;
 
-    let result = boxed.decrypt_struct(&master_key()?);
+    let result = boxed.decrypt_struct(&boxed.__unsafe_derive_key()?);
 
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
     assert!(boxed.assert_healthy().is_err());
@@ -303,7 +324,7 @@ fn test_decrypt_struct_leaves_the_sealed_fields_intact() -> Result<(), BoxError>
     let boxed = sealed(Aead::default())?;
     let before = boxed.__unsafe_get_ciphertexts().clone();
 
-    boxed.decrypt_struct(&master_key()?)?;
+    boxed.decrypt_struct(&boxed.__unsafe_derive_key()?)?;
 
     assert_eq!(boxed.__unsafe_get_ciphertexts(), &before);
 
@@ -314,7 +335,7 @@ fn test_decrypt_struct_leaves_the_sealed_fields_intact() -> Result<(), BoxError>
 fn test_decrypt_struct_leaves_every_workspace_zeroized() -> Result<(), BoxError> {
     let boxed = sealed(Aead::default())?;
 
-    boxed.decrypt_struct(&master_key()?)?;
+    boxed.decrypt_struct(&boxed.__unsafe_derive_key()?)?;
 
     assert!(boxed.__unsafe_get_workspaces().is_zeroized());
 
@@ -326,7 +347,7 @@ fn test_decrypt_struct_leaves_every_workspace_zeroized_on_a_failed_open() -> Res
     let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthDecrypt(1));
     let boxed = sealed(aead)?;
 
-    assert!(boxed.decrypt_struct(&master_key()?).is_err());
+    assert!(boxed.decrypt_struct(&boxed.__unsafe_derive_key()?).is_err());
 
     assert!(boxed.__unsafe_get_workspaces().is_zeroized());
 
@@ -337,7 +358,7 @@ fn test_decrypt_struct_leaves_every_workspace_zeroized_on_a_failed_open() -> Res
 fn test_decrypt_struct_reads_again_into_the_same_blocks() -> Result<(), BoxError> {
     let boxed = sealed(Aead::default())?;
 
-    boxed.decrypt_struct(&master_key()?)?;
+    boxed.decrypt_struct(&boxed.__unsafe_derive_key()?)?;
 
     let first: Vec<_> = boxed
         .__unsafe_get_workspaces()
@@ -345,7 +366,7 @@ fn test_decrypt_struct_reads_again_into_the_same_blocks() -> Result<(), BoxError
         .map(|workspace| workspace.lock().as_ptr())
         .collect();
 
-    boxed.decrypt_struct(&master_key()?)?;
+    boxed.decrypt_struct(&boxed.__unsafe_derive_key()?)?;
 
     let second: Vec<_> = boxed
         .__unsafe_get_workspaces()
@@ -369,7 +390,7 @@ fn test_decrypt_struct_from_leaves_the_lent_buffers_zeroized() -> Result<(), Box
     let boxed = sealed(Aead::default())?;
     let mut data: DataBuffers<NUM_FIELDS> = boxed.__unsafe_get_ciphertexts().clone();
 
-    boxed.decrypt_struct_from(&master_key()?, &mut data)?;
+    boxed.decrypt_struct_from(&boxed.__unsafe_derive_key()?, &mut data)?;
 
     assert!(data.is_zeroized());
 
@@ -385,7 +406,7 @@ fn test_decrypt_struct_from_leaves_the_lent_buffers_zeroized_on_a_failed_open()
 
     assert!(
         boxed
-            .decrypt_struct_from(&master_key()?, &mut data)
+            .decrypt_struct_from(&boxed.__unsafe_derive_key()?, &mut data)
             .is_err()
     );
 
@@ -401,7 +422,7 @@ fn test_decrypt_struct_from_leaves_the_lent_buffers_zeroized_on_a_failed_open()
 /// The key never came back, so nothing was sealed and nothing was written
 /// over. A box that is intact is not poisoned.
 #[test]
-fn test_maybe_initialize_propagates_leak_master_key_error() {
+fn test_maybe_initialize_propagates_derive_cipherbox_key_error() {
     let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(Aead::default());
 
     boxed.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
@@ -425,8 +446,6 @@ fn test_maybe_initialize_propagates_encrypt_struct_error() {
     assert!(boxed.assert_healthy().is_err());
 }
 
-/// The second call asks the master key for nothing and seals nothing, which
-/// is what the ciphertexts standing still says.
 #[test]
 fn test_maybe_initialize_returns_ok_leaving_a_sealed_box_as_it_was() -> Result<(), BoxError> {
     let mut boxed = sealed(Aead::default())?;
@@ -466,7 +485,8 @@ fn test_try_decrypt_field_propagates_decrypt_error() -> Result<(), BoxError> {
     let mut field = RedoubtCodecTestBreaker::default();
     let mut data = Data::default();
 
-    let result = boxed.try_decrypt_field::<_, 1>(&master_key()?, &mut field, &mut data);
+    let result =
+        boxed.try_decrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field, &mut data);
 
     assert!(matches!(result, Err(CipherBoxError::Aead(_))));
 
@@ -480,7 +500,8 @@ fn test_try_decrypt_field_propagates_decode_error() -> Result<(), BoxError> {
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::ForceDecodeError, 0);
     let mut data = Data::default();
 
-    let result = boxed.try_decrypt_field::<_, 1>(&master_key()?, &mut field, &mut data);
+    let result =
+        boxed.try_decrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field, &mut data);
 
     assert!(matches!(result, Err(CipherBoxError::Decode(_))));
 
@@ -495,7 +516,7 @@ fn test_try_decrypt_field_leaves_the_lent_buffer_zeroized() -> Result<(), BoxErr
     let mut field = RedoubtCodecTestBreaker::default();
     let mut data = Data::default();
 
-    boxed.try_decrypt_field::<_, 1>(&master_key()?, &mut field, &mut data)?;
+    boxed.try_decrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field, &mut data)?;
 
     assert!(data.is_zeroized());
 
@@ -512,7 +533,7 @@ fn test_decrypt_field_poisons_on_a_failed_open() -> Result<(), BoxError> {
     let boxed = sealed(aead)?;
     let mut field = RedoubtCodecTestBreaker::default();
 
-    let result = boxed.decrypt_field::<_, 1>(&master_key()?, &mut field);
+    let result = boxed.decrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field);
 
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
     assert!(boxed.assert_healthy().is_err());
@@ -526,7 +547,7 @@ fn test_decrypt_field_leaves_the_sealed_field_intact() -> Result<(), BoxError> {
     let before = boxed.__unsafe_get_field_ciphertext::<1>().clone();
     let mut field = RedoubtCodecTestBreaker::default();
 
-    boxed.decrypt_field::<_, 1>(&master_key()?, &mut field)?;
+    boxed.decrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field)?;
 
     assert_eq!(boxed.__unsafe_get_field_ciphertext::<1>(), &before);
 
@@ -538,7 +559,7 @@ fn test_decrypt_field_leaves_the_workspace_zeroized() -> Result<(), BoxError> {
     let boxed = sealed(Aead::default())?;
     let mut field = RedoubtCodecTestBreaker::default();
 
-    boxed.decrypt_field::<_, 1>(&master_key()?, &mut field)?;
+    boxed.decrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field)?;
 
     assert!(boxed.__unsafe_get_workspaces()[1].is_zeroized());
 
@@ -553,7 +574,7 @@ fn test_decrypt_field_leaves_the_workspace_zeroized_on_a_failed_open() -> Result
 
     assert!(
         boxed
-            .decrypt_field::<_, 1>(&master_key()?, &mut field)
+            .decrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field)
             .is_err()
     );
 
@@ -567,10 +588,10 @@ fn test_decrypt_field_reads_again_into_the_same_block() -> Result<(), BoxError> 
     let boxed = sealed(Aead::default())?;
     let mut field = RedoubtCodecTestBreaker::default();
 
-    boxed.decrypt_field::<_, 1>(&master_key()?, &mut field)?;
+    boxed.decrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field)?;
     let first = boxed.__unsafe_get_workspaces()[1].lock().as_ptr();
 
-    boxed.decrypt_field::<_, 1>(&master_key()?, &mut field)?;
+    boxed.decrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field)?;
     let second = boxed.__unsafe_get_workspaces()[1].lock().as_ptr();
 
     assert_eq!(first, second);
@@ -591,7 +612,8 @@ fn test_decrypt_field_into_poisons_on_a_failed_decrypt() -> Result<(), BoxError>
     let mut field = RedoubtCodecTestBreaker::default();
     let mut data = Data::default();
 
-    let result = boxed.decrypt_field_into::<_, 1>(&master_key()?, &mut field, &mut data);
+    let result =
+        boxed.decrypt_field_into::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field, &mut data);
 
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
     assert!(boxed.assert_healthy().is_err());
@@ -606,7 +628,8 @@ fn test_decrypt_field_into_poisons_on_a_failed_decode() -> Result<(), BoxError> 
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::ForceDecodeError, 0);
     let mut data = Data::default();
 
-    let result = boxed.decrypt_field_into::<_, 1>(&master_key()?, &mut field, &mut data);
+    let result =
+        boxed.decrypt_field_into::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field, &mut data);
 
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
     assert!(boxed.assert_healthy().is_err());
@@ -625,7 +648,8 @@ fn test_decrypt_field_into_leaves_the_lent_buffer_zeroized_on_a_failed_decrypt()
     let mut field = RedoubtCodecTestBreaker::default();
     let mut data = Data::default();
 
-    let result = boxed.decrypt_field_into::<_, 1>(&master_key()?, &mut field, &mut data);
+    let result =
+        boxed.decrypt_field_into::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field, &mut data);
 
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
     assert!(data.is_zeroized());
@@ -641,7 +665,8 @@ fn test_decrypt_field_into_leaves_the_lent_buffer_zeroized_on_a_failed_decode()
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::ForceDecodeError, 0);
     let mut data = Data::default();
 
-    let result = boxed.decrypt_field_into::<_, 1>(&master_key()?, &mut field, &mut data);
+    let result =
+        boxed.decrypt_field_into::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field, &mut data);
 
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
     assert!(data.is_zeroized());
@@ -656,7 +681,7 @@ fn test_decrypt_field_into_leaves_the_lent_buffer_zeroized_on_a_read_that_succee
     let mut field = RedoubtCodecTestBreaker::default();
     let mut data = Data::default();
 
-    boxed.decrypt_field_into::<_, 1>(&master_key()?, &mut field, &mut data)?;
+    boxed.decrypt_field_into::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field, &mut data)?;
 
     assert!(data.is_zeroized());
 
@@ -675,7 +700,7 @@ fn test_try_encrypt_field_propagates_bytes_required_error() -> Result<(), BoxErr
         0,
     );
 
-    let result = boxed.try_encrypt_field::<_, 1>(&master_key()?, &mut field);
+    let result = boxed.try_encrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field);
 
     assert!(matches!(result, Err(CipherBoxError::Overflow(_))));
 
@@ -688,7 +713,7 @@ fn test_try_encrypt_field_propagates_encode_error() -> Result<(), BoxError> {
     let mut field =
         RedoubtCodecTestBreaker::new(RedoubtCodecTestBreakerBehaviour::ForceEncodeError, 0);
 
-    let result = boxed.try_encrypt_field::<_, 1>(&master_key()?, &mut field);
+    let result = boxed.try_encrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field);
 
     assert!(matches!(result, Err(CipherBoxError::Encode(_))));
     assert!(boxed.__unsafe_get_tmp_codec_buff().is_zeroized());
@@ -704,7 +729,7 @@ fn test_try_encrypt_field_propagates_generate_nonce_error() -> Result<(), BoxErr
     let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(aead);
     let mut field = RedoubtCodecTestBreaker::default();
 
-    let result = boxed.try_encrypt_field::<_, 1>(&master_key()?, &mut field);
+    let result = boxed.try_encrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field);
 
     assert!(matches!(
         result,
@@ -721,7 +746,7 @@ fn test_try_encrypt_field_propagates_encrypt_error() -> Result<(), BoxError> {
     let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(aead);
     let mut field = RedoubtCodecTestBreaker::default();
 
-    let result = boxed.try_encrypt_field::<_, 1>(&master_key()?, &mut field);
+    let result = boxed.try_encrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field);
 
     assert!(matches!(result, Err(CipherBoxError::Aead(_))));
     assert!(boxed.__unsafe_get_field_ciphertext::<1>().is_zeroized());
@@ -734,7 +759,7 @@ fn test_try_encrypt_field_seals_the_field_it_was_given() -> Result<(), BoxError>
     let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(Aead::default());
     let mut field = RedoubtCodecTestBreaker::default();
 
-    boxed.try_encrypt_field::<_, 1>(&master_key()?, &mut field)?;
+    boxed.try_encrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field)?;
 
     assert!(!boxed.__unsafe_get_field_ciphertext::<1>().is_empty());
 
@@ -755,7 +780,7 @@ fn test_encrypt_field_reports_overflow_without_poisoning() -> Result<(), BoxErro
         0,
     );
 
-    let result = boxed.encrypt_field::<_, 1>(&master_key()?, &mut field);
+    let result = boxed.encrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field);
 
     assert!(matches!(result, Err(CipherBoxError::Overflow(_))));
     assert!(boxed.assert_healthy().is_ok());
@@ -771,7 +796,7 @@ fn test_encrypt_field_propagates_nonce_entropy_error_without_poisoning() -> Resu
     let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(aead);
     let mut field = RedoubtCodecTestBreaker::default();
 
-    let result = boxed.encrypt_field::<_, 1>(&master_key()?, &mut field);
+    let result = boxed.encrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field);
 
     assert!(matches!(
         result,
@@ -788,7 +813,7 @@ fn test_encrypt_field_poisons_on_a_failed_seal() -> Result<(), BoxError> {
     let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(aead);
     let mut field = RedoubtCodecTestBreaker::default();
 
-    let result = boxed.encrypt_field::<_, 1>(&master_key()?, &mut field);
+    let result = boxed.encrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field);
 
     assert!(matches!(result, Err(CipherBoxError::Poisoned)));
     assert!(boxed.assert_healthy().is_err());
@@ -801,7 +826,7 @@ fn test_encrypt_field_seals_the_field_it_was_given() -> Result<(), BoxError> {
     let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(Aead::default());
     let mut field = RedoubtCodecTestBreaker::default();
 
-    boxed.encrypt_field::<_, 1>(&master_key()?, &mut field)?;
+    boxed.encrypt_field::<_, 1>(&boxed.__unsafe_derive_key()?, &mut field)?;
 
     assert!(!boxed.__unsafe_get_field_ciphertext::<1>().is_empty());
 
@@ -883,11 +908,11 @@ fn test_open_dyn_returns_what_the_callback_returned() -> Result<(), BoxError> {
 // open_value
 // ============================================================================
 
-/// The key size is one nothing can leak, so an open that reaches the master
-/// key cannot come back `Ok` — and this one does, which is how an unsealed
-/// box is shown never to ask for it.
+/// The key size is one nothing can derive, so an open that derives the key
+/// cannot come back `Ok` — and this one does, which is how an unsealed box is
+/// shown never to derive it.
 #[test]
-fn test_open_value_returns_the_default_without_reaching_the_master_key() -> Result<(), BoxError> {
+fn test_open_value_returns_the_default_without_deriving_the_key() -> Result<(), BoxError> {
     let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(Aead::default());
 
     boxed.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
@@ -902,7 +927,7 @@ fn test_open_value_returns_the_default_without_reaching_the_master_key() -> Resu
 /// The key never came back, so nothing was opened and nothing was written
 /// over. A box that is intact is not poisoned.
 #[test]
-fn test_open_value_propagates_leak_master_key_error() -> Result<(), BoxError> {
+fn test_open_value_propagates_derive_cipherbox_key_error() -> Result<(), BoxError> {
     let mut boxed = sealed(Aead::default())?;
 
     boxed.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
@@ -953,10 +978,22 @@ fn test_open_mut_dyn_propagates_assert_healthy_error() -> Result<(), BoxError> {
     Ok(())
 }
 
+#[test]
+fn test_open_mut_dyn_propagates_maybe_initialize_error() -> Result<(), BoxError> {
+    let aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(1));
+    let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(aead);
+
+    let result = boxed.open_mut_dyn::<u32, CipherBoxError>(&mut |it| Ok(it.f0.number.data));
+
+    assert!(matches!(result, Err(CipherBoxError::Poisoned)));
+
+    Ok(())
+}
+
 /// The key never came back, so the callback never ran and nothing was
 /// written over. A box that is intact is not poisoned.
 #[test]
-fn test_open_mut_dyn_propagates_leak_master_key_error() -> Result<(), BoxError> {
+fn test_open_mut_dyn_propagates_derive_cipherbox_key_error() -> Result<(), BoxError> {
     let mut boxed = sealed(Aead::default())?;
 
     boxed.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
@@ -1143,12 +1180,11 @@ fn test_open_field_dyn_returns_what_the_callback_returned() -> Result<(), BoxErr
 // open_field_value
 // ============================================================================
 
-/// The key size is one nothing can leak, so an open that reaches the master
-/// key cannot come back `Ok` — and this one does, which is how an unsealed
-/// box is shown never to ask for it.
+/// The key size is one nothing can derive, so an open that derives the key
+/// cannot come back `Ok` — and this one does, which is how an unsealed box is
+/// shown never to derive it.
 #[test]
-fn test_open_field_value_returns_the_default_without_reaching_the_master_key()
--> Result<(), BoxError> {
+fn test_open_field_value_returns_the_default_without_deriving_the_key() -> Result<(), BoxError> {
     let mut boxed = CipherBox::<TestBox, NUM_FIELDS>::new(Aead::default());
 
     boxed.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
@@ -1166,7 +1202,7 @@ fn test_open_field_value_returns_the_default_without_reaching_the_master_key()
 /// The key never came back, so nothing was opened and nothing was written
 /// over. A box that is intact is not poisoned.
 #[test]
-fn test_open_field_value_propagates_leak_master_key_error() -> Result<(), BoxError> {
+fn test_open_field_value_propagates_derive_cipherbox_key_error() -> Result<(), BoxError> {
     let mut boxed = sealed(Aead::default())?;
 
     boxed.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);
@@ -1242,10 +1278,10 @@ fn test_open_field_mut_dyn_propagates_maybe_initialize_error() -> Result<(), Box
 /// The key never came back, so the callback never ran and nothing was
 /// written over. A box that is intact is not poisoned.
 ///
-/// Sealed first on purpose: `maybe_initialize` asks for the master key too,
-/// and on a box it has to seal it would be the one that failed.
+/// Sealed first on purpose: `maybe_initialize` derives the key too, and on a
+/// box it has to seal it would be the one that failed.
 #[test]
-fn test_open_field_mut_dyn_propagates_leak_master_key_error() -> Result<(), BoxError> {
+fn test_open_field_mut_dyn_propagates_derive_cipherbox_key_error() -> Result<(), BoxError> {
     let mut boxed = sealed(Aead::default())?;
 
     boxed.__unsafe_change_api_key_size(MASTER_KEY_LEN + 1);

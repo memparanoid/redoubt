@@ -20,9 +20,10 @@ test-utils         = []
 [dependencies]
 quiesce.workspace        = true
 redoubt-aead.workspace   = true
-redoubt-alloc.workspace  = true
+redoubt-alloc            = { workspace = true, features = ["default_init"] }
 redoubt-buffer.workspace = true
 redoubt-codec.workspace  = true
+redoubt-hkdf.workspace   = true
 redoubt-mem.workspace    = true
 redoubt-rand.workspace   = true
 redoubt-secret.workspace = true
@@ -36,6 +37,5 @@ redoubt-forensics.workspace  = true
 redoubt-test-utils.workspace = true
 redoubt-util.workspace       = true
 
-
-[target.'cfg(unix)'.dev-dependencies]
+[target.'cfg(unix)'.dependencies]
 libc.workspace = true

@@ -14,6 +14,9 @@
 
 extern crate alloc;
 
+#[cfg(test)]
+mod tests;
+
 mod cipherbox;
 mod consts;
 mod error;
@@ -21,14 +24,14 @@ mod helpers;
 mod master_key;
 mod traits;
 mod types;
+mod utils;
 mod workspace;
+
+#[cfg(any(test, feature = "test-utils"))]
+pub use master_key::derive_next_cipherbox_key;
 
 pub use cipherbox::CipherBox;
 pub use error::CipherBoxError;
 pub use helpers::{decrypt_from, encrypt_into};
-pub use master_key::leak_master_key;
 pub use traits::{CipherBoxDyns, DecryptStruct, Decryptable, EncryptStruct, Encryptable};
 pub use types::{Ciphertext, Ciphertexts, Data, DataBuffers, Nonce, Nonces, Tag, Tags};
-
-#[cfg(test)]
-mod tests;

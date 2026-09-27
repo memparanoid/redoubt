@@ -1188,6 +1188,7 @@ dependencies = [
  "redoubt-buffer",
  "redoubt-codec",
  "redoubt-forensics",
+ "redoubt-hkdf",
  "redoubt-mem",
  "redoubt-rand",
  "redoubt-secret",

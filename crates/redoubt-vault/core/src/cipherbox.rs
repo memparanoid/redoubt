@@ -15,9 +15,11 @@ use redoubt_zero::{
 
 use super::consts::AAD;
 use super::error::CipherBoxError;
-use super::master_key::leak_master_key;
+use super::master_key::consts::CIPHERBOX_KEY_INFO_LEN;
+use super::master_key::{cipherbox_key_info, derive_cipherbox_key};
 use super::traits::{DecryptStruct, Decryptable, EncryptStruct, Encryptable};
 use super::types::{Ciphertexts, Data, DataBuffers, Nonces, Tags};
+use super::utils::{CIPHERBOX_UID, this_process};
 use super::workspace::Workspace;
 
 #[derive(RedoubtZero)]
@@ -45,6 +47,7 @@ where
     /// that misses it by a moment refuses a moment later instead.
     poisoned: AtomicBool,
     key_size: usize,
+    key_info: [u8; CIPHERBOX_KEY_INFO_LEN],
     ciphertexts: Ciphertexts<N>,
     nonces: Nonces<N>,
     tags: Tags<N>,
@@ -103,6 +106,18 @@ where
     }
 
     #[cfg(test)]
+    pub(crate) fn __unsafe_get_key_info(&self) -> &[u8; CIPHERBOX_KEY_INFO_LEN] {
+        &self.key_info
+    }
+
+    #[cfg(test)]
+    pub(crate) fn __unsafe_derive_key(
+        &self,
+    ) -> Result<ZeroizingGuard<redoubt_alloc::RedoubtVec<u8>>, redoubt_buffer::BufferError> {
+        derive_cipherbox_key(self.key_size, &self.key_info)
+    }
+
+    #[cfg(test)]
     pub(crate) fn __unsafe_get_field_ciphertext<const M: usize>(
         &self,
     ) -> &super::types::Ciphertext {
@@ -135,6 +150,10 @@ where
             workspaces: core::array::from_fn(|_| Workspace::new()),
             initialized: false,
             pristine: true,
+            key_info: cipherbox_key_info(
+                this_process(),
+                CIPHERBOX_UID.fetch_add(1, Ordering::Relaxed),
+            ),
             poisoned: AtomicBool::new(false),
             tmp_field_codec_buff: RedoubtCodecBuffer::default(),
             #[cfg(test)]
@@ -237,10 +256,11 @@ where
             return Ok(());
         }
 
-        let master_key = leak_master_key(self.key_size).map_err(CipherBoxError::from)?;
+        let key =
+            derive_cipherbox_key(self.key_size, &self.key_info).map_err(CipherBoxError::from)?;
         let mut value = ZeroizingGuard::<T>::from_default();
 
-        self.encrypt_struct(&master_key, &mut value)
+        self.encrypt_struct(&key, &mut value)
     }
 
     /// Decrypts field `M`, leaving `ciphertexts[M]` intact.
@@ -403,16 +423,17 @@ where
     /// sealed the box yet.
     ///
     /// An unsealed box holds no ciphertexts, so there is nothing to open and
-    /// the master key is never asked for.
+    /// no key is derived.
     #[inline(always)]
     pub(crate) fn open_value(&self) -> Result<ZeroizingGuard<T>, CipherBoxError> {
         if !self.initialized {
             return Ok(ZeroizingGuard::<T>::from_default());
         }
 
-        let master_key = leak_master_key(self.key_size).map_err(CipherBoxError::from)?;
+        let key =
+            derive_cipherbox_key(self.key_size, &self.key_info).map_err(CipherBoxError::from)?;
 
-        self.decrypt_struct(&master_key)
+        self.decrypt_struct(&key)
     }
 
     /// Provides mutable access to the entire struct via a callback.
@@ -430,23 +451,19 @@ where
         E: From<CipherBoxError>,
     {
         self.assert_healthy().map_err(E::from)?;
+        self.maybe_initialize().map_err(E::from)?;
 
-        let master_key = leak_master_key(self.key_size).map_err(CipherBoxError::from)?;
+        let key =
+            derive_cipherbox_key(self.key_size, &self.key_info).map_err(CipherBoxError::from)?;
 
-        // An unsealed box has no ciphertexts to open, and the reseal below is
-        // what first seals it.
-        let mut value = if !self.initialized {
-            ZeroizingGuard::<T>::from_default()
-        } else {
-            self.decrypt_struct(&master_key).map_err(E::from)?
-        };
+        let mut value = self.decrypt_struct(&key).map_err(E::from)?;
 
         let mut result = f(&mut value).inspect_err(|_| {
             // wipe asap
             value.fast_zeroize();
         })?;
 
-        self.encrypt_struct(&master_key, &mut value)?;
+        self.encrypt_struct(&key, &mut value)?;
 
         Ok(ZeroizingGuard::from_mut(&mut result))
     }
@@ -477,7 +494,7 @@ where
     /// sealed the box yet.
     ///
     /// An unsealed box holds no ciphertexts, so there is nothing to open and
-    /// the master key is never asked for.
+    /// no key is derived.
     #[inline(always)]
     pub(crate) fn open_field_value<Field, const M: usize>(
         &self,
@@ -491,9 +508,10 @@ where
             return Ok(field);
         }
 
-        let master_key = leak_master_key(self.key_size).map_err(CipherBoxError::from)?;
+        let key =
+            derive_cipherbox_key(self.key_size, &self.key_info).map_err(CipherBoxError::from)?;
 
-        self.decrypt_field::<Field, M>(&master_key, &mut field)?;
+        self.decrypt_field::<Field, M>(&key, &mut field)?;
 
         Ok(field)
     }
@@ -511,17 +529,18 @@ where
         self.assert_healthy()?;
         self.maybe_initialize()?;
 
-        let master_key = leak_master_key(self.key_size).map_err(CipherBoxError::from)?;
+        let key =
+            derive_cipherbox_key(self.key_size, &self.key_info).map_err(CipherBoxError::from)?;
         let mut field = ZeroizingGuard::<Field>::from_default();
 
-        self.decrypt_field::<Field, M>(&master_key, &mut field)?;
+        self.decrypt_field::<Field, M>(&key, &mut field)?;
 
         let mut result = f(&mut field).inspect_err(|_| {
             // wipe asap
             field.fast_zeroize();
         })?;
 
-        self.encrypt_field::<Field, M>(&master_key, &mut field)?;
+        self.encrypt_field::<Field, M>(&key, &mut field)?;
 
         Ok(ZeroizingGuard::from_mut(&mut result))
     }
