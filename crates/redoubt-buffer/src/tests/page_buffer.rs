@@ -12,6 +12,9 @@ mod page_buffer_tests {
     use crate::page_buffer::PageBuffer;
     use crate::traits::Buffer;
 
+    #[cfg(target_os = "linux")]
+    use crate::tests::utils::{page_kb, region};
+
     fn protected() -> Result<PageBuffer, Box<dyn std::error::Error>> {
         Ok(PageBuffer::new(32)?)
     }
@@ -187,6 +190,21 @@ mod page_buffer_tests {
         );
 
         assert_eq!(exit_code, None, "the page was readable after new");
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_new_returns_a_page_locked_excluded_from_dumps_and_closed()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let buffer = protected()?;
+
+        let mapped = region(buffer.page.address())?.ok_or("the page is not mapped")?;
+
+        assert_eq!(mapped.permissions, "---p");
+        assert!(mapped.locked_kb >= page_kb());
+        assert!(mapped.vm_flags.iter().any(|flag| flag == "dd"));
+
+        Ok(())
     }
 
     // =============================================================================
@@ -480,6 +498,42 @@ mod page_buffer_tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
+    fn test_open_hands_the_callback_a_page_open_to_writes_only()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
+        let at = buffer.page.address();
+        let mut inside = None;
+
+        buffer.open(&mut |_| {
+            inside = Some(region(at).map_err(|error| error.to_string()));
+            Ok(())
+        })?;
+
+        let mapped = inside
+            .ok_or("the callback never ran")??
+            .ok_or("the page is not mapped")?;
+
+        assert_eq!(mapped.permissions, "-w-p");
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_open_closes_the_page_when_it_returns() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
+
+        buffer.open(&mut |_| Ok(()))?;
+
+        let mapped = region(buffer.page.address())?.ok_or("the page is not mapped")?;
+
+        assert_eq!(mapped.permissions, "---p");
+
+        Ok(())
+    }
+
+    #[test]
     fn test_open_returns_the_page_contents() -> Result<(), Box<dyn std::error::Error>> {
         let mut buffer = protected()?;
 
@@ -596,6 +650,42 @@ mod page_buffer_tests {
                 "Subprocess should exit cleanly after assertion"
             );
         }
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_open_mut_hands_the_callback_a_page_open_to_writes_only()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
+        let at = buffer.page.address();
+        let mut inside = None;
+
+        buffer.open_mut(&mut |_| {
+            inside = Some(region(at).map_err(|error| error.to_string()));
+            Ok(())
+        })?;
+
+        let mapped = inside
+            .ok_or("the callback never ran")??
+            .ok_or("the page is not mapped")?;
+
+        assert_eq!(mapped.permissions, "-w-p");
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_open_mut_closes_the_page_when_it_returns() -> Result<(), Box<dyn std::error::Error>> {
+        let mut buffer = protected()?;
+
+        buffer.open_mut(&mut |_| Ok(()))?;
+
+        let mapped = region(buffer.page.address())?.ok_or("the page is not mapped")?;
+
+        assert_eq!(mapped.permissions, "---p");
+
+        Ok(())
     }
 
     #[test]

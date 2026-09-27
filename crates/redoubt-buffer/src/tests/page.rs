@@ -12,6 +12,9 @@ mod page_tests {
     use crate::error::PageError;
     use crate::page::Page;
 
+    #[cfg(target_os = "linux")]
+    use crate::tests::utils::{page_kb, region};
+
     // =============================================================================
     // new()
     // =============================================================================
@@ -59,6 +62,20 @@ mod page_tests {
         let page = Page::new(capacity)?;
 
         assert_eq!(unsafe { page.as_slice() }.len(), capacity);
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_new_maps_a_page_open_unlocked_and_dumpable() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new(32)?;
+
+        let mapped = region(page.address())?.ok_or("the page is not mapped")?;
+
+        assert_eq!(mapped.permissions, "rw-p");
+        assert_eq!(mapped.locked_kb, 0);
+        assert!(!mapped.vm_flags.iter().any(|flag| flag == "dd"));
 
         Ok(())
     }
@@ -112,38 +129,30 @@ mod page_tests {
     // =============================================================================
 
     #[test]
-    fn test_lock_succeeds() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(target_os = "linux")]
+    fn test_lock_locks_the_page_in_ram() -> Result<(), Box<dyn std::error::Error>> {
         let page = Page::new(32)?;
+
         page.lock()?;
+
+        let mapped = region(page.address())?.ok_or("the page is not mapped")?;
+
+        assert!(mapped.locked_kb >= page_kb());
 
         Ok(())
     }
 
     #[test]
-    fn test_lock_then_munlock() -> Result<(), Box<dyn std::error::Error>> {
-        let page = Page::new(32)?;
-
-        page.lock()?;
-        page.munlock();
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_lock_multiple_times_succeeds() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(target_os = "linux")]
+    fn test_lock_twice_leaves_the_page_locked() -> Result<(), Box<dyn std::error::Error>> {
         let page = Page::new(32)?;
 
         page.lock()?;
         page.lock()?;
 
-        Ok(())
-    }
+        let mapped = region(page.address())?.ok_or("the page is not mapped")?;
 
-    #[test]
-    fn test_munlock_without_lock_succeeds() -> Result<(), Box<dyn std::error::Error>> {
-        let page = Page::new(32)?;
-
-        page.munlock();
+        assert!(mapped.locked_kb >= page_kb());
 
         Ok(())
     }
@@ -192,21 +201,31 @@ mod page_tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn test_mark_dontdump_succeeds() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_mark_dontdump_excludes_the_page_from_core_dumps()
+    -> Result<(), Box<dyn std::error::Error>> {
         let page = Page::new(32)?;
 
         page.mark_dontdump()?;
+
+        let mapped = region(page.address())?.ok_or("the page is not mapped")?;
+
+        assert!(mapped.vm_flags.iter().any(|flag| flag == "dd"));
 
         Ok(())
     }
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn test_mark_dontdump_multiple_times_succeeds() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_mark_dontdump_twice_leaves_the_page_excluded() -> Result<(), Box<dyn std::error::Error>>
+    {
         let page = Page::new(32)?;
 
         page.mark_dontdump()?;
         page.mark_dontdump()?;
+
+        let mapped = region(page.address())?.ok_or("the page is not mapped")?;
+
+        assert!(mapped.vm_flags.iter().any(|flag| flag == "dd"));
 
         Ok(())
     }
@@ -254,20 +273,15 @@ mod page_tests {
     // =============================================================================
 
     #[test]
-    fn test_protect_succeeds() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(target_os = "linux")]
+    fn test_protect_closes_the_page_to_every_access() -> Result<(), Box<dyn std::error::Error>> {
         let page = Page::new(32)?;
 
         page.protect()?;
 
-        Ok(())
-    }
+        let mapped = region(page.address())?.ok_or("the page is not mapped")?;
 
-    #[test]
-    fn test_protect_then_unprotect() -> Result<(), Box<dyn std::error::Error>> {
-        let page = Page::new(32)?;
-
-        page.protect()?;
-        page.unprotect()?;
+        assert_eq!(mapped.permissions, "---p");
 
         Ok(())
     }
@@ -348,10 +362,32 @@ mod page_tests {
     // =============================================================================
 
     #[test]
-    fn test_unprotect_on_unprotected_page_succeeds() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(target_os = "linux")]
+    fn test_unprotect_opens_a_closed_page_to_writes_only() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let page = Page::new(32)?;
+
+        page.protect()?;
+        page.unprotect()?;
+
+        let mapped = region(page.address())?.ok_or("the page is not mapped")?;
+
+        assert_eq!(mapped.permissions, "-w-p");
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_unprotect_leaves_an_open_page_writable_only() -> Result<(), Box<dyn std::error::Error>>
+    {
         let page = Page::new(32)?;
 
         page.unprotect()?;
+
+        let mapped = region(page.address())?.ok_or("the page is not mapped")?;
+
+        assert_eq!(mapped.permissions, "-w-p");
 
         Ok(())
     }
@@ -478,8 +514,58 @@ mod page_tests {
     }
 
     // =============================================================================
+    // munlock()
+    // =============================================================================
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_munlock_unlocks_a_locked_page() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new(32)?;
+
+        page.lock()?;
+        page.munlock();
+
+        let mapped = region(page.address())?.ok_or("the page is not mapped")?;
+
+        assert_eq!(mapped.locked_kb, 0);
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_munlock_leaves_a_page_never_locked_unlocked() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let page = Page::new(32)?;
+
+        page.munlock();
+
+        let mapped = region(page.address())?.ok_or("the page is not mapped")?;
+
+        assert_eq!(mapped.locked_kb, 0);
+
+        Ok(())
+    }
+
+    // =============================================================================
     // Drop
     // =============================================================================
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_drop_unmaps_the_page() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new(32)?;
+        let at = page.address();
+
+        page.lock()?;
+        page.protect()?;
+
+        drop(page);
+
+        assert!(region(at)?.is_none());
+
+        Ok(())
+    }
 
     /// The oracle is the MMU: a write to a page at `PROT_NONE` raises
     /// `SIGSEGV`, so a clean exit is what says the unprotect ran before the

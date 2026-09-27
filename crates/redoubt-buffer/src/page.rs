@@ -205,6 +205,11 @@ impl Page {
         // which is the pair `munmap` takes.
         unsafe { libc::munmap(self.ptr as *mut libc::c_void, self.capacity) };
     }
+
+    #[cfg(test)]
+    pub(crate) fn address(&self) -> usize {
+        self.ptr as usize
+    }
 }
 
 impl Drop for Page {
