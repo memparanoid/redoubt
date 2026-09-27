@@ -156,26 +156,6 @@ macro_rules! impl_be_conversions {
 
 impl_be_conversions!(u32, 4, u32_from_be, u32_to_be);
 
-/// Verifies that a slice is zeroized.
-///
-/// Checks that all bytes in the slice are zero.
-///
-/// # Example
-///
-/// ```
-/// use redoubt_util::is_slice_zeroized;
-///
-/// let zeroed = [0u8; 10];
-/// assert!(is_slice_zeroized(&zeroed));
-///
-/// let not_zeroed = [0u8, 1, 0, 0];
-/// assert!(!is_slice_zeroized(&not_zeroed));
-/// ```
-#[inline(always)]
-pub fn is_slice_zeroized(slice: &[u8]) -> bool {
-    slice.iter().all(|&b| b == 0)
-}
-
 /// Verifies that a `Vec<u8>` is fully zeroized, including spare capacity.
 ///
 /// This function checks **the entire allocation** (from index 0 to capacity),

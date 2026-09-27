@@ -63,7 +63,7 @@ fn test_slice() {
     slice.fast_zeroize();
 
     assert!(slice.is_zeroized());
-    assert!(redoubt_util::is_slice_zeroized(slice));
+    assert!(redoubt_mem::is_zeroized(slice));
 }
 
 #[test]
@@ -149,7 +149,7 @@ fn test_array() {
     array.fast_zeroize();
 
     assert!(array.is_zeroized());
-    assert!(redoubt_util::is_slice_zeroized(&array));
+    assert!(redoubt_mem::is_zeroized(&array));
 }
 
 #[test]
@@ -306,7 +306,7 @@ fn test_string() {
     s.fast_zeroize();
 
     assert!(s.is_zeroized());
-    assert!(redoubt_util::is_slice_zeroized(s.as_bytes()));
+    assert!(redoubt_mem::is_zeroized(s.as_bytes()));
 }
 
 #[test]
@@ -327,7 +327,7 @@ fn test_box() {
     boxed.fast_zeroize();
 
     assert!(boxed.is_zeroized());
-    assert!(redoubt_util::is_slice_zeroized(&*boxed));
+    assert!(redoubt_mem::is_zeroized(&*boxed));
 }
 
 #[test]

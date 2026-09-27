@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_util::{is_slice_zeroized, is_spare_capacity_zeroized, zeroize_spare_capacity};
+use redoubt_util::{is_spare_capacity_zeroized, zeroize_spare_capacity};
 
 /// Helper to read spare capacity bytes (unsafe but sound for testing).
 fn read_spare_capacity(vec: &Vec<u8>) -> Vec<u8> {
@@ -29,7 +29,7 @@ fn test_zeroize_spare_capacity_basic() {
     // Active elements unchanged
     assert!(vec.iter().all(|&b| b == 0xFF));
     // Spare capacity zeroed
-    assert!(is_slice_zeroized(&read_spare_capacity(&vec)));
+    assert!(read_spare_capacity(&vec).iter().all(|&b| b == 0));
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn test_zeroize_spare_capacity_with_reserved() {
     // Active elements unchanged
     assert!(vec.iter().all(|&b| b == 0xAA));
     // Spare capacity zeroed
-    assert!(is_slice_zeroized(&read_spare_capacity(&vec)));
+    assert!(read_spare_capacity(&vec).iter().all(|&b| b == 0));
 }
 
 // === === === === === === === === === ===

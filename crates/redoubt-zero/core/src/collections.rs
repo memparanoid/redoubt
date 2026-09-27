@@ -214,7 +214,7 @@ impl FastZeroizable for String {
 
 impl ZeroizationProbe for String {
     fn is_zeroized(&self) -> bool {
-        redoubt_util::is_slice_zeroized(self.as_bytes())
+        redoubt_mem::is_zeroized(self.as_bytes())
     }
 }
 
