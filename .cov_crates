@@ -30,7 +30,8 @@ redoubt-buffer
 redoubt-mem-core
 
 # Forensics
-redoubt-forensics
+redoubt-forensics-core
+redoubt-forensics-macros
 
 # Vault
 redoubt-vault

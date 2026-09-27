@@ -34,6 +34,7 @@ set -euo pipefail
 CRATES=(
   redoubt-asm
   redoubt-forensics-core
+  redoubt-forensics-macros
   redoubt-forensics
   redoubt-test-utils
   redoubt-util

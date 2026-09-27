@@ -1,0 +1,24 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["development-tools::testing", "memory-management"]
+description          = "The test attribute behind redoubt-forensics"
+edition.workspace    = true
+keywords             = ["security", "forensics", "memory", "zeroize"]
+license.workspace    = true
+name                 = "redoubt-forensics-macros"
+readme.workspace     = true
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path       = "src/lib.rs"
+proc-macro = true
+
+[dependencies]
+proc-macro-crate.workspace = true
+proc-macro2.workspace      = true
+quote.workspace            = true
+syn                        = { workspace = true, features = ["full", "parsing"] }
+
+[dev-dependencies]
+redoubt-forensics-core.workspace = true

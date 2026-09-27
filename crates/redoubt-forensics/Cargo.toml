@@ -14,4 +14,5 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
-redoubt-forensics-core.workspace = true
+redoubt-forensics-core.workspace   = true
+redoubt-forensics-macros.workspace = true

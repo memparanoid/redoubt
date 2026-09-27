@@ -1036,6 +1036,7 @@ name = "redoubt-forensics"
 version = "0.1.0-rc.13"
 dependencies = [
  "redoubt-forensics-core",
+ "redoubt-forensics-macros",
 ]
 
 [[package]]
@@ -1047,6 +1048,17 @@ dependencies = [
  "proptest",
  "quiesce",
  "redoubt-mem-core",
+]
+
+[[package]]
+name = "redoubt-forensics-macros"
+version = "0.1.0-rc.13"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "redoubt-forensics-core",
+ "syn",
 ]
 
 [[package]]
