@@ -5,7 +5,15 @@
 //! What each routine in the assembly leaves in the registers and in its frame,
 //! and whether the verifiers that answer that read all of what they claim to.
 
+use rstest::rstest;
+
+use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE};
+
+use crate::consts::R_WORDS;
+
 unsafe extern "C" {
+    fn redoubt_poly1305_v2_init(r: *mut u64, s: *mut u8, key: *const u8);
+
     fn redoubt_poly1305_v2_registers_are_zeroized() -> u64;
     fn redoubt_poly1305_v2_dirty_registers();
 
@@ -433,12 +441,264 @@ fn capture_the_frame_writer(at: usize) -> [u8; FRAME] {
     actual
 }
 
-/// What the verifier answers when the only thing in the window is the byte left
-/// at `at`: it ORs a word at a time, so the byte comes back in its place within
-/// its word. Asserted exactly, because a window that slid reads bytes nobody
-/// wrote, and "something was found" would take those for the byte.
-fn only_the_byte_at(at: usize) -> u64 {
-    u64::from(LEFT_BYTE) << (8 * (at % 8))
+#[cfg(target_arch = "x86_64")]
+macro_rules! tail_branch {
+    () => {
+        "jmp {target}"
+    };
+}
+
+#[cfg(target_arch = "aarch64")]
+macro_rules! tail_branch {
+    () => {
+        "b {target}"
+    };
+}
+
+/// The first argument set to zero, which is the offset the frame writer reads.
+#[cfg(target_arch = "x86_64")]
+macro_rules! offset_zero {
+    () => {
+        "xor edi, edi"
+    };
+}
+
+#[cfg(target_arch = "aarch64")]
+macro_rules! offset_zero {
+    () => {
+        "mov x0, xzr"
+    };
+}
+
+/// The routine through a pointer, then both verifiers, in one block: nothing
+/// Rust emits runs between them, and they all run at the stack pointer the
+/// routine was entered with. The register verdict waits in r12 while the frame
+/// is read, since reading it takes registers.
+#[cfg(target_arch = "x86_64")]
+macro_rules! measure {
+    ($routine:expr, $a0:expr, $a1:expr, $a2:expr $(,)?) => {
+        measure!(@call $routine, [("rdi") $a0, ("rsi") $a1, ("rdx") $a2])
+    };
+    ($routine:expr, $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr, $a5:expr $(,)?) => {
+        measure!(@call $routine,
+                 [("rdi") $a0, ("rsi") $a1, ("rdx") $a2,
+                  ("rcx") $a3, ("r8") $a4, ("r9") $a5])
+    };
+    (@call $routine:expr, [$(($register:tt) $argument:expr),* $(,)?]) => {{
+        let registers: u64;
+        let frame: u64;
+
+        core::arch::asm!(
+            "call r11",
+            "call {register_probe}",
+            "mov r12, rax",
+            "call {frame_probe}",
+            register_probe = sym redoubt_poly1305_v2_registers_are_zeroized,
+            frame_probe = sym redoubt_poly1305_v2_frame_is_zeroized_poly1305,
+            inlateout("r11") $routine => _,
+            $(inlateout($register) $argument => _,)*
+            lateout("r12") registers,
+            lateout("rax") frame,
+            clobber_abi("C"),
+        );
+
+        (registers, frame)
+    }};
+}
+
+/// The routine through a pointer, then both verifiers, in one block: nothing
+/// Rust emits runs between them, and they all run at the stack pointer the
+/// routine was entered with. Each verdict leaves x0 for a callee-saved register
+/// before the next call can overwrite it.
+#[cfg(target_arch = "aarch64")]
+macro_rules! measure {
+    ($routine:expr, $a0:expr, $a1:expr, $a2:expr $(,)?) => {
+        measure!(@call $routine, [("x0") $a0, ("x1") $a1, ("x2") $a2])
+    };
+    ($routine:expr, $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr, $a5:expr $(,)?) => {
+        measure!(@call $routine,
+                 [("x0") $a0, ("x1") $a1, ("x2") $a2,
+                  ("x3") $a3, ("x4") $a4, ("x5") $a5])
+    };
+    (@call $routine:expr, [$(($register:tt) $argument:expr),* $(,)?]) => {{
+        let registers: u64;
+        let frame: u64;
+
+        core::arch::asm!(
+            "blr x16",
+            "bl {register_probe}",
+            "mov x20, x0",
+            "bl {frame_probe}",
+            "mov x21, x0",
+            register_probe = sym redoubt_poly1305_v2_registers_are_zeroized,
+            frame_probe = sym redoubt_poly1305_v2_frame_is_zeroized_poly1305,
+            inlateout("x16") $routine => _,
+            $(inlateout($register) $argument => _,)*
+            lateout("x20") registers,
+            lateout("x21") frame,
+            clobber_abi("C"),
+        );
+
+        (registers, frame)
+    }};
+}
+
+/// Stand-ins for a routine, with its arguments and none of its work.
+///
+/// Naked and a tail branch, so the caller's stack pointer and return address
+/// are what the writer sees. The one that does nothing measures the gap:
+/// without it, a clean reading of the real routine could be the call site
+/// having tidied up.
+macro_rules! controls {
+    ([$registers:ident, $frame:ident, $untouched:ident], ($($kind:ty),*)) => {
+        #[unsafe(naked)]
+        unsafe extern "C" fn $untouched($(_: $kind),*) {
+            core::arch::naked_asm!("ret");
+        }
+
+        #[unsafe(naked)]
+        unsafe extern "C" fn $registers($(_: $kind),*) {
+            core::arch::naked_asm!(
+                tail_branch!(),
+                target = sym redoubt_poly1305_v2_dirty_registers,
+            );
+        }
+
+        #[unsafe(naked)]
+        unsafe extern "C" fn $frame($(_: $kind),*) {
+            core::arch::naked_asm!(
+                offset_zero!(),
+                tail_branch!(),
+                target = sym redoubt_poly1305_v2_dirty_frame_poly1305,
+            );
+        }
+    };
+}
+
+/// Which residue a case deliberately leaves, or `Nothing` for the routine.
+#[derive(Clone, Copy)]
+enum Left {
+    Registers,
+    Frame,
+    Everything,
+    Nothing,
+}
+
+/// A routine that takes no frame is measured against a window it never
+/// declared, and has to leave the poison there: an emptied window would mean
+/// it reached for stack its layout does not name.
+fn assert_residue(registers: u64, frame: u64, left: Left, takes_a_frame: bool) {
+    match left {
+        Left::Registers => {
+            assert_ne!(
+                registers, 0,
+                "registers the replacement left full read as empty"
+            );
+        }
+        Left::Frame => {
+            assert_ne!(
+                frame, 0,
+                "the frame the replacement left full reads as empty"
+            );
+        }
+        Left::Everything => {
+            assert_ne!(
+                registers, 0,
+                "a call that ran nothing emptied the registers"
+            );
+            assert_ne!(frame, 0, "a call that ran nothing emptied the frame");
+        }
+        Left::Nothing if takes_a_frame => {
+            // Assert zeroization!
+            assert_eq!(registers, 0, "the registers after the real routine");
+            assert_eq!(frame, 0, "the frame after the real routine");
+        }
+        Left::Nothing => {
+            // Assert zeroization!
+            assert_eq!(registers, 0, "the registers after the real routine");
+            assert_ne!(
+                frame, 0,
+                "a routine that takes no frame emptied the window under it"
+            );
+        }
+    }
+}
+
+/// The stand-ins for a routine and its cases, the negatives first. The `for`
+/// clause, where there is one, measures the routine once per value it walks.
+macro_rules! test_what_the_routine_leaves {
+    (
+        $name:ident, $real:path, fn($($kind:ty),*),
+        [$registers:ident, $frame:ident, $untouched:ident],
+        $takes_a_frame:expr,
+        $(for $each:pat in $over:expr,)?
+        { $($setup:tt)* },
+        ($($argument:expr),*)
+    ) => {
+        controls!([$registers, $frame, $untouched], ($($kind),*));
+
+        #[rstest]
+        #[case::registers_left_full($registers as unsafe extern "C" fn($($kind),*), Left::Registers)]
+        #[case::frame_left_full($frame as unsafe extern "C" fn($($kind),*), Left::Frame)]
+        #[case::nothing_ran($untouched as unsafe extern "C" fn($($kind),*), Left::Everything)]
+        #[case::real($real as unsafe extern "C" fn($($kind),*), Left::Nothing)]
+        fn $name(#[case] routine: unsafe extern "C" fn($($kind),*), #[case] left: Left) {
+            let routine = core::hint::black_box(routine);
+
+            $(for $each in $over)? {
+                // CORRECTNESS: the arguments are settled before the writers
+                // run. Anything computed after them runs on the stack they just
+                // filled.
+                $($setup)*
+
+                // SAFETY: every pointer the setup binds is to storage of the
+                // width the routine reads or writes, and none of them overlap.
+                let (registers, frame) = unsafe {
+                    redoubt_poly1305_v2_dirty_registers();
+                    redoubt_poly1305_v2_dirty_frame_poly1305(0);
+                    measure!(routine, $($argument),*)
+                };
+
+                assert_residue(registers, frame, left, $takes_a_frame);
+            }
+        }
+    };
+}
+
+/// One byte left at every offset of the window, then the routine's own call
+/// site with the stand-in that does nothing: the verifier has to find that byte
+/// and nothing else.
+macro_rules! test_the_measurement_reads_the_window {
+    (
+        $name:ident, $untouched:ident, fn($($kind:ty),*),
+        { $($setup:tt)* },
+        ($($argument:expr),*)
+    ) => {
+        #[test]
+        fn $name() {
+            // CORRECTNESS: the arguments are settled before the writers run.
+            // Anything computed after them runs on the stack they just filled.
+            $($setup)*
+
+            for at in 0..FRAME {
+                // SAFETY: the offset is inside the writer's frame, and the
+                // stand-in never reads what it is handed.
+                let (_, frame) = unsafe {
+                    redoubt_poly1305_v2_dirty_frame_poly1305(at);
+                    measure!(
+                        $untouched as unsafe extern "C" fn($($kind),*),
+                        $($argument),*
+                    )
+                };
+
+                assert_eq!(
+                    frame,
+                    only_the_byte_at(at),
+                    "byte {at} of the frame does not reach the answer"
+                );
+            }
+        }
+    };
 }
 
 // ============================================================================
@@ -504,15 +764,6 @@ fn test_a_frame_written_and_emptied_reads_as_empty() {
     assert_eq!(dirty, 0, "a frame that was emptied reads as full");
 }
 
-/// An offset that expected zero would turn "the byte was found" into "nothing
-/// was found", and the sweep would pass exactly where the byte went missing.
-#[test]
-fn test_no_offset_expects_an_empty_window() {
-    for at in 0..FRAME {
-        assert_ne!(only_the_byte_at(at), 0, "offset {at}");
-    }
-}
-
 // ============================================================================
 // redoubt_poly1305_v2_dirty_registers
 // ============================================================================
@@ -553,3 +804,60 @@ fn test_dirty_frame_clears_every_byte_except_the_requested_one() {
         }
     }
 }
+
+// ============================================================================
+// init
+// ============================================================================
+
+test_what_the_routine_leaves!(
+    test_init_leaves_the_residue_its_case_declares,
+    redoubt_poly1305_v2_init,
+    fn(*mut u64, *mut u8, *const u8),
+    [dirty_init_registers, dirty_init_frame, untouched_init],
+    false,
+    {
+        let key: [u8; KEY_SIZE] = core::array::from_fn(|at| 0x40 + at as u8);
+        let mut r = [0_u64; R_WORDS];
+        let mut s = [0_u8; BLOCK_SIZE];
+        let r = r.as_mut_ptr();
+        let s = s.as_mut_ptr();
+        let key = key.as_ptr();
+    },
+    (r, s, key)
+);
+
+// ============================================================================
+// What the measurement reads
+// ============================================================================
+
+/// What the verifier answers when the only thing in the window is the byte left
+/// at `at`: it ORs a word at a time, so the byte comes back in its place within
+/// its word. Asserted exactly, because a window that slid reads bytes nobody
+/// wrote, and "something was found" would take those for the byte.
+fn only_the_byte_at(at: usize) -> u64 {
+    u64::from(LEFT_BYTE) << (8 * (at % 8))
+}
+
+/// An offset that expected zero would turn "the byte was found" into "nothing
+/// was found", and the sweep would pass exactly where the byte went missing.
+#[test]
+fn test_no_offset_expects_an_empty_window() {
+    for at in 0..FRAME {
+        assert_ne!(only_the_byte_at(at), 0, "offset {at}");
+    }
+}
+
+test_the_measurement_reads_the_window!(
+    test_the_measurement_of_init_reads_the_window_the_writer_filled,
+    untouched_init,
+    fn(*mut u64, *mut u8, *const u8),
+    {
+        let key: [u8; KEY_SIZE] = core::array::from_fn(|at| 0x40 + at as u8);
+        let mut r = [0_u64; R_WORDS];
+        let mut s = [0_u8; BLOCK_SIZE];
+        let r = r.as_mut_ptr();
+        let s = s.as_mut_ptr();
+        let key = key.as_ptr();
+    },
+    (r, s, key)
+);

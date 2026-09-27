@@ -22,6 +22,12 @@ use redoubt_asm::Backend;
 
 use rust as chosen;
 
+#[cfg(poly1305_asm)]
+use asm::init as chosen_init;
+
+#[cfg(not(poly1305_asm))]
+use rust::init as chosen_init;
+
 use crate::consts::{ACC_WORDS, R_WORDS};
 
 /// Whether this target was built with assembly, which is what `Auto` goes to.
@@ -44,7 +50,7 @@ pub(crate) fn init(
 ) {
     match backend {
         Backend::Rust => rust::init(r, s, key),
-        Backend::Auto => chosen::init(r, s, key),
+        Backend::Auto => chosen_init(r, s, key),
     }
 }
 

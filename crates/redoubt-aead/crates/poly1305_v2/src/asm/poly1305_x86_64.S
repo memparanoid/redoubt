@@ -125,6 +125,47 @@
 .endm
 
 // ============================================================================
+// poly1305_init
+// ============================================================================
+//
+// C signature:
+//   void redoubt_poly1305_v2_init(uint64_t r[2], uint8_t s[16],
+//                                 const uint8_t key[32]);
+//
+// Parameters (SysV ABI):
+//   rdi: r (written), rsi: s (written), rdx: key (read only)
+//
+// No frame: the clamp fits in the budget.
+.p2align 4
+.globl FUNC(redoubt_poly1305_v2_init)
+HIDDEN_FUNC(redoubt_poly1305_v2_init)
+#if !defined(__APPLE__)
+.type FUNC(redoubt_poly1305_v2_init), @function
+#endif
+FUNC(redoubt_poly1305_v2_init):
+    // RFC 8439's clamp, as one AND over each half of `r`.
+    mov rax, [rdx]
+    mov rcx, [rdx + 8]
+    mov r8,  0x0ffffffc0fffffff
+    and rax, r8
+    mov r8,  0x0ffffffc0ffffffc
+    and rcx, r8
+    mov [rdi], rax
+    mov [rdi + 8], rcx
+
+    mov rax, [rdx + 16]
+    mov rcx, [rdx + 24]
+    mov [rsi], rax
+    mov [rsi + 8], rcx
+
+    POLY1305_ZEROIZE_ALL
+    ret
+
+#if !defined(__APPLE__)
+.size FUNC(redoubt_poly1305_v2_init), .-FUNC(redoubt_poly1305_v2_init)
+#endif
+
+// ============================================================================
 // THE ZEROIZATION PROBE — everything below measures the routines above
 // ============================================================================
 

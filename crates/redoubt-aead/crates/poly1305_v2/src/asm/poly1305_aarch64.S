@@ -118,6 +118,43 @@
 .endm
 
 // ============================================================================
+// poly1305_init
+// ============================================================================
+//
+// C signature:
+//   void redoubt_poly1305_v2_init(uint64_t r[2], uint8_t s[16],
+//                                 const uint8_t key[32]);
+//
+// Parameters (AAPCS):
+//   x0: r (written), x1: s (written), x2: key (read only)
+//
+// No frame: the clamp fits in the budget.
+.p2align 4
+.globl FUNC(redoubt_poly1305_v2_init)
+HIDDEN_FUNC(redoubt_poly1305_v2_init)
+FUNC(redoubt_poly1305_v2_init):
+    ldp x3, x4, [x2]
+
+    // RFC 8439's clamp, as one AND over each half of `r`.
+    mov  x5, #0xffff
+    movk x5, #0x0fff, lsl #16
+    movk x5, #0xfffc, lsl #32
+    movk x5, #0x0fff, lsl #48
+    mov  x6, #0xfffc
+    movk x6, #0x0fff, lsl #16
+    movk x6, #0xfffc, lsl #32
+    movk x6, #0x0fff, lsl #48
+    and x3, x3, x5
+    and x4, x4, x6
+    stp x3, x4, [x0]
+
+    ldp x3, x4, [x2, #16]
+    stp x3, x4, [x1]
+
+    POLY1305_ZEROIZE_ALL
+    ret
+
+// ============================================================================
 // THE ZEROIZATION PROBE — everything below measures the routines above
 // ============================================================================
 
