@@ -1,0 +1,70 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+//! The arithmetic, in Rust until the assembly for each routine is written.
+//!
+//! Everything that reads a byte of the message or touches a word is here. What
+//! is above holds the storage and says in what order these are called, and
+//! that is all it does — the buffering included, because deciding where a
+//! block ends means reading the message.
+//!
+//! Nothing crosses the boundary by value, and nothing is returned: every
+//! secret and every length is a pointer to storage the caller declared.
+
+pub(crate) mod rust;
+
+use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
+use redoubt_asm::Backend;
+
+use rust as chosen;
+
+use crate::consts::{ACC_WORDS, R_WORDS};
+
+/// The key split in two: `r` clamped, `s` as it arrived.
+pub(crate) fn init(
+    backend: Backend,
+    r: &mut [u64; R_WORDS],
+    s: &mut [u8; BLOCK_SIZE],
+    key: &[u8; KEY_SIZE],
+) {
+    match backend {
+        Backend::Rust => rust::init(r, s, key),
+        Backend::Auto => chosen::init(r, s, key),
+    }
+}
+
+/// As much of the message as the caller has, with `filled` arriving as how far
+/// the buffer is used and leaving as how far it is used now.
+pub(crate) fn update(
+    backend: Backend,
+    acc: &mut [u64; ACC_WORDS],
+    r: &[u64; R_WORDS],
+    block: &mut [u8; BLOCK_SIZE],
+    filled: &mut usize,
+    said: &[u8],
+) {
+    match backend {
+        Backend::Rust => rust::update(acc, r, block, filled, said),
+        Backend::Auto => chosen::update(acc, r, block, filled, said),
+    }
+}
+
+/// What is left of the message, the marker that goes after it, and the tag.
+///
+/// One call and not a loop the caller drives: a message handed over whole goes
+/// through every block of itself without the bytes coming back here in
+/// between.
+pub(crate) fn finalize(
+    backend: Backend,
+    acc: &mut [u64; ACC_WORDS],
+    r: &[u64; R_WORDS],
+    s: &[u8; BLOCK_SIZE],
+    said: &[u8],
+    out: &mut [u8; TAG_SIZE],
+) {
+    match backend {
+        Backend::Rust => rust::finalize(acc, r, s, said, out),
+        Backend::Auto => chosen::finalize(acc, r, s, said, out),
+    }
+}
