@@ -4,7 +4,7 @@
 
 use std::alloc::System;
 
-use redoubt_forensics_core::ForensicsAllocator;
+use redoubt_forensics_allocator::ForensicsAllocator;
 
 #[global_allocator]
 static ALLOCATOR: ForensicsAllocator<System> = ForensicsAllocator::new(System);

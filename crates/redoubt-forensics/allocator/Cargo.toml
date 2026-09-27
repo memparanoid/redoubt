@@ -1,0 +1,18 @@
+[package]
+authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
+categories           = ["development-tools::testing", "memory-management"]
+description          = "The global allocator redoubt-forensics runs its tests under"
+edition.workspace    = true
+keywords             = ["security", "forensics", "memory", "allocator"]
+license.workspace    = true
+name                 = "redoubt-forensics-allocator"
+readme.workspace     = true
+repository.workspace = true
+version.workspace    = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+quiesce.workspace          = true
+redoubt-mem-core.workspace = true

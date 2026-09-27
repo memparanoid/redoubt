@@ -6,8 +6,6 @@
 //! them, so that finding what tests a function is reading its path with
 //! `tests/` in front of it.
 
-mod allocator;
-
 #[cfg(target_os = "linux")]
 mod analysis;
 

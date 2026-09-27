@@ -11,6 +11,9 @@
 //! over it, because the system hands the same block back. Enabled, this gives
 //! nothing back, and the same block is found.
 
+#[cfg(test)]
+mod tests;
+
 use core::alloc::{GlobalAlloc, Layout};
 use core::sync::atomic::{AtomicBool, Ordering};
 

@@ -65,11 +65,11 @@
 
 #![warn(missing_docs)]
 
-pub use redoubt_forensics_core::ForensicsAllocator;
+pub use redoubt_forensics_allocator::ForensicsAllocator;
 pub use redoubt_forensics_macros::test;
 
 #[doc(hidden)]
-pub use redoubt_forensics_core::enable_forensics_allocator;
+pub use redoubt_forensics_allocator::enable_forensics_allocator;
 
 #[cfg(target_os = "linux")]
 pub use redoubt_forensics_core::{

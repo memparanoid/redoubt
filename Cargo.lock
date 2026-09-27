@@ -1034,8 +1034,17 @@ dependencies = [
 name = "redoubt-forensics"
 version = "0.1.0-rc.14"
 dependencies = [
+ "redoubt-forensics-allocator",
  "redoubt-forensics-core",
  "redoubt-forensics-macros",
+]
+
+[[package]]
+name = "redoubt-forensics-allocator"
+version = "0.1.0-rc.14"
+dependencies = [
+ "quiesce",
+ "redoubt-mem-core",
 ]
 
 [[package]]
@@ -1045,7 +1054,7 @@ dependencies = [
  "cc",
  "libc",
  "proptest",
- "quiesce",
+ "redoubt-forensics-allocator",
  "redoubt-forensics-macros",
  "redoubt-mem-core",
 ]
@@ -1057,7 +1066,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "redoubt-forensics-core",
+ "redoubt-forensics-allocator",
  "syn",
 ]
 

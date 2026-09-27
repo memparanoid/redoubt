@@ -49,9 +49,8 @@
 
 use std::alloc::System;
 
-use redoubt_forensics_core::{
-    AnyError, Forensics, ForensicsAllocator, forensics, freeze, pick_spiller,
-};
+use redoubt_forensics_allocator::ForensicsAllocator;
+use redoubt_forensics_core::{AnyError, Forensics, forensics, freeze, pick_spiller};
 
 mod support;
 

@@ -21,4 +21,4 @@ quote.workspace            = true
 syn                        = { workspace = true, features = ["full", "parsing"] }
 
 [dev-dependencies]
-redoubt-forensics-core.workspace = true
+redoubt-forensics-allocator.workspace = true

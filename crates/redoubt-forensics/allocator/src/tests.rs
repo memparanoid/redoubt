@@ -7,7 +7,7 @@ use core::slice;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::alloc::System;
 
-use crate::allocator::{
+use crate::{
     FORENSICS_ALLOCATOR_DIRT, FORENSICS_ALLOCATOR_ENABLED, FORENSICS_ALLOCATOR_INSTALLED,
     ForensicsAllocator, enable_forensics_allocator,
 };

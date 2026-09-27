@@ -21,7 +21,11 @@ use syn::{Ident, ItemFn, LitInt};
 const REACHES: [(&str, &str, &[&str]); 3] = [
     ("redoubt-forensics", "redoubt_forensics", &[]),
     ("redoubt", "redoubt", &["forensics"]),
-    ("redoubt-forensics-core", "redoubt_forensics_core", &[]),
+    (
+        "redoubt-forensics-allocator",
+        "redoubt_forensics_allocator",
+        &[],
+    ),
 ];
 
 /// A `#[test]` whose first statement turns the forensics allocator on, filling
@@ -52,7 +56,7 @@ fn forensics_path(find: &dyn Fn(&str) -> Option<FoundCrate>) -> Result<TokenStre
         .ok_or_else(|| {
             syn::Error::new(
                 Span::call_site(),
-                "none of redoubt-forensics, redoubt or redoubt-forensics-core is a dependency",
+                "none of redoubt-forensics, redoubt or redoubt-forensics-allocator is a dependency",
             )
         })
 }

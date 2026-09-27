@@ -78,11 +78,14 @@ fn test_forensics_path_returns_the_facade_s_forensics_without_redoubt_forensics(
 }
 
 #[test]
-fn test_forensics_path_returns_redoubt_forensics_core_without_the_other_two()
+fn test_forensics_path_returns_redoubt_forensics_allocator_without_the_other_two()
 -> Result<(), syn::Error> {
     same(
-        forensics_path(&only("redoubt-forensics-core", "redoubt_forensics_core"))?,
-        quote!(::redoubt_forensics_core),
+        forensics_path(&only(
+            "redoubt-forensics-allocator",
+            "redoubt_forensics_allocator",
+        ))?,
+        quote!(::redoubt_forensics_allocator),
     );
 
     Ok(())

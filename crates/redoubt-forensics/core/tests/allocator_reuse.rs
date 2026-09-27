@@ -7,7 +7,8 @@
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicPtr, Ordering};
 
-use redoubt_forensics_core::{Forensics, ForensicsAllocator, QUIET, Reason};
+use redoubt_forensics_allocator::ForensicsAllocator;
+use redoubt_forensics_core::{Forensics, QUIET, Reason};
 
 mod support;
 

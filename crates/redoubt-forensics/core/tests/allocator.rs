@@ -6,7 +6,8 @@
 
 use std::alloc::System;
 
-use redoubt_forensics_core::{Forensics, ForensicsAllocator, QUIET, Reason};
+use redoubt_forensics_allocator::ForensicsAllocator;
+use redoubt_forensics_core::{Forensics, QUIET, Reason};
 
 mod support;
 

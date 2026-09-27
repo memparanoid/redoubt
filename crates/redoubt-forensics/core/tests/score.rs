@@ -27,7 +27,8 @@
 
 use std::alloc::System;
 
-use redoubt_forensics_core::{Forensics, ForensicsAllocator, Reason, Report, forensics, freeze};
+use redoubt_forensics_allocator::ForensicsAllocator;
+use redoubt_forensics_core::{Forensics, Reason, Report, forensics, freeze};
 
 mod support;
 
