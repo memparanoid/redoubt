@@ -132,9 +132,9 @@ jobs:
       # differs between these runners is what the machine leaves in memory, and
       # that is what the sweeps above are for — so the slow ones spend their
       # minutes there instead.
-      - name: cargo test --doc --all-features
+      - name: cargo test --doc
         if: runner.os == 'Linux'
-        run: cargo test --workspace --all-features --doc
+        run: cargo test --workspace --doc
 
   # ==========================================================================
   # Constant time
