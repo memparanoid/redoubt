@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Bulk zeroization of slices and vectors, the probes that check it, and
-//! splits of a slice that answer `None` rather than panic.
+//! Bulk zeroization of slices and vectors, and the probes that check it.
 //!
 //! ## License
 //!
@@ -294,90 +293,5 @@ pub fn is_spare_capacity_zeroized<T>(vec: &Vec<T>) -> bool {
         core::slice::from_raw_parts(spare_ptr, spare_len)
             .iter()
             .all(|&b| b == 0)
-    }
-}
-
-/// Attempts to split a mutable slice at the given index.
-///
-/// Returns `None` if `mid > slice.len()`, otherwise returns `Some((left, right))`
-/// where `left = &mut slice[..mid]` and `right = &mut slice[mid..]`.
-///
-/// This is the fallible version of [`slice::split_at_mut`], which panics on out-of-bounds.
-///
-/// # Example
-///
-/// ```
-/// use redoubt_util::try_split_at_mut;
-///
-/// let mut data = [1, 2, 3, 4, 5];
-///
-/// // Valid split
-/// let (left, right) = try_split_at_mut(&mut data, 2).unwrap();
-/// assert_eq!(left, &[1, 2]);
-/// assert_eq!(right, &[3, 4, 5]);
-///
-/// // Out of bounds
-/// assert!(try_split_at_mut(&mut data, 10).is_none());
-///
-/// // Edge cases
-/// let (left, right) = try_split_at_mut(&mut data, 0).unwrap();
-/// assert_eq!(left, &[]);
-/// assert_eq!(right, &[1, 2, 3, 4, 5]);
-///
-/// let (left, right) = try_split_at_mut(&mut data, 5).unwrap();
-/// assert_eq!(left, &[1, 2, 3, 4, 5]);
-/// assert_eq!(right, &[]);
-/// ```
-#[inline(always)]
-pub fn try_split_at_mut<T>(slice: &mut [T], mid: usize) -> Option<(&mut [T], &mut [T])> {
-    if mid <= slice.len() {
-        Some(slice.split_at_mut(mid))
-    } else {
-        None
-    }
-}
-
-/// Attempts to split a mutable slice from the end at the given size.
-///
-/// Returns `None` if `end_size > slice.len()`, otherwise returns `Some((left, right))`
-/// where `right` has exactly `end_size` elements from the end of the slice.
-///
-/// This is useful for splitting off a fixed-size suffix (like a tag or checksum)
-/// from the end of a buffer.
-///
-/// # Example
-///
-/// ```
-/// use redoubt_util::try_split_at_mut_from_end;
-///
-/// let mut data = [1, 2, 3, 4, 5];
-///
-/// // Split off last 2 elements
-/// let (left, right) = try_split_at_mut_from_end(&mut data, 2).unwrap();
-/// assert_eq!(left, &[1, 2, 3]);
-/// assert_eq!(right, &[4, 5]);
-///
-/// // Out of bounds
-/// assert!(try_split_at_mut_from_end(&mut data, 10).is_none());
-///
-/// // Edge cases
-/// let (left, right) = try_split_at_mut_from_end(&mut data, 0).unwrap();
-/// assert_eq!(left, &[1, 2, 3, 4, 5]);
-/// assert_eq!(right, &[]);
-///
-/// let (left, right) = try_split_at_mut_from_end(&mut data, 5).unwrap();
-/// assert_eq!(left, &[]);
-/// assert_eq!(right, &[1, 2, 3, 4, 5]);
-/// ```
-#[inline(always)]
-pub fn try_split_at_mut_from_end<T>(
-    slice: &mut [T],
-    end_size: usize,
-) -> Option<(&mut [T], &mut [T])> {
-    if end_size <= slice.len() {
-        let split_point = slice.len() - end_size;
-        Some(slice.split_at_mut(split_point))
-    } else {
-        None
     }
 }
