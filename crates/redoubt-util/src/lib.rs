@@ -41,19 +41,7 @@ pub fn hex_to_bytes(hex: &str) -> Vec<u8> {
         .collect()
 }
 
-/// Verifies that a `Vec<u8>` is fully zeroized, including spare capacity.
-///
-/// This function checks **the entire allocation** (from index 0 to capacity),
-/// not just the active elements (0 to len). This is critical for detecting
-/// potential data leaks in spare capacity after operations like `truncate()`.
-///
-/// # Safety
-///
-/// This function uses `unsafe` to read spare capacity memory (region between
-/// `len()` and `capacity()`). The implementation is sound because:
-/// - `Vec` guarantees the allocation is valid for `capacity` bytes
-/// - We only read, never write
-/// - All indices are bounds-checked against `capacity`
+/// Whether every byte of the allocation is zero, the spare past `len` included.
 ///
 /// # Example
 ///
@@ -77,21 +65,12 @@ pub fn hex_to_bytes(hex: &str) -> Vec<u8> {
 /// ```
 #[inline(never)]
 pub fn is_vec_fully_zeroized(vec: &Vec<u8>) -> bool {
-    let cap = vec.capacity();
-    let base = vec.as_ptr();
+    // SAFETY: the length is the `Vec`'s own capacity, so the slice is its
+    // allocation, and it is a slice of `u8`, for which every bit pattern is a
+    // value.
+    let whole = unsafe { core::slice::from_raw_parts(vec.as_ptr(), vec.capacity()) };
 
-    for i in 0..cap {
-        // SAFETY: the bound is the `Vec`'s own capacity, so every offset is
-        // inside its allocation, and what is read is a `u8`, for which every
-        // bit pattern is a value.
-        unsafe {
-            if *base.add(i) != 0 {
-                return false;
-            }
-        }
-    }
-
-    true
+    redoubt_mem::is_zeroized(whole)
 }
 
 /// Writes one value's own default over it, by a store the optimizer may not
@@ -246,18 +225,8 @@ pub fn zeroize_spare_capacity<T>(vec: &mut Vec<T>) {
     }
 }
 
-/// Checks if the spare capacity of a `Vec<T>` is fully zeroized.
-///
-/// This function reads the spare capacity region (from len to capacity) at the
-/// byte level without constructing any T values. Returns true if all bytes in
-/// spare capacity are zero, or if there is no spare capacity.
-///
-/// # Safety
-///
-/// This is safe because:
-/// - We only read bytes, never construct T values
-/// - Vec guarantees the allocation is valid for capacity elements
-/// - We only access memory between len and capacity
+/// Whether every byte between `len` and the capacity is zero, read as bytes and
+/// never as a `T`.
 ///
 /// # Example
 ///
@@ -274,24 +243,18 @@ pub fn zeroize_spare_capacity<T>(vec: &mut Vec<T>) {
 /// ```
 #[inline(never)]
 pub fn is_spare_capacity_zeroized<T>(vec: &Vec<T>) -> bool {
-    let len = vec.len();
-    let cap = vec.capacity();
-
-    if cap == len {
-        return true; // No spare capacity
-    }
-
-    let len_bytes = len * core::mem::size_of::<T>();
-    let cap_bytes = cap * core::mem::size_of::<T>();
+    let len_bytes = vec.len() * core::mem::size_of::<T>();
+    let cap_bytes = vec.capacity() * core::mem::size_of::<T>();
 
     // SAFETY: both offsets come from the `Vec`'s own `len` and capacity, so
     // the range is the spare inside its allocation, and it is read as `u8`,
     // for which every bit pattern is a value — no `T` is built out of it.
-    unsafe {
-        let spare_ptr = vec.as_ptr().cast::<u8>().add(len_bytes);
-        let spare_len = cap_bytes - len_bytes;
-        core::slice::from_raw_parts(spare_ptr, spare_len)
-            .iter()
-            .all(|&b| b == 0)
-    }
+    let spare = unsafe {
+        core::slice::from_raw_parts(
+            vec.as_ptr().cast::<u8>().add(len_bytes),
+            cap_bytes - len_bytes,
+        )
+    };
+
+    redoubt_mem::is_zeroized(spare)
 }

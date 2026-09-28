@@ -1165,6 +1165,7 @@ dependencies = [
 name = "redoubt-util"
 version = "0.1.0-rc.14"
 dependencies = [
+ "redoubt-mem",
  "redoubt-util",
 ]
 
