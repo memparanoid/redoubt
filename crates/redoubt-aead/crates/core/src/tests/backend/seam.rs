@@ -15,7 +15,7 @@ use std::vec::Vec;
 use redoubt_asm::Backend;
 use rstest::rstest;
 
-use crate::backend::{constant_time_eq, constant_time_eq_using};
+use crate::backend::constant_time_eq;
 
 /// A tag's width, which is what every caller of this compares.
 const TAG_SIZE: usize = 16;
@@ -46,54 +46,21 @@ fn test_this_target_has_the_assembly() {
 // constant_time_eq
 // === === === === === === === === === ===
 
-/// The exported one, which is the only one anything outside this crate can
-/// reach and therefore the only one a consumer ever runs.
-///
-/// Every other test here names a backend. This one takes the default, so that
-/// resolving it is not the one step nothing covers.
-#[test]
-fn test_constant_time_eq_answers_from_the_default_backend() {
-    let a = [0x5au8; TAG_SIZE];
-    let mut b = a;
-
-    assert!(constant_time_eq(&a, &b));
-
-    b[TAG_SIZE - 1] ^= 1;
-
-    assert!(!constant_time_eq(&a, &b));
-}
-
-// === === === === === === === === === ===
-// constant_time_eq_using
-// === === === === === === === === === ===
-
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_constant_time_eq_using_reports_runs_of_different_length(#[case] backend: Backend) {
-    // Neither run is read, so the shorter one being a prefix of the longer
-    // changes nothing: the lengths already differ and that is public.
-    let short = [0x11u8; TAG_SIZE];
-    let long = [0x11u8; TAG_SIZE + 1];
-
-    assert!(!constant_time_eq_using(backend, &short, &long));
-    assert!(!constant_time_eq_using(backend, &long, &short));
-}
-
-#[rstest]
-#[case::rust(Backend::Rust)]
-#[case::auto(Backend::Auto)]
-fn test_constant_time_eq_using_reports_two_empty_runs_equal(#[case] backend: Backend) {
+fn test_constant_time_eq_reports_two_empty_runs_equal(#[case] backend: Backend) {
     // The loop never runs, and the accumulator it would have folded into is
     // the answer. Which is the one length where "equal" comes from nothing
     // having been compared rather than from everything having matched.
-    assert!(constant_time_eq_using(backend, &[], &[]));
+    // SAFETY: two runs of the same length.
+    assert!(unsafe { constant_time_eq(backend, &[], &[]) });
 }
 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_constant_time_eq_using_sees_a_difference_at_every_position(#[case] backend: Backend) {
+fn test_constant_time_eq_sees_a_difference_at_every_position(#[case] backend: Backend) {
     // One byte at a time, over the whole width. A fold that stopped early, or
     // one that read a word at a time and dropped the tail, passes a test that
     // only ever differs in the middle.
@@ -103,37 +70,37 @@ fn test_constant_time_eq_using_sees_a_difference_at_every_position(#[case] backe
         let mut b = a;
         b[at] ^= 0x80;
 
-        assert!(
-            !constant_time_eq_using(backend, &a, &b),
-            "a difference at byte {at} reads as equal"
-        );
+        // SAFETY: two runs of the same length.
+        let same = unsafe { constant_time_eq(backend, &a, &b) };
+
+        assert!(!same, "a difference at byte {at} reads as equal");
     }
 }
 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_constant_time_eq_using_sees_every_bit_of_a_byte(#[case] backend: Backend) {
-    // The other axis. A fold that or-ed the wrong width, or masked, answers
-    // correctly for the high bit above and not for the one below it.
+fn test_constant_time_eq_sees_every_bit_of_a_byte(#[case] backend: Backend) {
+    // Every bit of one byte. A fold that or-ed the wrong width, or masked,
+    // answers correctly for some bits of a byte and not for others.
     let a = [0u8; TAG_SIZE];
 
     for bit in 0..8 {
         let mut b = a;
         b[0] = 1 << bit;
 
-        assert!(
-            !constant_time_eq_using(backend, &a, &b),
-            "bit {bit} of the first byte reads as equal"
-        );
+        // SAFETY: two runs of the same length.
+        let same = unsafe { constant_time_eq(backend, &a, &b) };
+
+        assert!(!same, "bit {bit} of the first byte reads as equal");
     }
 }
 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_constant_time_eq_using_reports_equal_runs_equal(#[case] backend: Backend) {
-    // The positive, and the reason the four above mean anything: a comparison
+fn test_constant_time_eq_reports_equal_runs_equal(#[case] backend: Backend) {
+    // The positive, and the reason the ones above mean anything: a comparison
     // that answered false whatever it was handed would pass every one of them.
     //
     // Two allocations and not one slice handed over twice: the same slice as
@@ -143,9 +110,9 @@ fn test_constant_time_eq_using_reports_equal_runs_equal(#[case] backend: Backend
         let a: Vec<u8> = (0..length).map(|at| (at as u8) ^ 0x5a).collect();
         let b = a.clone();
 
-        assert!(
-            constant_time_eq_using(backend, &a, &b),
-            "two runs of {length} equal bytes read as different"
-        );
+        // SAFETY: two runs of the same length.
+        let same = unsafe { constant_time_eq(backend, &a, &b) };
+
+        assert!(same, "two runs of {length} equal bytes read as different");
     }
 }

@@ -8,3 +8,4 @@ mod backend;
 mod constant_time;
 
 mod declassify;
+mod eq;

@@ -30,12 +30,13 @@ mod tests;
 
 mod backend;
 mod declassify;
+mod eq;
 mod error;
 mod traits;
 
 pub mod consts;
 
-pub use backend::constant_time_eq;
 pub use declassify::declassify;
+pub use eq::constant_time_eq;
 pub use error::AeadCoreError;
 pub use traits::{AeadBackend, AeadDecrypt, AeadEncrypt, AeadSizes};

@@ -17,7 +17,7 @@
 /// width the loop also vectorizes, which puts both operands in registers no
 /// wipe in this workspace touches. The assembly beside this file is what
 /// answers for that; this is what a target without it gets.
-pub(crate) fn eq(a: &[u8], b: &[u8]) -> bool {
+pub(crate) fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     let mut acc = 0u8;
 
     for (x, y) in a.iter().zip(b.iter()) {

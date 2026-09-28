@@ -39,32 +39,16 @@ use redoubt_asm::Backend;
 ))]
 pub(crate) const HAS_ASM: bool = cfg!(ct_asm);
 
-/// Whether the two runs hold the same bytes, in a time that says nothing about
+/// Whether `a` and `b` hold the same bytes, in a time that says nothing about
 /// where they differ.
 ///
-/// What every caller outside a test reaches for, and the only one exported.
-/// Runs of different length answer false without either being read: that is not
-/// a timing question, a tag of the wrong width is a public fact about what
-/// arrived and the caller knew it before asking.
-#[must_use]
-pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    constant_time_eq_using(Backend::default(), a, b)
-}
-
-/// The same, with the backend named rather than taken as the default has it.
+/// # Safety
 ///
-/// Not exported: nothing above this crate chooses how a tag is compared, and a
-/// construction that could would be choosing for its caller. It is separate so
-/// that a test can hold both implementations to the same answer, and so that
-/// the one above stays a function real callers use — which a test of it has to
-/// exercise, or resolving the default is the one step nothing covers.
-pub(crate) fn constant_time_eq_using(backend: Backend, a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-
+/// `a` and `b` of the same length.
+pub(crate) unsafe fn constant_time_eq(backend: Backend, a: &[u8], b: &[u8]) -> bool {
     match backend {
-        Backend::Rust => rust::eq(a, b),
-        Backend::Auto => chosen::eq(a, b),
+        Backend::Rust => rust::constant_time_eq(a, b),
+        // SAFETY: the caller's, verbatim.
+        Backend::Auto => unsafe { chosen::constant_time_eq(a, b) },
     }
 }

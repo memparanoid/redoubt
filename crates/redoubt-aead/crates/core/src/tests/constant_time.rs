@@ -34,8 +34,8 @@
 use crabgrind::memcheck::{MemState, mark_memory};
 use redoubt_asm::Backend;
 
-use crate::backend::constant_time_eq_using;
 use crate::declassify;
+use crate::eq::constant_time_eq_using;
 
 const TAG: usize = 16;
 
