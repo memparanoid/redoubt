@@ -872,6 +872,7 @@ dependencies = [
  "redoubt-asm",
  "redoubt-codec",
  "redoubt-forensics",
+ "redoubt-hex",
  "redoubt-hkdf",
  "redoubt-mem",
  "redoubt-rand",
@@ -1066,6 +1067,17 @@ dependencies = [
  "quote",
  "redoubt-forensics-allocator",
  "syn",
+]
+
+[[package]]
+name = "redoubt-hex"
+version = "0.1.0-rc.14"
+dependencies = [
+ "cc",
+ "proptest",
+ "redoubt-asm",
+ "rstest",
+ "thiserror",
 ]
 
 [[package]]

@@ -1,0 +1,50 @@
+// Copyright (c) 2025-2026 Federico Hoerth <memparanoid@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only
+// See LICENSE in the repository root for full license text.
+
+//! The assembly for the target, where there is one.
+//!
+//! Windows is left out: the assembly is SysV and AAPCS, and Windows passes its
+//! arguments in other registers.
+//!
+//! Through `cc`, and not `global_asm!(include_str!(...))`, because the `.S`
+//! files start with a `#if` that picks the object format and the symbol
+//! spelling, and it is the preprocessor that has to see it.
+
+/// The file for each architecture, relative to the manifest.
+const X86_64: &str = "src/asm/hex_x86_64.S";
+const AARCH64: &str = "src/asm/hex_aarch64.S";
+
+/// What the crate compiles under when they were built.
+const HAS_ASM: &str = "hex_asm";
+
+fn main() {
+    println!("cargo::rustc-check-cfg=cfg({HAS_ASM})");
+
+    let arch = std::env::var("CARGO_CFG_TARGET_ARCH")
+        .expect("CARGO_CFG_TARGET_ARCH should be set by cargo for every build script");
+    let os = std::env::var("CARGO_CFG_TARGET_OS")
+        .expect("CARGO_CFG_TARGET_OS should be set by cargo for every build script");
+
+    let Some(file) = for_target(&os, &arch) else {
+        return;
+    };
+
+    cc::Build::new().file(file).compile("redoubt_hex_asm");
+
+    println!("cargo::rerun-if-changed={file}");
+    println!("cargo::rustc-cfg={HAS_ASM}");
+}
+
+/// The file to compile, or nothing for a target that has none.
+fn for_target(os: &str, arch: &str) -> Option<&'static str> {
+    if os == "windows" {
+        return None;
+    }
+
+    match arch {
+        "x86_64" => Some(X86_64),
+        "aarch64" => Some(AARCH64),
+        _ => None,
+    }
+}

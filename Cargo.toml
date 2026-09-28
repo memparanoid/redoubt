@@ -29,6 +29,7 @@ members = [
   "crates/redoubt-forensics/allocator",
   "crates/redoubt-forensics/core",
   "crates/redoubt-forensics/macros",
+  "crates/redoubt-hex",
   "crates/redoubt-mem",
   "crates/redoubt-mem/core",
   "crates/redoubt-mem/forensics",
@@ -64,6 +65,7 @@ resolver = "2"
   redoubt-forensics-allocator  = { path = "crates/redoubt-forensics/allocator", version = "0.1.0-rc.14" }
   redoubt-forensics-core       = { path = "crates/redoubt-forensics/core", version = "0.1.0-rc.14" }
   redoubt-forensics-macros     = { path = "crates/redoubt-forensics/macros", version = "0.1.0-rc.14" }
+  redoubt-hex                  = { path = "crates/redoubt-hex", version = "0.1.0-rc.14" }
   redoubt-hkdf                 = { path = "crates/redoubt-hkdf", version = "0.1.0-rc.14" }
   redoubt-mem                  = { path = "crates/redoubt-mem", version = "0.1.0-rc.14" }
   redoubt-mem-core             = { path = "crates/redoubt-mem/core", version = "0.1.0-rc.14" }
