@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Memory utilities for secure byte conversions and verification.
-//!
-//! All conversion functions zeroize source data after reading to prevent
-//! sensitive data from lingering on the stack.
+//! Bulk zeroization of slices and vectors, the probes that check it, and
+//! splits of a slice that answer `None` rather than panic.
 //!
 //! ## License
 //!
@@ -16,9 +14,6 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-
-#[cfg(test)]
-mod tests;
 
 /// Parses a hexadecimal string into bytes.
 ///
@@ -46,82 +41,6 @@ pub fn hex_to_bytes(hex: &str) -> Vec<u8> {
         .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
         .collect()
 }
-
-/// Generates `{type}_from_le` and `{type}_to_le` functions for integer types.
-macro_rules! impl_le_conversions {
-    ($type:ty, $size:expr, $fn_from:ident, $fn_to:ident) => {
-        #[doc = concat!("Converts ", stringify!($size), " bytes to a little-endian `", stringify!($type), "`, zeroizing the source bytes.")]
-        ///
-        /// This function avoids creating temporary byte arrays that could
-        /// leak sensitive data on the stack. Instead, it builds the integer using
-        /// bit shifts and zeroizes each source byte after reading.
-        #[inline(always)]
-        pub fn $fn_from(dst: &mut $type, bytes: &mut [u8; $size]) {
-            *dst = 0;
-            for (i, byte) in bytes.iter_mut().enumerate() {
-                *dst |= (*byte as $type) << (8 * i);
-                *byte = 0;
-            }
-        }
-
-        #[doc = concat!("Converts a `", stringify!($type), "` to little-endian bytes, zeroizing the source.")]
-        ///
-        /// This function avoids creating temporary byte arrays that could
-        /// leak sensitive data on the stack. Instead, it extracts bytes using
-        /// bit shifts and zeroizes the source integer after writing.
-        #[inline(always)]
-        pub fn $fn_to(src: &mut $type, bytes: &mut [u8; $size]) {
-            for (i, byte) in bytes.iter_mut().enumerate() {
-                *byte = (*src >> (8 * i)) as u8;
-            }
-            *src = 0;
-        }
-    };
-}
-
-impl_le_conversions!(u16, 2, u16_from_le, u16_to_le);
-impl_le_conversions!(u32, 4, u32_from_le, u32_to_le);
-impl_le_conversions!(u64, 8, u64_from_le, u64_to_le);
-
-// usize: platform-dependent size
-#[cfg(target_pointer_width = "32")]
-impl_le_conversions!(usize, 4, usize_from_le, usize_to_le);
-#[cfg(target_pointer_width = "64")]
-impl_le_conversions!(usize, 8, usize_from_le, usize_to_le);
-
-/// Generates `{type}_from_be` and `{type}_to_be` functions for integer types.
-macro_rules! impl_be_conversions {
-    ($type:ty, $size:expr, $fn_from:ident, $fn_to:ident) => {
-        #[doc = concat!("Converts ", stringify!($size), " bytes to a big-endian `", stringify!($type), "`, zeroizing the source bytes.")]
-        ///
-        /// This function avoids creating temporary byte arrays that could
-        /// leak sensitive data on the stack. Instead, it builds the integer using
-        /// bit shifts and zeroizes each source byte after reading.
-        #[inline(always)]
-        pub fn $fn_from(dst: &mut $type, bytes: &mut [u8; $size]) {
-            *dst = 0;
-            for (i, byte) in bytes.iter_mut().enumerate() {
-                *dst |= (*byte as $type) << (8 * ($size - 1 - i));
-                *byte = 0;
-            }
-        }
-
-        #[doc = concat!("Converts a `", stringify!($type), "` to big-endian bytes, zeroizing the source.")]
-        ///
-        /// This function avoids creating temporary byte arrays that could
-        /// leak sensitive data on the stack. Instead, it extracts bytes using
-        /// bit shifts and zeroizes the source integer after writing.
-        #[inline(always)]
-        pub fn $fn_to(src: &mut $type, bytes: &mut [u8; $size]) {
-            for i in 0..$size {
-                bytes[i] = (*src >> (8 * ($size - 1 - i))) as u8;
-            }
-            *src = 0;
-        }
-    };
-}
-
-impl_be_conversions!(u32, 4, u32_from_be, u32_to_be);
 
 /// Verifies that a `Vec<u8>` is fully zeroized, including spare capacity.
 ///
