@@ -76,13 +76,7 @@ pub fn zeroize_primitive<T: Default>(val: &mut T) {
     }
 }
 
-/// Fast bulk zeroization that can be vectorized.
-///
-/// Uses `write_bytes` (memset) + volatile read to prevent the optimizer
-/// from removing the zeroization. This is ~20x faster than byte-by-byte
-/// volatile writes used by the `zeroize` crate.
-///
-/// Works with any type `T` by treating the slice as raw bytes.
+/// Writes zeros over every byte of the slice.
 ///
 /// # Example
 ///
@@ -110,18 +104,11 @@ pub fn fast_zeroize_slice<T>(slice: &mut [T]) {
     // is of one byte the write just set.
     unsafe {
         core::ptr::write_bytes(slice.as_mut_ptr() as *mut u8, 0, byte_len);
-        // Volatile read prevents the optimizer from removing the write_bytes
         core::ptr::read_volatile(slice.as_ptr() as *const u8);
     }
 }
 
-/// Fast bulk zeroization of a Vec including spare capacity.
-///
-/// Zeroizes the **entire allocation** (from index 0 to capacity),
-/// not just the active elements (0 to len). This ensures no sensitive
-/// data remains in spare capacity after operations like `truncate()`.
-///
-/// Uses `write_bytes` (memset) + volatile read, same as `fast_zeroize_slice`.
+/// Writes zeros over the whole allocation, the spare past `len` included.
 ///
 /// # Example
 ///
@@ -129,7 +116,7 @@ pub fn fast_zeroize_slice<T>(slice: &mut [T]) {
 /// use redoubt_util::fast_zeroize_vec;
 ///
 /// let mut vec = vec![0xFFu8; 100];
-/// vec.truncate(10);  // len = 10, capacity = 100, spare has 0xFF
+/// vec.truncate(10);
 ///
 /// fast_zeroize_vec(&mut vec);
 /// assert!(vec.iter().all(|&b| b == 0));
@@ -148,16 +135,11 @@ pub fn fast_zeroize_vec<T>(vec: &mut Vec<T>) {
     // read is of one byte the write just set.
     unsafe {
         core::ptr::write_bytes(vec.as_mut_ptr() as *mut u8, 0, byte_len);
-        // Volatile read prevents the optimizer from removing the write_bytes
         core::ptr::read_volatile(vec.as_ptr() as *const u8);
     }
 }
 
-/// Zeroizes only the spare capacity of a Vec, leaving active elements untouched.
-///
-/// This zeros the memory region between `len` and `capacity`. Useful when
-/// elements have already been zeroized individually (e.g., complex types with
-/// internal pointers) and only the spare capacity needs cleanup.
+/// Writes zeros over the spare past `len`, and leaves the elements as they are.
 ///
 /// # Example
 ///
@@ -165,12 +147,11 @@ pub fn fast_zeroize_vec<T>(vec: &mut Vec<T>) {
 /// use redoubt_util::zeroize_spare_capacity;
 ///
 /// let mut vec = vec![0xFFu8; 100];
-/// vec.truncate(10);  // len = 10, capacity = 100, spare has 0xFF
+/// vec.truncate(10);
 ///
-/// // Zero only spare capacity, leaving first 10 bytes as 0xFF
 /// zeroize_spare_capacity(&mut vec);
 ///
-/// assert!(vec.iter().all(|&b| b == 0xFF));  // Active elements unchanged
+/// assert!(vec.iter().all(|&b| b == 0xFF));
 /// ```
 #[inline(always)]
 pub fn zeroize_spare_capacity<T>(vec: &mut Vec<T>) {
@@ -188,7 +169,6 @@ pub fn zeroize_spare_capacity<T>(vec: &mut Vec<T>) {
     unsafe {
         let spare_ptr = vec.as_mut_ptr().add(vec.len()) as *mut u8;
         core::ptr::write_bytes(spare_ptr, 0, byte_len);
-        // Volatile read prevents optimizer from removing the write
         core::ptr::read_volatile(spare_ptr);
     }
 }
