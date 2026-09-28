@@ -24,7 +24,6 @@ cc.workspace = true
 [dependencies]
 redoubt-asm.workspace  = true
 redoubt-mem.workspace  = true
-redoubt-util.workspace = true
 redoubt-zero.workspace = true
 thiserror.workspace    = true
 

@@ -7,8 +7,26 @@
 //! All operations are in-place to avoid stack temporaries.
 //! SHA-256 functions use internal temporaries that are zeroized before return.
 
-use redoubt_util::{u32_from_be, u32_to_be};
 use redoubt_zero::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
+
+/// The word four bytes spell big-endian, each byte emptied once read.
+#[inline(always)]
+pub(crate) fn u32_from_be(dst: &mut u32, bytes: &mut [u8; 4]) {
+    *dst = 0;
+    for (i, byte) in bytes.iter_mut().enumerate() {
+        *dst |= (*byte as u32) << (8 * (4 - 1 - i));
+        *byte = 0;
+    }
+}
+
+/// The word's four bytes big-endian, the word emptied once written.
+#[inline(always)]
+pub(crate) fn u32_to_be(src: &mut u32, bytes: &mut [u8; 4]) {
+    for (i, byte) in bytes.iter_mut().enumerate() {
+        *byte = (*src >> (8 * (4 - 1 - i))) as u8;
+    }
+    *src = 0;
+}
 
 /// 32-bit word wrapper with guaranteed zeroization.
 ///

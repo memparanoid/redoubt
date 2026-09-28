@@ -18,7 +18,7 @@
 
 use redoubt_zero::{FastZeroizable, ZeroizationProbe};
 
-use crate::backend::rust::word32::Word32;
+use crate::backend::rust::word32::{Word32, u32_from_be, u32_to_be};
 
 const TEST_VALUES: [u32; 5] = [
     0x0000_0000,
@@ -27,6 +27,62 @@ const TEST_VALUES: [u32; 5] = [
     0xFEDC_BA98,
     0x0F0F_0F0F,
 ];
+
+// ============================================================================
+// u32_from_be
+// ============================================================================
+
+#[test]
+fn test_u32_from_be_answers_as_from_be_bytes() {
+    for &x in &TEST_VALUES {
+        let mut value = 0xA5A5_A5A5;
+        let mut bytes = x.to_be_bytes();
+
+        u32_from_be(&mut value, &mut bytes);
+
+        assert_eq!(value, x, "x={x:#010x}");
+    }
+}
+
+#[test]
+fn test_u32_from_be_empties_the_bytes() {
+    for &x in &TEST_VALUES {
+        let mut value = 0;
+        let mut bytes = x.to_be_bytes();
+
+        u32_from_be(&mut value, &mut bytes);
+
+        assert_eq!(bytes, [0; 4], "x={x:#010x}");
+    }
+}
+
+// ============================================================================
+// u32_to_be
+// ============================================================================
+
+#[test]
+fn test_u32_to_be_answers_as_to_be_bytes() {
+    for &x in &TEST_VALUES {
+        let mut value = x;
+        let mut bytes = [0xA5; 4];
+
+        u32_to_be(&mut value, &mut bytes);
+
+        assert_eq!(bytes, x.to_be_bytes(), "x={x:#010x}");
+    }
+}
+
+#[test]
+fn test_u32_to_be_empties_the_word() {
+    for &x in &TEST_VALUES {
+        let mut value = x;
+        let mut bytes = [0; 4];
+
+        u32_to_be(&mut value, &mut bytes);
+
+        assert_eq!(value, 0, "x={x:#010x}");
+    }
+}
 
 // ============================================================================
 // Word32: FastZeroizable

@@ -1078,7 +1078,6 @@ dependencies = [
  "redoubt-asm",
  "redoubt-forensics",
  "redoubt-mem",
- "redoubt-util",
  "redoubt-zero",
  "rstest",
  "thiserror",
