@@ -198,7 +198,7 @@ fn test_vec() {
 
     // Assert zeroization!
     assert!(vec.is_zeroized());
-    assert!(redoubt_util::is_vec_fully_zeroized(&vec));
+    assert!(redoubt_mem::is_zeroized(&vec));
 }
 
 #[test]

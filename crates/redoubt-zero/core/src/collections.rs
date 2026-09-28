@@ -178,17 +178,11 @@ impl<T> ZeroizationProbe for Vec<T>
 where
     T: ZeroizationProbe,
 {
-    /// Returns true if all elements AND spare capacity are zeroed.
-    ///
-    /// # Important
-    /// This is only meaningful after calling `fast_zeroize()`.
-    /// A freshly allocated Vec may have uninitialized memory in
-    /// spare capacity, causing this to return false even if no
-    /// sensitive data was ever stored.
+    /// The elements, and not the spare: what a truncate left past `len` is
+    /// not seen, because a spare never written is uninitialized and reading it
+    /// is undefined.
     fn is_zeroized(&self) -> bool {
-        // Short-circuit: check elements first (cheaper for complex types)
         collection_zeroed(&mut self.iter().map(to_zeroization_probe_dyn_ref))
-            && redoubt_util::is_spare_capacity_zeroized(self)
     }
 }
 
