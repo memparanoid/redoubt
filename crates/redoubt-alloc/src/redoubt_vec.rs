@@ -309,16 +309,32 @@ where
     where
         T: Default,
     {
+        // SAFETY: `T::CAN_BE_BULK_ZEROIZED` is `T`'s own promise that every
+        // byte zero is one of its values, and it is what `bulk` is.
+        unsafe { self.finalize_default_init_to_size(size, T::CAN_BE_BULK_ZEROIZED) }
+    }
+
+    /// [`Self::default_init_to_size`], with the path taken as an argument.
+    ///
+    /// A branch on `T::CAN_BE_BULK_ZEROIZED` is constant in every
+    /// monomorphization, so no instance could take both of its arms.
+    ///
+    /// # Safety
+    ///
+    /// `bulk` only where every byte zero is a value of `T`.
+    pub(crate) unsafe fn finalize_default_init_to_size(&mut self, size: usize, bulk: bool)
+    where
+        T: Default,
+    {
         self.clear();
         self.maybe_grow_to(size);
 
-        if T::CAN_BE_BULK_ZEROIZED {
+        if bulk {
             // Zero init path (SUPER FAST for primitives like u8, u32, etc.)
             self.inner.fast_zeroize();
-            // SAFETY: `T::CAN_BE_BULK_ZEROIZED` is `T`'s promise that every
-            // byte zero is one of its values, and the zeros are there: the
-            // wipe above covers the whole capacity, which `maybe_grow_to`
-            // left at least `size`.
+            // SAFETY: `bulk` is the caller's promise that every byte zero is
+            // a value of `T`, and the zeros are there: the wipe above covers
+            // the whole capacity, which `maybe_grow_to` left at least `size`.
             unsafe {
                 self.inner.set_len(size);
             }

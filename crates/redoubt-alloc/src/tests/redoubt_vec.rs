@@ -659,3 +659,29 @@ fn test_default_init_to_size_zero() {
     assert_eq!(vec.len(), 0);
     assert!(vec.is_empty());
 }
+
+// =============================================================================
+// finalize_default_init_to_size()
+// =============================================================================
+
+#[redoubt_forensics::test(dirty = 0xFF)]
+fn test_finalize_default_init_to_size_in_bulk() {
+    let mut vec = RedoubtVec::<u8>::new();
+
+    // SAFETY: every byte zero is a `u8`.
+    unsafe { vec.finalize_default_init_to_size(100, true) };
+
+    assert_eq!(vec.len(), 100);
+    assert!(vec.is_zeroized());
+}
+
+#[redoubt_forensics::test(dirty = 0xFF)]
+fn test_finalize_default_init_to_size_one_default_at_a_time() {
+    let mut vec = RedoubtVec::<u8>::new();
+
+    // SAFETY: `false` asks nothing of `T`.
+    unsafe { vec.finalize_default_init_to_size(100, false) };
+
+    assert_eq!(vec.len(), 100);
+    assert!(vec.is_zeroized());
+}
