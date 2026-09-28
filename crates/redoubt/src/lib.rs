@@ -306,6 +306,7 @@ pub use redoubt_aead as aead;
 pub use redoubt_alloc as alloc;
 pub use redoubt_asm as asm;
 pub use redoubt_codec as codec;
+pub use redoubt_hex as hex;
 pub use redoubt_hkdf as hkdf;
 pub use redoubt_mem as mem;
 pub use redoubt_rand as rand;

@@ -15,6 +15,7 @@ redoubt-aead   = { workspace = true }
 redoubt-alloc  = { workspace = true }
 redoubt-asm    = { workspace = true }
 redoubt-codec  = { workspace = true }
+redoubt-hex    = { workspace = true }
 redoubt-hkdf   = { workspace = true }
 redoubt-mem    = { workspace = true }
 redoubt-rand   = { workspace = true }
