@@ -7,5 +7,8 @@ mod support;
 #[cfg(all(target_os = "linux", poly1305_asm))]
 mod forensics;
 
+#[cfg(feature = "constant-time")]
+mod constant_time;
+
 mod backend;
 mod rfc;

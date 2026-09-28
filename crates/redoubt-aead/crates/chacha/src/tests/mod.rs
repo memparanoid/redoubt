@@ -10,5 +10,8 @@ mod support;
 #[cfg(all(target_os = "linux", chacha_asm))]
 mod forensics;
 
+#[cfg(feature = "constant-time")]
+mod constant_time;
+
 mod backend;
 mod rfc;

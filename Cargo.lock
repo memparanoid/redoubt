@@ -978,6 +978,7 @@ name = "redoubt-chacha"
 version = "0.1.0-rc.14"
 dependencies = [
  "cc",
+ "crabgrind",
  "proptest",
  "redoubt-aead-core",
  "redoubt-asm",
@@ -1127,6 +1128,7 @@ name = "redoubt-poly1305"
 version = "0.1.0-rc.14"
 dependencies = [
  "cc",
+ "crabgrind",
  "num-bigint",
  "proptest",
  "redoubt-aead-core",

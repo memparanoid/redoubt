@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # See LICENSE in the repository root for full license text.
 #
-# Whether comparing two tags branches on what they hold.
+# Whether the routines that hold a secret branch on it, or index memory by it.
 #
 # # What decides
 #
@@ -16,10 +16,10 @@
 # # The control comes first, and has to fail
 #
 # A clean report means one of two things — nothing branches on the secret, or
-# nothing is watching — and they read the same. So the first case run is a
-# comparison that returns as soon as it finds a difference, and Memcheck has to
-# report it. Where it does not, this stops: every clean answer after it would
-# be the instrument standing somewhere else.
+# nothing is watching — and they read the same. So each package's first case
+# is a routine that branches on its secret, and Memcheck has to report it.
+# Where it does not, every clean answer after it in that package would be the
+# instrument standing somewhere else.
 #
 # # Release, and only release
 #
@@ -52,7 +52,6 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PACKAGE="redoubt-aead-core"
 MODULE="tests::constant_time"
 
 # The cases exist only under it, so that an ordinary build never asks the
@@ -64,12 +63,21 @@ FEATURE="constant-time"
 # leaves 0, so the three outcomes are told apart rather than summed.
 REPORTED=42
 
-# Each case with the code it owes. The control is first and owes `$REPORTED`:
-# where it stops reporting, nothing after it is a measurement.
+# Each case with its package and the code it owes. Each package's control is
+# its first case and owes `$REPORTED`: where it stops reporting, nothing after
+# it in that package is a measurement.
 CASES=(
-  "test_a_short_circuiting_eq_branches_on_the_secret $REPORTED"
-  "test_the_rust_eq_branches_on_nothing_but_its_answer 0"
-  "test_the_chosen_eq_branches_on_nothing_but_its_answer 0"
+  "redoubt-aead-core test_a_short_circuiting_eq_branches_on_the_secret $REPORTED"
+  "redoubt-aead-core test_the_rust_eq_branches_on_nothing_but_its_answer 0"
+  "redoubt-aead-core test_the_chosen_eq_branches_on_nothing_but_its_answer 0"
+  "redoubt-chacha test_a_routine_that_stops_on_the_key_branches_on_the_secret $REPORTED"
+  "redoubt-chacha test_the_chosen_subkey_branches_on_nothing 0"
+  "redoubt-chacha test_the_chosen_xor_under_a_twelve_byte_nonce_branches_on_nothing 0"
+  "redoubt-chacha test_the_chosen_xor_under_an_eight_byte_nonce_branches_on_nothing 0"
+  "redoubt-chacha test_the_chosen_xxor_branches_on_nothing 0"
+  "redoubt-poly1305 test_a_routine_that_stops_on_the_key_branches_on_the_secret $REPORTED"
+  "redoubt-poly1305 test_the_chosen_init_branches_on_nothing 0"
+  "redoubt-poly1305 test_the_chosen_update_and_finalize_branch_on_nothing 0"
 )
 
 cd "$ROOT"
@@ -79,14 +87,12 @@ command -v valgrind >/dev/null || {
   exit 1
 }
 
-echo "== building =="
+# The test binary of one package, built with the cases on. Asked for rather
+# than guessed at: its name carries a hash that changes with the build.
+binary_of() {
+  cargo test --release --package "$1" --features "$FEATURE" --no-run >/dev/null
 
-cargo test --release --package "$PACKAGE" --features "$FEATURE" --no-run >/dev/null
-
-# The binary is asked for rather than guessed at: its name carries a hash that
-# changes with the build.
-BIN="$(
-  cargo test --release --package "$PACKAGE" --features "$FEATURE" --no-run --message-format json 2>/dev/null |
+  cargo test --release --package "$1" --features "$FEATURE" --no-run --message-format json 2>/dev/null |
     python3 -c '
 import json, sys
 
@@ -99,19 +105,33 @@ for line in sys.stdin:
     if message.get("executable") and message.get("target", {}).get("kind") == ["lib"]:
         print(message["executable"])
 '
-)"
-
-[ -n "$BIN" ] || {
-  echo "no test binary for $PACKAGE" >&2
-  exit 1
 }
+
+echo "== building =="
+
+declare -A BINS
+
+for one in "${CASES[@]}"; do
+  read -r package _ _ <<<"$one"
+
+  [ -n "${BINS[$package]:-}" ] && continue
+
+  BINS[$package]="$(binary_of "$package")"
+
+  [ -n "${BINS[$package]}" ] || {
+    echo "no test binary for $package" >&2
+    exit 1
+  }
+done
 
 echo
 
 FAILED=()
 
 for one in "${CASES[@]}"; do
-  read -r case owed <<<"$one"
+  read -r package case owed <<<"$one"
+
+  BIN="${BINS[$package]}"
 
   # Not inside an `if` and not followed by `||`: either is a condition context,
   # where `errexit` would stop applying and a case that died for its own
@@ -129,21 +149,22 @@ for one in "${CASES[@]}"; do
     answer="$got, as it owes"
   else
     answer="$got, and it owes $owed"
-    FAILED+=("$case")
+    FAILED+=("$package $case")
   fi
 
-  printf '  %-52s %s\n' "$case" "$answer"
+  printf '  %-24s %-64s %s\n' "$package" "$case" "$answer"
 done
 
 echo
 
 [ ${#FAILED[@]} -eq 0 ] || {
-  echo "## ${FAILED[*]}"
+  printf '## %s\n' "${FAILED[@]}"
   echo
+  read -r package case <<<"${FAILED[0]}"
   echo "Run one by hand to read where:"
-  echo "  valgrind $BIN --exact $MODULE::${FAILED[0]} --ignored --test-threads=1"
+  echo "  valgrind ${BINS[$package]} --exact $MODULE::$case --ignored --test-threads=1"
 
   exit 1
 }
 
-echo "## every comparison branches on nothing but its answer"
+echo "## no routine branches on a secret, or indexes memory by one"
