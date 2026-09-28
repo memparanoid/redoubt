@@ -55,4 +55,5 @@
 pub use redoubt_mem_core::copy_nonoverlapping;
 pub use redoubt_mem_core::is_utf8;
 pub use redoubt_mem_core::is_zeroized;
+pub use redoubt_mem_core::zeroize;
 pub use redoubt_mem_core::{swap, swap_nonoverlapping};

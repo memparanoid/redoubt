@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-// A copy, a swap, a UTF-8 check and a zero check that leave nothing in a
-// register — x86-64.
+// A copy, a swap, a UTF-8 check, a zero check and a zeroize that leave nothing
+// in a register — x86-64.
 //
 // Platforms: Linux and macOS, SysV. Windows is not built.
 // No runtime feature detection. The floor is SSE2: movdqu, movdqa, pxor, por,
@@ -13,9 +13,9 @@
 //   byte these routines wrote.
 // Crossing: pointers to the caller's storage and lengths. Nothing is returned;
 //   each check's answer is one byte written through a pointer.
-// Branches: the copy, the swap and the zero check on the length only. The UTF-8
-//   check on the bytes, stopping at the first that is not UTF-8: not constant
-//   time.
+// Branches: the copy, the swap, the zero check and the zeroize on the length
+//   only. The UTF-8 check on the bytes, stopping at the first that is not
+//   UTF-8: not constant time.
 // Not answered for: what other code left in registers, the ranges themselves,
 //   a signal frame, a core dump, swap, ptrace, or a fault before the wipe.
 // No routine takes a frame, so the probe has no stack half.
@@ -430,6 +430,92 @@ FUNC(redoubt_mem_is_zeroized):
     .cfi_endproc
 #if !defined(__APPLE__)
 .size FUNC(redoubt_mem_is_zeroized), .-FUNC(redoubt_mem_is_zeroized)
+#endif
+
+// ============================================================================
+// redoubt_mem_zeroize
+// ============================================================================
+//
+// void redoubt_mem_zeroize(uint8_t *dst, size_t bytes)
+// rdi = dst, rsi = bytes; DF clear.
+
+.global FUNC(redoubt_mem_zeroize)
+HIDDEN_FUNC(redoubt_mem_zeroize)
+#if !defined(__APPLE__)
+.type FUNC(redoubt_mem_zeroize), @function
+#endif
+.p2align 4
+FUNC(redoubt_mem_zeroize):
+    .cfi_startproc
+    endbr64
+    xor eax, eax
+    pxor xmm0, xmm0
+    cmp rsi, 32
+    ja .Lzeroize_bulk
+    cmp rsi, 16
+    jbe .Lzeroize_up_to_16
+    movdqu [rdi], xmm0
+    movdqu [rdi + rsi - 16], xmm0
+    jmp .Lzeroize_wipe
+.Lzeroize_up_to_16:
+    cmp rsi, 8
+    jb .Lzeroize_up_to_8
+    mov [rdi], rax
+    mov [rdi + rsi - 8], rax
+    jmp .Lzeroize_wipe
+.Lzeroize_up_to_8:
+    cmp rsi, 4
+    jb .Lzeroize_up_to_4
+    mov [rdi], eax
+    mov [rdi + rsi - 4], eax
+    jmp .Lzeroize_wipe
+.Lzeroize_up_to_4:
+    cmp rsi, 2
+    jb .Lzeroize_up_to_2
+    mov [rdi], ax
+    mov [rdi + rsi - 2], ax
+    jmp .Lzeroize_wipe
+.Lzeroize_up_to_2:
+    test rsi, rsi
+    jz .Lzeroize_wipe
+    mov [rdi], al
+    jmp .Lzeroize_wipe
+.Lzeroize_bulk:
+    cmp rsi, 512
+    ja .Lzeroize_string
+    cmp rsi, 64
+    jbe .Lzeroize_32
+.Lzeroize_64:
+    movdqu [rdi], xmm0
+    movdqu [rdi + 16], xmm0
+    movdqu [rdi + 32], xmm0
+    movdqu [rdi + 48], xmm0
+    add rdi, 64
+    sub rsi, 64
+    cmp rsi, 64
+    ja .Lzeroize_64
+    cmp rsi, 32
+    jbe .Lzeroize_last_32
+.Lzeroize_32:
+    movdqu [rdi], xmm0
+    movdqu [rdi + 16], xmm0
+    add rdi, 32
+    sub rsi, 32
+.Lzeroize_last_32:
+    // rsi may be under 32 here, but only after a chunk was written, so the
+    // window reaches back over written bytes and never before the range.
+    movdqu [rdi + rsi - 32], xmm0
+    movdqu [rdi + rsi - 16], xmm0
+    jmp .Lzeroize_wipe
+.Lzeroize_string:
+    mov rcx, rsi
+    rep stosb
+.Lzeroize_wipe:
+    MEM_ZEROIZE_ALL
+    ret
+    .cfi_endproc
+#if !defined(__APPLE__)
+.size FUNC(redoubt_mem_zeroize), .-FUNC(redoubt_mem_zeroize)
 #endif
 
 // ============================================================================

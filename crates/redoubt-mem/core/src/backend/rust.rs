@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! The standard library's copy and swap, and a UTF-8 check read one byte at a
-//! time: the same answers, and no promise about the registers they went
-//! through.
+//! The standard library's copy, swap and zeroize, and the UTF-8 and zero checks
+//! one byte at a time: the same answers, and no promise about the registers
+//! they went through.
 
 /// `bytes` from `src` to `dst`.
 ///
@@ -103,4 +103,23 @@ pub fn is_zeroized(bytes: &[u8]) -> bool {
     }
 
     folded == 0
+}
+
+/// Zeros over `bytes` at `dst`, by the standard library's write and an empty
+/// `asm!` block handed the pointer.
+///
+/// With no `nomem`, the compiler has to assume the block reads what `dst`
+/// points at, so no store before it is dead and none may be removed or
+/// shortened.
+///
+/// # Safety
+///
+/// `dst` writable for `bytes`.
+pub unsafe fn zeroize(dst: *mut u8, bytes: usize) {
+    // SAFETY: the caller's, verbatim.
+    unsafe { core::ptr::write_bytes(dst, 0, bytes) };
+
+    // SAFETY: the template is empty, so the block writes no register, flag or
+    // byte of the stack.
+    unsafe { core::arch::asm!("/* {0} */", in(reg) dst, options(nostack, preserves_flags)) };
 }

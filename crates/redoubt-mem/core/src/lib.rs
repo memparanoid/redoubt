@@ -18,6 +18,7 @@ mod tests;
 mod copy;
 mod swap;
 mod utf8;
+mod zeroize;
 mod zeroized;
 
 pub mod backend;
@@ -25,4 +26,5 @@ pub mod backend;
 pub use copy::{copy_nonoverlapping, copy_nonoverlapping_with_backend};
 pub use swap::{swap, swap_nonoverlapping, swap_nonoverlapping_with_backend, swap_with_backend};
 pub use utf8::{is_utf8, is_utf8_with_backend};
+pub use zeroize::{zeroize, zeroize_with_backend};
 pub use zeroized::{is_zeroized, is_zeroized_with_backend};

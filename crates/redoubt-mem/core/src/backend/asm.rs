@@ -19,6 +19,9 @@ unsafe extern "C" {
     /// Whether `len` bytes at `bytes` are all zero, written to `*answer` as one
     /// or zero: nothing crosses back in a register.
     fn redoubt_mem_is_zeroized(bytes: *const u8, len: usize, answer: *mut u8);
+
+    /// Zeros over `bytes` at `dst`.
+    fn redoubt_mem_zeroize(dst: *mut u8, bytes: usize);
 }
 
 /// What `rust::copy_nonoverlapping` does, in the assembly for this target.
@@ -61,4 +64,14 @@ pub fn is_zeroized(bytes: &[u8]) -> bool {
     unsafe { redoubt_mem_is_zeroized(bytes.as_ptr(), bytes.len(), &mut answer) };
 
     answer == 1
+}
+
+/// What `rust::zeroize` does, in the assembly for this target.
+///
+/// # Safety
+///
+/// `dst` writable for `bytes`.
+pub unsafe fn zeroize(dst: *mut u8, bytes: usize) {
+    // SAFETY: the caller's, verbatim.
+    unsafe { redoubt_mem_zeroize(dst, bytes) };
 }

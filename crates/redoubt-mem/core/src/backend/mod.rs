@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! The copy, the swap and the check, once from the standard library and once
-//! by hand.
+//! The copy, the swap, the checks and the zeroize, once from the standard
+//! library and once by hand.
 //!
 //! The two answer the same, and the tests hold them to it on every
 //! architecture the assembly was written for. What one of them has and the
@@ -76,5 +76,19 @@ pub fn is_zeroized(backend: Backend, bytes: &[u8]) -> bool {
     match backend {
         Backend::Rust => rust::is_zeroized(bytes),
         Backend::Auto => chosen::is_zeroized(bytes),
+    }
+}
+
+/// Zeros over `bytes` at `dst`.
+///
+/// # Safety
+///
+/// `dst` writable for `bytes`.
+pub unsafe fn zeroize(backend: Backend, dst: *mut u8, bytes: usize) {
+    match backend {
+        // SAFETY: the caller's, verbatim.
+        Backend::Rust => unsafe { rust::zeroize(dst, bytes) },
+        // SAFETY: the caller's, verbatim.
+        Backend::Auto => unsafe { chosen::zeroize(dst, bytes) },
     }
 }
