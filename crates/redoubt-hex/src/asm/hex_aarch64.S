@@ -11,9 +11,10 @@
 // Crossing: pointers to the caller's storage and lengths. Nothing is returned;
 //   the decoding's answer is one byte written through a pointer, one when every
 //   character was a hex digit.
-// Branches: on the length, and on the decoding's answer once every character
-//   has been read. Never on a byte or a digit: each is chosen between by `csel`
-//   or turned into a mask by `csetm`, and no table is indexed by one.
+// Branches: on the length only. Never on a byte, a digit or the decoding's
+//   answer: each is chosen between by `csel` or turned into a mask by `csetm`,
+//   every byte decoded is ANDed with the answer's mask whether or not it will
+//   be kept, and no table is indexed by one.
 // Not answered for: what other code left in registers, the ranges themselves,
 //   a signal frame, a core dump, swap, ptrace, or a fault before the wipe.
 // No routine takes a frame, and no vector register is written, so the probe
@@ -70,8 +71,9 @@
 .endm
 
 // The digit in \c as its nibble, through \t: `c ^ '0'` when that is under ten,
-// and `(c & ~0x20) - 55` otherwise, chosen by `csel`. Only right for a digit
-// the first pass has already accepted.
+// and `(c & ~0x20) - 55` otherwise, chosen by `csel`. What it gives for a
+// character that is not a digit is never kept: the byte it goes into is
+// masked to zero.
 .macro HEX_DIGIT_TO_NIBBLE c, t
     eor \t, \c, #0x30
     cmp \t, #10
@@ -154,8 +156,9 @@ FUNC(redoubt_hex_hex_to_bytes):
     b.ne .Ldecode_check_next
 .Ldecode_checked:
     lsr x1, x1, #1
+    cmp w4, #0
+    csetm w4, eq
     mov x5, #0
-    cbnz w4, .Ldecode_refuse
     cbz x1, .Ldecode_answer
 .Ldecode_next:
     ldrb w6, [x0], #1
@@ -163,21 +166,14 @@ FUNC(redoubt_hex_hex_to_bytes):
     ldrb w8, [x0], #1
     HEX_DIGIT_TO_NIBBLE w8, w7
     orr w6, w8, w6, lsl #4
+    and w6, w6, w4
     strb w6, [x2, x5]
     add x5, x5, #1
     cmp x5, x1
     b.ne .Ldecode_next
-    b .Ldecode_answer
-.Ldecode_refuse:
-    cbz x1, .Ldecode_answer
-.Ldecode_refuse_next:
-    strb wzr, [x2, x5]
-    add x5, x5, #1
-    cmp x5, x1
-    b.ne .Ldecode_refuse_next
 .Ldecode_answer:
     cmp w4, #0
-    cset w6, eq
+    cset w6, ne
     strb w6, [x3]
     HEX_ZEROIZE_ALL
     ret

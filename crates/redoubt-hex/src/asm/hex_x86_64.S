@@ -11,9 +11,10 @@
 // Crossing: pointers to the caller's storage and lengths. Nothing is returned;
 //   the decoding's answer is one byte written through a pointer, one when every
 //   character was a hex digit.
-// Branches: on the length, and on the decoding's answer once every character
-//   has been read. Never on a byte or a digit: each is turned into a mask by
-//   `cmp` and `sbb`, and no table is indexed by one.
+// Branches: on the length only. Never on a byte, a digit or the decoding's
+//   answer: each is turned into a mask by `cmp` and `sbb`, every byte decoded
+//   is ANDed with the answer's mask whether or not it will be kept, and no
+//   table is indexed by one.
 // Not answered for: what other code left in registers, the ranges themselves,
 //   a signal frame, a core dump, swap, ptrace, or a fault before the wipe.
 // No routine takes a frame, and no vector register is written, so the probe
@@ -157,9 +158,9 @@ FUNC(redoubt_hex_hex_to_bytes):
     jne .Ldecode_check_next
 .Ldecode_checked:
     shr rsi, 1
+    cmp r9d, 1
+    sbb r9d, r9d
     xor r11d, r11d
-    test r9d, r9d
-    jnz .Ldecode_refuse
     cmp r11, rsi
     je .Ldecode_answer
 .Ldecode_next:
@@ -175,6 +176,7 @@ FUNC(redoubt_hex_hex_to_bytes):
     and eax, r10d
     or eax, r8d
     shl eax, 4
+    and eax, r9d
     mov [rdx + r11], al
     movzx eax, byte ptr [rdi + r11 * 2 + 1]
     mov r8d, eax
@@ -187,22 +189,14 @@ FUNC(redoubt_hex_hex_to_bytes):
     sub eax, 55
     and eax, r10d
     or eax, r8d
+    and eax, r9d
     or [rdx + r11], al
     add r11, 1
     cmp r11, rsi
     jne .Ldecode_next
-    jmp .Ldecode_answer
-.Ldecode_refuse:
-    cmp r11, rsi
-    je .Ldecode_answer
-.Ldecode_refuse_next:
-    mov byte ptr [rdx + r11], 0
-    add r11, 1
-    cmp r11, rsi
-    jne .Ldecode_refuse_next
 .Ldecode_answer:
     test r9d, r9d
-    sete byte ptr [rcx]
+    setnz byte ptr [rcx]
     HEX_ZEROIZE_ALL
     ret
     .cfi_endproc
