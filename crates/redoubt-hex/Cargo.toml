@@ -30,5 +30,7 @@ crabgrind = { workspace = true, optional = true }
 cc.workspace = true
 
 [dev-dependencies]
-proptest.workspace = true
-rstest.workspace   = true
+proptest.workspace          = true
+redoubt-forensics.workspace = true
+redoubt-mem.workspace       = true
+rstest.workspace            = true

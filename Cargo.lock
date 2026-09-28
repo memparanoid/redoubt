@@ -1080,6 +1080,8 @@ dependencies = [
  "crabgrind",
  "proptest",
  "redoubt-asm",
+ "redoubt-forensics",
+ "redoubt-mem",
  "rstest",
  "thiserror",
 ]
