@@ -39,7 +39,7 @@ cargo add redoubt
 Written by hand, in `Cargo.toml`:
 ```toml
 [dependencies]
-redoubt = "0.1.0-rc.15"
+redoubt = "0.1.0-rc.16"
 ```
 
 ## Quick Start
