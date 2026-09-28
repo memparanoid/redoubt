@@ -6,15 +6,7 @@ use crate::RedoubtString;
 use alloc::string::String;
 use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
-/// Every byte of the allocation, past the length included.
-fn capacity_is_zeroized(s: &RedoubtString) -> bool {
-    // SAFETY: under `dirty = 0xFF` the allocator writes every byte of a block
-    // it hands out, so the bytes past the length are initialized, and the
-    // range is the string's own allocation.
-    let whole = unsafe { core::slice::from_raw_parts(s.as_str().as_ptr(), s.capacity()) };
-
-    whole.iter().all(|byte| *byte == 0)
-}
+use crate::tests::support::capacity_is_zeroized;
 
 // ╔════════════════════════════════════════════════════════════════════════════╗
 // ║ ZEROIZATION                                                                ║
@@ -69,8 +61,14 @@ fn test_with_capacity() {
 fn test_with_capacity_is_zeroized_over_its_whole_capacity() {
     let s = RedoubtString::with_capacity(1024);
 
+    // SAFETY: the operation under test wrote every byte of the capacity; that
+    // write is what this reads for. Without it the read is of memory never
+    // written, which is undefined: the test then fails or flakes, and either
+    // is the regression surfacing.
+    let zeroized = unsafe { capacity_is_zeroized(s.as_str().as_ptr(), s.capacity()) };
+
     // Assert zeroization!
-    assert!(capacity_is_zeroized(&s));
+    assert!(zeroized);
 }
 
 // =============================================================================
@@ -288,8 +286,14 @@ fn test_extend_from_str_grows_into_zeroized_capacity() {
     for _ in 0..1024 {
         s.extend_from_str("\0");
 
+        // SAFETY: the operation under test wrote every byte of the capacity;
+        // that write is what this reads for. Without it the read is of memory
+        // never written, which is undefined: the test then fails or flakes,
+        // and either is the regression surfacing.
+        let zeroized = unsafe { capacity_is_zeroized(s.as_str().as_ptr(), s.capacity()) };
+
         // Assert zeroization!
-        assert!(capacity_is_zeroized(&s));
+        assert!(zeroized);
     }
 }
 

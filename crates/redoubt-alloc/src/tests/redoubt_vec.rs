@@ -5,6 +5,8 @@
 use crate::RedoubtVec;
 use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
+use crate::tests::support::capacity_is_zeroized;
+
 // ╔════════════════════════════════════════════════════════════════════════════╗
 // ║ ZEROIZATION                                                                ║
 // ╚════════════════════════════════════════════════════════════════════════════╝
@@ -60,8 +62,14 @@ fn test_with_capacity() {
 fn test_with_capacity_is_zeroized() {
     let vec: RedoubtVec<u8> = RedoubtVec::with_capacity(1024);
 
+    // SAFETY: the operation under test wrote every byte of the capacity; that
+    // write is what this reads for. Without it the read is of memory never
+    // written, which is undefined: the test then fails or flakes, and either
+    // is the regression surfacing.
+    let zeroized = unsafe { capacity_is_zeroized(vec.as_slice().as_ptr(), vec.capacity()) };
+
     // Assert zeroization!
-    assert!(vec.is_zeroized());
+    assert!(zeroized);
 }
 
 // =============================================================================
@@ -181,8 +189,14 @@ fn test_extend_from_mut_slice_grows_into_zeroized_capacity() {
     for _ in 0..1024 {
         vec.extend_from_mut_slice(&mut [0u8; 1]);
 
+        // SAFETY: the operation under test wrote every byte of the capacity;
+        // that write is what this reads for. Without it the read is of memory
+        // never written, which is undefined: the test then fails or flakes,
+        // and either is the regression surfacing.
+        let zeroized = unsafe { capacity_is_zeroized(vec.as_slice().as_ptr(), vec.capacity()) };
+
         // Assert zeroization!
-        assert!(vec.is_zeroized());
+        assert!(zeroized);
     }
 }
 
