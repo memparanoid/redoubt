@@ -34,7 +34,7 @@
 use crabgrind::memcheck::{MemState, mark_memory};
 use redoubt_asm::Backend;
 
-use crate::backend::constant_time_eq_with_backend;
+use crate::backend::constant_time_eq_using;
 use crate::declassify;
 
 const TAG: usize = 16;
@@ -103,7 +103,7 @@ fn test_the_rust_eq_branches_on_nothing_but_its_answer() {
 
     as_secret(&a, &b);
 
-    core::hint::black_box(constant_time_eq_with_backend(Backend::Rust, &a, &b));
+    core::hint::black_box(constant_time_eq_using(Backend::Rust, &a, &b));
 }
 
 #[test]
@@ -113,7 +113,7 @@ fn test_the_chosen_eq_branches_on_nothing_but_its_answer() {
 
     as_secret(&a, &b);
 
-    core::hint::black_box(constant_time_eq_with_backend(Backend::Auto, &a, &b));
+    core::hint::black_box(constant_time_eq_using(Backend::Auto, &a, &b));
 }
 
 // ============================================================================
@@ -149,7 +149,7 @@ fn test_a_branch_on_the_answer_branches_on_the_secret() {
 
     as_secret(&a, &b);
 
-    let same = constant_time_eq_with_backend(Backend::Auto, &a, &b);
+    let same = constant_time_eq_using(Backend::Auto, &a, &b);
 
     core::hint::black_box(branch_on(same));
 }
@@ -161,7 +161,7 @@ fn test_a_branch_on_the_declassified_answer_branches_on_nothing() {
 
     as_secret(&a, &b);
 
-    let same = declassify(constant_time_eq_with_backend(Backend::Auto, &a, &b));
+    let same = declassify(constant_time_eq_using(Backend::Auto, &a, &b));
 
     core::hint::black_box(branch_on(same));
 }

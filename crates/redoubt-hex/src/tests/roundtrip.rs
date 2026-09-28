@@ -12,12 +12,12 @@ use proptest::prelude::*;
 use redoubt_asm::Backend;
 use rstest::rstest;
 
-use crate::decode::hex_to_bytes_with_backend;
-use crate::encode::bytes_to_hex_with_backend;
+use crate::decode::hex_to_bytes_using;
+use crate::encode::bytes_to_hex_using;
 use crate::{bytes_to_hex, hex_to_bytes};
 
 // ============================================================================
-// bytes_to_hex_with_backend and hex_to_bytes_with_backend
+// bytes_to_hex_using and hex_to_bytes_using
 // ============================================================================
 
 #[rstest]
@@ -31,13 +31,10 @@ fn test_bytes_come_back_through_a_backend_at_every_length(#[case] backend: Backe
         let mut back = vec![0_u8; of];
 
         assert_eq!(
-            bytes_to_hex_with_backend(backend, &bytes[..of], &mut digits),
+            bytes_to_hex_using(backend, &bytes[..of], &mut digits),
             Ok(())
         );
-        assert_eq!(
-            hex_to_bytes_with_backend(backend, &digits, &mut back),
-            Ok(())
-        );
+        assert_eq!(hex_to_bytes_using(backend, &digits, &mut back), Ok(()));
         assert_eq!(back, &bytes[..of], "{backend:?}, {of} bytes");
     }
 }

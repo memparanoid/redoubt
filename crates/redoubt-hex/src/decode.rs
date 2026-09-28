@@ -32,11 +32,11 @@ use crate::error::HexError;
 /// [`HexError::NotHex`] when a character is not a hex digit, `dst` then all
 /// zeros.
 pub fn hex_to_bytes(src: &[u8], dst: &mut [u8]) -> Result<(), HexError> {
-    hex_to_bytes_with_backend(Backend::default(), src, dst)
+    hex_to_bytes_using(Backend::default(), src, dst)
 }
 
 /// [`hex_to_bytes`], through the backend named.
-pub(crate) fn hex_to_bytes_with_backend(
+pub(crate) fn hex_to_bytes_using(
     backend: Backend,
     src: &[u8],
     dst: &mut [u8],

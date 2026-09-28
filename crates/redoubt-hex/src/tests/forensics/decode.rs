@@ -5,7 +5,7 @@
 use redoubt_asm::Backend;
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
 
-use crate::decode::{hex_to_bytes, hex_to_bytes_with_backend};
+use crate::decode::{hex_to_bytes, hex_to_bytes_using};
 use crate::error::HexError;
 
 use crate::tests::forensics::support::needles::{BYTES, DIGITS, OLD};
@@ -206,7 +206,7 @@ fn test_decoding_into_the_wrong_destination_leaves_nothing() {
 }
 
 // ============================================================================
-// hex_to_bytes_with_backend
+// hex_to_bytes_using
 // ============================================================================
 
 decoding!(
@@ -214,7 +214,7 @@ decoding!(
     test_decoding_through_a_backend_leaves_nothing,
     test_decoding_through_a_backend_over_a_secret_leaves_nothing,
     test_decoding_through_a_backend_a_character_that_is_not_a_digit_leaves_nothing,
-    |src, dst| hex_to_bytes_with_backend(Backend::default(), &src, dst)
+    |src, dst| hex_to_bytes_using(Backend::default(), &src, dst)
 );
 
 #[test]

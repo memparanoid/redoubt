@@ -15,7 +15,7 @@ use std::vec::Vec;
 use redoubt_asm::Backend;
 use rstest::rstest;
 
-use crate::backend::{constant_time_eq, constant_time_eq_with_backend};
+use crate::backend::{constant_time_eq, constant_time_eq_using};
 
 /// A tag's width, which is what every caller of this compares.
 const TAG_SIZE: usize = 16;
@@ -64,38 +64,36 @@ fn test_constant_time_eq_answers_from_the_default_backend() {
 }
 
 // === === === === === === === === === ===
-// constant_time_eq_with_backend
+// constant_time_eq_using
 // === === === === === === === === === ===
 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_constant_time_eq_with_backend_reports_runs_of_different_length(#[case] backend: Backend) {
+fn test_constant_time_eq_using_reports_runs_of_different_length(#[case] backend: Backend) {
     // Neither run is read, so the shorter one being a prefix of the longer
     // changes nothing: the lengths already differ and that is public.
     let short = [0x11u8; TAG_SIZE];
     let long = [0x11u8; TAG_SIZE + 1];
 
-    assert!(!constant_time_eq_with_backend(backend, &short, &long));
-    assert!(!constant_time_eq_with_backend(backend, &long, &short));
+    assert!(!constant_time_eq_using(backend, &short, &long));
+    assert!(!constant_time_eq_using(backend, &long, &short));
 }
 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_constant_time_eq_with_backend_reports_two_empty_runs_equal(#[case] backend: Backend) {
+fn test_constant_time_eq_using_reports_two_empty_runs_equal(#[case] backend: Backend) {
     // The loop never runs, and the accumulator it would have folded into is
     // the answer. Which is the one length where "equal" comes from nothing
     // having been compared rather than from everything having matched.
-    assert!(constant_time_eq_with_backend(backend, &[], &[]));
+    assert!(constant_time_eq_using(backend, &[], &[]));
 }
 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_constant_time_eq_with_backend_sees_a_difference_at_every_position(
-    #[case] backend: Backend,
-) {
+fn test_constant_time_eq_using_sees_a_difference_at_every_position(#[case] backend: Backend) {
     // One byte at a time, over the whole width. A fold that stopped early, or
     // one that read a word at a time and dropped the tail, passes a test that
     // only ever differs in the middle.
@@ -106,7 +104,7 @@ fn test_constant_time_eq_with_backend_sees_a_difference_at_every_position(
         b[at] ^= 0x80;
 
         assert!(
-            !constant_time_eq_with_backend(backend, &a, &b),
+            !constant_time_eq_using(backend, &a, &b),
             "a difference at byte {at} reads as equal"
         );
     }
@@ -115,7 +113,7 @@ fn test_constant_time_eq_with_backend_sees_a_difference_at_every_position(
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_constant_time_eq_with_backend_sees_every_bit_of_a_byte(#[case] backend: Backend) {
+fn test_constant_time_eq_using_sees_every_bit_of_a_byte(#[case] backend: Backend) {
     // The other axis. A fold that or-ed the wrong width, or masked, answers
     // correctly for the high bit above and not for the one below it.
     let a = [0u8; TAG_SIZE];
@@ -125,7 +123,7 @@ fn test_constant_time_eq_with_backend_sees_every_bit_of_a_byte(#[case] backend: 
         b[0] = 1 << bit;
 
         assert!(
-            !constant_time_eq_with_backend(backend, &a, &b),
+            !constant_time_eq_using(backend, &a, &b),
             "bit {bit} of the first byte reads as equal"
         );
     }
@@ -134,7 +132,7 @@ fn test_constant_time_eq_with_backend_sees_every_bit_of_a_byte(#[case] backend: 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_constant_time_eq_with_backend_reports_equal_runs_equal(#[case] backend: Backend) {
+fn test_constant_time_eq_using_reports_equal_runs_equal(#[case] backend: Backend) {
     // The positive, and the reason the four above mean anything: a comparison
     // that answered false whatever it was handed would pass every one of them.
     //
@@ -146,7 +144,7 @@ fn test_constant_time_eq_with_backend_reports_equal_runs_equal(#[case] backend: 
         let b = a.clone();
 
         assert!(
-            constant_time_eq_with_backend(backend, &a, &b),
+            constant_time_eq_using(backend, &a, &b),
             "two runs of {length} equal bytes read as different"
         );
     }

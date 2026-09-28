@@ -26,11 +26,11 @@ use crate::error::HexError;
 ///
 /// [`HexError::WrongDestination`] when `dst` is not twice as long as `src`.
 pub fn bytes_to_hex(src: &[u8], dst: &mut [u8]) -> Result<(), HexError> {
-    bytes_to_hex_with_backend(Backend::default(), src, dst)
+    bytes_to_hex_using(Backend::default(), src, dst)
 }
 
 /// [`bytes_to_hex`], through the backend named.
-pub(crate) fn bytes_to_hex_with_backend(
+pub(crate) fn bytes_to_hex_using(
     backend: Backend,
     src: &[u8],
     dst: &mut [u8],

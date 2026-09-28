@@ -48,7 +48,7 @@ pub(crate) const HAS_ASM: bool = cfg!(ct_asm);
 /// arrived and the caller knew it before asking.
 #[must_use]
 pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    constant_time_eq_with_backend(Backend::default(), a, b)
+    constant_time_eq_using(Backend::default(), a, b)
 }
 
 /// The same, with the backend named rather than taken as the default has it.
@@ -58,7 +58,7 @@ pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 /// that a test can hold both implementations to the same answer, and so that
 /// the one above stays a function real callers use — which a test of it has to
 /// exercise, or resolving the default is the one step nothing covers.
-pub(crate) fn constant_time_eq_with_backend(backend: Backend, a: &[u8], b: &[u8]) -> bool {
+pub(crate) fn constant_time_eq_using(backend: Backend, a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }

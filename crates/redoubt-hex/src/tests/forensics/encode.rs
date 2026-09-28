@@ -5,7 +5,7 @@
 use redoubt_asm::Backend;
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
 
-use crate::encode::{bytes_to_hex, bytes_to_hex_with_backend};
+use crate::encode::{bytes_to_hex, bytes_to_hex_using};
 
 use crate::tests::forensics::support::needles::{BYTES, DIGITS, OLD};
 use crate::tests::forensics::support::{backwards, hold, is_found, leaves_nothing, wipe};
@@ -148,14 +148,14 @@ fn test_encoding_into_the_wrong_destination_leaves_nothing() {
 }
 
 // ============================================================================
-// bytes_to_hex_with_backend
+// bytes_to_hex_using
 // ============================================================================
 
 encoding!(
     test_what_an_encoding_through_a_backend_wrote_is_found_while_the_digits_hold_it,
     test_encoding_through_a_backend_leaves_nothing,
     test_encoding_through_a_backend_over_a_secret_leaves_nothing,
-    |src, dst| bytes_to_hex_with_backend(Backend::default(), &src, dst)
+    |src, dst| bytes_to_hex_using(Backend::default(), &src, dst)
 );
 
 #[test]
