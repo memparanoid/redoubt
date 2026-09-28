@@ -19,6 +19,7 @@ const MAGIC: u32 = 0xDEADBEEF;
 
 /// Behavior control for error injection testing in redoubt-codec.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[repr(u8)]
 pub enum RedoubtCodecTestBreakerBehaviour {
     /// Normal behavior (no error injection).
     #[default]
