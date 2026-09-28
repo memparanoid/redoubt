@@ -11,4 +11,5 @@ mod forensics;
 mod constant_time;
 
 mod backend;
+mod poly1305;
 mod rfc;

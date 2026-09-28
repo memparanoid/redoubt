@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! What each entry point answers, asked of every backend the target has.
+//! What each function of the seam answers, asked of every backend the target
+//! has, over a state the test holds itself.
 
 use std::vec::Vec;
 
@@ -11,12 +12,83 @@ use rstest::rstest;
 
 use redoubt_aead_core::consts::poly1305::{BLOCK_SIZE, KEY_SIZE, TAG_SIZE};
 use redoubt_asm::Backend;
-use redoubt_zero::ZeroizationProbe;
 
-use crate::poly1305::tag;
+use crate::backend::{finalize, init, update};
+use crate::consts::{ACC_WORDS, R_WORDS};
 
-use crate::tests::support::oracle;
-use crate::tests::support::{keyed, tag_of, tag_of_split};
+use crate::tests::support::{against_the_appendix, oracle};
+
+/// RFC 8439 §2.5.1: the bits of `r` the clamp keeps.
+const CLAMP: u128 = 0x0fff_fffc_0fff_fffc_0fff_fffc_0fff_ffff;
+
+struct State {
+    r: [u64; R_WORDS],
+    s: [u8; BLOCK_SIZE],
+    acc: [u64; ACC_WORDS],
+    block: [u8; BLOCK_SIZE],
+    filled: usize,
+}
+
+impl State {
+    fn keyed(backend: Backend, key: &[u8; KEY_SIZE]) -> Self {
+        let mut state = Self {
+            r: [0; R_WORDS],
+            s: [0; BLOCK_SIZE],
+            acc: [0; ACC_WORDS],
+            block: [0; BLOCK_SIZE],
+            filled: 0,
+        };
+
+        init(backend, &mut state.r, &mut state.s, key);
+
+        state
+    }
+
+    fn absorb(&mut self, backend: Backend, said: &[u8]) {
+        update(
+            backend,
+            &mut self.acc,
+            &self.r,
+            &mut self.block,
+            &mut self.filled,
+            said,
+        );
+    }
+
+    fn answer(&mut self, backend: Backend, said: &[u8]) -> [u8; TAG_SIZE] {
+        let mut out = [0_u8; TAG_SIZE];
+
+        finalize(backend, &mut self.acc, &self.r, &self.s, said, &mut out);
+
+        out
+    }
+
+    fn answer_from_the_buffer(&mut self, backend: Backend) -> [u8; TAG_SIZE] {
+        let block = self.block;
+
+        self.answer(backend, &block[..self.filled])
+    }
+}
+
+// === === === === === === === === === ===
+// init
+// === === === === === === === === === ===
+
+proptest! {
+    #[test]
+    fn test_init_clamps_r_and_keeps_s_as_it_arrived(key: [u8; KEY_SIZE]) {
+        let (low, high) = key.split_at(BLOCK_SIZE);
+        let clamped = u128::from_le_bytes(low.try_into().expect("Infallible: sixteen of thirty-two")) & CLAMP;
+        let r = [clamped as u64, (clamped >> 64) as u64];
+
+        for backend in [Backend::Rust, Backend::Auto] {
+            let state = State::keyed(backend, &key);
+
+            prop_assert_eq!(state.r, r, "{:?}", backend);
+            prop_assert_eq!(&state.s[..], high, "{:?}", backend);
+        }
+    }
+}
 
 // === === === === === === === === === ===
 // update
@@ -28,11 +100,17 @@ use crate::tests::support::{keyed, tag_of, tag_of_split};
 fn test_update_returns_the_same_tag_at_every_split(#[case] backend: Backend) {
     let key = [0x5e; KEY_SIZE];
     let message: Vec<u8> = (0..70u16).map(|i| i as u8).collect();
-    let whole = tag_of(backend, &key, &message);
+    let whole = State::keyed(backend, &key).answer(backend, &message);
 
     for at in 0..=message.len() {
+        let mut state = State::keyed(backend, &key);
+        let (head, rest) = message.split_at(at);
+
+        state.absorb(backend, head);
+        state.absorb(backend, rest);
+
         assert_eq!(
-            tag_of_split(backend, &key, &message, at),
+            state.answer_from_the_buffer(backend),
             whole,
             "split at {at} of {}",
             message.len()
@@ -41,18 +119,6 @@ fn test_update_returns_the_same_tag_at_every_split(#[case] backend: Backend) {
 }
 
 proptest! {
-    /// The same message in any number of pieces, against the oracle.
-    ///
-    /// The one above compares this path against itself: every split agrees, and
-    /// they would still all agree if the buffer dropped the same byte in every
-    /// one of them. And the oracle proptest below enters through `tag`, which
-    /// hands the whole message over at once and never carries `filled` across a
-    /// call.
-    ///
-    /// This is the only thing that holds a partial buffer to an answer computed
-    /// another way: a random key, a random message, and cuts wherever they
-    /// fall — so a block boundary, a one-byte tail and several whole blocks in
-    /// a row all arrive without being asked for.
     #[test]
     fn test_update_returns_what_the_oracle_returns_at_every_partition(
         key: [u8; KEY_SIZE],
@@ -68,84 +134,44 @@ proptest! {
         offsets.dedup();
 
         for backend in [Backend::Rust, Backend::Auto] {
-            let mut poly = keyed(backend, &key);
-            let mut tag = [0u8; TAG_SIZE];
+            let mut state = State::keyed(backend, &key);
             let mut from = 0;
 
             for &to in &offsets {
-                poly.update(backend, &message[from..to]);
+                state.absorb(backend, &message[from..to]);
                 from = to;
             }
 
-            poly.update(backend, &message[from..]);
-            poly.finalize_mut(backend, &mut tag);
+            state.absorb(backend, &message[from..]);
 
-            prop_assert_eq!(tag, expected, "{:?}, cut at {:?}", backend, offsets);
+            prop_assert_eq!(
+                state.answer_from_the_buffer(backend),
+                expected,
+                "{:?}, cut at {:?}",
+                backend,
+                offsets
+            );
         }
     }
 }
 
 // === === === === === === === === === ===
-// update_padded
+// finalize
 // === === === === === === === === === ===
 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_update_padded_returns_the_tag_of_the_message_and_its_zeros(#[case] backend: Backend) {
-    let key = [0x91; KEY_SIZE];
-
-    // Nothing owed at 0, 16 and 32; fifteen owed at 1 and 17; one owed at 15
-    // and 31. The multiples are what a `% BLOCK_SIZE` written once instead of
-    // twice gets wrong, by owing a whole block of zeros that nobody owes.
-    for length in [0usize, 1, 15, 16, 17, 31, 32] {
-        let message: Vec<u8> = (0..length).map(|i| (i as u8) ^ 0x5a).collect();
-
-        let mut padded = message.clone();
-        padded.resize(length.next_multiple_of(BLOCK_SIZE), 0);
-
-        let mut poly = keyed(backend, &key);
-        let mut tag = [0u8; TAG_SIZE];
-
-        poly.update_padded(backend, &message);
-        poly.finalize_mut(backend, &mut tag);
-
-        assert_eq!(tag, tag_of(backend, &key, &padded), "{length} bytes in");
-    }
+fn test_finalize_returns_the_appendix_tag(#[case] backend: Backend) {
+    against_the_appendix(|key, message, out| {
+        *out = State::keyed(backend, key).answer(backend, message);
+    });
 }
 
-// === === === === === === === === === ===
-// finalize_mut
-// === === === === === === === === === ===
-
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_finalize_mut_empties_the_state_it_answered_from(#[case] backend: Backend) {
-    // Long enough to leave a tail in the buffer: what an emptying that only
-    // reached the accumulator would leave behind is the last block of the
-    // message, and a message ending on a boundary would not have one.
-    let key = [0x3f; KEY_SIZE];
-    let message = b"long enough to leave a tail in the buffer at the end";
-
-    let mut poly = keyed(backend, &key);
-    let mut tag = [0u8; TAG_SIZE];
-
-    poly.update(backend, message);
-    poly.finalize_mut(backend, &mut tag);
-
-    // Assert zeroization!
-    assert!(poly.is_zeroized());
-}
-
-// === === === === === === === === === ===
-// tag
-// === === === === === === === === === ===
-
-#[rstest]
-#[case::rust(Backend::Rust)]
-#[case::auto(Backend::Auto)]
-fn test_tag_returns_what_the_oracle_returns_at_the_widest(#[case] backend: Backend) {
+fn test_finalize_returns_what_the_oracle_returns_at_the_widest(#[case] backend: Backend) {
     // Every part of this input is the largest it can be. The clamp takes the
     // top four bits of four bytes of `r` and the bottom two of three others,
     // so a key of all ones is the largest `r` it lets through — which makes
@@ -160,29 +186,28 @@ fn test_tag_returns_what_the_oracle_returns_at_the_widest(#[case] backend: Backe
     // nobody should plan around.
     let key = [0xffu8; KEY_SIZE];
     let message = std::vec![0xffu8; BLOCK_SIZE * 1000];
-    let expected = oracle::tag(&key, &message);
 
-    let mut out = [0u8; TAG_SIZE];
-    tag(backend, &key, &message, &mut out);
-
-    assert_eq!(out, expected);
+    assert_eq!(
+        State::keyed(backend, &key).answer(backend, &message),
+        oracle::tag(&key, &message)
+    );
 }
 
 proptest! {
     #[test]
-    fn test_tag_returns_what_the_oracle_returns(
+    fn test_finalize_returns_what_the_oracle_returns(
         key: [u8; KEY_SIZE],
         message in proptest::collection::vec(any::<u8>(), 0..600),
     ) {
         let expected = oracle::tag(&key, &message);
 
-        let mut rust = [0u8; TAG_SIZE];
-        let mut auto = [0u8; TAG_SIZE];
-
-        tag(Backend::Rust, &key, &message, &mut rust);
-        tag(Backend::Auto, &key, &message, &mut auto);
-
-        prop_assert_eq!(rust, expected);
-        prop_assert_eq!(auto, expected);
+        for backend in [Backend::Rust, Backend::Auto] {
+            prop_assert_eq!(
+                State::keyed(backend, &key).answer(backend, &message),
+                expected,
+                "{:?}",
+                backend
+            );
+        }
     }
 }
