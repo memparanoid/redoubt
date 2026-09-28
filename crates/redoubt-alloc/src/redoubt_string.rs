@@ -79,11 +79,15 @@ impl RedoubtString {
 
     /// Creates a new `RedoubtString` with the specified capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self {
+        let mut s = Self {
             inner: String::with_capacity(capacity),
             #[cfg(test)]
             __sentinel: redoubt_zero::ZeroizeOnDropSentinel::default(),
-        }
+        };
+
+        s.inner.fast_zeroize();
+
+        s
     }
 
     /// Creates a new `RedoubtString` from a mutable String, zeroizing the source.
@@ -165,6 +169,7 @@ impl RedoubtString {
 
         // 3. Re-allocate with new capacity
         self.inner.reserve_exact(new_capacity);
+        self.inner.fast_zeroize();
 
         // 4. Drain from tmp
         self.extend_from_mut_string(&mut tmp);

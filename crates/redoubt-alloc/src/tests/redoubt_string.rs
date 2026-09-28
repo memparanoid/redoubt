@@ -6,6 +6,16 @@ use crate::RedoubtString;
 use alloc::string::String;
 use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
+/// Every byte of the allocation, past the length included.
+fn capacity_is_zeroized(s: &RedoubtString) -> bool {
+    // SAFETY: under `dirty = 0xFF` the allocator writes every byte of a block
+    // it hands out, so the bytes past the length are initialized, and the
+    // range is the string's own allocation.
+    let whole = unsafe { core::slice::from_raw_parts(s.as_str().as_ptr(), s.capacity()) };
+
+    whole.iter().all(|byte| *byte == 0)
+}
+
 // ╔════════════════════════════════════════════════════════════════════════════╗
 // ║ ZEROIZATION                                                                ║
 // ╚════════════════════════════════════════════════════════════════════════════╝
@@ -51,6 +61,16 @@ fn test_with_capacity() {
 
     assert_eq!(s.len(), 0);
     assert!(s.capacity() >= 10);
+}
+
+/// The allocator hands out a freed block, or a piece of one, as its last owner
+/// left it.
+#[redoubt_forensics::test(dirty = 0xFF)]
+fn test_with_capacity_is_zeroized_over_its_whole_capacity() {
+    let s = RedoubtString::with_capacity(1024);
+
+    // Assert zeroization!
+    assert!(capacity_is_zeroized(&s));
 }
 
 // =============================================================================
@@ -257,6 +277,20 @@ fn test_extend_from_str_single_allocation() {
     // Should grow to next_power_of_two(100) = 128
     assert_eq!(s.len(), 100);
     assert!(s.capacity() >= 128);
+}
+
+/// The capacity a growth reserves comes from the allocator holding whatever
+/// its last owner left, and only the part up to the length is written over.
+#[redoubt_forensics::test(dirty = 0xFF)]
+fn test_extend_from_str_grows_into_zeroized_capacity() {
+    let mut s = RedoubtString::new();
+
+    for _ in 0..1024 {
+        s.extend_from_str("\0");
+
+        // Assert zeroization!
+        assert!(capacity_is_zeroized(&s));
+    }
 }
 
 // =============================================================================
