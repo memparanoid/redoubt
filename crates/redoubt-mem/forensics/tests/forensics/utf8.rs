@@ -9,7 +9,7 @@
 
 use redoubt_asm::Backend;
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
-use redoubt_mem_core::{copy_nonoverlapping, is_utf8, is_utf8_with_backend};
+use redoubt_mem_core::{copy_nonoverlapping, is_utf8, is_utf8_using};
 use rstest::rstest;
 
 use crate::support::{is_found, leaves_nothing, wipe};
@@ -111,7 +111,7 @@ fn test_checking_text_leaves_nothing() -> Result<(), AnyError> {
 }
 
 // ============================================================================
-// is_utf8_with_backend
+// is_utf8_using
 // ============================================================================
 
 #[rstest]
@@ -126,7 +126,7 @@ fn test_text_checked_through_a_backend_is_found_while_it_is_held(
     let answer: bool;
 
     forensics!({
-        answer = capture(|| is_utf8_with_backend(backend, &text));
+        answer = capture(|| is_utf8_using(backend, &text));
     });
 
     let report = watch.snapshot()?;
@@ -152,7 +152,7 @@ fn test_text_refused_half_way_is_found_while_it_is_held(
     let answer: bool;
 
     forensics!({
-        answer = capture(|| is_utf8_with_backend(backend, &text));
+        answer = capture(|| is_utf8_using(backend, &text));
     });
 
     let report = watch.snapshot()?;
@@ -180,7 +180,7 @@ fn test_checking_text_through_a_backend_leaves_nothing(
     let answer: bool;
 
     forensics!({
-        answer = capture(|| is_utf8_with_backend(backend, &text));
+        answer = capture(|| is_utf8_using(backend, &text));
 
         // CORRECTNESS: after the capture. A call made before it writes over the
         // stack and the registers the operation left, and then the absence
@@ -213,7 +213,7 @@ fn test_checking_text_refused_half_way_leaves_nothing(
     let answer: bool;
 
     forensics!({
-        answer = capture(|| is_utf8_with_backend(backend, &text));
+        answer = capture(|| is_utf8_using(backend, &text));
 
         // CORRECTNESS: after the capture. A call made before it writes over the
         // stack and the registers the operation left, and then the absence

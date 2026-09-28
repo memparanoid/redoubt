@@ -38,7 +38,7 @@ use crate::backend;
 #[inline]
 pub unsafe fn zeroize<T>(dst: *mut T, count: usize) {
     // SAFETY: the caller's, verbatim.
-    unsafe { zeroize_with_backend(Backend::default(), dst, count) };
+    unsafe { zeroize_using(Backend::default(), dst, count) };
 }
 
 /// [`zeroize`], through the backend named.
@@ -47,7 +47,7 @@ pub unsafe fn zeroize<T>(dst: *mut T, count: usize) {
 ///
 /// As [`zeroize`].
 #[inline]
-pub unsafe fn zeroize_with_backend<T>(backend: Backend, dst: *mut T, count: usize) {
+pub unsafe fn zeroize_using<T>(backend: Backend, dst: *mut T, count: usize) {
     let bytes = count
         .checked_mul(core::mem::size_of::<T>())
         .expect("a zeroize's byte count should fit in a usize, as every valid range does");

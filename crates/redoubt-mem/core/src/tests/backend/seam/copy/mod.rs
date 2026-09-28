@@ -27,7 +27,7 @@ use std::vec::Vec;
 use redoubt_asm::Backend;
 use rstest::rstest;
 
-use crate::copy::copy_nonoverlapping_with_backend;
+use crate::copy::copy_nonoverlapping_using;
 
 /// A value of `T` from an index, with every byte different from its
 /// neighbours'.
@@ -58,7 +58,7 @@ macro_rules! moves {
                 // pointer and wrote from the start would land on the guard.
                 // SAFETY: different allocations, and `into` is two elements
                 // longer than what is written into it.
-                unsafe { copy_nonoverlapping_with_backend(backend, from.as_ptr(), into.as_mut_ptr().add(1), OF) };
+                unsafe { copy_nonoverlapping_using(backend, from.as_ptr(), into.as_mut_ptr().add(1), OF) };
 
                 assert_eq!(&into[1..=OF], &from[..], "{} elements of {}", OF, stringify!($t));
                 assert_eq!(into[0], 0, "wrote before the destination");
@@ -94,7 +94,7 @@ macro_rules! moves_one {
                 let mut into: $t = 0;
 
                 // SAFETY: two distinct locals of the same type.
-                unsafe { copy_nonoverlapping_with_backend(backend, &raw const from, &raw mut into, 1) };
+                unsafe { copy_nonoverlapping_using(backend, &raw const from, &raw mut into, 1) };
 
                 assert_eq!(into, from, "one {}", stringify!($t));
             }
@@ -126,7 +126,7 @@ fn test_moves_every_length_up_to_a_kilobyte(#[case] backend: Backend) {
         let mut into = vec![0xA5_u8; from.len() + 1];
 
         // SAFETY: different allocations, and `into` is longer than `of`.
-        unsafe { copy_nonoverlapping_with_backend(backend, from.as_ptr(), into.as_mut_ptr(), of) };
+        unsafe { copy_nonoverlapping_using(backend, from.as_ptr(), into.as_mut_ptr(), of) };
 
         assert_eq!(&into[..of], &from[..of], "{of} bytes");
         assert!(
@@ -146,7 +146,7 @@ fn test_moves_nothing_for_a_count_of_zero(#[case] backend: Backend) {
     let mut into = [0_u8; 4];
 
     // SAFETY: different allocations, and zero elements are read and written.
-    unsafe { copy_nonoverlapping_with_backend(backend, from.as_ptr(), into.as_mut_ptr(), 0) };
+    unsafe { copy_nonoverlapping_using(backend, from.as_ptr(), into.as_mut_ptr(), 0) };
 
     assert_eq!(into, [0; 4]);
 }
@@ -161,7 +161,7 @@ fn test_moves_nothing_for_a_type_of_no_size(#[case] backend: Backend) {
     let mut into = [(); 8];
 
     // SAFETY: a zero-sized type, where every pointer is valid for zero bytes.
-    unsafe { copy_nonoverlapping_with_backend(backend, from.as_ptr(), into.as_mut_ptr(), 8) };
+    unsafe { copy_nonoverlapping_using(backend, from.as_ptr(), into.as_mut_ptr(), 8) };
 
     assert_eq!(into.len(), 8);
 }
@@ -180,9 +180,7 @@ fn test_moves_a_slice_out_of_the_middle_of_one(#[case] backend: Backend) {
     let mut into = vec![0_u8; 64];
 
     // SAFETY: different allocations, and `into` is as long as `taking`.
-    unsafe {
-        copy_nonoverlapping_with_backend(backend, taking.as_ptr(), into.as_mut_ptr(), taking.len())
-    };
+    unsafe { copy_nonoverlapping_using(backend, taking.as_ptr(), into.as_mut_ptr(), taking.len()) };
 
     assert_eq!(&into[..], taking);
 }
@@ -196,9 +194,7 @@ fn test_moves_a_vec_into_another(#[case] backend: Backend) {
     let mut into: Vec<u64> = vec![0; from.len()];
 
     // SAFETY: different allocations of the same length.
-    unsafe {
-        copy_nonoverlapping_with_backend(backend, from.as_ptr(), into.as_mut_ptr(), from.len())
-    };
+    unsafe { copy_nonoverlapping_using(backend, from.as_ptr(), into.as_mut_ptr(), from.len()) };
 
     assert_eq!(into, from);
 }
@@ -215,8 +211,8 @@ fn test_a_round_trip_leaves_the_value_as_it_was(#[case] backend: Backend) {
 
     // SAFETY: three distinct allocations of the same length.
     unsafe {
-        copy_nonoverlapping_with_backend(backend, first.as_ptr(), middle.as_mut_ptr(), first.len());
-        copy_nonoverlapping_with_backend(backend, middle.as_ptr(), last.as_mut_ptr(), middle.len());
+        copy_nonoverlapping_using(backend, first.as_ptr(), middle.as_mut_ptr(), first.len());
+        copy_nonoverlapping_using(backend, middle.as_ptr(), last.as_mut_ptr(), middle.len());
     }
 
     assert_eq!(last, first);
@@ -244,7 +240,7 @@ fn test_moves_a_struct_of_mixed_widths(#[case] backend: Backend) {
     let mut into = Key::default();
 
     // SAFETY: two distinct locals of the same type.
-    unsafe { copy_nonoverlapping_with_backend(backend, &raw const from, &raw mut into, 1) };
+    unsafe { copy_nonoverlapping_using(backend, &raw const from, &raw mut into, 1) };
 
     assert_eq!(into, from);
 }
@@ -276,9 +272,7 @@ fn test_moves_a_slice_of_structs(#[case] backend: Backend) {
     let mut into: Vec<Odd> = vec![Odd::default(); from.len() + 1];
 
     // SAFETY: different allocations, and `into` is one element longer.
-    unsafe {
-        copy_nonoverlapping_with_backend(backend, from.as_ptr(), into.as_mut_ptr(), from.len())
-    };
+    unsafe { copy_nonoverlapping_using(backend, from.as_ptr(), into.as_mut_ptr(), from.len()) };
 
     assert_eq!(&into[..from.len()], &from[..]);
     assert_eq!(
@@ -311,7 +305,7 @@ fn test_moves_at_every_alignment(#[case] backend: Backend) {
                 // SAFETY: different allocations, and both offsets leave room
                 // for `of` bytes in a buffer of 192.
                 unsafe {
-                    copy_nonoverlapping_with_backend(
+                    copy_nonoverlapping_using(
                         backend,
                         from.as_ptr().add(at),
                         into.as_mut_ptr().add(to),

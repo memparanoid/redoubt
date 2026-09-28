@@ -12,7 +12,7 @@ use proptest::prelude::*;
 use redoubt_asm::Backend;
 use rstest::rstest;
 
-use crate::utf8::is_utf8_with_backend;
+use crate::utf8::is_utf8_using;
 
 /// Each byte a continuation may be tested against: the edges of 80..BF, the
 /// edges of the narrowed ranges after E0, ED, F0 and F4, and a byte either
@@ -24,7 +24,7 @@ const BACKENDS: [Backend; 2] = [Backend::Rust, Backend::Auto];
 
 fn agrees(backend: Backend, bytes: &[u8]) {
     assert_eq!(
-        is_utf8_with_backend(backend, bytes),
+        is_utf8_using(backend, bytes),
         core::str::from_utf8(bytes).is_ok(),
         "{backend:?}: {bytes:02x?}"
     );

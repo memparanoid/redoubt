@@ -9,7 +9,7 @@
 
 use redoubt_asm::Backend;
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
-use redoubt_mem_core::{copy_nonoverlapping, zeroize, zeroize_with_backend};
+use redoubt_mem_core::{copy_nonoverlapping, zeroize, zeroize_using};
 
 use crate::support::needles::{SECRET, backwards};
 use crate::support::{is_found, leaves_nothing};
@@ -35,7 +35,7 @@ macro_rules! wipe {
         zeroize($dst, $count)
     };
     ($backend:expr, $dst:expr, $count:expr) => {
-        zeroize_with_backend($backend, $dst, $count)
+        zeroize_using($backend, $dst, $count)
     };
 }
 
@@ -191,7 +191,7 @@ test_zeroizing_an_array_and_letting_its_frame_go_leaves_nothing!(
 );
 
 // ============================================================================
-// zeroize_with_backend
+// zeroize_using
 // ============================================================================
 
 test_zeroizing_a_box_and_letting_it_go_leaves_nothing!(

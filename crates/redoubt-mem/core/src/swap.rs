@@ -42,15 +42,15 @@ use crate::backend;
 /// ```
 #[inline]
 pub fn swap<T>(a: &mut T, b: &mut T) {
-    swap_with_backend(Backend::default(), a, b);
+    swap_using(Backend::default(), a, b);
 }
 
 /// [`swap`], through the backend named.
 #[inline]
-pub fn swap_with_backend<T>(backend: Backend, a: &mut T, b: &mut T) {
+pub fn swap_using<T>(backend: Backend, a: &mut T, b: &mut T) {
     // SAFETY: exclusive references are aligned, valid for reads and writes of
     // one `T`, and cannot overlap.
-    unsafe { swap_nonoverlapping_with_backend(backend, a, b, 1) };
+    unsafe { swap_nonoverlapping_using(backend, a, b, 1) };
 }
 
 /// `count` elements of `T` exchanged between two disjoint ranges.
@@ -75,7 +75,7 @@ pub fn swap_with_backend<T>(backend: Backend, a: &mut T, b: &mut T) {
 #[inline]
 pub unsafe fn swap_nonoverlapping<T>(a: *mut T, b: *mut T, count: usize) {
     // SAFETY: the caller's, verbatim.
-    unsafe { swap_nonoverlapping_with_backend(Backend::default(), a, b, count) };
+    unsafe { swap_nonoverlapping_using(Backend::default(), a, b, count) };
 }
 
 /// [`swap_nonoverlapping`], through the backend named.
@@ -84,12 +84,7 @@ pub unsafe fn swap_nonoverlapping<T>(a: *mut T, b: *mut T, count: usize) {
 ///
 /// As [`swap_nonoverlapping`].
 #[inline]
-pub unsafe fn swap_nonoverlapping_with_backend<T>(
-    backend: Backend,
-    a: *mut T,
-    b: *mut T,
-    count: usize,
-) {
+pub unsafe fn swap_nonoverlapping_using<T>(backend: Backend, a: *mut T, b: *mut T, count: usize) {
     let bytes = count
         .checked_mul(core::mem::size_of::<T>())
         .expect("a swap's byte count should fit in a usize, as every valid range does");

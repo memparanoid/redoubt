@@ -22,11 +22,11 @@ use crate::backend;
 /// ```
 #[inline]
 pub fn is_utf8(bytes: &[u8]) -> bool {
-    is_utf8_with_backend(Backend::default(), bytes)
+    is_utf8_using(Backend::default(), bytes)
 }
 
 /// [`is_utf8`], through the backend named.
 #[inline]
-pub fn is_utf8_with_backend(backend: Backend, bytes: &[u8]) -> bool {
+pub fn is_utf8_using(backend: Backend, bytes: &[u8]) -> bool {
     backend::is_utf8(backend, bytes)
 }

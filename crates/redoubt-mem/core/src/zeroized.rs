@@ -21,11 +21,11 @@ use crate::backend;
 /// ```
 #[inline]
 pub fn is_zeroized(bytes: &[u8]) -> bool {
-    is_zeroized_with_backend(Backend::default(), bytes)
+    is_zeroized_using(Backend::default(), bytes)
 }
 
 /// [`is_zeroized`], through the backend named.
 #[inline]
-pub fn is_zeroized_with_backend(backend: Backend, bytes: &[u8]) -> bool {
+pub fn is_zeroized_using(backend: Backend, bytes: &[u8]) -> bool {
     backend::is_zeroized(backend, bytes)
 }

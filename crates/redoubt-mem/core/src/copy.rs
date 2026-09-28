@@ -40,7 +40,7 @@ use crate::backend;
 #[inline]
 pub unsafe fn copy_nonoverlapping<T>(src: *const T, dst: *mut T, count: usize) {
     // SAFETY: the caller's, verbatim.
-    unsafe { copy_nonoverlapping_with_backend(Backend::default(), src, dst, count) };
+    unsafe { copy_nonoverlapping_using(Backend::default(), src, dst, count) };
 }
 
 /// [`copy_nonoverlapping`], through the backend named.
@@ -49,7 +49,7 @@ pub unsafe fn copy_nonoverlapping<T>(src: *const T, dst: *mut T, count: usize) {
 ///
 /// As [`copy_nonoverlapping`].
 #[inline]
-pub unsafe fn copy_nonoverlapping_with_backend<T>(
+pub unsafe fn copy_nonoverlapping_using<T>(
     backend: Backend,
     src: *const T,
     dst: *mut T,

@@ -29,7 +29,7 @@ use std::vec::Vec;
 use redoubt_asm::Backend;
 use rstest::rstest;
 
-use crate::copy::copy_nonoverlapping_with_backend;
+use crate::copy::copy_nonoverlapping_using;
 
 fn pattern(at: usize) -> u8 {
     (at.wrapping_mul(131) ^ (at >> 8) ^ 0x97) as u8
@@ -130,7 +130,7 @@ fn test_reads_and_writes_nothing_outside_the_range(#[case] backend: Backend) {
                     let src = from.middle().add(if flush_start { page - of } else { 0 });
                     let dst = into.middle().add(if flush_end { page - of } else { 0 });
 
-                    copy_nonoverlapping_with_backend(backend, src, dst, of);
+                    copy_nonoverlapping_using(backend, src, dst, of);
 
                     assert_eq!(
                         core::slice::from_raw_parts(src, of),
@@ -170,7 +170,7 @@ fn test_moves_the_large_sizes_and_every_threshold(#[case] backend: Backend) {
             // SAFETY: different allocations, and `from` is 128 bytes longer
             // than the largest `of` plus the largest offset.
             unsafe {
-                copy_nonoverlapping_with_backend(
+                copy_nonoverlapping_using(
                     backend,
                     from.as_ptr().add(at),
                     into.as_mut_ptr().add(to),

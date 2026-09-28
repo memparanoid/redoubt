@@ -16,7 +16,7 @@ use std::vec::Vec;
 use redoubt_asm::Backend;
 use rstest::rstest;
 
-use crate::swap::{swap_nonoverlapping_with_backend, swap_with_backend};
+use crate::swap::{swap_nonoverlapping_using, swap_using};
 
 /// Cases that are the same on every run and on every machine.
 ///
@@ -69,7 +69,7 @@ fn matches_core(
             n,
         );
 
-        swap_nonoverlapping_with_backend(
+        swap_nonoverlapping_using(
             backend,
             a.as_mut_ptr().add(offset_a),
             b.as_mut_ptr().add(offset_b),
@@ -82,7 +82,7 @@ fn matches_core(
 
     // SAFETY: as above, on buffers of the same shape.
     unsafe {
-        swap_nonoverlapping_with_backend(
+        swap_nonoverlapping_using(
             backend,
             a.as_mut_ptr().add(offset_a),
             b.as_mut_ptr().add(offset_b),
@@ -189,7 +189,7 @@ fn test_swap_nonoverlapping_exchanges_adjacent_ranges_in_both_address_orders(
         // SAFETY: the two ranges are `n` bytes each inside one allocation of
         // `2n + 2`, starting at 1 and at `n + 1`, so they do not overlap.
         unsafe {
-            swap_nonoverlapping_with_backend(
+            swap_nonoverlapping_using(
                 backend,
                 data.as_mut_ptr().add(1),
                 data.as_mut_ptr().add(n + 1),
@@ -201,7 +201,7 @@ fn test_swap_nonoverlapping_exchanges_adjacent_ranges_in_both_address_orders(
 
         // SAFETY: the same two ranges, named the other way round.
         unsafe {
-            swap_nonoverlapping_with_backend(
+            swap_nonoverlapping_using(
                 backend,
                 data.as_mut_ptr().add(n + 1),
                 data.as_mut_ptr().add(1),
@@ -230,9 +230,7 @@ fn test_swap_nonoverlapping_counts_in_elements_and_skips_what_has_no_size(
 
     // SAFETY: 65 elements starting at index 1 of two arrays of 67, which are
     // separate allocations.
-    unsafe {
-        swap_nonoverlapping_with_backend(backend, a.as_mut_ptr().add(1), b.as_mut_ptr().add(1), 65)
-    };
+    unsafe { swap_nonoverlapping_using(backend, a.as_mut_ptr().add(1), b.as_mut_ptr().add(1), 65) };
 
     assert!(a[1..66].iter().all(|&v| v == 0xfedc_ba98_7654_3210));
     assert!(b[1..66].iter().all(|&v| v == 0x1234_5678_dead_beef));
@@ -242,19 +240,19 @@ fn test_swap_nonoverlapping_counts_in_elements_and_skips_what_has_no_size(
     assert_eq!(a[0], a[66]);
     assert_eq!(b[0], b[66]);
 
-    swap_with_backend(backend, &mut (), &mut ());
+    swap_using(backend, &mut (), &mut ());
 
     let dangling = core::ptr::NonNull::<u64>::dangling().as_ptr();
 
     // SAFETY: a count of zero reads and writes nothing, which a dangling
     // pointer is allowed to be handed.
-    unsafe { swap_nonoverlapping_with_backend(backend, dangling, dangling, 0) };
+    unsafe { swap_nonoverlapping_using(backend, dangling, dangling, 0) };
 
     let zero_sized = core::ptr::NonNull::<()>::dangling().as_ptr();
 
     // SAFETY: every count of a zero-sized type is zero bytes, `usize::MAX`
     // included.
-    unsafe { swap_nonoverlapping_with_backend(backend, zero_sized, zero_sized, usize::MAX) };
+    unsafe { swap_nonoverlapping_using(backend, zero_sized, zero_sized, usize::MAX) };
 }
 
 // ============================================================================
@@ -308,7 +306,7 @@ fn test_swap_exchanges_owners_without_dropping_or_duplicating_them(#[case] backe
     let address_a = &*a.value as *const u64;
     let address_b = &*b.value as *const u64;
 
-    swap_with_backend(backend, &mut a, &mut b);
+    swap_using(backend, &mut a, &mut b);
 
     assert_eq!((a.tag, *a.value), (2, 22));
     assert_eq!((b.tag, *b.value), (1, 11));
@@ -376,7 +374,7 @@ fn test_swap_exchanges_three_word_owners_without_dropping_or_duplicating_them(
     let capacity_a = a.holding.capacity();
     let capacity_b = b.holding.capacity();
 
-    swap_with_backend(backend, &mut a, &mut b);
+    swap_using(backend, &mut a, &mut b);
 
     assert_eq!((a.tag, &a.holding[..]), (2, &std::vec![22u8; 64][..]));
     assert_eq!((b.tag, &b.holding[..]), (1, &std::vec![11u8; 3][..]));
@@ -421,7 +419,7 @@ fn test_swap_exchanges_a_three_word_handle_whole(#[case] backend: Backend) {
     let capacity_a = a.capacity();
     let capacity_b = b.capacity();
 
-    swap_with_backend(backend, &mut a, &mut b);
+    swap_using(backend, &mut a, &mut b);
 
     assert_eq!(a, std::vec![9u8; 64]);
     assert_eq!(b, std::vec![1u8, 2, 3]);

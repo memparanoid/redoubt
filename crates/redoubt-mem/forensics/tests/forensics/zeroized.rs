@@ -8,7 +8,7 @@
 
 use redoubt_asm::Backend;
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
-use redoubt_mem_core::{copy_nonoverlapping, is_zeroized, is_zeroized_with_backend};
+use redoubt_mem_core::{copy_nonoverlapping, is_zeroized, is_zeroized_using};
 use rstest::rstest;
 
 use crate::support::needles::{SECRET, backwards};
@@ -81,7 +81,7 @@ fn test_probing_bytes_leaves_nothing() -> Result<(), AnyError> {
 }
 
 // ============================================================================
-// is_zeroized_with_backend
+// is_zeroized_using
 // ============================================================================
 
 #[rstest]
@@ -96,7 +96,7 @@ fn test_bytes_probed_through_a_backend_are_found_while_they_are_held(
     let answer: bool;
 
     forensics!({
-        answer = capture(|| is_zeroized_with_backend(backend, &held));
+        answer = capture(|| is_zeroized_using(backend, &held));
     });
 
     let report = watch.snapshot()?;
@@ -124,7 +124,7 @@ fn test_probing_bytes_through_a_backend_leaves_nothing(
     let answer: bool;
 
     forensics!({
-        answer = capture(|| is_zeroized_with_backend(backend, &held));
+        answer = capture(|| is_zeroized_using(backend, &held));
 
         // CORRECTNESS: after the capture. A call made before it writes over the
         // stack and the registers the operation left, and then the absence
