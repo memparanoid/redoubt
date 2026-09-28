@@ -27,12 +27,14 @@ pub(crate) fn cleanup_encode_error(s: &mut String, buf: &mut RedoubtCodecBuffer)
 #[cold]
 #[inline(never)]
 pub(crate) fn cleanup_decode_error(s: &mut String, buf: &mut &mut [u8]) {
-    // SAFETY: We're zeroizing and then clearing, so UTF-8 invariant is restored
+    // SAFETY: every byte zero is a `u8`, and zeros are valid UTF-8, so the
+    // `String` holds a `str` again as soon as the write ends.
     unsafe {
         redoubt_util::fast_zeroize_slice(s.as_bytes_mut());
     }
     s.clear();
-    redoubt_util::fast_zeroize_slice(buf);
+    // SAFETY: every byte zero is a `u8`.
+    unsafe { redoubt_util::fast_zeroize_slice(buf) };
 }
 
 #[inline(always)]
@@ -156,8 +158,8 @@ impl PreAlloc for String {
         self.shrink_to_fit();
         self.reserve_exact(size);
 
-        // SAFETY: We're setting len after reserving capacity
-        // The bytes will be written by decode before being read as UTF-8
+        // SAFETY: every byte zero is a `u8`. `size` is inside the capacity just
+        // reserved for it, and the zeros it now spans are valid UTF-8.
         unsafe {
             let vec = self.as_mut_vec();
             redoubt_util::fast_zeroize_vec(vec);

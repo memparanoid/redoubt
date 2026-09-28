@@ -64,7 +64,8 @@ impl ZeroizationProbe for AllockedVecBehaviour {
 }
 
 #[cfg(any(test, feature = "test-utils"))]
-impl ZeroizeMetadata for AllockedVecBehaviour {
+// SAFETY: `false` promises nothing.
+unsafe impl ZeroizeMetadata for AllockedVecBehaviour {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 

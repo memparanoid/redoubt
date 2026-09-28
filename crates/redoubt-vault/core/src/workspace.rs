@@ -21,7 +21,8 @@ impl Workspace {
     }
 }
 
-impl ZeroizeMetadata for Workspace {
+// SAFETY: `false` promises nothing.
+unsafe impl ZeroizeMetadata for Workspace {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 

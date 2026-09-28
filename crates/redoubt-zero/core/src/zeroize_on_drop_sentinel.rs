@@ -146,7 +146,8 @@ impl Default for ZeroizeOnDropSentinel {
     }
 }
 
-impl ZeroizeMetadata for ZeroizeOnDropSentinel {
+// SAFETY: `false` promises nothing.
+unsafe impl ZeroizeMetadata for ZeroizeOnDropSentinel {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 

@@ -82,18 +82,16 @@ where
     fn expose_mut(&mut self) -> &mut T;
 }
 
-/// Metadata about zeroization strategy for a type.
+/// Whether a type is emptied by writing zeros over its bytes, or field by field.
 ///
-/// This trait provides compile-time information about whether a type can be
-/// bulk-zeroized with memset or requires element-by-element zeroization.
+/// # Safety
 ///
-/// **Note:** This trait is NOT dyn-compatible (has associated constants).
-/// Use [`FastZeroizable`] for trait objects.
-pub trait ZeroizeMetadata {
-    /// Whether this type can be bulk-zeroized with memset.
-    ///
-    /// - `true`: All-zeros is a valid bit pattern (primitives)
-    /// - `false`: Requires element-by-element recursive zeroization (complex types)
+/// `CAN_BE_BULK_ZEROIZED = true` promises that every byte zero is a value of
+/// `Self`. Collections of `Self` then write zeros over their elements and keep
+/// them, so a type holding a reference, a `Box`, a `NonZero` or an enum with no
+/// variant at zero that says `true` leaves values it does not have.
+pub unsafe trait ZeroizeMetadata {
+    /// Whether every byte zero is a value of `Self`.
     const CAN_BE_BULK_ZEROIZED: bool;
 }
 
@@ -110,60 +108,8 @@ pub trait FastZeroizable {
     fn fast_zeroize(&mut self);
 }
 
-/// Combined trait for types with both zeroization metadata and runtime zeroization.
-///
-/// This is the main trait users should implement. It combines:
-/// - [`ZeroizeMetadata`]: Compile-time optimization hints
-/// - [`FastZeroizable`]: Runtime zeroization method (dyn-compatible)
-///
-/// # Usage
-///
-/// Most types should use `#[derive(RedoubtZero)]` which implements this automatically.
-/// Manual implementation is only needed for custom types with special zeroization requirements.
-///
-/// # `CAN_BE_BULK_ZEROIZED` Constant
-///
-/// ## `CAN_BE_BULK_ZEROIZED = true` (Fast Path)
-///
-/// All-zeros is a valid bit pattern. Enables:
-/// - Fast vectorized memset operations (`ptr::write_bytes`)
-/// - ~20x performance improvement over byte-by-byte writes
-/// - Safe for: primitives (u8-u128, i8-i128, bool, char, floats)
-///
-/// ## `CAN_BE_BULK_ZEROIZED = false` (Slow Path)
-///
-/// Requires element-by-element zeroization because:
-/// - Type contains pointers, references, or heap allocations
-/// - All-zeros may not be a valid representation
-/// - Needs recursive calls on each field
-///
-/// # Example
-///
-/// ```rust,ignore
-/// use redoubt_zero_core::FastZeroize;
-///
-/// // Primitive: bulk zeroization
-/// impl FastZeroize for u32 {
-///     const CAN_BE_BULK_ZEROIZED: bool = true;
-///
-///     fn fast_zeroize(&mut self) {
-///         redoubt_util::zeroize_primitive(self);
-///     }
-/// }
-///
-/// // Complex type: element-by-element
-/// struct ApiKey {
-///     secret: Vec<u8>,
-/// }
-///
-/// impl FastZeroize for ApiKey {
-///     const CAN_BE_BULK_ZEROIZED: bool = false;
-///
-///     fn fast_zeroize(&mut self) {
-///         self.secret.fast_zeroize();
-///     }
-/// }
-/// ```
+/// [`ZeroizeMetadata`] and [`FastZeroizable`] together, which every type
+/// implementing both has.
 pub trait FastZeroize: ZeroizeMetadata + FastZeroizable {}
 
 // Blanket impl: any type implementing both sub-traits automatically gets FastZeroize

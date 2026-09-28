@@ -21,14 +21,16 @@ mod fast_zeroize_vec_tests {
     #[test]
     fn test_fast_zeroize_vec_zeros_all_bytes() {
         let mut data = vec![0xABu8; 1024];
-        fast_zeroize_vec(&mut data);
+        // SAFETY: every byte zero is a `u8`.
+        unsafe { fast_zeroize_vec(&mut data) };
         assert!(read_allocation(&data).iter().all(|&b| b == 0));
     }
 
     #[test]
     fn test_fast_zeroize_vec_empty_vec() {
         let mut data: Vec<u8> = vec![];
-        fast_zeroize_vec(&mut data);
+        // SAFETY: every byte zero is a `u8`.
+        unsafe { fast_zeroize_vec(&mut data) };
         assert!(data.is_empty());
     }
 
@@ -39,7 +41,8 @@ mod fast_zeroize_vec_tests {
 
         assert!(read_allocation(&data).iter().all(|&b| b == 0xFF));
 
-        fast_zeroize_vec(&mut data);
+        // SAFETY: every byte zero is a `u8`.
+        unsafe { fast_zeroize_vec(&mut data) };
 
         assert!(read_allocation(&data).iter().all(|&b| b == 0));
     }
@@ -48,7 +51,8 @@ mod fast_zeroize_vec_tests {
     fn test_fast_zeroize_vec_with_capacity_only() {
         let mut data: Vec<u8> = Vec::with_capacity(100);
 
-        fast_zeroize_vec(&mut data);
+        // SAFETY: every byte zero is a `u8`.
+        unsafe { fast_zeroize_vec(&mut data) };
         assert!(read_allocation(&data).iter().all(|&b| b == 0));
     }
 }

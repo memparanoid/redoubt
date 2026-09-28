@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use crate::collections::{slice_fast_zeroize, vec_fast_zeroize};
+use crate::collections::{fast_zeroize_slice, fast_zeroize_vec};
 use crate::traits::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
 /// How many elements the collections under test hold.
@@ -28,7 +28,8 @@ impl ComplexType {
     }
 }
 
-impl ZeroizeMetadata for ComplexType {
+// SAFETY: `false` promises nothing.
+unsafe impl ZeroizeMetadata for ComplexType {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
@@ -67,11 +68,7 @@ fn test_slice() {
 }
 
 #[test]
-fn test_slice_fast_zeroize_fast_true() {
-    // NOTE: fast=true forces memset of entire array, regardless of T::CAN_BE_BULK_ZEROIZED.
-    // This is only safe for types where all-zeros is a valid bit pattern.
-    // ComplexType happens to be safe (all fields are primitives/Copy), but this
-    // test may break if ComplexType's layout changes.
+fn test_fast_zeroize_slice_fast_true() {
     let mut arr = [
         ComplexType::new(100),
         ComplexType::new(200),
@@ -80,14 +77,15 @@ fn test_slice_fast_zeroize_fast_true() {
 
     assert!(!arr.is_zeroized());
 
-    slice_fast_zeroize(arr.as_mut_slice(), true);
+    // SAFETY: `ComplexType` is one `u64`, and every byte zero is a `u64`.
+    unsafe { fast_zeroize_slice(arr.as_mut_slice(), true) };
 
     // Assert zeroization!
     assert!(arr.is_zeroized());
 }
 
 #[test]
-fn test_slice_fast_zeroize_fast_false() {
+fn test_fast_zeroize_slice_fast_false() {
     // Test fast=false path: recursive zeroization
     let mut arr = [
         ComplexType::new(100),
@@ -97,7 +95,8 @@ fn test_slice_fast_zeroize_fast_false() {
 
     assert!(!arr.is_zeroized());
 
-    slice_fast_zeroize(&mut arr, false);
+    // SAFETY: without `fast`, nothing is written as bytes.
+    unsafe { fast_zeroize_slice(&mut arr, false) };
 
     // Assert zeroization!
     assert!(arr.is_zeroized());
@@ -202,11 +201,7 @@ fn test_vec() {
 }
 
 #[test]
-fn test_vec_fast_zeroize_fast_true() {
-    // NOTE: fast=true forces memset of entire vec, regardless of T::CAN_BE_BULK_ZEROIZED.
-    // This is only safe for types where all-zeros is a valid bit pattern.
-    // ComplexType happens to be safe (all fields are primitives/Copy), but this
-    // test may break if ComplexType's layout changes.
+fn test_fast_zeroize_vec_fast_true() {
     let mut vec = vec![
         ComplexType::new(100),
         ComplexType::new(200),
@@ -216,14 +211,15 @@ fn test_vec_fast_zeroize_fast_true() {
 
     assert!(!vec.is_zeroized());
 
-    vec_fast_zeroize(&mut vec, true);
+    // SAFETY: `ComplexType` is one `u64`, and every byte zero is a `u64`.
+    unsafe { fast_zeroize_vec(&mut vec, true) };
 
     // Assert zeroization!
     assert!(vec.is_zeroized());
 }
 
 #[test]
-fn test_vec_fast_zeroize_fast_false() {
+fn test_fast_zeroize_vec_fast_false() {
     // Test fast=false path: recursive zeroization + spare capacity
     let mut vec = vec![
         ComplexType::new(100),
@@ -234,7 +230,8 @@ fn test_vec_fast_zeroize_fast_false() {
 
     assert!(!vec.is_zeroized());
 
-    vec_fast_zeroize(&mut vec, false);
+    // SAFETY: without `fast`, nothing is written as bytes.
+    unsafe { fast_zeroize_vec(&mut vec, false) };
 
     // Assert zeroization!
     assert!(vec.is_zeroized());

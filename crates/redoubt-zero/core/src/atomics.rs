@@ -20,7 +20,8 @@ macro_rules! impl_fast_zeroize_atomic_int {
                 }
             }
 
-            impl crate::traits::ZeroizeMetadata for $ty {
+            // SAFETY: `false` promises nothing.
+            unsafe impl crate::traits::ZeroizeMetadata for $ty {
                 const CAN_BE_BULK_ZEROIZED: bool = false;
             }
 

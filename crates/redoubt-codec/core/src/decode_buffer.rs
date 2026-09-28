@@ -22,8 +22,8 @@ impl DecodeBuffer for &mut [u8] {
             redoubt_mem::copy_nonoverlapping(self.as_ptr(), dst as *mut T as *mut u8, len);
         }
 
-        // Zeroize the Buffer
-        redoubt_util::fast_zeroize_slice(&mut self[..len]);
+        // SAFETY: every byte zero is a `u8`.
+        unsafe { redoubt_util::fast_zeroize_slice(&mut self[..len]) };
 
         // Shrink the slice - consume the bytes we read
         let mut taken = <&mut [u8]>::default();
@@ -48,8 +48,8 @@ impl DecodeBuffer for &mut [u8] {
             redoubt_mem::copy_nonoverlapping(self.as_ptr(), dst.as_mut_ptr() as *mut u8, byte_len);
         }
 
-        // Zeroize the Buffer
-        redoubt_util::fast_zeroize_slice(&mut self[..byte_len]);
+        // SAFETY: every byte zero is a `u8`.
+        unsafe { redoubt_util::fast_zeroize_slice(&mut self[..byte_len]) };
 
         // Shrink the slice - consume the bytes we read
         let mut taken = <&mut [u8]>::default();

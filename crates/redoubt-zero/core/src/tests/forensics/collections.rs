@@ -8,8 +8,8 @@
 use redoubt_forensics::{AnyError, Forensics, capture, forensics};
 
 use crate::collections::{
-    collection_zeroed, slice_fast_zeroize, to_fast_zeroizable_dyn_mut,
-    to_zeroization_probe_dyn_ref, vec_fast_zeroize, zeroize_collection,
+    collection_zeroed, fast_zeroize_slice, fast_zeroize_vec, to_fast_zeroizable_dyn_mut,
+    to_zeroization_probe_dyn_ref, zeroize_collection,
 };
 use crate::{FastZeroizable, ZeroizationProbe};
 
@@ -169,7 +169,7 @@ fn test_probing_a_collection_leaves_nothing() -> Result<(), AnyError> {
 }
 
 // ============================================================================
-// slice_fast_zeroize
+// fast_zeroize_slice
 // ============================================================================
 
 #[redoubt_forensics::test]
@@ -181,7 +181,8 @@ fn test_zeroizing_a_slice_in_bulk_leaves_nothing() -> Result<(), AnyError> {
     let mut held = a_box();
 
     forensics!({
-        capture(|| slice_fast_zeroize(&mut held[..], true));
+        // SAFETY: every byte zero is a `u8`.
+        capture(|| unsafe { fast_zeroize_slice(&mut held[..], true) });
     });
 
     drop(core::hint::black_box(held));
@@ -202,7 +203,8 @@ fn test_zeroizing_a_slice_one_element_at_a_time_leaves_nothing() -> Result<(), A
     let mut held = a_box();
 
     forensics!({
-        capture(|| slice_fast_zeroize(&mut held[..], false));
+        // SAFETY: without `fast`, nothing is written as bytes.
+        capture(|| unsafe { fast_zeroize_slice(&mut held[..], false) });
     });
 
     drop(core::hint::black_box(held));
@@ -425,7 +427,7 @@ fn test_probing_an_array_leaves_nothing() -> Result<(), AnyError> {
 }
 
 // ============================================================================
-// vec_fast_zeroize
+// fast_zeroize_vec
 // ============================================================================
 
 #[redoubt_forensics::test]
@@ -439,7 +441,8 @@ fn test_zeroizing_a_vec_in_bulk_leaves_nothing() -> Result<(), AnyError> {
     held.truncate(SECRET.len());
 
     forensics!({
-        capture(|| vec_fast_zeroize(&mut held, true));
+        // SAFETY: every byte zero is a `u8`.
+        capture(|| unsafe { fast_zeroize_vec(&mut held, true) });
     });
 
     drop(core::hint::black_box(held));
@@ -462,7 +465,8 @@ fn test_zeroizing_a_vec_one_element_at_a_time_leaves_nothing() -> Result<(), Any
     held.truncate(SECRET.len());
 
     forensics!({
-        capture(|| vec_fast_zeroize(&mut held, false));
+        // SAFETY: without `fast`, nothing is written as bytes.
+        capture(|| unsafe { fast_zeroize_vec(&mut held, false) });
     });
 
     drop(core::hint::black_box(held));

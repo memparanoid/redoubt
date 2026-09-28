@@ -1,8 +1,8 @@
 ---
 source: crates/redoubt-zero/derive/src/tests/expand.rs
-expression: pretty(token_stream)
+expression: expanded(derive_input)?
 ---
-impl<'alpha, Tau> redoubt_zero_core::ZeroizeMetadata for Sigma<'alpha, Tau>
+unsafe impl<'alpha, Tau> redoubt_zero_core::ZeroizeMetadata for Sigma<'alpha, Tau>
 where
     Tau: Clone,
 {

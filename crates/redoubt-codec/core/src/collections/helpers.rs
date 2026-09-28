@@ -187,7 +187,8 @@ pub fn decode_fields<'a>(
                     compiler_fence(Ordering::SeqCst);
                 }
 
-                redoubt_util::fast_zeroize_slice(buf);
+                // SAFETY: every byte zero is a `u8`.
+                unsafe { redoubt_util::fast_zeroize_slice(buf) };
             }
         } else {
             decoded.push(field);

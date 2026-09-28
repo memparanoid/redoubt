@@ -9,21 +9,24 @@ mod fast_zeroize_slice_tests {
     #[test]
     fn test_fast_zeroize_slice_zeros_all_bytes() {
         let mut data = vec![0xABu8; 1024];
-        fast_zeroize_slice(&mut data);
+        // SAFETY: every byte zero is a `u8`.
+        unsafe { fast_zeroize_slice(&mut data) };
         assert!(data.iter().all(|&b| b == 0));
     }
 
     #[test]
     fn test_fast_zeroize_slice_empty_slice() {
         let mut data: Vec<u8> = vec![];
-        fast_zeroize_slice(&mut data);
+        // SAFETY: every byte zero is a `u8`.
+        unsafe { fast_zeroize_slice(&mut data) };
         assert!(data.is_empty());
     }
 
     #[test]
     fn test_fast_zeroize_slice_single_byte() {
         let mut data = vec![0xFFu8];
-        fast_zeroize_slice(&mut data);
+        // SAFETY: every byte zero is a `u8`.
+        unsafe { fast_zeroize_slice(&mut data) };
         assert_eq!(data, vec![0]);
     }
 }

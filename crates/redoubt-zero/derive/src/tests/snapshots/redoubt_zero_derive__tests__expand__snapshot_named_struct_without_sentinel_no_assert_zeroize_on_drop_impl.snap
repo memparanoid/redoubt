@@ -1,8 +1,8 @@
 ---
 source: crates/redoubt-zero/derive/src/tests/expand.rs
-expression: pretty(token_stream)
+expression: expanded(derive_input)?
 ---
-impl redoubt_zero_core::ZeroizeMetadata for Eta {
+unsafe impl redoubt_zero_core::ZeroizeMetadata for Eta {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 impl redoubt_zero_core::FastZeroizable for Eta {

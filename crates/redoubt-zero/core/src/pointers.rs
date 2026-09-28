@@ -20,7 +20,8 @@ impl<T> ZeroizationProbe for *mut T {
     }
 }
 
-impl<T> ZeroizeMetadata for *mut T {
+// SAFETY: `false` promises nothing.
+unsafe impl<T> ZeroizeMetadata for *mut T {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
@@ -46,7 +47,8 @@ impl<T> ZeroizationProbe for *const T {
     }
 }
 
-impl<T> ZeroizeMetadata for *const T {
+// SAFETY: `false` promises nothing.
+unsafe impl<T> ZeroizeMetadata for *const T {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 

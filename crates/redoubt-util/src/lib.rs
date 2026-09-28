@@ -78,21 +78,29 @@ pub fn zeroize_primitive<T: Default>(val: &mut T) {
 
 /// Writes zeros over every byte of the slice.
 ///
+/// # Safety
+///
+/// Every byte zero has to be a value of `T`. It is not for a reference, a
+/// `Box`, a `NonZero` or an enum with no variant at zero, and each element of
+/// the slice is then a value `T` does not have.
+///
 /// # Example
 ///
 /// ```
 /// use redoubt_util::fast_zeroize_slice;
 ///
 /// let mut data = vec![1u8, 2, 3, 4, 5];
-/// fast_zeroize_slice(&mut data);
+/// // SAFETY: every byte zero is a `u8`.
+/// unsafe { fast_zeroize_slice(&mut data) };
 /// assert!(data.iter().all(|&b| b == 0));
 ///
 /// let mut ints = vec![0xDEADBEEFu32; 10];
-/// fast_zeroize_slice(&mut ints);
+/// // SAFETY: every byte zero is a `u32`.
+/// unsafe { fast_zeroize_slice(&mut ints) };
 /// assert!(ints.iter().all(|&v| v == 0));
 /// ```
 #[inline(always)]
-pub fn fast_zeroize_slice<T>(slice: &mut [T]) {
+pub unsafe fn fast_zeroize_slice<T>(slice: &mut [T]) {
     if slice.is_empty() {
         return;
     }
@@ -100,8 +108,9 @@ pub fn fast_zeroize_slice<T>(slice: &mut [T]) {
     let byte_len = core::mem::size_of_val(slice);
 
     // SAFETY: the length is the slice's own size in bytes, so the write stays
-    // inside it, and `&mut [T]` is what makes it the only reference. The read
-    // is of one byte the write just set.
+    // inside it, and `&mut [T]` is what makes it the only reference. That the
+    // zeros are a `T` is the caller's. The read is of one byte the write just
+    // set.
     unsafe {
         core::ptr::write_bytes(slice.as_mut_ptr() as *mut u8, 0, byte_len);
         core::ptr::read_volatile(slice.as_ptr() as *const u8);
@@ -109,6 +118,12 @@ pub fn fast_zeroize_slice<T>(slice: &mut [T]) {
 }
 
 /// Writes zeros over the whole allocation, the spare past `len` included.
+///
+/// # Safety
+///
+/// Every byte zero has to be a value of `T`. It is not for a reference, a
+/// `Box`, a `NonZero` or an enum with no variant at zero, and each element the
+/// `Vec` holds is then a value `T` does not have — dropped as one.
 ///
 /// # Example
 ///
@@ -118,11 +133,12 @@ pub fn fast_zeroize_slice<T>(slice: &mut [T]) {
 /// let mut vec = vec![0xFFu8; 100];
 /// vec.truncate(10);
 ///
-/// fast_zeroize_vec(&mut vec);
+/// // SAFETY: every byte zero is a `u8`.
+/// unsafe { fast_zeroize_vec(&mut vec) };
 /// assert!(vec.iter().all(|&b| b == 0));
 /// ```
 #[inline(always)]
-pub fn fast_zeroize_vec<T>(vec: &mut Vec<T>) {
+pub unsafe fn fast_zeroize_vec<T>(vec: &mut Vec<T>) {
     if vec.capacity() == 0 {
         return;
     }
@@ -131,8 +147,9 @@ pub fn fast_zeroize_vec<T>(vec: &mut Vec<T>) {
 
     // SAFETY: the length is the `Vec`'s own capacity in bytes, so the write
     // stays inside its allocation — the spare past `len` included, which is
-    // the point — and `&mut Vec<T>` is what makes it the only reference. The
-    // read is of one byte the write just set.
+    // the point — and `&mut Vec<T>` is what makes it the only reference. That
+    // the zeros are a `T` is the caller's. The read is of one byte the write
+    // just set.
     unsafe {
         core::ptr::write_bytes(vec.as_mut_ptr() as *mut u8, 0, byte_len);
         core::ptr::read_volatile(vec.as_ptr() as *const u8);

@@ -55,7 +55,9 @@ impl_zeroization_probe_numeric!(
 macro_rules! impl_fast_zeroize_primitive {
     ($($ty:ty),* $(,)?) => {
         $(
-            impl crate::traits::ZeroizeMetadata for $ty {
+            // SAFETY: every byte zero is `0`, `0.0`, `false` or `'\0'`, each a
+            // value of the type it is written into.
+            unsafe impl crate::traits::ZeroizeMetadata for $ty {
                 const CAN_BE_BULK_ZEROIZED: bool = true;
             }
 
@@ -81,7 +83,8 @@ impl crate::traits::ZeroizationProbe for () {
     }
 }
 
-impl crate::traits::ZeroizeMetadata for () {
+// SAFETY: `()` has no bytes to write.
+unsafe impl crate::traits::ZeroizeMetadata for () {
     const CAN_BE_BULK_ZEROIZED: bool = true;
 }
 

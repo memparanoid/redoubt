@@ -34,7 +34,8 @@ where
     T: FastZeroizable + ZeroizeMetadata + ZeroizationProbe,
 {
     vec.fast_zeroize();
-    redoubt_util::fast_zeroize_slice(buf);
+    // SAFETY: every byte zero is a `u8`.
+    unsafe { redoubt_util::fast_zeroize_slice(buf) };
 }
 
 impl<T> BytesRequired for AllockedVec<T>

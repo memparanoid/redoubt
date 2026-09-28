@@ -58,20 +58,22 @@ pub fn collection_zeroed(collection_iter: &mut dyn Iterator<Item = &dyn Zeroizat
 // === === === === === === === === === ===
 // [T] - slices
 // === === === === === === === === === ===
-/// Zeroizes an array using either bulk memset or recursive element zeroization.
+/// Empties a slice by writing zeros over its bytes when `fast`, and element by
+/// element when not.
 ///
-/// When `fast=true`, forces bulk memset regardless of `T::CAN_BE_BULK_ZEROIZED`.
-/// When `fast=false`, recursively zeroizes each element.
+/// # Safety
 ///
-/// This function is exposed for testing both code paths independently.
+/// With `fast`, every byte zero has to be a value of `T`.
 #[inline(always)]
-pub(crate) fn slice_fast_zeroize<T: FastZeroizable + ZeroizeMetadata>(slice: &mut [T], fast: bool) {
+pub(crate) unsafe fn fast_zeroize_slice<T: FastZeroizable + ZeroizeMetadata>(
+    slice: &mut [T],
+    fast: bool,
+) {
     if fast {
-        // Fast path: bulk zeroize the entire array
-        redoubt_util::fast_zeroize_slice(slice);
+        // SAFETY: the caller's.
+        unsafe { redoubt_util::fast_zeroize_slice(slice) };
         compiler_fence(Ordering::SeqCst);
     } else {
-        // Slow path: recursively zeroize each element
         for elem in slice.iter_mut() {
             elem.fast_zeroize();
             compiler_fence(Ordering::SeqCst);
@@ -79,7 +81,9 @@ pub(crate) fn slice_fast_zeroize<T: FastZeroizable + ZeroizeMetadata>(slice: &mu
     }
 }
 
-impl<T> ZeroizeMetadata for [T]
+// SAFETY: a slice's bytes are its elements', so every byte zero is a slice of
+// values exactly when it is a value of `T`, which `T` promised.
+unsafe impl<T> ZeroizeMetadata for [T]
 where
     T: FastZeroizable + ZeroizeMetadata,
 {
@@ -91,7 +95,9 @@ where
     T: FastZeroizable + ZeroizeMetadata,
 {
     fn fast_zeroize(&mut self) {
-        slice_fast_zeroize(self, T::CAN_BE_BULK_ZEROIZED);
+        // SAFETY: `fast` is `T::CAN_BE_BULK_ZEROIZED`, `true` only where `T`
+        // promised every byte zero is one of its values.
+        unsafe { fast_zeroize_slice(self, T::CAN_BE_BULK_ZEROIZED) };
     }
 }
 
@@ -108,21 +114,18 @@ where
 // [T; N] - arrays
 // === === === === === === === === === ===
 
-/// Zeroizes an array using either bulk memset or recursive element zeroization.
-///
-/// When `fast=true`, forces bulk memset regardless of `T::CAN_BE_BULK_ZEROIZED`.
-/// When `fast=false`, recursively zeroizes each element.
-///
-/// This function is exposed for testing both code paths independently.
-impl<T: ZeroizeMetadata, const N: usize> ZeroizeMetadata for [T; N] {
-    // Arrays inherit bulk-zeroize capability from their element type
+// SAFETY: an array's bytes are its elements', so every byte zero is an array
+// of values exactly when it is a value of `T`, which `T` promised.
+unsafe impl<T: ZeroizeMetadata, const N: usize> ZeroizeMetadata for [T; N] {
     const CAN_BE_BULK_ZEROIZED: bool = T::CAN_BE_BULK_ZEROIZED;
 }
 
 impl<T: ZeroizeMetadata + FastZeroizable, const N: usize> FastZeroizable for [T; N] {
     #[inline(always)]
     fn fast_zeroize(&mut self) {
-        slice_fast_zeroize(self, T::CAN_BE_BULK_ZEROIZED);
+        // SAFETY: `fast` is `T::CAN_BE_BULK_ZEROIZED`, `true` only where `T`
+        // promised every byte zero is one of its values.
+        unsafe { fast_zeroize_slice(self, T::CAN_BE_BULK_ZEROIZED) };
     }
 }
 
@@ -139,20 +142,22 @@ where
 // Vec<T>
 // === === === === === === === === === ===
 
-/// Zeroizes a Vec using either bulk memset or recursive element zeroization.
+/// Empties a `Vec` by writing zeros over its whole allocation when `fast`, and
+/// element by element and then the spare when not.
 ///
-/// When `fast=true`, forces bulk memset of entire allocation (contents + spare capacity).
-/// When `fast=false`, recursively zeroizes each element, then spare capacity.
+/// # Safety
 ///
-/// This function is exposed for testing both code paths independently.
+/// With `fast`, every byte zero has to be a value of `T`.
 #[inline(always)]
-pub(crate) fn vec_fast_zeroize<T: FastZeroizable + ZeroizeMetadata>(vec: &mut Vec<T>, fast: bool) {
+pub(crate) unsafe fn fast_zeroize_vec<T: FastZeroizable + ZeroizeMetadata>(
+    vec: &mut Vec<T>,
+    fast: bool,
+) {
     if fast {
-        // T is primitive: fast zeroize entire allocation (contents + spare capacity)
-        redoubt_util::fast_zeroize_vec(vec);
+        // SAFETY: the caller's.
+        unsafe { redoubt_util::fast_zeroize_vec(vec) };
         compiler_fence(Ordering::SeqCst);
     } else {
-        // T is complex: recursively zeroize each element, then spare capacity
         for elem in vec.iter_mut() {
             elem.fast_zeroize();
             compiler_fence(Ordering::SeqCst);
@@ -162,15 +167,17 @@ pub(crate) fn vec_fast_zeroize<T: FastZeroizable + ZeroizeMetadata>(vec: &mut Ve
     }
 }
 
-impl<T: ZeroizeMetadata> ZeroizeMetadata for Vec<T> {
-    // Vec can NEVER be bulk-zeroized from outside (has ptr/len/capacity)
+// SAFETY: `false` promises nothing.
+unsafe impl<T: ZeroizeMetadata> ZeroizeMetadata for Vec<T> {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
 impl<T: ZeroizeMetadata + FastZeroizable> FastZeroizable for Vec<T> {
     #[inline(always)]
     fn fast_zeroize(&mut self) {
-        vec_fast_zeroize(self, T::CAN_BE_BULK_ZEROIZED);
+        // SAFETY: `fast` is `T::CAN_BE_BULK_ZEROIZED`, `true` only where `T`
+        // promised every byte zero is one of its values.
+        unsafe { fast_zeroize_vec(self, T::CAN_BE_BULK_ZEROIZED) };
     }
 }
 
@@ -189,16 +196,16 @@ where
 // === === === === === === === === === ===
 // String
 // === === === === === === === === === ===
-impl ZeroizeMetadata for String {
-    // String can NEVER be bulk-zeroized from outside (has ptr/len/capacity)
+// SAFETY: `false` promises nothing.
+unsafe impl ZeroizeMetadata for String {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
 impl FastZeroizable for String {
     #[inline(always)]
     fn fast_zeroize(&mut self) {
-        // Safety: String is Vec<u8> internally, and u8::CAN_BE_BULK_ZEROIZED = true
-        // SAFETY: This is sound because we're treating String as Vec<u8>
+        // SAFETY: every byte zero is a `u8`, and zeros are valid UTF-8, so the
+        // `String` the bytes are handed back to holds a `str`.
         unsafe {
             let vec_bytes = self.as_mut_vec();
             redoubt_util::fast_zeroize_vec(vec_bytes);
@@ -216,7 +223,8 @@ impl ZeroizationProbe for String {
 //
 // Never bulk, whatever `T` is: a box's own bytes are a pointer, so a memset of
 // a collection of boxes empties the pointers and leaves every value they held.
-impl<T: ZeroizeMetadata + FastZeroizable> ZeroizeMetadata for alloc::boxed::Box<T> {
+// SAFETY: `false` promises nothing.
+unsafe impl<T: ZeroizeMetadata + FastZeroizable> ZeroizeMetadata for alloc::boxed::Box<T> {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 
@@ -235,7 +243,8 @@ impl<T: ZeroizationProbe> ZeroizationProbe for alloc::boxed::Box<T> {
 
 // Blanket impls for Option<T>
 // Option has discriminant/tag that requires proper handling, cannot bulk zeroize
-impl<T: ZeroizeMetadata + FastZeroizable> ZeroizeMetadata for Option<T> {
+// SAFETY: `false` promises nothing.
+unsafe impl<T: ZeroizeMetadata + FastZeroizable> ZeroizeMetadata for Option<T> {
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }
 

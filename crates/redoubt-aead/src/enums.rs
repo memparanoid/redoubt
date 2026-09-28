@@ -96,7 +96,8 @@ impl AeadAlgorithm {
     }
 }
 
-impl ZeroizeMetadata for AeadAlgorithm {
+// SAFETY: `false` promises nothing.
+unsafe impl ZeroizeMetadata for AeadAlgorithm {
     /// A memset would leave a byte that is no algorithm.
     ///
     /// Bulk zeroization writes zeros over the whole value, and zero is not one

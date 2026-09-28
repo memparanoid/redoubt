@@ -316,8 +316,10 @@ where
         if T::CAN_BE_BULK_ZEROIZED {
             // Zero init path (SUPER FAST for primitives like u8, u32, etc.)
             self.inner.fast_zeroize();
-            // SAFETY: T can be bulk zeroized, so all-zeros is a valid state.
-            // The inner vec has sufficient capacity from maybe_grow_to.
+            // SAFETY: `T::CAN_BE_BULK_ZEROIZED` is `T`'s promise that every
+            // byte zero is one of its values, and the zeros are there: the
+            // wipe above covers the whole capacity, which `maybe_grow_to`
+            // left at least `size`.
             unsafe {
                 self.inner.set_len(size);
             }

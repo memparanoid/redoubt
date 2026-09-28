@@ -391,7 +391,8 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     };
 
     let output = quote! {
-        impl #impl_generics #root::ZeroizeMetadata for #struct_name #ty_generics #where_clause {
+        // SAFETY: `false` promises nothing.
+        unsafe impl #impl_generics #root::ZeroizeMetadata for #struct_name #ty_generics #where_clause {
             const CAN_BE_BULK_ZEROIZED: bool = false;
         }
 

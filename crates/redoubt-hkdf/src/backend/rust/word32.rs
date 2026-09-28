@@ -299,7 +299,8 @@ impl FastZeroizable for Word32 {
     }
 }
 
-impl ZeroizeMetadata for Word32 {
+// SAFETY: `repr(transparent)` over a `u32`, and every byte zero is a `u32`.
+unsafe impl ZeroizeMetadata for Word32 {
     const CAN_BE_BULK_ZEROIZED: bool = true;
 }
 

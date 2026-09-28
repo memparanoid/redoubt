@@ -90,7 +90,9 @@ impl Decode for Number {
     }
 }
 
-impl ZeroizeMetadata for Number {
+// SAFETY: every byte zero is `data: 0` and a `behaviour` whose `u8` tag is 0,
+// which `repr(u8)` makes `None`, the first variant.
+unsafe impl ZeroizeMetadata for Number {
     const CAN_BE_BULK_ZEROIZED: bool = true;
 }
 
@@ -232,7 +234,8 @@ impl PreAlloc for RedoubtCodecTestBreaker {
     }
 }
 
-impl ZeroizeMetadata for RedoubtCodecTestBreaker {
+// SAFETY: `false` promises nothing.
+unsafe impl ZeroizeMetadata for RedoubtCodecTestBreaker {
     /// Keep CAN_BE_BULK_ZEROIZED = false to test recursive zeroization path.
     const CAN_BE_BULK_ZEROIZED: bool = false;
 }

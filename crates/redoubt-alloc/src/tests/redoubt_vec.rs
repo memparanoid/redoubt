@@ -193,7 +193,8 @@ fn test_extend_from_mut_slice_zeroizes_default_values() {
         value: u32,
     }
 
-    impl redoubt_zero::ZeroizeMetadata for TestStruct {
+    // SAFETY: one `u32`, and every byte zero is a `u32`.
+    unsafe impl redoubt_zero::ZeroizeMetadata for TestStruct {
         const CAN_BE_BULK_ZEROIZED: bool = true;
     }
 
@@ -589,7 +590,8 @@ fn test_default_init_to_size_with_complex_type() {
         }
     }
 
-    impl redoubt_zero::ZeroizeMetadata for TestStruct {
+    // SAFETY: `false` promises nothing.
+    unsafe impl redoubt_zero::ZeroizeMetadata for TestStruct {
         const CAN_BE_BULK_ZEROIZED: bool = false;
     }
 
