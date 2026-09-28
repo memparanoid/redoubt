@@ -35,6 +35,7 @@ use crabgrind::memcheck::{MemState, mark_memory};
 use redoubt_asm::Backend;
 
 use crate::backend::constant_time_eq_with_backend;
+use crate::declassify;
 
 const TAG: usize = 16;
 
@@ -113,4 +114,54 @@ fn test_the_chosen_eq_branches_on_nothing_but_its_answer() {
     as_secret(&a, &b);
 
     core::hint::black_box(constant_time_eq_with_backend(Backend::Auto, &a, &b));
+}
+
+// ============================================================================
+// declassify
+// ============================================================================
+
+#[inline(never)]
+fn taken() -> u32 {
+    core::hint::black_box(1)
+}
+
+#[inline(never)]
+fn not_taken() -> u32 {
+    core::hint::black_box(2)
+}
+
+/// A jump on `answer`, one call on each side so that the optimiser cannot turn
+/// it into a select that Memcheck does not see as a branch.
+fn branch_on(answer: bool) -> u32 {
+    if core::hint::black_box(answer) {
+        taken()
+    } else {
+        not_taken()
+    }
+}
+
+/// Memcheck has to report this one: the answer of a comparison of secrets is
+/// secret until something says otherwise.
+#[test]
+#[ignore = "Memcheck decides; `scripts/constant-time.sh` is what runs it"]
+fn test_a_branch_on_the_answer_branches_on_the_secret() {
+    let (a, b) = pair();
+
+    as_secret(&a, &b);
+
+    let same = constant_time_eq_with_backend(Backend::Auto, &a, &b);
+
+    core::hint::black_box(branch_on(same));
+}
+
+#[test]
+#[ignore = "Memcheck decides; `scripts/constant-time.sh` is what runs it"]
+fn test_a_branch_on_the_declassified_answer_branches_on_nothing() {
+    let (a, b) = pair();
+
+    as_secret(&a, &b);
+
+    let same = declassify(constant_time_eq_with_backend(Backend::Auto, &a, &b));
+
+    core::hint::black_box(branch_on(same));
 }

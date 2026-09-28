@@ -932,6 +932,7 @@ dependencies = [
 name = "redoubt-aead-xchachapoly1305"
 version = "0.1.0-rc.14"
 dependencies = [
+ "crabgrind",
  "proptest",
  "redoubt-aead-core",
  "redoubt-alloc",

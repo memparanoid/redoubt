@@ -10,6 +10,9 @@ mod support;
 ))]
 mod forensics;
 
+#[cfg(feature = "constant-time")]
+mod constant_time;
+
 mod libsodium;
 mod rfc;
 mod wycheproof;
