@@ -1089,6 +1089,7 @@ name = "redoubt-hkdf"
 version = "0.1.0-rc.14"
 dependencies = [
  "cc",
+ "crabgrind",
  "proptest",
  "redoubt-asm",
  "redoubt-forensics",

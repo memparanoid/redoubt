@@ -18,6 +18,14 @@ path = "src/lib.rs"
 # Nothing that ships turns it on.
 test-utils = []
 
+# What `scripts/constant-time.sh` turns on, and nothing else. `crabgrind`
+# generates its bindings with `bindgen`, so a build that carried it would ask
+# every machine for libclang to run an ordinary test.
+constant-time = ["dep:crabgrind"]
+
+[target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
+crabgrind = { workspace = true, optional = true }
+
 [build-dependencies]
 cc.workspace = true
 

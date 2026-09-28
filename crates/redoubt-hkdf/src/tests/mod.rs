@@ -10,6 +10,9 @@ mod support;
 #[cfg(target_os = "linux")]
 mod forensics;
 
+#[cfg(feature = "constant-time")]
+mod constant_time;
+
 mod backend;
 mod hkdf;
 mod libsodium;
