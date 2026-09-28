@@ -4,26 +4,22 @@
 
 //! The comparison, once in Rust and once by hand.
 //!
-//! Every construction above this crate ends by comparing a tag it computed
-//! against one that arrived, so the comparison is here rather than in each of
-//! them — two copies of the same fold are two copies that agree today.
-//!
 //! Nothing crosses the boundary by value and nothing is returned. A returned
 //! value leaves in a register, and a register carrying the answer out is a
 //! register the wipe at the end of an assembly routine cannot touch.
 //!
-//! `ct_asm` is set by the build script for a target it compiled assembly for,
+//! `eq_asm` is set by the build script for a target it compiled assembly for,
 //! and is named nowhere but the alias below.
 
 pub(crate) mod rust;
 
-#[cfg(ct_asm)]
+#[cfg(eq_asm)]
 pub(crate) mod asm;
 
-#[cfg(ct_asm)]
+#[cfg(eq_asm)]
 use asm as chosen;
 
-#[cfg(not(ct_asm))]
+#[cfg(not(eq_asm))]
 use rust as chosen;
 
 use redoubt_asm::Backend;
@@ -37,13 +33,13 @@ use redoubt_asm::Backend;
     not(target_os = "windows"),
     any(target_arch = "x86_64", target_arch = "aarch64")
 ))]
-pub(crate) const HAS_ASM: bool = cfg!(ct_asm);
+pub(crate) const HAS_ASM: bool = cfg!(eq_asm);
 
 /// Whether `a` and `b` hold the same bytes, in a time that says nothing about
 /// where they differ.
 ///
-/// Runs of different length answer false without either being read: a tag of
-/// the wrong width is a public fact about what arrived, not a timing question.
+/// Runs of different length answer false without either being read: a length
+/// is public, not a timing question.
 pub(crate) fn constant_time_eq(backend: Backend, a: &[u8], b: &[u8]) -> bool {
     match backend {
         Backend::Rust => rust::constant_time_eq(a, b),

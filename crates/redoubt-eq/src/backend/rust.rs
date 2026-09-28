@@ -13,8 +13,8 @@
 /// What it cannot promise is where the bytes were while that happened.
 /// `black_box` is what stops the optimizer proving the fold away, and what it
 /// does is materialize the value and forbid reasoning about it — so the
-/// accumulator ends up somewhere real that nothing here empties. At a tag's
-/// width the loop also vectorizes, which puts both operands in registers no
+/// accumulator ends up somewhere real that nothing here empties. At sixteen
+/// bytes the loop also vectorizes, which puts both operands in registers no
 /// wipe in this workspace touches. The assembly beside this file is what
 /// answers for that; this is what a target without it gets.
 pub(crate) fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {

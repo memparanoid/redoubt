@@ -13,11 +13,11 @@
 //! passes its arguments in other registers.
 
 /// Where the file for each architecture is, relative to the manifest.
-const X86_64: &str = "src/asm/ct_eq_x86_64.S";
-const AARCH64: &str = "src/asm/ct_eq_aarch64.S";
+const X86_64: &str = "src/asm/eq_x86_64.S";
+const AARCH64: &str = "src/asm/eq_aarch64.S";
 
 /// What the crate compiles under when one of them was built.
-const HAS_ASM: &str = "ct_asm";
+const HAS_ASM: &str = "eq_asm";
 
 fn main() {
     println!("cargo::rustc-check-cfg=cfg({HAS_ASM})");
@@ -31,7 +31,7 @@ fn main() {
         return;
     };
 
-    cc::Build::new().file(file).compile("ct_asm");
+    cc::Build::new().file(file).compile("redoubt_eq_asm");
 
     println!("cargo::rerun-if-changed={file}");
     println!("cargo::rustc-cfg={HAS_ASM}");

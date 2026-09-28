@@ -871,6 +871,7 @@ dependencies = [
  "redoubt-alloc",
  "redoubt-asm",
  "redoubt-codec",
+ "redoubt-eq",
  "redoubt-forensics",
  "redoubt-hex",
  "redoubt-hkdf",
@@ -910,6 +911,7 @@ dependencies = [
  "proptest",
  "redoubt-aead-core",
  "redoubt-alloc",
+ "redoubt-eq",
  "redoubt-forensics",
  "redoubt-hkdf",
  "redoubt-mem",
@@ -922,10 +924,8 @@ dependencies = [
 name = "redoubt-aead-core"
 version = "0.1.0-rc.15"
 dependencies = [
- "cc",
  "crabgrind",
- "redoubt-asm",
- "rstest",
+ "redoubt-eq",
  "thiserror",
 ]
 
@@ -939,6 +939,7 @@ dependencies = [
  "redoubt-alloc",
  "redoubt-asm",
  "redoubt-chacha",
+ "redoubt-eq",
  "redoubt-forensics",
  "redoubt-hkdf",
  "redoubt-mem",
@@ -1030,6 +1031,16 @@ dependencies = [
  "redoubt-secret",
  "redoubt-zero",
  "syn",
+]
+
+[[package]]
+name = "redoubt-eq"
+version = "0.1.0-rc.15"
+dependencies = [
+ "cc",
+ "crabgrind",
+ "redoubt-asm",
+ "rstest",
 ]
 
 [[package]]

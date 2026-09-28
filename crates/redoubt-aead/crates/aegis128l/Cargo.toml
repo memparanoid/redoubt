@@ -25,6 +25,7 @@ crabgrind = { workspace = true, optional = true }
 
 [dependencies]
 redoubt-aead-core.workspace = true
+redoubt-eq.workspace        = true
 redoubt-zero.workspace      = true
 
 [build-dependencies]

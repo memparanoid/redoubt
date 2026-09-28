@@ -28,6 +28,7 @@ redoubt-aead-core.workspace = true
 redoubt-alloc.workspace     = true
 redoubt-asm.workspace       = true
 redoubt-chacha.workspace    = true
+redoubt-eq.workspace        = true
 redoubt-mem.workspace       = true
 redoubt-poly1305.workspace  = true
 redoubt-zero.workspace      = true

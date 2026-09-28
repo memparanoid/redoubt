@@ -144,9 +144,8 @@ jobs:
   # else. What it reads is `release`: the question is which instructions branch
   # on the secret, and those are the optimiser's.
   #
-  # Both architectures, because the comparison is a different file on each —
-  # `ct_eq_x86_64.S` and `ct_eq_aarch64.S` — and a run on one says nothing
-  # about the other.
+  # Both architectures, because every routine is a different file on each, and
+  # a run on one says nothing about the other.
   constant-time:
     strategy:
       fail-fast: false

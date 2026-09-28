@@ -9,9 +9,8 @@
 //! difference between a decryption and an opening.
 
 use redoubt_aead_core::consts::aegis::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
-use redoubt_aead_core::{
-    AeadCoreError, AeadDecrypt, AeadEncrypt, AeadSizes, constant_time_eq, declassify,
-};
+use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt, AeadSizes, declassify};
+use redoubt_eq::constant_time_eq;
 use redoubt_zero::FastZeroizable;
 
 use crate::asm;

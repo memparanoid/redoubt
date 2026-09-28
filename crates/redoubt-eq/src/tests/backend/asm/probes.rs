@@ -9,10 +9,10 @@
 use rstest::rstest;
 
 unsafe extern "C" {
-    fn redoubt_ct_eq(a: *const u8, b: *const u8, len: usize, out: *mut u8);
+    fn redoubt_eq_constant_time_eq(a: *const u8, b: *const u8, len: usize, out: *mut u8);
 
-    fn redoubt_ct_registers_are_zeroized() -> u64;
-    fn redoubt_ct_dirty_registers();
+    fn redoubt_eq_registers_are_zeroized() -> u64;
+    fn redoubt_eq_dirty_registers();
 }
 
 /// What the register writer leaves in every register of the budget.
@@ -22,7 +22,7 @@ const POISON: u64 = 0xa5a5_a5a5_a5a5_a5a5;
 /// capture finds is one the writer put there.
 const STALE: u64 = 0x3c3c_3c3c_3c3c_3c3c;
 
-type CtEq = unsafe extern "C" fn(*const u8, *const u8, usize, *mut u8);
+type ConstantTimeEq = unsafe extern "C" fn(*const u8, *const u8, usize, *mut u8);
 
 // ============================================================================
 // What differs between the targets
@@ -100,7 +100,7 @@ macro_rules! test_dirty_general_is_seen {
                     concat!("mov ", $register, ", {poison}"),
                     "call {verifier}",
                     poison = const POISON,
-                    verifier = sym redoubt_ct_registers_are_zeroized,
+                    verifier = sym redoubt_eq_registers_are_zeroized,
                     lateout("rax") dirty,
                     clobber_abi("C"),
                 );
@@ -137,7 +137,7 @@ macro_rules! test_dirty_general_is_seen {
                     concat!("movk ", $register, ", #0xa5a5, lsl #32"),
                     concat!("movk ", $register, ", #0xa5a5, lsl #48"),
                     "bl {verifier}",
-                    verifier = sym redoubt_ct_registers_are_zeroized,
+                    verifier = sym redoubt_eq_registers_are_zeroized,
                     lateout("x0") dirty,
                     clobber_abi("C"),
                 );
@@ -205,7 +205,7 @@ fn read_an_empty_register_file() -> u64 {
         core::arch::asm!(
             empty_the_general_registers!(),
             "call {verifier}",
-            verifier = sym redoubt_ct_registers_are_zeroized,
+            verifier = sym redoubt_eq_registers_are_zeroized,
             lateout("rax") dirty,
             clobber_abi("C"),
         );
@@ -224,7 +224,7 @@ fn read_an_empty_register_file() -> u64 {
         core::arch::asm!(
             empty_the_general_registers!(),
             "bl {verifier}",
-            verifier = sym redoubt_ct_registers_are_zeroized,
+            verifier = sym redoubt_eq_registers_are_zeroized,
             lateout("x0") dirty,
             clobber_abi("C"),
         );
@@ -265,7 +265,7 @@ fn capture_the_register_writer() -> [u64; GENERAL.len()] {
             "mov [r12 + 56], r10",
             "mov [r12 + 64], r11",
             stale = const STALE,
-            writer = sym redoubt_ct_dirty_registers,
+            writer = sym redoubt_eq_dirty_registers,
             inlateout("r12") actual.as_mut_ptr() => _,
             clobber_abi("C"),
         );
@@ -321,7 +321,7 @@ fn capture_the_register_writer() -> [u64; GENERAL.len()] {
             stale1 = const (STALE >> 16) & 0xffff,
             stale2 = const (STALE >> 32) & 0xffff,
             stale3 = const STALE >> 48,
-            writer = sym redoubt_ct_dirty_registers,
+            writer = sym redoubt_eq_dirty_registers,
             inlateout("x20") actual.as_mut_ptr() => _,
             clobber_abi("C"),
         );
@@ -371,7 +371,7 @@ macro_rules! measure {
         core::arch::asm!(
             "call r11",
             "call {register_probe}",
-            register_probe = sym redoubt_ct_registers_are_zeroized,
+            register_probe = sym redoubt_eq_registers_are_zeroized,
             inlateout("r11") $routine => _,
             inlateout("rdi") $a => _,
             inlateout("rsi") $b => _,
@@ -395,7 +395,7 @@ macro_rules! measure {
         core::arch::asm!(
             "blr x16",
             "bl {register_probe}",
-            register_probe = sym redoubt_ct_registers_are_zeroized,
+            register_probe = sym redoubt_eq_registers_are_zeroized,
             inlateout("x16") $routine => _,
             inlateout("x0") $a => registers,
             inlateout("x1") $b => _,
@@ -420,7 +420,7 @@ unsafe extern "C" fn dirty_registers(_: *const u8, _: *const u8, _: usize, _: *m
     core::arch::naked_asm!(
         answer_one!(),
         tail_branch!(),
-        target = sym redoubt_ct_dirty_registers,
+        target = sym redoubt_eq_dirty_registers,
     );
 }
 
@@ -459,7 +459,7 @@ fn assert_residue(registers: u64, left: Left) {
 }
 
 // ============================================================================
-// redoubt_ct_registers_are_zeroized
+// redoubt_eq_registers_are_zeroized
 // ============================================================================
 
 /// A verifier that answered "dirty" whatever it was handed would pass every
@@ -474,7 +474,7 @@ fn test_an_empty_register_file_reads_as_empty() {
 }
 
 mod every_register {
-    use super::{POISON, redoubt_ct_registers_are_zeroized};
+    use super::{POISON, redoubt_eq_registers_are_zeroized};
 
     every_register!();
 }
@@ -485,7 +485,7 @@ fn test_the_list_names_as_many_registers_as_there_are_tests() {
 }
 
 // ============================================================================
-// redoubt_ct_dirty_registers
+// redoubt_eq_dirty_registers
 // ============================================================================
 
 /// A writer short by one register would let every negative below pass while
@@ -508,14 +508,17 @@ fn test_dirty_registers_fills_every_register_in_the_budget() {
 // ============================================================================
 
 // ============================================================================
-// ct_eq
+// constant_time_eq
 // ============================================================================
 
 #[rstest]
-#[case::registers_left_full(dirty_registers as CtEq, Left::Registers)]
-#[case::nothing_ran(untouched as CtEq, Left::Everything)]
-#[case::real(redoubt_ct_eq as CtEq, Left::Nothing)]
-fn test_ct_eq_leaves_the_residue_its_case_declares(#[case] routine: CtEq, #[case] left: Left) {
+#[case::registers_left_full(dirty_registers as ConstantTimeEq, Left::Registers)]
+#[case::nothing_ran(untouched as ConstantTimeEq, Left::Everything)]
+#[case::real(redoubt_eq_constant_time_eq as ConstantTimeEq, Left::Nothing)]
+fn test_constant_time_eq_leaves_the_residue_its_case_declares(
+    #[case] routine: ConstantTimeEq,
+    #[case] left: Left,
+) {
     let routine = core::hint::black_box(routine);
 
     // Equal, and different in the last byte: both answers take the same
@@ -531,7 +534,7 @@ fn test_ct_eq_leaves_the_residue_its_case_declares(#[case] routine: CtEq, #[case
         // SAFETY: both pointers are to sixteen readable bytes, the length says
         // so, and `same` is one writable byte that neither overlaps.
         let registers = unsafe {
-            redoubt_ct_dirty_registers();
+            redoubt_eq_dirty_registers();
             measure!(routine, a.as_ptr(), b.as_ptr(), a.len(), &raw mut same)
         };
 

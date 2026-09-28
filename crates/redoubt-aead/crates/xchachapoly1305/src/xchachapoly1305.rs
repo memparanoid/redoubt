@@ -10,12 +10,11 @@
 
 use redoubt_aead_core::consts::chacha::{KEY_SIZE, XNONCE_SIZE};
 use redoubt_aead_core::consts::poly1305::{KEY_SIZE as POLY_KEY_SIZE, TAG_SIZE};
-use redoubt_aead_core::{
-    AeadCoreError, AeadDecrypt, AeadEncrypt, AeadSizes, constant_time_eq, declassify,
-};
+use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt, AeadSizes, declassify};
 use redoubt_alloc::RedoubtArray;
 use redoubt_asm::Backend;
 use redoubt_chacha::xchacha20::XChaCha20;
+use redoubt_eq::constant_time_eq;
 use redoubt_mem::copy_nonoverlapping;
 use redoubt_poly1305::Poly1305;
 use redoubt_zero::RedoubtZero;

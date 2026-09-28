@@ -26,6 +26,9 @@ redoubt-aead
 # Buffer
 redoubt-buffer
 
+# Eq
+redoubt-eq
+
 # Mem
 redoubt-mem-core
 

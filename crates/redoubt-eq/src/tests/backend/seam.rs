@@ -17,12 +17,12 @@ use rstest::rstest;
 
 use crate::backend::constant_time_eq;
 
-/// A tag's width, which is what every caller of this compares.
-const TAG_SIZE: usize = 16;
+/// The width at which the portable loop vectorizes.
+const WIDTH: usize = 16;
 
 /// Both backends are the same code where the target has no assembly, and
 /// the cases below would read as proving agreement twice. The gate is written
-/// out rather than taken from `ct_asm`, so a target that drops out of the build
+/// out rather than taken from `eq_asm`, so a target that drops out of the build
 /// script and not out of this lands here as a failure.
 #[test]
 #[cfg(all(
@@ -52,8 +52,8 @@ fn test_this_target_has_the_assembly() {
 fn test_constant_time_eq_reports_runs_of_different_length(#[case] backend: Backend) {
     // The shorter being a prefix of the longer: what would read as equal if the
     // lengths were not compared first.
-    let short = [0x11u8; TAG_SIZE];
-    let long = [0x11u8; TAG_SIZE + 1];
+    let short = [0x11u8; WIDTH];
+    let long = [0x11u8; WIDTH + 1];
 
     assert!(!constant_time_eq(backend, &short, &long));
     assert!(!constant_time_eq(backend, &long, &short));
@@ -76,9 +76,9 @@ fn test_constant_time_eq_sees_a_difference_at_every_position(#[case] backend: Ba
     // One byte at a time, over the whole width. A fold that stopped early, or
     // one that read a word at a time and dropped the tail, passes a test that
     // only ever differs in the middle.
-    let a: [u8; TAG_SIZE] = core::array::from_fn(|at| at as u8);
+    let a: [u8; WIDTH] = core::array::from_fn(|at| at as u8);
 
-    for at in 0..TAG_SIZE {
+    for at in 0..WIDTH {
         let mut b = a;
         b[at] ^= 0x80;
 
@@ -94,7 +94,7 @@ fn test_constant_time_eq_sees_a_difference_at_every_position(#[case] backend: Ba
 fn test_constant_time_eq_sees_every_bit_of_a_byte(#[case] backend: Backend) {
     // Every bit of one byte. A fold that or-ed the wrong width, or masked,
     // answers correctly for some bits of a byte and not for others.
-    let a = [0u8; TAG_SIZE];
+    let a = [0u8; WIDTH];
 
     for bit in 0..8 {
         let mut b = a;

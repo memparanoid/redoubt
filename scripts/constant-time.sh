@@ -67,9 +67,9 @@ REPORTED=42
 # its first case and owes `$REPORTED`: where it stops reporting, nothing after
 # it in that package is a measurement.
 CASES=(
-  "redoubt-aead-core test_a_short_circuiting_eq_branches_on_the_secret $REPORTED"
-  "redoubt-aead-core test_the_rust_eq_branches_on_nothing_but_its_answer 0"
-  "redoubt-aead-core test_the_chosen_eq_branches_on_nothing_but_its_answer 0"
+  "redoubt-eq test_a_short_circuiting_eq_branches_on_the_secret $REPORTED"
+  "redoubt-eq test_the_rust_eq_branches_on_nothing_but_its_answer 0"
+  "redoubt-eq test_the_chosen_eq_branches_on_nothing_but_its_answer 0"
   "redoubt-aead-core test_a_branch_on_the_answer_branches_on_the_secret $REPORTED"
   "redoubt-aead-core test_a_branch_on_the_declassified_answer_branches_on_nothing 0"
   "redoubt-chacha test_a_routine_that_stops_on_the_key_branches_on_the_secret $REPORTED"

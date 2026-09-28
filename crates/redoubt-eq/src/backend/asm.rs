@@ -5,7 +5,7 @@
 //! The comparison by hand, on a target the build script compiled it for.
 
 unsafe extern "C" {
-    fn redoubt_ct_eq(a: *const u8, b: *const u8, len: usize, out: *mut u8);
+    fn redoubt_eq_constant_time_eq(a: *const u8, b: *const u8, len: usize, out: *mut u8);
 }
 
 /// Whether `a` and `b` hold the same bytes; false for runs of different length,
@@ -25,7 +25,7 @@ pub(crate) fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     // SAFETY: both pointers are to runs of `a.len()` readable bytes, the
     // lengths having just been found equal, and `same` is one writable byte
     // that neither of them overlaps.
-    unsafe { redoubt_ct_eq(a.as_ptr(), b.as_ptr(), a.len(), &raw mut same) };
+    unsafe { redoubt_eq_constant_time_eq(a.as_ptr(), b.as_ptr(), a.len(), &raw mut same) };
 
     same == 1
 }

@@ -1,11 +1,11 @@
 [package]
 authors              = ["Federico Hoerth <memparanoid@gmail.com>"]
 categories           = ["cryptography", "no-std"]
-description          = "Core traits and error types for AEAD backends"
+description          = "Two runs of bytes compared in constant time, leaving nothing in a register"
 edition.workspace    = true
-keywords             = ["aead", "encryption", "crypto"]
+keywords             = ["security", "constant-time", "compare", "zeroize", "registers"]
 license.workspace    = true
-name                 = "redoubt-aead-core"
+name                 = "redoubt-eq"
 readme.workspace     = true
 repository.workspace = true
 version.workspace    = true
@@ -14,18 +14,19 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [features]
-test-utils = []
-
 # What `scripts/constant-time.sh` turns on, and nothing else. `crabgrind`
 # generates its bindings with `bindgen`, so a build that carried it would ask
 # every machine for libclang to run an ordinary test.
 constant-time = ["dep:crabgrind"]
 
 [dependencies]
-thiserror.workspace = true
+redoubt-asm.workspace = true
 
 [target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
 crabgrind = { workspace = true, optional = true }
 
+[build-dependencies]
+cc.workspace = true
+
 [dev-dependencies]
-redoubt-eq.workspace = true
+rstest.workspace = true

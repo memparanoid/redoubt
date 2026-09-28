@@ -7,7 +7,7 @@ use rstest::rstest;
 
 use crate::eq::{constant_time_eq, constant_time_eq_using};
 
-const TAG_SIZE: usize = 16;
+const WIDTH: usize = 16;
 
 // ============================================================================
 // constant_time_eq
@@ -15,12 +15,12 @@ const TAG_SIZE: usize = 16;
 
 #[test]
 fn test_constant_time_eq_answers_from_the_default_backend() {
-    let a = [0x5au8; TAG_SIZE];
+    let a = [0x5au8; WIDTH];
     let mut b = a;
 
     assert!(constant_time_eq(&a, &b));
 
-    b[TAG_SIZE - 1] ^= 1;
+    b[WIDTH - 1] ^= 1;
 
     assert!(!constant_time_eq(&a, &b));
 }
@@ -35,7 +35,7 @@ fn test_constant_time_eq_answers_from_the_default_backend() {
 fn test_constant_time_eq_using_answers_for_equal_runs_and_for_different_ones(
     #[case] backend: Backend,
 ) {
-    let a = [0x5au8; TAG_SIZE];
+    let a = [0x5au8; WIDTH];
     let mut b = a;
 
     assert!(constant_time_eq_using(backend, &a, &b));
