@@ -39,10 +39,10 @@ CRATES=(
   redoubt-forensics-core
   redoubt-forensics
   redoubt-test-utils
+  redoubt-util
 
   redoubt-aead-core
   redoubt-mem
-  redoubt-util
   redoubt-zero-core
   redoubt-zero-derive
   redoubt-zero

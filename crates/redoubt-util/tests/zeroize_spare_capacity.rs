@@ -2,18 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_util::{is_spare_capacity_zeroized, zeroize_spare_capacity};
+use redoubt_util::zeroize_spare_capacity;
 
-/// Helper to read spare capacity bytes (unsafe but sound for testing).
-fn read_spare_capacity(vec: &Vec<u8>) -> Vec<u8> {
-    let mut spare = Vec::new();
-    let base = vec.as_ptr();
-    for i in vec.len()..vec.capacity() {
-        unsafe {
-            spare.push(*base.add(i));
-        }
-    }
-    spare
+fn read_spare_capacity<T>(vec: &Vec<T>) -> Vec<u8> {
+    let from = vec.len() * core::mem::size_of::<T>();
+    let to = vec.capacity() * core::mem::size_of::<T>();
+    let base = vec.as_ptr().cast::<u8>();
+
+    // SAFETY: the range is the spare, inside the allocation, and every test
+    // here writes it before reading: a truncate leaves what it dropped, a
+    // `write_bytes` its pattern, the wipe its zeros. Never written, these
+    // bytes are uninitialized and reading them is undefined.
+    (from..to)
+        .map(|at| unsafe { base.add(at).read() })
+        .collect()
 }
 
 #[test]
@@ -21,25 +23,20 @@ fn test_zeroize_spare_capacity_basic() {
     let mut vec = vec![0xFFu8; 100];
     vec.truncate(10);
 
-    // Spare capacity should have 0xFF
     assert!(read_spare_capacity(&vec).iter().all(|&b| b == 0xFF));
 
     zeroize_spare_capacity(&mut vec);
 
-    // Active elements unchanged
     assert!(vec.iter().all(|&b| b == 0xFF));
-    // Spare capacity zeroed
     assert!(read_spare_capacity(&vec).iter().all(|&b| b == 0));
 }
 
 #[test]
 fn test_zeroize_spare_capacity_empty_spare() {
     let mut vec = vec![0xFFu8; 10];
-    // len == capacity, no spare
 
     zeroize_spare_capacity(&mut vec);
 
-    // Should not panic, elements unchanged
     assert!(vec.iter().all(|&b| b == 0xFF));
 }
 
@@ -49,7 +46,6 @@ fn test_zeroize_spare_capacity_empty_vec() {
 
     zeroize_spare_capacity(&mut vec);
 
-    // Should not panic
     assert!(vec.is_empty());
 }
 
@@ -58,7 +54,8 @@ fn test_zeroize_spare_capacity_with_reserved() {
     let mut vec: Vec<u8> = Vec::with_capacity(100);
     vec.extend_from_slice(&[0xAA; 10]);
 
-    // Fill spare with pattern (simulating previous data)
+    // SAFETY: a hundred bytes reserved and ten held, so the ninety past `len`
+    // are the spare, inside the allocation.
     unsafe {
         let spare_ptr = vec.as_mut_ptr().add(vec.len());
         core::ptr::write_bytes(spare_ptr, 0xBB, 90);
@@ -68,74 +65,39 @@ fn test_zeroize_spare_capacity_with_reserved() {
 
     zeroize_spare_capacity(&mut vec);
 
-    // Active elements unchanged
     assert!(vec.iter().all(|&b| b == 0xAA));
-    // Spare capacity zeroed
     assert!(read_spare_capacity(&vec).iter().all(|&b| b == 0));
 }
 
-// === === === === === === === === === ===
-// Tests for is_spare_capacity_zeroized
-// === === === === === === === === === ===
-
 #[test]
-fn test_is_spare_capacity_zeroized_empty_spare() {
-    let vec = vec![1u8, 2, 3];
-    // len == capacity, no spare
-    assert!(is_spare_capacity_zeroized(&vec));
-}
-
-#[test]
-fn test_is_spare_capacity_zeroized_empty_vec() {
-    let vec: Vec<u8> = Vec::new();
-    assert!(is_spare_capacity_zeroized(&vec));
-}
-
-#[test]
-fn test_is_spare_capacity_zeroized_with_data_in_spare() {
-    let mut vec = vec![1u8, 2, 3, 4, 5];
-    vec.truncate(2);
-
-    // Spare capacity has old data (3, 4, 5)
-    assert!(!is_spare_capacity_zeroized(&vec));
-}
-
-#[test]
-fn test_is_spare_capacity_zeroized_after_zeroize() {
-    let mut vec = vec![1u8, 2, 3, 4, 5];
-    vec.truncate(2);
-
-    assert!(!is_spare_capacity_zeroized(&vec));
-
-    zeroize_spare_capacity(&mut vec);
-    assert!(is_spare_capacity_zeroized(&vec));
-}
-
-#[test]
-fn test_is_spare_capacity_zeroized_u32() {
+fn test_zeroize_spare_capacity_u32() {
     let mut vec = vec![100u32, 200, 300, 400];
     vec.truncate(2);
 
-    // Spare capacity has old data
-    assert!(!is_spare_capacity_zeroized(&vec));
+    assert!(read_spare_capacity(&vec).iter().any(|&b| b != 0));
 
     zeroize_spare_capacity(&mut vec);
-    assert!(is_spare_capacity_zeroized(&vec));
+
+    assert_eq!(vec, [100, 200]);
+    assert!(read_spare_capacity(&vec).iter().all(|&b| b == 0));
 }
 
 #[test]
-fn test_is_spare_capacity_zeroized_with_reserve() {
+fn test_zeroize_spare_capacity_u32_with_reserved() {
     let mut vec: Vec<u32> = Vec::with_capacity(100);
     vec.extend_from_slice(&[1, 2, 3]);
 
-    // Fill spare with pattern
+    // SAFETY: a hundred words reserved and three held, so the ninety-seven past
+    // `len` are the spare, inside the allocation.
     unsafe {
         let spare_ptr = vec.as_mut_ptr().add(vec.len());
-        core::ptr::write_bytes(spare_ptr as *mut u8, 0xFF, 97 * 4);
+        core::ptr::write_bytes(spare_ptr.cast::<u8>(), 0xFF, 97 * 4);
     }
 
-    assert!(!is_spare_capacity_zeroized(&vec));
+    assert!(read_spare_capacity(&vec).iter().all(|&b| b == 0xFF));
 
     zeroize_spare_capacity(&mut vec);
-    assert!(is_spare_capacity_zeroized(&vec));
+
+    assert_eq!(vec, [1, 2, 3]);
+    assert!(read_spare_capacity(&vec).iter().all(|&b| b == 0));
 }

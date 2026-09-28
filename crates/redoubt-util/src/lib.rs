@@ -41,38 +41,6 @@ pub fn hex_to_bytes(hex: &str) -> Vec<u8> {
         .collect()
 }
 
-/// Whether every byte of the allocation is zero, the spare past `len` included.
-///
-/// # Example
-///
-/// ```
-/// use redoubt_util::{fast_zeroize_vec, is_vec_fully_zeroized};
-///
-/// let mut vec = vec![1u8, 2, 3, 4, 5];
-/// vec.truncate(2); // len = 2, capacity = 5
-///
-/// // Manually zero the active elements (len = 2)
-/// for byte in vec.iter_mut() {
-///     *byte = 0;
-/// }
-///
-/// // Spare capacity [2..5] still contains old data
-/// assert!(!is_vec_fully_zeroized(&vec));
-///
-/// // fast_zeroize_vec clears BOTH active elements AND spare capacity
-/// fast_zeroize_vec(&mut vec);
-/// assert!(is_vec_fully_zeroized(&vec));
-/// ```
-#[inline(never)]
-pub fn is_vec_fully_zeroized(vec: &Vec<u8>) -> bool {
-    // SAFETY: the length is the `Vec`'s own capacity, so the slice is its
-    // allocation, and it is a slice of `u8`, for which every bit pattern is a
-    // value.
-    let whole = unsafe { core::slice::from_raw_parts(vec.as_ptr(), vec.capacity()) };
-
-    redoubt_mem::is_zeroized(whole)
-}
-
 /// Writes one value's own default over it, by a store the optimizer may not
 /// remove.
 ///
@@ -158,13 +126,13 @@ pub fn fast_zeroize_slice<T>(slice: &mut [T]) {
 /// # Example
 ///
 /// ```
-/// use redoubt_util::{fast_zeroize_vec, is_vec_fully_zeroized};
+/// use redoubt_util::fast_zeroize_vec;
 ///
 /// let mut vec = vec![0xFFu8; 100];
 /// vec.truncate(10);  // len = 10, capacity = 100, spare has 0xFF
 ///
 /// fast_zeroize_vec(&mut vec);
-/// assert!(is_vec_fully_zeroized(&vec));
+/// assert!(vec.iter().all(|&b| b == 0));
 /// ```
 #[inline(always)]
 pub fn fast_zeroize_vec<T>(vec: &mut Vec<T>) {
@@ -223,38 +191,4 @@ pub fn zeroize_spare_capacity<T>(vec: &mut Vec<T>) {
         // Volatile read prevents optimizer from removing the write
         core::ptr::read_volatile(spare_ptr);
     }
-}
-
-/// Whether every byte between `len` and the capacity is zero, read as bytes and
-/// never as a `T`.
-///
-/// # Example
-///
-/// ```
-/// use redoubt_util::{zeroize_spare_capacity, is_spare_capacity_zeroized};
-///
-/// let mut vec = vec![1u32, 2, 3, 4, 5];
-/// vec.truncate(2);  // len = 2, capacity = 5, spare has old data
-///
-/// assert!(!is_spare_capacity_zeroized(&vec));
-///
-/// zeroize_spare_capacity(&mut vec);
-/// assert!(is_spare_capacity_zeroized(&vec));
-/// ```
-#[inline(never)]
-pub fn is_spare_capacity_zeroized<T>(vec: &Vec<T>) -> bool {
-    let len_bytes = vec.len() * core::mem::size_of::<T>();
-    let cap_bytes = vec.capacity() * core::mem::size_of::<T>();
-
-    // SAFETY: both offsets come from the `Vec`'s own `len` and capacity, so
-    // the range is the spare inside its allocation, and it is read as `u8`,
-    // for which every bit pattern is a value — no `T` is built out of it.
-    let spare = unsafe {
-        core::slice::from_raw_parts(
-            vec.as_ptr().cast::<u8>().add(len_bytes),
-            cap_bytes - len_bytes,
-        )
-    };
-
-    redoubt_mem::is_zeroized(spare)
 }

@@ -4,19 +4,19 @@
 
 #[cfg(test)]
 mod fast_zeroize_slice_tests {
-    use redoubt_util::{fast_zeroize_slice, is_vec_fully_zeroized};
+    use redoubt_util::fast_zeroize_slice;
 
     #[test]
     fn test_fast_zeroize_slice_zeros_all_bytes() {
         let mut data = vec![0xABu8; 1024];
         fast_zeroize_slice(&mut data);
-        assert!(is_vec_fully_zeroized(&data));
+        assert!(data.iter().all(|&b| b == 0));
     }
 
     #[test]
     fn test_fast_zeroize_slice_empty_slice() {
         let mut data: Vec<u8> = vec![];
-        fast_zeroize_slice(&mut data); // should not panic
+        fast_zeroize_slice(&mut data);
         assert!(data.is_empty());
     }
 

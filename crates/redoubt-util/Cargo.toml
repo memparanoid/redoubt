@@ -18,7 +18,6 @@ default    = []
 test-utils = []
 
 [dependencies]
-redoubt-mem.workspace = true
 
 [dev-dependencies]
 redoubt-util = { path = ".", features = ["test-utils"] }
