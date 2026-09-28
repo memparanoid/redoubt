@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Word32 - 32-bit word wrapper with guaranteed zeroization on drop.
-//!
-//! All operations are in-place to avoid stack temporaries.
-//! SHA-256 functions use internal temporaries that are zeroized before return.
+//! The word SHA-256 is written in, and the functions FIPS 180-4 defines over
+//! it.
 
 use redoubt_zero::{FastZeroizable, ZeroizationProbe, ZeroizeMetadata};
 
@@ -28,11 +26,7 @@ pub(crate) fn u32_to_be(src: &mut u32, bytes: &mut [u8; 4]) {
     *src = 0;
 }
 
-/// 32-bit word wrapper with guaranteed zeroization.
-///
-/// - `#[repr(transparent)]` ensures same layout as u32
-/// - Drop asserts zeroized (debug) then zeroizes (safety net)
-/// - All operations are `_assign` variants for in-place mutation
+/// One 32-bit word, and the only place a SHA-256 value is held.
 #[derive(Default)]
 #[repr(transparent)]
 pub struct Word32(u32);

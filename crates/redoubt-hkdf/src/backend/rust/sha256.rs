@@ -30,8 +30,6 @@ const BLOCK_LEN: usize = 64;
 const HASH_LEN: usize = 32;
 
 /// SHA-256 streaming state per RFC 6234 Section 6.2
-///
-/// All sensitive working variables live in the struct for guaranteed zeroization.
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
 pub(crate) struct Sha256State {

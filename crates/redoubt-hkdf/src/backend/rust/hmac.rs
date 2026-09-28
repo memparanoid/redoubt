@@ -12,8 +12,6 @@ const BLOCK_LEN: usize = 64;
 const HASH_LEN: usize = 32;
 
 /// HMAC-SHA256 state with all intermediate buffers.
-///
-/// All sensitive data lives in this struct for guaranteed zeroization on drop.
 #[derive(RedoubtZero)]
 #[fast_zeroize(drop)]
 pub(crate) struct HmacSha256State {

@@ -14,6 +14,10 @@
 //! `asm` exports with the same signatures. That is what lets a test ask each of
 //! them of either implementation, and what makes the seam above a `match` and
 //! nothing else.
+//!
+//! What this backend empties is the storage its states name. Registers and
+//! spills are the compiler's, and nothing here reaches them: what it leaves
+//! behind is best effort, and the assembly is where it is promised.
 
 pub(crate) mod hkdf;
 pub(crate) mod hmac;
