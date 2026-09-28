@@ -2,11 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_util::is_vec_fully_zeroized;
 use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 use crate::allocked_vec::{AllockedVec, AllockedVecBehaviour};
 use crate::error::AllockedVecError;
+
+fn is_allocation_zeroized(vec: &Vec<u8>) -> bool {
+    // SAFETY: the range is the allocation, and an `AllockedVec` writes all of
+    // it when it reserves it, so no byte of it is uninitialized.
+    let allocation = unsafe { core::slice::from_raw_parts(vec.as_ptr(), vec.capacity()) };
+
+    redoubt_mem::is_zeroized(allocation)
+}
 
 // ╔════════════════════════════════════════════════════════════════════════════╗
 // ║ BEHAVIOUR                                                                  ║
@@ -301,13 +308,13 @@ fn test_allocked_vec_truncate_zeroizes_removed_elements() -> Result<(), Box<dyn 
     vec.push(&mut 2u8)?;
 
     vec.__unsafe_expose_inner_for_tests(|inner| {
-        assert!(!is_vec_fully_zeroized(inner));
+        assert!(!is_allocation_zeroized(inner));
     });
 
     vec.truncate(3);
 
     vec.__unsafe_expose_inner_for_tests(|inner| {
-        assert!(is_vec_fully_zeroized(inner));
+        assert!(is_allocation_zeroized(inner));
     });
 
     // Vec is not zeroized since `has_been_sealed` is true (even though all elements are 0).
@@ -518,7 +525,7 @@ fn test_allocked_vec_realloc_with_zeroizes_old_allocation() -> Result<(), Box<dy
     vec.realloc_with(5, |old_allocked_vec| {
         old_allocked_vec.__unsafe_expose_inner_for_tests(|vec| {
             hook_has_been_called = true;
-            assert!(is_vec_fully_zeroized(vec));
+            assert!(is_allocation_zeroized(vec));
         });
     });
 
