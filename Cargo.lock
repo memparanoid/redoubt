@@ -906,6 +906,7 @@ name = "redoubt-aead-aegis128l"
 version = "0.1.0-rc.14"
 dependencies = [
  "cc",
+ "crabgrind",
  "proptest",
  "redoubt-aead-core",
  "redoubt-alloc",

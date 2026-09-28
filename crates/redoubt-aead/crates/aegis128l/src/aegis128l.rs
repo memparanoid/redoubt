@@ -9,7 +9,9 @@
 //! difference between a decryption and an opening.
 
 use redoubt_aead_core::consts::aegis::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
-use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt, AeadSizes, constant_time_eq};
+use redoubt_aead_core::{
+    AeadCoreError, AeadDecrypt, AeadEncrypt, AeadSizes, constant_time_eq, declassify,
+};
 use redoubt_zero::FastZeroizable;
 
 use crate::asm;
@@ -74,7 +76,7 @@ impl AeadDecrypt for Aegis128L {
 
         asm::decrypt(key, nonce, aad, data, &mut expected);
 
-        let same = constant_time_eq(&expected, tag);
+        let same = declassify(constant_time_eq(&expected, tag));
 
         // On both paths: it is a tag this key produced, and whether it matched
         // says nothing about whether it should stay on the stack.

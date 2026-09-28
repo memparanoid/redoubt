@@ -7,6 +7,9 @@ mod support;
 #[cfg(all(target_os = "linux", aegis128l_asm))]
 mod forensics;
 
+#[cfg(feature = "constant-time")]
+mod constant_time;
+
 mod aegis128l;
 mod libaegis;
 mod probes;
