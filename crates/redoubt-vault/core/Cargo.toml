@@ -20,7 +20,7 @@ test-utils = []
 [dependencies]
 quiesce.workspace        = true
 redoubt-aead.workspace   = true
-redoubt-alloc            = { workspace = true, features = ["default_init"] }
+redoubt-alloc.workspace  = true
 redoubt-buffer.workspace = true
 redoubt-codec.workspace  = true
 redoubt-hkdf.workspace   = true

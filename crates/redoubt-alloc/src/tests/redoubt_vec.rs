@@ -562,7 +562,6 @@ fn test_debug_redacted() {
 // =============================================================================
 
 #[redoubt_forensics::test(dirty = 0xFF)]
-#[cfg(feature = "default_init")]
 fn test_default_init_to_size_with_bulk_zeroizable() {
     let mut vec = RedoubtVec::<u8>::new();
 
@@ -577,7 +576,6 @@ fn test_default_init_to_size_with_bulk_zeroizable() {
 }
 
 #[redoubt_forensics::test(dirty = 0xFF)]
-#[cfg(feature = "default_init")]
 fn test_default_init_to_size_with_complex_type() {
     #[derive(Debug, PartialEq, Clone, Copy)]
     struct TestStruct {
@@ -620,7 +618,6 @@ fn test_default_init_to_size_with_complex_type() {
 }
 
 #[redoubt_forensics::test(dirty = 0xFF)]
-#[cfg(feature = "default_init")]
 fn test_default_init_to_size_clears_existing_data() {
     let mut vec = RedoubtVec::<u8>::new();
     let mut src = [1u8, 2, 3];
@@ -638,7 +635,6 @@ fn test_default_init_to_size_clears_existing_data() {
 }
 
 #[redoubt_forensics::test(dirty = 0xFF)]
-#[cfg(feature = "default_init")]
 fn test_default_init_to_size_large() {
     let mut vec = RedoubtVec::<u8>::new();
 
@@ -651,7 +647,6 @@ fn test_default_init_to_size_large() {
 }
 
 #[redoubt_forensics::test(dirty = 0xFF)]
-#[cfg(feature = "default_init")]
 fn test_default_init_to_size_zero() {
     let mut vec = RedoubtVec::<u8>::new();
     let mut src = [1u8, 2];

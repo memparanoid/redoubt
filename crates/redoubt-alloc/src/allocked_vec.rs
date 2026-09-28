@@ -652,11 +652,6 @@ where
     }
 
     /// Returns a raw mutable pointer to the vector's buffer.
-    ///
-    /// # Safety
-    ///
-    /// This method is only available with the `unsafe` feature.
-    #[cfg(any(test, feature = "unsafe"))]
     #[inline(always)]
     pub fn as_mut_ptr(&mut self) -> *mut T {
         self.inner.as_mut_ptr()
@@ -666,10 +661,8 @@ where
     ///
     /// # Safety
     ///
-    /// This method is only available with the `unsafe` feature.
     /// Elements beyond `len()` may not be properly initialized.
     /// The caller must ensure that accessing elements beyond `len()` is valid for type `T`.
-    #[cfg(any(test, feature = "unsafe"))]
     #[inline(always)]
     pub unsafe fn as_capacity_slice(&self) -> &[T] {
         // SAFETY: the pointer and the count come from the same `Vec`, so the
@@ -682,10 +675,8 @@ where
     ///
     /// # Safety
     ///
-    /// This method is only available with the `unsafe` feature.
     /// Elements beyond `len()` may not be properly initialized.
     /// The caller must ensure that accessing elements beyond `len()` is valid for type `T`.
-    #[cfg(any(test, feature = "unsafe"))]
     #[inline(always)]
     pub unsafe fn as_capacity_mut_slice(&mut self) -> &mut [T] {
         // SAFETY: the pointer and the count come from the same `Vec`, so the
@@ -707,8 +698,7 @@ where
     ///
     /// # Safety
     ///
-    /// - Elements at indices `0..new_len` must be properly initialized.
-    /// - This method is only available with the `unsafe` feature.
+    /// Elements at indices `0..new_len` must be properly initialized.
     ///
     /// # Example
     ///
@@ -727,7 +717,6 @@ where
     /// assert_eq!(vec.len(), 2);
     /// assert_eq!(vec.as_slice(), &[0, 0]);  // Data was zeroized
     /// ```
-    #[cfg(any(test, feature = "unsafe"))]
     #[inline(always)]
     pub unsafe fn set_len(&mut self, new_len: usize) {
         // Not a `debug_assert!`: a length past the capacity is undefined

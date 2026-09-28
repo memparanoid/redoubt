@@ -305,7 +305,6 @@ where
     /// After calling this method, the vector will have exactly `size` elements,
     /// all properly initialized either to zero (if bulk zeroizable) or to their
     /// default value.
-    #[cfg(feature = "default_init")]
     pub fn default_init_to_size(&mut self, size: usize)
     where
         T: Default,

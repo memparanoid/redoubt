@@ -11,9 +11,7 @@ repository.workspace = true
 version.workspace    = true
 
 [features]
-default_init = []
-test-utils   = []
-unsafe       = []
+test-utils = []
 
 [dependencies]
 redoubt-mem.workspace  = true

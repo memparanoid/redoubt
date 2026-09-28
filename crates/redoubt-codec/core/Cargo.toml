@@ -18,16 +18,13 @@ benchmark  = []
 test-utils = []
 
 [dependencies]
+redoubt-alloc.workspace  = true
 redoubt-mem.workspace    = true
 redoubt-secret.workspace = true
 redoubt-util.workspace   = true
 redoubt-zero.workspace   = true
 smallvec.workspace       = true
 thiserror.workspace      = true
-
-  [dependencies.redoubt-alloc]
-  features  = ["unsafe"]
-  workspace = true
 
 [dev-dependencies]
 redoubt-alloc                = { workspace = true, features = ["test-utils"] }
