@@ -13,30 +13,28 @@ use rstest::rstest;
 use redoubt_aead_core::consts::chacha::{BERNSTEIN_NONCE_SIZE, BLOCK_SIZE, KEY_SIZE, NONCE_SIZE};
 use redoubt_asm::Backend;
 
-use crate::chacha20::ChaCha20;
+use crate::backend::xor;
 
 use crate::tests::support::vectors::{VECTORS, Vector};
 use crate::tests::support::{oracle, vectors};
 
 // === === === === === === === === === ===
-// xor
+// xor, under a twelve-byte nonce
 // === === === === === === === === === ===
 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_xor_rejects_counter_exhaustion_before_touching_data(#[case] backend: Backend) {
-    let cipher = ChaCha20::new();
-
     for blocks in 1..=4u32 {
         let mut data = std::vec![0xa5; blocks as usize * BLOCK_SIZE + 1];
         let before = data.clone();
         let result = catch_unwind(AssertUnwindSafe(|| {
-            cipher.xor(
+            xor(
                 backend,
                 &[0x42; KEY_SIZE],
                 &[0x17; NONCE_SIZE],
-                u32::MAX - blocks + 1,
+                u64::from(u32::MAX - blocks + 1),
                 &mut data,
             );
         }));
@@ -50,8 +48,6 @@ fn test_xor_rejects_counter_exhaustion_before_touching_data(#[case] backend: Bac
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_xor_returns_the_published_ciphertext(#[case] backend: Backend) {
-    let cipher = ChaCha20::new();
-
     for Vector {
         from,
         key,
@@ -62,7 +58,7 @@ fn test_xor_returns_the_published_ciphertext(#[case] backend: Backend) {
     } in VECTORS
     {
         let mut data: Vec<u8> = plaintext.to_vec();
-        cipher.xor(backend, key, nonce, *counter, &mut data);
+        xor(backend, key, nonce, u64::from(*counter), &mut data);
 
         assert_eq!(&data, ciphertext, "{from}");
     }
@@ -72,7 +68,6 @@ fn test_xor_returns_the_published_ciphertext(#[case] backend: Backend) {
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_xor_returns_the_plaintext_when_it_is_run_twice(#[case] backend: Backend) {
-    let cipher = ChaCha20::new();
     let key = [0x42; KEY_SIZE];
     let nonce = [0x17; NONCE_SIZE];
 
@@ -81,10 +76,10 @@ fn test_xor_returns_the_plaintext_when_it_is_run_twice(#[case] backend: Backend)
     let plaintext: Vec<u8> = (0..BLOCK_SIZE * 2 + 7).map(|at| at as u8).collect();
     let mut data = plaintext.clone();
 
-    cipher.xor(backend, &key, &nonce, 0, &mut data);
+    xor(backend, &key, &nonce, 0, &mut data);
     assert_ne!(data, plaintext);
 
-    cipher.xor(backend, &key, &nonce, 0, &mut data);
+    xor(backend, &key, &nonce, 0, &mut data);
     assert_eq!(data, plaintext);
 }
 
@@ -92,7 +87,6 @@ fn test_xor_returns_the_plaintext_when_it_is_run_twice(#[case] backend: Backend)
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_xor_advances_one_counter_per_block(#[case] backend: Backend) {
-    let cipher = ChaCha20::new();
     let key = [0x42; KEY_SIZE];
     let nonce = [0x17; NONCE_SIZE];
 
@@ -101,10 +95,10 @@ fn test_xor_advances_one_counter_per_block(#[case] backend: Backend) {
         let mut whole = plaintext.clone();
         let mut split = plaintext;
 
-        cipher.xor(backend, &key, &nonce, 7, &mut whole);
+        xor(backend, &key, &nonce, 7, &mut whole);
 
         for (at, chunk) in split.chunks_mut(BLOCK_SIZE).enumerate() {
-            cipher.xor(backend, &key, &nonce, 7 + at as u32, chunk);
+            xor(backend, &key, &nonce, 7 + at as u64, chunk);
         }
 
         assert_eq!(whole, split, "{length} bytes in");
@@ -115,22 +109,21 @@ fn test_xor_advances_one_counter_per_block(#[case] backend: Backend) {
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
 fn test_xor_accepts_the_last_counter(#[case] backend: Backend) {
-    let cipher = ChaCha20::new();
     let key = [0x42; KEY_SIZE];
     let nonce = [0x17; NONCE_SIZE];
 
-    for blocks in 1..=4u32 {
-        let counter = u32::MAX - blocks + 1;
+    for blocks in 1..=4u64 {
+        let counter = u64::from(u32::MAX) - blocks + 1;
 
         for tail in 0..=BLOCK_SIZE {
             let length = (blocks as usize - 1) * BLOCK_SIZE + tail;
             let mut whole = std::vec![0; length];
             let mut split = whole.clone();
 
-            cipher.xor(backend, &key, &nonce, counter, &mut whole);
+            xor(backend, &key, &nonce, counter, &mut whole);
 
             for (at, chunk) in split.chunks_mut(BLOCK_SIZE).enumerate() {
-                cipher.xor(backend, &key, &nonce, counter + at as u32, chunk);
+                xor(backend, &key, &nonce, counter + at as u64, chunk);
             }
 
             assert_eq!(whole, split, "counter {counter}, {length} bytes in");
@@ -144,8 +137,6 @@ fn test_xor_accepts_the_last_counter(#[case] backend: Backend) {
 fn test_xor_touches_only_the_named_bytes_at_every_alignment(
     #[case] backend: Backend,
 ) -> Result<(), TryFromSliceError> {
-    let cipher = ChaCha20::new();
-
     for offset in 0..16 {
         let key_storage = [0x42; KEY_SIZE + 16];
         let nonce_storage = [0x17; NONCE_SIZE + 16];
@@ -160,7 +151,7 @@ fn test_xor_touches_only_the_named_bytes_at_every_alignment(
             let mut storage = std::vec![0xa5; offset + length + 16];
             storage[offset..offset + length].copy_from_slice(&plaintext);
 
-            cipher.xor(
+            xor(
                 backend,
                 key,
                 nonce,
@@ -196,7 +187,7 @@ proptest! {
 
         for backend in [Backend::Rust, Backend::Auto] {
             let mut data = plaintext.clone();
-            ChaCha20::new().xor(backend, &key, &nonce, counter, &mut data);
+            xor(backend, &key, &nonce, u64::from(counter), &mut data);
 
             prop_assert_eq!(&data, &expected, "{:?}", backend);
         }
@@ -204,20 +195,20 @@ proptest! {
 }
 
 // === === === === === === === === === ===
-// xor_bernstein
+// xor, under an eight-byte nonce
 // === === === === === === === === === ===
 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_xor_bernstein_rejects_counter_exhaustion_before_touching_data(#[case] backend: Backend) {
-    let cipher = ChaCha20::new();
-
+fn test_xor_under_an_eight_byte_nonce_rejects_counter_exhaustion_before_touching_data(
+    #[case] backend: Backend,
+) {
     for blocks in 1..=4u64 {
         let mut data = std::vec![0xa5; blocks as usize * BLOCK_SIZE + 1];
         let before = data.clone();
         let result = catch_unwind(AssertUnwindSafe(|| {
-            cipher.xor_bernstein(
+            xor(
                 backend,
                 &[0x42; KEY_SIZE],
                 &[0x17; BERNSTEIN_NONCE_SIZE],
@@ -234,11 +225,10 @@ fn test_xor_bernstein_rejects_counter_exhaustion_before_touching_data(#[case] ba
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_xor_bernstein_returns_the_published_blocks(#[case] backend: Backend) {
-    let cipher = ChaCha20::new();
+fn test_xor_under_an_eight_byte_nonce_returns_the_published_blocks(#[case] backend: Backend) {
     let mut data = [0u8; BLOCK_SIZE];
 
-    cipher.xor_bernstein(
+    xor(
         backend,
         &[0; KEY_SIZE],
         &[0; BERNSTEIN_NONCE_SIZE],
@@ -249,17 +239,16 @@ fn test_xor_bernstein_returns_the_published_blocks(#[case] backend: Backend) {
 
     data.fill(0);
     let key = core::array::from_fn(|at| at as u8);
-    let nonce = vectors::hex("0000004a00000000");
+    let nonce: [u8; BERNSTEIN_NONCE_SIZE] = vectors::hex("0000004a00000000");
 
-    cipher.xor_bernstein(backend, &key, &nonce, 0x09000000_00000001, &mut data);
+    xor(backend, &key, &nonce, 0x09000000_00000001, &mut data);
     assert_eq!(data, vectors::hex::<BLOCK_SIZE>(vectors::BLOCK));
 }
 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_xor_bernstein_carries_without_changing_the_nonce(#[case] backend: Backend) {
-    let cipher = ChaCha20::new();
+fn test_xor_under_an_eight_byte_nonce_carries_without_changing_the_nonce(#[case] backend: Backend) {
     let key = [0x53; KEY_SIZE];
     let nonce = [0xa7; BERNSTEIN_NONCE_SIZE];
 
@@ -273,10 +262,10 @@ fn test_xor_bernstein_carries_without_changing_the_nonce(#[case] backend: Backen
         let expected = oracle::xor(&key, &nonce, counter, &plaintext);
         let mut data = plaintext;
 
-        cipher.xor_bernstein(backend, &key, &nonce, counter, &mut data);
+        xor(backend, &key, &nonce, counter, &mut data);
         assert_eq!(data.as_slice(), expected, "counter {counter}");
 
-        cipher.xor_bernstein(backend, &key, &nonce, counter, &mut data);
+        xor(backend, &key, &nonce, counter, &mut data);
         assert_eq!(data, plaintext);
     }
 }
@@ -284,8 +273,7 @@ fn test_xor_bernstein_carries_without_changing_the_nonce(#[case] backend: Backen
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_xor_bernstein_accepts_the_last_counter(#[case] backend: Backend) {
-    let cipher = ChaCha20::new();
+fn test_xor_under_an_eight_byte_nonce_accepts_the_last_counter(#[case] backend: Backend) {
     let key = [0x42; KEY_SIZE];
     let nonce = [0x17; BERNSTEIN_NONCE_SIZE];
 
@@ -293,7 +281,7 @@ fn test_xor_bernstein_accepts_the_last_counter(#[case] backend: Backend) {
         let mut data = std::vec![0xa5; length];
         let expected = oracle::xor(&key, &nonce, u64::MAX, &data);
 
-        cipher.xor_bernstein(backend, &key, &nonce, u64::MAX, &mut data);
+        xor(backend, &key, &nonce, u64::MAX, &mut data);
         assert_eq!(data, expected, "{length} bytes in");
     }
 }
@@ -301,11 +289,9 @@ fn test_xor_bernstein_accepts_the_last_counter(#[case] backend: Backend) {
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_xor_bernstein_touches_only_the_named_bytes_at_every_alignment(
+fn test_xor_under_an_eight_byte_nonce_touches_only_the_named_bytes_at_every_alignment(
     #[case] backend: Backend,
 ) -> Result<(), TryFromSliceError> {
-    let cipher = ChaCha20::new();
-
     for offset in 0..16 {
         let key_storage = [0x42; KEY_SIZE + 16];
         let nonce_storage = [0x17; BERNSTEIN_NONCE_SIZE + 16];
@@ -319,7 +305,7 @@ fn test_xor_bernstein_touches_only_the_named_bytes_at_every_alignment(
             let mut storage = std::vec![0xa5; offset + length + 16];
             storage[offset..offset + length].copy_from_slice(&plaintext);
 
-            cipher.xor_bernstein(
+            xor(
                 backend,
                 key,
                 nonce,
@@ -345,7 +331,7 @@ fn test_xor_bernstein_touches_only_the_named_bytes_at_every_alignment(
 
 proptest! {
     #[test]
-    fn test_xor_bernstein_returns_what_the_oracle_returns(
+    fn test_xor_under_an_eight_byte_nonce_returns_what_the_oracle_returns(
         key: [u8; KEY_SIZE],
         nonce: [u8; BERNSTEIN_NONCE_SIZE],
         counter in 0..=u64::MAX - 32,
@@ -355,7 +341,7 @@ proptest! {
 
         for backend in [Backend::Rust, Backend::Auto] {
             let mut data = plaintext.clone();
-            ChaCha20::new().xor_bernstein(backend, &key, &nonce, counter, &mut data);
+            xor(backend, &key, &nonce, counter, &mut data);
 
             prop_assert_eq!(&data, &expected, "{:?}", backend);
         }

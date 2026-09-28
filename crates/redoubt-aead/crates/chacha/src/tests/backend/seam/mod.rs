@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! What each entry point answers, asked of every backend the target has.
+//! What each function of the seam answers, asked of every backend the target
+//! has.
 //!
-//! One file per primitive, and the rounds here because they are what all three
-//! are built on.
+//! One file per function, and the rounds here because every other one is built
+//! on them.
 
-mod chacha20;
-mod hchacha20;
-mod xchacha20;
+mod subkey;
+mod xor;
+mod xxor;
 
 use proptest::prelude::*;
 use rstest::rstest;

@@ -14,4 +14,7 @@ mod forensics;
 mod constant_time;
 
 mod backend;
+mod chacha20;
+mod hchacha20;
 mod rfc;
+mod xchacha20;

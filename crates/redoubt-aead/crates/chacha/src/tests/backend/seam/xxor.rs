@@ -12,29 +12,27 @@ use rstest::rstest;
 use redoubt_aead_core::consts::chacha::{BLOCK_SIZE, KEY_SIZE, XNONCE_SIZE};
 use redoubt_asm::Backend;
 
-use crate::xchacha20::XChaCha20;
+use crate::backend::xxor;
 
 use crate::tests::support::{oracle, vectors};
 
 // === === === === === === === === === ===
-// xor
+// xxor
 // === === === === === === === === === ===
 
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_xor_rejects_counter_exhaustion_before_touching_data(#[case] backend: Backend) {
-    let cipher = XChaCha20::new();
-
+fn test_xxor_rejects_counter_exhaustion_before_touching_data(#[case] backend: Backend) {
     for blocks in 1..=4u32 {
         let mut data = std::vec![0xa5; blocks as usize * BLOCK_SIZE + 1];
         let before = data.clone();
         let result = catch_unwind(AssertUnwindSafe(|| {
-            cipher.xor(
+            xxor(
                 backend,
                 &[0x42; KEY_SIZE],
                 &[0x17; XNONCE_SIZE],
-                u32::MAX - blocks + 1,
+                u64::from(u32::MAX - blocks + 1),
                 &mut data,
             );
         }));
@@ -47,14 +45,12 @@ fn test_xor_rejects_counter_exhaustion_before_touching_data(#[case] backend: Bac
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_xor_returns_the_published_ciphertext(#[case] backend: Backend) {
-    let cipher = XChaCha20::new();
-
-    for counter in 0..=1 {
+fn test_xxor_returns_the_published_ciphertext(#[case] backend: Backend) {
+    for counter in 0..=1_u64 {
         let mut data = vectors::DHOLE.to_vec();
         let expected = vectors::hex::<304>(vectors::XCIPHERTEXT[counter as usize]);
 
-        cipher.xor(
+        xxor(
             backend,
             &vectors::hex(vectors::XKEY),
             &vectors::hex(vectors::XNONCE),
@@ -63,7 +59,7 @@ fn test_xor_returns_the_published_ciphertext(#[case] backend: Backend) {
         );
         assert_eq!(data, expected, "counter {counter}");
 
-        cipher.xor(
+        xxor(
             backend,
             &vectors::hex(vectors::XKEY),
             &vectors::hex(vectors::XNONCE),
@@ -77,8 +73,7 @@ fn test_xor_returns_the_published_ciphertext(#[case] backend: Backend) {
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_xor_accepts_the_last_counter(#[case] backend: Backend) {
-    let cipher = XChaCha20::new();
+fn test_xxor_accepts_the_last_counter(#[case] backend: Backend) {
     let key = [0x42; KEY_SIZE];
     let nonce = [0x17; XNONCE_SIZE];
 
@@ -90,7 +85,7 @@ fn test_xor_accepts_the_last_counter(#[case] backend: Backend) {
             let mut data = std::vec![0xa5; length];
             let expected = oracle::xxor(&key, &nonce, counter, &data);
 
-            cipher.xor(backend, &key, &nonce, counter, &mut data);
+            xxor(backend, &key, &nonce, u64::from(counter), &mut data);
 
             assert_eq!(data, expected, "counter {counter}, {length} bytes in");
         }
@@ -100,11 +95,9 @@ fn test_xor_accepts_the_last_counter(#[case] backend: Backend) {
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_xor_touches_only_the_named_bytes_at_every_alignment(
+fn test_xxor_touches_only_the_named_bytes_at_every_alignment(
     #[case] backend: Backend,
 ) -> Result<(), TryFromSliceError> {
-    let cipher = XChaCha20::new();
-
     for offset in 0..16 {
         let key_storage: [u8; KEY_SIZE + 16] = core::array::from_fn(|at| at as u8);
         let nonce_storage: [u8; XNONCE_SIZE + 16] = core::array::from_fn(|at| 0x80 + at as u8);
@@ -117,7 +110,7 @@ fn test_xor_touches_only_the_named_bytes_at_every_alignment(
             let mut storage = std::vec![0xa5; offset + length + 16];
             storage[offset..offset + length].copy_from_slice(&plaintext);
 
-            cipher.xor(
+            xxor(
                 backend,
                 key,
                 nonce,
@@ -143,7 +136,7 @@ fn test_xor_touches_only_the_named_bytes_at_every_alignment(
 
 proptest! {
     #[test]
-    fn test_xor_returns_what_the_oracle_returns(
+    fn test_xxor_returns_what_the_oracle_returns(
         key: [u8; KEY_SIZE],
         nonce: [u8; XNONCE_SIZE],
         counter in 0..=u32::MAX - 32,
@@ -153,7 +146,7 @@ proptest! {
 
         for backend in [Backend::Rust, Backend::Auto] {
             let mut data = plaintext.clone();
-            XChaCha20::new().xor(backend, &key, &nonce, counter, &mut data);
+            xxor(backend, &key, &nonce, u64::from(counter), &mut data);
 
             prop_assert_eq!(&data, &expected, "{:?}", backend);
         }
