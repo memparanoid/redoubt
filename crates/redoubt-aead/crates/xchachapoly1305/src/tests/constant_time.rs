@@ -105,7 +105,7 @@ fn test_decrypt_branches_on_nothing_but_the_tag_when_it_matches() {
 
     let answer = XChaCha20Poly1305::new().decrypt(&key, &nonce, b"aad", &mut data, &tag);
 
-    core::hint::black_box((answer, &data));
+    let _ = core::hint::black_box((answer, &data));
 }
 
 #[test]
@@ -123,5 +123,5 @@ fn test_decrypt_branches_on_nothing_but_the_tag_when_it_does_not_match() {
 
     let answer = XChaCha20Poly1305::new().decrypt(&key, &nonce, b"aad", &mut data, &tag);
 
-    core::hint::black_box((answer, &data));
+    let _ = core::hint::black_box((answer, &data));
 }

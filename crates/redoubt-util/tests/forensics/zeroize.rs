@@ -51,7 +51,7 @@ fn a_vec_all_spare(of: usize) -> Vec<u8> {
 
     giving(&mut vec);
 
-    vec.truncate(0);
+    vec.clear();
 
     vec
 }

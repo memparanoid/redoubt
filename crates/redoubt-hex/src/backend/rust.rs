@@ -11,7 +11,7 @@
 ///
 /// `dst` twice as long as `src`.
 pub(crate) unsafe fn bytes_to_hex(src: &[u8], dst: &mut [u8]) {
-    for (byte, digits) in src.iter().zip(dst.chunks_exact_mut(2)) {
+    for (byte, digits) in src.iter().zip(dst.as_chunks_mut::<2>().0.iter_mut()) {
         digits[0] = nibble_to_digit(byte >> 4);
         digits[1] = nibble_to_digit(byte & 0x0F);
     }
@@ -36,7 +36,7 @@ pub(crate) unsafe fn hex_to_bytes(src: &[u8], dst: &mut [u8]) -> bool {
         return false;
     }
 
-    for (pair, byte) in src.chunks_exact(2).zip(dst.iter_mut()) {
+    for (pair, byte) in src.as_chunks::<2>().0.iter().zip(dst.iter_mut()) {
         *byte = (digit_to_nibble(pair[0]) << 4) | digit_to_nibble(pair[1]);
     }
 

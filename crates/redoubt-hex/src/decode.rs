@@ -41,7 +41,7 @@ pub(crate) fn hex_to_bytes_with_backend(
     src: &[u8],
     dst: &mut [u8],
 ) -> Result<(), HexError> {
-    if src.len() % 2 != 0 {
+    if !src.len().is_multiple_of(2) {
         return Err(HexError::OddLength);
     }
 

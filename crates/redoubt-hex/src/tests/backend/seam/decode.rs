@@ -25,7 +25,9 @@ fn parsed(digits: &[u8]) -> Option<Vec<u8>> {
     }
 
     digits
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| {
             let pair = core::str::from_utf8(pair).ok()?;
 
