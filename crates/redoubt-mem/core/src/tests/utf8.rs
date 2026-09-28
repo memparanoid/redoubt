@@ -5,8 +5,11 @@
 use std::string::String;
 
 use proptest::prelude::*;
+use redoubt_asm::Backend;
+use rstest::rstest;
 
 use crate::is_utf8;
+use crate::utf8::is_utf8_using;
 
 // ============================================================================
 // is_utf8
@@ -30,4 +33,18 @@ proptest! {
 
         prop_assert!(!is_utf8(&bytes));
     }
+}
+
+// ============================================================================
+// is_utf8_using
+// ============================================================================
+
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_is_utf8_using_answers_for_text_and_for_what_is_not(#[case] backend: Backend) {
+    let text = "a\u{e9}\u{20ac}\u{1f600}z".as_bytes();
+
+    assert!(is_utf8_using(backend, text));
+    assert!(!is_utf8_using(backend, &text[..text.len() - 2]));
 }

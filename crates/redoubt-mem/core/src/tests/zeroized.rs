@@ -5,8 +5,11 @@
 use std::vec;
 
 use proptest::prelude::*;
+use redoubt_asm::Backend;
+use rstest::rstest;
 
 use crate::is_zeroized;
+use crate::zeroized::is_zeroized_using;
 
 // ============================================================================
 // is_zeroized
@@ -30,4 +33,21 @@ proptest! {
 
         prop_assert!(!is_zeroized(&bytes));
     }
+}
+
+// ============================================================================
+// is_zeroized_using
+// ============================================================================
+
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
+fn test_is_zeroized_using_answers_for_zeros_and_for_what_is_not(#[case] backend: Backend) {
+    let mut bytes = vec![0_u8; 64];
+
+    assert!(is_zeroized_using(backend, &bytes));
+
+    bytes[63] = 1;
+
+    assert!(!is_zeroized_using(backend, &bytes));
 }

@@ -11,14 +11,14 @@ use proptest::prelude::*;
 use redoubt_asm::Backend;
 use rstest::rstest;
 
-use crate::zeroized::is_zeroized_using;
+use crate::backend::is_zeroized;
 
 /// Both backends, for the proptests, which take no cases of their own.
 const BACKENDS: [Backend; 2] = [Backend::Rust, Backend::Auto];
 
 fn agrees(backend: Backend, bytes: &[u8]) {
     assert_eq!(
-        is_zeroized_using(backend, bytes),
+        is_zeroized(backend, bytes),
         bytes.iter().all(|byte| *byte == 0),
         "{backend:?}: {bytes:02x?}"
     );

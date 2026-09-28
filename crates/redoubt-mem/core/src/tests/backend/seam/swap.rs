@@ -10,13 +10,12 @@
 //! buffers are compared end to end, so a write one byte outside the range is a
 //! failure here; the guard-page test asks the same of a read.
 
-use std::boxed::Box;
 use std::vec::Vec;
 
 use redoubt_asm::Backend;
 use rstest::rstest;
 
-use crate::swap::{swap_nonoverlapping_using, swap_using};
+use crate::backend::swap_nonoverlapping;
 
 /// Cases that are the same on every run and on every machine.
 ///
@@ -69,7 +68,7 @@ fn matches_core(
             n,
         );
 
-        swap_nonoverlapping_using(
+        swap_nonoverlapping(
             backend,
             a.as_mut_ptr().add(offset_a),
             b.as_mut_ptr().add(offset_b),
@@ -82,7 +81,7 @@ fn matches_core(
 
     // SAFETY: as above, on buffers of the same shape.
     unsafe {
-        swap_nonoverlapping_using(
+        swap_nonoverlapping(
             backend,
             a.as_mut_ptr().add(offset_a),
             b.as_mut_ptr().add(offset_b),
@@ -189,7 +188,7 @@ fn test_swap_nonoverlapping_exchanges_adjacent_ranges_in_both_address_orders(
         // SAFETY: the two ranges are `n` bytes each inside one allocation of
         // `2n + 2`, starting at 1 and at `n + 1`, so they do not overlap.
         unsafe {
-            swap_nonoverlapping_using(
+            swap_nonoverlapping(
                 backend,
                 data.as_mut_ptr().add(1),
                 data.as_mut_ptr().add(n + 1),
@@ -201,7 +200,7 @@ fn test_swap_nonoverlapping_exchanges_adjacent_ranges_in_both_address_orders(
 
         // SAFETY: the same two ranges, named the other way round.
         unsafe {
-            swap_nonoverlapping_using(
+            swap_nonoverlapping(
                 backend,
                 data.as_mut_ptr().add(n + 1),
                 data.as_mut_ptr().add(1),
@@ -211,221 +210,6 @@ fn test_swap_nonoverlapping_exchanges_adjacent_ranges_in_both_address_orders(
 
         assert_eq!(data, original);
     }
-}
-
-/// A count in elements of eight bytes, a count of zero, and a type of no size.
-///
-/// The count is in elements and the assembly takes bytes, so the multiplication
-/// is this crate's to get right. Zero and a zero-sized type are the two cases
-/// where the pointers are allowed to be dangling and the call must not happen
-/// at all.
-#[rstest]
-#[case::rust(Backend::Rust)]
-#[case::auto(Backend::Auto)]
-fn test_swap_nonoverlapping_counts_in_elements_and_skips_what_has_no_size(
-    #[case] backend: Backend,
-) {
-    let mut a = [0x1234_5678_dead_beef_u64; 67];
-    let mut b = [0xfedc_ba98_7654_3210_u64; 67];
-
-    // SAFETY: 65 elements starting at index 1 of two arrays of 67, which are
-    // separate allocations.
-    unsafe { swap_nonoverlapping_using(backend, a.as_mut_ptr().add(1), b.as_mut_ptr().add(1), 65) };
-
-    assert!(a[1..66].iter().all(|&v| v == 0xfedc_ba98_7654_3210));
-    assert!(b[1..66].iter().all(|&v| v == 0x1234_5678_dead_beef));
-
-    // The untouched ends, which say the count was read as elements and not as
-    // bytes: sixty-five bytes would have stopped inside the ninth element.
-    assert_eq!(a[0], a[66]);
-    assert_eq!(b[0], b[66]);
-
-    swap_using(backend, &mut (), &mut ());
-
-    let dangling = core::ptr::NonNull::<u64>::dangling().as_ptr();
-
-    // SAFETY: a count of zero reads and writes nothing, which a dangling
-    // pointer is allowed to be handed.
-    unsafe { swap_nonoverlapping_using(backend, dangling, dangling, 0) };
-
-    let zero_sized = core::ptr::NonNull::<()>::dangling().as_ptr();
-
-    // SAFETY: every count of a zero-sized type is zero bytes, `usize::MAX`
-    // included.
-    unsafe { swap_nonoverlapping_using(backend, zero_sized, zero_sized, usize::MAX) };
-}
-
-// ============================================================================
-// swap
-// ============================================================================
-
-/// A value that owns something, exchanged without being dropped or duplicated.
-///
-/// This is what a swap is for and what a byte copy cannot do: after it, each
-/// side owns what the other owned, the heap blocks are the same two blocks,
-/// and nothing has been dropped. The pointers are compared rather than the
-/// values, because two `Box<u64>` holding the same number would agree without
-/// having moved.
-///
-/// The drop count is the other half: a routine that left a third copy
-/// somewhere would drop three times at the end of the test, not two.
-#[rstest]
-#[case::rust(Backend::Rust)]
-#[case::auto(Backend::Auto)]
-fn test_swap_exchanges_owners_without_dropping_or_duplicating_them(#[case] backend: Backend) {
-    use std::cell::Cell;
-    use std::rc::Rc;
-
-    #[repr(C)]
-    struct OwnerU64 {
-        tag: u8,
-        value: Box<u64>,
-        drops: Rc<Cell<usize>>,
-    }
-
-    impl Drop for OwnerU64 {
-        fn drop(&mut self) {
-            self.drops.set(self.drops.get() + 1);
-        }
-    }
-
-    let drops = Rc::new(Cell::new(0));
-
-    let mut a = OwnerU64 {
-        tag: 1,
-        value: Box::new(11),
-        drops: drops.clone(),
-    };
-
-    let mut b = OwnerU64 {
-        tag: 2,
-        value: Box::new(22),
-        drops: drops.clone(),
-    };
-
-    let address_a = &*a.value as *const u64;
-    let address_b = &*b.value as *const u64;
-
-    swap_using(backend, &mut a, &mut b);
-
-    assert_eq!((a.tag, *a.value), (2, 22));
-    assert_eq!((b.tag, *b.value), (1, 11));
-
-    assert_eq!(&*a.value as *const u64, address_b);
-    assert_eq!(&*b.value as *const u64, address_a);
-
-    assert_eq!(drops.get(), 0, "a swap drops nothing");
-
-    drop(a);
-    drop(b);
-
-    assert_eq!(drops.get(), 2, "two owners, dropped once each");
-}
-
-/// An owner whose handle is three words, and which counts its own drops.
-///
-/// The one above owns through a `Box`, which is a single word: a width measured
-/// wrong there is a pointer that arrives or does not. Here the pointer, the
-/// capacity and the length have to arrive together, and they are inside a value
-/// that something will later free — so a handle that came apart is not a wrong
-/// answer, it is a free of a block with a length the allocator never gave out.
-///
-/// The drop count is the other half, as above: a routine that left a third copy
-/// somewhere would drop three times at the end, not two.
-#[rstest]
-#[case::rust(Backend::Rust)]
-#[case::auto(Backend::Auto)]
-fn test_swap_exchanges_three_word_owners_without_dropping_or_duplicating_them(
-    #[case] backend: Backend,
-) {
-    use std::cell::Cell;
-    use std::rc::Rc;
-
-    #[repr(C)]
-    struct OwnerVec {
-        tag: u8,
-        holding: std::vec::Vec<u8>,
-        drops: Rc<Cell<usize>>,
-    }
-
-    impl Drop for OwnerVec {
-        fn drop(&mut self) {
-            self.drops.set(self.drops.get() + 1);
-        }
-    }
-
-    let drops = Rc::new(Cell::new(0));
-
-    let mut a = OwnerVec {
-        tag: 1,
-        holding: std::vec![11u8; 3],
-        drops: drops.clone(),
-    };
-
-    let mut b = OwnerVec {
-        tag: 2,
-        holding: std::vec![22u8; 64],
-        drops: drops.clone(),
-    };
-
-    let address_a = a.holding.as_ptr();
-    let address_b = b.holding.as_ptr();
-
-    let capacity_a = a.holding.capacity();
-    let capacity_b = b.holding.capacity();
-
-    swap_using(backend, &mut a, &mut b);
-
-    assert_eq!((a.tag, &a.holding[..]), (2, &std::vec![22u8; 64][..]));
-    assert_eq!((b.tag, &b.holding[..]), (1, &std::vec![11u8; 3][..]));
-
-    assert_eq!(
-        (a.holding.as_ptr(), a.holding.capacity()),
-        (address_b, capacity_b)
-    );
-    assert_eq!(
-        (b.holding.as_ptr(), b.holding.capacity()),
-        (address_a, capacity_a)
-    );
-
-    assert_eq!(drops.get(), 0, "a swap drops nothing");
-
-    drop(a);
-    drop(b);
-
-    assert_eq!(drops.get(), 2, "two owners, dropped once each");
-}
-
-/// An owner whose handle is three words, exchanged whole.
-///
-/// A `Box` is one word and cannot show this: what a `Vec` adds is that its
-/// pointer, its capacity and its length have to arrive together. An exchange
-/// that measured the wrong width would leave one side pointing at the other's
-/// block with its own length, and that does not fail here — it fails at the
-/// free, with a size the allocator was never given.
-///
-/// Both sides own a block, and the lengths differ, so a length that stayed
-/// behind is visible as a length.
-#[rstest]
-#[case::rust(Backend::Rust)]
-#[case::auto(Backend::Auto)]
-fn test_swap_exchanges_a_three_word_handle_whole(#[case] backend: Backend) {
-    let mut a = std::vec![1u8, 2, 3];
-    let mut b = std::vec![9u8; 64];
-
-    let address_a = a.as_ptr();
-    let address_b = b.as_ptr();
-
-    let capacity_a = a.capacity();
-    let capacity_b = b.capacity();
-
-    swap_using(backend, &mut a, &mut b);
-
-    assert_eq!(a, std::vec![9u8; 64]);
-    assert_eq!(b, std::vec![1u8, 2, 3]);
-
-    assert_eq!((a.as_ptr(), a.capacity()), (address_b, capacity_b));
-    assert_eq!((b.as_ptr(), b.capacity()), (address_a, capacity_a));
 }
 
 // ============================================================================
