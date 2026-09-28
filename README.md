@@ -205,8 +205,8 @@ Every one of these types, and every CipherBox, carries its own forensic tests. T
 
 **`RedoubtArray`**: Prevents copies during assignment
 - Simply redeclaring arrays (`let arr2 = arr1;`) can leave copies on stack
-- `replace_from_mut_array` uses `ptr::swap_nonoverlapping` to exchange contents without intermediate copies
-- Zeroizes the source after swap, ensuring no plaintext remains
+- `replace_from_mut_array` copies through an assembly routine that leaves nothing in a register, with no intermediate copies
+- Zeroizes the source after the copy, ensuring no plaintext remains
 
 **`RedoubtSecret`**: Prevents accidental dereferencing of Copy types
 - Forces explicit `as_ref()`/`as_mut()` calls to access the inner value
@@ -221,7 +221,7 @@ Every one of these types, and every CipherBox, carries its own forensic tests. T
 ## Security
 
 - **Encryption at rest**: Sensitive data uses AEAD encryption (AEGIS-128L)
-- **Guaranteed zeroization**: Memory is wiped using compiler barriers that prevent optimization
+- **Guaranteed zeroization**: Memory is wiped by an assembly routine the optimizer cannot remove or shorten, and where there is no assembly by a write an `asm!` barrier keeps alive
 - **Page-level protections**: the master key lives in its own mapping, `mlock`ed so it never reaches swap, kept at `PROT_NONE` between uses, and excluded from core dumps with `madvise(MADV_DONTDUMP)`
 - **Nothing process-wide**: no `prctl`, no `setrlimit`. Blocking debuggers and core dumps for the whole process is the application's decision, not a library's
 - **Field-level encryption**: Decrypt only what you need, minimizing exposure time
