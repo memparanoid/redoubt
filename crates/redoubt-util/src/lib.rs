@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-//! Bulk zeroization of slices and vectors, and the probes that check it.
+//! Bulk zeroization of slices and vectors, the spare capacity included.
 //!
 //! ## License
 //!
@@ -101,20 +101,10 @@ pub fn zeroize_primitive<T: Default>(val: &mut T) {
 /// ```
 #[inline(always)]
 pub unsafe fn fast_zeroize_slice<T>(slice: &mut [T]) {
-    if slice.is_empty() {
-        return;
-    }
-
-    let byte_len = core::mem::size_of_val(slice);
-
-    // SAFETY: the length is the slice's own size in bytes, so the write stays
-    // inside it, and `&mut [T]` is what makes it the only reference. That the
-    // zeros are a `T` is the caller's. The read is of one byte the write just
-    // set.
-    unsafe {
-        core::ptr::write_bytes(slice.as_mut_ptr() as *mut u8, 0, byte_len);
-        core::ptr::read_volatile(slice.as_ptr() as *const u8);
-    }
+    // SAFETY: the count is the slice's own length, so the write stays inside
+    // it, and `&mut [T]` is what makes it the only reference. That the zeros
+    // are a `T` is the caller's.
+    unsafe { redoubt_mem::zeroize(slice.as_mut_ptr(), slice.len()) };
 }
 
 /// Writes zeros over the whole allocation, the spare past `len` included.
@@ -139,21 +129,11 @@ pub unsafe fn fast_zeroize_slice<T>(slice: &mut [T]) {
 /// ```
 #[inline(always)]
 pub unsafe fn fast_zeroize_vec<T>(vec: &mut Vec<T>) {
-    if vec.capacity() == 0 {
-        return;
-    }
-
-    let byte_len = vec.capacity() * core::mem::size_of::<T>();
-
-    // SAFETY: the length is the `Vec`'s own capacity in bytes, so the write
-    // stays inside its allocation — the spare past `len` included, which is
-    // the point — and `&mut Vec<T>` is what makes it the only reference. That
-    // the zeros are a `T` is the caller's. The read is of one byte the write
-    // just set.
-    unsafe {
-        core::ptr::write_bytes(vec.as_mut_ptr() as *mut u8, 0, byte_len);
-        core::ptr::read_volatile(vec.as_ptr() as *const u8);
-    }
+    // SAFETY: the count is the `Vec`'s own capacity, so the write stays inside
+    // its allocation — the spare past `len` included, which is the point — and
+    // `&mut Vec<T>` is what makes it the only reference. That the zeros are a
+    // `T` is the caller's.
+    unsafe { redoubt_mem::zeroize(vec.as_mut_ptr(), vec.capacity()) };
 }
 
 /// Writes zeros over the spare past `len`, and leaves the elements as they are.
@@ -172,20 +152,9 @@ pub unsafe fn fast_zeroize_vec<T>(vec: &mut Vec<T>) {
 /// ```
 #[inline(always)]
 pub fn zeroize_spare_capacity<T>(vec: &mut Vec<T>) {
-    let spare = vec.capacity() - vec.len();
-    if spare == 0 {
-        return;
-    }
-
-    let byte_len = spare * core::mem::size_of::<T>();
-
     // SAFETY: `len` is inside the capacity, so offsetting by it lands in the
     // allocation, and what is written from there is the difference between the
-    // two — the spare, and no element the `Vec` is holding. The read is of one
-    // byte the write just set.
-    unsafe {
-        let spare_ptr = vec.as_mut_ptr().add(vec.len()) as *mut u8;
-        core::ptr::write_bytes(spare_ptr, 0, byte_len);
-        core::ptr::read_volatile(spare_ptr);
-    }
+    // two — the spare, and no element the `Vec` is holding. Nothing reads the
+    // spare as a `T`, so the zeros need not be one.
+    unsafe { redoubt_mem::zeroize(vec.as_mut_ptr().add(vec.len()), vec.capacity() - vec.len()) };
 }
