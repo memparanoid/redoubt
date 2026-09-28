@@ -8,7 +8,7 @@
 
 <h1 align="center">Project Insights</h1>
 
-<p align="center"><em>Generated on 2026-09-28 04:29</em></p>
+<p align="center"><em>Generated on 2026-09-28 10:43</em></p>
 
 ---
 
@@ -17,24 +17,24 @@
 | Metric | Coverage | Covered | Total |
 |--------|----------|---------|-------|
 | **Function** | **100.00%** | 817 | 817 |
-| **Line** | **99.83%** | 5,914 | 5,924 |
-| **Region** | **99.59%** | 8,420 | 8,455 |
-| **Branch** | **97.50%** | 468 | 480 |
+| **Line** | **99.83%** | 5,917 | 5,927 |
+| **Region** | **99.59%** | 8,425 | 8,460 |
+| **Branch** | **97.51%** | 470 | 482 |
 
 ## Security Audit
 
-**No vulnerabilities found** — scanned 200 crates against 1271 advisories
+**No vulnerabilities found** — scanned 201 crates against 1273 advisories
 
 ## Code Statistics
 
 | Metric | Production | Tests | Total |
 |--------|------------|-------|-------|
-| **Code Lines** | 10,672 | 56,592 | 67,264 |
-| **Total Lines** | 14,933 | 77,405 | 92,338 |
-| **Files** | 187 | 343 | 530 |
-| **Comments** | 1,489 | - | 8,444 |
+| **Code Lines** | 10,680 | 56,613 | 67,293 |
+| **Total Lines** | 14,949 | 77,441 | 92,390 |
+| **Files** | 188 | 345 | 533 |
+| **Comments** | 1,490 | - | 8,450 |
 
-> **Test/Code Ratio:** `5.30x` — 56,592 test lines / 10,672 production lines
+> **Test/Code Ratio:** `5.30x` — 56,613 test lines / 10,680 production lines
 
 ## Tests
 
@@ -61,19 +61,20 @@
 
 | Crate | Production Code | Tests |
 |-------|-----------------|-------|
-| `redoubt` | 33 | 0 |
+| `redoubt` | 34 | 0 |
 | `redoubt-aead` | 694 | 193 |
-| `redoubt-aead/aegis128l` | 175 | 119 |
+| `redoubt-aead/aegis128l` | 174 | 119 |
 | `redoubt-aead/chacha` | 453 | 140 |
-| `redoubt-aead/core` | 170 | 31 |
+| `redoubt-aead/core` | 95 | 2 |
 | `redoubt-aead/poly1305` | 350 | 68 |
-| `redoubt-aead/xchachapoly1305` | 143 | 67 |
+| `redoubt-aead/xchachapoly1305` | 142 | 67 |
 | `redoubt-alloc` | 788 | 466 |
 | `redoubt-asm` | 12 | 1 |
 | `redoubt-buffer` | 308 | 127 |
 | `redoubt-codec` | 3 | 0 |
 | `redoubt-codec/core` | 1,598 | 370 |
 | `redoubt-codec/derive` | 118 | 47 |
+| `redoubt-eq` | 84 | 29 |
 | `redoubt-forensics` | 10 | 0 |
 | `redoubt-forensics/allocator` | 295 | 20 |
 | `redoubt-forensics/core` | 1,422 | 436 |
@@ -93,7 +94,7 @@
 | `redoubt-zero` | 6 | 0 |
 | `redoubt-zero/core` | 597 | 157 |
 | `redoubt-zero/derive` | 281 | 43 |
-| **Total** | **10,672** | **3263** |
+| **Total** | **10,680** | **3263** |
 
 ---
 
