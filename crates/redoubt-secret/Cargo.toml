@@ -14,10 +14,8 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
-redoubt-alloc.workspace = true
-redoubt-mem.workspace   = true
-redoubt-util.workspace  = true
-redoubt-zero.workspace  = true
+redoubt-mem.workspace  = true
+redoubt-zero.workspace = true
 
 [dev-dependencies]
 redoubt-forensics.workspace = true

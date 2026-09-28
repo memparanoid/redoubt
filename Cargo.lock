@@ -1165,10 +1165,8 @@ dependencies = [
 name = "redoubt-secret"
 version = "0.1.0-rc.14"
 dependencies = [
- "redoubt-alloc",
  "redoubt-forensics",
  "redoubt-mem",
- "redoubt-util",
  "redoubt-zero",
 ]
 
