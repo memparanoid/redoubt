@@ -22,10 +22,5 @@ pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 ///
 /// Not exported: nothing above this crate chooses how a tag is compared.
 pub(crate) fn constant_time_eq_using(backend: Backend, a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-
-    // SAFETY: the lengths were just found equal.
-    unsafe { backend::constant_time_eq(backend, a, b) }
+    backend::constant_time_eq(backend, a, b)
 }

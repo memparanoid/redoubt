@@ -32,19 +32,6 @@ fn test_constant_time_eq_answers_from_the_default_backend() {
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
-fn test_constant_time_eq_using_reports_runs_of_different_length(#[case] backend: Backend) {
-    // The shorter being a prefix of the longer: what would read as equal if the
-    // lengths were not compared first.
-    let short = [0x11u8; TAG_SIZE];
-    let long = [0x11u8; TAG_SIZE + 1];
-
-    assert!(!constant_time_eq_using(backend, &short, &long));
-    assert!(!constant_time_eq_using(backend, &long, &short));
-}
-
-#[rstest]
-#[case::rust(Backend::Rust)]
-#[case::auto(Backend::Auto)]
 fn test_constant_time_eq_using_answers_for_equal_runs_and_for_different_ones(
     #[case] backend: Backend,
 ) {

@@ -42,13 +42,11 @@ pub(crate) const HAS_ASM: bool = cfg!(ct_asm);
 /// Whether `a` and `b` hold the same bytes, in a time that says nothing about
 /// where they differ.
 ///
-/// # Safety
-///
-/// `a` and `b` of the same length.
-pub(crate) unsafe fn constant_time_eq(backend: Backend, a: &[u8], b: &[u8]) -> bool {
+/// Runs of different length answer false without either being read: a tag of
+/// the wrong width is a public fact about what arrived, not a timing question.
+pub(crate) fn constant_time_eq(backend: Backend, a: &[u8], b: &[u8]) -> bool {
     match backend {
         Backend::Rust => rust::constant_time_eq(a, b),
-        // SAFETY: the caller's, verbatim.
-        Backend::Auto => unsafe { chosen::constant_time_eq(a, b) },
+        Backend::Auto => chosen::constant_time_eq(a, b),
     }
 }

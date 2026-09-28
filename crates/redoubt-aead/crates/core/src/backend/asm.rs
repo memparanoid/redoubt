@@ -8,22 +8,23 @@ unsafe extern "C" {
     fn redoubt_ct_eq(a: *const u8, b: *const u8, len: usize, out: *mut u8);
 }
 
-/// Whether the two runs of equal length hold the same bytes.
+/// Whether `a` and `b` hold the same bytes; false for runs of different length,
+/// neither of them read.
 ///
 /// The answer arrives through a byte the caller owns rather than in a register,
 /// so the wipe at the end of the routine reaches everything it touched. What it
 /// writes there is one or zero and never the fold, which is the exclusive-or of
 /// the two runs and of no use to a caller that is not attacking one of them.
-///
-/// # Safety
-///
-/// `a` and `b` of the same length.
-pub(crate) unsafe fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+pub(crate) fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+
     let mut same = 0u8;
 
     // SAFETY: both pointers are to runs of `a.len()` readable bytes, the
-    // lengths being equal by the caller's contract, and `same` is one writable
-    // byte that neither of them overlaps.
+    // lengths having just been found equal, and `same` is one writable byte
+    // that neither of them overlaps.
     unsafe { redoubt_ct_eq(a.as_ptr(), b.as_ptr(), a.len(), &raw mut same) };
 
     same == 1

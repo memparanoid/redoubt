@@ -49,12 +49,24 @@ fn test_this_target_has_the_assembly() {
 #[rstest]
 #[case::rust(Backend::Rust)]
 #[case::auto(Backend::Auto)]
+fn test_constant_time_eq_reports_runs_of_different_length(#[case] backend: Backend) {
+    // The shorter being a prefix of the longer: what would read as equal if the
+    // lengths were not compared first.
+    let short = [0x11u8; TAG_SIZE];
+    let long = [0x11u8; TAG_SIZE + 1];
+
+    assert!(!constant_time_eq(backend, &short, &long));
+    assert!(!constant_time_eq(backend, &long, &short));
+}
+
+#[rstest]
+#[case::rust(Backend::Rust)]
+#[case::auto(Backend::Auto)]
 fn test_constant_time_eq_reports_two_empty_runs_equal(#[case] backend: Backend) {
     // The loop never runs, and the accumulator it would have folded into is
     // the answer. Which is the one length where "equal" comes from nothing
     // having been compared rather than from everything having matched.
-    // SAFETY: two runs of the same length.
-    assert!(unsafe { constant_time_eq(backend, &[], &[]) });
+    assert!(constant_time_eq(backend, &[], &[]));
 }
 
 #[rstest]
@@ -70,8 +82,7 @@ fn test_constant_time_eq_sees_a_difference_at_every_position(#[case] backend: Ba
         let mut b = a;
         b[at] ^= 0x80;
 
-        // SAFETY: two runs of the same length.
-        let same = unsafe { constant_time_eq(backend, &a, &b) };
+        let same = constant_time_eq(backend, &a, &b);
 
         assert!(!same, "a difference at byte {at} reads as equal");
     }
@@ -89,8 +100,7 @@ fn test_constant_time_eq_sees_every_bit_of_a_byte(#[case] backend: Backend) {
         let mut b = a;
         b[0] = 1 << bit;
 
-        // SAFETY: two runs of the same length.
-        let same = unsafe { constant_time_eq(backend, &a, &b) };
+        let same = constant_time_eq(backend, &a, &b);
 
         assert!(!same, "bit {bit} of the first byte reads as equal");
     }
@@ -110,8 +120,7 @@ fn test_constant_time_eq_reports_equal_runs_equal(#[case] backend: Backend) {
         let a: Vec<u8> = (0..length).map(|at| (at as u8) ^ 0x5a).collect();
         let b = a.clone();
 
-        // SAFETY: two runs of the same length.
-        let same = unsafe { constant_time_eq(backend, &a, &b) };
+        let same = constant_time_eq(backend, &a, &b);
 
         assert!(same, "two runs of {length} equal bytes read as different");
     }
