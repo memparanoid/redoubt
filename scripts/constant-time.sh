@@ -78,6 +78,10 @@ CASES=(
   "redoubt-poly1305 test_a_routine_that_stops_on_the_key_branches_on_the_secret $REPORTED"
   "redoubt-poly1305 test_the_chosen_init_branches_on_nothing 0"
   "redoubt-poly1305 test_the_chosen_update_and_finalize_branch_on_nothing 0"
+  "redoubt-hex test_a_routine_that_stops_on_a_non_digit_branches_on_the_secret $REPORTED"
+  "redoubt-hex test_the_chosen_bytes_to_hex_branches_on_nothing 0"
+  "redoubt-hex test_the_chosen_hex_to_bytes_branches_on_nothing_when_every_digit_is_one 0"
+  "redoubt-hex test_the_chosen_hex_to_bytes_branches_on_nothing_when_a_character_is_not_a_digit 0"
 )
 
 cd "$ROOT"
