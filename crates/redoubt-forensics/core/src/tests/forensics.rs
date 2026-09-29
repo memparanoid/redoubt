@@ -31,10 +31,7 @@ fn backwards(forwards: [u8; 32]) -> [u8; 32] {
 
 #[test]
 fn test_watching_each_reports_needle_for_no_needles_at_all() {
-    assert!(matches!(
-        Forensics::watching_each(&[]),
-        Err(Reason::Needle)
-    ));
+    assert!(matches!(Forensics::watching_each(&[]), Err(Reason::Needle)));
 }
 
 #[test]
@@ -63,7 +60,10 @@ fn test_snapshot_returns_the_report_of_the_first_needle() -> Result<(), AnyError
     let first_absent = Forensics::watching_each(&[&absent, &present])?.snapshot()?;
 
     assert!(first_held.found, "the process holds the first needle");
-    assert!(!first_absent.found, "the process does not hold the first needle");
+    assert!(
+        !first_absent.found,
+        "the process does not hold the first needle"
+    );
 
     Ok(())
 }

@@ -62,8 +62,7 @@
 
 use crate::analysis::memory::{Subject, instrument, sweep, within};
 use crate::analysis::state::{
-    COUNT, EACH, FOUND, ForensicState, MOST, NEEDLES, NEXT, Parts, RUNS, SCORE, SEEN, SWEPT,
-    WIDEST,
+    COUNT, EACH, FOUND, ForensicState, MOST, NEEDLES, NEXT, Parts, RUNS, SCORE, SEEN, SWEPT, WIDEST,
 };
 use crate::errors::Reason;
 

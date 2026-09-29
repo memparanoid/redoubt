@@ -31,9 +31,7 @@ use crate::analysis::score::{
     NOISE, Walk, close, count, density, follows, holds, lg2, piece, runs, settle, stretch, table,
     worth,
 };
-use crate::analysis::state::{
-    self, COUNT, FOUND, ForensicState, MOST, NEEDLES, NEXT, SEEN,
-};
+use crate::analysis::state::{self, COUNT, FOUND, ForensicState, MOST, NEEDLES, NEXT, SEEN};
 use crate::errors::AnyError;
 
 /// Room for one table of successors and one of bytes that appear.
@@ -329,7 +327,10 @@ fn test_step_tallies_a_needle_the_same_whatever_needles_walk_beside_it() {
     assert!(alone[0].1, "the memory holds the secret whole");
     assert_eq!(beside[2], alone[0]);
 
-    for (one, needle) in [&rotated[..], inside, &repeated, &HELD].into_iter().enumerate() {
+    for (one, needle) in [&rotated[..], inside, &repeated, &HELD]
+        .into_iter()
+        .enumerate()
+    {
         let on_its_own = walked(&[needle], &windows);
         let at = if one < 2 { one } else { one + 1 };
 
@@ -337,7 +338,10 @@ fn test_step_tallies_a_needle_the_same_whatever_needles_walk_beside_it() {
             on_its_own[0].0[3..].iter().any(|count| *count > 0),
             "needle {at} has no run of three or more to compare"
         );
-        assert_eq!(beside[at], on_its_own[0], "needle {at} tallies otherwise beside the rest");
+        assert_eq!(
+            beside[at], on_its_own[0],
+            "needle {at} tallies otherwise beside the rest"
+        );
     }
 }
 

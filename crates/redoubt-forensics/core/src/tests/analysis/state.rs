@@ -501,7 +501,11 @@ fn test_parts_hands_out_tables_with_one_entry_for_what_they_index() {
         ROOM + NEEDLES,
         "a counter per width a run can be, from none to a whole needle, per needle"
     );
-    assert_eq!(parts.lens.len(), MOST, "a counter per byte of the widest needle");
+    assert_eq!(
+        parts.lens.len(),
+        MOST,
+        "a counter per byte of the widest needle"
+    );
     assert_eq!(parts.tail.len(), MOST, "as far back as a run can be read");
     assert_eq!(
         parts.result.len(),
@@ -785,12 +789,18 @@ fn test_read_of_gives_every_needle_its_own_numbers_apart_from_the_photograph_s()
         for at in [FOUND, SCORE, WIDEST, RUNS] {
             let word = state.read_of(needle, at);
 
-            assert!(read.insert(word), "needle {needle}, word {at} is somebody else's");
+            assert!(
+                read.insert(word),
+                "needle {needle}, word {at} is somebody else's"
+            );
         }
     }
 
     for at in [SWEPT, OK, COUNT] {
-        assert!(read.insert(state.read(at)), "word {at} of the photograph is a needle's");
+        assert!(
+            read.insert(state.read(at)),
+            "word {at} of the photograph is a needle's"
+        );
     }
 }
 
