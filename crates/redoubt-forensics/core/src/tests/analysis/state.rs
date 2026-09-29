@@ -18,8 +18,8 @@
 //! other.
 
 use crate::analysis::state::{
-    BLOCK, COUNT, FOUND, ForensicState, MAGIC, MAPPINGS, MOST, OK, RUNS, SCORE, SHIPPED, SKIPS,
-    SWEPT, Spans, WIDEST,
+    BLOCK, COUNT, EACH, FOUND, ForensicState, MAGIC, MAPPINGS, MOST, NEEDLES, OK, ROOM, RUNS,
+    SCORE, SHIPPED, SKIPS, SWEPT, Spans, WIDEST,
 };
 
 // ============================================================================
@@ -286,10 +286,10 @@ fn test_hold_takes_a_needle_from_one_byte_to_the_whole_room() {
     let mut state = ForensicState::default();
 
     assert!(state.hold(&[0x5A], false));
-    assert_eq!(state.of, 1);
+    assert_eq!(state.parts().of[0], 1);
 
     assert!(state.hold(&[0x5A; MOST], false));
-    assert_eq!(state.of, MOST);
+    assert_eq!(state.parts().of[0], MOST as u64);
 }
 
 /// What went in is what is held, byte for byte, and nothing past it.
@@ -300,10 +300,10 @@ fn test_hold_keeps_the_needle_it_was_given_and_writes_no_further() {
 
     assert!(state.hold(&needle, false));
 
-    let secret = state.parts().secret;
+    let room = state.parts().needles;
 
-    assert_eq!(&secret[..needle.len()], &needle[..]);
-    assert!(secret[needle.len()..].iter().all(|byte| *byte == 0));
+    assert_eq!(&room[..needle.len()], &needle[..]);
+    assert!(room[needle.len()..].iter().all(|byte| *byte == 0));
 }
 
 /// Which way round the child reads it is the caller's to say.
@@ -334,9 +334,106 @@ fn test_hold_that_refuses_leaves_the_last_needle_alone() {
     assert!(state.hold(&[0x11, 0x22, 0x33], true));
     assert!(!state.hold(&[0x5A; MOST + 1], false));
 
-    assert_eq!(state.of, 3);
+    assert_eq!(state.many, 1);
+    assert_eq!(state.parts().of[0], 3);
     assert!(state.backwards);
-    assert_eq!(&state.parts().secret[..3], &[0x11, 0x22, 0x33]);
+    assert_eq!(&state.parts().needles[..3], &[0x11, 0x22, 0x33]);
+}
+
+// ============================================================================
+// ForensicState::hold_each
+// ============================================================================
+
+#[test]
+fn test_hold_each_refuses_no_needles_at_all() {
+    let mut state = ForensicState::default();
+
+    assert!(!state.hold_each(&[], false));
+}
+
+#[test]
+fn test_hold_each_refuses_a_needle_of_nothing_among_others() {
+    let mut state = ForensicState::default();
+
+    assert!(!state.hold_each(&[&[0x11], &[], &[0x22]], false));
+}
+
+#[test]
+fn test_hold_each_refuses_a_needle_wider_than_the_room_for_one() {
+    let mut state = ForensicState::default();
+
+    assert!(!state.hold_each(&[&[0x11], &[0x5A; MOST + 1]], false));
+}
+
+#[test]
+fn test_hold_each_refuses_one_needle_more_than_it_has_room_for() {
+    let one = [0x5A_u8];
+    let needles = [&one[..]; NEEDLES + 1];
+    let mut state = ForensicState::default();
+
+    assert!(!state.hold_each(&needles, false));
+}
+
+#[test]
+fn test_hold_each_refuses_needles_wider_together_than_the_room() {
+    let wide = vec![0x5A_u8; ROOM + 1];
+    let needles: Vec<&[u8]> = wide.chunks(MOST).collect();
+    let mut state = ForensicState::default();
+
+    assert!(!state.hold_each(&needles, false));
+}
+
+#[test]
+fn test_hold_each_that_refuses_leaves_the_last_needles_alone() {
+    let mut state = ForensicState::default();
+
+    assert!(state.hold_each(&[&[0x11, 0x22], &[0x33]], true));
+    assert!(!state.hold_each(&[&[0x44], &[]], false));
+
+    assert_eq!(state.many, 2);
+    assert!(state.backwards);
+    assert_eq!(&state.parts().of[..2], &[2, 1]);
+    assert_eq!(&state.parts().needles[..3], &[0x11, 0x22, 0x33]);
+}
+
+#[test]
+fn test_hold_each_takes_as_many_needles_as_there_is_room_for() {
+    let one = [0x5A_u8];
+    let needles = [&one[..]; NEEDLES];
+    let mut state = ForensicState::default();
+
+    assert!(state.hold_each(&needles, false));
+    assert_eq!(state.many, NEEDLES);
+}
+
+#[test]
+fn test_hold_each_takes_needles_that_fill_the_room_together() {
+    let wide = vec![0x5A_u8; ROOM];
+    let needles: Vec<&[u8]> = wide.chunks(MOST).collect();
+    let mut state = ForensicState::default();
+
+    assert!(state.hold_each(&needles, false));
+    assert_eq!(state.many, needles.len());
+}
+
+#[test]
+fn test_hold_each_keeps_every_needle_end_to_end_and_writes_no_further() {
+    let first = [0x6C_u8, 0x93, 0x2A];
+    let second = [0xE7_u8];
+    let third = [0x51_u8, 0xB8, 0x0D, 0xF4];
+    let mut state = ForensicState::default();
+
+    assert!(state.hold_each(&[&first, &second, &third], false));
+    assert_eq!(state.many, 3);
+
+    let parts = state.parts();
+
+    assert_eq!(&parts.of[..3], &[3, 1, 4]);
+    assert_eq!(
+        &parts.needles[..8],
+        &[0x6C, 0x93, 0x2A, 0xE7, 0x51, 0xB8, 0x0D, 0xF4]
+    );
+    assert!(parts.needles[8..].iter().all(|byte| *byte == 0));
 }
 
 // ============================================================================
@@ -384,17 +481,31 @@ fn test_shipped_is_the_bytes_of_the_result_the_analysis_writes()
 fn test_parts_hands_out_tables_with_one_entry_for_what_they_index() {
     let mut state = ForensicState::default();
     let parts = state.parts();
-    let needle = parts.secret.len();
 
-    assert_eq!(parts.next.len() * 8, 256 * 256, "a bit per ordered pair");
-    assert_eq!(parts.seen.len() * 8, 256, "a bit per byte value");
+    assert_eq!(parts.needles.len(), ROOM, "a byte per byte of every needle");
+    assert_eq!(parts.of.len(), NEEDLES, "a length per needle");
+    assert_eq!(
+        parts.next.len() * 8,
+        NEEDLES * 256 * 256,
+        "a bit per ordered pair, per needle"
+    );
+    assert_eq!(
+        parts.seen.len() * 8,
+        NEEDLES * 256,
+        "a bit per byte value, per needle"
+    );
     assert_eq!(
         parts.widths.len(),
-        needle,
-        "a counter per width a run can be"
+        ROOM + NEEDLES,
+        "a counter per width a run can be, from none to a whole needle, per needle"
     );
-    assert_eq!(parts.lens.len(), needle, "a counter per byte of the needle");
-    assert_eq!(parts.tail.len(), needle, "as far back as a run can be read");
+    assert_eq!(parts.lens.len(), MOST, "a counter per byte of the widest needle");
+    assert_eq!(parts.tail.len(), MOST, "as far back as a run can be read");
+    assert_eq!(
+        parts.result.len(),
+        EACH * NEEDLES + 3,
+        "four numbers per needle and three for the photograph"
+    );
     assert_eq!(parts.result.len(), SHIPPED, "what the pipe carries");
 }
 
@@ -417,7 +528,12 @@ fn test_parts_hands_out_pieces_that_do_not_stand_on_each_other() {
 
         pieces.push(("held", parts.held.as_ptr() as usize, parts.held.len()));
         pieces.push(("report", parts.report.as_ptr() as usize, parts.report.len()));
-        pieces.push(("secret", parts.secret.as_ptr() as usize, parts.secret.len()));
+        pieces.push((
+            "needles",
+            parts.needles.as_ptr() as usize,
+            parts.needles.len(),
+        ));
+        pieces.push(("of", parts.of.as_ptr() as usize, parts.of.len() * 8));
         pieces.push(("next", parts.next.as_ptr() as usize, parts.next.len()));
         pieces.push(("seen", parts.seen.as_ptr() as usize, parts.seen.len()));
         pieces.push((
@@ -481,7 +597,8 @@ fn test_parts_hands_out_pieces_that_are_all_eight_aligned() {
     for (name, at) in [
         ("held", parts.held.as_ptr() as usize),
         ("report", parts.report.as_ptr() as usize),
-        ("secret", parts.secret.as_ptr() as usize),
+        ("needles", parts.needles.as_ptr() as usize),
+        ("of", parts.of.as_ptr() as usize),
         ("next", parts.next.as_ptr() as usize),
         ("seen", parts.seen.as_ptr() as usize),
         ("widths", parts.widths.as_ptr() as usize),
@@ -632,6 +749,46 @@ fn test_read_gives_each_name_back_its_own_number() {
 
     for (one, (at, name)) in every.iter().enumerate() {
         assert_eq!(state.read(*at), one as u64 + 1, "{name} is somebody else");
+    }
+}
+
+// ============================================================================
+// ForensicState::read_of
+// ============================================================================
+
+#[test]
+fn test_read_of_the_first_needle_is_what_read_returns() {
+    let mut state = ForensicState::default();
+
+    for (one, at) in [FOUND, SCORE, WIDEST, RUNS].into_iter().enumerate() {
+        state.parts().result[at] = one as u64 + 1;
+    }
+
+    for at in [FOUND, SCORE, WIDEST, RUNS] {
+        assert_eq!(state.read_of(0, at), state.read(at));
+    }
+}
+
+#[test]
+fn test_read_of_gives_every_needle_its_own_numbers_apart_from_the_photograph_s() {
+    let mut state = ForensicState::default();
+
+    for (at, word) in state.parts().result.iter_mut().enumerate() {
+        *word = at as u64 + 1;
+    }
+
+    let mut read = std::collections::BTreeSet::new();
+
+    for needle in 0..NEEDLES {
+        for at in [FOUND, SCORE, WIDEST, RUNS] {
+            let word = state.read_of(needle, at);
+
+            assert!(read.insert(word), "needle {needle}, word {at} is somebody else's");
+        }
+    }
+
+    for at in [SWEPT, OK, COUNT] {
+        assert!(read.insert(state.read(at)), "word {at} of the photograph is a needle's");
     }
 }
 

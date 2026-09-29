@@ -62,23 +62,27 @@
 
 use crate::analysis::memory::{Subject, instrument, sweep, within};
 use crate::analysis::state::{
-    COUNT, FOUND, ForensicState, MOST, Parts, RUNS, SCORE, SWEPT, WIDEST,
+    COUNT, EACH, FOUND, ForensicState, MOST, NEEDLES, NEXT, Parts, RUNS, SCORE, SEEN, SWEPT,
+    WIDEST,
 };
 use crate::errors::Reason;
 
 /// The whole needle, counted where it is whole.
 pub(crate) fn count(state: &mut ForensicState, subject: &Subject) -> Result<(), Reason> {
-    let of = state.of;
     let backwards = state.backwards;
 
     let Parts {
         held,
-        secret,
+        needles,
+        of,
         mut skips,
         maps,
         result,
         ..
     } = state.parts();
+
+    let of = of[0] as usize;
+    let secret = &mut needles[..of];
 
     // One block serves every photograph, so the last one's answer goes first.
     result.fill(0);
@@ -105,12 +109,13 @@ pub(crate) fn count(state: &mut ForensicState, subject: &Subject) -> Result<(), 
 
 /// Every run, tallied by width, and then weighed.
 pub(crate) fn runs(state: &mut ForensicState, subject: &Subject) -> Result<(), Reason> {
-    let of = state.of;
+    let many = state.many;
     let backwards = state.backwards;
 
     let Parts {
         held,
-        secret,
+        needles,
+        of,
         next,
         seen,
         widths,
@@ -122,81 +127,159 @@ pub(crate) fn runs(state: &mut ForensicState, subject: &Subject) -> Result<(), R
         ..
     } = state.parts();
 
+    let of = &of[..many];
+    let total: usize = of.iter().map(|one| *one as usize).sum();
+
     // One block serves every photograph, so the last one's answer goes first.
-    widths.fill(0);
+    widths[..total + many].fill(0);
     result.fill(0);
 
-    if backwards {
-        secret[..of].reverse();
-    }
+    let mut at = 0;
 
-    table(&secret[..of], next, seen);
+    for (one, &width) in of.iter().enumerate() {
+        let needle = &mut needles[at..at + width as usize];
+
+        if backwards {
+            needle.reverse();
+        }
+
+        table(
+            needle,
+            &mut next[one * NEXT..(one + 1) * NEXT],
+            &mut seen[one * SEEN..(one + 1) * SEEN],
+        );
+
+        at += width as usize;
+    }
 
     instrument(subject, held, &maps, &mut skips)?;
 
-    let secret = &secret[..of];
-    let lens = &mut lens[..of];
+    let mut walk = Walk {
+        needles,
+        of,
+        next,
+        seen,
+        widths,
+        tail,
+        lens,
+        run: [0; NEEDLES],
+        whole: [false; NEEDLES],
+        through: 0,
+        prev: 0,
+    };
 
-    let mut run = 0_usize;
-    let mut prev = 0_u8;
-    let mut through = 0_usize;
-    let mut whole = false;
+    let swept = sweep(subject, held, &maps, &skips, 0, |window, _, breaks| {
+        walk.step(window, breaks);
+    });
 
-    let swept = sweep(
-        subject,
-        held,
-        &maps,
-        &skips,
-        0,
-        |window: &[u8], _, breaks| {
-            for &byte in window {
-                if run > 0 && follows(next, prev, byte) {
-                    run += 1;
-                } else {
-                    whole |= settle(run, tail, through, secret, lens, widths);
+    let mut from = 0;
 
-                    run = usize::from(holds(seen, byte));
-                }
+    for (one, &width) in of.iter().enumerate() {
+        let width = width as usize;
+        let step = density(&walk.next[one * NEXT..(one + 1) * NEXT]);
 
-                // Every byte, in or out of a run: the arithmetic that reads a
-                // run back is then only about `through`, and not about where
-                // the run was when it was written.
-                tail[through % tail.len()] = byte;
-                through += 1;
-                prev = byte;
+        let mut score = 0_u64;
+        let mut widest = 0_u64;
+        let mut closed = 0_u64;
+
+        for (width, &count) in walk.widths[from..=from + width].iter().enumerate() {
+            if count == 0 {
+                continue;
             }
 
-            if breaks {
-                whole |= settle(run, tail, through, secret, lens, widths);
-                run = 0;
-            }
-        },
-    );
+            closed += count;
+            widest = width as u64;
 
-    let step = density(next);
-
-    let mut score = 0_u64;
-    let mut widest = 0_u64;
-    let mut closed = 0_u64;
-
-    for (width, &count) in widths.iter().enumerate() {
-        if count == 0 {
-            continue;
+            score += worth(width as u64, step, swept).saturating_mul(count);
         }
 
-        closed += count;
-        widest = width as u64;
+        let answer = &mut result[EACH * one..EACH * (one + 1)];
 
-        score += worth(width as u64, step, swept).saturating_mul(count);
+        answer[FOUND] = u64::from(walk.whole[one]);
+        answer[SCORE] = score;
+        answer[WIDEST] = widest;
+        answer[RUNS] = closed;
+
+        from += width + 1;
     }
 
-    result[FOUND] = u64::from(whole);
-    result[SCORE] = score;
     result[SWEPT] = swept;
-    result[WIDEST] = widest;
-    result[RUNS] = closed;
 
     Ok(())
+}
+
+pub(crate) struct Walk<'a> {
+    pub(crate) needles: &'a [u8],
+    pub(crate) of: &'a [u64],
+    pub(crate) next: &'a [u8],
+    pub(crate) seen: &'a [u8],
+    pub(crate) widths: &'a mut [u64],
+    pub(crate) tail: &'a mut [u8],
+    pub(crate) lens: &'a mut [u16],
+    pub(crate) run: [usize; NEEDLES],
+    pub(crate) whole: [bool; NEEDLES],
+    pub(crate) through: usize,
+    pub(crate) prev: u8,
+}
+
+impl Walk<'_> {
+    pub(crate) fn step(&mut self, window: &[u8], breaks: bool) {
+        for &byte in window {
+            let (mut at, mut from) = (0, 0);
+
+            for one in 0..self.of.len() {
+                let width = self.of[one] as usize;
+                let next = &self.next[one * NEXT..(one + 1) * NEXT];
+
+                if self.run[one] > 0 && follows(next, self.prev, byte) {
+                    self.run[one] += 1;
+                } else {
+                    self.whole[one] |= settle(
+                        self.run[one],
+                        self.tail,
+                        self.through,
+                        &self.needles[at..at + width],
+                        &mut self.lens[..width],
+                        &mut self.widths[from..=from + width],
+                    );
+
+                    self.run[one] =
+                        usize::from(holds(&self.seen[one * SEEN..(one + 1) * SEEN], byte));
+                }
+
+                at += width;
+                from += width + 1;
+            }
+
+            // Every byte, in or out of a run: the arithmetic that reads a
+            // run back is then only about `through`, and not about where
+            // the run was when it was written.
+            self.tail[self.through % self.tail.len()] = byte;
+            self.through += 1;
+            self.prev = byte;
+        }
+
+        if breaks {
+            let (mut at, mut from) = (0, 0);
+
+            for one in 0..self.of.len() {
+                let width = self.of[one] as usize;
+
+                self.whole[one] |= settle(
+                    self.run[one],
+                    self.tail,
+                    self.through,
+                    &self.needles[at..at + width],
+                    &mut self.lens[..width],
+                    &mut self.widths[from..=from + width],
+                );
+                self.run[one] = 0;
+
+                at += width;
+                from += width + 1;
+            }
+        }
+    }
 }
 
 /// What a run of that width is worth, in whole bits of surprise.

@@ -13,10 +13,16 @@ mod analysis;
 mod errors;
 
 #[cfg(target_os = "linux")]
+mod forensics;
+
+#[cfg(target_os = "linux")]
 mod frame;
 
 #[cfg(target_os = "linux")]
 mod spiller;
+
+#[cfg(target_os = "linux")]
+mod watches;
 
 #[cfg(target_os = "linux")]
 mod window;

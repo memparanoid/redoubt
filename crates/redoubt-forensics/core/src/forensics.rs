@@ -67,11 +67,15 @@ impl Forensics {
     /// [`Reason::Needle`], and only that: nothing has been asked of the
     /// kernel yet.
     pub fn watching(needle: &[u8]) -> Result<Self, Reason> {
+        Self::watching_each(&[needle])
+    }
+
+    pub fn watching_each(needles: &[&[u8]]) -> Result<Self, Reason> {
         crate::spiller::pick_spiller();
 
         let mut state = ForensicState::default();
 
-        if !state.hold(needle, true) {
+        if !state.hold_each(needles, true) {
             return Err(Reason::Needle);
         }
 
@@ -93,13 +97,24 @@ impl Forensics {
         // a subprocess, which nothing here has yet.
         elsewhere(&mut self.state, runs)?;
 
-        Ok(Report {
-            found: self.state.read(FOUND) == 1,
-            score: self.state.read(SCORE),
+        Ok(self.report(0))
+    }
+
+    #[inline(always)]
+    pub fn snapshot_each(&mut self) -> Result<Vec<Report>, Reason> {
+        elsewhere(&mut self.state, runs)?;
+
+        Ok((0..self.state.many).map(|one| self.report(one)).collect())
+    }
+
+    fn report(&mut self, one: usize) -> Report {
+        Report {
+            found: self.state.read_of(one, FOUND) == 1,
+            score: self.state.read_of(one, SCORE),
             swept: self.state.read(SWEPT),
-            widest: self.state.read(WIDEST),
-            runs: self.state.read(RUNS),
-        })
+            widest: self.state.read_of(one, WIDEST),
+            runs: self.state.read_of(one, RUNS),
+        }
     }
 
     /// One photograph, from nothing.

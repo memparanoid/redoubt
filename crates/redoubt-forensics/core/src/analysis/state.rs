@@ -75,6 +75,10 @@ pub(crate) const REPORT: usize = 1 << 18;
 /// about three and a half kilobytes, so this is that with room over.
 pub(crate) const MOST: usize = 8192;
 
+pub(crate) const NEEDLES: usize = 64;
+
+pub(crate) const ROOM: usize = 2 * MOST;
+
 /// How many stretches of the instrument's own memory one sweep can skip: one
 /// per block ever allocated and not yet overwritten.
 pub(crate) const SKIPS: usize = 256;
@@ -91,11 +95,12 @@ pub(crate) const MAPPINGS: usize = 4096;
 pub(crate) const STACK: usize = 1 << 18;
 
 /// Which byte may follow which, as one bit each.
-const NEXT: usize = 256 * 32;
+pub(crate) const NEXT: usize = 256 * 32;
 /// Which bytes are in the needle at all, as one bit each.
-const SEEN: usize = 32;
+pub(crate) const SEEN: usize = 32;
+const OF: usize = NEEDLES * 8;
 /// One counter per width a run can have.
-const WIDTHS: usize = MOST * 8;
+const WIDTHS: usize = (ROOM + NEEDLES) * 8;
 /// The last bytes swept, kept so that a run can be read back when it closes.
 ///
 /// As long as the longest needle: a stretch of the secret is never wider than
@@ -105,46 +110,49 @@ const TAIL: usize = MOST;
 /// One `u16` per byte of the needle, scratch for verifying a run against it.
 const LENS: usize = MOST * 2;
 /// What comes back through the pipe.
-const RESULT: usize = 64;
+const RESULT: usize = (EACH * NEEDLES + 3) * 8;
 
 const EXCL: usize = 8 + SKIPS * 16;
 const MAPS: usize = 8 + MAPPINGS * 16;
 
 const AT_WINDOW: usize = HEAD;
 const AT_REPORT: usize = AT_WINDOW + WINDOW;
-const AT_SECRET: usize = AT_REPORT + REPORT;
-const AT_NEXT: usize = AT_SECRET + MOST;
-const AT_SEEN: usize = AT_NEXT + NEXT;
-const AT_WIDTHS: usize = AT_SEEN + SEEN;
+const AT_NEEDLES: usize = AT_REPORT + REPORT;
+const AT_OF: usize = AT_NEEDLES + ROOM;
+const AT_NEXT: usize = AT_OF + OF;
+const AT_SEEN: usize = AT_NEXT + NEEDLES * NEXT;
+const AT_WIDTHS: usize = AT_SEEN + NEEDLES * SEEN;
 const AT_TAIL: usize = AT_WIDTHS + WIDTHS;
 const AT_LENS: usize = AT_TAIL + TAIL;
 const AT_RESULT: usize = AT_LENS + LENS;
-const AT_EXCL: usize = AT_RESULT + RESULT;
+const AT_EXCL: usize = (AT_RESULT + RESULT).next_multiple_of(16);
 const AT_MAPS: usize = AT_EXCL + EXCL;
 const AT_STACK: usize = AT_MAPS + MAPS;
 
 /// How long every block is, which is how far a sweep skips from a phrase.
 pub(crate) const BLOCK: usize = AT_STACK + STACK;
 
+pub(crate) const EACH: usize = 4;
+
 /// Where the result sits among the counters that come back.
 pub(crate) const FOUND: usize = 0;
 /// The score.
 pub(crate) const SCORE: usize = 1;
-/// How many bytes were swept, which is what the score is measured against.
-pub(crate) const SWEPT: usize = 2;
 /// The widest run there was.
-pub(crate) const WIDEST: usize = 3;
+pub(crate) const WIDEST: usize = 2;
 /// How many runs were closed at all.
-pub(crate) const RUNS: usize = 4;
+pub(crate) const RUNS: usize = 3;
+/// How many bytes were swept, which is what the score is measured against.
+pub(crate) const SWEPT: usize = EACH * NEEDLES;
 /// Whether the child got as far as answering.
 ///
 /// Every other number is zero until something writes to it, and zero is also
 /// what "the secret is nowhere" looks like. This is the one that tells those
 /// two apart, so that a photograph that could not be taken is not read as a
 /// clean one.
-pub(crate) const OK: usize = 5;
+pub(crate) const OK: usize = SWEPT + 1;
 /// How many times the needle was there exactly, for a plain count.
-pub(crate) const COUNT: usize = 6;
+pub(crate) const COUNT: usize = SWEPT + 2;
 /// How much of the result comes back through the pipe, in `u64`.
 pub(crate) const SHIPPED: usize = RESULT / 8;
 
@@ -161,8 +169,7 @@ pub(crate) struct ForensicState {
     /// One allocation, held as `u64` so that it is eight-aligned and every
     /// view carved out of it is too.
     block: Vec<u64>,
-    /// How much of `secret` is the needle.
-    pub(crate) of: usize,
+    pub(crate) many: usize,
     /// Whether the child turns the needle around before looking for it, which
     /// is what a caller holding a secret backwards is asking for.
     pub(crate) backwards: bool,
@@ -180,8 +187,8 @@ pub(crate) struct Parts<'a> {
     /// without asking for memory or leaving it in anybody's process.
     #[allow(dead_code)]
     pub(crate) report: &'a mut [u8],
-    /// The needle. It arrives backwards and is turned around in the child.
-    pub(crate) secret: &'a mut [u8],
+    pub(crate) needles: &'a mut [u8],
+    pub(crate) of: &'a mut [u64],
     /// One bit per pair: whether `y` ever follows `x` in the needle.
     pub(crate) next: &'a mut [u8],
     /// One bit per byte value: whether it is in the needle at all.
@@ -302,7 +309,7 @@ impl Default for ForensicState {
     fn default() -> Self {
         let mut state = Self {
             block: vec![0; BLOCK / 8],
-            of: 0,
+            many: 0,
             backwards: false,
         };
 
@@ -328,13 +335,42 @@ impl ForensicState {
     /// put there by the thing that is looking for copies of the secret in this
     /// process.
     pub(crate) fn hold(&mut self, needle: &[u8], backwards: bool) -> bool {
-        if needle.is_empty() || needle.len() > MOST {
+        self.hold_each(&[needle], backwards)
+    }
+
+    pub(crate) fn hold_each(&mut self, needles: &[&[u8]], backwards: bool) -> bool {
+        if needles.is_empty() || needles.len() > NEEDLES {
             return false;
         }
 
-        self.of = needle.len();
+        let mut total = 0;
+
+        for needle in needles {
+            if needle.is_empty() || needle.len() > MOST {
+                return false;
+            }
+
+            total += needle.len();
+        }
+
+        if total > ROOM {
+            return false;
+        }
+
+        self.many = needles.len();
         self.backwards = backwards;
-        self.parts().secret[..needle.len()].copy_from_slice(needle);
+
+        let Parts {
+            needles: room, of, ..
+        } = self.parts();
+
+        let mut at = 0;
+
+        for (one, needle) in needles.iter().enumerate() {
+            room[at..at + needle.len()].copy_from_slice(needle);
+            of[one] = needle.len() as u64;
+            at += needle.len();
+        }
 
         true
     }
@@ -362,10 +398,11 @@ impl ForensicState {
             Parts {
                 held: slice::from_raw_parts_mut(base.add(AT_WINDOW), WINDOW),
                 report: slice::from_raw_parts_mut(base.add(AT_REPORT), REPORT),
-                secret: slice::from_raw_parts_mut(base.add(AT_SECRET), MOST),
-                next: slice::from_raw_parts_mut(base.add(AT_NEXT), NEXT),
-                seen: slice::from_raw_parts_mut(base.add(AT_SEEN), SEEN),
-                widths: slice::from_raw_parts_mut(base.add(AT_WIDTHS).cast(), MOST),
+                needles: slice::from_raw_parts_mut(base.add(AT_NEEDLES), ROOM),
+                of: slice::from_raw_parts_mut(base.add(AT_OF).cast(), NEEDLES),
+                next: slice::from_raw_parts_mut(base.add(AT_NEXT), NEEDLES * NEXT),
+                seen: slice::from_raw_parts_mut(base.add(AT_SEEN), NEEDLES * SEEN),
+                widths: slice::from_raw_parts_mut(base.add(AT_WIDTHS).cast(), ROOM + NEEDLES),
                 tail: slice::from_raw_parts_mut(base.add(AT_TAIL), TAIL),
                 lens: slice::from_raw_parts_mut(base.add(AT_LENS).cast(), MOST),
                 result: slice::from_raw_parts_mut(base.add(AT_RESULT).cast(), SHIPPED),
@@ -400,6 +437,10 @@ impl ForensicState {
     /// One number out of the result.
     pub(crate) fn read(&mut self, at: usize) -> u64 {
         self.parts().result[at]
+    }
+
+    pub(crate) fn read_of(&mut self, needle: usize, at: usize) -> u64 {
+        self.parts().result[EACH * needle + at]
     }
 }
 

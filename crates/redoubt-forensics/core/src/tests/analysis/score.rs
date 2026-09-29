@@ -28,9 +28,12 @@ use proptest::prelude::*;
 
 use crate::analysis::memory::{elsewhere, measure};
 use crate::analysis::score::{
-    NOISE, close, count, density, follows, holds, lg2, piece, runs, settle, stretch, table, worth,
+    NOISE, Walk, close, count, density, follows, holds, lg2, piece, runs, settle, stretch, table,
+    worth,
 };
-use crate::analysis::state::{COUNT, FOUND, ForensicState, MOST};
+use crate::analysis::state::{
+    self, COUNT, FOUND, ForensicState, MOST, NEEDLES, NEXT, SEEN,
+};
 use crate::errors::AnyError;
 
 /// Room for one table of successors and one of bytes that appear.
@@ -196,6 +199,151 @@ fn test_runs_sweeps_a_needle_that_is_already_forwards() -> Result<(), AnyError> 
     );
 
     Ok(())
+}
+
+const ABSENT: [u8; 32] = [
+    0x3A, 0xD5, 0x62, 0x0F, 0xB9, 0x47, 0xEC, 0x13, 0x8B, 0x26, 0xF4, 0x5D, 0xA0, 0x79, 0xC2, 0x1E,
+    0x97, 0x6B, 0x04, 0xDE, 0x31, 0xAA, 0x58, 0xC7, 0x0B, 0xE3, 0x7C, 0x45, 0x9F, 0x12, 0xB6, 0x6A,
+];
+
+#[test]
+fn test_runs_answers_for_each_needle_on_its_own() -> Result<(), AnyError> {
+    let held = HELD;
+
+    core::hint::black_box(&held);
+
+    let mut state = ForensicState::default();
+
+    assert!(
+        state.hold_each(&[&ABSENT, &held, &ABSENT], false),
+        "the needles are ones it can hold"
+    );
+
+    elsewhere(&mut state, runs)?;
+
+    assert_eq!(state.read_of(0, FOUND), 0, "the first is nowhere");
+    assert_eq!(
+        state.read_of(1, FOUND),
+        1,
+        "the process is holding the second and the sweep did not find it",
+    );
+    assert_eq!(state.read_of(2, FOUND), 0, "the third is nowhere");
+    assert_eq!(state.read_of(1, state::WIDEST), 32);
+
+    Ok(())
+}
+
+// ============================================================================
+// Walk::step
+// ============================================================================
+
+fn walked(needles: &[&[u8]], windows: &[(&[u8], bool)]) -> Vec<(Vec<u64>, bool)> {
+    let joined = needles.concat();
+    let of: Vec<u64> = needles.iter().map(|needle| needle.len() as u64).collect();
+
+    let mut next = vec![0_u8; needles.len() * NEXT];
+    let mut seen = vec![0_u8; needles.len() * SEEN];
+
+    for (one, needle) in needles.iter().enumerate() {
+        table(
+            needle,
+            &mut next[one * NEXT..(one + 1) * NEXT],
+            &mut seen[one * SEEN..(one + 1) * SEEN],
+        );
+    }
+
+    let mut widths = vec![0_u64; joined.len() + needles.len()];
+    let mut tail = vec![0_u8; MOST];
+    let mut lens = vec![0_u16; MOST];
+
+    let mut walk = Walk {
+        needles: &joined,
+        of: &of,
+        next: &next,
+        seen: &seen,
+        widths: &mut widths,
+        tail: &mut tail,
+        lens: &mut lens,
+        run: [0; NEEDLES],
+        whole: [false; NEEDLES],
+        through: 0,
+        prev: 0,
+    };
+
+    for (window, breaks) in windows {
+        walk.step(window, *breaks);
+    }
+
+    let whole = walk.whole;
+    let mut from = 0;
+
+    needles
+        .iter()
+        .enumerate()
+        .map(|(one, needle)| {
+            let tally = widths[from..=from + needle.len()].to_vec();
+
+            from += needle.len() + 1;
+
+            (tally, whole[one])
+        })
+        .collect()
+}
+
+fn memory() -> Vec<u8> {
+    let mut bytes = Vec::new();
+
+    bytes.extend_from_slice(&SECRET[3..17]);
+    bytes.extend_from_slice(&[0x88; 20]);
+    bytes.extend_from_slice(&SECRET[..9]);
+    bytes.extend_from_slice(&SECRET[9..]);
+    bytes.extend_from_slice(&[0x9E, 0x41, 0x9E, 0x41, 0x17]);
+    bytes.extend_from_slice(&SECRET[20..]);
+    bytes.extend_from_slice(&SECRET[..6]);
+    bytes.extend_from_slice(&HELD[..12]);
+
+    bytes
+}
+
+#[test]
+fn test_step_tallies_a_needle_the_same_whatever_needles_walk_beside_it() {
+    let rotated: Vec<u8> = SECRET[16..].iter().chain(&SECRET[..16]).copied().collect();
+    let inside = &SECRET[5..20];
+    let repeated = [0x88_u8; 8];
+
+    let bytes = memory();
+    let (first, rest) = bytes.split_at(40);
+    let windows: [(&[u8], bool); 3] = [(first, false), (&rest[..30], true), (&rest[30..], true)];
+
+    let alone = walked(&[&SECRET], &windows);
+    let beside = walked(&[&rotated, inside, &SECRET, &repeated, &HELD], &windows);
+
+    assert!(alone[0].1, "the memory holds the secret whole");
+    assert_eq!(beside[2], alone[0]);
+
+    for (one, needle) in [&rotated[..], inside, &repeated, &HELD].into_iter().enumerate() {
+        let on_its_own = walked(&[needle], &windows);
+        let at = if one < 2 { one } else { one + 1 };
+
+        assert!(
+            on_its_own[0].0[3..].iter().any(|count| *count > 0),
+            "needle {at} has no run of three or more to compare"
+        );
+        assert_eq!(beside[at], on_its_own[0], "needle {at} tallies otherwise beside the rest");
+    }
+}
+
+#[test]
+fn test_step_finds_each_needle_that_is_whole_and_only_those() {
+    let inside = &SECRET[5..20];
+    let bytes = memory();
+    let windows: [(&[u8], bool); 1] = [(&bytes, true)];
+
+    let walked = walked(&[&ABSENT, &SECRET, inside, &HELD], &windows);
+
+    let whole: Vec<bool> = walked.iter().map(|(_, whole)| *whole).collect();
+
+    assert_eq!(whole, [false, true, true, false]);
 }
 
 // ============================================================================
