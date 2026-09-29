@@ -8,11 +8,10 @@
 //! back to keep the write alive.
 
 use redoubt_asm::Backend;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_mem_core::{copy_nonoverlapping, zeroize, zeroize_using};
 
 use crate::support::needles::{SECRET, backwards};
-use crate::support::{is_found, leaves_nothing};
 
 fn giving(into: &mut [u8]) {
     for one in into.chunks_mut(SECRET.len()) {
@@ -109,9 +108,7 @@ macro_rules! test_zeroizing_a_box_and_letting_it_go_leaves_nothing {
             let report_after = watch.snapshot()?;
 
             leaves_nothing(
-                &report_before,
-                "nothing held yet",
-                &report_after,
+                &report_before,                &report_after,
                 concat!("a box of ", $len, " zeroized and let go"),
             );
 
@@ -143,9 +140,7 @@ macro_rules! test_zeroizing_an_array_and_letting_its_frame_go_leaves_nothing {
             let report_after = watch.snapshot()?;
 
             leaves_nothing(
-                &report_before,
-                "nothing held yet",
-                &report_after,
+                &report_before,                &report_after,
                 concat!("an array of ", $len, " zeroized and let go with its frame"),
             );
 

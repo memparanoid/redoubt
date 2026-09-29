@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_mem_core::{copy_nonoverlapping, swap, swap_nonoverlapping};
 
 use crate::support::needles::{BIG, SECRET, backwards};
-use crate::support::{is_found, leaves_nothing, wipe};
+use crate::support::wipe;
 
 /// Thirty-two bytes of the secret in a box, through the copy being measured
 /// elsewhere in this crate.
@@ -70,7 +70,7 @@ fn test_swapping_leaves_nothing() -> Result<(), AnyError> {
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(&report_before, "nothing held yet", &report_after, "a swap");
+    leaves_nothing(&report_before,&report_after, "a swap");
 
     drop(core::hint::black_box((secret, empty)));
 
@@ -145,9 +145,7 @@ macro_rules! swapped {
             let report_after = watch.snapshot()?;
 
             leaves_nothing(
-                &report_before,
-                "nothing held yet",
-                &report_after,
+                &report_before,                &report_after,
                 &format!("a swap of {} bytes", $of),
             );
 

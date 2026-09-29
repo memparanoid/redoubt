@@ -8,11 +8,11 @@
 //! what is asserted of this one is that nothing wider than `QUIET` survives.
 
 use redoubt_asm::Backend;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_mem_core::{copy_nonoverlapping, is_utf8, is_utf8_using};
 use rstest::rstest;
 
-use crate::support::{is_found, leaves_nothing, wipe};
+use crate::support::wipe;
 
 /// Thirty-two bytes of UTF-8, every width among them, with a character boundary
 /// at `BREAKS_AT`.
@@ -101,7 +101,7 @@ fn test_checking_text_leaves_nothing() -> Result<(), AnyError> {
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(&report_before, "nothing held yet", &report_after, "a check");
+    leaves_nothing(&report_before,&report_after, "a check");
 
     assert!(answer, "the text is UTF-8");
 
@@ -190,7 +190,7 @@ fn test_checking_text_through_a_backend_leaves_nothing(
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(&report_before, "nothing held yet", &report_after, "a check");
+    leaves_nothing(&report_before,&report_after, "a check");
 
     assert!(answer, "the text is UTF-8");
 
@@ -224,9 +224,7 @@ fn test_checking_text_refused_half_way_leaves_nothing(
     let report_after = watch.snapshot()?;
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &report_after,
+        &report_before,        &report_after,
         "a check refused half way",
     );
 

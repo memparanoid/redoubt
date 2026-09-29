@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_mem_core::copy_nonoverlapping;
 
 use crate::support::needles::{BIG, SECRET, backwards};
-use crate::support::{is_found, leaves_nothing, wipe};
+use crate::support::wipe;
 
 /// Copies in a row: a residue that survives one copy in fifty shows here and
 /// not in a single one.
@@ -64,7 +64,7 @@ fn test_copying_leaves_nothing() -> Result<(), AnyError> {
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(&report_before, "nothing held yet", &report_after, "a copy");
+    leaves_nothing(&report_before,&report_after, "a copy");
 
     drop(core::hint::black_box(scratch));
 
@@ -97,9 +97,7 @@ fn test_two_hundred_copies_leave_nothing() -> Result<(), AnyError> {
     let report_after = watch.snapshot()?;
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &report_after,
+        &report_before,        &report_after,
         &format!("{ROUNDS} copies"),
     );
 
@@ -136,9 +134,7 @@ macro_rules! copied {
             let report_after = watch.snapshot()?;
 
             leaves_nothing(
-                &report_before,
-                "nothing held yet",
-                &report_after,
+                &report_before,                &report_after,
                 &format!("a copy of {} bytes", $of),
             );
 
