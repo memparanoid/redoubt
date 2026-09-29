@@ -101,7 +101,7 @@ fn test_checking_text_leaves_nothing() -> Result<(), AnyError> {
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(&report_before,&report_after, "a check");
+    leaves_nothing(&report_before, &report_after, "a check");
 
     assert!(answer, "the text is UTF-8");
 
@@ -190,7 +190,7 @@ fn test_checking_text_through_a_backend_leaves_nothing(
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(&report_before,&report_after, "a check");
+    leaves_nothing(&report_before, &report_after, "a check");
 
     assert!(answer, "the text is UTF-8");
 
@@ -223,10 +223,7 @@ fn test_checking_text_refused_half_way_leaves_nothing(
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(
-        &report_before,        &report_after,
-        "a check refused half way",
-    );
+    leaves_nothing(&report_before, &report_after, "a check refused half way");
 
     assert!(!answer, "the text is not UTF-8");
 

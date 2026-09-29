@@ -64,7 +64,7 @@ fn test_copying_leaves_nothing() -> Result<(), AnyError> {
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(&report_before,&report_after, "a copy");
+    leaves_nothing(&report_before, &report_after, "a copy");
 
     drop(core::hint::black_box(scratch));
 
@@ -96,10 +96,7 @@ fn test_two_hundred_copies_leave_nothing() -> Result<(), AnyError> {
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(
-        &report_before,        &report_after,
-        &format!("{ROUNDS} copies"),
-    );
+    leaves_nothing(&report_before, &report_after, &format!("{ROUNDS} copies"));
 
     drop(core::hint::black_box(scratch));
 
@@ -134,7 +131,8 @@ macro_rules! copied {
             let report_after = watch.snapshot()?;
 
             leaves_nothing(
-                &report_before,                &report_after,
+                &report_before,
+                &report_after,
                 &format!("a copy of {} bytes", $of),
             );
 

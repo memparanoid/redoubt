@@ -70,7 +70,7 @@ fn test_swapping_leaves_nothing() -> Result<(), AnyError> {
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(&report_before,&report_after, "a swap");
+    leaves_nothing(&report_before, &report_after, "a swap");
 
     drop(core::hint::black_box((secret, empty)));
 
@@ -145,7 +145,8 @@ macro_rules! swapped {
             let report_after = watch.snapshot()?;
 
             leaves_nothing(
-                &report_before,                &report_after,
+                &report_before,
+                &report_after,
                 &format!("a swap of {} bytes", $of),
             );
 

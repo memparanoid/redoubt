@@ -71,7 +71,7 @@ fn test_probing_bytes_leaves_nothing() -> Result<(), AnyError> {
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(&report_before,&report_after, "a probe");
+    leaves_nothing(&report_before, &report_after, "a probe");
 
     assert!(!answer, "the secret is not zeros");
 
@@ -134,7 +134,7 @@ fn test_probing_bytes_through_a_backend_leaves_nothing(
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(&report_before,&report_after, "a probe");
+    leaves_nothing(&report_before, &report_after, "a probe");
 
     assert!(!answer, "the secret is not zeros");
 
