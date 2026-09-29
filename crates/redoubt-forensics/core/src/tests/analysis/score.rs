@@ -201,6 +201,7 @@ fn test_runs_sweeps_a_needle_that_is_already_forwards() -> Result<(), AnyError> 
     Ok(())
 }
 
+/// Thirty-two distinct bytes nothing in the process holds.
 const ABSENT: [u8; 32] = [
     0x3A, 0xD5, 0x62, 0x0F, 0xB9, 0x47, 0xEC, 0x13, 0x8B, 0x26, 0xF4, 0x5D, 0xA0, 0x79, 0xC2, 0x1E,
     0x97, 0x6B, 0x04, 0xDE, 0x31, 0xAA, 0x58, 0xC7, 0x0B, 0xE3, 0x7C, 0x45, 0x9F, 0x12, 0xB6, 0x6A,
@@ -237,6 +238,8 @@ fn test_runs_answers_for_each_needle_on_its_own() -> Result<(), AnyError> {
 // Walk::step
 // ============================================================================
 
+/// Every needle walked over the same windows: what each tallied at each width,
+/// and whether it was there whole.
 fn walked(needles: &[&[u8]], windows: &[(&[u8], bool)]) -> Vec<(Vec<u64>, bool)> {
     let joined = needles.concat();
     let of: Vec<u64> = needles.iter().map(|needle| needle.len() as u64).collect();
@@ -290,6 +293,8 @@ fn walked(needles: &[&[u8]], windows: &[(&[u8], bool)]) -> Vec<(Vec<u64>, bool)>
         .collect()
 }
 
+/// The secret whole, pieces of it, a byte of it repeated, a walk through pairs
+/// it never makes in that order, and a piece of another needle.
 fn memory() -> Vec<u8> {
     let mut bytes = Vec::new();
 
@@ -305,6 +310,9 @@ fn memory() -> Vec<u8> {
     bytes
 }
 
+/// The needles walked beside the secret are the ones that could disturb its
+/// tally: one sharing all its pairs but one, one that is a stretch of it, and
+/// one byte of it repeated.
 #[test]
 fn test_step_tallies_a_needle_the_same_whatever_needles_walk_beside_it() {
     let rotated: Vec<u8> = SECRET[16..].iter().chain(&SECRET[..16]).copied().collect();

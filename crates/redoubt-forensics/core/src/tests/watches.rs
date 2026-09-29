@@ -2,6 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+//! One photograph with a needle for every register, for a frame and for the
+//! heap: every one planted and each found in its own report, none planted, or
+//! every one planted and emptied, and none found.
+//!
+//! # A process each
+//!
+//! The memory swept is the whole process's, so a test sharing it is another
+//! place a needle could be. `nextest`, not `cargo test`.
+
 #![cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -9,16 +18,22 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use crate::analysis::state::NEEDLES;
 use crate::{AnyError, Forensics, QUIET, Report};
 
+/// As wide as the widest vector register a form fills: a `zmm`.
 #[cfg(target_arch = "x86_64")]
 const ROW: usize = 64;
 
+/// As wide as the widest vector register a form fills: a `z` at the longest
+/// vector length SVE allows.
 #[cfg(target_arch = "aarch64")]
 const ROW: usize = 256;
 
+/// How much of a row a needle in memory is.
 const IN_MEMORY: usize = 32;
 
+/// How much of a row a general register holds.
 const GENERAL: usize = 8;
 
+/// Row `k`, whose bytes differ from every other row's at every offset.
 const fn needle(k: usize) -> [u8; ROW] {
     let mask = ((k + 1) as u8).wrapping_mul(0x3B);
     let mut needle = [0_u8; ROW];
@@ -32,6 +47,8 @@ const fn needle(k: usize) -> [u8; ROW] {
     needle
 }
 
+/// Every row, read by the planting's assembly straight from a mapping the sweep
+/// does not read.
 static ROWS: [[u8; ROW]; NEEDLES] = {
     let mut all = [[0_u8; ROW]; NEEDLES];
     let mut k = 0;
@@ -44,8 +61,11 @@ static ROWS: [[u8; ROW]; NEEDLES] = {
     all
 };
 
+/// Whether the planting leaves what it loaded, read by its assembly.
 static PLANTED: AtomicUsize = AtomicUsize::new(0);
 
+/// Whether the planting empties what it loaded before the capture, read by
+/// its assembly.
 static EMPTIED: AtomicUsize = AtomicUsize::new(0);
 
 macro_rules! alone {
@@ -69,6 +89,8 @@ fn backwards(of: &[u8]) -> Vec<u8> {
     of.iter().rev().copied().collect()
 }
 
+/// Byte by byte and volatile, so that no copy passes through a register the
+/// compiler picks.
 fn giving(into: &mut [u8], from: &[u8]) {
     for (at, byte) in from.iter().enumerate() {
         // SAFETY: `at` indexes a destination at least as wide as the source,
@@ -77,6 +99,8 @@ fn giving(into: &mut [u8], from: &[u8]) {
     }
 }
 
+/// Byte by byte and volatile, so that the compiler cannot drop a wipe nothing
+/// reads afterwards.
 fn taking(from: &mut [u8]) {
     for at in 0..from.len() {
         // SAFETY: `at` indexes inside `from`.
@@ -84,6 +108,8 @@ fn taking(from: &mut [u8]) {
     }
 }
 
+/// One watch over every row given, each cut to its width, and the photograph
+/// from before.
 fn watching(rows: &[(usize, usize)]) -> Result<(Forensics, Vec<Report>), AnyError> {
     let reversed: Vec<Vec<u8>> = rows
         .iter()
@@ -97,6 +123,7 @@ fn watching(rows: &[(usize, usize)]) -> Result<(Forensics, Vec<Report>), AnyErro
     Ok((watch, befores))
 }
 
+/// The photograph after, held to what was seeded, needle by needle.
 fn answered(watch: &mut Forensics, befores: &[Report], seeded: Seeded) -> Result<(), AnyError> {
     let reports = watch.snapshot_each()?;
     let n = reports.len();
@@ -141,6 +168,7 @@ fn answered(watch: &mut Forensics, befores: &[Report], seeded: Seeded) -> Result
 // A frame, and the heap
 // ============================================================================
 
+/// A frame of its own holding every row, left behind when it returns.
 #[inline(never)]
 fn a_frame(seeded: Seeded) {
     let mut held = [[0_u8; IN_MEMORY]; NEEDLES];
@@ -162,6 +190,7 @@ fn a_frame(seeded: Seeded) {
     core::hint::black_box(&held);
 }
 
+/// Every row, as wide as a needle in memory.
 fn in_memory() -> Vec<(usize, usize)> {
     (0..NEEDLES).map(|k| (k, IN_MEMORY)).collect()
 }
@@ -200,6 +229,7 @@ pub(crate) fn in_the_heap(seeded: Seeded) -> Result<(), AnyError> {
     answered(&mut watch, &befores, seeded)
 }
 
+/// The tests of one runner, in a module named after it.
 macro_rules! three {
     ($runner:ident) => {
         mod $runner {
@@ -232,6 +262,8 @@ three!(in_the_heap);
 // Every register, on x86_64
 // ============================================================================
 
+/// One block that loads every register listed from its row, empties them all
+/// unless [`PLANTED`], and empties them all again if [`EMPTIED`].
 #[cfg(target_arch = "x86_64")]
 macro_rules! plant_x86 {
     (
@@ -268,6 +300,7 @@ macro_rules! plant_x86 {
     };
 }
 
+/// The generals from the first rows, and the vectors from the rows after them.
 #[cfg(target_arch = "x86_64")]
 fn widths(generals: usize, vectors: usize, wide: usize) -> Vec<(usize, usize)> {
     (0..generals)
@@ -276,14 +309,18 @@ fn widths(generals: usize, vectors: usize, wide: usize) -> Vec<(usize, usize)> {
         .collect()
 }
 
+/// What the planting's assembly reads to decide.
 fn setting(seeded: Seeded) {
     PLANTED.store(usize::from(seeded != Seeded::Never), Ordering::Relaxed);
     EMPTIED.store(usize::from(seeded == Seeded::Emptied), Ordering::Relaxed);
 }
 
+/// Every general register but `rsp`.
 #[cfg(target_arch = "x86_64")]
 const SPILL_GENERALS: usize = 15;
 
+/// Every general register an assembly block may name: all but `rbx`, `rbp`
+/// and `rsp`.
 #[cfg(target_arch = "x86_64")]
 const INLINED_GENERALS: usize = 13;
 
@@ -637,7 +674,7 @@ pub(crate) fn capture_avx(seeded: Seeded) -> Result<(), AnyError> {
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 fn plant_avx() {
-    // SAFETY: as in `plant_sse`.
+    // SAFETY: as in `plant_sse`, and it is reached only once AVX was detected.
     unsafe {
         plant_x86!(
             before: [],
@@ -716,7 +753,8 @@ pub(crate) fn capture_avx512(seeded: Seeded) -> Result<(), AnyError> {
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
 fn plant_avx512() {
-    // SAFETY: as in `plant_sse`.
+    // SAFETY: as in `plant_sse`, and it is reached only once AVX-512 was
+    // detected.
     unsafe {
         plant_x86!(
             before: [],
@@ -804,6 +842,9 @@ three!(capture_avx512);
 // Every register, on aarch64
 // ============================================================================
 
+/// One block that loads every general listed and every `q` from its row,
+/// empties them all unless [`PLANTED`], and empties them all again if
+/// [`EMPTIED`]. `base` is the register it addresses the rows through.
 #[cfg(target_arch = "aarch64")]
 macro_rules! plant_neon {
     (
@@ -867,6 +908,9 @@ macro_rules! plant_neon {
     };
 }
 
+/// One block that loads every general listed and every `z` from its row,
+/// empties them all unless [`PLANTED`], and empties them all again if
+/// [`EMPTIED`]. `base` is the register it addresses the rows through.
 #[cfg(target_arch = "aarch64")]
 macro_rules! plant_sve {
     (
@@ -931,9 +975,12 @@ macro_rules! plant_sve {
     };
 }
 
+/// Where the vectors' rows begin, which is also how many there are: row
+/// thirty-two is 8192 bytes in, an offset one `add` can encode.
 #[cfg(target_arch = "aarch64")]
 const VECTORS: usize = 32;
 
+/// The generals from the first rows, and the vectors from [`VECTORS`] on.
 #[cfg(target_arch = "aarch64")]
 fn rows(generals: usize, wide: usize) -> Vec<(usize, usize)> {
     (0..generals)
@@ -961,9 +1008,14 @@ fn vector_length() -> usize {
     length
 }
 
+/// Every general register but `x30`, which the call writes on its way, and
+/// `sp`.
 #[cfg(target_arch = "aarch64")]
 const SPILL_GENERALS: usize = 30;
 
+/// Every general register but `sp`, `x16`, where the capture builds the room's
+/// address, and `x18`, `x19` and `x29`, which the spill routine reaches
+/// instead.
 #[cfg(target_arch = "aarch64")]
 const INLINED_GENERALS: usize = 27;
 

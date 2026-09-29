@@ -472,9 +472,11 @@ fn test_shipped_is_the_bytes_of_the_result_the_analysis_writes()
 /// Every table is as long as what it has one entry per.
 ///
 /// Not the constant it was reserved with, which would be the constant asserting
-/// itself. `next` is a bit for every ordered pair of byte values, `seen` a bit
-/// for every byte value, and the three that walk beside the needle are as long
-/// as the needle. A table short by one entry is a sweep reading a bit that
+/// itself. `next` is a bit for every ordered pair of byte values and `seen` a
+/// bit for every byte value, each once per needle; `widths` a counter for
+/// every width from none to the whole needle, for every needle; `lens` and
+/// `tail` as long as the widest needle. A table short by one entry is a sweep
+/// reading a bit that
 /// belongs to the next piece as if it were its own — and every entry past the
 /// last one it can reach is a stretch of the secret it will never recognise.
 #[test]

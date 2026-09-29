@@ -70,6 +70,16 @@ impl Forensics {
         Self::watching_each(&[needle])
     }
 
+    /// Everything reserved for several needles at once, and nothing
+    /// photographed yet.
+    ///
+    /// Each needle is a secret backwards, and every photograph weighs all of
+    /// them in one fork and one sweep, with a report for each.
+    ///
+    /// # Errors
+    ///
+    /// [`Reason::Needle`], and only that: nothing has been asked of the
+    /// kernel yet.
     pub fn watching_each(needles: &[&[u8]]) -> Result<Self, Reason> {
         crate::spiller::pick_spiller();
 
@@ -82,7 +92,7 @@ impl Forensics {
         Ok(Self { state })
     }
 
-    /// One photograph, weighed.
+    /// One photograph, weighed for the first needle.
     ///
     /// # Errors
     ///
@@ -100,8 +110,20 @@ impl Forensics {
         Ok(self.report(0))
     }
 
+    /// One photograph, weighed for every needle, a report each in the order
+    /// the needles were given.
+    ///
+    /// # Errors
+    ///
+    /// Every [`Reason`] but [`Reason::Needle`]. A refusal that arrived as zero
+    /// would read exactly like a clean process, which is the one mistake this
+    /// must not make.
     #[inline(always)]
     pub fn snapshot_each(&mut self) -> Result<Vec<Report>, Reason> {
+        // Uncovered for now: the analysis fails only where the machine refuses
+        // it a pipe, a process or a trace, and this takes nothing that decides
+        // which. Reachable with the syscall blocked from under it — seccomp in
+        // a subprocess, which nothing here has yet.
         elsewhere(&mut self.state, runs)?;
 
         Ok((0..self.state.many).map(|one| self.report(one)).collect())

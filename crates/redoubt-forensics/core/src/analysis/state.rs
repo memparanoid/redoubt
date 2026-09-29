@@ -75,8 +75,10 @@ pub(crate) const REPORT: usize = 1 << 18;
 /// about three and a half kilobytes, so this is that with room over.
 pub(crate) const MOST: usize = 8192;
 
+/// How many needles one photograph weighs.
 pub(crate) const NEEDLES: usize = 64;
 
+/// How many bytes the needles of one photograph take together.
 pub(crate) const ROOM: usize = 2 * MOST;
 
 /// How many stretches of the instrument's own memory one sweep can skip: one
@@ -94,12 +96,14 @@ pub(crate) const MAPPINGS: usize = 4096;
 /// never memory anybody is counting.
 pub(crate) const STACK: usize = 1 << 18;
 
-/// Which byte may follow which, as one bit each.
+/// Which byte may follow which in one needle, as one bit each.
 pub(crate) const NEXT: usize = 256 * 32;
-/// Which bytes are in the needle at all, as one bit each.
+/// Which bytes are in one needle at all, as one bit each.
 pub(crate) const SEEN: usize = 32;
+/// One length per needle.
 const OF: usize = NEEDLES * 8;
-/// One counter per width a run can have.
+/// One counter per width a run can have, from none to the whole needle, for
+/// every needle.
 const WIDTHS: usize = (ROOM + NEEDLES) * 8;
 /// The last bytes swept, kept so that a run can be read back when it closes.
 ///
@@ -107,7 +111,8 @@ const WIDTHS: usize = (ROOM + NEEDLES) * 8;
 /// the secret, so a run wider than this holds nothing past its last `MOST`
 /// bytes that could be one.
 const TAIL: usize = MOST;
-/// One `u16` per byte of the needle, scratch for verifying a run against it.
+/// One `u16` per byte of the widest needle, scratch for verifying a run against
+/// each needle in turn.
 const LENS: usize = MOST * 2;
 /// What comes back through the pipe.
 const RESULT: usize = (EACH * NEEDLES + 3) * 8;
@@ -125,6 +130,8 @@ const AT_WIDTHS: usize = AT_SEEN + NEEDLES * SEEN;
 const AT_TAIL: usize = AT_WIDTHS + WIDTHS;
 const AT_LENS: usize = AT_TAIL + TAIL;
 const AT_RESULT: usize = AT_LENS + LENS;
+// Rounded up to sixteen: the result is not a multiple of it, and the stack at
+// the far end of the block is only as long as promised if its start is.
 const AT_EXCL: usize = (AT_RESULT + RESULT).next_multiple_of(16);
 const AT_MAPS: usize = AT_EXCL + EXCL;
 const AT_STACK: usize = AT_MAPS + MAPS;
@@ -132,9 +139,11 @@ const AT_STACK: usize = AT_MAPS + MAPS;
 /// How long every block is, which is how far a sweep skips from a phrase.
 pub(crate) const BLOCK: usize = AT_STACK + STACK;
 
+/// How many numbers each needle answers with, one needle after another from
+/// the front of the result.
 pub(crate) const EACH: usize = 4;
 
-/// Where the result sits among the counters that come back.
+/// Whether the needle was there whole, the first of its numbers.
 pub(crate) const FOUND: usize = 0;
 /// The score.
 pub(crate) const SCORE: usize = 1;
@@ -151,7 +160,7 @@ pub(crate) const SWEPT: usize = EACH * NEEDLES;
 /// two apart, so that a photograph that could not be taken is not read as a
 /// clean one.
 pub(crate) const OK: usize = SWEPT + 1;
-/// How many times the needle was there exactly, for a plain count.
+/// How many times the first needle was there exactly, for a plain count.
 pub(crate) const COUNT: usize = SWEPT + 2;
 /// How much of the result comes back through the pipe, in `u64`.
 pub(crate) const SHIPPED: usize = RESULT / 8;
@@ -169,9 +178,10 @@ pub(crate) struct ForensicState {
     /// One allocation, held as `u64` so that it is eight-aligned and every
     /// view carved out of it is too.
     block: Vec<u64>,
+    /// How many needles the block holds.
     pub(crate) many: usize,
-    /// Whether the child turns the needle around before looking for it, which
-    /// is what a caller holding a secret backwards is asking for.
+    /// Whether the child turns the needles around before looking for them,
+    /// which is what a caller holding secrets backwards is asking for.
     pub(crate) backwards: bool,
 }
 
@@ -187,19 +197,23 @@ pub(crate) struct Parts<'a> {
     /// without asking for memory or leaving it in anybody's process.
     #[allow(dead_code)]
     pub(crate) report: &'a mut [u8],
+    /// Every needle, end to end. They arrive backwards and are turned around
+    /// in the child.
     pub(crate) needles: &'a mut [u8],
+    /// How long each needle is.
     pub(crate) of: &'a mut [u64],
-    /// One bit per pair: whether `y` ever follows `x` in the needle.
+    /// One bit per pair, per needle: whether `y` ever follows `x` in it.
     pub(crate) next: &'a mut [u8],
-    /// One bit per byte value: whether it is in the needle at all.
+    /// One bit per byte value, per needle: whether it is in it at all.
     pub(crate) seen: &'a mut [u8],
-    /// How many runs were closed at each width.
+    /// How many runs of each needle were closed at each width, needle after
+    /// needle.
     pub(crate) widths: &'a mut [u64],
     /// The last `MOST` bytes swept, as a ring. A run is read back out of it
     /// when it closes, wherever it began and whichever window that was in.
     pub(crate) tail: &'a mut [u8],
-    /// Scratch for verifying a run against the needle, one counter per byte
-    /// of it.
+    /// Scratch for verifying a run against a needle, one counter per byte of
+    /// the widest.
     pub(crate) lens: &'a mut [u16],
     /// What goes back through the pipe.
     pub(crate) result: &'a mut [u64],
@@ -326,18 +340,22 @@ impl Default for ForensicState {
 }
 
 impl ForensicState {
-    /// The needle, copied where the child can reach it without asking for
-    /// memory.
-    ///
-    /// It goes in exactly as the caller holds it, which is backwards. Turning
-    /// it around is the child's to do, on the far side of the photograph:
-    /// written forwards here it would be a copy of the secret in this process,
-    /// put there by the thing that is looking for copies of the secret in this
-    /// process.
+    /// One needle, and no other.
     pub(crate) fn hold(&mut self, needle: &[u8], backwards: bool) -> bool {
         self.hold_each(&[needle], backwards)
     }
 
+    /// The needles, copied end to end where the child can reach them without
+    /// asking for memory.
+    ///
+    /// Each goes in exactly as the caller holds it, which is backwards. Turning
+    /// it around is the child's to do, on the far side of the photograph:
+    /// written forwards here it would be a copy of the secret in this process,
+    /// put there by the thing that is looking for copies of the secret in this
+    /// process.
+    ///
+    /// Every needle is checked before any is written, so a refusal leaves the
+    /// last ones as they were.
     pub(crate) fn hold_each(&mut self, needles: &[&[u8]], backwards: bool) -> bool {
         if needles.is_empty() || needles.len() > NEEDLES {
             return false;
@@ -416,7 +434,6 @@ impl ForensicState {
         }
     }
 
-    /// One number out of the result.
     /// The high end of the stack the analysis runs on, aligned as the ABI
     /// wants it at a call.
     ///
@@ -439,6 +456,7 @@ impl ForensicState {
         self.parts().result[at]
     }
 
+    /// One number out of one needle's answer.
     pub(crate) fn read_of(&mut self, needle: usize, at: usize) -> u64 {
         self.parts().result[EACH * needle + at]
     }

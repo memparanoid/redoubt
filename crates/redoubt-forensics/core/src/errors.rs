@@ -26,7 +26,8 @@ use core::fmt;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Reason {
-    /// Nothing to look for, or more to look for than the window is wide.
+    /// Nothing to look for, or more needles, or more bytes of them, than the
+    /// instrument has room for.
     ///
     /// The only one of these that is decided before anything forks.
     Needle,

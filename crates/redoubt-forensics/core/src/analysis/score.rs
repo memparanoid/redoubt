@@ -67,7 +67,7 @@ use crate::analysis::state::{
 };
 use crate::errors::Reason;
 
-/// The whole needle, counted where it is whole.
+/// The first needle, counted where it is whole.
 pub(crate) fn count(state: &mut ForensicState, subject: &Subject) -> Result<(), Reason> {
     let backwards = state.backwards;
 
@@ -107,7 +107,8 @@ pub(crate) fn count(state: &mut ForensicState, subject: &Subject) -> Result<(), 
     Ok(())
 }
 
-/// Every run, tallied by width, and then weighed.
+/// Every run of every needle, tallied by width in one sweep, and then each
+/// needle weighed against the same memory.
 pub(crate) fn runs(state: &mut ForensicState, subject: &Subject) -> Result<(), Reason> {
     let many = state.many;
     let backwards = state.backwards;
@@ -208,6 +209,8 @@ pub(crate) fn runs(state: &mut ForensicState, subject: &Subject) -> Result<(), R
     Ok(())
 }
 
+/// Where a sweep stands for every needle at once, between one window and the
+/// next.
 pub(crate) struct Walk<'a> {
     pub(crate) needles: &'a [u8],
     pub(crate) of: &'a [u64],
@@ -223,6 +226,8 @@ pub(crate) struct Walk<'a> {
 }
 
 impl Walk<'_> {
+    /// One window, every byte of it taken by every needle, and every run
+    /// closed where the ground breaks.
     pub(crate) fn step(&mut self, window: &[u8], breaks: bool) {
         for &byte in window {
             let (mut at, mut from) = (0, 0);
