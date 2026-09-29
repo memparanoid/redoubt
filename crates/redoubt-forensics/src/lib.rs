@@ -73,6 +73,6 @@ pub use redoubt_forensics_allocator::enable_forensics_allocator;
 
 #[cfg(target_os = "linux")]
 pub use redoubt_forensics_core::{
-    AnyError, Change, Forensics, QUIET, Reason, Report, capture, forensics, freeze, occurrences,
-    occurrences_reversed, pick_spiller,
+    AnyError, Change, Forensics, QUIET, Reason, Report, Watching, capture, forensics, freeze,
+    is_found, leaves_no_copy, leaves_nothing, occurrences, occurrences_reversed, pick_spiller,
 };

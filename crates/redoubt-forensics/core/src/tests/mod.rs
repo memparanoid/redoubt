@@ -22,7 +22,13 @@ mod frame;
 mod spiller;
 
 #[cfg(target_os = "linux")]
+mod verdicts;
+
+#[cfg(target_os = "linux")]
 mod watches;
+
+#[cfg(target_os = "linux")]
+mod watching;
 
 #[cfg(target_os = "linux")]
 mod window;

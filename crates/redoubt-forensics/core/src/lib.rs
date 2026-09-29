@@ -26,6 +26,12 @@ mod macros;
 mod spiller;
 
 #[cfg(target_os = "linux")]
+mod verdicts;
+
+#[cfg(target_os = "linux")]
+mod watching;
+
+#[cfg(target_os = "linux")]
 mod window;
 
 // The whole of it. Everything else — the block, the three processes, the
@@ -51,6 +57,12 @@ pub use spiller::pick_spiller;
 // the numbers the window is made of.
 #[cfg(target_os = "linux")]
 pub use spiller::{SPILL, redoubt_spill_room, redoubt_spill_vectors};
+
+#[cfg(target_os = "linux")]
+pub use verdicts::{is_found, leaves_no_copy, leaves_nothing};
+
+#[cfg(target_os = "linux")]
+pub use watching::Watching;
 
 #[cfg(target_os = "linux")]
 pub use window::{COPY, FLOOR, SP, TOP, open};
