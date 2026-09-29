@@ -5,7 +5,7 @@
 //! Every removal here rests on the guards' presences, which find the same
 //! fixture held.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 
 use crate::collections::{
     collection_zeroed, fast_zeroize_slice, fast_zeroize_vec, to_fast_zeroizable_dyn_mut,
@@ -13,8 +13,8 @@ use crate::collections::{
 };
 use crate::{FastZeroizable, ZeroizationProbe};
 
+use crate::tests::forensics::support::giving;
 use crate::tests::forensics::support::needles::{SECRET, backwards};
-use crate::tests::forensics::support::{giving, is_found, leaves_nothing};
 
 /// A secret a `String` can hold: every byte ASCII, none repeated.
 const TEXT: &[u8; 32] = b"q7Xv2Lp9Rz4Nb8Kt1Mw6Hc3Yf5Gd0SjA";

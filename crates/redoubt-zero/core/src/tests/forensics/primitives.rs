@@ -5,12 +5,12 @@
 //! Measured on `u128`, the widest: a narrower integer is a run no wider than
 //! what memory holds by chance.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 
 use crate::{FastZeroizable, ZeroizationProbe};
 
+use crate::tests::forensics::support::giving;
 use crate::tests::forensics::support::needles::SECRET;
-use crate::tests::forensics::support::{giving, is_found, leaves_nothing};
 
 fn half_backwards() -> Vec<u8> {
     SECRET[..16].iter().rev().copied().collect()

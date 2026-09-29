@@ -4,8 +4,6 @@
 
 pub(crate) mod needles;
 
-use redoubt_forensics::{QUIET, Report};
-
 use crate::{FastZeroizable, ZeroizationProbe};
 
 use needles::SECRET;
@@ -57,44 +55,4 @@ pub(crate) fn let_go<T>(value: T) {
 #[inline(never)]
 pub(crate) fn hold_on<T>(value: T) {
     core::mem::forget(core::hint::black_box(value));
-}
-
-/// The photograph says the secret is there, which is what makes the rest of
-/// the section mean anything.
-pub(crate) fn is_found(report: &Report, what: &str) {
-    println!();
-    report.summary(what);
-    println!();
-
-    assert!(
-        report.found,
-        "the sweep does not reach {what}, so every absence below it is the \
-         instrument standing where the evidence is: {report}"
-    );
-}
-
-/// Asserts the secret is gone: not whole, no run past `QUIET`, and a score that
-/// did not move. Each alone passes a process that kept part of it.
-pub(crate) fn leaves_nothing(report_before: &Report, report_after: &Report, what: &str) {
-    println!();
-    report_before.summary("nothing guarded yet");
-    report_after.summary_against(report_before, what);
-    println!();
-
-    // Assert zeroization!
-    assert!(
-        !report_after.found,
-        "the whole secret survived {what}: {report_after}"
-    );
-
-    assert!(
-        report_after.widest <= QUIET,
-        "a run of {} bytes survived {what}, and {QUIET} is what memory has by \
-         accident: {report_after}",
-        report_after.widest,
-    );
-
-    let delta = report_after.against(report_before);
-
-    assert!(delta.is_noise(), "{what} moved the score: {delta}");
 }

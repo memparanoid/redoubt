@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 
 use crate::{FastZeroizable, ZeroizationProbe, ZeroizingMutGuard};
 
 use crate::tests::forensics::support::needles::{SECRET, backwards};
-use crate::tests::forensics::support::{Wide, giving, hold_on, is_found, leaves_nothing, let_go};
+use crate::tests::forensics::support::{Wide, giving, hold_on, let_go};
 
 // ============================================================================
 // ZeroizingMutGuard::drop

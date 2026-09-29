@@ -9,12 +9,12 @@
 //! secret stays in its heap block; `[u8; 32]` moves the secret itself through
 //! registers; four kilobytes inline moves through a call into the C library.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 
 use crate::{FastZeroizable, ZeroizationProbe, ZeroizingGuard};
 
 use crate::tests::forensics::support::needles::{SECRET, backwards};
-use crate::tests::forensics::support::{Wide, giving, hold_on, is_found, leaves_nothing, let_go};
+use crate::tests::forensics::support::{Wide, giving, hold_on, let_go};
 
 // ============================================================================
 // ZeroizingGuard::drop
