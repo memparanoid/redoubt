@@ -429,9 +429,9 @@ fn test_what_a_field_was_tried_into_is_found_while_it_is_held() -> Result<(), An
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let field = Box::leak(Box::new(Field::default()));
         let mut data = Data::default();
 
@@ -483,9 +483,9 @@ fn test_what_a_field_was_decrypted_into_is_found_while_it_is_held() -> Result<()
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let field = Box::leak(Box::new(Field::default()));
 
         capture(|| one_field_box.decrypt_field::<Field, 0>(&key, field))?;
@@ -533,9 +533,9 @@ fn test_what_a_field_was_decrypted_into_through_a_buffer_is_found_while_it_is_he
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let field = Box::leak(Box::new(Field::default()));
         let mut data = Data::default();
 

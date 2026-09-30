@@ -195,9 +195,9 @@ fn test_what_encrypting_exported_and_did_not_encrypt_is_found() -> Result<(), An
     forensics!({
         let (mut first, mut second) = (a_field(), a_field());
 
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let buffers = Box::leak(Box::new(buffers_for(&mut first, &mut second)?));
         let ciphertexts: &mut Ciphertexts<2> =
             Box::leak(Box::new(core::array::from_fn(|_| vec![])));
@@ -390,9 +390,9 @@ fn test_what_decrypting_decoded_is_found_while_the_fields_hold_it() -> Result<()
     forensics!({
         let mut sealed = seal()?;
 
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let first = Box::leak(Box::new(Field::default()));
         let second = Box::leak(Box::new(Field::default()));
 
@@ -428,9 +428,9 @@ fn test_what_decrypting_decrypted_and_did_not_decode_is_found() -> Result<(), An
     let mut key = a_key()?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let sealed = Box::leak(Box::new(seal()?));
         let (mut first, mut second) = (Field::default(), Refusing);
 

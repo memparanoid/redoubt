@@ -20,9 +20,9 @@ fn test_the_key_opened_is_found_while_it_is_kept() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards_through(open)?)?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over
-        // what a buffer let go of, and then the sweep genuinely does not find
-        // what the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let kept = vec![0_u8; MASTER_KEY_LEN].leak();
 
         capture(|| open(&mut copying_into(kept)))?;
