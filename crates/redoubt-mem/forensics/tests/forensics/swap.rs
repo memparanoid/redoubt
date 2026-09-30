@@ -88,9 +88,9 @@ fn test_a_sized_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError
     unsafe { copy_nonoverlapping(SECRET.as_ptr(), secret.as_mut_ptr(), SECRET.len()) };
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over
-        // what a buffer let go of, and then the sweep genuinely does not find
-        // what the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let empty = vec![0_u8; SECRET.len()].leak();
 
         capture(|| {

@@ -21,9 +21,9 @@ fn test_a_copy_is_found_in_its_destination() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over
-        // what a buffer let go of, and then the sweep genuinely does not find
-        // what the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let scratch = vec![0_u8; SECRET.len()].leak();
 
         capture(|| {
