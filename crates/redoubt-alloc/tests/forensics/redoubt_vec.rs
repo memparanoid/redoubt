@@ -89,8 +89,6 @@ fn test_a_redoubt_vec_given_away_is_found_while_it_is_held() -> Result<(), AnyEr
 
     is_found(&report, "a vec given away, and kept");
 
-    drop(core::hint::black_box(source));
-
     Ok(())
 }
 
@@ -196,8 +194,6 @@ fn test_a_redoubt_vec_from_a_mut_slice_is_found_while_it_is_held() -> Result<(),
     let report = watch.snapshot()?;
 
     is_found(&report, "a vec made from a slice, and kept");
-
-    drop(core::hint::black_box(source));
 
     Ok(())
 }
@@ -339,17 +335,16 @@ fn test_a_redoubt_vec_extended_is_found_while_it_holds_it() -> Result<(), AnyErr
     giving(&mut source);
 
     forensics!({
-        let mut held = RedoubtVec::<u8>::new();
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let held = Box::leak(Box::new(RedoubtVec::<u8>::new()));
         capture(|| held.extend_from_mut_slice(&mut source));
-
-        core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;
 
     is_found(&report, "a vec extended, and kept");
-
-    drop(core::hint::black_box(source));
 
     Ok(())
 }
@@ -429,17 +424,16 @@ fn test_a_redoubt_vec_replaced_is_found_while_it_holds_it() -> Result<(), AnyErr
     giving(&mut source);
 
     forensics!({
-        let mut held = RedoubtVec::<u8>::new();
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let held = Box::leak(Box::new(RedoubtVec::<u8>::new()));
         capture(|| held.replace_from_mut_slice(&mut source));
-
-        core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;
 
     is_found(&report, "a vec replaced, and kept");
-
-    drop(core::hint::black_box(source));
 
     Ok(())
 }
@@ -523,22 +517,21 @@ fn test_a_redoubt_vec_drained_into_is_found_while_it_holds_it() -> Result<(), An
     let mut source = wide_values(SECRET.len());
 
     forensics!({
-        let mut held = RedoubtVec::<u128>::new();
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let held = Box::leak(Box::new(RedoubtVec::<u128>::new()));
 
         capture(|| {
             for one in &mut source {
                 held.drain_value(one);
             }
         });
-
-        core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;
 
     is_found(&report, "a vec drained into, and kept");
-
-    drop(core::hint::black_box(source));
 
     Ok(())
 }

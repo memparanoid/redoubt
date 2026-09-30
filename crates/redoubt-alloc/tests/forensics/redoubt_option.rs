@@ -107,8 +107,6 @@ fn test_a_redoubt_option_given_away_is_found_while_it_is_held() -> Result<(), An
 
     is_found(&report, "an option given away, and kept");
 
-    drop(core::hint::black_box(source));
-
     Ok(())
 }
 
@@ -225,10 +223,11 @@ fn test_a_redoubt_option_replaced_is_found_while_it_holds_it() -> Result<(), Any
         let mut inner = RedoubtVec::<u8>::new();
         inner.replace_from_mut_slice(&mut source);
 
-        let mut held = RedoubtOption::<RedoubtVec<u8>>::default();
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let held = Box::leak(Box::new(RedoubtOption::<RedoubtVec<u8>>::default()));
         capture(|| held.replace(&mut inner));
-
-        core::mem::forget(held);
 
         drop(inner);
     });
@@ -236,8 +235,6 @@ fn test_a_redoubt_option_replaced_is_found_while_it_holds_it() -> Result<(), Any
     let report = watch.snapshot()?;
 
     is_found(&report, "an option replaced, and kept");
-
-    drop(core::hint::black_box(source));
 
     Ok(())
 }
@@ -315,17 +312,16 @@ fn test_a_redoubt_option_of_a_block_replaced_is_found_while_it_holds_it() -> Res
     giving(&mut source[..]);
 
     forensics!({
-        let mut held = Box::new(RedoubtOption::<Block>::default());
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let held = Box::leak(Box::new(RedoubtOption::<Block>::default()));
         capture(|| held.replace(&mut source));
-
-        core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;
 
     is_found(&report, "an option of a block replaced, and kept");
-
-    drop(core::hint::black_box(source));
 
     Ok(())
 }

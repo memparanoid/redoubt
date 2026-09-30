@@ -213,10 +213,11 @@ fn test_what_was_pushed_is_found_while_the_allocked_vec_holds_it() -> Result<(),
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let mut held = AllockedVec::<Block>::with_capacity(1);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let held = Box::leak(Box::new(AllockedVec::<Block>::with_capacity(1)));
         capture(|| held.push(&mut { SECRET }))?;
-
-        core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;
@@ -355,13 +356,14 @@ fn test_what_a_truncation_keeps_is_found_while_the_allocked_vec_holds_it() -> Re
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let mut held = AllockedVec::<Block>::with_capacity(2);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let held = Box::leak(Box::new(AllockedVec::<Block>::with_capacity(2)));
         held.push(&mut { SECRET })?;
         held.push(&mut { SECRET })?;
 
         capture(|| held.truncate(1));
-
-        core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;
@@ -444,17 +446,16 @@ fn test_what_was_drained_is_found_while_the_allocked_vec_holds_it() -> Result<()
     giving(&mut source[0]);
 
     forensics!({
-        let mut held = AllockedVec::<Block>::with_capacity(1);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let held = Box::leak(Box::new(AllockedVec::<Block>::with_capacity(1)));
         capture(|| held.drain_from(&mut source))?;
-
-        core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;
 
     is_found(&report, "a vec drained into, and kept");
-
-    drop(core::hint::black_box(source));
 
     Ok(())
 }
@@ -531,12 +532,13 @@ fn test_what_was_carried_over_is_found_while_the_allocked_vec_holds_it() -> Resu
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let mut held = AllockedVec::<Block>::with_capacity(1);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let held = Box::leak(Box::new(AllockedVec::<Block>::with_capacity(1)));
         held.push(&mut { SECRET })?;
 
         capture(|| held.realloc_with_capacity(2));
-
-        core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;

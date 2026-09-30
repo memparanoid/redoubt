@@ -140,8 +140,6 @@ fn test_a_redoubt_string_given_away_is_found_while_it_is_held() -> Result<(), An
 
     is_found(&report, "a string given away, and kept");
 
-    drop(core::hint::black_box(source));
-
     Ok(())
 }
 
@@ -262,8 +260,6 @@ fn test_a_redoubt_string_from_a_mut_string_is_found_while_it_is_held() -> Result
 
     is_found(&report, "a string made from a string, and kept");
 
-    drop(core::hint::black_box(source));
-
     Ok(())
 }
 
@@ -357,15 +353,14 @@ fn test_a_redoubt_string_from_a_str_is_found_while_it_is_held() -> Result<(), An
         let held = capture(|| RedoubtString::from_str(&source));
 
         core::mem::forget(held);
+
+        // What it read, emptied: what is found is what it wrote.
+        emptying(&mut source);
     });
 
     let report = watch.snapshot()?;
 
     is_found(&report, "a string made from a str, and kept");
-
-    emptying(&mut source);
-
-    drop(core::hint::black_box(source));
 
     Ok(())
 }
@@ -499,17 +494,16 @@ fn test_a_redoubt_string_extended_is_found_while_it_holds_it() -> Result<(), Any
     let mut source = spell(SECRET.len() * 2);
 
     forensics!({
-        let mut held = RedoubtString::new();
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let held = Box::leak(Box::new(RedoubtString::new()));
         capture(|| held.extend_from_mut_string(&mut source));
-
-        core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;
 
     is_found(&report, "a string extended, and kept");
-
-    drop(core::hint::black_box(source));
 
     Ok(())
 }
@@ -590,17 +584,16 @@ fn test_a_redoubt_string_replaced_is_found_while_it_holds_it() -> Result<(), Any
     let mut source = spell(SECRET.len() * 2);
 
     forensics!({
-        let mut held = RedoubtString::new();
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let held = Box::leak(Box::new(RedoubtString::new()));
         capture(|| held.replace_from_mut_string(&mut source));
-
-        core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;
 
     is_found(&report, "a string replaced, and kept");
-
-    drop(core::hint::black_box(source));
 
     Ok(())
 }
@@ -672,19 +665,19 @@ fn test_a_redoubt_string_extended_from_a_str_is_found_while_it_holds_it() -> Res
     let mut source = spell(SECRET.len() * 2);
 
     forensics!({
-        let mut held = RedoubtString::new();
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let held = Box::leak(Box::new(RedoubtString::new()));
         capture(|| held.extend_from_str(&source));
 
-        core::mem::forget(held);
+        // What it read, emptied: what is found is what it wrote.
+        emptying(&mut source);
     });
 
     let report = watch.snapshot()?;
 
     is_found(&report, "a string extended from a str, and kept");
-
-    emptying(&mut source);
-
-    drop(core::hint::black_box(source));
 
     Ok(())
 }

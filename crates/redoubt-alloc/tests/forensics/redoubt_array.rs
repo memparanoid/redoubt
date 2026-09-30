@@ -69,8 +69,6 @@ fn test_a_redoubt_array_given_away_is_found_while_it_is_held() -> Result<(), Any
 
     is_found(&report, "an array given away, and kept");
 
-    core::hint::black_box(&source);
-
     Ok(())
 }
 
@@ -146,8 +144,6 @@ fn test_a_redoubt_array_from_a_mut_array_is_found_while_it_is_held() -> Result<(
 
     is_found(&report, "an array made from an array, and kept");
 
-    core::hint::black_box(&source);
-
     Ok(())
 }
 
@@ -212,19 +208,16 @@ fn test_a_redoubt_array_replaced_is_found_while_it_holds_it() -> Result<(), AnyE
     giving(&mut source);
 
     forensics!({
-        let mut held = RedoubtArray::<u8, 32>::default();
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let held = Box::leak(Box::new(RedoubtArray::<u8, 32>::default()));
         capture(|| held.replace_from_mut_array(&mut source));
-
-        core::mem::forget(held);
     });
 
     let report = watch.snapshot()?;
 
     is_found(&report, "an array replaced, and kept");
-
-    // By reference: `[u8; 32]` is `Copy`, and a `black_box` of it by value puts
-    // one more copy on the stack.
-    core::hint::black_box(&source);
 
     Ok(())
 }
