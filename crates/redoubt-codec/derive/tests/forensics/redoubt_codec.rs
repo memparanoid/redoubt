@@ -5,12 +5,12 @@
 use redoubt_alloc::{AllockedVec, RedoubtArray, RedoubtOption, RedoubtString, RedoubtVec};
 use redoubt_codec_core::{BytesRequired, Decode, Encode, EncodeError, RedoubtCodecBuffer};
 use redoubt_codec_derive::RedoubtCodec;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_secret::RedoubtSecret;
 use redoubt_zero::{FastZeroizable, RedoubtZero};
 
 use crate::support::needles::{NEEDLE, backwards};
-use crate::support::{a_u128, bytes, giving, is_found, leaves_nothing, text};
+use crate::support::{a_u128, bytes, giving, text};
 
 /// What a container that can hold more than one needle is filled with.
 const WIDE: usize = 8 * NEEDLE.len();
@@ -221,9 +221,7 @@ fn test_encoding_a_struct_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding a struct",
     );
 
@@ -259,9 +257,7 @@ fn test_encoding_a_struct_into_a_buffer_too_small_leaves_nothing() -> Result<(),
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding a struct into a buffer too small",
     );
 
@@ -359,9 +355,7 @@ fn test_decoding_a_struct_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding a struct",
     );
 
@@ -396,9 +390,7 @@ fn test_decoding_a_struct_over_one_that_holds_a_secret_leaves_nothing() -> Resul
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding a struct over one that holds a secret",
     );
 
@@ -437,9 +429,7 @@ fn test_decoding_a_struct_from_a_wire_cut_short_leaves_nothing() -> Result<(), A
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding a struct from a wire cut short",
     );
 
