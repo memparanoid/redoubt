@@ -7,13 +7,13 @@
 //! buffer keeps it. The absences rest on the instrument's own reach over
 //! registers and the stack.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, leaves_nothing};
 
 use crate::page_buffer::PageBuffer;
 use crate::traits::Buffer;
 
 use crate::tests::forensics::support::needles::{SECRET, backwards};
-use crate::tests::forensics::support::{fill, leaves_nothing, let_go, used, writing_the_secret};
+use crate::tests::forensics::support::{fill, let_go, used, writing_the_secret};
 
 // ============================================================================
 // PageBuffer, dropped

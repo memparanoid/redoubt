@@ -10,15 +10,13 @@
 //! so by finding the secret. What it does promise is that nothing is left once
 //! it lets go.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 
 use crate::portable_buffer::PortableBuffer;
 use crate::traits::Buffer;
 
 use crate::tests::forensics::support::needles::{SECRET, backwards};
-use crate::tests::forensics::support::{
-    fill, hold_on, is_found, leaves_nothing, let_go, used, writing_the_secret,
-};
+use crate::tests::forensics::support::{fill, hold_on, let_go, used, writing_the_secret};
 
 // ============================================================================
 // PortableBuffer, at rest
