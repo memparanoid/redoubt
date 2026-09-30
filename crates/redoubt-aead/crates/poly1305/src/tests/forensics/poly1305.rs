@@ -10,12 +10,12 @@ use std::boxed::Box;
 
 use redoubt_aead_core::consts::poly1305::{KEY_SIZE, TAG_SIZE};
 use redoubt_asm::Backend;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, Watching, capture, forensics, is_found};
 use redoubt_zero::FastZeroizable;
 
 use crate::poly1305::{Poly1305, tag};
 
-use crate::tests::forensics::support::{Watching, backwards, giving, is_found};
+use crate::tests::forensics::support::{backwards, giving};
 
 /// Thirty-two distinct bytes, so a run that extends did not extend by luck. The
 /// high half is `s`, which the state keeps as it arrived.
@@ -106,7 +106,7 @@ fn test_what_init_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyErr
 
 #[redoubt_forensics::test]
 fn test_init_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[("key", &KEY), ("r", &R)])?;
+    let mut watching = Watching::start(&[("key", &backwards(&KEY)), ("r", &backwards(&R))])?;
 
     let mut key = a_key();
 
@@ -158,7 +158,7 @@ fn test_what_update_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyE
 
 #[redoubt_forensics::test]
 fn test_update_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[("key", &KEY), ("r", &R), ("accumulator", &ACC)])?;
+    let mut watching = Watching::start(&[("key", &backwards(&KEY)), ("r", &backwards(&R)), ("accumulator", &backwards(&ACC))])?;
 
     let mut key = a_key();
     let mut poly = Poly1305::new();
@@ -212,10 +212,10 @@ fn test_what_update_padded_wrote_is_found_while_the_state_holds_it() -> Result<(
 #[redoubt_forensics::test]
 fn test_update_padded_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
-        ("key", &KEY),
-        ("r", &R),
-        ("accumulator", &ACC),
-        ("padded accumulator", &ACC_PADDED),
+        ("key", &backwards(&KEY)),
+        ("r", &backwards(&R)),
+        ("accumulator", &backwards(&ACC)),
+        ("padded accumulator", &backwards(&ACC_PADDED)),
     ])?;
 
     let mut key = a_key();
@@ -272,10 +272,10 @@ fn test_what_finalize_wrote_is_found_while_the_caller_holds_it() -> Result<(), A
 #[redoubt_forensics::test]
 fn test_finalize_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
-        ("key", &KEY),
-        ("r", &R),
-        ("accumulator", &ACC),
-        ("tag", &TAG),
+        ("key", &backwards(&KEY)),
+        ("r", &backwards(&R)),
+        ("accumulator", &backwards(&ACC)),
+        ("tag", &backwards(&TAG)),
     ])?;
 
     let mut key = a_key();
@@ -339,7 +339,7 @@ fn test_what_a_state_dropped_by_value_held_is_found_where_it_was() -> Result<(),
 /// so what the move copies is nothing.
 #[redoubt_forensics::test]
 fn test_a_state_zeroized_and_then_dropped_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[("key", &KEY), ("r", &R), ("accumulator", &ACC)])?;
+    let mut watching = Watching::start(&[("key", &backwards(&KEY)), ("r", &backwards(&R)), ("accumulator", &backwards(&ACC))])?;
 
     let mut key = a_key();
     let mut poly = Poly1305::new();
@@ -392,10 +392,10 @@ fn test_what_tag_wrote_is_found_while_the_caller_holds_it() -> Result<(), AnyErr
 #[redoubt_forensics::test]
 fn test_tag_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
-        ("key", &KEY),
-        ("r", &R),
-        ("accumulator", &ACC),
-        ("tag", &TAG),
+        ("key", &backwards(&KEY)),
+        ("r", &backwards(&R)),
+        ("accumulator", &backwards(&ACC)),
+        ("tag", &backwards(&TAG)),
     ])?;
 
     let mut key = a_key();
