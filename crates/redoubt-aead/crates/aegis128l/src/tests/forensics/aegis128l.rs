@@ -227,9 +227,9 @@ fn test_what_encrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(),
         let mut aead = Aegis128L::new();
         let mut tag = [0_u8; TAG_SIZE];
 
-        // Leaked and not a local: any call after the capture may write over
-        // what a buffer let go of, and then the sweep genuinely does not find
-        // what the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let data = holding(&PLAINTEXT).leak();
 
         capture(|| aead.encrypt(&key, &NONCE, AAD, data, &mut tag));
@@ -313,9 +313,9 @@ fn test_what_decrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(),
     forensics!({
         let mut aead = Aegis128L::new();
 
-        // Leaked and not a local: any call after the capture may write over
-        // what a buffer let go of, and then the sweep genuinely does not find
-        // what the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let data = holding(&CIPHERTEXT).leak();
 
         capture(|| aead.decrypt(&key, &NONCE, AAD, data, &SEALED_TAG))?;
