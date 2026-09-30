@@ -15,12 +15,12 @@ use std::vec::Vec;
 
 use redoubt_aead_core::consts::aegis::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
 use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt};
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, Watching, capture, forensics, is_found};
 use redoubt_zero::FastZeroizable;
 
 use crate::aegis128l::Aegis128L;
 
-use crate::tests::forensics::support::{Watching, backwards, giving, is_found};
+use crate::tests::forensics::support::{backwards, giving};
 
 /// Sixteen distinct bytes, so a run that extends did not extend by luck.
 const KEY: [u8; KEY_SIZE] = [
@@ -275,7 +275,10 @@ fn test_the_tag_encrypting_wrote_is_found_while_the_caller_holds_it() -> Result<
 
 #[redoubt_forensics::test]
 fn test_encrypting_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[("key", &KEY), ("plaintext", &PLAINTEXT)])?;
+    let mut watching = Watching::start(&[
+        ("key", &backwards(&KEY)),
+        ("plaintext", &backwards(&PLAINTEXT)),
+    ])?;
 
     let mut key = a_key();
     let mut data = holding(&PLAINTEXT);
@@ -331,9 +334,9 @@ fn test_what_decrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(),
 #[redoubt_forensics::test]
 fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
-        ("key", &KEY),
-        ("plaintext", &PLAINTEXT),
-        ("tag", &SEALED_TAG),
+        ("key", &backwards(&KEY)),
+        ("plaintext", &backwards(&PLAINTEXT)),
+        ("tag", &backwards(&SEALED_TAG)),
     ])?;
 
     let mut key = a_key();
@@ -365,9 +368,9 @@ fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
 #[redoubt_forensics::test]
 fn test_decrypting_under_a_wrong_tag_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
-        ("key", &KEY),
-        ("plaintext", &PLAINTEXT),
-        ("tag", &SEALED_TAG),
+        ("key", &backwards(&KEY)),
+        ("plaintext", &backwards(&PLAINTEXT)),
+        ("tag", &backwards(&SEALED_TAG)),
     ])?;
 
     let mut key = a_key();
