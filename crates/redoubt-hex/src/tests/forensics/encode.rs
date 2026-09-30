@@ -3,12 +3,12 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_asm::Backend;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, Watching, capture, forensics, is_found};
 
 use crate::encode::{bytes_to_hex, bytes_to_hex_using};
 
 use crate::tests::forensics::support::needles::{BYTES, DIGITS, OLD};
-use crate::tests::forensics::support::{backwards, hold, is_found, leaves_nothing, wipe};
+use crate::tests::forensics::support::{backwards, hold, wipe};
 
 macro_rules! encoding {
     (
@@ -42,11 +42,10 @@ macro_rules! encoding {
 
         #[redoubt_forensics::test]
         fn $absent() -> Result<(), AnyError> {
-            let mut bytes_watch = Forensics::watching(&backwards(&BYTES))?;
-            let mut digits_watch = Forensics::watching(&backwards(&DIGITS))?;
-
-            let bytes_before = bytes_watch.snapshot()?;
-            let digits_before = digits_watch.snapshot()?;
+            let mut watching = Watching::start(&[
+                ("bytes", &backwards(&BYTES)),
+                ("digits", &backwards(&DIGITS)),
+            ])?;
 
             let mut $src = hold(&BYTES);
 
@@ -64,31 +63,18 @@ macro_rules! encoding {
                 wipe(&mut $src);
             });
 
-            leaves_nothing(
-                &bytes_before,
-                "nothing held yet",
-                &bytes_watch.snapshot()?,
-                "an encoding, of what it read",
-            );
-            leaves_nothing(
-                &digits_before,
-                "nothing held yet",
-                &digits_watch.snapshot()?,
-                "an encoding, of what it wrote",
-            );
+            watching.none_left("an encoding")?;
 
             Ok(())
         }
 
         #[redoubt_forensics::test]
         fn $over_a_secret() -> Result<(), AnyError> {
-            let mut bytes_watch = Forensics::watching(&backwards(&BYTES))?;
-            let mut digits_watch = Forensics::watching(&backwards(&DIGITS))?;
-            let mut old_watch = Forensics::watching(&backwards(&OLD))?;
-
-            let bytes_before = bytes_watch.snapshot()?;
-            let digits_before = digits_watch.snapshot()?;
-            let old_before = old_watch.snapshot()?;
+            let mut watching = Watching::start(&[
+                ("bytes", &backwards(&BYTES)),
+                ("digits", &backwards(&DIGITS)),
+                ("old secret", &backwards(&OLD)),
+            ])?;
 
             let mut $src = hold(&BYTES);
             let mut written = hold(&OLD);
@@ -106,24 +92,7 @@ macro_rules! encoding {
                 wipe(&mut $src);
             });
 
-            leaves_nothing(
-                &bytes_before,
-                "nothing held yet",
-                &bytes_watch.snapshot()?,
-                "an encoding over a secret, of what it read",
-            );
-            leaves_nothing(
-                &digits_before,
-                "nothing held yet",
-                &digits_watch.snapshot()?,
-                "an encoding over a secret, of what it wrote",
-            );
-            leaves_nothing(
-                &old_before,
-                "nothing held yet",
-                &old_watch.snapshot()?,
-                "an encoding over a secret, of what it wrote over",
-            );
+            watching.none_left("an encoding over a secret")?;
 
             Ok(())
         }

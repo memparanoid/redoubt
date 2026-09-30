@@ -3,13 +3,13 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_asm::Backend;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, Watching, capture, forensics, is_found};
 
 use crate::decode::{hex_to_bytes, hex_to_bytes_using};
 use crate::error::HexError;
 
 use crate::tests::forensics::support::needles::{BYTES, DIGITS, OLD};
-use crate::tests::forensics::support::{backwards, hold, is_found, leaves_nothing, wipe};
+use crate::tests::forensics::support::{backwards, hold, wipe};
 
 const NOT_A_DIGIT: u8 = b'g';
 
@@ -46,11 +46,10 @@ macro_rules! decoding {
 
         #[redoubt_forensics::test]
         fn $absent() -> Result<(), AnyError> {
-            let mut digits_watch = Forensics::watching(&backwards(&DIGITS))?;
-            let mut bytes_watch = Forensics::watching(&backwards(&BYTES))?;
-
-            let digits_before = digits_watch.snapshot()?;
-            let bytes_before = bytes_watch.snapshot()?;
+            let mut watching = Watching::start(&[
+                ("digits", &backwards(&DIGITS)),
+                ("bytes", &backwards(&BYTES)),
+            ])?;
 
             let mut $src = hold(&DIGITS);
 
@@ -68,31 +67,18 @@ macro_rules! decoding {
                 wipe(&mut $src);
             });
 
-            leaves_nothing(
-                &digits_before,
-                "nothing held yet",
-                &digits_watch.snapshot()?,
-                "a decoding, of what it read",
-            );
-            leaves_nothing(
-                &bytes_before,
-                "nothing held yet",
-                &bytes_watch.snapshot()?,
-                "a decoding, of what it wrote",
-            );
+            watching.none_left("a decoding")?;
 
             Ok(())
         }
 
         #[redoubt_forensics::test]
         fn $over_a_secret() -> Result<(), AnyError> {
-            let mut digits_watch = Forensics::watching(&backwards(&DIGITS))?;
-            let mut bytes_watch = Forensics::watching(&backwards(&BYTES))?;
-            let mut old_watch = Forensics::watching(&backwards(&OLD[..BYTES.len()]))?;
-
-            let digits_before = digits_watch.snapshot()?;
-            let bytes_before = bytes_watch.snapshot()?;
-            let old_before = old_watch.snapshot()?;
+            let mut watching = Watching::start(&[
+                ("digits", &backwards(&DIGITS)),
+                ("bytes", &backwards(&BYTES)),
+                ("old secret", &backwards(&OLD[..BYTES.len()])),
+            ])?;
 
             let mut $src = hold(&DIGITS);
             let mut written = hold(&OLD[..BYTES.len()]);
@@ -110,35 +96,17 @@ macro_rules! decoding {
                 wipe(&mut $src);
             });
 
-            leaves_nothing(
-                &digits_before,
-                "nothing held yet",
-                &digits_watch.snapshot()?,
-                "a decoding over a secret, of what it read",
-            );
-            leaves_nothing(
-                &bytes_before,
-                "nothing held yet",
-                &bytes_watch.snapshot()?,
-                "a decoding over a secret, of what it wrote",
-            );
-            leaves_nothing(
-                &old_before,
-                "nothing held yet",
-                &old_watch.snapshot()?,
-                "a decoding over a secret, of what it wrote over",
-            );
+            watching.none_left("a decoding over a secret")?;
 
             Ok(())
         }
 
         #[redoubt_forensics::test]
         fn $refused() -> Result<(), AnyError> {
-            let mut digits_watch = Forensics::watching(&backwards(&DIGITS[..DIGITS.len() - 1]))?;
-            let mut bytes_watch = Forensics::watching(&backwards(&BYTES[..BYTES.len() - 1]))?;
-
-            let digits_before = digits_watch.snapshot()?;
-            let bytes_before = bytes_watch.snapshot()?;
+            let mut watching = Watching::start(&[
+                ("digits", &backwards(&DIGITS[..DIGITS.len() - 1])),
+                ("bytes", &backwards(&BYTES[..BYTES.len() - 1])),
+            ])?;
 
             let mut $src = hold(&DIGITS);
 
@@ -163,18 +131,7 @@ macro_rules! decoding {
                 // without it.
             });
 
-            leaves_nothing(
-                &digits_before,
-                "nothing held yet",
-                &digits_watch.snapshot()?,
-                "a decoding refused at its last character, of what it read",
-            );
-            leaves_nothing(
-                &bytes_before,
-                "nothing held yet",
-                &bytes_watch.snapshot()?,
-                "a decoding refused at its last character, of what it decoded",
-            );
+            watching.none_left("a decoding refused at its last character")?;
 
             Ok(())
         }
