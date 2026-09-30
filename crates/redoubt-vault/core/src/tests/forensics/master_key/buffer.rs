@@ -9,14 +9,13 @@
 //! absence here asserts no copy and no run wider than `QUIET`, not an unmoved
 //! score.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics, pick_spiller};
-use redoubt_zero::FastZeroizable;
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_no_copy, pick_spiller};
 
 use crate::master_key::buffer::create_initialized_buffer;
 use crate::master_key::consts::MASTER_KEY_LEN;
 
+use crate::tests::forensics::support::copying_into;
 use crate::tests::forensics::support::needles::backwards_through;
-use crate::tests::forensics::support::{copying_into, is_found, leaves_no_copy};
 
 // ============================================================================
 // create_buffer
@@ -45,19 +44,15 @@ fn test_the_key_made_is_found_once_copied_out_of_its_page() -> Result<(), AnyErr
         buffer = capture(create_initialized_buffer)?;
     });
 
-    let mut kept = vec![0_u8; MASTER_KEY_LEN];
+    let kept = vec![0_u8; MASTER_KEY_LEN].leak();
 
-    buffer.open(&mut copying_into(&mut kept))?;
+    buffer.open(&mut copying_into(kept))?;
 
     let mut watch = Forensics::watching(&backwards_through(|f| buffer.open(f))?)?;
 
     let report = watch.snapshot()?;
 
     is_found(&report, "the key made, copied out of its page");
-
-    kept.fast_zeroize();
-
-    drop(core::hint::black_box((buffer, kept)));
 
     Ok(())
 }
@@ -82,8 +77,6 @@ fn test_making_the_key_leaves_nothing() -> Result<(), AnyError> {
     let report = watch.snapshot()?;
 
     leaves_no_copy(&report, "the key made");
-
-    drop(core::hint::black_box(buffer));
 
     Ok(())
 }

@@ -7,7 +7,7 @@
 use redoubt_aead::{Aead, AeadBehaviour};
 use redoubt_alloc::RedoubtVec;
 use redoubt_codec::{Decode, DecodeError, RedoubtCodecBuffer};
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found};
 use redoubt_zero::FastZeroizable;
 
 use crate::error::CipherBoxError;
@@ -19,7 +19,7 @@ use crate::master_key::derive_next_cipherbox_key;
 use crate::types::{Ciphertexts, Nonces, Tags};
 
 use super::support::needles::{backwards, box_key_width, next_box_key_backwards};
-use super::support::{Watching, a_field, a_key, is_found};
+use super::support::{a_field, a_key, watch_the_secret_and_the_key};
 
 type Field = RedoubtVec<u8>;
 
@@ -141,7 +141,7 @@ fn test_the_box_key_is_found_while_it_is_held() -> Result<(), AnyError> {
 
 #[redoubt_forensics::test]
 fn test_encrypting_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&next_box_key_backwards()?)?;
+    let mut watching = watch_the_secret_and_the_key()?;
 
     let mut aead = Aead::default();
     let mut key = a_key()?;
@@ -175,7 +175,9 @@ fn test_encrypting_leaves_nothing() -> Result<(), AnyError> {
         drop(ciphertexts);
     });
 
-    watching.none_left("nothing held yet", "encrypting")
+    watching.none_left("encrypting")?;
+
+    Ok(())
 }
 
 // ============================================================================
@@ -192,8 +194,12 @@ fn test_what_encrypting_exported_and_did_not_encrypt_is_found() -> Result<(), An
 
     forensics!({
         let (mut first, mut second) = (a_field(), a_field());
-        let mut buffers = buffers_for(&mut first, &mut second)?;
-        let mut ciphertexts: Ciphertexts<2> = core::array::from_fn(|_| vec![]);
+
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let buffers = Box::leak(Box::new(buffers_for(&mut first, &mut second)?));
+        let ciphertexts: &mut Ciphertexts<2> = Box::leak(Box::new(core::array::from_fn(|_| vec![])));
 
         let refused = capture(|| {
             try_encrypt_into_buffers(
@@ -205,8 +211,8 @@ fn test_what_encrypting_exported_and_did_not_encrypt_is_found() -> Result<(), An
                 &key,
                 &mut nonces,
                 &mut tags,
-                &mut buffers,
-                &mut ciphertexts,
+                buffers,
+                ciphertexts,
             )
         });
 
@@ -215,7 +221,7 @@ fn test_what_encrypting_exported_and_did_not_encrypt_is_found() -> Result<(), An
             "the second encryption was not refused: {refused:?}"
         );
 
-        core::mem::forget((first, second, buffers, ciphertexts));
+        core::mem::forget((first, second));
     });
 
     let report = watch.snapshot()?;
@@ -229,7 +235,7 @@ fn test_what_encrypting_exported_and_did_not_encrypt_is_found() -> Result<(), An
 
 #[redoubt_forensics::test]
 fn test_trying_to_encrypt_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&next_box_key_backwards()?)?;
+    let mut watching = watch_the_secret_and_the_key()?;
 
     let mut aead = Aead::default();
     let mut key = a_key()?;
@@ -267,7 +273,9 @@ fn test_trying_to_encrypt_leaves_nothing() -> Result<(), AnyError> {
         drop(ciphertexts);
     });
 
-    watching.none_left("nothing held yet", "trying to encrypt")
+    watching.none_left("trying to encrypt")?;
+
+    Ok(())
 }
 
 // ============================================================================
@@ -276,7 +284,7 @@ fn test_trying_to_encrypt_leaves_nothing() -> Result<(), AnyError> {
 
 #[redoubt_forensics::test]
 fn test_encrypting_into_buffers_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&next_box_key_backwards()?)?;
+    let mut watching = watch_the_secret_and_the_key()?;
 
     let mut aead = Aead::default();
     let mut key = a_key()?;
@@ -314,12 +322,14 @@ fn test_encrypting_into_buffers_leaves_nothing() -> Result<(), AnyError> {
         drop(ciphertexts);
     });
 
-    watching.none_left("nothing held yet", "encrypting into buffers")
+    watching.none_left("encrypting into buffers")?;
+
+    Ok(())
 }
 
 #[redoubt_forensics::test]
 fn test_encrypting_into_buffers_refused_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&next_box_key_backwards()?)?;
+    let mut watching = watch_the_secret_and_the_key()?;
 
     let mut aead = Aead::default().with_behaviour(AeadBehaviour::FailAtNthEncrypt(2));
     let mut key = a_key()?;
@@ -360,7 +370,9 @@ fn test_encrypting_into_buffers_refused_leaves_nothing() -> Result<(), AnyError>
         key.fast_zeroize();
     });
 
-    watching.none_left("nothing held yet", "encrypting into buffers, refused")
+    watching.none_left("encrypting into buffers, refused")?;
+
+    Ok(())
 }
 
 // ============================================================================
@@ -369,21 +381,25 @@ fn test_encrypting_into_buffers_refused_leaves_nothing() -> Result<(), AnyError>
 
 #[redoubt_forensics::test]
 fn test_what_decrypting_decoded_is_found_while_the_fields_hold_it() -> Result<(), AnyError> {
-    let mut sealed = seal()?;
-
     let mut watch = Forensics::watching(&backwards())?;
 
     let aead = Aead::default();
     let mut key = a_key()?;
 
     forensics!({
-        let (mut first, mut second) = (Field::default(), Field::default());
+        let mut sealed = seal()?;
+
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let first = Box::leak(Box::new(Field::default()));
+        let second = Box::leak(Box::new(Field::default()));
 
         capture(|| {
             try_decrypt_from(
                 &mut [
-                    to_decryptable_mut_dyn(&mut first),
-                    to_decryptable_mut_dyn(&mut second),
+                    to_decryptable_mut_dyn(first),
+                    to_decryptable_mut_dyn(second),
                 ],
                 &aead,
                 &key,
@@ -392,8 +408,6 @@ fn test_what_decrypting_decoded_is_found_while_the_fields_hold_it() -> Result<()
                 &mut sealed.ciphertexts,
             )
         })?;
-
-        core::mem::forget((first, second));
     });
 
     let report = watch.snapshot()?;
@@ -407,14 +421,16 @@ fn test_what_decrypting_decoded_is_found_while_the_fields_hold_it() -> Result<()
 
 #[redoubt_forensics::test]
 fn test_what_decrypting_decrypted_and_did_not_decode_is_found() -> Result<(), AnyError> {
-    let mut sealed = seal()?;
-
     let mut watch = Forensics::watching(&backwards())?;
 
     let aead = Aead::default();
     let mut key = a_key()?;
 
     forensics!({
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let sealed = Box::leak(Box::new(seal()?));
         let (mut first, mut second) = (Field::default(), Refusing);
 
         let refused = capture(|| {
@@ -439,8 +455,6 @@ fn test_what_decrypting_decrypted_and_did_not_decode_is_found() -> Result<(), An
         // Emptied, so what is found can only be what was decrypted and not
         // decoded.
         first.fast_zeroize();
-
-        core::mem::forget(sealed);
     });
 
     let report = watch.snapshot()?;
@@ -454,7 +468,7 @@ fn test_what_decrypting_decrypted_and_did_not_decode_is_found() -> Result<(), An
 
 #[redoubt_forensics::test]
 fn test_trying_to_decrypt_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&next_box_key_backwards()?)?;
+    let mut watching = watch_the_secret_and_the_key()?;
 
     let mut sealed = seal()?;
 
@@ -491,7 +505,9 @@ fn test_trying_to_decrypt_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(sealed);
     });
 
-    watching.none_left("nothing held yet", "trying to decrypt")
+    watching.none_left("trying to decrypt")?;
+
+    Ok(())
 }
 
 // ============================================================================
@@ -500,7 +516,7 @@ fn test_trying_to_decrypt_leaves_nothing() -> Result<(), AnyError> {
 
 #[redoubt_forensics::test]
 fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&next_box_key_backwards()?)?;
+    let mut watching = watch_the_secret_and_the_key()?;
 
     let mut sealed = seal()?;
 
@@ -537,12 +553,14 @@ fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(sealed);
     });
 
-    watching.none_left("nothing held yet", "decrypting")
+    watching.none_left("decrypting")?;
+
+    Ok(())
 }
 
 #[redoubt_forensics::test]
 fn test_decrypting_refused_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&next_box_key_backwards()?)?;
+    let mut watching = watch_the_secret_and_the_key()?;
 
     let mut sealed = seal()?;
 
@@ -583,5 +601,7 @@ fn test_decrypting_refused_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(sealed);
     });
 
-    watching.none_left("nothing held yet", "decrypting, refused")
+    watching.none_left("decrypting, refused")?;
+
+    Ok(())
 }

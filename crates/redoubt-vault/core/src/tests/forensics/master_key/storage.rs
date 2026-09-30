@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_zero::FastZeroizable;
 
 use crate::master_key::consts::MASTER_KEY_LEN;
 use crate::master_key::storage::open;
 
+use crate::tests::forensics::support::copying_into;
 use crate::tests::forensics::support::needles::backwards_through;
-use crate::tests::forensics::support::{copying_into, is_found, leaves_nothing};
 
 // ============================================================================
 // open
@@ -18,12 +18,14 @@ use crate::tests::forensics::support::{copying_into, is_found, leaves_nothing};
 #[redoubt_forensics::test]
 fn test_the_key_opened_is_found_while_it_is_kept() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards_through(open)?)?;
-    let mut kept = vec![0_u8; MASTER_KEY_LEN];
 
     forensics!({
-        capture(|| open(&mut copying_into(&mut kept)))?;
+        // Leaked and not a local: any call after the capture may write over
+        // what a buffer let go of, and then the sweep genuinely does not find
+        // what the operation wrote there.
+        let kept = vec![0_u8; MASTER_KEY_LEN].leak();
 
-        core::mem::forget(kept);
+        capture(|| open(&mut copying_into(kept)))?;
     });
 
     let report = watch.snapshot()?;
@@ -52,14 +54,7 @@ fn test_opening_the_key_leaves_nothing() -> Result<(), AnyError> {
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &report_after,
-        "the key opened",
-    );
-
-    drop(core::hint::black_box(kept));
+    leaves_nothing(&report_before, &report_after, "the key opened");
 
     Ok(())
 }

@@ -9,14 +9,13 @@ mod buffer;
 mod storage;
 
 use redoubt_buffer::BufferError;
-use redoubt_forensics::{AnyError, Forensics, QUIET, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, QUIET, Watching, capture, forensics, is_found, leaves_nothing};
 
 use crate::master_key::consts::{CIPHERBOX_KEY_INFO_LEN, MASTER_KEY_LEN};
 use crate::master_key::storage::open;
 use crate::master_key::{cipherbox_key_info, derive_cipherbox_key, leak_master_key};
 
 use super::support::needles::backwards_through;
-use super::support::{is_found, leaves_nothing};
 
 /// Rounds in a row: a piece that survives one round in fifty shows here and
 /// not once.
@@ -32,6 +31,13 @@ fn derived_key_backwards() -> Result<Vec<u8>, AnyError> {
     needle.reverse();
 
     Ok(needle.to_vec())
+}
+
+fn watch_both_keys() -> Result<Watching, AnyError> {
+    Ok(Watching::start(&[
+        ("master key", &backwards_through(open)?),
+        ("derived key", &derived_key_backwards()?),
+    ])?)
 }
 
 // ============================================================================
@@ -68,11 +74,7 @@ fn test_the_derived_key_is_found_while_it_is_held() -> Result<(), AnyError> {
 
 #[redoubt_forensics::test]
 fn test_deriving_a_key_once_leaves_nothing() -> Result<(), AnyError> {
-    let mut master = Forensics::watching(&backwards_through(open)?)?;
-    let mut derived = Forensics::watching(&derived_key_backwards()?)?;
-
-    let master_before = master.snapshot()?;
-    let derived_before = derived.snapshot()?;
+    let mut watching = watch_both_keys()?;
 
     let info = info();
 
@@ -85,32 +87,14 @@ fn test_deriving_a_key_once_leaves_nothing() -> Result<(), AnyError> {
         drop(key);
     });
 
-    let master_after = master.snapshot()?;
-    let derived_after = derived.snapshot()?;
-
-    leaves_nothing(
-        &master_before,
-        "nothing held yet",
-        &master_after,
-        "one derive, in the master key",
-    );
-    leaves_nothing(
-        &derived_before,
-        "nothing held yet",
-        &derived_after,
-        "one derive, in the derived key",
-    );
+    watching.none_left("one derive")?;
 
     Ok(())
 }
 
 #[redoubt_forensics::test]
 fn test_deriving_a_key_often_leaves_nothing() -> Result<(), AnyError> {
-    let mut master = Forensics::watching(&backwards_through(open)?)?;
-    let mut derived = Forensics::watching(&derived_key_backwards()?)?;
-
-    let master_before = master.snapshot()?;
-    let derived_before = derived.snapshot()?;
+    let mut watching = watch_both_keys()?;
 
     let info = info();
 
@@ -126,32 +110,14 @@ fn test_deriving_a_key_often_leaves_nothing() -> Result<(), AnyError> {
         })?;
     });
 
-    let master_after = master.snapshot()?;
-    let derived_after = derived.snapshot()?;
-
-    leaves_nothing(
-        &master_before,
-        "nothing held yet",
-        &master_after,
-        &format!("{ROUNDS} derives, in the master key"),
-    );
-    leaves_nothing(
-        &derived_before,
-        "nothing held yet",
-        &derived_after,
-        &format!("{ROUNDS} derives, in the derived key"),
-    );
+    watching.none_left(&format!("{ROUNDS} derives"))?;
 
     Ok(())
 }
 
 #[redoubt_forensics::test]
 fn test_deriving_a_key_too_wide_leaves_nothing() -> Result<(), AnyError> {
-    let mut master = Forensics::watching(&backwards_through(open)?)?;
-    let mut derived = Forensics::watching(&derived_key_backwards()?)?;
-
-    let master_before = master.snapshot()?;
-    let derived_before = derived.snapshot()?;
+    let mut watching = watch_both_keys()?;
 
     let info = info();
 
@@ -164,21 +130,7 @@ fn test_deriving_a_key_too_wide_leaves_nothing() -> Result<(), AnyError> {
         );
     });
 
-    let master_after = master.snapshot()?;
-    let derived_after = derived.snapshot()?;
-
-    leaves_nothing(
-        &master_before,
-        "nothing held yet",
-        &master_after,
-        "a derive too wide, in the master key",
-    );
-    leaves_nothing(
-        &derived_before,
-        "nothing held yet",
-        &derived_after,
-        "a derive too wide, in the derived key",
-    );
+    watching.none_left("a derive too wide")?;
 
     Ok(())
 }
@@ -248,8 +200,6 @@ fn test_a_piece_of_the_master_key_kept_is_not_read_as_chance() -> Result<(), Any
          they are not: {delta}",
     );
 
-    drop(core::hint::black_box(kept));
-
     Ok(())
 }
 
@@ -271,9 +221,7 @@ fn test_opening_the_master_key_too_wide_leaves_nothing() -> Result<(), AnyError>
     let report_after = watch.snapshot()?;
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &report_after,
+        &report_before,        &report_after,
         "an open too wide",
     );
 
@@ -298,9 +246,7 @@ fn test_opening_the_master_key_once_leaves_nothing() -> Result<(), AnyError> {
     let report_after = watch.snapshot()?;
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &report_after,
+        &report_before,        &report_after,
         "one open",
     );
 
@@ -328,9 +274,7 @@ fn test_opening_the_master_key_often_leaves_nothing() -> Result<(), AnyError> {
     let report_after = watch.snapshot()?;
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &report_after,
+        &report_before,        &report_after,
         &format!("{ROUNDS} opens"),
     );
 
