@@ -3,10 +3,10 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_alloc::RedoubtVec;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 
 use crate::support::needles::{SECRET, backwards};
-use crate::support::{giving, hold_on, is_found, leaves_nothing, let_go};
+use crate::support::{giving, hold_on, let_go};
 
 // ============================================================================
 // RedoubtVec::drop

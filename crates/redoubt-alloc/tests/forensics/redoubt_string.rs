@@ -3,10 +3,10 @@
 // See LICENSE in the repository root for full license text.
 
 use redoubt_alloc::RedoubtString;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 
 use crate::support::needles::SECRET;
-use crate::support::{hold_on, is_found, leaves_nothing, let_go};
+use crate::support::{hold_on, let_go};
 
 const HEX: [u8; 16] = *b"0123456789abcdef";
 
