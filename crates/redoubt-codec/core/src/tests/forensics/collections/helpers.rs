@@ -155,7 +155,9 @@ fn test_what_encoding_fields_wrote_is_found_while_the_buffer_holds_it() -> Resul
         // Leaked and not a local: any call after the capture may write over a
         // slot of the stack, and then the sweep genuinely does not find what
         // the operation wrote there.
-        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(first.encode_bytes_required()? + second.encode_bytes_required()?)));
+        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(
+            first.encode_bytes_required()? + second.encode_bytes_required()?,
+        )));
 
         capture(|| {
             encode_fields(
@@ -273,7 +275,10 @@ fn test_what_decoding_fields_wrote_is_found_while_the_fields_hold_it() -> Result
         // Leaked and not a local: any call after the capture may write over a
         // slot of the stack, and then the sweep genuinely does not find what
         // the operation wrote there.
-        let (first, second) = (Box::leak(Box::new(Vec::<u8>::new())), Box::leak(Box::new(Vec::<u8>::new())));
+        let (first, second) = (
+            Box::leak(Box::new(Vec::<u8>::new())),
+            Box::leak(Box::new(Vec::<u8>::new())),
+        );
 
         capture(|| {
             decode_fields(

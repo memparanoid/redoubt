@@ -144,7 +144,9 @@ fn test_what_trying_to_encode_wrote_is_found_while_the_buffer_holds_it() -> Resu
         // Leaked and not a local: any call after the capture may write over a
         // slot of the stack, and then the sweep genuinely does not find what
         // the operation wrote there.
-        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?)));
+        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(
+            held.encode_bytes_required()?,
+        )));
 
         capture(|| held.try_encode_into(buffer))?;
 
@@ -197,7 +199,9 @@ fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), A
         // Leaked and not a local: any call after the capture may write over a
         // slot of the stack, and then the sweep genuinely does not find what
         // the operation wrote there.
-        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(held.encode_bytes_required()?)));
+        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(
+            held.encode_bytes_required()?,
+        )));
 
         capture(|| held.encode_into(buffer))?;
     });
@@ -282,7 +286,9 @@ fn test_what_encoding_a_slice_wrote_is_found_while_the_buffer_holds_it() -> Resu
         // Leaked and not a local: any call after the capture may write over a
         // slot of the stack, and then the sweep genuinely does not find what
         // the operation wrote there.
-        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(2 * two[0].encode_bytes_required()?)));
+        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(
+            2 * two[0].encode_bytes_required()?,
+        )));
 
         capture(|| Held::encode_slice_into(&mut *two, buffer))?;
     });

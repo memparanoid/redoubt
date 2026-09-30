@@ -56,7 +56,9 @@ fn test_what_encoding_a_box_wrote_is_found_while_the_buffer_holds_it() -> Result
         // Leaked and not a local: any call after the capture may write over a
         // slot of the stack, and then the sweep genuinely does not find what
         // the operation wrote there.
-        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(boxed.encode_bytes_required()?)));
+        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(
+            boxed.encode_bytes_required()?,
+        )));
 
         capture(|| boxed.encode_into(buffer))?;
     });
