@@ -10,14 +10,12 @@ use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, Watching, capture, forensics, is_found, leaves_nothing};
 use redoubt_zero::FastZeroizable;
 
 use crate::consts::MAX_OUTPUT_SIZE;
 use crate::error::HkdfError;
 use crate::hkdf::{HkdfSha256, hkdf};
-
-use crate::tests::forensics::support::{is_found, leaves_nothing};
 
 /// The key material: thirty-two distinct bytes, so a run that extends did not
 /// extend by luck.
@@ -171,11 +169,10 @@ macro_rules! deriving {
 
             #[redoubt_forensics::test]
             fn $absent() -> Result<(), AnyError> {
-                let mut ikm_watch = Forensics::watching(&ikm_backwards())?;
-                let mut okm_watch = Forensics::watching(&okm_backwards())?;
-
-                let ikm_before = ikm_watch.snapshot()?;
-                let okm_before = okm_watch.snapshot()?;
+                let mut watching = Watching::start(&[
+                    ("key material", &ikm_backwards()),
+                    ("output", &okm_backwards()),
+                ])?;
 
                 let mut ikm = an_ikm();
 
@@ -193,18 +190,7 @@ macro_rules! deriving {
                     ikm.fast_zeroize();
                 });
 
-                leaves_nothing(
-                    &ikm_before,
-                    "nothing held yet",
-                    &ikm_watch.snapshot()?,
-                    concat!("deriving ", $len, " bytes, of what it read"),
-                );
-                leaves_nothing(
-                    &okm_before,
-                    "nothing held yet",
-                    &okm_watch.snapshot()?,
-                    concat!("deriving ", $len, " bytes, of what it wrote"),
-                );
+                watching.none_left(concat!("deriving ", $len, " bytes"))?;
 
                 Ok(())
             }
@@ -243,7 +229,6 @@ fn test_deriving_more_than_the_counter_has_blocks_for_leaves_nothing() -> Result
 
     leaves_nothing(
         &report_before,
-        "nothing held yet",
         &watch.snapshot()?,
         "deriving more than the counter has blocks for",
     );
@@ -270,12 +255,7 @@ fn test_deriving_nothing_leaves_nothing() -> Result<(), AnyError> {
         ikm.fast_zeroize();
     });
 
-    leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
-        "deriving nothing",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "deriving nothing");
 
     Ok(())
 }
@@ -309,11 +289,10 @@ fn test_what_hkdf_wrote_is_found_while_the_output_holds_it() -> Result<(), AnyEr
 
 #[redoubt_forensics::test]
 fn test_hkdf_leaves_nothing() -> Result<(), AnyError> {
-    let mut ikm_watch = Forensics::watching(&ikm_backwards())?;
-    let mut okm_watch = Forensics::watching(&okm_backwards())?;
-
-    let ikm_before = ikm_watch.snapshot()?;
-    let okm_before = okm_watch.snapshot()?;
+    let mut watching = Watching::start(&[
+        ("key material", &ikm_backwards()),
+        ("output", &okm_backwards()),
+    ])?;
 
     let mut ikm = an_ikm();
 
@@ -329,18 +308,7 @@ fn test_hkdf_leaves_nothing() -> Result<(), AnyError> {
         ikm.fast_zeroize();
     });
 
-    leaves_nothing(
-        &ikm_before,
-        "nothing held yet",
-        &ikm_watch.snapshot()?,
-        "hkdf, of what it read",
-    );
-    leaves_nothing(
-        &okm_before,
-        "nothing held yet",
-        &okm_watch.snapshot()?,
-        "hkdf, of what it wrote",
-    );
+    watching.none_left("hkdf")?;
 
     Ok(())
 }
