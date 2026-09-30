@@ -18,13 +18,13 @@ use redoubt_aead_core::consts::chacha::{KEY_SIZE, XNONCE_SIZE};
 use redoubt_aead_core::consts::poly1305::{KEY_SIZE as POLY_KEY_SIZE, TAG_SIZE};
 use redoubt_aead_core::{AeadCoreError, AeadDecrypt, AeadEncrypt};
 use redoubt_asm::Backend;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, Watching, capture, forensics, is_found};
 use redoubt_poly1305::Poly1305;
 use redoubt_zero::FastZeroizable;
 
 use crate::xchachapoly1305::{OneTimeKey, XChaCha20Poly1305};
 
-use crate::tests::forensics::support::{Watching, backwards, giving, is_found};
+use crate::tests::forensics::support::{backwards, giving};
 
 /// Thirty-two distinct bytes, so a run that extends did not extend by luck.
 const KEY: [u8; KEY_SIZE] = [
@@ -283,7 +283,7 @@ fn test_what_one_time_key_wrote_is_found_while_the_caller_holds_it() -> Result<(
 
 #[redoubt_forensics::test]
 fn test_one_time_key_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[("key", &KEY), ("one-time key", &OTK)])?;
+    let mut watching = Watching::start(&[("key", &backwards(&KEY)), ("one-time key", &backwards(&OTK))])?;
 
     let mut key = a_key();
 
@@ -339,10 +339,10 @@ fn test_what_tag_wrote_is_found_while_the_caller_holds_it() -> Result<(), AnyErr
 #[redoubt_forensics::test]
 fn test_tag_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
-        ("one-time key", &OTK),
-        ("r", &R),
-        ("accumulator", &ACC),
-        ("tag", &TAG),
+        ("one-time key", &backwards(&OTK)),
+        ("r", &backwards(&R)),
+        ("accumulator", &backwards(&ACC)),
+        ("tag", &backwards(&TAG)),
     ])?;
 
     let mut one_time_key = a_one_time_key();
@@ -403,7 +403,7 @@ fn test_what_tag_with_wrote_is_found_while_the_authenticator_holds_it() -> Resul
 #[redoubt_forensics::test]
 fn test_tag_with_leaves_nothing() -> Result<(), AnyError> {
     let mut watching =
-        Watching::start(&[("one-time key", &OTK), ("r", &R), ("accumulator", &ACC)])?;
+        Watching::start(&[("one-time key", &backwards(&OTK)), ("r", &backwards(&R)), ("accumulator", &backwards(&ACC))])?;
 
     let ciphertext = holding(&CIPHERTEXT);
     let mut authenticator = Poly1305::new();
@@ -491,11 +491,11 @@ fn test_the_tag_encrypting_wrote_is_found_while_the_caller_holds_it() -> Result<
 #[redoubt_forensics::test]
 fn test_encrypting_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
-        ("key", &KEY),
-        ("plaintext", &PLAINTEXT),
-        ("one-time key", &OTK),
-        ("r", &R),
-        ("accumulator", &ACC),
+        ("key", &backwards(&KEY)),
+        ("plaintext", &backwards(&PLAINTEXT)),
+        ("one-time key", &backwards(&OTK)),
+        ("r", &backwards(&R)),
+        ("accumulator", &backwards(&ACC)),
     ])?;
 
     let mut key = a_key();
@@ -555,12 +555,12 @@ fn test_what_decrypting_wrote_is_found_while_the_buffer_holds_it() -> Result<(),
 #[redoubt_forensics::test]
 fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
-        ("key", &KEY),
-        ("plaintext", &PLAINTEXT),
-        ("one-time key", &OTK),
-        ("r", &R),
-        ("accumulator", &ACC),
-        ("tag", &TAG),
+        ("key", &backwards(&KEY)),
+        ("plaintext", &backwards(&PLAINTEXT)),
+        ("one-time key", &backwards(&OTK)),
+        ("r", &backwards(&R)),
+        ("accumulator", &backwards(&ACC)),
+        ("tag", &backwards(&TAG)),
     ])?;
 
     let mut key = a_key();
@@ -592,12 +592,12 @@ fn test_decrypting_leaves_nothing() -> Result<(), AnyError> {
 #[redoubt_forensics::test]
 fn test_decrypting_under_a_wrong_tag_leaves_nothing() -> Result<(), AnyError> {
     let mut watching = Watching::start(&[
-        ("key", &KEY),
-        ("plaintext", &PLAINTEXT),
-        ("one-time key", &OTK),
-        ("r", &R),
-        ("accumulator", &ACC),
-        ("tag", &TAG),
+        ("key", &backwards(&KEY)),
+        ("plaintext", &backwards(&PLAINTEXT)),
+        ("one-time key", &backwards(&OTK)),
+        ("r", &backwards(&R)),
+        ("accumulator", &backwards(&ACC)),
+        ("tag", &backwards(&TAG)),
     ])?;
 
     let mut key = a_key();
