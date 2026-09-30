@@ -4,14 +4,14 @@
 
 use redoubt_aead_core::consts::chacha::{BERNSTEIN_NONCE_SIZE, NONCE_SIZE};
 use redoubt_asm::Backend;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, Watching, capture, forensics, is_found};
 use redoubt_zero::FastZeroizable;
 
 use crate::chacha20::ChaCha20;
 
+use crate::tests::forensics::support::backwards;
 use crate::tests::forensics::support::keystream::test_what_a_keystream_leaves;
 use crate::tests::forensics::support::needles::{KEY, PLAINTEXT, a_key, holding};
-use crate::tests::forensics::support::{Watching, backwards, is_found};
 
 /// Public, and so not watched: RFC 8439's twelve bytes.
 const NONCE: [u8; NONCE_SIZE] = [

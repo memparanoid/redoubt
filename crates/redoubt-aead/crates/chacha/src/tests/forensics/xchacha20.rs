@@ -6,7 +6,7 @@ use std::boxed::Box;
 
 use redoubt_aead_core::consts::chacha::{HNONCE_SIZE, KEY_SIZE, XNONCE_SIZE};
 use redoubt_asm::Backend;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, Watching, capture, forensics, is_found};
 use redoubt_zero::FastZeroizable;
 
 use crate::hchacha20::HChaCha20;
@@ -14,7 +14,7 @@ use crate::xchacha20::XChaCha20;
 
 use crate::tests::forensics::support::keystream::test_what_a_keystream_leaves;
 use crate::tests::forensics::support::needles::{KEY, PLAINTEXT, a_key, holding};
-use crate::tests::forensics::support::{Watching, backwards, is_found};
+use crate::tests::forensics::support::backwards;
 
 /// Public, and so not watched.
 const XNONCE: [u8; XNONCE_SIZE] = *b"a nonce twenty-four long";

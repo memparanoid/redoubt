@@ -66,9 +66,9 @@ macro_rules! test_what_a_keystream_leaves {
         #[redoubt_forensics::test]
         fn $encrypting_leaves_nothing() -> Result<(), AnyError> {
             let mut watching = Watching::start(&[
-                ("key", &KEY),
-                ("plaintext", &PLAINTEXT),
-                $(($name, &$needle),)*
+                ("key", &backwards(&KEY)),
+                ("plaintext", &backwards(&PLAINTEXT)),
+                $(($name, &backwards(&$needle)),)*
             ])?;
 
             let mut $key = a_key();
@@ -89,15 +89,17 @@ macro_rules! test_what_a_keystream_leaves {
                 $key.fast_zeroize();
             });
 
-            watching.none_left(concat!($what, ", encrypting"))
+            watching.none_left(concat!($what, ", encrypting"))?;
+
+            Ok(())
         }
 
         #[redoubt_forensics::test]
         fn $decrypting_leaves_nothing() -> Result<(), AnyError> {
             let mut watching = Watching::start(&[
-                ("key", &KEY),
-                ("plaintext", &PLAINTEXT),
-                $(($name, &$needle),)*
+                ("key", &backwards(&KEY)),
+                ("plaintext", &backwards(&PLAINTEXT)),
+                $(($name, &backwards(&$needle)),)*
             ])?;
 
             let mut $key = a_key();
@@ -118,7 +120,9 @@ macro_rules! test_what_a_keystream_leaves {
                 buffer.fast_zeroize();
             });
 
-            watching.none_left(concat!($what, ", decrypting"))
+            watching.none_left(concat!($what, ", decrypting"))?;
+
+            Ok(())
         }
     };
 }

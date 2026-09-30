@@ -6,13 +6,13 @@ use std::boxed::Box;
 
 use redoubt_aead_core::consts::chacha::{HNONCE_SIZE, KEY_SIZE};
 use redoubt_asm::Backend;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, Watching, capture, forensics, is_found};
 use redoubt_zero::FastZeroizable;
 
 use crate::hchacha20::HChaCha20;
 
+use crate::tests::forensics::support::backwards;
 use crate::tests::forensics::support::needles::{KEY, a_key};
-use crate::tests::forensics::support::{Watching, backwards, is_found};
 
 /// Public, and so not watched.
 const HNONCE: [u8; HNONCE_SIZE] = *b"a nonce, sixteen";
@@ -66,7 +66,10 @@ fn test_what_subkey_wrote_is_found_while_the_caller_holds_it() -> Result<(), Any
 
 #[redoubt_forensics::test]
 fn test_subkey_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[("key", &KEY), ("subkey", &SUBKEY)])?;
+    let mut watching = Watching::start(&[
+        ("key", &backwards(&KEY)),
+        ("subkey", &backwards(&SUBKEY)),
+    ])?;
 
     let mut key = a_key();
 
