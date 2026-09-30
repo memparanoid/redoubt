@@ -22,15 +22,18 @@ fn test_what_the_source_produced_is_found_while_the_buffer_holds_it() -> Result<
     pick_spiller();
 
     let source = SystemEntropySource {};
-    let mut got = vec![0_u8; WIDE];
+
+    // CORRECTNESS: before the block, because the needle is read from it once
+    // the capture is over.
+    let got = vec![0_u8; WIDE].leak();
 
     forensics!({
-        let asked = capture(|| source.fill_bytes(&mut got));
+        let asked = capture(|| source.fill_bytes(got));
 
         asked?;
     });
 
-    let mut watch = Forensics::watching(&backwards(&got))?;
+    let mut watch = Forensics::watching(&backwards(got))?;
 
     let report = watch.snapshot()?;
 
@@ -38,8 +41,6 @@ fn test_what_the_source_produced_is_found_while_the_buffer_holds_it() -> Result<
         &report,
         "the bytes the source produced, still in the buffer",
     );
-
-    wipe(&mut got);
 
     Ok(())
 }

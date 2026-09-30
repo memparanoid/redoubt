@@ -57,21 +57,21 @@ fn test_what_was_asked_for_is_found_while_the_buffer_holds_it() -> Result<(), An
     // the watch that would otherwise pick it is built after the capture.
     pick_spiller();
 
-    let mut got = vec![0_u8; WIDE];
+    // CORRECTNESS: before the block, because the needle is read from it once
+    // the capture is over.
+    let got = vec![0_u8; WIDE].leak();
 
     forensics!({
-        let asked = capture(|| fill_with_random_bytes(&mut got));
+        let asked = capture(|| fill_with_random_bytes(got));
 
         asked?;
     });
 
-    let mut watch = Forensics::watching(&backwards(&got))?;
+    let mut watch = Forensics::watching(&backwards(got))?;
 
     let report = watch.snapshot()?;
 
     is_found(&report, "the bytes asked for, still in the buffer");
-
-    wipe(&mut got);
 
     Ok(())
 }
