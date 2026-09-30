@@ -152,9 +152,10 @@ fn test_what_encoding_fields_wrote_is_found_while_the_buffer_holds_it() -> Resul
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let mut buffer = RedoubtCodecBuffer::with_capacity(
-            first.encode_bytes_required()? + second.encode_bytes_required()?,
-        );
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(first.encode_bytes_required()? + second.encode_bytes_required()?)));
 
         capture(|| {
             encode_fields(
@@ -163,11 +164,9 @@ fn test_what_encoding_fields_wrote_is_found_while_the_buffer_holds_it() -> Resul
                     to_encode_zeroize_dyn_mut(&mut second),
                 ]
                 .into_iter(),
-                &mut buffer,
+                buffer,
             )
         })?;
-
-        core::mem::forget(buffer);
     });
 
     is_found(&watch.snapshot()?, "a buffer encoded into, and kept");
@@ -271,20 +270,21 @@ fn test_what_decoding_fields_wrote_is_found_while_the_fields_hold_it() -> Result
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let (mut first, mut second) = (Vec::<u8>::new(), Vec::<u8>::new());
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let (first, second) = (Box::leak(Box::new(Vec::<u8>::new())), Box::leak(Box::new(Vec::<u8>::new())));
 
         capture(|| {
             decode_fields(
                 [
-                    to_decode_zeroize_dyn_mut(&mut first),
-                    to_decode_zeroize_dyn_mut(&mut second),
+                    to_decode_zeroize_dyn_mut(first),
+                    to_decode_zeroize_dyn_mut(second),
                 ]
                 .into_iter(),
                 &mut wire.as_mut_slice(),
             )
         })?;
-
-        core::mem::forget((first, second));
     });
 
     is_found(&watch.snapshot()?, "fields decoded, and kept");

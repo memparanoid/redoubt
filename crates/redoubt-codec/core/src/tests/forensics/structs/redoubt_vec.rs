@@ -56,11 +56,12 @@ fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), A
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let mut buffer = RedoubtCodecBuffer::with_capacity(value.encode_bytes_required()?);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(value.encode_bytes_required()?)));
 
-        capture(|| value.encode_into(&mut buffer))?;
-
-        core::mem::forget(buffer);
+        capture(|| value.encode_into(buffer))?;
     });
 
     is_found(&watch.snapshot()?, "a buffer holding the encoding");
@@ -123,11 +124,12 @@ fn test_what_decoding_wrote_is_found_while_the_redoubt_vec_holds_it() -> Result<
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let mut back = RedoubtVec::<u8>::new();
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let back = Box::leak(Box::new(RedoubtVec::<u8>::new()));
 
         capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
-
-        core::mem::forget(back);
     });
 
     is_found(&watch.snapshot()?, "a redoubt vec decoded, and kept");

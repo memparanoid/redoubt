@@ -45,14 +45,15 @@ fn test_what_trying_to_encode_wrote_is_found_while_the_buffer_holds_it() -> Resu
     let mut watch = Forensics::watching(&half_backwards())?;
 
     forensics!({
-        let mut buffer = RedoubtCodecBuffer::with_capacity(16);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(16)));
 
-        capture(|| value.try_encode_into(&mut buffer))?;
+        capture(|| value.try_encode_into(buffer))?;
 
         // Emptied, so what is found can only be what was written.
         value.fast_zeroize();
-
-        core::mem::forget(buffer);
     });
 
     is_found(&watch.snapshot()?, "a buffer encoded into, and kept");
@@ -97,11 +98,12 @@ fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), A
     let mut watch = Forensics::watching(&half_backwards())?;
 
     forensics!({
-        let mut buffer = RedoubtCodecBuffer::with_capacity(16);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(16)));
 
-        capture(|| value.encode_into(&mut buffer))?;
-
-        core::mem::forget(buffer);
+        capture(|| value.encode_into(buffer))?;
     });
 
     is_found(&watch.snapshot()?, "a buffer encoded into, and kept");
@@ -181,14 +183,15 @@ fn test_what_encoding_a_slice_wrote_is_found_while_the_buffer_holds_it() -> Resu
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let mut buffer = RedoubtCodecBuffer::with_capacity(32);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(32)));
 
-        capture(|| u128::encode_slice_into(&mut *values, &mut buffer))?;
+        capture(|| u128::encode_slice_into(&mut *values, buffer))?;
 
         // Emptied, so what is found can only be what was written.
         values.fast_zeroize();
-
-        core::mem::forget(buffer);
     });
 
     is_found(&watch.snapshot()?, "a buffer encoded into, and kept");
@@ -234,11 +237,12 @@ fn test_what_trying_to_decode_wrote_is_found_while_the_value_holds_it() -> Resul
     let mut watch = Forensics::watching(&half_backwards())?;
 
     forensics!({
-        let mut back = Box::new(0_u128);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let back = Box::leak(Box::new(0_u128));
 
         capture(|| back.try_decode_from(&mut wire.as_mut_slice()))?;
-
-        core::mem::forget(back);
     });
 
     is_found(&watch.snapshot()?, "a value decoded, and kept");
@@ -283,11 +287,12 @@ fn test_what_decoding_wrote_is_found_while_the_value_holds_it() -> Result<(), An
     let mut watch = Forensics::watching(&half_backwards())?;
 
     forensics!({
-        let mut back = Box::new(0_u128);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let back = Box::leak(Box::new(0_u128));
 
         capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
-
-        core::mem::forget(back);
     });
 
     is_found(&watch.snapshot()?, "a value decoded, and kept");
@@ -367,11 +372,12 @@ fn test_what_decoding_a_slice_wrote_is_found_while_the_slice_holds_it() -> Resul
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let mut back = Box::new([0_u128; 2]);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let back = Box::leak(Box::new([0_u128; 2]));
 
-        capture(|| u128::decode_slice_from(&mut *back, &mut wire.as_mut_slice()))?;
-
-        core::mem::forget(back);
+        capture(|| u128::decode_slice_from(back, &mut wire.as_mut_slice()))?;
     });
 
     is_found(&watch.snapshot()?, "a slice decoded, and kept");

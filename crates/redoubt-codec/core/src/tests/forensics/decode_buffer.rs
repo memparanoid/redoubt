@@ -30,14 +30,15 @@ fn test_what_reading_a_value_wrote_is_found_while_the_value_holds_it() -> Result
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let mut destination = Box::new([0_u8; 32]);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let destination = Box::leak(Box::new([0_u8; 32]));
 
-        capture(|| source.as_mut_slice().read(&mut *destination))?;
+        capture(|| source.as_mut_slice().read(destination))?;
 
         // Emptied, so what is found can only be what was read.
         source.fast_zeroize();
-
-        core::mem::forget(destination);
     });
 
     is_found(&watch.snapshot()?, "a value read, and kept");
@@ -83,13 +84,14 @@ fn test_what_reading_a_slice_wrote_is_found_while_the_slice_holds_it() -> Result
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let mut destination = vec![0_u8; 4096];
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let destination = Box::leak(Box::new(vec![0_u8; 4096]));
 
-        capture(|| source.as_mut_slice().read_slice(&mut destination))?;
+        capture(|| source.as_mut_slice().read_slice(destination))?;
 
         source.fast_zeroize();
-
-        core::mem::forget(destination);
     });
 
     is_found(&watch.snapshot()?, "a slice read, and kept");

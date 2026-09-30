@@ -209,14 +209,15 @@ fn test_what_writing_a_value_wrote_is_found_while_the_buffer_holds_it() -> Resul
     let mut watch = Forensics::watching(&half_backwards())?;
 
     forensics!({
-        let mut buffer = RedoubtCodecBuffer::with_capacity(16);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(16)));
 
         capture(|| buffer.write(&mut *value))?;
 
         // Emptied, so what is found can only be what was written.
         value.fast_zeroize();
-
-        core::mem::forget(buffer);
     });
 
     is_found(&watch.snapshot()?, "a buffer written, and kept");
@@ -261,14 +262,15 @@ fn test_what_writing_a_slice_wrote_is_found_while_the_buffer_holds_it() -> Resul
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        let mut buffer = RedoubtCodecBuffer::with_capacity(32);
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(32)));
 
         capture(|| buffer.write_slice(&mut source))?;
 
         // Emptied, so what is found can only be what was written.
         source.fast_zeroize();
-
-        core::mem::forget(buffer);
     });
 
     is_found(&watch.snapshot()?, "a buffer written, and kept");
@@ -319,8 +321,6 @@ fn test_what_exporting_wrote_is_found_while_the_vec_holds_it() -> Result<(), Any
     });
 
     is_found(&watch.snapshot()?, "a buffer exported, and kept");
-
-    drop(buffer);
 
     Ok(())
 }
