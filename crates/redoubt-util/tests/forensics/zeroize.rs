@@ -6,7 +6,7 @@
 //! the optimizer proved dead would leave the secret in the block or in the
 //! frame, and nothing in the test reads it back to keep the write alive.
 
-use redoubt_forensics::{AnyError, Forensics, QUIET, Report, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_util::{
     fast_zeroize_slice, fast_zeroize_vec, zeroize_primitive, zeroize_spare_capacity,
 };
@@ -54,42 +54,6 @@ fn a_vec_all_spare(of: usize) -> Vec<u8> {
     vec.clear();
 
     vec
-}
-
-fn is_found(report: &Report, what: &str) {
-    println!();
-    report.summary(what);
-    println!();
-
-    assert!(
-        report.found,
-        "the sweep does not reach {what}, so every absence below it is the \
-         instrument standing where the evidence is: {report}"
-    );
-}
-
-fn leaves_nothing(report_before: &Report, report_after: &Report, what: &str) {
-    println!();
-    report_before.summary("nothing held yet");
-    report_after.summary_against(report_before, what);
-    println!();
-
-    // Assert zeroization!
-    assert!(
-        !report_after.found,
-        "the whole secret survived {what}: {report_after}"
-    );
-
-    assert!(
-        report_after.widest <= QUIET,
-        "a run of {} bytes survived {what}, and {QUIET} is what memory has by \
-         accident: {report_after}",
-        report_after.widest,
-    );
-
-    let delta = report_after.against(report_before);
-
-    assert!(delta.is_noise(), "{what} moved the score: {delta}");
 }
 
 // ============================================================================
