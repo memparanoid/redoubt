@@ -149,7 +149,7 @@ macro_rules! encoding_one_field_is_found {
 
                 forensics!({
                     // Leaked and not a local: any call after the capture may
-                    // write over what a buffer let go of, and then the sweep
+                    // write over a slot of the stack, and then the sweep
                     // genuinely does not find what the operation wrote there.
                     let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(
                         arsenal.encode_bytes_required()?,
@@ -281,7 +281,7 @@ macro_rules! decoding_one_field_is_found {
 
                 forensics!({
                     // Leaked and not a local: any call after the capture may
-                    // write over what a struct let go of, and then the sweep
+                    // write over a slot of the stack, and then the sweep
                     // genuinely does not find what the operation wrote there.
                     let back = Box::leak(Box::new(Arsenal::default()));
 
