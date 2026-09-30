@@ -223,9 +223,9 @@ fn test_a_redoubt_option_replaced_is_found_while_it_holds_it() -> Result<(), Any
         let mut inner = RedoubtVec::<u8>::new();
         inner.replace_from_mut_slice(&mut source);
 
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let held = Box::leak(Box::new(RedoubtOption::<RedoubtVec<u8>>::default()));
         capture(|| held.replace(&mut inner));
 

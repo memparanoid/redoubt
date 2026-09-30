@@ -213,9 +213,9 @@ fn test_what_was_pushed_is_found_while_the_allocked_vec_holds_it() -> Result<(),
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let held = Box::leak(Box::new(AllockedVec::<Block>::with_capacity(1)));
         capture(|| held.push(&mut { SECRET }))?;
     });
@@ -356,9 +356,9 @@ fn test_what_a_truncation_keeps_is_found_while_the_allocked_vec_holds_it() -> Re
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let held = Box::leak(Box::new(AllockedVec::<Block>::with_capacity(2)));
         held.push(&mut { SECRET })?;
         held.push(&mut { SECRET })?;
@@ -446,9 +446,9 @@ fn test_what_was_drained_is_found_while_the_allocked_vec_holds_it() -> Result<()
     giving(&mut source[0]);
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let held = Box::leak(Box::new(AllockedVec::<Block>::with_capacity(1)));
         capture(|| held.drain_from(&mut source))?;
     });
@@ -532,9 +532,9 @@ fn test_what_was_carried_over_is_found_while_the_allocked_vec_holds_it() -> Resu
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let held = Box::leak(Box::new(AllockedVec::<Block>::with_capacity(1)));
         held.push(&mut { SECRET })?;
 

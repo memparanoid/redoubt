@@ -494,9 +494,9 @@ fn test_a_redoubt_string_extended_is_found_while_it_holds_it() -> Result<(), Any
     let mut source = spell(SECRET.len() * 2);
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let held = Box::leak(Box::new(RedoubtString::new()));
         capture(|| held.extend_from_mut_string(&mut source));
     });
@@ -584,9 +584,9 @@ fn test_a_redoubt_string_replaced_is_found_while_it_holds_it() -> Result<(), Any
     let mut source = spell(SECRET.len() * 2);
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let held = Box::leak(Box::new(RedoubtString::new()));
         capture(|| held.replace_from_mut_string(&mut source));
     });
@@ -665,9 +665,9 @@ fn test_a_redoubt_string_extended_from_a_str_is_found_while_it_holds_it() -> Res
     let mut source = spell(SECRET.len() * 2);
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let held = Box::leak(Box::new(RedoubtString::new()));
         capture(|| held.extend_from_str(&source));
 
