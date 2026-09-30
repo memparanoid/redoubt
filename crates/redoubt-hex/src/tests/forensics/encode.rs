@@ -24,9 +24,9 @@ macro_rules! encoding {
             let mut $src = hold(&BYTES);
 
             forensics!({
-                // Leaked and not a local: any call after the capture may write
-                // over what a buffer let go of, and then the sweep genuinely
-                // does not find what the operation wrote there.
+                // Leaked and not a local: a local is dropped at the end of the
+                // block, and its drop empties or frees what the operation wrote
+                // before the photograph.
                 let $dst = vec![0_u8; DIGITS.len()].leak();
 
                 capture(|| $call)?;
