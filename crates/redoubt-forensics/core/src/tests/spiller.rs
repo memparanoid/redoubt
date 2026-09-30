@@ -145,6 +145,15 @@ fn spilled_width() -> usize {
     unsafe { core::ptr::read_volatile(&raw const redoubt_spill_width) }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+fn spilled_word(at: usize) -> usize {
+    usize::from_le_bytes(
+        spilled()[at..at + 8]
+            .try_into()
+            .expect("Infallible: a range of eight bytes"),
+    )
+}
+
 /// Thirty-two distinct bytes, so a run that extends did not extend by luck.
 const ALPHA: [u8; 32] = [
     0x9E, 0x41, 0x17, 0xC3, 0x5A, 0xF0, 0x2B, 0x88, 0x6D, 0xB4, 0x0A, 0xE7, 0x39, 0x52, 0xCE, 0x71,
@@ -677,6 +686,303 @@ macro_rules! seeded_through_freeze_arm {
             crate::freeze!();
 
             found_only_at($operand, $slot, $wide);
+        }
+    };
+}
+
+/// [`SEED`] as a static, which is what `sym` can name.
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+static SEEDED: [u8; 64] = SEED;
+
+/// One register left holding [`SEED`] by an operation in a frame of its own,
+/// read once [`crate::capture`] returns.
+///
+/// The operation is naked so that nothing follows its load. A compiled one
+/// aligns the stack with a push and a pop of a scratch register, and the pop
+/// takes the seed with it: measured on `rax`, release, `x86_64`.
+macro_rules! seeded_apart_through_capture_x86 {
+    ($name:ident, $load:tt, $register:tt, $slot:expr, $wide:expr) => {
+        #[cfg(target_arch = "x86_64")]
+        #[test]
+        fn $name() {
+            alone!();
+
+            // SAFETY: it writes one register a function may hand back changed,
+            // reads a static, and returns.
+            #[unsafe(naked)]
+            extern "C" fn plant() {
+                core::arch::naked_asm!(
+                    concat!($load, " ", $register, ", [rip + {seed}]"),
+                    "ret",
+                    seed = sym SEEDED,
+                );
+            }
+
+            crate::capture(|| plant());
+
+            found_only_at($register, $slot, $wide);
+        }
+    };
+}
+
+/// One register left holding [`SEED`] by an operation in a frame of its own, on
+/// AArch64.
+macro_rules! seeded_apart_through_capture_arm {
+    ($name:ident, $load:tt, $named:tt, $operand:tt, $slot:expr, $wide:expr) => {
+        #[cfg(target_arch = "aarch64")]
+        #[test]
+        fn $name() {
+            alone!();
+
+            // SAFETY: it writes `x16` and one register a function may hand back
+            // changed, reads a static, and returns.
+            #[unsafe(naked)]
+            extern "C" fn plant() {
+                core::arch::naked_asm!(
+                    "adrp x16, {seed}",
+                    "add x16, x16, :lo12:{seed}",
+                    concat!($load, " ", $named, ", [x16]"),
+                    "ret",
+                    seed = sym SEEDED,
+                );
+            }
+
+            crate::capture(|| plant());
+
+            found_only_at($operand, $slot, $wide);
+        }
+    };
+}
+
+/// Every register a function may hand back changed on `x86_64`, each handed to
+/// `$seeded`.
+macro_rules! caller_saved_x86 {
+    ($seeded:ident) => {
+        $seeded!(test_what_is_left_in_rax, "mov", "rax", 0, 8);
+        $seeded!(test_what_is_left_in_rcx, "mov", "rcx", 16, 8);
+        $seeded!(test_what_is_left_in_rdx, "mov", "rdx", 24, 8);
+        $seeded!(test_what_is_left_in_rsi, "mov", "rsi", 32, 8);
+        $seeded!(test_what_is_left_in_rdi, "mov", "rdi", 40, 8);
+        $seeded!(test_what_is_left_in_r8, "mov", "r8", 64, 8);
+        $seeded!(test_what_is_left_in_r9, "mov", "r9", 72, 8);
+        $seeded!(test_what_is_left_in_r10, "mov", "r10", 80, 8);
+        $seeded!(test_what_is_left_in_r11, "mov", "r11", 88, 8);
+        $seeded!(test_what_is_left_in_xmm0, "movdqu", "xmm0", 128, 16);
+        $seeded!(test_what_is_left_in_xmm1, "movdqu", "xmm1", 192, 16);
+        $seeded!(test_what_is_left_in_xmm2, "movdqu", "xmm2", 256, 16);
+        $seeded!(test_what_is_left_in_xmm3, "movdqu", "xmm3", 320, 16);
+        $seeded!(test_what_is_left_in_xmm4, "movdqu", "xmm4", 384, 16);
+        $seeded!(test_what_is_left_in_xmm5, "movdqu", "xmm5", 448, 16);
+        $seeded!(test_what_is_left_in_xmm6, "movdqu", "xmm6", 512, 16);
+        $seeded!(test_what_is_left_in_xmm7, "movdqu", "xmm7", 576, 16);
+        $seeded!(test_what_is_left_in_xmm8, "movdqu", "xmm8", 640, 16);
+        $seeded!(test_what_is_left_in_xmm9, "movdqu", "xmm9", 704, 16);
+        $seeded!(test_what_is_left_in_xmm10, "movdqu", "xmm10", 768, 16);
+        $seeded!(test_what_is_left_in_xmm11, "movdqu", "xmm11", 832, 16);
+        $seeded!(test_what_is_left_in_xmm12, "movdqu", "xmm12", 896, 16);
+        $seeded!(test_what_is_left_in_xmm13, "movdqu", "xmm13", 960, 16);
+        $seeded!(test_what_is_left_in_xmm14, "movdqu", "xmm14", 1024, 16);
+        $seeded!(test_what_is_left_in_xmm15, "movdqu", "xmm15", 1088, 16);
+    };
+}
+
+/// Every register a function may hand back changed on `aarch64`, each handed
+/// to `$seeded`: not `x16`, which the planting addresses through, nor `x18`,
+/// which Rust reserves, nor `v8`–`v15`, whose low half a call keeps.
+macro_rules! caller_saved_arm {
+    ($seeded:ident) => {
+        $seeded!(test_what_is_left_in_x0, "ldr", "x0", "x0", 0, 8);
+        $seeded!(test_what_is_left_in_x1, "ldr", "x1", "x1", 8, 8);
+        $seeded!(test_what_is_left_in_x2, "ldr", "x2", "x2", 16, 8);
+        $seeded!(test_what_is_left_in_x3, "ldr", "x3", "x3", 24, 8);
+        $seeded!(test_what_is_left_in_x4, "ldr", "x4", "x4", 32, 8);
+        $seeded!(test_what_is_left_in_x5, "ldr", "x5", "x5", 40, 8);
+        $seeded!(test_what_is_left_in_x6, "ldr", "x6", "x6", 48, 8);
+        $seeded!(test_what_is_left_in_x7, "ldr", "x7", "x7", 56, 8);
+        $seeded!(test_what_is_left_in_x8, "ldr", "x8", "x8", 64, 8);
+        $seeded!(test_what_is_left_in_x9, "ldr", "x9", "x9", 72, 8);
+        $seeded!(test_what_is_left_in_x10, "ldr", "x10", "x10", 80, 8);
+        $seeded!(test_what_is_left_in_x11, "ldr", "x11", "x11", 88, 8);
+        $seeded!(test_what_is_left_in_x12, "ldr", "x12", "x12", 96, 8);
+        $seeded!(test_what_is_left_in_x13, "ldr", "x13", "x13", 104, 8);
+        $seeded!(test_what_is_left_in_x14, "ldr", "x14", "x14", 112, 8);
+        $seeded!(test_what_is_left_in_x15, "ldr", "x15", "x15", 120, 8);
+        $seeded!(test_what_is_left_in_x17, "ldr", "x17", "x17", 136, 8);
+        $seeded!(test_what_is_left_in_v0, "ldr", "q0", "v0", 256, 16);
+        $seeded!(test_what_is_left_in_v1, "ldr", "q1", "v1", 512, 16);
+        $seeded!(test_what_is_left_in_v2, "ldr", "q2", "v2", 768, 16);
+        $seeded!(test_what_is_left_in_v3, "ldr", "q3", "v3", 1024, 16);
+        $seeded!(test_what_is_left_in_v4, "ldr", "q4", "v4", 1280, 16);
+        $seeded!(test_what_is_left_in_v5, "ldr", "q5", "v5", 1536, 16);
+        $seeded!(test_what_is_left_in_v6, "ldr", "q6", "v6", 1792, 16);
+        $seeded!(test_what_is_left_in_v7, "ldr", "q7", "v7", 2048, 16);
+        $seeded!(test_what_is_left_in_v16, "ldr", "q16", "v16", 4352, 16);
+        $seeded!(test_what_is_left_in_v17, "ldr", "q17", "v17", 4608, 16);
+        $seeded!(test_what_is_left_in_v18, "ldr", "q18", "v18", 4864, 16);
+        $seeded!(test_what_is_left_in_v19, "ldr", "q19", "v19", 5120, 16);
+        $seeded!(test_what_is_left_in_v20, "ldr", "q20", "v20", 5376, 16);
+        $seeded!(test_what_is_left_in_v21, "ldr", "q21", "v21", 5632, 16);
+        $seeded!(test_what_is_left_in_v22, "ldr", "q22", "v22", 5888, 16);
+        $seeded!(test_what_is_left_in_v23, "ldr", "q23", "v23", 6144, 16);
+        $seeded!(test_what_is_left_in_v24, "ldr", "q24", "v24", 6400, 16);
+        $seeded!(test_what_is_left_in_v25, "ldr", "q25", "v25", 6656, 16);
+        $seeded!(test_what_is_left_in_v26, "ldr", "q26", "v26", 6912, 16);
+        $seeded!(test_what_is_left_in_v27, "ldr", "q27", "v27", 7168, 16);
+        $seeded!(test_what_is_left_in_v28, "ldr", "q28", "v28", 7424, 16);
+        $seeded!(test_what_is_left_in_v29, "ldr", "q29", "v29", 7680, 16);
+        $seeded!(test_what_is_left_in_v30, "ldr", "q30", "v30", 7936, 16);
+        $seeded!(test_what_is_left_in_v31, "ldr", "q31", "v31", 8192, 16);
+    };
+}
+
+/// A register inline assembly may not name, kept holding [`SEED`] across a call
+/// into a function that runs [`crate::capture`].
+///
+/// The block writes it and gives it back only once the call returns, so the
+/// seed is there for the whole of the capture.
+macro_rules! callee_saved_through_capture_x86 {
+    ($name:ident, $register:tt, $slot:expr) => {
+        #[cfg(target_arch = "x86_64")]
+        #[test]
+        fn $name() {
+            alone!();
+
+            extern "C" fn capture_here() {
+                crate::capture(|| {});
+            }
+
+            // SAFETY: the register and `r12` are given back as they were found
+            // before the block ends, and the stack pointer from `r12`; the call
+            // is made on a stack aligned to sixteen, and everything the called
+            // function may change is declared by the ABI clobber.
+            unsafe {
+                core::arch::asm!(
+                    concat!("push ", $register),
+                    "push r12",
+                    concat!("mov ", $register, ", [{seed}]"),
+                    "mov r12, rsp",
+                    "and rsp, -16",
+                    "call {then}",
+                    "mov rsp, r12",
+                    "pop r12",
+                    concat!("pop ", $register),
+                    seed = in(reg) SEED.as_ptr(),
+                    then = sym capture_here,
+                    clobber_abi("C"),
+                );
+            }
+
+            found_only_at($register, $slot, 8);
+        }
+    };
+}
+
+/// A register inline assembly may not name, kept holding [`SEED`] across a call
+/// into a function that runs [`crate::capture`], on AArch64.
+macro_rules! callee_saved_through_capture_arm {
+    ($name:ident, $register:tt, $slot:expr) => {
+        #[cfg(target_arch = "aarch64")]
+        #[test]
+        fn $name() {
+            alone!();
+
+            extern "C" fn capture_here() {
+                crate::capture(|| {});
+            }
+
+            // SAFETY: the register is given back as it was found before the
+            // block ends, from sixteen bytes that keep the stack aligned;
+            // everything the called function may change is declared by the ABI
+            // clobber.
+            unsafe {
+                core::arch::asm!(
+                    concat!("str ", $register, ", [sp, #-16]!"),
+                    concat!("ldr ", $register, ", [{seed}]"),
+                    "bl {then}",
+                    concat!("ldr ", $register, ", [sp], #16"),
+                    seed = in(reg) SEED.as_ptr(),
+                    then = sym capture_here,
+                    clobber_abi("C"),
+                );
+            }
+
+            found_only_at($register, $slot, 8);
+        }
+    };
+}
+
+/// A register inline assembly may not name, kept holding [`SEED`] across a call
+/// into a function that runs [`crate::freeze`].
+///
+/// The block writes it and gives it back only once the call returns, so the
+/// seed is there when the freeze stores it.
+macro_rules! callee_saved_through_freeze_x86 {
+    ($name:ident, $register:tt, $slot:expr) => {
+        #[cfg(target_arch = "x86_64")]
+        #[test]
+        fn $name() {
+            alone!();
+
+            extern "C" fn freeze_here() {
+                crate::freeze!();
+            }
+
+            // SAFETY: the register and `r12` are given back as they were found
+            // before the block ends, and the stack pointer from `r12`; the call
+            // is made on a stack aligned to sixteen, and everything the called
+            // function may change is declared by the ABI clobber.
+            unsafe {
+                core::arch::asm!(
+                    concat!("push ", $register),
+                    "push r12",
+                    concat!("mov ", $register, ", [{seed}]"),
+                    "mov r12, rsp",
+                    "and rsp, -16",
+                    "call {then}",
+                    "mov rsp, r12",
+                    "pop r12",
+                    concat!("pop ", $register),
+                    seed = in(reg) SEED.as_ptr(),
+                    then = sym freeze_here,
+                    clobber_abi("C"),
+                );
+            }
+
+            found_only_at($register, $slot, 8);
+        }
+    };
+}
+
+/// A register inline assembly may not name, kept holding [`SEED`] across a call
+/// into a function that runs [`crate::freeze`], on AArch64.
+macro_rules! callee_saved_through_freeze_arm {
+    ($name:ident, $register:tt, $slot:expr) => {
+        #[cfg(target_arch = "aarch64")]
+        #[test]
+        fn $name() {
+            alone!();
+
+            extern "C" fn freeze_here() {
+                crate::freeze!();
+            }
+
+            // SAFETY: the register is given back as it was found before the
+            // block ends, from sixteen bytes that keep the stack aligned;
+            // everything the called function may change is declared by the ABI
+            // clobber.
+            unsafe {
+                core::arch::asm!(
+                    concat!("str ", $register, ", [sp, #-16]!"),
+                    concat!("ldr ", $register, ", [{seed}]"),
+                    "bl {then}",
+                    concat!("ldr ", $register, ", [sp], #16"),
+                    seed = in(reg) SEED.as_ptr(),
+                    then = sym freeze_here,
+                    clobber_abi("C"),
+                );
+            }
+
+            found_only_at($register, $slot, 8);
         }
     };
 }
@@ -2108,6 +2414,73 @@ mod through_freeze {
 
     every_register_x86!(seeded_through_freeze_x86);
     every_register_arm!(seeded_through_freeze_arm);
+
+    callee_saved_through_freeze_x86!(test_what_is_left_in_rbx, "rbx", 8);
+    callee_saved_through_freeze_x86!(test_what_is_left_in_rbp, "rbp", 48);
+    callee_saved_through_freeze_arm!(test_what_is_left_in_x18, "x18", 144);
+    callee_saved_through_freeze_arm!(test_what_is_left_in_x19, "x19", 152);
+
+    seeded_through_freeze_arm!(test_what_is_left_in_x30, "ldr", "x30", "lr", 240, 8);
+
+    /// `x29` is the frame pointer of the function the freeze runs in, written by
+    /// its prologue before anything could plant it, so what its slot is asked
+    /// for is a frame address.
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_what_is_left_in_x29() {
+        alone!();
+
+        crate::freeze!();
+
+        let frame = spilled_word(232);
+        let stood = spilled_word(248);
+
+        assert!(frame >= stood, "x29 {frame:#x} below the freeze's sp {stood:#x}");
+    }
+
+    /// With no capture before it `TOP` is zero, so `SP` is the stack pointer the
+    /// freeze stood at.
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_what_is_left_in_rsp() {
+        alone!();
+
+        crate::freeze!();
+
+        // SAFETY: a static word, written by the freeze and read here.
+        let stood = unsafe { crate::window::SP };
+
+        assert_eq!(&spilled()[56..64], &stood.to_le_bytes());
+    }
+
+    /// With no capture before it `TOP` is zero, so `SP` is the stack pointer the
+    /// freeze stood at.
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_what_is_left_in_sp() {
+        alone!();
+
+        crate::freeze!();
+
+        // SAFETY: a static word, written by the freeze and read here.
+        let stood = unsafe { crate::window::SP };
+
+        assert_eq!(&spilled()[248..256], &stood.to_le_bytes());
+    }
+
+    /// `x16` is where the freeze builds the room's address before it stores
+    /// anything.
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_what_is_left_in_x16() {
+        alone!();
+
+        crate::freeze!();
+
+        let room = spilled().as_ptr() as usize;
+
+        assert_eq!(&spilled()[128..136], &room.to_le_bytes());
+    }
 }
 
 /// Each register seeded inside [`crate::capture`], and read once it returns.
@@ -2116,6 +2489,87 @@ mod through_capture {
 
     every_register_x86!(seeded_through_capture_x86);
     every_register_arm!(seeded_through_capture_arm);
+
+    callee_saved_through_capture_x86!(test_what_is_left_in_rbx, "rbx", 8);
+    callee_saved_through_capture_x86!(test_what_is_left_in_rbp, "rbp", 48);
+    callee_saved_through_capture_arm!(test_what_is_left_in_x18, "x18", 144);
+    callee_saved_through_capture_arm!(test_what_is_left_in_x19, "x19", 152);
+
+    seeded_through_capture_arm!(test_what_is_left_in_x30, "ldr", "x30", "lr", 240, 8);
+
+    /// `x29` is the frame pointer of the function the freeze runs in, written by
+    /// its prologue before anything could plant it, so what its slot is asked
+    /// for is a frame address.
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_what_is_left_in_x29() {
+        alone!();
+
+        crate::capture(|| {});
+
+        let frame = spilled_word(232);
+        let froze = spilled_word(248);
+        // SAFETY: a static word, written by the freeze and read here.
+        let stood = unsafe { crate::window::SP };
+
+        assert!(
+            froze <= frame && frame < stood,
+            "x29 {frame:#x} outside the freeze's sp {froze:#x} and the capture's {stood:#x}"
+        );
+    }
+
+    /// `SP` is where `capture` was called from, and the freeze runs deeper.
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_what_is_left_in_rsp() {
+        alone!();
+
+        crate::capture(|| {});
+
+        // SAFETY: a static word, written by the freeze and read here.
+        let stood = unsafe { crate::window::SP };
+        let left = spilled_word(56);
+
+        assert!(left != 0 && left < stood, "rsp {left:#x} against the capture's {stood:#x}");
+    }
+
+    /// `SP` is where `capture` was called from, and the freeze runs deeper.
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_what_is_left_in_sp() {
+        alone!();
+
+        crate::capture(|| {});
+
+        // SAFETY: a static word, written by the freeze and read here.
+        let stood = unsafe { crate::window::SP };
+        let left = spilled_word(248);
+
+        assert!(left != 0 && left < stood, "sp {left:#x} against the capture's {stood:#x}");
+    }
+
+    /// `x16` is where the freeze builds the room's address before it stores
+    /// anything.
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_what_is_left_in_x16() {
+        alone!();
+
+        crate::capture(|| {});
+
+        let room = spilled().as_ptr() as usize;
+
+        assert_eq!(&spilled()[128..136], &room.to_le_bytes());
+    }
+}
+
+/// Each register a function may hand back changed, left by an operation in a
+/// frame of its own and read once [`crate::capture`] returns.
+mod through_capture_never_inlined {
+    use super::*;
+
+    caller_saved_x86!(seeded_apart_through_capture_x86);
+    caller_saved_arm!(seeded_apart_through_capture_arm);
 }
 
 // ============================================================================

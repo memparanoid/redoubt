@@ -572,20 +572,62 @@ unsafe fn spill_avx512_on(seeded: Seeded) -> Result<(), AnyError> {
 // Through `capture`, with the planting as the operation
 // ----------------------------------------------------------------------------
 
+/// `rbx` and `rbp`, which an assembly block may not name, planted from their
+/// rows and kept so across a call to `$then`, which runs the capture.
+#[cfg(target_arch = "x86_64")]
+macro_rules! around_callee_saved_x86 {
+    ($rbx:literal, $rbp:literal, $then:ident) => {
+        // SAFETY: `rbx`, `rbp` and `r12` are given back as they were found
+        // before the block ends, and the stack pointer from `r12`; the call is
+        // made on a stack aligned to sixteen, and everything the called
+        // function may change is declared by the ABI clobber; every load reads
+        // a row of a static.
+        unsafe {
+            plant_x86!(
+                before: ["push rbx", "push rbp", "push r12", "mov r12, rsp", "and rsp, -16"],
+                after: ["call {then}", "mov rsp, r12", "pop r12", "pop rbp", "pop rbx"],
+                generals: [
+                    ("rbx", "ebx", $rbx),
+                    ("rbp", "ebp", $rbp),
+                ],
+                vectors: [],
+                operands: [
+                    then = sym $then,
+                    clobber_abi("C"),
+                ]
+            );
+        }
+    };
+}
+
+/// The rows the callee-saved registers are planted from, appended: `from`
+/// is the first row nothing else takes, past the vectors on `x86_64` and
+/// between the generals and [`VECTORS`] on `aarch64`.
+fn with_callee_saved(mut rows: Vec<(usize, usize)>, from: usize) -> Vec<(usize, usize)> {
+    rows.push((from, GENERAL));
+    rows.push((from + 1, GENERAL));
+
+    rows
+}
+
 #[cfg(target_arch = "x86_64")]
 pub(crate) fn capture_sse(seeded: Seeded) -> Result<(), AnyError> {
     alone!();
 
-    let (mut watch, befores) = watching(&widths(INLINED_GENERALS, 16, 16))?;
+    let (mut watch, befores) = watching(&with_callee_saved(widths(INLINED_GENERALS, 16, 16), 29))?;
 
     crate::spiller::use_spiller(crate::spiller::Form::Sse);
 
     setting(seeded);
 
-    crate::forensics!({
+    extern "C" fn capture_here() {
         crate::capture(|| {
             plant_sse();
         });
+    }
+
+    crate::forensics!({
+        around_callee_saved_x86!("1856", "1920", capture_here);
     });
 
     answered(&mut watch, &befores, seeded)
@@ -656,16 +698,20 @@ pub(crate) fn capture_avx(seeded: Seeded) -> Result<(), AnyError> {
         return Ok(());
     }
 
-    let (mut watch, befores) = watching(&widths(INLINED_GENERALS, 16, 32))?;
+    let (mut watch, befores) = watching(&with_callee_saved(widths(INLINED_GENERALS, 16, 32), 29))?;
 
     crate::spiller::use_spiller(crate::spiller::Form::Avx);
 
     setting(seeded);
 
-    crate::forensics!({
+    extern "C" fn capture_here() {
         crate::capture(|| {
             plant_avx();
         });
+    }
+
+    crate::forensics!({
+        around_callee_saved_x86!("1856", "1920", capture_here);
     });
 
     answered(&mut watch, &befores, seeded)
@@ -735,16 +781,20 @@ pub(crate) fn capture_avx512(seeded: Seeded) -> Result<(), AnyError> {
         return Ok(());
     }
 
-    let (mut watch, befores) = watching(&widths(INLINED_GENERALS, 32, 64))?;
+    let (mut watch, befores) = watching(&with_callee_saved(widths(INLINED_GENERALS, 32, 64), 45))?;
 
     crate::spiller::use_spiller(crate::spiller::Form::Avx512);
 
     setting(seeded);
 
-    crate::forensics!({
+    extern "C" fn capture_here() {
         crate::capture(|| {
             plant_avx512();
         });
+    }
+
+    crate::forensics!({
+        around_callee_saved_x86!("2880", "2944", capture_here);
     });
 
     answered(&mut watch, &befores, seeded)
@@ -1013,9 +1063,8 @@ fn vector_length() -> usize {
 #[cfg(target_arch = "aarch64")]
 const SPILL_GENERALS: usize = 30;
 
-/// Every general register but `sp`, `x16`, where the capture builds the room's
-/// address, and `x18`, `x19` and `x29`, which the spill routine reaches
-/// instead.
+/// Every general register an assembly block may name, but `sp` and `x16`,
+/// where the capture builds the room's address.
 #[cfg(target_arch = "aarch64")]
 const INLINED_GENERALS: usize = 27;
 
@@ -1136,20 +1185,49 @@ pub(crate) fn spill_sve(seeded: Seeded) -> Result<(), AnyError> {
 // Through `capture`, with the planting as the operation
 // ----------------------------------------------------------------------------
 
+/// `x18` and `x19`, which an assembly block may not name, planted from their
+/// rows and kept so across a call to `$then`, which runs the capture.
+#[cfg(target_arch = "aarch64")]
+macro_rules! around_callee_saved_arm {
+    ($then:ident) => {
+        // SAFETY: `x18` and `x19` are given back as they were found before the
+        // block ends, from sixteen bytes that keep the stack aligned;
+        // everything the called function may change is declared by the ABI
+        // clobber; every load reads a row of a static.
+        unsafe {
+            plant_neon!(@with
+                base: "x9",
+                before: ["stp x18, x19, [sp, #-16]!"],
+                after: ["bl {then}", "ldp x18, x19, [sp], #16"],
+                generals: [("x18", "6912"), ("x19", "7168")],
+                vectors: [],
+                operands: [
+                    then = sym $then,
+                    clobber_abi("C"),
+                ]
+            );
+        }
+    };
+}
+
 #[cfg(target_arch = "aarch64")]
 pub(crate) fn capture_neon(seeded: Seeded) -> Result<(), AnyError> {
     alone!();
 
-    let (mut watch, befores) = watching(&rows(INLINED_GENERALS, 16))?;
+    let (mut watch, befores) = watching(&with_callee_saved(rows(INLINED_GENERALS, 16), 27))?;
 
     crate::spiller::use_spiller(crate::spiller::Form::Neon);
 
     setting(seeded);
 
-    crate::forensics!({
+    extern "C" fn capture_here() {
         crate::capture(|| {
             plant_neon();
         });
+    }
+
+    crate::forensics!({
+        around_callee_saved_arm!(capture_here);
     });
 
     answered(&mut watch, &befores, seeded)
@@ -1206,16 +1284,21 @@ pub(crate) fn capture_sve(seeded: Seeded) -> Result<(), AnyError> {
         return Ok(());
     }
 
-    let (mut watch, befores) = watching(&rows(INLINED_GENERALS, vector_length()))?;
+    let (mut watch, befores) =
+        watching(&with_callee_saved(rows(INLINED_GENERALS, vector_length()), 27))?;
 
     crate::spiller::use_spiller(crate::spiller::Form::Sve);
 
     setting(seeded);
 
-    crate::forensics!({
+    extern "C" fn capture_here() {
         crate::capture(|| {
             plant_sve();
         });
+    }
+
+    crate::forensics!({
+        around_callee_saved_arm!(capture_here);
     });
 
     answered(&mut watch, &befores, seeded)
