@@ -28,20 +28,19 @@ fn hold() -> Box<[u8; 32]> {
 fn test_a_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
-    let mut secret = hold();
-    let mut empty = Box::new([0_u8; 32]);
-
     forensics!({
-        capture(|| swap(&mut *secret, &mut *empty));
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let secret = Box::leak(hold());
+        let empty = Box::leak(Box::new([0_u8; 32]));
+
+        capture(|| swap(secret, empty));
     });
 
     let report = watch.snapshot()?;
 
     is_found(&report, "a swap, left where it moved it");
-
-    wipe(&mut *empty);
-
-    drop(core::hint::black_box((secret, empty)));
 
     Ok(())
 }
@@ -72,8 +71,6 @@ fn test_swapping_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(&report_before, &report_after, "a swap");
 
-    drop(core::hint::black_box((secret, empty)));
-
     Ok(())
 }
 
@@ -86,12 +83,16 @@ fn test_a_sized_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError
     let mut watch = Forensics::watching(&backwards())?;
 
     let mut secret = vec![0_u8; SECRET.len()];
-    let mut empty = vec![0_u8; SECRET.len()];
 
     // SAFETY: a constant and a heap block are different allocations.
     unsafe { copy_nonoverlapping(SECRET.as_ptr(), secret.as_mut_ptr(), SECRET.len()) };
 
     forensics!({
+        // Leaked and not a local: any call after the capture may write over
+        // what a buffer let go of, and then the sweep genuinely does not find
+        // what the operation wrote there.
+        let empty = vec![0_u8; SECRET.len()].leak();
+
         capture(|| {
             // SAFETY: two different allocations, both the secret's length.
             unsafe { swap_nonoverlapping(secret.as_mut_ptr(), empty.as_mut_ptr(), SECRET.len()) };
@@ -101,10 +102,6 @@ fn test_a_sized_swap_is_found_where_it_moved_the_secret() -> Result<(), AnyError
     let report = watch.snapshot()?;
 
     is_found(&report, "a sized swap, left where it moved it");
-
-    wipe(&mut empty);
-
-    drop(core::hint::black_box((secret, empty)));
 
     Ok(())
 }
@@ -149,8 +146,6 @@ macro_rules! swapped {
                 &report_after,
                 &format!("a swap of {} bytes", $of),
             );
-
-            drop(core::hint::black_box((secret, empty)));
 
             Ok(())
         }

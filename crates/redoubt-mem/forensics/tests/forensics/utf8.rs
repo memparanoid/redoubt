@@ -76,8 +76,6 @@ fn test_text_checked_is_found_while_it_is_held() -> Result<(), AnyError> {
 
     assert!(answer, "the text is UTF-8");
 
-    drop(core::hint::black_box(text));
-
     Ok(())
 }
 
@@ -104,8 +102,6 @@ fn test_checking_text_leaves_nothing() -> Result<(), AnyError> {
     leaves_nothing(&report_before, &report_after, "a check");
 
     assert!(answer, "the text is UTF-8");
-
-    drop(core::hint::black_box(text));
 
     Ok(())
 }
@@ -135,8 +131,6 @@ fn test_text_checked_through_a_backend_is_found_while_it_is_held(
 
     assert!(answer, "the text is UTF-8");
 
-    drop(core::hint::black_box(text));
-
     Ok(())
 }
 
@@ -160,8 +154,6 @@ fn test_text_refused_half_way_is_found_while_it_is_held(
     is_found(&report, "text refused half way, left where it is held");
 
     assert!(!answer, "the text is not UTF-8");
-
-    drop(core::hint::black_box(text));
 
     Ok(())
 }
@@ -194,8 +186,6 @@ fn test_checking_text_through_a_backend_leaves_nothing(
 
     assert!(answer, "the text is UTF-8");
 
-    drop(core::hint::black_box(text));
-
     Ok(())
 }
 
@@ -226,8 +216,6 @@ fn test_checking_text_refused_half_way_leaves_nothing(
     leaves_nothing(&report_before, &report_after, "a check refused half way");
 
     assert!(!answer, "the text is not UTF-8");
-
-    drop(core::hint::black_box(text));
 
     Ok(())
 }

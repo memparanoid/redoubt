@@ -46,8 +46,6 @@ fn test_bytes_probed_are_found_while_they_are_held() -> Result<(), AnyError> {
 
     assert!(!answer, "the secret is not zeros");
 
-    drop(core::hint::black_box(held));
-
     Ok(())
 }
 
@@ -74,8 +72,6 @@ fn test_probing_bytes_leaves_nothing() -> Result<(), AnyError> {
     leaves_nothing(&report_before, &report_after, "a probe");
 
     assert!(!answer, "the secret is not zeros");
-
-    drop(core::hint::black_box(held));
 
     Ok(())
 }
@@ -104,8 +100,6 @@ fn test_bytes_probed_through_a_backend_are_found_while_they_are_held(
     is_found(&report, "bytes probed, left where they are held");
 
     assert!(!answer, "the secret is not zeros");
-
-    drop(core::hint::black_box(held));
 
     Ok(())
 }
@@ -137,8 +131,6 @@ fn test_probing_bytes_through_a_backend_leaves_nothing(
     leaves_nothing(&report_before, &report_after, "a probe");
 
     assert!(!answer, "the secret is not zeros");
-
-    drop(core::hint::black_box(held));
 
     Ok(())
 }

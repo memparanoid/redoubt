@@ -20,9 +20,12 @@ const ROUNDS: usize = 200;
 fn test_a_copy_is_found_in_its_destination() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
-    let mut scratch = vec![0_u8; SECRET.len()];
-
     forensics!({
+        // Leaked and not a local: any call after the capture may write over
+        // what a buffer let go of, and then the sweep genuinely does not find
+        // what the operation wrote there.
+        let scratch = vec![0_u8; SECRET.len()].leak();
+
         capture(|| {
             // SAFETY: `scratch` is exactly the secret's length, and a constant
             // and a heap block are different allocations.
@@ -33,10 +36,6 @@ fn test_a_copy_is_found_in_its_destination() -> Result<(), AnyError> {
     let report = watch.snapshot()?;
 
     is_found(&report, "a copy, left in its destination");
-
-    wipe(&mut scratch);
-
-    drop(core::hint::black_box(scratch));
 
     Ok(())
 }
@@ -65,8 +64,6 @@ fn test_copying_leaves_nothing() -> Result<(), AnyError> {
     let report_after = watch.snapshot()?;
 
     leaves_nothing(&report_before, &report_after, "a copy");
-
-    drop(core::hint::black_box(scratch));
 
     Ok(())
 }
@@ -97,8 +94,6 @@ fn test_two_hundred_copies_leave_nothing() -> Result<(), AnyError> {
     let report_after = watch.snapshot()?;
 
     leaves_nothing(&report_before, &report_after, &format!("{ROUNDS} copies"));
-
-    drop(core::hint::black_box(scratch));
 
     Ok(())
 }
@@ -135,8 +130,6 @@ macro_rules! copied {
                 &report_after,
                 &format!("a copy of {} bytes", $of),
             );
-
-            drop(core::hint::black_box(scratch));
 
             Ok(())
         }
