@@ -5,7 +5,7 @@
 //! What encoding and decoding the fields of a struct leave behind, one after
 //! the other, and when one of them fails.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_zero::FastZeroizable;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
@@ -16,7 +16,7 @@ use crate::error::{DecodeError, EncodeError};
 use crate::traits::{BytesRequired, Decode};
 
 use crate::tests::forensics::support::needles::backwards;
-use crate::tests::forensics::support::{is_found, leaves_nothing, secret_bytes};
+use crate::tests::forensics::support::secret_bytes;
 
 /// A field that refuses to decode and leaves the buffer as it was: the codec's
 /// own types empty it when they fail, and the wipe after them would go
@@ -209,9 +209,7 @@ fn test_encoding_fields_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding fields",
     );
 
@@ -258,9 +256,7 @@ fn test_encoding_fields_into_a_buffer_too_small_leaves_nothing() -> Result<(), A
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding fields into a buffer too small",
     );
 
@@ -331,9 +327,7 @@ fn test_decoding_fields_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding fields",
     );
 
@@ -379,9 +373,7 @@ fn test_decoding_fields_refused_by_one_leaves_nothing() -> Result<(), AnyError> 
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding fields refused by one",
     );
 

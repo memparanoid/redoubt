@@ -5,7 +5,7 @@
 //! What encoding and decoding a `Vec` leave behind, into an empty one and over
 //! one that already holds a secret.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_zero::FastZeroizable;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
@@ -16,7 +16,7 @@ use crate::traits::{
 };
 
 use crate::tests::forensics::support::needles::backwards;
-use crate::tests::forensics::support::{a_buffer_holding, is_found, leaves_nothing, secret_bytes};
+use crate::tests::forensics::support::{a_buffer_holding, secret_bytes};
 
 type Held = Vec<u8>;
 
@@ -67,9 +67,7 @@ fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "cleaning up a refused encode",
     );
 
@@ -101,9 +99,7 @@ fn test_cleaning_up_a_refused_decode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "cleaning up a refused decode",
     );
 
@@ -168,9 +164,7 @@ fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "trying to encode",
     );
 
@@ -222,9 +216,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding",
     );
 
@@ -258,9 +250,7 @@ fn test_encoding_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding into a buffer too small",
     );
 
@@ -312,9 +302,7 @@ fn test_encoding_a_slice_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding a slice",
     );
 
@@ -366,9 +354,7 @@ fn test_trying_to_decode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "trying to decode",
     );
 
@@ -420,9 +406,7 @@ fn test_decoding_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding",
     );
 
@@ -451,9 +435,7 @@ fn test_decoding_over_a_vec_that_holds_a_secret_leaves_nothing() -> Result<(), A
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding over it",
     );
 
@@ -482,9 +464,7 @@ fn test_decoding_less_over_a_vec_that_holds_more_leaves_nothing() -> Result<(), 
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding less over it",
     );
 
@@ -520,9 +500,7 @@ fn test_decoding_out_of_a_wire_cut_short_leaves_nothing() -> Result<(), AnyError
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding out of a wire cut short",
     );
 
@@ -574,9 +552,7 @@ fn test_decoding_a_slice_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding a slice",
     );
 
@@ -607,9 +583,7 @@ fn test_preallocating_over_a_vec_that_holds_a_secret_leaves_nothing() -> Result<
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "preallocating over it",
     );
 
@@ -641,9 +615,7 @@ fn test_preallocating_a_vec_of_vecs_over_one_that_holds_a_secret_leaves_nothing(
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "preallocating over them",
     );
 

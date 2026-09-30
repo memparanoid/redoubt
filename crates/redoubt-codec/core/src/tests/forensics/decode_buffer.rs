@@ -4,13 +4,13 @@
 
 //! What reading out of a decode buffer leaves behind.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_zero::FastZeroizable;
 
 use crate::traits::DecodeBuffer;
 
 use crate::tests::forensics::support::needles::backwards;
-use crate::tests::forensics::support::{giving, is_found, leaves_nothing};
+use crate::tests::forensics::support::giving;
 
 fn source(of: usize) -> Vec<u8> {
     let mut source = vec![0_u8; of];
@@ -69,9 +69,7 @@ fn test_reading_a_value_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "a value read",
     );
 
@@ -129,9 +127,7 @@ macro_rules! read_slice_of {
             });
 
             leaves_nothing(
-                &report_before,
-                "nothing held yet",
-                &watch.snapshot()?,
+                &report_before,                &watch.snapshot()?,
                 &format!("a slice of {} bytes read", $of),
             );
 

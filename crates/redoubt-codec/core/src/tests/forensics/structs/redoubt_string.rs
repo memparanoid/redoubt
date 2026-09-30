@@ -6,14 +6,14 @@
 //! and over one that already holds a secret.
 
 use redoubt_alloc::RedoubtString;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_zero::FastZeroizable;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::traits::{BytesRequired, Decode, Encode};
 
 use crate::tests::forensics::support::needles::text_backwards;
-use crate::tests::forensics::support::{is_found, leaves_nothing, text};
+use crate::tests::forensics::support::text;
 
 fn hold(of: usize) -> RedoubtString {
     let mut source = text(of);
@@ -88,9 +88,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding",
     );
 
@@ -142,9 +140,7 @@ fn test_decoding_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding",
     );
 
@@ -174,9 +170,7 @@ fn test_decoding_less_over_a_redoubt_string_that_holds_more_leaves_nothing() -> 
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding less over it",
     );
 

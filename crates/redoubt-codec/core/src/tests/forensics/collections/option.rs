@@ -7,7 +7,7 @@
 //! Over `[u8; 32]`: inline and as wide as the secret, so a move of the value is
 //! a copy of all of it.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_zero::FastZeroizable;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
@@ -18,7 +18,7 @@ use crate::types::Len;
 
 use crate::tests::forensics::support::needles::backwards;
 use crate::tests::forensics::support::{
-    a_buffer_holding, giving, is_found, leaves_nothing, secret_bytes,
+    a_buffer_holding, giving, secret_bytes,
 };
 
 type Held = Option<[u8; 32]>;
@@ -80,9 +80,7 @@ fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "cleaning up a refused encode",
     );
 
@@ -114,9 +112,7 @@ fn test_cleaning_up_a_refused_decode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "cleaning up a refused decode",
     );
 
@@ -181,9 +177,7 @@ fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "trying to encode",
     );
 
@@ -235,9 +229,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding",
     );
 
@@ -271,9 +263,7 @@ fn test_encoding_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding into a buffer too small",
     );
 
@@ -326,9 +316,7 @@ fn test_trying_to_decode_some_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "trying to decode some",
     );
 
@@ -380,9 +368,7 @@ fn test_decoding_some_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding some",
     );
 
@@ -411,9 +397,7 @@ fn test_decoding_none_over_an_option_that_holds_a_secret_leaves_nothing() -> Res
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding none over it",
     );
 
@@ -447,9 +431,7 @@ fn test_decoding_a_wire_that_says_neither_leaves_nothing() -> Result<(), AnyErro
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding a wire that says neither",
     );
 

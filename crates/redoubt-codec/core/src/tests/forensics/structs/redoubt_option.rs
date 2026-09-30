@@ -8,14 +8,14 @@
 //! a copy of all of it.
 
 use redoubt_alloc::RedoubtOption;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_zero::FastZeroizable;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::traits::{BytesRequired, Decode, Encode};
 
 use crate::tests::forensics::support::needles::backwards;
-use crate::tests::forensics::support::{giving, is_found, leaves_nothing};
+use crate::tests::forensics::support::giving;
 
 type Held = RedoubtOption<[u8; 32]>;
 
@@ -94,9 +94,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding",
     );
 
@@ -149,9 +147,7 @@ fn test_decoding_some_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding some",
     );
 
@@ -181,9 +177,7 @@ fn test_decoding_some_over_a_redoubt_option_that_holds_a_secret_leaves_nothing()
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding some over it",
     );
 
@@ -213,9 +207,7 @@ fn test_decoding_none_over_a_redoubt_option_that_holds_a_secret_leaves_nothing()
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding none over it",
     );
 

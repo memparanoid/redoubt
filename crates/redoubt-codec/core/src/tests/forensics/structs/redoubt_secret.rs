@@ -5,7 +5,7 @@
 //! What encoding and decoding a `RedoubtSecret` leave behind, into an empty one
 //! and over one that already holds a secret.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_secret::RedoubtSecret;
 use redoubt_zero::FastZeroizable;
 
@@ -14,7 +14,6 @@ use crate::error::EncodeError;
 use crate::traits::{BytesRequired, Decode, Encode};
 
 use crate::tests::forensics::support::needles::{SECRET, backwards};
-use crate::tests::forensics::support::{is_found, leaves_nothing};
 
 /// A second secret, sharing no run with `SECRET`, for the value a decode puts
 /// where that one was.
@@ -107,9 +106,7 @@ fn test_encoding_a_secret_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "a secret encoded",
     );
 
@@ -143,9 +140,7 @@ fn test_encoding_a_secret_into_a_buffer_too_small_leaves_nothing() -> Result<(),
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "a secret encoded into a buffer too small",
     );
 
@@ -202,9 +197,7 @@ fn test_decoding_a_secret_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "a secret decoded",
     );
 
@@ -230,9 +223,7 @@ fn test_decoding_over_a_secret_that_holds_one_leaves_nothing_of_the_old() -> Res
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "a secret decoded over one it held",
     );
 
@@ -269,9 +260,7 @@ fn test_decoding_a_secret_from_a_wire_cut_short_leaves_nothing() -> Result<(), A
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "a secret decoded from a wire cut short",
     );
 

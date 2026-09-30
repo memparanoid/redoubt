@@ -6,14 +6,14 @@
 //! copy has a path for.
 
 use redoubt_alloc::RedoubtVec;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_zero::FastZeroizable;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::traits::{BytesRequired, Decode, Encode};
 
 use crate::tests::forensics::support::needles::backwards;
-use crate::tests::forensics::support::{giving, is_found, leaves_nothing};
+use crate::tests::forensics::support::giving;
 
 fn hold(of: usize) -> RedoubtVec<u8> {
     let mut source = vec![0_u8; of];
@@ -94,9 +94,7 @@ macro_rules! encoded {
             });
 
             leaves_nothing(
-                &report_before,
-                "nothing held yet",
-                &watch.snapshot()?,
+                &report_before,                &watch.snapshot()?,
                 &format!("encoded {} bytes", $of),
             );
 
@@ -162,9 +160,7 @@ macro_rules! decoded {
             });
 
             leaves_nothing(
-                &report_before,
-                "nothing held yet",
-                &watch.snapshot()?,
+                &report_before,                &watch.snapshot()?,
                 &format!("decoded {} bytes", $of),
             );
 

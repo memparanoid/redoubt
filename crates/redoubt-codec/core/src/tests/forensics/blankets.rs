@@ -7,14 +7,14 @@
 //! Over `[u8; 32]`: inline and as wide as the secret, so a copy of the value
 //! on the way through the box is a copy of all of it.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_zero::FastZeroizable;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::traits::{BytesRequired, Decode, Encode};
 
 use crate::tests::forensics::support::needles::backwards;
-use crate::tests::forensics::support::{giving, is_found, leaves_nothing};
+use crate::tests::forensics::support::giving;
 
 fn a_box() -> Box<[u8; 32]> {
     let mut boxed = Box::new([0_u8; 32]);
@@ -88,9 +88,7 @@ fn test_encoding_a_box_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding a box",
     );
 
@@ -142,9 +140,7 @@ fn test_decoding_a_box_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding a box",
     );
 

@@ -7,14 +7,14 @@
 //! `write` is measured over a `u128`, the widest primitive, against sixteen
 //! bytes of the secret.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_zero::FastZeroizable;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
 
 use crate::tests::forensics::support::needles::{backwards, half_backwards};
 use crate::tests::forensics::support::{
-    a_buffer_holding, a_u128, hold_on, is_found, leaves_nothing, let_go, secret_bytes,
+    a_buffer_holding, a_u128, hold_on, let_go, secret_bytes,
 };
 
 // ============================================================================
@@ -38,9 +38,7 @@ fn test_a_buffer_dropped_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "a buffer dropped",
     );
 
@@ -86,9 +84,7 @@ fn test_a_buffer_given_away_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "a buffer given away",
     );
 
@@ -139,9 +135,7 @@ fn test_reallocating_a_buffer_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "a buffer reallocated",
     );
 
@@ -172,9 +166,7 @@ fn test_clearing_a_buffer_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "a buffer cleared",
     );
 
@@ -269,9 +261,7 @@ fn test_writing_a_value_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "a value written",
     );
 
@@ -326,9 +316,7 @@ fn test_writing_a_slice_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "a slice written",
     );
 
@@ -378,9 +366,7 @@ fn test_exporting_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "a buffer exported",
     );
 

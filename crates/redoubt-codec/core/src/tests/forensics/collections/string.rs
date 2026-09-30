@@ -5,7 +5,7 @@
 //! What encoding and decoding a `String` leave behind, into an empty one and
 //! over one that already holds a secret.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_zero::FastZeroizable;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
@@ -16,7 +16,7 @@ use crate::traits::{
 };
 
 use crate::tests::forensics::support::needles::{backwards, text_backwards};
-use crate::tests::forensics::support::{is_found, leaves_nothing, secret_bytes, text};
+use crate::tests::forensics::support::{secret_bytes, text};
 
 type Held = String;
 
@@ -89,9 +89,7 @@ fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "cleaning up a refused encode",
     );
 
@@ -123,9 +121,7 @@ fn test_cleaning_up_a_refused_decode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "cleaning up a refused decode",
     );
 
@@ -200,9 +196,7 @@ fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "trying to encode",
     );
 
@@ -254,9 +248,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding",
     );
 
@@ -290,9 +282,7 @@ fn test_encoding_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding into a buffer too small",
     );
 
@@ -344,9 +334,7 @@ fn test_encoding_a_slice_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding a slice",
     );
 
@@ -398,9 +386,7 @@ fn test_trying_to_decode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "trying to decode",
     );
 
@@ -452,9 +438,7 @@ fn test_decoding_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding",
     );
 
@@ -483,9 +467,7 @@ fn test_decoding_over_a_string_that_holds_a_secret_leaves_nothing() -> Result<()
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding over it",
     );
 
@@ -521,9 +503,7 @@ fn test_decoding_out_of_a_wire_cut_short_leaves_nothing() -> Result<(), AnyError
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding out of a wire cut short",
     );
 
@@ -559,9 +539,7 @@ fn test_decoding_bytes_that_are_not_utf8_leaves_nothing() -> Result<(), AnyError
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding bytes that are not UTF-8",
     );
 
@@ -613,9 +591,7 @@ fn test_decoding_a_slice_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding a slice",
     );
 
@@ -646,9 +622,7 @@ fn test_preallocating_over_a_string_that_holds_a_secret_leaves_nothing() -> Resu
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "preallocating over it",
     );
 

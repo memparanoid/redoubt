@@ -6,14 +6,14 @@
 //! and over one that already holds a secret.
 
 use redoubt_alloc::RedoubtArray;
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_zero::FastZeroizable;
 
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::traits::{BytesRequired, Decode, Encode};
 
 use crate::tests::forensics::support::needles::backwards;
-use crate::tests::forensics::support::{giving, is_found, leaves_nothing};
+use crate::tests::forensics::support::giving;
 
 type Held = RedoubtArray<u8, 32>;
 
@@ -93,9 +93,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "encoding",
     );
 
@@ -147,9 +145,7 @@ fn test_decoding_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding",
     );
 
@@ -178,9 +174,7 @@ fn test_decoding_over_a_redoubt_array_that_holds_a_secret_leaves_nothing() -> Re
     });
 
     leaves_nothing(
-        &report_before,
-        "nothing held yet",
-        &watch.snapshot()?,
+        &report_before,        &watch.snapshot()?,
         "decoding over it",
     );
 
