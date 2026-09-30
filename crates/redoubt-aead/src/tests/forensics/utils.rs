@@ -10,12 +10,12 @@
 //! something the sweep reads, which is what the absence beside each leans on.
 
 use redoubt_aead_core::consts::{aegis, chacha, poly1305};
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, Watching, capture, forensics, is_found};
 use redoubt_zero::FastZeroizable;
 
 use crate::utils::{aegis_widths, aegis_widths_mut, chacha_widths, chacha_widths_mut};
 
-use crate::tests::forensics::support::{Watching, backwards, giving, is_found};
+use crate::tests::forensics::support::{backwards, giving};
 
 /// Thirty-two distinct bytes, so a run that extends did not extend by luck.
 const CHACHA_KEY: [u8; chacha::KEY_SIZE] = [
@@ -55,7 +55,7 @@ fn test_chacha_widths_finds_the_key_while_the_caller_holds_it() -> Result<(), An
 
 #[redoubt_forensics::test]
 fn test_chacha_widths_leaves_no_key_behind() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[("key", &CHACHA_KEY)])?;
+    let mut watching = Watching::start(&[("key", &backwards(&CHACHA_KEY))])?;
 
     let mut key = [0_u8; chacha::KEY_SIZE];
     let nonce = [0_u8; chacha::XNONCE_SIZE];
@@ -105,7 +105,7 @@ fn test_chacha_widths_mut_finds_the_key_while_the_caller_holds_it() -> Result<()
 
 #[redoubt_forensics::test]
 fn test_chacha_widths_mut_leaves_no_key_behind() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[("key", &CHACHA_KEY)])?;
+    let mut watching = Watching::start(&[("key", &backwards(&CHACHA_KEY))])?;
 
     let mut key = [0_u8; chacha::KEY_SIZE];
     let nonce = [0_u8; chacha::XNONCE_SIZE];
@@ -155,7 +155,7 @@ fn test_aegis_widths_finds_the_key_while_the_caller_holds_it() -> Result<(), Any
 
 #[redoubt_forensics::test]
 fn test_aegis_widths_leaves_no_key_behind() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[("key", &AEGIS_KEY)])?;
+    let mut watching = Watching::start(&[("key", &backwards(&AEGIS_KEY))])?;
 
     let mut key = [0_u8; aegis::KEY_SIZE];
     let nonce = [0_u8; aegis::NONCE_SIZE];
@@ -205,7 +205,7 @@ fn test_aegis_widths_mut_finds_the_key_while_the_caller_holds_it() -> Result<(),
 
 #[redoubt_forensics::test]
 fn test_aegis_widths_mut_leaves_no_key_behind() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[("key", &AEGIS_KEY)])?;
+    let mut watching = Watching::start(&[("key", &backwards(&AEGIS_KEY))])?;
 
     let mut key = [0_u8; aegis::KEY_SIZE];
     let nonce = [0_u8; aegis::NONCE_SIZE];

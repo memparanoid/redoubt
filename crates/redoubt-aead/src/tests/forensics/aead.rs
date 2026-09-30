@@ -13,14 +13,14 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, Watching, capture, forensics, is_found};
 use redoubt_zero::FastZeroizable;
 
 use crate::aead::Aead;
 use crate::enums::AeadAlgorithm;
 use crate::errors::AeadError;
 
-use crate::tests::forensics::support::{Watching, backwards, giving, is_found};
+use crate::tests::forensics::support::{backwards, giving};
 
 /// Public, and so not watched.
 const AAD: &[u8] = b"associated data, long enough to owe a padding block";
@@ -466,7 +466,7 @@ macro_rules! test_what_encrypting_leaves {
         $(#[$gate])*
         #[redoubt_forensics::test]
         fn $leaves() -> Result<(), AnyError> {
-            let mut watching = Watching::start(&[("key", &$key), ("plaintext", &$plaintext)])?;
+            let mut watching = Watching::start(&[("key", &backwards(&$key)), ("plaintext", &backwards(&$plaintext))])?;
 
             let aead = Aead::from_algorithm($algorithm);
             let mut key = holding(&$key);
@@ -496,7 +496,7 @@ macro_rules! test_what_encrypting_leaves {
         $(#[$gate])*
         #[redoubt_forensics::test]
         fn $refused() -> Result<(), AnyError> {
-            let mut watching = Watching::start(&[("key", &$key), ("plaintext", &$plaintext)])?;
+            let mut watching = Watching::start(&[("key", &backwards(&$key)), ("plaintext", &backwards(&$plaintext))])?;
 
             let aead = Aead::from_algorithm($algorithm);
             let mut key = holding(&$key);
@@ -593,9 +593,9 @@ macro_rules! test_what_decrypting_leaves {
         #[redoubt_forensics::test]
         fn $leaves() -> Result<(), AnyError> {
             let mut watching = Watching::start(&[
-                ("key", &$key),
-                ("plaintext", &$plaintext),
-                ("tag", &$tag),
+                ("key", &backwards(&$key)),
+                ("plaintext", &backwards(&$plaintext)),
+                ("tag", &backwards(&$tag)),
             ])?;
 
             let aead = Aead::from_algorithm($algorithm);
@@ -627,9 +627,9 @@ macro_rules! test_what_decrypting_leaves {
         #[redoubt_forensics::test]
         fn $refused() -> Result<(), AnyError> {
             let mut watching = Watching::start(&[
-                ("key", &$key),
-                ("plaintext", &$plaintext),
-                ("tag", &$tag),
+                ("key", &backwards(&$key)),
+                ("plaintext", &backwards(&$plaintext)),
+                ("tag", &backwards(&$tag)),
             ])?;
 
             let aead = Aead::from_algorithm($algorithm);
@@ -665,7 +665,7 @@ macro_rules! test_what_decrypting_leaves {
         $(#[$gate])*
         #[redoubt_forensics::test]
         fn $narrow() -> Result<(), AnyError> {
-            let mut watching = Watching::start(&[("key", &$key)])?;
+            let mut watching = Watching::start(&[("key", &backwards(&$key))])?;
 
             let aead = Aead::from_algorithm($algorithm);
             let mut key = holding(&$key);
