@@ -448,9 +448,9 @@ macro_rules! test_what_encrypting_leaves {
             let mut tag = vec![0_u8; aead.tag_size()];
 
             forensics!({
-                // Leaked and not a local: any call after the capture may write
-                // over what a buffer let go of, and then the sweep genuinely
-                // does not find what the operation wrote there.
+                // Leaked and not a local: a local is dropped at the end of the
+                // block, and its drop empties or frees what the operation wrote
+                // before the photograph.
                 let data = holding(&$plaintext).leak();
 
                 capture(|| aead.encrypt(&key, &$nonce, AAD, data, &mut tag))?;
@@ -574,9 +574,9 @@ macro_rules! test_what_decrypting_leaves {
             let mut key = holding(&$key);
 
             forensics!({
-                // Leaked and not a local: any call after the capture may write
-                // over what a buffer let go of, and then the sweep genuinely
-                // does not find what the operation wrote there.
+                // Leaked and not a local: a local is dropped at the end of the
+                // block, and its drop empties or frees what the operation wrote
+                // before the photograph.
                 let data = holding(&$ciphertext).leak();
 
                 capture(|| aead.decrypt(&key, &$nonce, AAD, data, &$tag))?;
