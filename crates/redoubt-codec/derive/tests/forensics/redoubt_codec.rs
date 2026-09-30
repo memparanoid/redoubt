@@ -148,9 +148,9 @@ macro_rules! encoding_one_field_is_found {
                 let mut watch = Forensics::watching(&backwards())?;
 
                 forensics!({
-                    // Leaked and not a local: any call after the capture may
-                    // write over a slot of the stack, and then the sweep
-                    // genuinely does not find what the operation wrote there.
+                    // Leaked and not a local: a local is dropped at the end of
+                    // the block, and its drop empties or frees what the
+                    // operation wrote before the photograph.
                     let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(
                         arsenal.encode_bytes_required()?,
                     )));
@@ -280,9 +280,9 @@ macro_rules! decoding_one_field_is_found {
                 let mut watch = Forensics::watching(&backwards())?;
 
                 forensics!({
-                    // Leaked and not a local: any call after the capture may
-                    // write over a slot of the stack, and then the sweep
-                    // genuinely does not find what the operation wrote there.
+                    // Leaked and not a local: a local is dropped at the end of
+                    // the block, and its drop empties or frees what the
+                    // operation wrote before the photograph.
                     let back = Box::leak(Box::new(Arsenal::default()));
 
                     capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
