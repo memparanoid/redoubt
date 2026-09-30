@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_forensics::{QUIET, Report};
-
 /// As much as a key is.
 pub(crate) const WIDE: usize = 32;
 
@@ -33,48 +31,4 @@ pub(crate) fn backwards(of: &[u8]) -> Vec<u8> {
     }
 
     needle
-}
-
-/// Without a presence an absence cannot be told apart from a sweep that reaches
-/// nowhere.
-pub(crate) fn is_found(report: &Report, what: &str) {
-    println!();
-    report.summary(what);
-    println!();
-
-    assert!(
-        report.found,
-        "the sweep does not reach {what}, so every absence below it is the \
-         instrument standing where the evidence is: {report}"
-    );
-}
-
-pub(crate) fn leaves_nothing(report: &Report, what: &str) {
-    println!();
-    report.summary(what);
-    println!();
-
-    // Assert zeroization!
-    assert!(
-        !report.found,
-        "the whole of what the call produced is still in this process after \
-         {what}: {report}"
-    );
-
-    assert!(
-        report.widest <= QUIET,
-        "a run of {} bytes of it survived {what}, and {QUIET} is what memory \
-         has by accident: {report}",
-        report.widest,
-    );
-}
-
-/// An absence where the needle existed before the photograph that opens it,
-/// so the score is held to that photograph too.
-pub(crate) fn leaves_nothing_since(report_before: &Report, report_after: &Report, what: &str) {
-    leaves_nothing(report_after, what);
-
-    let delta = report_after.against(report_before);
-
-    assert!(delta.is_noise(), "{what} moved the score: {delta}");
 }

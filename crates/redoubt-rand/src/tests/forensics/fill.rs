@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics, pick_spiller};
+use redoubt_forensics::{
+    AnyError, Forensics, capture, forensics, is_found, leaves_no_copy, leaves_nothing, pick_spiller,
+};
 
 use crate::error::EntropyError;
 use crate::fill::fill_with_random_bytes;
 
-use crate::tests::forensics::support::{
-    WIDE, backwards, is_found, leaves_nothing, leaves_nothing_since, wipe,
-};
+use crate::tests::forensics::support::{WIDE, backwards, wipe};
 
 /// More than one piece the routine is asked for, and a last piece that is not
 /// whole: the wrapper's loop and its tail.
@@ -42,7 +42,7 @@ fn asking_leaves_nothing(len: usize) -> Result<(), AnyError> {
 
     let report = watch.snapshot()?;
 
-    leaves_nothing(&report, "the bytes asked for, and the buffer wiped");
+    leaves_no_copy(&report, "the bytes asked for, and the buffer wiped");
 
     Ok(())
 }
@@ -120,7 +120,7 @@ fn test_two_hundred_requests_leave_nothing_of_the_first() -> Result<(), AnyError
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing_since(&report_before, &report_after, "two hundred more requests");
+    leaves_nothing(&report_before, &report_after, "two hundred more requests");
 
     Ok(())
 }

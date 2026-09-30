@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics, pick_spiller};
+use redoubt_forensics::{
+    AnyError, Forensics, capture, forensics, is_found, leaves_no_copy, pick_spiller,
+};
 
 use crate::system::SystemEntropySource;
 use crate::traits::EntropySource;
 
-use crate::tests::forensics::support::{WIDE, backwards, is_found, leaves_nothing, wipe};
+use crate::tests::forensics::support::{WIDE, backwards, wipe};
 
 // ============================================================================
 // SystemEntropySource::fill_bytes
@@ -68,7 +70,7 @@ fn test_asking_the_source_leaves_nothing() -> Result<(), AnyError> {
 
     let report = watch.snapshot()?;
 
-    leaves_nothing(
+    leaves_no_copy(
         &report,
         "the bytes the source produced, and the buffer wiped",
     );
