@@ -34,8 +34,6 @@ fn test_the_secret_a_portable_buffer_holds_is_found() -> Result<(), AnyError> {
 
     is_found(&report, "a portable buffer holding the secret");
 
-    drop(held);
-
     Ok(())
 }
 
@@ -166,8 +164,6 @@ fn test_a_portable_buffer_read_is_found_while_it_is_held() -> Result<(), AnyErro
 
     is_found(&report, "a portable buffer read, and kept");
 
-    drop(held);
-
     Ok(())
 }
 
@@ -207,9 +203,12 @@ fn test_reading_a_portable_buffer_leaves_nothing() -> Result<(), AnyError> {
 fn test_a_portable_buffer_written_is_found_while_it_is_held() -> Result<(), AnyError> {
     let mut watch = Forensics::watching(&backwards())?;
 
-    let mut held = PortableBuffer::create(SECRET.len());
-
     forensics!({
+        // Leaked and not a local: any call after the capture may write over a
+        // slot of the stack, and then the sweep genuinely does not find what
+        // the operation wrote there.
+        let held = Box::leak(Box::new(PortableBuffer::create(SECRET.len())));
+
         let wrote = capture(|| held.open_mut(&mut writing_the_secret));
 
         wrote?;
@@ -218,8 +217,6 @@ fn test_a_portable_buffer_written_is_found_while_it_is_held() -> Result<(), AnyE
     let report = watch.snapshot()?;
 
     is_found(&report, "a portable buffer written, and kept");
-
-    drop(held);
 
     Ok(())
 }

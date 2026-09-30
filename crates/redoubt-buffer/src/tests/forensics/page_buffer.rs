@@ -137,8 +137,6 @@ fn test_reading_a_page_buffer_leaves_nothing() -> Result<(), AnyError> {
 
     leaves_nothing(&report_before, &report_after, "a page buffer read");
 
-    core::hint::black_box(&held);
-
     Ok(())
 }
 
