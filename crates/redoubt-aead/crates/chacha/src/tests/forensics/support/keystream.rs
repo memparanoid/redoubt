@@ -26,9 +26,9 @@ macro_rules! test_what_a_keystream_leaves {
             let mut $key = a_key();
 
             forensics!({
-                // Leaked and not a local: any call after the capture may write
-                // over what a buffer let go of, and then the sweep genuinely
-                // does not find what the operation wrote there.
+                // Leaked and not a local: a local is dropped at the end of the
+                // block, and its drop empties or frees what the operation wrote
+                // before the photograph.
                 let $data: &mut [u8] = holding(&PLAINTEXT).leak();
 
                 capture(|| $operation);
@@ -48,9 +48,9 @@ macro_rules! test_what_a_keystream_leaves {
             let mut $key = a_key();
 
             forensics!({
-                // Leaked and not a local: any call after the capture may write
-                // over what a buffer let go of, and then the sweep genuinely
-                // does not find what the operation wrote there.
+                // Leaked and not a local: a local is dropped at the end of the
+                // block, and its drop empties or frees what the operation wrote
+                // before the photograph.
                 let $data: &mut [u8] = holding(&$ciphertext).leak();
 
                 capture(|| $operation);
