@@ -141,9 +141,9 @@ fn test_what_trying_to_encode_wrote_is_found_while_the_buffer_holds_it() -> Resu
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(
             held.encode_bytes_required()?,
         )));
@@ -196,9 +196,9 @@ fn test_what_encoding_wrote_is_found_while_the_buffer_holds_it() -> Result<(), A
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(
             held.encode_bytes_required()?,
         )));
@@ -283,9 +283,9 @@ fn test_what_encoding_a_slice_wrote_is_found_while_the_buffer_holds_it() -> Resu
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(
             2 * two[0].encode_bytes_required()?,
         )));
@@ -335,9 +335,9 @@ fn test_what_trying_to_decode_wrote_is_found_while_the_vec_holds_it() -> Result<
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let back = Box::leak(Box::new(Held::new()));
 
         capture(|| back.try_decode_from(&mut wire.as_mut_slice()))?;
@@ -385,9 +385,9 @@ fn test_what_decoding_wrote_is_found_while_the_vec_holds_it() -> Result<(), AnyE
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let back = Box::leak(Box::new(Held::new()));
 
         capture(|| back.decode_from(&mut wire.as_mut_slice()))?;
@@ -498,9 +498,9 @@ fn test_what_decoding_a_slice_wrote_is_found_while_the_vecs_hold_it() -> Result<
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let back = Box::leak(Box::new([Held::new(), Held::new()]));
 
         capture(|| Held::decode_slice_from(back, &mut wire.as_mut_slice()))?;

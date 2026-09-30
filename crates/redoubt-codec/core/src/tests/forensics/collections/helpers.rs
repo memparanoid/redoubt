@@ -152,9 +152,9 @@ fn test_what_encoding_fields_wrote_is_found_while_the_buffer_holds_it() -> Resul
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let buffer = Box::leak(Box::new(RedoubtCodecBuffer::with_capacity(
             first.encode_bytes_required()? + second.encode_bytes_required()?,
         )));
@@ -272,9 +272,9 @@ fn test_what_decoding_fields_wrote_is_found_while_the_fields_hold_it() -> Result
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let (first, second) = (
             Box::leak(Box::new(Vec::<u8>::new())),
             Box::leak(Box::new(Vec::<u8>::new())),

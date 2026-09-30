@@ -84,9 +84,9 @@ fn test_what_reading_a_slice_wrote_is_found_while_the_slice_holds_it() -> Result
     let mut watch = Forensics::watching(&backwards())?;
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over a
-        // slot of the stack, and then the sweep genuinely does not find what
-        // the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let destination = Box::leak(Box::new(vec![0_u8; 4096]));
 
         capture(|| source.as_mut_slice().read_slice(destination))?;
