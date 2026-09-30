@@ -12,7 +12,7 @@
 //! Run under `nextest`: the sweep reads the whole process, and `cargo test`
 //! shares one between tests.
 
-use redoubt_forensics::{AnyError, Forensics, QUIET, Report, capture, forensics};
+use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_nothing};
 use redoubt_zero::FastZeroizable;
 
 use crate::RedoubtSecret;
@@ -86,47 +86,6 @@ fn let_go<T>(value: T) {
 #[inline(never)]
 fn hold_on<T>(value: T) {
     core::mem::forget(core::hint::black_box(value));
-}
-
-/// Without a presence an absence cannot be told apart from a sweep that reaches
-/// nowhere.
-fn is_found(report: &Report, what: &str) {
-    println!();
-    report.summary(what);
-    println!();
-
-    assert!(
-        report.found,
-        "the sweep does not reach {what}, so every absence below it is the \
-         instrument standing where the evidence is: {report}"
-    );
-}
-
-/// The whole secret is gone, no piece of it wider than chance is left, and the
-/// score did not move. One of the three on its own would pass a process that
-/// kept half of it, or kept all of it somewhere the score weighs at nothing.
-fn leaves_nothing(report_before: &Report, report_after: &Report, what: &str) {
-    println!();
-    report_before.summary("nothing taken yet");
-    report_after.summary_against(report_before, what);
-    println!();
-
-    // Assert zeroization!
-    assert!(
-        !report_after.found,
-        "the whole secret survived {what}: {report_after}"
-    );
-
-    assert!(
-        report_after.widest <= QUIET,
-        "a run of {} bytes survived {what}, and {QUIET} is what memory has by \
-         accident: {report_after}",
-        report_after.widest,
-    );
-
-    let delta = report_after.against(report_before);
-
-    assert!(delta.is_noise(), "{what} moved the score: {delta}");
 }
 
 // ============================================================================
