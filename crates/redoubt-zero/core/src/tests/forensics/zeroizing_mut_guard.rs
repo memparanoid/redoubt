@@ -131,8 +131,6 @@ fn test_a_borrowing_guard_given_away_is_found_while_it_is_held() -> Result<(), A
 
     is_found(&report, "a borrowing guard given away, and kept");
 
-    core::hint::black_box(&source);
-
     Ok(())
 }
 
@@ -191,8 +189,6 @@ fn test_a_borrowed_vec_is_found_while_the_guard_holds_it() -> Result<(), AnyErro
 
     is_found(&report, "a vec borrowed, and kept");
 
-    drop(core::hint::black_box(source));
-
     Ok(())
 }
 
@@ -213,8 +209,6 @@ fn test_a_borrowed_wide_value_is_found_while_the_guard_holds_it() -> Result<(), 
     let report = watch.snapshot()?;
 
     is_found(&report, "four kilobytes borrowed, and kept");
-
-    core::hint::black_box(&source);
 
     Ok(())
 }
@@ -377,9 +371,6 @@ fn test_a_borrowed_vec_probed_is_found_while_the_guard_holds_it() -> Result<(), 
 
     is_found(&report, "a borrowed vec probed, and kept");
 
-    drop(guard);
-    drop(core::hint::black_box(source));
-
     Ok(())
 }
 
@@ -400,9 +391,6 @@ fn test_a_borrowed_wide_value_probed_is_found_while_the_guard_holds_it() -> Resu
     let report = watch.snapshot()?;
 
     is_found(&report, "four kilobytes probed, and kept");
-
-    drop(guard);
-    core::hint::black_box(&source);
 
     Ok(())
 }

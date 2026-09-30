@@ -133,8 +133,6 @@ fn test_a_guarded_vec_given_away_is_found_while_it_is_held() -> Result<(), AnyEr
 
     is_found(&report, "a guarded vec given away, and kept");
 
-    drop(core::hint::black_box(source));
-
     Ok(())
 }
 
@@ -160,8 +158,6 @@ fn test_a_guarded_array_given_away_is_found_while_it_is_held() -> Result<(), Any
 
     is_found(&report, "a guarded array given away, and kept");
 
-    core::hint::black_box(&source);
-
     Ok(())
 }
 
@@ -186,8 +182,6 @@ fn test_a_guarded_wide_value_given_away_is_found_while_it_is_held() -> Result<()
     let report = watch.snapshot()?;
 
     is_found(&report, "four kilobytes given away, and kept");
-
-    core::hint::black_box(&source);
 
     Ok(())
 }
@@ -301,8 +295,6 @@ fn test_a_guarded_vec_is_found_while_the_guard_holds_it() -> Result<(), AnyError
 
     is_found(&report, "a vec guarded, and kept");
 
-    drop(core::hint::black_box(source));
-
     Ok(())
 }
 
@@ -324,8 +316,6 @@ fn test_a_guarded_array_is_found_while_the_guard_holds_it() -> Result<(), AnyErr
 
     is_found(&report, "an array guarded, and kept");
 
-    core::hint::black_box(&source);
-
     Ok(())
 }
 
@@ -346,8 +336,6 @@ fn test_a_guarded_wide_value_is_found_while_the_guard_holds_it() -> Result<(), A
     let report = watch.snapshot()?;
 
     is_found(&report, "four kilobytes guarded, and kept");
-
-    core::hint::black_box(&source);
 
     Ok(())
 }
@@ -588,9 +576,6 @@ fn test_a_guarded_vec_probed_is_found_while_the_guard_holds_it() -> Result<(), A
 
     is_found(&report, "a guarded vec probed, and kept");
 
-    core::mem::forget(guard);
-    drop(core::hint::black_box(source));
-
     Ok(())
 }
 
@@ -612,9 +597,6 @@ fn test_a_guarded_array_probed_is_found_while_the_guard_holds_it() -> Result<(),
 
     is_found(&report, "a guarded array probed, and kept");
 
-    core::mem::forget(guard);
-    core::hint::black_box(&source);
-
     Ok(())
 }
 
@@ -635,9 +617,6 @@ fn test_a_guarded_wide_value_probed_is_found_while_the_guard_holds_it() -> Resul
     let report = watch.snapshot()?;
 
     is_found(&report, "four kilobytes probed, and kept");
-
-    core::mem::forget(guard);
-    core::hint::black_box(&source);
 
     Ok(())
 }

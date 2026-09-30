@@ -46,8 +46,6 @@ fn test_a_u128_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
 
     is_found(&report, "a u128 probed, and kept");
 
-    drop(core::hint::black_box(held));
-
     Ok(())
 }
 

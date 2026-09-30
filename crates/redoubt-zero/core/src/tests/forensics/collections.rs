@@ -130,8 +130,6 @@ fn test_a_collection_probed_is_found_while_it_is_held() -> Result<(), AnyError> 
 
     is_found(&report, "a collection probed, and kept");
 
-    drop(core::hint::black_box((first, second)));
-
     Ok(())
 }
 
@@ -290,8 +288,6 @@ fn test_a_slice_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
 
     is_found(&report, "a slice probed, and kept");
 
-    drop(core::hint::black_box(held));
-
     Ok(())
 }
 
@@ -392,8 +388,6 @@ fn test_an_array_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     let report = watch.snapshot()?;
 
     is_found(&report, "an array probed, and kept");
-
-    drop(core::hint::black_box(held));
 
     Ok(())
 }
@@ -548,8 +542,6 @@ fn test_a_vec_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
 
     is_found(&report, "a vec probed, and kept");
 
-    drop(core::hint::black_box(held));
-
     Ok(())
 }
 
@@ -622,8 +614,6 @@ fn test_a_string_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
 
     is_found(&report, "a string probed, and kept");
 
-    drop(core::hint::black_box(held));
-
     Ok(())
 }
 
@@ -695,8 +685,6 @@ fn test_a_box_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     let report = watch.snapshot()?;
 
     is_found(&report, "a box probed, and kept");
-
-    drop(core::hint::black_box(held));
 
     Ok(())
 }
@@ -777,8 +765,6 @@ fn test_an_option_probed_is_found_while_it_is_held() -> Result<(), AnyError> {
     let report = watch.snapshot()?;
 
     is_found(&report, "an option probed, and kept");
-
-    drop(core::hint::black_box(held));
 
     Ok(())
 }
