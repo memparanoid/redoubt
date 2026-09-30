@@ -153,9 +153,9 @@ macro_rules! deriving {
                 forensics!({
                     let derivation = HkdfSha256::new();
 
-                    // Leaked and not a local: any call after the capture may
-                    // write over what a buffer let go of, and then the sweep
-                    // genuinely does not find what the operation wrote there.
+                    // Leaked and not a local: a local is dropped at the end of
+                    // the block, and its drop empties or frees what the
+                    // operation wrote before the photograph.
                     let okm = vec![0_u8; $len].leak();
 
                     capture(|| derivation.derive(SALT, &*ikm, INFO, okm))?;
@@ -273,9 +273,9 @@ fn test_what_hkdf_wrote_is_found_while_the_output_holds_it() -> Result<(), AnyEr
     let mut ikm = an_ikm();
 
     forensics!({
-        // Leaked and not a local: any call after the capture may write over
-        // what a buffer let go of, and then the sweep genuinely does not find
-        // what the operation wrote there.
+        // Leaked and not a local: a local is dropped at the end of the block,
+        // and its drop empties or frees what the operation wrote before the
+        // photograph.
         let okm = vec![0_u8; OKM.len()].leak();
 
         capture(|| hkdf(SALT, &*ikm, INFO, okm))?;
