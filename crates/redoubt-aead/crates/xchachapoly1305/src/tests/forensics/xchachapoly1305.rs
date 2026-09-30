@@ -283,7 +283,10 @@ fn test_what_one_time_key_wrote_is_found_while_the_caller_holds_it() -> Result<(
 
 #[redoubt_forensics::test]
 fn test_one_time_key_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[("key", &backwards(&KEY)), ("one-time key", &backwards(&OTK))])?;
+    let mut watching = Watching::start(&[
+        ("key", &backwards(&KEY)),
+        ("one-time key", &backwards(&OTK)),
+    ])?;
 
     let mut key = a_key();
 
@@ -402,8 +405,11 @@ fn test_what_tag_with_wrote_is_found_while_the_authenticator_holds_it() -> Resul
 
 #[redoubt_forensics::test]
 fn test_tag_with_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching =
-        Watching::start(&[("one-time key", &backwards(&OTK)), ("r", &backwards(&R)), ("accumulator", &backwards(&ACC))])?;
+    let mut watching = Watching::start(&[
+        ("one-time key", &backwards(&OTK)),
+        ("r", &backwards(&R)),
+        ("accumulator", &backwards(&ACC)),
+    ])?;
 
     let ciphertext = holding(&CIPHERTEXT);
     let mut authenticator = Poly1305::new();

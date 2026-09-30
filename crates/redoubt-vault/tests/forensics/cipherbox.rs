@@ -6,7 +6,9 @@
 
 use redoubt_alloc::{RedoubtArray, RedoubtOption, RedoubtVec};
 use redoubt_codec::RedoubtCodec;
-use redoubt_forensics::{AnyError, Forensics, Reason, Report, Watching, capture, forensics, is_found};
+use redoubt_forensics::{
+    AnyError, Forensics, Reason, Report, Watching, capture, forensics, is_found,
+};
 use redoubt_vault::{CipherBoxError, cipherbox, derive_next_cipherbox_key};
 use redoubt_zero::RedoubtZero;
 
@@ -963,8 +965,7 @@ fn test_open_an_array_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
         });
     });
 
-    watching.none_left(        "opened an array for writing, and failed",
-    )?;
+    watching.none_left("opened an array for writing, and failed")?;
 
     Ok(())
 }
@@ -1034,8 +1035,7 @@ fn test_open_an_option_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
         });
     });
 
-    watching.none_left(        "opened an option for writing, and failed",
-    )?;
+    watching.none_left("opened an option for writing, and failed")?;
 
     Ok(())
 }
@@ -1105,8 +1105,7 @@ fn test_open_two_options_mut_that_fails_leaves_nothing() -> Result<(), AnyError>
         });
     });
 
-    watching.none_left(        "opened two options for writing, and failed",
-    )?;
+    watching.none_left("opened two options for writing, and failed")?;
 
     Ok(())
 }

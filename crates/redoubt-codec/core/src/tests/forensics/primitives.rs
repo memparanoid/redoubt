@@ -82,10 +82,7 @@ fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
         buffer.fast_zeroize();
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "trying to encode",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "trying to encode");
 
     Ok(())
 }
@@ -134,10 +131,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(value);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "encoding",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "encoding");
 
     Ok(())
 }
@@ -169,7 +163,8 @@ fn test_encoding_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "encoding into a buffer too small",
     );
 
@@ -224,10 +219,7 @@ fn test_encoding_a_slice_leaves_nothing() -> Result<(), AnyError> {
         buffer.fast_zeroize();
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "encoding a slice",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "encoding a slice");
 
     Ok(())
 }
@@ -276,10 +268,7 @@ fn test_trying_to_decode_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "trying to decode",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "trying to decode");
 
     Ok(())
 }
@@ -328,10 +317,7 @@ fn test_decoding_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding");
 
     Ok(())
 }
@@ -363,7 +349,8 @@ fn test_decoding_out_of_a_wire_too_short_leaves_nothing() -> Result<(), AnyError
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "decoding out of a wire too short",
     );
 
@@ -414,10 +401,7 @@ fn test_decoding_a_slice_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding a slice",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding a slice");
 
     Ok(())
 }

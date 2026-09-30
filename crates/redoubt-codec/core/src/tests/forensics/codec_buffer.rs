@@ -13,9 +13,7 @@ use redoubt_zero::FastZeroizable;
 use crate::codec_buffer::RedoubtCodecBuffer;
 
 use crate::tests::forensics::support::needles::{backwards, half_backwards};
-use crate::tests::forensics::support::{
-    a_buffer_holding, a_u128, hold_on, let_go, secret_bytes,
-};
+use crate::tests::forensics::support::{a_buffer_holding, a_u128, hold_on, let_go, secret_bytes};
 
 // ============================================================================
 // RedoubtCodecBuffer::drop
@@ -37,10 +35,7 @@ fn test_a_buffer_dropped_leaves_nothing() -> Result<(), AnyError> {
         capture(|| drop(buffer));
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "a buffer dropped",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "a buffer dropped");
 
     Ok(())
 }
@@ -83,10 +78,7 @@ fn test_a_buffer_given_away_leaves_nothing() -> Result<(), AnyError> {
         capture(|| let_go(buffer));
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "a buffer given away",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "a buffer given away");
 
     Ok(())
 }
@@ -134,10 +126,7 @@ fn test_reallocating_a_buffer_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(buffer);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "a buffer reallocated",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "a buffer reallocated");
 
     Ok(())
 }
@@ -165,10 +154,7 @@ fn test_clearing_a_buffer_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(buffer);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "a buffer cleared",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "a buffer cleared");
 
     Ok(())
 }
@@ -260,10 +246,7 @@ fn test_writing_a_value_leaves_nothing() -> Result<(), AnyError> {
         drop(buffer);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "a value written",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "a value written");
 
     Ok(())
 }
@@ -315,10 +298,7 @@ fn test_writing_a_slice_leaves_nothing() -> Result<(), AnyError> {
         drop(buffer);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "a slice written",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "a slice written");
 
     Ok(())
 }
@@ -365,10 +345,7 @@ fn test_exporting_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(buffer);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "a buffer exported",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "a buffer exported");
 
     Ok(())
 }

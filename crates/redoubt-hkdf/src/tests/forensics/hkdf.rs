@@ -10,7 +10,9 @@ use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use redoubt_forensics::{AnyError, Forensics, Watching, capture, forensics, is_found, leaves_nothing};
+use redoubt_forensics::{
+    AnyError, Forensics, Watching, capture, forensics, is_found, leaves_nothing,
+};
 use redoubt_zero::FastZeroizable;
 
 use crate::consts::MAX_OUTPUT_SIZE;

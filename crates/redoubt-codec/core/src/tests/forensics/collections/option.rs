@@ -17,9 +17,7 @@ use crate::traits::{BytesRequired, Decode, Encode, TryDecode, TryEncode};
 use crate::types::Len;
 
 use crate::tests::forensics::support::needles::backwards;
-use crate::tests::forensics::support::{
-    a_buffer_holding, giving, secret_bytes,
-};
+use crate::tests::forensics::support::{a_buffer_holding, giving, secret_bytes};
 
 type Held = Option<[u8; 32]>;
 
@@ -80,7 +78,8 @@ fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "cleaning up a refused encode",
     );
 
@@ -112,7 +111,8 @@ fn test_cleaning_up_a_refused_decode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "cleaning up a refused decode",
     );
 
@@ -176,10 +176,7 @@ fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
         buffer.fast_zeroize();
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "trying to encode",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "trying to encode");
 
     Ok(())
 }
@@ -228,10 +225,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(held);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "encoding",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "encoding");
 
     Ok(())
 }
@@ -263,7 +257,8 @@ fn test_encoding_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "encoding into a buffer too small",
     );
 
@@ -315,10 +310,7 @@ fn test_trying_to_decode_some_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "trying to decode some",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "trying to decode some");
 
     Ok(())
 }
@@ -367,10 +359,7 @@ fn test_decoding_some_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding some",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding some");
 
     Ok(())
 }
@@ -396,10 +385,7 @@ fn test_decoding_none_over_an_option_that_holds_a_secret_leaves_nothing() -> Res
         core::mem::forget((back, wire));
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding none over it",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding none over it");
 
     Ok(())
 }
@@ -431,7 +417,8 @@ fn test_decoding_a_wire_that_says_neither_leaves_nothing() -> Result<(), AnyErro
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "decoding a wire that says neither",
     );
 

@@ -199,7 +199,8 @@ fn test_what_encrypting_exported_and_did_not_encrypt_is_found() -> Result<(), An
         // slot of the stack, and then the sweep genuinely does not find what
         // the operation wrote there.
         let buffers = Box::leak(Box::new(buffers_for(&mut first, &mut second)?));
-        let ciphertexts: &mut Ciphertexts<2> = Box::leak(Box::new(core::array::from_fn(|_| vec![])));
+        let ciphertexts: &mut Ciphertexts<2> =
+            Box::leak(Box::new(core::array::from_fn(|_| vec![])));
 
         let refused = capture(|| {
             try_encrypt_into_buffers(

@@ -13,8 +13,8 @@ use redoubt_zero::FastZeroizable;
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::traits::{BytesRequired, Decode, Encode};
 
-use crate::tests::forensics::support::needles::backwards;
 use crate::tests::forensics::support::giving;
+use crate::tests::forensics::support::needles::backwards;
 
 fn a_box() -> Box<[u8; 32]> {
     let mut boxed = Box::new([0_u8; 32]);
@@ -87,10 +87,7 @@ fn test_encoding_a_box_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(boxed);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "encoding a box",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "encoding a box");
 
     Ok(())
 }
@@ -139,10 +136,7 @@ fn test_decoding_a_box_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding a box",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding a box");
 
     Ok(())
 }

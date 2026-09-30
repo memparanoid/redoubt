@@ -87,10 +87,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(held);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "encoding",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "encoding");
 
     Ok(())
 }
@@ -139,10 +136,7 @@ fn test_decoding_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding");
 
     Ok(())
 }
@@ -169,10 +163,7 @@ fn test_decoding_less_over_a_redoubt_string_that_holds_more_leaves_nothing() -> 
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding less over it",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding less over it");
 
     Ok(())
 }

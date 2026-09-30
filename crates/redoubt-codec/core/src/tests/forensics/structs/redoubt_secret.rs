@@ -105,10 +105,7 @@ fn test_encoding_a_secret_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(held);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "a secret encoded",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "a secret encoded");
 
     Ok(())
 }
@@ -140,7 +137,8 @@ fn test_encoding_a_secret_into_a_buffer_too_small_leaves_nothing() -> Result<(),
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "a secret encoded into a buffer too small",
     );
 
@@ -196,10 +194,7 @@ fn test_decoding_a_secret_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "a secret decoded",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "a secret decoded");
 
     Ok(())
 }
@@ -223,7 +218,8 @@ fn test_decoding_over_a_secret_that_holds_one_leaves_nothing_of_the_old() -> Res
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "a secret decoded over one it held",
     );
 
@@ -260,7 +256,8 @@ fn test_decoding_a_secret_from_a_wire_cut_short_leaves_nothing() -> Result<(), A
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "a secret decoded from a wire cut short",
     );
 

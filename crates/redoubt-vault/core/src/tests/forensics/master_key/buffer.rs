@@ -9,7 +9,9 @@
 //! absence here asserts no copy and no run wider than `QUIET`, not an unmoved
 //! score.
 
-use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leaves_no_copy, pick_spiller};
+use redoubt_forensics::{
+    AnyError, Forensics, capture, forensics, is_found, leaves_no_copy, pick_spiller,
+};
 
 use crate::master_key::buffer::create_initialized_buffer;
 use crate::master_key::consts::MASTER_KEY_LEN;

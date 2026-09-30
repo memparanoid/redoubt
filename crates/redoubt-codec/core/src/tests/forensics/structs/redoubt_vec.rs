@@ -12,8 +12,8 @@ use redoubt_zero::FastZeroizable;
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::traits::{BytesRequired, Decode, Encode};
 
-use crate::tests::forensics::support::needles::backwards;
 use crate::tests::forensics::support::giving;
+use crate::tests::forensics::support::needles::backwards;
 
 fn hold(of: usize) -> RedoubtVec<u8> {
     let mut source = vec![0_u8; of];
@@ -94,7 +94,8 @@ macro_rules! encoded {
             });
 
             leaves_nothing(
-                &report_before,                &watch.snapshot()?,
+                &report_before,
+                &watch.snapshot()?,
                 &format!("encoded {} bytes", $of),
             );
 
@@ -160,7 +161,8 @@ macro_rules! decoded {
             });
 
             leaves_nothing(
-                &report_before,                &watch.snapshot()?,
+                &report_before,
+                &watch.snapshot()?,
                 &format!("decoded {} bytes", $of),
             );
 

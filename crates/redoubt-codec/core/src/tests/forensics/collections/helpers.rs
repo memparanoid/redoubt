@@ -208,10 +208,7 @@ fn test_encoding_fields_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget((first, second));
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "encoding fields",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "encoding fields");
 
     Ok(())
 }
@@ -256,7 +253,8 @@ fn test_encoding_fields_into_a_buffer_too_small_leaves_nothing() -> Result<(), A
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "encoding fields into a buffer too small",
     );
 
@@ -326,10 +324,7 @@ fn test_decoding_fields_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding fields",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding fields");
 
     Ok(())
 }
@@ -373,7 +368,8 @@ fn test_decoding_fields_refused_by_one_leaves_nothing() -> Result<(), AnyError> 
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "decoding fields refused by one",
     );
 

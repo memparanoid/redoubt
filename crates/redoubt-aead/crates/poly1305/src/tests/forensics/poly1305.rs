@@ -158,7 +158,11 @@ fn test_what_update_wrote_is_found_while_the_state_holds_it() -> Result<(), AnyE
 
 #[redoubt_forensics::test]
 fn test_update_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[("key", &backwards(&KEY)), ("r", &backwards(&R)), ("accumulator", &backwards(&ACC))])?;
+    let mut watching = Watching::start(&[
+        ("key", &backwards(&KEY)),
+        ("r", &backwards(&R)),
+        ("accumulator", &backwards(&ACC)),
+    ])?;
 
     let mut key = a_key();
     let mut poly = Poly1305::new();
@@ -339,7 +343,11 @@ fn test_what_a_state_dropped_by_value_held_is_found_where_it_was() -> Result<(),
 /// so what the move copies is nothing.
 #[redoubt_forensics::test]
 fn test_a_state_zeroized_and_then_dropped_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[("key", &backwards(&KEY)), ("r", &backwards(&R)), ("accumulator", &backwards(&ACC))])?;
+    let mut watching = Watching::start(&[
+        ("key", &backwards(&KEY)),
+        ("r", &backwards(&R)),
+        ("accumulator", &backwards(&ACC)),
+    ])?;
 
     let mut key = a_key();
     let mut poly = Poly1305::new();

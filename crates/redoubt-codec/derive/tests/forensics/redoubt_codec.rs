@@ -220,10 +220,7 @@ fn test_encoding_a_struct_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(arsenal);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "encoding a struct",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "encoding a struct");
 
     Ok(())
 }
@@ -257,7 +254,8 @@ fn test_encoding_a_struct_into_a_buffer_too_small_leaves_nothing() -> Result<(),
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "encoding a struct into a buffer too small",
     );
 
@@ -354,10 +352,7 @@ fn test_decoding_a_struct_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding a struct",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding a struct");
 
     Ok(())
 }
@@ -390,7 +385,8 @@ fn test_decoding_a_struct_over_one_that_holds_a_secret_leaves_nothing() -> Resul
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "decoding a struct over one that holds a secret",
     );
 
@@ -429,7 +425,8 @@ fn test_decoding_a_struct_from_a_wire_cut_short_leaves_nothing() -> Result<(), A
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "decoding a struct from a wire cut short",
     );
 

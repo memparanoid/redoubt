@@ -66,10 +66,8 @@ fn test_what_subkey_wrote_is_found_while_the_caller_holds_it() -> Result<(), Any
 
 #[redoubt_forensics::test]
 fn test_subkey_leaves_nothing() -> Result<(), AnyError> {
-    let mut watching = Watching::start(&[
-        ("key", &backwards(&KEY)),
-        ("subkey", &backwards(&SUBKEY)),
-    ])?;
+    let mut watching =
+        Watching::start(&[("key", &backwards(&KEY)), ("subkey", &backwards(&SUBKEY))])?;
 
     let mut key = a_key();
 

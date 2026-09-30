@@ -14,8 +14,8 @@ use redoubt_zero::FastZeroizable;
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::traits::{BytesRequired, Decode, Encode};
 
-use crate::tests::forensics::support::needles::backwards;
 use crate::tests::forensics::support::giving;
+use crate::tests::forensics::support::needles::backwards;
 
 type Held = RedoubtOption<[u8; 32]>;
 
@@ -93,10 +93,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(held);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "encoding",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "encoding");
 
     Ok(())
 }
@@ -146,10 +143,7 @@ fn test_decoding_some_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding some",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding some");
 
     Ok(())
 }
@@ -176,10 +170,7 @@ fn test_decoding_some_over_a_redoubt_option_that_holds_a_secret_leaves_nothing()
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding some over it",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding some over it");
 
     Ok(())
 }
@@ -206,10 +197,7 @@ fn test_decoding_none_over_a_redoubt_option_that_holds_a_secret_leaves_nothing()
         core::mem::forget((back, wire));
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding none over it",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding none over it");
 
     Ok(())
 }

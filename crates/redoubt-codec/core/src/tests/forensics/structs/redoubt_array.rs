@@ -12,8 +12,8 @@ use redoubt_zero::FastZeroizable;
 use crate::codec_buffer::RedoubtCodecBuffer;
 use crate::traits::{BytesRequired, Decode, Encode};
 
-use crate::tests::forensics::support::needles::backwards;
 use crate::tests::forensics::support::giving;
+use crate::tests::forensics::support::needles::backwards;
 
 type Held = RedoubtArray<u8, 32>;
 
@@ -92,10 +92,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(held);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "encoding",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "encoding");
 
     Ok(())
 }
@@ -144,10 +141,7 @@ fn test_decoding_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding");
 
     Ok(())
 }
@@ -173,10 +167,7 @@ fn test_decoding_over_a_redoubt_array_that_holds_a_secret_leaves_nothing() -> Re
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding over it",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding over it");
 
     Ok(())
 }

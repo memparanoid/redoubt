@@ -12,9 +12,9 @@ use redoubt_zero::FastZeroizable;
 use crate::hchacha20::HChaCha20;
 use crate::xchacha20::XChaCha20;
 
+use crate::tests::forensics::support::backwards;
 use crate::tests::forensics::support::keystream::test_what_a_keystream_leaves;
 use crate::tests::forensics::support::needles::{KEY, PLAINTEXT, a_key, holding};
-use crate::tests::forensics::support::backwards;
 
 /// Public, and so not watched.
 const XNONCE: [u8; XNONCE_SIZE] = *b"a nonce twenty-four long";

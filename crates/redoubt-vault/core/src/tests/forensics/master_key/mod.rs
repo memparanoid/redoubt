@@ -9,7 +9,9 @@ mod buffer;
 mod storage;
 
 use redoubt_buffer::BufferError;
-use redoubt_forensics::{AnyError, Forensics, QUIET, Watching, capture, forensics, is_found, leaves_nothing};
+use redoubt_forensics::{
+    AnyError, Forensics, QUIET, Watching, capture, forensics, is_found, leaves_nothing,
+};
 
 use crate::master_key::consts::{CIPHERBOX_KEY_INFO_LEN, MASTER_KEY_LEN};
 use crate::master_key::storage::open;
@@ -220,10 +222,7 @@ fn test_opening_the_master_key_too_wide_leaves_nothing() -> Result<(), AnyError>
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(
-        &report_before,        &report_after,
-        "an open too wide",
-    );
+    leaves_nothing(&report_before, &report_after, "an open too wide");
 
     Ok(())
 }
@@ -245,10 +244,7 @@ fn test_opening_the_master_key_once_leaves_nothing() -> Result<(), AnyError> {
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(
-        &report_before,        &report_after,
-        "one open",
-    );
+    leaves_nothing(&report_before, &report_after, "one open");
 
     Ok(())
 }
@@ -273,10 +269,7 @@ fn test_opening_the_master_key_often_leaves_nothing() -> Result<(), AnyError> {
 
     let report_after = watch.snapshot()?;
 
-    leaves_nothing(
-        &report_before,        &report_after,
-        &format!("{ROUNDS} opens"),
-    );
+    leaves_nothing(&report_before, &report_after, &format!("{ROUNDS} opens"));
 
     Ok(())
 }

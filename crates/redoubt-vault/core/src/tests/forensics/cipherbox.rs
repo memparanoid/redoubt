@@ -7,7 +7,9 @@
 use redoubt_aead::Aead;
 use redoubt_alloc::RedoubtVec;
 use redoubt_codec::RedoubtCodec;
-use redoubt_forensics::{AnyError, Forensics, Reason, Report, Watching, capture, forensics, is_found};
+use redoubt_forensics::{
+    AnyError, Forensics, Reason, Report, Watching, capture, forensics, is_found,
+};
 use redoubt_zero::{FastZeroizable, RedoubtZero};
 
 use crate::cipherbox::CipherBox;
@@ -894,8 +896,14 @@ fn test_the_secret_is_found_while_a_field_is_open_for_writing_through_a_dyn() ->
 
     let [secret, key] = reports(inside)?;
 
-    is_found(&secret, "the secret, a field open for writing through a dyn");
-    is_found(&key, "the box's key, a field open for writing through a dyn");
+    is_found(
+        &secret,
+        "the secret, a field open for writing through a dyn",
+    );
+    is_found(
+        &key,
+        "the box's key, a field open for writing through a dyn",
+    );
 
     Ok(())
 }
@@ -1068,8 +1076,14 @@ fn test_the_secret_is_found_while_a_field_of_a_cipherbox_is_open_for_writing()
 
     let [secret, key] = reports(inside)?;
 
-    is_found(&secret, "the secret, a field of a cipherbox open for writing");
-    is_found(&key, "the box's key, a field of a cipherbox open for writing");
+    is_found(
+        &secret,
+        "the secret, a field of a cipherbox open for writing",
+    );
+    is_found(
+        &key,
+        "the box's key, a field of a cipherbox open for writing",
+    );
 
     Ok(())
 }

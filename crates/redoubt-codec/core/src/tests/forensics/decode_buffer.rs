@@ -9,8 +9,8 @@ use redoubt_zero::FastZeroizable;
 
 use crate::traits::DecodeBuffer;
 
-use crate::tests::forensics::support::needles::backwards;
 use crate::tests::forensics::support::giving;
+use crate::tests::forensics::support::needles::backwards;
 
 fn source(of: usize) -> Vec<u8> {
     let mut source = vec![0_u8; of];
@@ -68,10 +68,7 @@ fn test_reading_a_value_leaves_nothing() -> Result<(), AnyError> {
         source.fast_zeroize();
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "a value read",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "a value read");
 
     Ok(())
 }
@@ -127,7 +124,8 @@ macro_rules! read_slice_of {
             });
 
             leaves_nothing(
-                &report_before,                &watch.snapshot()?,
+                &report_before,
+                &watch.snapshot()?,
                 &format!("a slice of {} bytes read", $of),
             );
 

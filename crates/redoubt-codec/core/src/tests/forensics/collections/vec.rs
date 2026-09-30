@@ -67,7 +67,8 @@ fn test_cleaning_up_a_refused_encode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "cleaning up a refused encode",
     );
 
@@ -99,7 +100,8 @@ fn test_cleaning_up_a_refused_decode_leaves_nothing() -> Result<(), AnyError> {
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "cleaning up a refused decode",
     );
 
@@ -163,10 +165,7 @@ fn test_trying_to_encode_leaves_nothing() -> Result<(), AnyError> {
         buffer.fast_zeroize();
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "trying to encode",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "trying to encode");
 
     Ok(())
 }
@@ -215,10 +214,7 @@ fn test_encoding_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(held);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "encoding",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "encoding");
 
     Ok(())
 }
@@ -250,7 +246,8 @@ fn test_encoding_into_a_buffer_too_small_leaves_nothing() -> Result<(), AnyError
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "encoding into a buffer too small",
     );
 
@@ -301,10 +298,7 @@ fn test_encoding_a_slice_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(two);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "encoding a slice",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "encoding a slice");
 
     Ok(())
 }
@@ -353,10 +347,7 @@ fn test_trying_to_decode_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "trying to decode",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "trying to decode");
 
     Ok(())
 }
@@ -405,10 +396,7 @@ fn test_decoding_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding");
 
     Ok(())
 }
@@ -434,10 +422,7 @@ fn test_decoding_over_a_vec_that_holds_a_secret_leaves_nothing() -> Result<(), A
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding over it",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding over it");
 
     Ok(())
 }
@@ -463,10 +448,7 @@ fn test_decoding_less_over_a_vec_that_holds_more_leaves_nothing() -> Result<(), 
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding less over it",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding less over it");
 
     Ok(())
 }
@@ -500,7 +482,8 @@ fn test_decoding_out_of_a_wire_cut_short_leaves_nothing() -> Result<(), AnyError
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "decoding out of a wire cut short",
     );
 
@@ -551,10 +534,7 @@ fn test_decoding_a_slice_leaves_nothing() -> Result<(), AnyError> {
         core::mem::forget(wire);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "decoding a slice",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "decoding a slice");
 
     Ok(())
 }
@@ -582,10 +562,7 @@ fn test_preallocating_over_a_vec_that_holds_a_secret_leaves_nothing() -> Result<
         core::mem::forget(back);
     });
 
-    leaves_nothing(
-        &report_before,        &watch.snapshot()?,
-        "preallocating over it",
-    );
+    leaves_nothing(&report_before, &watch.snapshot()?, "preallocating over it");
 
     Ok(())
 }
@@ -615,7 +592,8 @@ fn test_preallocating_a_vec_of_vecs_over_one_that_holds_a_secret_leaves_nothing(
     });
 
     leaves_nothing(
-        &report_before,        &watch.snapshot()?,
+        &report_before,
+        &watch.snapshot()?,
         "preallocating over them",
     );
 
