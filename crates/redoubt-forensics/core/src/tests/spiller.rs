@@ -2435,7 +2435,10 @@ mod through_freeze {
         let frame = spilled_word(232);
         let stood = spilled_word(248);
 
-        assert!(frame >= stood, "x29 {frame:#x} below the freeze's sp {stood:#x}");
+        assert!(
+            frame >= stood,
+            "x29 {frame:#x} below the freeze's sp {stood:#x}"
+        );
     }
 
     /// With no capture before it `TOP` is zero, so `SP` is the stack pointer the
@@ -2530,7 +2533,10 @@ mod through_capture {
         let stood = unsafe { crate::window::SP };
         let left = spilled_word(56);
 
-        assert!(left != 0 && left < stood, "rsp {left:#x} against the capture's {stood:#x}");
+        assert!(
+            left != 0 && left < stood,
+            "rsp {left:#x} against the capture's {stood:#x}"
+        );
     }
 
     /// `SP` is where `capture` was called from, and the freeze runs deeper.
@@ -2545,7 +2551,10 @@ mod through_capture {
         let stood = unsafe { crate::window::SP };
         let left = spilled_word(248);
 
-        assert!(left != 0 && left < stood, "sp {left:#x} against the capture's {stood:#x}");
+        assert!(
+            left != 0 && left < stood,
+            "sp {left:#x} against the capture's {stood:#x}"
+        );
     }
 
     /// `x16` is where the freeze builds the room's address before it stores

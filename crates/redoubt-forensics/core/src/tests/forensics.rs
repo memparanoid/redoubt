@@ -100,13 +100,7 @@ fn test_snapshot_finds_a_copy_across_the_seam_between_two_reads() -> Result<(), 
     let start = unsafe { base.cast::<u8>().add(page) };
     // SAFETY: the `wide` bytes between the guard pages, all of them this
     // mapping's.
-    let opened = unsafe {
-        libc::mprotect(
-            start.cast(),
-            wide,
-            libc::PROT_READ | libc::PROT_WRITE,
-        )
-    };
+    let opened = unsafe { libc::mprotect(start.cast(), wide, libc::PROT_READ | libc::PROT_WRITE) };
 
     assert_eq!(opened, 0, "the mapping could not be opened");
 
@@ -127,7 +121,10 @@ fn test_snapshot_finds_a_copy_across_the_seam_between_two_reads() -> Result<(), 
 
     assert!(report.found, "{report}");
     assert_eq!(report.widest, HELD.len() as u64, "{report}");
-    assert_eq!(counted, 1, "the copy across the seam was counted {counted} times");
+    assert_eq!(
+        counted, 1,
+        "the copy across the seam was counted {counted} times"
+    );
 
     Ok(())
 }

@@ -931,11 +931,18 @@ fn test_sweep_says_the_ground_holds_between_two_windows_of_one_mapping() -> Resu
     let mut breaks_each = Vec::new();
     let mut into = [0_u8; 16];
 
-    sweep(&subject, &mut into, &maps, &skips, 0, |window, _, breaks| {
-        if !window.is_empty() {
-            breaks_each.push(breaks);
-        }
-    });
+    sweep(
+        &subject,
+        &mut into,
+        &maps,
+        &skips,
+        0,
+        |window, _, breaks| {
+            if !window.is_empty() {
+                breaks_each.push(breaks);
+            }
+        },
+    );
 
     assert_eq!(breaks_each, [false, false, false, true]);
 

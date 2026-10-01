@@ -1284,8 +1284,10 @@ pub(crate) fn capture_sve(seeded: Seeded) -> Result<(), AnyError> {
         return Ok(());
     }
 
-    let (mut watch, befores) =
-        watching(&with_callee_saved(rows(INLINED_GENERALS, vector_length()), 27))?;
+    let (mut watch, befores) = watching(&with_callee_saved(
+        rows(INLINED_GENERALS, vector_length()),
+        27,
+    ))?;
 
     crate::spiller::use_spiller(crate::spiller::Form::Sve);
 
