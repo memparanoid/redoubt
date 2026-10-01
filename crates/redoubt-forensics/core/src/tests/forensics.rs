@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use crate::analysis::state::WINDOW;
 use crate::errors::{AnyError, Reason};
 use crate::forensics::Forensics;
 
@@ -64,6 +65,69 @@ fn test_snapshot_returns_the_report_of_the_first_needle() -> Result<(), AnyError
         !first_absent.found,
         "the process does not hold the first needle"
     );
+
+    Ok(())
+}
+
+/// A copy lying across the edge between the first two reads of a mapping is
+/// found whole, and counted once.
+///
+/// The mapping is the test's own, between two pages nothing can read, so the
+/// kernel cannot merge it with a neighbour and its first read starts where the
+/// test says: the edge is `WINDOW` bytes in.
+#[test]
+fn test_snapshot_finds_a_copy_across_the_seam_between_two_reads() -> Result<(), AnyError> {
+    // SAFETY: a query of a constant the kernel answers for every process.
+    let page = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
+    let wide = 2 * WINDOW;
+
+    // SAFETY: an anonymous private mapping at an address of the kernel's
+    // choosing, touching nothing that exists.
+    let base = unsafe {
+        libc::mmap(
+            core::ptr::null_mut(),
+            wide + 2 * page,
+            libc::PROT_NONE,
+            libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
+            -1,
+            0,
+        )
+    };
+
+    assert_ne!(base, libc::MAP_FAILED, "no mapping to plant in");
+
+    // SAFETY: one page into a mapping a page wider than `wide` on each side.
+    let start = unsafe { base.cast::<u8>().add(page) };
+    // SAFETY: the `wide` bytes between the guard pages, all of them this
+    // mapping's.
+    let opened = unsafe {
+        libc::mprotect(
+            start.cast(),
+            wide,
+            libc::PROT_READ | libc::PROT_WRITE,
+        )
+    };
+
+    assert_eq!(opened, 0, "the mapping could not be opened");
+
+    // SAFETY: inside the `wide` bytes just opened.
+    let across = unsafe { start.add(WINDOW - HELD.len() / 2) };
+
+    for (at, byte) in HELD.iter().enumerate() {
+        // SAFETY: inside the `wide` bytes just opened, one byte at a time so
+        // no register holds more than one of them.
+        unsafe { across.add(at).write_volatile(*byte) };
+    }
+
+    let report = Forensics::watching(&backwards(HELD))?.snapshot()?;
+    let counted = crate::forensics::occurrences(&HELD)?;
+
+    // SAFETY: the whole mapping made above, read by nothing after this.
+    unsafe { libc::munmap(base, wide + 2 * page) };
+
+    assert!(report.found, "{report}");
+    assert_eq!(report.widest, HELD.len() as u64, "{report}");
+    assert_eq!(counted, 1, "the copy across the seam was counted {counted} times");
 
     Ok(())
 }

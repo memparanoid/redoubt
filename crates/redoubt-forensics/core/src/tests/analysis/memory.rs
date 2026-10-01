@@ -911,6 +911,37 @@ fn test_sweep_carries_the_seam_from_one_window_to_the_next() -> Result<(), AnyEr
     Ok(())
 }
 
+/// Only the last window of a mapping says the ground breaks after it.
+///
+/// A sweep that said so after every window would close every run at every
+/// window's edge, and a needle lying across one would read as two halves.
+#[test]
+fn test_sweep_says_the_ground_holds_between_two_windows_of_one_mapping() -> Result<(), AnyError> {
+    let held = [0x5A_u8; 64];
+    let at = core::hint::black_box(&held).as_ptr() as u64;
+
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
+
+    let mut block = [0_u64; 3];
+    let maps = skipping(&mut block, &[(at, at + 64)]);
+
+    let mut empty = [0_u64; 3];
+    let skips = skipping(&mut empty, &[]);
+
+    let mut breaks_each = Vec::new();
+    let mut into = [0_u8; 16];
+
+    sweep(&subject, &mut into, &maps, &skips, 0, |window, _, breaks| {
+        if !window.is_empty() {
+            breaks_each.push(breaks);
+        }
+    });
+
+    assert_eq!(breaks_each, [false, false, false, true]);
+
+    Ok(())
+}
+
 /// A seam as wide as the window stops, rather than reading the same bytes for
 /// as long as anybody waits.
 ///
