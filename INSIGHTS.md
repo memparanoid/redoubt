@@ -8,7 +8,7 @@
 
 <h1 align="center">Project Insights</h1>
 
-<p align="center"><em>Generated on 2026-09-28 10:43</em></p>
+<p align="center"><em>Generated on 2026-10-01 16:41</em></p>
 
 ---
 
@@ -16,42 +16,42 @@
 
 | Metric | Coverage | Covered | Total |
 |--------|----------|---------|-------|
-| **Function** | **100.00%** | 817 | 817 |
-| **Line** | **99.83%** | 5,917 | 5,927 |
-| **Region** | **99.59%** | 8,425 | 8,460 |
-| **Branch** | **97.51%** | 470 | 482 |
+| **Function** | **100.00%** | 831 | 831 |
+| **Line** | **99.84%** | 6,066 | 6,076 |
+| **Region** | **99.57%** | 8,667 | 8,704 |
+| **Branch** | **97.75%** | 477 | 488 |
 
 ## Security Audit
 
-**No vulnerabilities found** — scanned 201 crates against 1273 advisories
+**No vulnerabilities found** — scanned 202 crates against 1278 advisories
 
 ## Code Statistics
 
 | Metric | Production | Tests | Total |
 |--------|------------|-------|-------|
-| **Code Lines** | 10,680 | 56,613 | 67,293 |
-| **Total Lines** | 14,949 | 77,441 | 92,390 |
-| **Files** | 188 | 345 | 533 |
-| **Comments** | 1,490 | - | 8,450 |
+| **Code Lines** | 10,875 | 57,051 | 67,926 |
+| **Total Lines** | 15,214 | 78,234 | 93,448 |
+| **Files** | 190 | 348 | 538 |
+| **Comments** | 1,503 | - | 8,806 |
 
-> **Test/Code Ratio:** `5.30x` — 56,613 test lines / 10,680 production lines
+> **Test/Code Ratio:** `5.25x` — 57,051 test lines / 10,875 production lines
 
 ## Tests
 
 | Metric | Count |
 |--------|-------|
-| **Total Tests** | 3,271 |
-| **Total Assertions** | 2,903 |
+| **Total Tests** | 3,361 |
+| **Total Assertions** | 2,900 |
 | **Assertions/Test** | 0.9 |
-| **Lines/Test** | 3.3 |
+| **Lines/Test** | 3.2 |
 
 <details>
 <summary>Assertion Breakdown</summary>
 
 | Macro | Count |
 |-------|-------|
-| `assert!` | 1,669 |
-| `assert_eq!` | 1,225 |
+| `assert!` | 1,634 |
+| `assert_eq!` | 1,257 |
 | `debug_assert!` | 6 |
 | `debug_assert_eq!` | 3 |
 
@@ -77,7 +77,7 @@
 | `redoubt-eq` | 84 | 29 |
 | `redoubt-forensics` | 10 | 0 |
 | `redoubt-forensics/allocator` | 295 | 20 |
-| `redoubt-forensics/core` | 1,422 | 436 |
+| `redoubt-forensics/core` | 1,617 | 526 |
 | `redoubt-forensics/macros` | 92 | 22 |
 | `redoubt-hex` | 159 | 67 |
 | `redoubt-hkdf` | 820 | 184 |
@@ -94,7 +94,7 @@
 | `redoubt-zero` | 6 | 0 |
 | `redoubt-zero/core` | 597 | 157 |
 | `redoubt-zero/derive` | 281 | 43 |
-| **Total** | **10,680** | **3263** |
+| **Total** | **10,875** | **3353** |
 
 ---
 
