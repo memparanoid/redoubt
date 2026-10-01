@@ -221,6 +221,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cpufeatures"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ca28b0ae3115b884660db4118d803791fd6756b6e88f39c0f3f7859060d7566"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "crabgrind"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -887,7 +896,7 @@ dependencies = [
 name = "redoubt-aead"
 version = "0.1.0-rc.16"
 dependencies = [
- "cpufeatures",
+ "cpufeatures 0.3.1",
  "proptest",
  "redoubt-aead-aegis128l",
  "redoubt-aead-core",
@@ -1472,7 +1481,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
 dependencies = [
  "cfg-if",
- "cpufeatures",
+ "cpufeatures 0.2.17",
  "digest",
 ]
 
