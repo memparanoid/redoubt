@@ -61,20 +61,22 @@ fn test_mock_entropy_source_behaviour_fail_at_nth_third_call() {
 }
 
 #[test]
-fn test_mock_entropy_source_call_count() {
+fn test_mock_entropy_source_call_count() -> Result<(), EntropyError> {
     let mock = MockEntropySource::new(MockEntropySourceBehaviour::None);
     let mut buf = [0u8; 32];
 
     assert_eq!(mock.call_count(), 0);
 
-    mock.fill_bytes(&mut buf).unwrap();
+    mock.fill_bytes(&mut buf)?;
     assert_eq!(mock.call_count(), 1);
 
-    mock.fill_bytes(&mut buf).unwrap();
+    mock.fill_bytes(&mut buf)?;
     assert_eq!(mock.call_count(), 2);
 
     mock.reset_count();
     assert_eq!(mock.call_count(), 0);
+
+    Ok(())
 }
 
 #[test]
