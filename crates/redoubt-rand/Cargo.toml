@@ -16,6 +16,7 @@ path = "src/lib.rs"
 [dependencies]
 getrandom.workspace   = true
 redoubt-asm.workspace = true
+redoubt-mem           = { workspace = true, optional = true }
 thiserror.workspace   = true
 
 [target.'cfg(any(target_os = "linux", target_os = "android", target_os = "macos", target_os = "ios"))'.dependencies]
@@ -32,4 +33,4 @@ redoubt-test-utils.workspace = true
 rstest.workspace             = true
 
 [features]
-test-utils = []
+test-utils = ["dep:redoubt-mem"]
