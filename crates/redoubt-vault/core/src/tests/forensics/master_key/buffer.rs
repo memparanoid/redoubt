@@ -32,8 +32,8 @@ fn test_making_a_buffer_leaves_nothing() {
 // ============================================================================
 
 #[test]
-#[ignore = "Audited: it draws from the system and hands the source to \
-            `initialize_buffer_with`, which is measured."]
+#[ignore = "Holds no secret: what it returns by value is a `Box<dyn Buffer>`, a \
+            pointer, and a buffer given away leaves nothing."]
 fn test_making_the_key_leaves_nothing() {
     // Intentionally empty.
 }
