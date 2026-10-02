@@ -78,10 +78,8 @@ fn test_a_second_fill_yielded_leaves_nothing_of_either() -> Result<(), AnyError>
     let mock = MockEntropySource::new(MockEntropySourceBehaviour::YieldOver(&STREAM));
     let needles = mock.upcoming_backwards(&[WIDE, WIDE]);
 
-    let mut watching = Watching::start(&[
-        ("first piece", &needles[0]),
-        ("second piece", &needles[1]),
-    ])?;
+    let mut watching =
+        Watching::start(&[("first piece", &needles[0]), ("second piece", &needles[1])])?;
 
     forensics!({
         let mut first = [0_u8; WIDE];

@@ -104,7 +104,8 @@ fn test_create_initialized_buffer_returns_a_filled_key() -> Result<(), Box<dyn s
 // ============================================================================
 
 #[test]
-fn test_initialize_buffer_with_propagates_entropy_error() -> Result<(), Box<dyn std::error::Error>> {
+fn test_initialize_buffer_with_propagates_entropy_error() -> Result<(), Box<dyn std::error::Error>>
+{
     let entropy = MockEntropySource::new(MockEntropySourceBehaviour::FailAlways);
     let mut buffer = create_buffer()?;
 
@@ -116,7 +117,8 @@ fn test_initialize_buffer_with_propagates_entropy_error() -> Result<(), Box<dyn 
 }
 
 #[test]
-fn test_initialize_buffer_with_fills_the_key_from_the_source() -> Result<(), Box<dyn std::error::Error>> {
+fn test_initialize_buffer_with_fills_the_key_from_the_source()
+-> Result<(), Box<dyn std::error::Error>> {
     let entropy = MockEntropySource::new(MockEntropySourceBehaviour::YieldOver(&KEY));
     let mut buffer = create_buffer()?;
 
@@ -173,7 +175,8 @@ fn subprocess_create_initialized_buffer_page_error() -> Result<(), Box<dyn std::
 #[cfg(target_os = "linux")]
 #[test]
 #[ignore]
-fn subprocess_create_initialized_buffer_initialize_error() -> Result<(), Box<dyn std::error::Error>> {
+fn subprocess_create_initialized_buffer_initialize_error() -> Result<(), Box<dyn std::error::Error>>
+{
     block_syscall("getrandom")?;
     block_syscall("read")?;
     block_syscall("openat")?;

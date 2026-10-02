@@ -42,7 +42,9 @@ pub(crate) fn initialize_buffer_with(
     buffer: &mut dyn Buffer,
 ) -> Result<(), BufferError> {
     buffer.open_mut(&mut |bytes| {
-        entropy.fill_bytes(bytes).map_err(BufferError::callback_error)?;
+        entropy
+            .fill_bytes(bytes)
+            .map_err(BufferError::callback_error)?;
         Ok(())
     })
 }
