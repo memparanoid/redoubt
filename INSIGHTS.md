@@ -8,7 +8,7 @@
 
 <h1 align="center">Project Insights</h1>
 
-<p align="center"><em>Generated on 2026-10-01 16:41</em></p>
+<p align="center"><em>Generated on 2026-10-02 12:40</em></p>
 
 ---
 
@@ -16,32 +16,32 @@
 
 | Metric | Coverage | Covered | Total |
 |--------|----------|---------|-------|
-| **Function** | **100.00%** | 831 | 831 |
-| **Line** | **99.84%** | 6,066 | 6,076 |
-| **Region** | **99.57%** | 8,667 | 8,704 |
-| **Branch** | **97.75%** | 477 | 488 |
+| **Function** | **100.00%** | 838 | 838 |
+| **Line** | **99.84%** | 6,132 | 6,142 |
+| **Region** | **99.58%** | 8,793 | 8,830 |
+| **Branch** | **97.79%** | 487 | 498 |
 
 ## Security Audit
 
-**No vulnerabilities found** — scanned 202 crates against 1278 advisories
+**No vulnerabilities found** — scanned 202 crates against 1280 advisories
 
 ## Code Statistics
 
 | Metric | Production | Tests | Total |
 |--------|------------|-------|-------|
-| **Code Lines** | 10,875 | 57,051 | 67,926 |
-| **Total Lines** | 15,214 | 78,234 | 93,448 |
-| **Files** | 190 | 348 | 538 |
-| **Comments** | 1,503 | - | 8,806 |
+| **Code Lines** | 10,957 | 57,251 | 68,208 |
+| **Total Lines** | 15,324 | 78,567 | 93,891 |
+| **Files** | 190 | 350 | 540 |
+| **Comments** | 1,509 | - | 8,851 |
 
-> **Test/Code Ratio:** `5.25x` — 57,051 test lines / 10,875 production lines
+> **Test/Code Ratio:** `5.23x` — 57,251 test lines / 10,957 production lines
 
 ## Tests
 
 | Metric | Count |
 |--------|-------|
-| **Total Tests** | 3,361 |
-| **Total Assertions** | 2,900 |
+| **Total Tests** | 3,378 |
+| **Total Assertions** | 2,915 |
 | **Assertions/Test** | 0.9 |
 | **Lines/Test** | 3.2 |
 
@@ -50,8 +50,8 @@
 
 | Macro | Count |
 |-------|-------|
-| `assert!` | 1,634 |
-| `assert_eq!` | 1,257 |
+| `assert!` | 1,638 |
+| `assert_eq!` | 1,268 |
 | `debug_assert!` | 6 |
 | `debug_assert_eq!` | 3 |
 
@@ -84,17 +84,17 @@
 | `redoubt-mem` | 7 | 0 |
 | `redoubt-mem/core` | 247 | 152 |
 | `redoubt-mem/forensics` | 1 | 66 |
-| `redoubt-rand` | 280 | 55 |
+| `redoubt-rand` | 354 | 69 |
 | `redoubt-secret` | 84 | 22 |
 | `redoubt-test-utils` | 166 | 31 |
 | `redoubt-util` | 32 | 41 |
 | `redoubt-vault` | 3 | 63 |
-| `redoubt-vault/core` | 836 | 223 |
+| `redoubt-vault/core` | 844 | 226 |
 | `redoubt-vault/derive` | 489 | 52 |
 | `redoubt-zero` | 6 | 0 |
 | `redoubt-zero/core` | 597 | 157 |
 | `redoubt-zero/derive` | 281 | 43 |
-| **Total** | **10,875** | **3353** |
+| **Total** | **10,957** | **3370** |
 
 ---
 
