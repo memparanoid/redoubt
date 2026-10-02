@@ -6,7 +6,7 @@
 use alloc::boxed::Box;
 
 use redoubt_buffer::{Buffer, BufferError};
-use redoubt_rand::fill_with_random_bytes;
+use redoubt_rand::{EntropySource, SystemEntropySource};
 
 #[cfg(unix)]
 use redoubt_buffer::PageBuffer;
@@ -32,10 +32,17 @@ pub fn create_buffer() -> Result<Box<dyn Buffer>, BufferError> {
 pub fn create_initialized_buffer() -> Result<Box<dyn Buffer>, BufferError> {
     let mut buffer = create_buffer()?;
 
-    buffer.open_mut(&mut |bytes| {
-        fill_with_random_bytes(bytes).map_err(BufferError::callback_error)?;
-        Ok(())
-    })?;
+    initialize_buffer_with(&SystemEntropySource::default(), &mut *buffer)?;
 
     Ok(buffer)
+}
+
+pub(crate) fn initialize_buffer_with(
+    entropy: &dyn EntropySource,
+    buffer: &mut dyn Buffer,
+) -> Result<(), BufferError> {
+    buffer.open_mut(&mut |bytes| {
+        entropy.fill_bytes(bytes).map_err(BufferError::callback_error)?;
+        Ok(())
+    })
 }

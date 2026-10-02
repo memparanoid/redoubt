@@ -34,6 +34,7 @@ thiserror.workspace      = true
 redoubt-aead                 = { workspace = true, features = ["test-utils"] }
 redoubt-codec                = { workspace = true, features = ["test-utils"] }
 redoubt-forensics.workspace  = true
+redoubt-rand                 = { workspace = true, features = ["test-utils"] }
 redoubt-test-utils.workspace = true
 redoubt-util.workspace       = true
 
