@@ -7,3 +7,4 @@ mod redoubt_option;
 mod redoubt_secret;
 mod redoubt_string;
 mod redoubt_vec;
+mod zeroizing_guard;
