@@ -9,11 +9,8 @@ use redoubt_forensics::{AnyError, Forensics, capture, forensics, is_found, leave
 use redoubt_secret::RedoubtSecret;
 use redoubt_zero::{FastZeroizable, RedoubtZero};
 
-use crate::support::needles::{NEEDLE, backwards};
-use crate::support::{a_u128, bytes, giving, text};
-
-/// What a container that can hold more than one needle is filled with.
-const WIDE: usize = 8 * NEEDLE.len();
+use crate::support::needles::backwards;
+use crate::support::{WIDE, a_text, an_array, bytes, secret};
 
 /// A struct nested in another: by value, boxed, and optional.
 #[derive(Default, RedoubtZero, RedoubtCodec)]
@@ -39,19 +36,11 @@ struct Arsenal {
     maybe_keys: RedoubtOption<Keys>,
 }
 
-fn secret(into: &mut RedoubtSecret<u128>) {
-    into.replace(&mut *a_u128());
-}
-
 fn maybe_secret(into: &mut RedoubtOption<RedoubtSecret<u128>>) {
     let mut held = RedoubtSecret::default();
 
     secret(&mut held);
     into.replace(&mut held);
-}
-
-fn a_text(into: &mut RedoubtString) {
-    into.replace_from_mut_string(&mut text(WIDE));
 }
 
 fn maybe_text(into: &mut RedoubtOption<RedoubtString>) {
@@ -63,13 +52,6 @@ fn maybe_text(into: &mut RedoubtOption<RedoubtString>) {
 
 fn some_bytes(into: &mut RedoubtVec<u8>) {
     into.replace_from_mut_slice(&mut bytes(WIDE));
-}
-
-fn an_array(into: &mut RedoubtArray<u8, 16>) {
-    let mut held = Box::new([0_u8; 16]);
-
-    giving(&mut *held);
-    into.replace_from_mut_array(&mut held);
 }
 
 fn allocked(into: &mut AllockedVec<u8>) -> Result<(), AnyError> {

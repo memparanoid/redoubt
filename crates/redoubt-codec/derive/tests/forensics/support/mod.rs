@@ -4,7 +4,13 @@
 
 pub(crate) mod needles;
 
+use redoubt_alloc::{RedoubtArray, RedoubtString};
+use redoubt_secret::RedoubtSecret;
+
 use needles::NEEDLE;
+
+/// What a container that can hold more than one needle is filled with.
+pub(crate) const WIDE: usize = 8 * NEEDLE.len();
 
 /// Writes the needle over and over into `into`, through the copy that erases
 /// what it used: a compiler move would leave residue the test caused itself.
@@ -55,4 +61,19 @@ pub(crate) fn a_u128() -> Box<u128> {
     giving(bytes);
 
     value
+}
+
+pub(crate) fn secret(into: &mut RedoubtSecret<u128>) {
+    into.replace(&mut *a_u128());
+}
+
+pub(crate) fn a_text(into: &mut RedoubtString) {
+    into.replace_from_mut_string(&mut text(WIDE));
+}
+
+pub(crate) fn an_array(into: &mut RedoubtArray<u8, 16>) {
+    let mut held = Box::new([0_u8; 16]);
+
+    giving(&mut *held);
+    into.replace_from_mut_array(&mut held);
 }

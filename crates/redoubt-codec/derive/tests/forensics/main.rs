@@ -11,6 +11,7 @@
 
 mod support;
 
+mod enums;
 mod redoubt_codec;
 
 #[global_allocator]
