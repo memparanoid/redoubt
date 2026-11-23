@@ -29,6 +29,7 @@ redoubt-forensics.workspace  = true
 redoubt-mem.workspace        = true
 redoubt-secret.workspace     = true
 redoubt-zero.workspace       = true
+rstest.workspace             = true
 
 # Only include insta on architectures where it compiles (cpufeatures constraint)
 [target.'cfg(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", target_arch = "loongarch64"))'.dev-dependencies]

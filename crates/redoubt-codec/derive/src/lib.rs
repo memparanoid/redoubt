@@ -24,7 +24,10 @@ use proc_macro::TokenStream;
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
-use syn::{Attribute, Data, DeriveInput, Fields, Ident, Index, LitStr, Meta, parse_macro_input};
+use syn::punctuated::Punctuated;
+use syn::{
+    Attribute, Data, DeriveInput, Fields, Ident, Index, LitStr, Meta, Token, parse_macro_input,
+};
 
 /// Derives `BytesRequired`, `Encode`, and `Decode` for a struct.
 ///
@@ -81,6 +84,204 @@ fn has_codec_default(attrs: &[Attribute]) -> bool {
     })
 }
 
+const INTEGER_REPRS: [&str; 12] = [
+    "u8", "u16", "u32", "u64", "u128", "usize", "i8", "i16", "i32", "i64", "i128", "isize",
+];
+
+const TAG_REPRS: [&str; 4] = ["u8", "u16", "u32", "u64"];
+
+fn repr_of(input: &DeriveInput) -> Option<Ident> {
+    input
+        .attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("repr"))
+        .filter_map(|attr| {
+            attr.parse_args_with(Punctuated::<Ident, Token![,]>::parse_terminated)
+                .ok()
+        })
+        .flatten()
+        .find(|ident| INTEGER_REPRS.iter().any(|integer| ident == integer))
+}
+
+fn tag_repr_of(input: &DeriveInput) -> Result<Ident, TokenStream2> {
+    let repr = repr_of(input).ok_or_else(|| {
+        syn::Error::new_spanned(
+            &input.ident,
+            "RedoubtCodec: an enum needs #[repr(u8)], #[repr(u16)], #[repr(u32)] or #[repr(u64)]: its tag on the wire.",
+        )
+        .to_compile_error()
+    })?;
+
+    if !TAG_REPRS.iter().any(|tag| repr == tag) {
+        return Err(syn::Error::new_spanned(
+            &repr,
+            "RedoubtCodec: an enum's tag on the wire is u8, u16, u32 or u64.",
+        )
+        .to_compile_error());
+    }
+
+    Ok(repr)
+}
+
+fn variant_pattern(variant: &syn::Variant, bindings: &[TokenStream2]) -> TokenStream2 {
+    let ident = &variant.ident;
+
+    match &variant.fields {
+        Fields::Named(named) => {
+            let names = named.named.iter().map(|field| field.ident.as_ref());
+
+            quote! { Self::#ident { #( #names: #bindings ),* } }
+        }
+        Fields::Unnamed(_) => quote! { Self::#ident( #( #bindings ),* ) },
+        Fields::Unit => quote! { Self::#ident },
+    }
+}
+
+fn variant_default(variant: &syn::Variant) -> TokenStream2 {
+    let ident = &variant.ident;
+
+    match &variant.fields {
+        Fields::Named(named) => {
+            let names = named.named.iter().map(|field| field.ident.as_ref());
+
+            quote! { Self::#ident { #( #names: Default::default() ),* } }
+        }
+        Fields::Unnamed(unnamed) => {
+            let defaults = unnamed
+                .unnamed
+                .iter()
+                .map(|_| quote! { Default::default() });
+
+            quote! { Self::#ident( #( #defaults ),* ) }
+        }
+        Fields::Unit => quote! { Self::#ident },
+    }
+}
+
+fn expand_enum(
+    input: &DeriveInput,
+    data: &syn::DataEnum,
+    root: &TokenStream2,
+) -> Result<TokenStream2, TokenStream2> {
+    let enum_name = &input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    let repr = tag_repr_of(input)?;
+
+    let mut bytes_required_arms = Vec::new();
+    let mut encode_arms = Vec::new();
+    let mut decode_variants = Vec::new();
+    let mut decode_arms = Vec::new();
+
+    for variant in &data.variants {
+        let (_, tag) = variant.discriminant.as_ref().ok_or_else(|| {
+            syn::Error::new_spanned(
+                &variant.ident,
+                "RedoubtCodec: every variant needs an explicit discriminant: it is its tag on the wire.",
+            )
+            .to_compile_error()
+        })?;
+
+        let mut bindings = Vec::new();
+        let mut travelling = Vec::new();
+
+        for (index, field) in variant.fields.iter().enumerate() {
+            if has_codec_default(&field.attrs) {
+                bindings.push(quote! { _ });
+            } else {
+                let binding = Ident::new(&format!("field_{index}"), Span::call_site());
+
+                bindings.push(quote! { #binding });
+                travelling.push(binding);
+            }
+        }
+
+        let pattern = variant_pattern(variant, &bindings);
+        let bindings = travelling;
+        let default = variant_default(variant);
+        let len_with_tag = syn::LitInt::new(&(bindings.len() + 1).to_string(), Span::call_site());
+        let len = syn::LitInt::new(&bindings.len().to_string(), Span::call_site());
+
+        bytes_required_arms.push(quote! {
+            #pattern => {
+                let tag: #repr = #tag;
+                let fields: [&dyn #root::BytesRequired; #len_with_tag] = [
+                    #root::collections::helpers::to_bytes_required_dyn_ref(&tag),
+                    #( #root::collections::helpers::to_bytes_required_dyn_ref(#bindings) ),*
+                ];
+                #root::collections::helpers::bytes_required_sum(fields.into_iter())
+            }
+        });
+
+        encode_arms.push(quote! {
+            #pattern => {
+                let mut tag: #repr = #tag;
+                let fields: [&mut dyn #root::EncodeZeroize; #len_with_tag] = [
+                    #root::collections::helpers::to_encode_zeroize_dyn_mut(&mut tag),
+                    #( #root::collections::helpers::to_encode_zeroize_dyn_mut(#bindings) ),*
+                ];
+                #root::collections::helpers::encode_fields(fields.into_iter(), buf)
+            }
+        });
+
+        decode_variants.push(quote! {
+            if tag == (#tag) {
+                #default
+            }
+        });
+
+        decode_arms.push(quote! {
+            #pattern => {
+                let fields: [&mut dyn #root::DecodeZeroize; #len] = [
+                    #( #root::collections::helpers::to_decode_zeroize_dyn_mut(#bindings) ),*
+                ];
+                #root::collections::helpers::decode_fields(fields.into_iter(), buf)
+            }
+        });
+    }
+
+    Ok(quote! {
+        impl #impl_generics #root::BytesRequired for #enum_name #ty_generics #where_clause {
+            fn encode_bytes_required(&self) -> Result<usize, #root::OverflowError> {
+                match self {
+                    #( #bytes_required_arms )*
+                }
+            }
+        }
+
+        impl #impl_generics #root::Encode for #enum_name #ty_generics #where_clause {
+            fn encode_into(&mut self, buf: &mut #root::RedoubtCodecBuffer) -> Result<(), #root::EncodeError> {
+                match self {
+                    #( #encode_arms )*
+                }
+            }
+        }
+
+        impl #impl_generics #root::Decode for #enum_name #ty_generics #where_clause {
+            fn decode_from(&mut self, buf: &mut &mut [u8]) -> Result<(), #root::DecodeError> {
+                let mut tag: #repr = 0;
+                let tag_field: [&mut dyn #root::DecodeZeroize; 1] = [
+                    #root::collections::helpers::to_decode_zeroize_dyn_mut(&mut tag),
+                ];
+
+                #root::collections::helpers::decode_fields(tag_field.into_iter(), buf)?;
+
+                #root::collections::helpers::fast_zeroize_decode_zeroize(
+                    #root::collections::helpers::to_decode_zeroize_dyn_mut(self),
+                );
+
+                *self = #( #decode_variants else )* {
+                    return Err(#root::DecodeError::UnknownTag { tag: u64::from(tag) });
+                };
+
+                match self {
+                    #( #decode_arms )*
+                }
+            }
+        }
+    })
+}
+
 fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     let struct_name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
@@ -95,6 +296,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
             Fields::Unnamed(unnamed) => unnamed.unnamed.iter().enumerate().collect(),
             Fields::Unit => vec![],
         },
+        Data::Enum(data) => return expand_enum(&input, data, &root),
         _ => {
             return Err(syn::Error::new_spanned(
                 &input.ident,

@@ -105,6 +105,11 @@ pub fn to_decode_zeroize_dyn_mut<T: DecodeZeroize>(x: &mut T) -> &mut dyn Decode
     x
 }
 
+#[inline(always)]
+pub fn fast_zeroize_decode_zeroize(x: &mut dyn DecodeZeroize) {
+    x.fast_zeroize();
+}
+
 /// Sum bytes required from an iterator of `&dyn BytesRequired`.
 #[inline(always)]
 pub fn bytes_required_sum<'a>(

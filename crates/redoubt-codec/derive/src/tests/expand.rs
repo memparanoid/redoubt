@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use rstest::rstest;
 use syn::parse_quote;
 
 use crate::{expand, find_root_with_candidates};
@@ -147,18 +148,162 @@ fn snapshot_struct_with_generics_ok() -> Result<(), Box<dyn std::error::Error>> 
     Ok(())
 }
 
+// enums
+
 #[test]
-fn snapshot_enum_fails() {
+fn snapshot_enum_ok() -> Result<(), Box<dyn std::error::Error>> {
+    let derive_input = parse_quote! {
+        #[derive(RedoubtCodec)]
+        #[repr(u8)]
+        enum Choice {
+            Alpha = 0,
+            Beta([u8; 16], #[codec(default)] u64) = 1,
+            Gamma { key: [u8; 32], #[codec(default)] count: u64, id: u64 } = 2,
+        }
+    };
+
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
+}
+
+#[test]
+fn test_expand_reports_an_enum_without_a_repr() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtCodec)]
         enum Choice {
-            A,
+            A = 0,
+            B = 1,
+        }
+    };
+
+    let refusal = expand(derive_input)
+        .err()
+        .ok_or("an enum without a repr was expanded")?;
+
+    assert_eq!(
+        refusal.to_string(),
+        ":: core :: compile_error ! { \"RedoubtCodec: an enum needs #[repr(u8)], #[repr(u16)], #[repr(u32)] or #[repr(u64)]: its tag on the wire.\" }"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_expand_reports_an_enum_whose_repr_names_no_integer()
+-> Result<(), Box<dyn std::error::Error>> {
+    let derive_input = parse_quote! {
+        #[derive(RedoubtCodec)]
+        #[repr(C)]
+        enum Choice {
+            A = 0,
+            B = 1,
+        }
+    };
+
+    let refusal = expand(derive_input)
+        .err()
+        .ok_or("an enum whose repr names no integer was expanded")?;
+
+    assert_eq!(
+        refusal.to_string(),
+        ":: core :: compile_error ! { \"RedoubtCodec: an enum needs #[repr(u8)], #[repr(u16)], #[repr(u32)] or #[repr(u64)]: its tag on the wire.\" }"
+    );
+
+    Ok(())
+}
+
+#[rstest]
+#[case::u128(parse_quote!(u128))]
+#[case::usize(parse_quote!(usize))]
+#[case::i8(parse_quote!(i8))]
+#[case::i16(parse_quote!(i16))]
+#[case::i32(parse_quote!(i32))]
+#[case::i64(parse_quote!(i64))]
+#[case::i128(parse_quote!(i128))]
+#[case::isize(parse_quote!(isize))]
+fn test_expand_reports_an_enum_whose_tag_is_not_a_wire_tag(
+    #[case] repr: syn::Ident,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let derive_input = parse_quote! {
+        #[derive(RedoubtCodec)]
+        #[repr(#repr)]
+        enum Choice {
+            A = 0,
+            B = 1,
+        }
+    };
+
+    let refusal = expand(derive_input)
+        .err()
+        .ok_or("an enum whose tag is not a wire tag was expanded")?;
+
+    assert_eq!(
+        refusal.to_string(),
+        ":: core :: compile_error ! { \"RedoubtCodec: an enum's tag on the wire is u8, u16, u32 or u64.\" }"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_expand_reports_a_variant_without_a_discriminant() -> Result<(), Box<dyn std::error::Error>>
+{
+    let derive_input = parse_quote! {
+        #[derive(RedoubtCodec)]
+        #[repr(u8)]
+        enum Choice {
+            A = 0,
             B,
         }
     };
 
-    let result = expand(derive_input);
-    assert!(result.is_err());
+    let refusal = expand(derive_input)
+        .err()
+        .ok_or("a variant without a discriminant was expanded")?;
+
+    assert_eq!(
+        refusal.to_string(),
+        ":: core :: compile_error ! { \"RedoubtCodec: every variant needs an explicit discriminant: it is its tag on the wire.\" }"
+    );
+
+    Ok(())
+}
+
+#[rstest]
+#[case::u8(parse_quote!(u8))]
+#[case::u16(parse_quote!(u16))]
+#[case::u32(parse_quote!(u32))]
+#[case::u64(parse_quote!(u64))]
+fn test_expand_returns_an_enum_whose_tag_is_a_wire_tag(#[case] repr: syn::Ident) {
+    let derive_input = parse_quote! {
+        #[derive(RedoubtCodec)]
+        #[repr(#repr)]
+        enum Choice {
+            A = 0,
+            B = 1,
+        }
+    };
+
+    let expansion = expand(derive_input);
+
+    assert!(expansion.is_ok());
+}
+
+#[test]
+fn test_expand_returns_an_enum_whose_repr_also_names_c() {
+    let derive_input = parse_quote! {
+        #[derive(RedoubtCodec)]
+        #[repr(C, u8)]
+        enum Choice {
+            A = 0,
+            B = 1,
+        }
+    };
+
+    let expansion = expand(derive_input);
+
+    assert!(expansion.is_ok());
 }
 
 // #[codec(default)]

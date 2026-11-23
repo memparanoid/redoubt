@@ -45,6 +45,9 @@ pub enum DecodeError {
     #[error("PreconditionViolated")]
     PreconditionViolated,
 
+    #[error("UnknownTag: {tag}")]
+    UnknownTag { tag: u64 },
+
     /// Test-only error for simulating decode failures.
     ///
     /// Available only with `test-utils` feature enabled.
