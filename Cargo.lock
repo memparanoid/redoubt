@@ -1039,6 +1039,7 @@ dependencies = [
  "redoubt-mem",
  "redoubt-secret",
  "redoubt-zero",
+ "rstest",
  "syn",
 ]
 
@@ -1293,6 +1294,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "redoubt-zero-core",
+ "rstest",
  "syn",
  "trybuild",
 ]

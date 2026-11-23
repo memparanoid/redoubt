@@ -476,17 +476,66 @@ fn snapshot_unit_struct_no_assert_zeroize_on_drop_impl() -> Result<(), Box<dyn s
 }
 
 #[test]
-fn snapshot_enum_fails() {
+fn snapshot_enum_ok() -> Result<(), Box<dyn std::error::Error>> {
     let derive_input = parse_quote! {
         #[derive(RedoubtZero)]
-        enum Lambda {
+        #[fast_zeroize(drop)]
+        enum Lambda<'a> {
             Alpha,
-            Beta,
+            Beta(RedoubtArray<u8, 32>, #[fast_zeroize(skip)] &'a str),
+            Gamma { key: RedoubtArray<u8, 32>, #[fast_zeroize(skip)] label: &'a str, id: u64 },
         }
     };
 
-    let result = expand(derive_input);
-    assert!(result.is_err());
+    insta::assert_snapshot!(expanded(derive_input)?);
+
+    Ok(())
+}
+
+#[test]
+fn test_expand_reports_an_immut_ref_without_skip_in_a_named_variant()
+-> Result<(), Box<dyn std::error::Error>> {
+    let derive_input = parse_quote! {
+        #[derive(RedoubtZero)]
+        enum Lambda<'a> {
+            Alpha,
+            Gamma { key: RedoubtArray<u8, 32>, label: &'a str },
+        }
+    };
+
+    let refusal = expand(derive_input)
+        .err()
+        .ok_or("an immutable reference without skip was expanded")?;
+
+    assert_eq!(
+        refusal.to_string(),
+        ":: core :: compile_error ! { \"field `label` of variant `Gamma` has type `&T` (immutable reference) which cannot be zeroized. Add `#[fast_zeroize(skip)]` to exclude it from zeroization.\" }"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_expand_reports_an_immut_ref_without_skip_in_a_tuple_variant()
+-> Result<(), Box<dyn std::error::Error>> {
+    let derive_input = parse_quote! {
+        #[derive(RedoubtZero)]
+        enum Lambda<'a> {
+            Alpha,
+            Beta(RedoubtArray<u8, 32>, &'a str),
+        }
+    };
+
+    let refusal = expand(derive_input)
+        .err()
+        .ok_or("an immutable reference without skip was expanded")?;
+
+    assert_eq!(
+        refusal.to_string(),
+        ":: core :: compile_error ! { \"field at index 1 of variant `Beta` has type `&T` (immutable reference) which cannot be zeroized. Add `#[fast_zeroize(skip)]` to exclude it from zeroization.\" }"
+    );
+
+    Ok(())
 }
 
 #[test]

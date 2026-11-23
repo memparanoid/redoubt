@@ -24,6 +24,7 @@ syn.workspace               = true
 [dev-dependencies]
 dummy-zero             = { path = "src/tests/test_fixture" }
 prettyplease.workspace = true
+rstest.workspace       = true
 trybuild.workspace     = true
 
 # Only include insta on architectures where it compiles (cpufeatures constraint)

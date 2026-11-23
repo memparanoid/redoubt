@@ -204,6 +204,137 @@ struct SentinelState {
     access: TokenStream2,
 }
 
+fn variant_pattern(variant: &syn::Variant, bindings: &[TokenStream2]) -> TokenStream2 {
+    let ident = &variant.ident;
+
+    match &variant.fields {
+        Fields::Named(named) => {
+            let names = named.named.iter().map(|field| field.ident.as_ref());
+
+            quote! { Self::#ident { #( #names: #bindings ),* } }
+        }
+        Fields::Unnamed(_) => quote! { Self::#ident( #( #bindings ),* ) },
+        Fields::Unit => quote! { Self::#ident },
+    }
+}
+
+fn expand_enum(
+    input: &DeriveInput,
+    data: &syn::DataEnum,
+    root: &TokenStream2,
+) -> Result<TokenStream2, TokenStream2> {
+    let enum_name = &input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    let mut zeroize_arms = Vec::new();
+    let mut probe_arms = Vec::new();
+
+    for variant in &data.variants {
+        if let Some((index, field)) = variant.fields.iter().enumerate().find(|(_, field)| {
+            is_immut_reference_type(&field.ty) && !has_fast_zeroize_skip(&field.attrs)
+        }) {
+            let variant_ident = &variant.ident;
+            let field_name = match &field.ident {
+                Some(ident) => format!("field `{}` of variant `{}`", ident, variant_ident),
+                None => format!("field at index {} of variant `{}`", index, variant_ident),
+            };
+
+            return Err(syn::Error::new_spanned(
+                &field.ty,
+                format!(
+                    "{} has type `&T` (immutable reference) which cannot be zeroized. \
+                     Add `#[fast_zeroize(skip)]` to exclude it from zeroization.",
+                    field_name
+                ),
+            )
+            .to_compile_error());
+        }
+
+        let mut zeroize_bindings = Vec::new();
+        let mut zeroized = Vec::new();
+        let mut probe_bindings = Vec::new();
+        let mut probed = Vec::new();
+
+        for (index, field) in variant.fields.iter().enumerate() {
+            let binding = format_ident!("field_{}", index);
+
+            if has_fast_zeroize_skip(&field.attrs) {
+                zeroize_bindings.push(quote! { _ });
+            } else {
+                zeroize_bindings.push(quote! { #binding });
+                zeroized.push(binding.clone());
+            }
+
+            if has_fast_zeroize_skip(&field.attrs) || is_zeroize_on_drop_sentinel_type(&field.ty) {
+                probe_bindings.push(quote! { _ });
+            } else {
+                probe_bindings.push(quote! { #binding });
+                probed.push(binding);
+            }
+        }
+
+        let zeroize_pattern = variant_pattern(variant, &zeroize_bindings);
+        let zeroized_len = syn::LitInt::new(&zeroized.len().to_string(), Span::call_site());
+        let probe_pattern = variant_pattern(variant, &probe_bindings);
+        let probed_len = syn::LitInt::new(&probed.len().to_string(), Span::call_site());
+
+        zeroize_arms.push(quote! {
+            #zeroize_pattern => {
+                let fields: [&mut dyn #root::FastZeroizable; #zeroized_len] = [
+                    #( #root::collections::to_fast_zeroizable_dyn_mut(#zeroized) ),*
+                ];
+                #root::collections::zeroize_collection(&mut fields.into_iter())
+            }
+        });
+
+        probe_arms.push(quote! {
+            #probe_pattern => {
+                let fields: [&dyn #root::ZeroizationProbe; #probed_len] = [
+                    #( #root::collections::to_zeroization_probe_dyn_ref(#probed) ),*
+                ];
+                #root::collections::collection_zeroed(&mut fields.into_iter())
+            }
+        });
+    }
+
+    let drop_impl = if has_fast_zeroize_drop(&input.attrs) {
+        quote! {
+            impl #impl_generics Drop for #enum_name #ty_generics #where_clause {
+                fn drop(&mut self) {
+                    #root::FastZeroizable::fast_zeroize(self);
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    Ok(quote! {
+        // SAFETY: `false` promises nothing.
+        unsafe impl #impl_generics #root::ZeroizeMetadata for #enum_name #ty_generics #where_clause {
+            const CAN_BE_BULK_ZEROIZED: bool = false;
+        }
+
+        impl #impl_generics #root::FastZeroizable for #enum_name #ty_generics #where_clause {
+            fn fast_zeroize(&mut self) {
+                match self {
+                    #( #zeroize_arms )*
+                }
+            }
+        }
+
+        impl #impl_generics #root::ZeroizationProbe for #enum_name #ty_generics #where_clause {
+            fn is_zeroized(&self) -> bool {
+                match self {
+                    #( #probe_arms )*
+                }
+            }
+        }
+
+        #drop_impl
+    })
+}
+
 /// Expands the DeriveInput into the necessary implementation of `RedoubtZero`.
 fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
     let struct_name = &input.ident;
@@ -219,6 +350,7 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
             Fields::Unnamed(unnamed) => unnamed.unnamed.iter().enumerate().collect(),
             Fields::Unit => vec![],
         },
+        Data::Enum(data) => return expand_enum(&input, data, &root),
         _ => {
             return Err(syn::Error::new_spanned(
                 &input.ident,
