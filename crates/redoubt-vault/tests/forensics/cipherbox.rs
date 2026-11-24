@@ -23,6 +23,15 @@ const ROUNDS: usize = 200;
 /// buffer on the way into the ciphertext is that large too.
 const TIMES: usize = 1024;
 
+#[repr(u8)]
+#[derive(Default, RedoubtZero, RedoubtCodec)]
+#[fast_zeroize(drop)]
+enum Custody {
+    #[default]
+    Empty = 0,
+    Seed(RedoubtArray<u8, 32>) = 1,
+}
+
 #[cipherbox(SecretsBox)]
 #[derive(Default, RedoubtZero, RedoubtCodec)]
 #[fast_zeroize(drop)]
@@ -31,6 +40,7 @@ struct Secret {
     an_array: RedoubtArray<u8, 32>,
     an_option: RedoubtOption<RedoubtVec<u8>>,
     two_options: RedoubtOption<RedoubtOption<RedoubtArray<u8, 32>>>,
+    an_enum: Custody,
 }
 
 /// Fills every field, from sources the containers empty: the callback an
@@ -70,6 +80,14 @@ fn fill_every_field(secret: &mut Secret) -> Result<(), CipherBoxError> {
 
     wrapped.replace(&mut inner);
     secret.two_options.replace(&mut wrapped);
+
+    let mut source = [0_u8; 32];
+    let mut seed = RedoubtArray::<u8, 32>::default();
+
+    giving(&mut source);
+    seed.replace_from_mut_array(&mut source);
+
+    secret.an_enum = Custody::Seed(seed);
 
     Ok(())
 }
@@ -571,6 +589,51 @@ fn test_leak_two_options_leaves_nothing() -> Result<(), AnyError> {
 }
 
 // ============================================================================
+// SecretsBox::leak_an_enum
+// ============================================================================
+
+#[redoubt_forensics::test]
+fn test_what_a_leaked_enum_handed_back_is_found_while_it_is_held() -> Result<(), AnyError> {
+    let (secrets_box, mut watch) = fill_and_watch()?;
+
+    forensics!({
+        let taken = capture(|| secrets_box.leak_an_enum())?;
+
+        core::mem::forget(taken);
+    });
+
+    let report = watch.snapshot()?;
+
+    is_found(&report, "a leaked enum, and kept");
+
+    Ok(())
+}
+
+#[redoubt_forensics::test]
+fn test_leak_an_enum_leaves_nothing() -> Result<(), AnyError> {
+    let (secrets_box, mut watching) = fill_while_watching()?;
+
+    forensics!({
+        for _ in 0..ROUNDS - 1 {
+            let taken = secrets_box.leak_an_enum()?;
+
+            core::hint::black_box(core::mem::discriminant(&*taken));
+        }
+
+        let taken = capture(|| secrets_box.leak_an_enum())?;
+
+        // CORRECTNESS: after the capture. A call made before it writes over
+        // the stack and the registers the operation left, and then the absence
+        // below is about that call and not about the operation.
+        drop(taken);
+    });
+
+    watching.none_left("leaked an enum")?;
+
+    Ok(())
+}
+
+// ============================================================================
 // SecretsBox::open_a_vec
 // ============================================================================
 
@@ -827,6 +890,71 @@ fn test_open_two_options_that_fails_leaves_nothing() -> Result<(), AnyError> {
     });
 
     watching.none_left("opened two options, and failed")?;
+
+    Ok(())
+}
+
+// ============================================================================
+// SecretsBox::open_an_enum
+// ============================================================================
+
+#[redoubt_forensics::test]
+fn test_the_secret_is_found_while_an_enum_is_open() -> Result<(), AnyError> {
+    let (secrets_box, mut watch) = fill_and_watch()?;
+
+    let mut inside = None;
+
+    secrets_box.open_an_enum(|_| {
+        inside = watch.snapshot().ok();
+
+        Ok(())
+    })?;
+
+    let report = inside.ok_or(Reason::NoAnswer)?;
+
+    is_found(&report, "the secret, while an enum is open");
+
+    Ok(())
+}
+
+#[redoubt_forensics::test]
+fn test_open_an_enum_leaves_nothing() -> Result<(), AnyError> {
+    let (secrets_box, mut watching) = fill_while_watching()?;
+
+    forensics!({
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                secrets_box.open_an_enum(|secret| {
+                    core::hint::black_box(core::mem::discriminant(secret));
+
+                    Ok(())
+                })?;
+            }
+
+            Ok(())
+        })?;
+    });
+
+    watching.none_left("opened an enum")?;
+
+    Ok(())
+}
+
+#[redoubt_forensics::test]
+fn test_open_an_enum_that_fails_leaves_nothing() -> Result<(), AnyError> {
+    let (secrets_box, mut watching) = fill_while_watching()?;
+
+    forensics!({
+        capture(|| {
+            for _ in 0..ROUNDS {
+                let failed = secrets_box.open_an_enum(|_| Err::<(), _>(CipherBoxError::Zeroized));
+
+                core::hint::black_box(failed.is_err());
+            }
+        });
+    });
+
+    watching.none_left("opened an enum, and failed")?;
 
     Ok(())
 }
@@ -1106,6 +1234,76 @@ fn test_open_two_options_mut_that_fails_leaves_nothing() -> Result<(), AnyError>
     });
 
     watching.none_left("opened two options for writing, and failed")?;
+
+    Ok(())
+}
+
+// ============================================================================
+// SecretsBox::open_an_enum_mut
+// ============================================================================
+
+#[redoubt_forensics::test]
+fn test_the_secret_is_found_while_an_enum_is_open_for_writing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watch) = fill_and_watch()?;
+
+    let mut inside = None;
+
+    secrets_box.open_an_enum_mut(|_| {
+        inside = watch.snapshot_each().ok();
+
+        Ok(())
+    })?;
+
+    let [report, key_report] = reports(inside)?;
+
+    is_found(&report, "the secret, while an enum is open for writing");
+    is_found(
+        &key_report,
+        "the box's key, while an enum is open for writing",
+    );
+
+    Ok(())
+}
+
+#[redoubt_forensics::test]
+fn test_open_an_enum_mut_leaves_nothing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watching) = fill_while_watching()?;
+
+    forensics!({
+        capture(|| -> Result<(), AnyError> {
+            for _ in 0..ROUNDS {
+                secrets_box.open_an_enum_mut(|secret| {
+                    core::hint::black_box(core::mem::discriminant(secret));
+
+                    Ok(())
+                })?;
+            }
+
+            Ok(())
+        })?;
+    });
+
+    watching.none_left("opened an enum for writing")?;
+
+    Ok(())
+}
+
+#[redoubt_forensics::test]
+fn test_open_an_enum_mut_that_fails_leaves_nothing() -> Result<(), AnyError> {
+    let (mut secrets_box, mut watching) = fill_while_watching()?;
+
+    forensics!({
+        capture(|| {
+            for _ in 0..ROUNDS {
+                let failed =
+                    secrets_box.open_an_enum_mut(|_| Err::<(), _>(CipherBoxError::Zeroized));
+
+                core::hint::black_box(failed.is_err());
+            }
+        });
+    });
+
+    watching.none_left("opened an enum for writing, and failed")?;
 
     Ok(())
 }
