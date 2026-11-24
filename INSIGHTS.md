@@ -8,7 +8,7 @@
 
 <h1 align="center">Project Insights</h1>
 
-<p align="center"><em>Generated on 2026-11-23 21:48</em></p>
+<p align="center"><em>Generated on 2026-11-24 01:58</em></p>
 
 ---
 
@@ -16,10 +16,10 @@
 
 | Metric | Coverage | Covered | Total |
 |--------|----------|---------|-------|
-| **Function** | **99.88%** | 860 | 861 |
-| **Line** | **99.62%** | 6,310 | 6,334 |
-| **Region** | **99.52%** | 9,097 | 9,141 |
-| **Branch** | **97.67%** | 502 | 514 |
+| **Function** | **99.88%** | 861 | 862 |
+| **Line** | **99.57%** | 6,325 | 6,352 |
+| **Region** | **99.50%** | 9,111 | 9,157 |
+| **Branch** | **97.51%** | 509 | 522 |
 
 ## Security Audit
 
@@ -29,19 +29,19 @@
 
 | Metric | Production | Tests | Total |
 |--------|------------|-------|-------|
-| **Code Lines** | 11,280 | 58,277 | 69,557 |
-| **Total Lines** | 15,712 | 80,107 | 95,819 |
-| **Files** | 191 | 359 | 550 |
-| **Comments** | 1,513 | - | 9,010 |
+| **Code Lines** | 11,299 | 58,523 | 69,822 |
+| **Total Lines** | 15,742 | 80,486 | 96,228 |
+| **Files** | 191 | 360 | 551 |
+| **Comments** | 1,519 | - | 9,053 |
 
-> **Test/Code Ratio:** `5.17x` — 58,277 test lines / 11,280 production lines
+> **Test/Code Ratio:** `5.18x` — 58,523 test lines / 11,299 production lines
 
 ## Tests
 
 | Metric | Count |
 |--------|-------|
-| **Total Tests** | 3,461 |
-| **Total Assertions** | 2,945 |
+| **Total Tests** | 3,473 |
+| **Total Assertions** | 2,966 |
 | **Assertions/Test** | 0.9 |
 | **Lines/Test** | 3.3 |
 
@@ -50,9 +50,9 @@
 
 | Macro | Count |
 |-------|-------|
-| `assert!` | 1,652 |
-| `assert_eq!` | 1,284 |
-| `debug_assert!` | 6 |
+| `assert!` | 1,660 |
+| `assert_eq!` | 1,298 |
+| `debug_assert!` | 5 |
 | `debug_assert_eq!` | 3 |
 
 </details>
@@ -77,7 +77,7 @@
 | `redoubt-eq` | 84 | 29 |
 | `redoubt-forensics` | 10 | 0 |
 | `redoubt-forensics/allocator` | 295 | 20 |
-| `redoubt-forensics/core` | 1,617 | 526 |
+| `redoubt-forensics/core` | 1,636 | 538 |
 | `redoubt-forensics/macros` | 92 | 22 |
 | `redoubt-hex` | 159 | 67 |
 | `redoubt-hkdf` | 820 | 184 |
@@ -94,7 +94,7 @@
 | `redoubt-zero` | 6 | 0 |
 | `redoubt-zero/core` | 597 | 157 |
 | `redoubt-zero/derive` | 393 | 70 |
-| **Total** | **11,280** | **3453** |
+| **Total** | **11,299** | **3465** |
 
 ---
 
