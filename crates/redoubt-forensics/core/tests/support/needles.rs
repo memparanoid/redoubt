@@ -14,9 +14,23 @@ pub const SECRET: [u8; 32] = [
 
 /// A needle, built from its last byte to its first.
 ///
-/// Never turned around: a `to_vec` followed by a `reverse` would put the value
-/// forwards on the heap for as long as it takes to turn it over, and a
-/// vectorised reverse can spill half of it to the stack on the way.
+/// Copied and turned over in place through `redoubt-mem`, which empties the
+/// registers it uses: the compiler's own reverse loads the value forwards into
+/// a vector register sixteen bytes at a time, and a photograph that spills the
+/// registers finds them there.
 pub fn backwards(of: &[u8]) -> Vec<u8> {
-    of.iter().rev().copied().collect()
+    let mut reversed = vec![0_u8; of.len()];
+
+    // SAFETY: `reversed` was made as long as `of`, and the two are different
+    // allocations.
+    unsafe { redoubt_mem_core::copy_nonoverlapping(of.as_ptr(), reversed.as_mut_ptr(), of.len()) };
+
+    let half = reversed.len() / 2;
+    let (front, back) = reversed.split_at_mut(half);
+
+    for (first, last) in front.iter_mut().zip(back.iter_mut().rev()) {
+        redoubt_mem_core::swap(first, last);
+    }
+
+    reversed
 }
