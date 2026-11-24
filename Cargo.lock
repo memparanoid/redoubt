@@ -1293,6 +1293,8 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
+ "redoubt-forensics",
+ "redoubt-mem",
  "redoubt-zero-core",
  "rstest",
  "syn",

@@ -22,10 +22,12 @@ redoubt-zero-core.workspace = true
 syn.workspace               = true
 
 [dev-dependencies]
-dummy-zero             = { path = "src/tests/test_fixture" }
-prettyplease.workspace = true
-rstest.workspace       = true
-trybuild.workspace     = true
+dummy-zero                  = { path = "src/tests/test_fixture" }
+prettyplease.workspace      = true
+redoubt-forensics.workspace = true
+redoubt-mem.workspace       = true
+rstest.workspace            = true
+trybuild.workspace          = true
 
 # Only include insta on architectures where it compiles (cpufeatures constraint)
 [target.'cfg(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64", target_arch = "loongarch64"))'.dev-dependencies]
