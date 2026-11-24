@@ -539,6 +539,26 @@ fn test_expand_reports_an_immut_ref_without_skip_in_a_tuple_variant()
 }
 
 #[test]
+fn test_expand_reports_a_union() -> Result<(), Box<dyn std::error::Error>> {
+    let derive_input = parse_quote! {
+        #[derive(RedoubtZero)]
+        union Mu {
+            alpha: u64,
+            beta: [u8; 8],
+        }
+    };
+
+    let refusal = expand(derive_input).err().ok_or("a union was expanded")?;
+
+    assert_eq!(
+        refusal.to_string(),
+        ":: core :: compile_error ! { \"RedoubtZero can only be derived for structs and enums.\" }"
+    );
+
+    Ok(())
+}
+
+#[test]
 fn snapshot_named_struct_skip_on_sentinel_fails() {
     // A skipped sentinel is never marked, so the drop assertion becomes
     // impossible while the struct still appears covered. The derive must

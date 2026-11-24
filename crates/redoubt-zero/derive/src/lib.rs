@@ -351,10 +351,10 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
             Fields::Unit => vec![],
         },
         Data::Enum(data) => return expand_enum(&input, data, &root),
-        _ => {
+        Data::Union(_) => {
             return Err(syn::Error::new_spanned(
                 &input.ident,
-                "RedoubtZero can only be derived for structs (named or tuple).",
+                "RedoubtZero can only be derived for structs and enums.",
             )
             .to_compile_error());
         }
