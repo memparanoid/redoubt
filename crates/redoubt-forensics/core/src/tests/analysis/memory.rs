@@ -23,6 +23,8 @@ use crate::analysis::memory::{
 use crate::analysis::state::{BLOCK, ForensicState, MAGIC, OK, SHIPPED, STACK, Spans};
 use crate::errors::{AnyError, DONE, Reason};
 
+use crate::tests::support::holed::Holed;
+
 /// A run with those stretches in it, filled the way a photograph fills one.
 ///
 /// The words live in the caller so that the run borrows them, which is what it
@@ -640,6 +642,82 @@ fn test_finalize_mappings_returns_the_writable_mappings_alone() -> Result<(), An
 // instrument
 // ============================================================================
 
+/// A block of the instrument on a thread's stack lies past that stack's guard,
+/// and left unmarked the sweep counts the needle in the instrument's own block.
+#[test]
+fn test_instrument_marks_a_block_past_a_page_the_kernel_will_not_hand_over() -> Result<(), AnyError>
+{
+    let holed = Holed::new(2, 0);
+
+    holed.plant(1, &MAGIC);
+
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
+
+    let mut block = [0_u64; 3];
+    let maps = skipping(&mut block, &[holed.span()]);
+
+    let mut room = [0_u64; 3];
+    let mut skips = Spans::over(&mut room);
+
+    let mut into = [0_u8; 4096];
+
+    instrument(&subject, &mut into, &maps, &mut skips)?;
+
+    assert_eq!(skips.len(), 1, "one phrase, one block");
+    assert_eq!(skips.get(0), (holed.at(1), holed.at(1) + BLOCK as u64));
+
+    Ok(())
+}
+
+#[test]
+fn test_instrument_marks_a_block_past_a_page_refused_in_the_middle_of_a_read()
+-> Result<(), AnyError> {
+    let holed = Holed::new(3, 1);
+
+    holed.plant(2, &MAGIC);
+
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
+
+    let mut block = [0_u64; 3];
+    let maps = skipping(&mut block, &[holed.span()]);
+
+    let mut room = [0_u64; 3];
+    let mut skips = Spans::over(&mut room);
+
+    let mut into = vec![0_u8; 2 * holed.page()];
+
+    instrument(&subject, &mut into, &maps, &mut skips)?;
+
+    assert_eq!(skips.len(), 1, "one phrase, one block");
+    assert_eq!(skips.get(0), (holed.at(2), holed.at(2) + BLOCK as u64));
+
+    Ok(())
+}
+
+/// A window no wider than the seam would read the same bytes for as long as
+/// anybody waits.
+#[test]
+fn test_instrument_leaves_a_mapping_where_the_seam_is_the_whole_window() -> Result<(), AnyError> {
+    let held = [0x5A_u8; 64];
+    let at = core::hint::black_box(&held).as_ptr() as u64;
+
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
+
+    let mut block = [0_u64; 3];
+    let maps = skipping(&mut block, &[(at, at + 64)]);
+
+    let mut room = [0_u64; 3];
+    let mut skips = Spans::over(&mut room);
+
+    let mut into = vec![0_u8; MAGIC.len() - 1];
+
+    instrument(&subject, &mut into, &maps, &mut skips)?;
+
+    assert!(skips.is_empty(), "it marked a block where there is none");
+
+    Ok(())
+}
+
 /// A block of the instrument is found by its phrase, and what is marked is the
 /// whole block and not the phrase.
 ///
@@ -841,6 +919,93 @@ fn test_sweep_says_the_ground_broke_where_nothing_could_be_read() -> Result<(), 
     assert!(seen.is_empty(), "something came back: {seen:02x?}");
     assert!(broke, "the caller was not told the ground broke");
     assert_eq!(swept, 0, "nothing was there to read");
+
+    Ok(())
+}
+
+/// The hole stands for a thread stack's guard, which glibc 2.43 keeps inside
+/// the stack's own mapping and the kernel refuses to read; the stack above it
+/// is where the evidence is.
+#[test]
+fn test_sweep_goes_on_past_a_page_the_kernel_will_not_hand_over() -> Result<(), AnyError> {
+    let held: [u8; 8] = [0x6C, 0x93, 0x2A, 0xE7, 0x51, 0xB8, 0x0D, 0xF4];
+    let holed = Holed::new(2, 0);
+
+    holed.plant(1, &held);
+
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
+
+    let mut block = [0_u64; 3];
+    let maps = skipping(&mut block, &[holed.span()]);
+
+    let mut empty = [0_u64; 3];
+    let skips = skipping(&mut empty, &[]);
+
+    let mut seen = Vec::new();
+    let mut broke = false;
+    let mut into = [0_u8; 4096];
+
+    let swept = sweep(
+        &subject,
+        &mut into,
+        &maps,
+        &skips,
+        0,
+        |window, _, breaks| {
+            seen.extend_from_slice(window);
+            broke |= breaks;
+        },
+    );
+
+    assert_eq!(
+        swept,
+        holed.page() as u64,
+        "the page past the hole was not read"
+    );
+    assert_eq!(
+        seen.get(..8),
+        Some(&held[..]),
+        "what came back is not what the page holds"
+    );
+    assert!(broke, "the caller was not told the ground broke");
+
+    Ok(())
+}
+
+/// Two thread stacks the kernel merged into one mapping, the second's guard
+/// between them: the read before the guard comes back short.
+#[test]
+fn test_sweep_goes_on_past_a_page_refused_in_the_middle_of_a_read() -> Result<(), AnyError> {
+    let held: [u8; 8] = [0x6C, 0x93, 0x2A, 0xE7, 0x51, 0xB8, 0x0D, 0xF4];
+    let holed = Holed::new(3, 1);
+
+    holed.plant(2, &held);
+
+    let subject = Subject::freeze().ok_or(Reason::NoPhotograph)?;
+
+    let mut block = [0_u64; 3];
+    let maps = skipping(&mut block, &[holed.span()]);
+
+    let mut empty = [0_u64; 3];
+    let skips = skipping(&mut empty, &[]);
+
+    let mut seen = Vec::new();
+    let mut into = vec![0_u8; 2 * holed.page()];
+
+    let swept = sweep(&subject, &mut into, &maps, &skips, 0, |window, _, _| {
+        seen.extend_from_slice(window);
+    });
+
+    assert_eq!(
+        swept,
+        2 * holed.page() as u64,
+        "a page either side of the hole"
+    );
+    assert_eq!(
+        seen.get(holed.page()..holed.page() + 8),
+        Some(&held[..]),
+        "what came back past the hole is not what the page holds",
+    );
 
     Ok(())
 }

@@ -55,6 +55,9 @@ use crate::analysis::state::{BLOCK, ForensicState, MAGIC, OK, Parts, Span, Spans
 use crate::errors::{DONE, Reason};
 use crate::forensics::Work;
 
+/// The smallest page either architecture has, so no refusal is narrower.
+const SMALLEST_PAGE: u64 = 4096;
+
 /// What this process counted, written down before it goes.
 ///
 /// Nothing at all in every build but an instrumented one, where it is the
@@ -473,8 +476,12 @@ pub(crate) fn instrument(
             let want = (to - at).min(held.len() as u64) as usize;
             let got = subject.read_at(at, &mut held[..want]);
 
-            if got < MAGIC.len() {
-                break;
+            // A page the kernel will not hand over, such as a thread stack's
+            // guard: a block past it is still the instrument's, and is looked
+            // for there.
+            if got == 0 {
+                at = past_refused(at);
+                continue;
             }
 
             for (i, window) in held[..got].windows(MAGIC.len()).enumerate() {
@@ -487,10 +494,20 @@ pub(crate) fn instrument(
                 }
             }
 
-            // Wider than the seam, and so a step forward: the break above
-            // leaves only reads of at least `MAGIC.len()`, and the seam is one
-            // less than that.
-            debug_assert!(got > seam, "a read of {got} cannot step past {seam}");
+            if at + got as u64 >= to {
+                break;
+            }
+
+            // A short read stops at the first byte the kernel refused, and the
+            // next read is the one that asks for it.
+            if got < want {
+                at += got as u64;
+                continue;
+            }
+
+            if got <= seam {
+                break;
+            }
 
             at += (got - seam) as u64;
         }
@@ -543,11 +560,14 @@ pub(crate) fn sweep(
 
             let got = subject.read_at(at, &mut held[..want]);
 
-            // A mapping that went away between the listing and the read, or
-            // one the kernel will not hand over. Either way the ground breaks.
+            // A mapping that went away between the listing and the read, or a
+            // page the kernel will not hand over inside one that is there: a
+            // thread stack's guard, which glibc 2.43 keeps in the stack's own
+            // mapping. Either way the ground breaks, and the rest is read.
             if got == 0 {
                 on(&[], at, true);
-                break;
+                at = past_refused(at);
+                continue;
             }
 
             swept += got as u64;
@@ -558,6 +578,13 @@ pub(crate) fn sweep(
 
             if ends {
                 at = stop;
+                continue;
+            }
+
+            // A short read stops at the first byte the kernel refused, and the
+            // next read is the one that asks for it.
+            if got < want {
+                at += got as u64;
                 continue;
             }
 
@@ -572,6 +599,11 @@ pub(crate) fn sweep(
     }
 
     swept
+}
+
+/// The first address past the page a read at `at` was refused in.
+fn past_refused(at: u64) -> u64 {
+    (at | (SMALLEST_PAGE - 1)).saturating_add(1)
 }
 
 /// Where the stretch containing that address ends, if one does.

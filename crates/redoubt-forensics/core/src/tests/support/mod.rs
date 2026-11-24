@@ -4,6 +4,8 @@
 
 //! What more than one test file here reads the copy with.
 
+pub(crate) mod holed;
+
 use core::slice;
 
 use crate::window::{COPY, FLOOR, SP};
