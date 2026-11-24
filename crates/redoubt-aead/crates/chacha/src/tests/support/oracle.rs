@@ -36,7 +36,7 @@ pub(crate) fn rounds(input: [u32; 16]) -> [u32; 16] {
 }
 
 /// Four independent quarter rounds, each on one column.
-#[expect(
+#[allow(
     clippy::needless_range_loop,
     reason = "Each column spans all four rows"
 )]
