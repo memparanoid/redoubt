@@ -18,9 +18,7 @@ jobs:
         include:
           - os: ubuntu-24.04-arm
             name: Linux aarch64
-          # 24.04 and not `latest`: on 26.04 the sweep does not reach the
-          # stack, and the instrument has only been measured on 24.04.
-          - os: ubuntu-24.04
+          - os: ubuntu-latest
             name: Linux x86_64
           - os: macos-latest
             name: macOS aarch64
@@ -153,7 +151,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04
+          - os: ubuntu-latest
             name: Constant time x86_64
           - os: ubuntu-24.04-arm
             name: Constant time aarch64
@@ -202,7 +200,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04
+          - os: ubuntu-latest
             name: Linux x86_64 musl
           - os: ubuntu-24.04-arm
             name: Linux aarch64 musl
