@@ -21,10 +21,19 @@ use crate::types::{Ciphertexts, Data, DataBuffers, Nonces, Tags};
 use super::support::needles::{backwards, next_box_key_backwards};
 use super::support::{a_field, giving, watch_the_secret_and_the_key};
 
+#[repr(u8)]
+#[derive(Default, RedoubtZero, RedoubtCodec)]
+#[fast_zeroize(drop)]
+enum Custody {
+    #[default]
+    Empty = 0,
+    Bytes(RedoubtVec<u8>) = 1,
+}
+
 #[derive(Default, RedoubtZero, RedoubtCodec)]
 #[fast_zeroize(drop)]
 struct OneField {
-    all_of_it: RedoubtVec<u8>,
+    all_of_it: Custody,
 }
 
 impl CipherBoxDyns<1> for OneField {
@@ -77,7 +86,7 @@ impl DecryptStruct<1> for OneField {
 
 type OneFieldBox = CipherBox<OneField, 1>;
 
-type Field = RedoubtVec<u8>;
+type Field = Custody;
 
 /// A value holding `of` bytes of the secret.
 fn value(of: usize) -> OneField {
@@ -85,11 +94,18 @@ fn value(of: usize) -> OneField {
 
     giving(&mut source);
 
-    let mut one_field = OneField::default();
+    let mut bytes = RedoubtVec::default();
 
-    one_field.all_of_it.replace_from_mut_slice(&mut source);
+    bytes.replace_from_mut_slice(&mut source);
 
-    one_field
+    OneField {
+        all_of_it: Custody::Bytes(bytes),
+    }
+}
+
+/// A field holding the secret.
+fn a_custody() -> Custody {
+    Custody::Bytes(a_field())
 }
 
 /// An empty box and a copy of the key it works with, made by the copy that
@@ -587,7 +603,7 @@ fn test_trying_to_encrypt_a_field_leaves_nothing() -> Result<(), AnyError> {
     let (mut one_field_box, mut key) = seal()?;
 
     forensics!({
-        let mut field = a_field();
+        let mut field = a_custody();
 
         capture(|| one_field_box.try_encrypt_field::<Field, 0>(&key, &mut field))?;
 
@@ -616,7 +632,7 @@ fn test_encrypting_a_field_leaves_nothing() -> Result<(), AnyError> {
     let (mut one_field_box, mut key) = seal()?;
 
     forensics!({
-        let mut field = a_field();
+        let mut field = a_custody();
 
         capture(|| one_field_box.encrypt_field::<Field, 0>(&key, &mut field))?;
 
