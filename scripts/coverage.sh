@@ -35,6 +35,8 @@
 
 set -euo pipefail
 
+trap 'echo "coverage.sh: line $LINENO exited $?" >&2' ERR
+
 NIGHTLY="nightly-2025-10-15"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COV_CRATES_FILE="$REPO_ROOT/.cov_crates"
@@ -143,7 +145,7 @@ cargo "+$NIGHTLY" nextest run "${PROFILE_ARGS[@]}" "${PACKAGE_ARGS[@]}"
 # Which binary belongs to which package, asked rather than guessed from the
 # file names: several crates have a `tests/forensics.rs`, so their binaries are
 # all called `forensics-<hash>` and the name does not say whose.
-SUITES="$(cargo "+$NIGHTLY" nextest list --message-format json "${PROFILE_ARGS[@]}" "${PACKAGE_ARGS[@]}" 2>/dev/null)"
+SUITES="$(cargo "+$NIGHTLY" nextest list --message-format json "${PROFILE_ARGS[@]}" "${PACKAGE_ARGS[@]}")"
 
 METADATA="$(cargo metadata --no-deps --format-version 1)"
 
