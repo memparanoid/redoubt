@@ -35,7 +35,7 @@
 //! Written by hand, in `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! redoubt = "0.1.0-rc.19"
+//! redoubt = "0.1.0-rc.20"
 //! ```
 //!
 //! # Quick Start

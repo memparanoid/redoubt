@@ -31,7 +31,7 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
 name = "benchmarks"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "criterion",
  "redoubt-aead",
@@ -867,7 +867,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "redoubt-aead",
  "redoubt-alloc",
@@ -887,7 +887,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-aead"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "cpufeatures 0.3.1",
  "proptest",
@@ -906,7 +906,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-aead-aegis128l"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "cc",
  "crabgrind",
@@ -924,7 +924,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-aead-core"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "crabgrind",
  "redoubt-eq",
@@ -933,7 +933,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-aead-xchachapoly1305"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "crabgrind",
  "proptest",
@@ -953,7 +953,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-alloc"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "redoubt-forensics",
  "redoubt-mem",
@@ -963,11 +963,11 @@ dependencies = [
 
 [[package]]
 name = "redoubt-asm"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 
 [[package]]
 name = "redoubt-buffer"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "libc",
  "redoubt-forensics",
@@ -980,7 +980,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-chacha"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "cc",
  "crabgrind",
@@ -995,7 +995,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-codec"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "redoubt-codec-core",
  "redoubt-codec-derive",
@@ -1003,7 +1003,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-codec-core"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "redoubt-alloc",
  "redoubt-forensics",
@@ -1018,7 +1018,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-codec-derive"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "dummy-codec",
  "insta",
@@ -1038,7 +1038,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-eq"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "cc",
  "crabgrind",
@@ -1048,7 +1048,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-forensics"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "redoubt-forensics-allocator",
  "redoubt-forensics-core",
@@ -1057,7 +1057,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-forensics-allocator"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "quiesce",
  "redoubt-mem-core",
@@ -1065,7 +1065,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-forensics-core"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "cc",
  "libc",
@@ -1077,7 +1077,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-forensics-macros"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -1088,7 +1088,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-hex"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "cc",
  "crabgrind",
@@ -1102,7 +1102,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-hkdf"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "cc",
  "crabgrind",
@@ -1117,14 +1117,14 @@ dependencies = [
 
 [[package]]
 name = "redoubt-mem"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "redoubt-mem-core",
 ]
 
 [[package]]
 name = "redoubt-mem-core"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "cc",
  "libc",
@@ -1135,7 +1135,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-mem-forensics"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "redoubt-asm",
  "redoubt-forensics",
@@ -1145,7 +1145,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-poly1305"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "cc",
  "crabgrind",
@@ -1161,7 +1161,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-rand"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "cc",
  "getrandom",
@@ -1177,7 +1177,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-secret"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "redoubt-forensics",
  "redoubt-mem",
@@ -1186,7 +1186,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-test-utils"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "libc",
  "libseccomp",
@@ -1194,7 +1194,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-util"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "redoubt-forensics",
  "redoubt-mem",
@@ -1203,7 +1203,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-vault"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "redoubt-aead",
  "redoubt-alloc",
@@ -1219,7 +1219,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-vault-core"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "libc",
  "quiesce",
@@ -1240,7 +1240,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-vault-derive"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "dummy-vault",
  "insta",
@@ -1260,7 +1260,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-zero"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "redoubt-zero-core",
  "redoubt-zero-derive",
@@ -1268,7 +1268,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-zero-core"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "pastey",
  "redoubt-forensics",
@@ -1278,7 +1278,7 @@ dependencies = [
 
 [[package]]
 name = "redoubt-zero-derive"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "dummy-zero",
  "insta",
@@ -1541,11 +1541,11 @@ dependencies = [
 
 [[package]]
 name = "test-a"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 
 [[package]]
 name = "test-b"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "test-a",
 ]
@@ -1697,7 +1697,7 @@ dependencies = [
 
 [[package]]
 name = "wallet-example"
-version = "0.1.0-rc.19"
+version = "0.1.0-rc.20"
 dependencies = [
  "redoubt",
  "wallet-example",
