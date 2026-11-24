@@ -4,7 +4,8 @@
 
 use core::ptr;
 
-/// Pages of this process, readable and writable, with one of them unmapped.
+/// Pages of this process, readable and writable, with one of them still mapped
+/// and refusing every read.
 pub(crate) struct Holed {
     base: *mut u8,
     page: usize,
@@ -13,7 +14,10 @@ pub(crate) struct Holed {
 }
 
 impl Holed {
-    /// `pages` pages, page `hole` among them unmapped.
+    /// `pages` pages, page `hole` among them past the end of an empty file.
+    ///
+    /// Mapped over rather than unmapped: a page given back is anybody's, and an
+    /// allocator that maps its own pages takes it before the test looks.
     pub(crate) fn new(pages: usize, hole: usize) -> Self {
         assert!(hole < pages, "the hole is page {hole} of {pages}");
 
@@ -37,10 +41,32 @@ impl Holed {
 
         let base = base.cast::<u8>();
 
-        // SAFETY: one page of the mapping just made, `hole` being below `pages`.
-        let unmapped = unsafe { libc::munmap(base.add(hole * page).cast(), page) };
+        // SAFETY: a name the call reads and does not keep, terminated.
+        let empty = unsafe { libc::memfd_create(c"holed".as_ptr(), libc::MFD_CLOEXEC) };
 
-        assert_eq!(unmapped, 0, "page {hole} could not be unmapped");
+        assert!(empty >= 0, "no empty file to map the hole from");
+
+        // SAFETY: one page of the mapping just made, `hole` being below `pages`,
+        // replaced in place: `MAP_FIXED` leaves no moment in which it is free.
+        let mapped = unsafe {
+            libc::mmap(
+                base.add(hole * page).cast(),
+                page,
+                libc::PROT_READ | libc::PROT_WRITE,
+                libc::MAP_SHARED | libc::MAP_FIXED,
+                empty,
+                0,
+            )
+        };
+
+        // SAFETY: the descriptor made above; the mapping keeps the file alive.
+        unsafe { libc::close(empty) };
+
+        assert_ne!(
+            mapped,
+            libc::MAP_FAILED,
+            "page {hole} could not be mapped over"
+        );
 
         Self {
             base,
@@ -67,13 +93,13 @@ impl Holed {
         self.base as u64 + (page * self.page) as u64
     }
 
-    /// The bytes, at the start of a page that is mapped.
+    /// The bytes, at the start of a page that is not the hole.
     pub(crate) fn plant(&self, page: usize, bytes: &[u8]) {
         assert!(page < self.pages, "page {page} of {}", self.pages);
         assert_ne!(page, self.hole, "page {page} is the hole");
         assert!(bytes.len() <= self.page, "{} bytes in a page", bytes.len());
 
-        // SAFETY: inside a mapped page of the mapping, as just asserted.
+        // SAFETY: inside a page of the anonymous mapping, as just asserted.
         unsafe {
             ptr::copy_nonoverlapping(bytes.as_ptr(), self.base.add(page * self.page), bytes.len())
         };
@@ -82,28 +108,17 @@ impl Holed {
 
 impl Drop for Holed {
     fn drop(&mut self) {
-        let after = self.hole + 1;
-
-        // Never the hole itself: once unmapped it is anybody's, and an allocator
-        // that maps its own pages may have been handed it since.
-        //
-        // SAFETY: the pages below the hole, mapped by `new` and read by nothing
-        // after this. With the hole first there are none, and a length of zero
-        // is refused without touching anything.
-        unsafe { libc::munmap(self.base.cast(), self.hole * self.page) };
-        // SAFETY: the pages above the hole, mapped by `new` and read by nothing
-        // after this.
-        unsafe {
-            libc::munmap(
-                self.base.add(after * self.page).cast(),
-                (self.pages - after) * self.page,
-            )
-        };
+        // SAFETY: the whole range `new` mapped, the hole included, read by
+        // nothing after this.
+        unsafe { libc::munmap(self.base.cast(), self.pages * self.page) };
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
+    use std::os::unix::fs::FileExt;
+
     use super::Holed;
 
     /// Whether the kernel has a page at that address, asked of `mincore`.
@@ -115,17 +130,35 @@ mod tests {
         unsafe { libc::mincore(at as *mut libc::c_void, 1, &mut resident) == 0 }
     }
 
+    /// Whether `/proc/self/mem` hands over the byte at that address.
+    fn readable(at: u64) -> bool {
+        let mem = File::open("/proc/self/mem")
+            .expect("this process should be able to open its own memory");
+        let mut byte = [0_u8; 1];
+
+        mem.read_at(&mut byte, at).is_ok_and(|got| got == 1)
+    }
+
     // ========================================================================
     // Holed::new
     // ========================================================================
 
     #[test]
-    fn test_new_unmaps_the_hole_and_keeps_every_other_page() {
+    fn test_new_keeps_the_hole_mapped() {
         let holed = Holed::new(3, 1);
 
         assert!(mapped(holed.at(0)));
-        assert!(!mapped(holed.at(1)));
+        assert!(mapped(holed.at(1)));
         assert!(mapped(holed.at(2)));
+    }
+
+    #[test]
+    fn test_new_leaves_the_hole_alone_refusing_a_read() {
+        let holed = Holed::new(3, 1);
+
+        assert!(readable(holed.at(0)));
+        assert!(!readable(holed.at(1)));
+        assert!(readable(holed.at(2)));
     }
 
     // ========================================================================
@@ -188,41 +221,5 @@ mod tests {
         holed.plant(0, &[0x6C]);
 
         unreachable!("the hole was planted: {:#x}", holed.at(0));
-    }
-
-    // ========================================================================
-    // Holed::drop
-    // ========================================================================
-
-    #[test]
-    fn test_drop_leaves_a_page_mapped_into_the_hole_since() {
-        let holed = Holed::new(3, 1);
-        let hole = holed.at(1);
-
-        // SAFETY: one page at the hole's address, which nothing maps, and
-        // `MAP_FIXED_NOREPLACE` refuses rather than replace what might.
-        let since = unsafe {
-            libc::mmap(
-                hole as *mut libc::c_void,
-                holed.page(),
-                libc::PROT_READ | libc::PROT_WRITE,
-                libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_FIXED_NOREPLACE,
-                -1,
-                0,
-            )
-        };
-
-        assert_eq!(since as u64, hole, "no page could be mapped into the hole");
-
-        let page = holed.page();
-
-        drop(holed);
-
-        let kept = mapped(hole);
-
-        // SAFETY: the page this test mapped, read by nothing after this.
-        unsafe { libc::munmap(since, page) };
-
-        assert!(kept, "the drop unmapped a page that was not the mapping's");
     }
 }
