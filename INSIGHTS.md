@@ -8,7 +8,7 @@
 
 <h1 align="center">Project Insights</h1>
 
-<p align="center"><em>Generated on 2026-11-24 01:58</em></p>
+<p align="center"><em>Generated on 2026-11-24 03:02</em></p>
 
 ---
 
@@ -17,8 +17,8 @@
 | Metric | Coverage | Covered | Total |
 |--------|----------|---------|-------|
 | **Function** | **99.88%** | 861 | 862 |
-| **Line** | **99.57%** | 6,325 | 6,352 |
-| **Region** | **99.50%** | 9,111 | 9,157 |
+| **Line** | **99.73%** | 6,335 | 6,352 |
+| **Region** | **99.52%** | 9,113 | 9,157 |
 | **Branch** | **97.51%** | 509 | 522 |
 
 ## Security Audit
@@ -29,19 +29,19 @@
 
 | Metric | Production | Tests | Total |
 |--------|------------|-------|-------|
-| **Code Lines** | 11,299 | 58,523 | 69,822 |
-| **Total Lines** | 15,742 | 80,486 | 96,228 |
+| **Code Lines** | 11,299 | 58,558 | 69,857 |
+| **Total Lines** | 15,742 | 80,520 | 96,262 |
 | **Files** | 191 | 360 | 551 |
-| **Comments** | 1,519 | - | 9,053 |
+| **Comments** | 1,519 | - | 9,045 |
 
-> **Test/Code Ratio:** `5.18x` — 58,523 test lines / 11,299 production lines
+> **Test/Code Ratio:** `5.18x` — 58,558 test lines / 11,299 production lines
 
 ## Tests
 
 | Metric | Count |
 |--------|-------|
-| **Total Tests** | 3,473 |
-| **Total Assertions** | 2,966 |
+| **Total Tests** | 3,475 |
+| **Total Assertions** | 2,969 |
 | **Assertions/Test** | 0.9 |
 | **Lines/Test** | 3.3 |
 
@@ -50,7 +50,7 @@
 
 | Macro | Count |
 |-------|-------|
-| `assert!` | 1,660 |
+| `assert!` | 1,663 |
 | `assert_eq!` | 1,298 |
 | `debug_assert!` | 5 |
 | `debug_assert_eq!` | 3 |
@@ -73,7 +73,7 @@
 | `redoubt-buffer` | 308 | 127 |
 | `redoubt-codec` | 3 | 0 |
 | `redoubt-codec/core` | 1,639 | 378 |
-| `redoubt-codec/derive` | 288 | 87 |
+| `redoubt-codec/derive` | 288 | 88 |
 | `redoubt-eq` | 84 | 29 |
 | `redoubt-forensics` | 10 | 0 |
 | `redoubt-forensics/allocator` | 295 | 20 |
@@ -93,8 +93,8 @@
 | `redoubt-vault/derive` | 489 | 52 |
 | `redoubt-zero` | 6 | 0 |
 | `redoubt-zero/core` | 597 | 157 |
-| `redoubt-zero/derive` | 393 | 70 |
-| **Total** | **11,299** | **3465** |
+| `redoubt-zero/derive` | 393 | 71 |
+| **Total** | **11,299** | **3467** |
 
 ---
 
