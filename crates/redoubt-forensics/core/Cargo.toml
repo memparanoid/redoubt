@@ -14,8 +14,7 @@ version.workspace    = true
 path = "src/lib.rs"
 
 [dependencies]
-libc.workspace             = true
-redoubt-mem-core.workspace = true
+libc.workspace = true
 
 [build-dependencies]
 cc.workspace = true
@@ -24,6 +23,7 @@ cc.workspace = true
 proptest.workspace                    = true
 redoubt-forensics-allocator.workspace = true
 redoubt-forensics-macros.workspace    = true
+redoubt-mem-core.workspace            = true
 
 # Set by the coverage run and by nothing else. Declared so that a build without
 # it is not a build with an unknown `cfg`.
