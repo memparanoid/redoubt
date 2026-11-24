@@ -297,10 +297,10 @@ fn expand(input: DeriveInput) -> Result<TokenStream2, TokenStream2> {
             Fields::Unit => vec![],
         },
         Data::Enum(data) => return expand_enum(&input, data, &root),
-        _ => {
+        Data::Union(_) => {
             return Err(syn::Error::new_spanned(
                 &input.ident,
-                "RedoubtCodec can only be derived for structs.",
+                "RedoubtCodec can only be derived for structs and enums.",
             )
             .to_compile_error());
         }

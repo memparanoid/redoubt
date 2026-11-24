@@ -306,6 +306,28 @@ fn test_expand_returns_an_enum_whose_repr_also_names_c() {
     assert!(expansion.is_ok());
 }
 
+// unions
+
+#[test]
+fn test_expand_reports_a_union() -> Result<(), Box<dyn std::error::Error>> {
+    let derive_input = parse_quote! {
+        #[derive(RedoubtCodec)]
+        union Mu {
+            alpha: u64,
+            beta: [u8; 8],
+        }
+    };
+
+    let refusal = expand(derive_input).err().ok_or("a union was expanded")?;
+
+    assert_eq!(
+        refusal.to_string(),
+        ":: core :: compile_error ! { \"RedoubtCodec can only be derived for structs and enums.\" }"
+    );
+
+    Ok(())
+}
+
 // #[codec(default)]
 
 #[test]
