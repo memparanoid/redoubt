@@ -20,8 +20,6 @@ pub enum CipherBoxError {
 
     Buffer(BufferError),
 
-    Crypto(CryptoError),
-
     Aead(AeadError),
 
     /// The CipherBox is in an irrecoverable state due to operation failure.
@@ -78,12 +76,6 @@ impl From<BufferError> for CipherBoxError {
     }
 }
 
-impl From<CryptoError> for CipherBoxError {
-    fn from(crypto_error: CryptoError) -> Self {
-        Self::Crypto(crypto_error)
-    }
-}
-
 impl From<AeadError> for CipherBoxError {
     fn from(aead_error: AeadError) -> Self {
         Self::Aead(aead_error)
@@ -97,7 +89,6 @@ impl fmt::Display for CipherBoxError {
             Self::Encode(encode_error) => fmt::Display::fmt(encode_error, f),
             Self::Decode(decode_error) => fmt::Display::fmt(decode_error, f),
             Self::Buffer(buffer_error) => fmt::Display::fmt(buffer_error, f),
-            Self::Crypto(crypto_error) => fmt::Display::fmt(crypto_error, f),
             Self::Aead(aead_error) => fmt::Display::fmt(aead_error, f),
             Self::Poisoned => f.write_str(
                 "the box is poisoned: an operation failed partway, and the plaintext it had \
@@ -119,7 +110,6 @@ impl core::error::Error for CipherBoxError {
             Self::Overflow(_)
             | Self::Encode(_)
             | Self::Decode(_)
-            | Self::Crypto(_)
             | Self::Aead(_)
             | Self::Poisoned
             | Self::Zeroized => None,
@@ -128,59 +118,3 @@ impl core::error::Error for CipherBoxError {
         }
     }
 }
-
-#[derive(Debug)]
-pub enum CryptoError {
-    Encode(EncodeError),
-
-    Decode(DecodeError),
-
-    Overflow(OverflowError),
-
-    Aead(AeadError),
-
-    PlaintextTooLong,
-
-    CiphertextWithTagTooShort,
-}
-
-impl From<EncodeError> for CryptoError {
-    fn from(encode_error: EncodeError) -> Self {
-        Self::Encode(encode_error)
-    }
-}
-
-impl From<DecodeError> for CryptoError {
-    fn from(decode_error: DecodeError) -> Self {
-        Self::Decode(decode_error)
-    }
-}
-
-impl From<OverflowError> for CryptoError {
-    fn from(overflow_error: OverflowError) -> Self {
-        Self::Overflow(overflow_error)
-    }
-}
-
-impl From<AeadError> for CryptoError {
-    fn from(aead_error: AeadError) -> Self {
-        Self::Aead(aead_error)
-    }
-}
-
-impl fmt::Display for CryptoError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Encode(encode_error) => fmt::Display::fmt(encode_error, f),
-            Self::Decode(decode_error) => fmt::Display::fmt(decode_error, f),
-            Self::Overflow(overflow_error) => fmt::Display::fmt(overflow_error, f),
-            Self::Aead(aead_error) => fmt::Display::fmt(aead_error, f),
-            Self::PlaintextTooLong => f.write_str("the plaintext is too long to seal"),
-            Self::CiphertextWithTagTooShort => {
-                f.write_str("the ciphertext is shorter than the tag it should end with")
-            }
-        }
-    }
-}
-
-impl core::error::Error for CryptoError {}
