@@ -5,9 +5,8 @@
 //! The contract every AEAD here answers to, the widths they work in, the one
 //! error they fail with, and the one value they may branch on after a secret.
 //!
-//! It allocates nothing and takes no dependency but the one that writes its
-//! error messages, so a backend implements these traits without inheriting
-//! anybody's idea of where randomness comes from.
+//! It allocates nothing and takes no dependency, so a backend implements these
+//! traits without inheriting anybody's idea of where randomness comes from.
 //!
 //! ## License
 //!

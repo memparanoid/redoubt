@@ -21,7 +21,6 @@ redoubt-codec.workspace                = true
 redoubt-rand.workspace                 = true
 redoubt-util.workspace                 = true
 redoubt-zero.workspace                 = true
-thiserror.workspace                    = true
 
 [target.'cfg(any(target_arch = "x86_64", target_arch = "aarch64"))'.dependencies]
 cpufeatures.workspace = true

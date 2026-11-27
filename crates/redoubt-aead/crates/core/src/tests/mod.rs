@@ -6,3 +6,4 @@
 mod constant_time;
 
 mod declassify;
+mod error;

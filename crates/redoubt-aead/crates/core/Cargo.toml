@@ -21,11 +21,9 @@ test-utils = []
 # every machine for libclang to run an ordinary test.
 constant-time = ["dep:crabgrind"]
 
-[dependencies]
-thiserror.workspace = true
-
 [target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
 crabgrind = { workspace = true, optional = true }
 
 [dev-dependencies]
 redoubt-eq.workspace = true
+rstest.workspace     = true
