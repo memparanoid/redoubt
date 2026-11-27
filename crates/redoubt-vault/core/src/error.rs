@@ -4,31 +4,25 @@
 
 //! Memvault error types
 
-use thiserror::Error;
+use core::fmt;
 
 use redoubt_aead::AeadError;
 use redoubt_buffer::BufferError;
 use redoubt_codec::{DecodeError, EncodeError, OverflowError};
 
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum CipherBoxError {
-    #[error(transparent)]
-    Overflow(#[from] OverflowError),
+    Overflow(OverflowError),
 
-    #[error(transparent)]
-    Encode(#[from] EncodeError),
+    Encode(EncodeError),
 
-    #[error(transparent)]
-    Decode(#[from] DecodeError),
+    Decode(DecodeError),
 
-    #[error(transparent)]
-    Buffer(#[from] BufferError),
+    Buffer(BufferError),
 
-    #[error(transparent)]
-    Crypto(#[from] CryptoError),
+    Crypto(CryptoError),
 
-    #[error(transparent)]
-    Aead(#[from] AeadError),
+    Aead(AeadError),
 
     /// The CipherBox is in an irrecoverable state due to operation failure.
     ///
@@ -39,7 +33,6 @@ pub enum CipherBoxError {
     /// **The data is permanently lost.** The CipherBox cannot be recovered or
     /// used again after this error. This is intentional: security guarantees
     /// take precedence over data preservation.
-    #[error("poisoned: box is in an irrecoverable state, exposed plaintext was zeroized")]
     Poisoned,
 
     /// The CipherBox was intentionally zeroized.
@@ -50,7 +43,6 @@ pub enum CipherBoxError {
     ///
     /// **The data is permanently gone.** The CipherBox cannot be used after
     /// zeroization.
-    #[error("zeroized: box was intentionally zeroized and cannot be used")]
     Zeroized,
 
     /// What the failure mode of a derived box answers with, once its counter
@@ -59,27 +51,136 @@ pub enum CipherBoxError {
     /// Available only with the `test-utils` feature enabled. A crate that
     /// names a `testing_feature` on its box has to enable it from there.
     #[cfg(any(test, feature = "test-utils"))]
-    #[error("IntentionalCipherBoxError")]
     IntentionalCipherBoxError,
 }
 
-#[derive(Debug, Error)]
+impl From<OverflowError> for CipherBoxError {
+    fn from(overflow_error: OverflowError) -> Self {
+        Self::Overflow(overflow_error)
+    }
+}
+
+impl From<EncodeError> for CipherBoxError {
+    fn from(encode_error: EncodeError) -> Self {
+        Self::Encode(encode_error)
+    }
+}
+
+impl From<DecodeError> for CipherBoxError {
+    fn from(decode_error: DecodeError) -> Self {
+        Self::Decode(decode_error)
+    }
+}
+
+impl From<BufferError> for CipherBoxError {
+    fn from(buffer_error: BufferError) -> Self {
+        Self::Buffer(buffer_error)
+    }
+}
+
+impl From<CryptoError> for CipherBoxError {
+    fn from(crypto_error: CryptoError) -> Self {
+        Self::Crypto(crypto_error)
+    }
+}
+
+impl From<AeadError> for CipherBoxError {
+    fn from(aead_error: AeadError) -> Self {
+        Self::Aead(aead_error)
+    }
+}
+
+impl fmt::Display for CipherBoxError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Overflow(overflow_error) => fmt::Display::fmt(overflow_error, f),
+            Self::Encode(encode_error) => fmt::Display::fmt(encode_error, f),
+            Self::Decode(decode_error) => fmt::Display::fmt(decode_error, f),
+            Self::Buffer(buffer_error) => fmt::Display::fmt(buffer_error, f),
+            Self::Crypto(crypto_error) => fmt::Display::fmt(crypto_error, f),
+            Self::Aead(aead_error) => fmt::Display::fmt(aead_error, f),
+            Self::Poisoned => f.write_str(
+                "the box is poisoned: an operation failed partway, and the plaintext it had \
+                 exposed was zeroized",
+            ),
+            Self::Zeroized => f.write_str("the box was zeroized, and holds nothing to open"),
+            #[cfg(any(test, feature = "test-utils"))]
+            Self::IntentionalCipherBoxError => {
+                f.write_str("a test behaviour refused this operation on the box")
+            }
+        }
+    }
+}
+
+impl core::error::Error for CipherBoxError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+        match self {
+            Self::Buffer(buffer_error) => core::error::Error::source(buffer_error),
+            Self::Overflow(_)
+            | Self::Encode(_)
+            | Self::Decode(_)
+            | Self::Crypto(_)
+            | Self::Aead(_)
+            | Self::Poisoned
+            | Self::Zeroized => None,
+            #[cfg(any(test, feature = "test-utils"))]
+            Self::IntentionalCipherBoxError => None,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum CryptoError {
-    #[error("EncodeError: {0}")]
-    Encode(#[from] EncodeError),
+    Encode(EncodeError),
 
-    #[error("DecodeError: {0}")]
-    Decode(#[from] DecodeError),
+    Decode(DecodeError),
 
-    #[error("OverflowError: {0}")]
-    Overflow(#[from] OverflowError),
+    Overflow(OverflowError),
 
-    #[error("AeadError: {0}")]
-    Aead(#[from] AeadError),
+    Aead(AeadError),
 
-    #[error("PlaintextTooLong")]
     PlaintextTooLong,
 
-    #[error("CiphertextWithTagTooShort")]
     CiphertextWithTagTooShort,
 }
+
+impl From<EncodeError> for CryptoError {
+    fn from(encode_error: EncodeError) -> Self {
+        Self::Encode(encode_error)
+    }
+}
+
+impl From<DecodeError> for CryptoError {
+    fn from(decode_error: DecodeError) -> Self {
+        Self::Decode(decode_error)
+    }
+}
+
+impl From<OverflowError> for CryptoError {
+    fn from(overflow_error: OverflowError) -> Self {
+        Self::Overflow(overflow_error)
+    }
+}
+
+impl From<AeadError> for CryptoError {
+    fn from(aead_error: AeadError) -> Self {
+        Self::Aead(aead_error)
+    }
+}
+
+impl fmt::Display for CryptoError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Encode(encode_error) => fmt::Display::fmt(encode_error, f),
+            Self::Decode(decode_error) => fmt::Display::fmt(decode_error, f),
+            Self::Overflow(overflow_error) => fmt::Display::fmt(overflow_error, f),
+            Self::Aead(aead_error) => fmt::Display::fmt(aead_error, f),
+            Self::PlaintextTooLong => f.write_str("the plaintext is too long to seal"),
+            Self::CiphertextWithTagTooShort => {
+                f.write_str("the ciphertext is shorter than the tag it should end with")
+            }
+        }
+    }
+}
+
+impl core::error::Error for CryptoError {}

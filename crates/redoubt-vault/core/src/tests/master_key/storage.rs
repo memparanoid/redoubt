@@ -62,9 +62,16 @@ fn test_open_hands_the_same_key_every_time() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn test_open_propagates_callback_error() {
-    #[derive(Debug, thiserror::Error)]
-    #[error("a test callback refused")]
+    #[derive(Debug)]
     struct CustomCallbackError {}
+
+    impl std::fmt::Display for CustomCallbackError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("a test callback refused")
+        }
+    }
+
+    impl Error for CustomCallbackError {}
 
     let result = open(&mut |_| Err(BufferError::callback_error(CustomCallbackError {})));
 
@@ -120,9 +127,16 @@ fn subprocess_every_thread_the_same_key() -> Result<(), Box<dyn Error>> {
     const NUM_THREADS: usize = 256;
     const POISONED: &str = "the keys mutex was poisoned";
 
-    #[derive(Debug, thiserror::Error)]
-    #[error("{0}")]
+    #[derive(Debug)]
     struct Refused(&'static str);
+
+    impl std::fmt::Display for Refused {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str(self.0)
+        }
+    }
+
+    impl Error for Refused {}
 
     let keys = Arc::new(Mutex::new(Vec::<[u8; MASTER_KEY_LEN]>::new()));
 

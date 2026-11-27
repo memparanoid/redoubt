@@ -28,7 +28,6 @@ redoubt-mem.workspace    = true
 redoubt-rand.workspace   = true
 redoubt-secret.workspace = true
 redoubt-zero.workspace   = true
-thiserror.workspace      = true
 
 [dev-dependencies]
 redoubt-aead                 = { workspace = true, features = ["test-utils"] }
@@ -37,6 +36,7 @@ redoubt-forensics.workspace  = true
 redoubt-rand                 = { workspace = true, features = ["test-utils"] }
 redoubt-test-utils.workspace = true
 redoubt-util.workspace       = true
+rstest.workspace             = true
 
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true

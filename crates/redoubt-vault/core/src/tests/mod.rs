@@ -7,6 +7,7 @@ mod forensics;
 
 mod cipherbox;
 mod consts;
+mod error;
 mod helpers;
 mod master_key;
 mod workspace;

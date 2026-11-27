@@ -21,15 +21,23 @@ use crate::utils::{CIPHERBOX_UID, this_process};
 use consts::{CIPHERBOX_KEY_INFO_LEN, CIPHERBOX_KEY_INFO_PREFIX, MASTER_KEY_LEN};
 
 /// A caller asking for more of the master key than there is.
-#[derive(Debug, thiserror::Error)]
-#[error(
-    "a master key of {} bytes cannot be truncated to {asked}",
-    MASTER_KEY_LEN
-)]
+#[derive(Debug)]
 pub struct TruncationTooWide {
     /// The width that was asked for.
     pub asked: usize,
 }
+
+impl core::fmt::Display for TruncationTooWide {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "a master key of {MASTER_KEY_LEN} bytes cannot be truncated to {}",
+            self.asked
+        )
+    }
+}
+
+impl core::error::Error for TruncationTooWide {}
 
 /// The HKDF info a box derives its key under. The pid is in it because a
 /// forked child holds the parent's master key and counts uids from the same
