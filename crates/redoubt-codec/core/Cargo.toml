@@ -24,9 +24,9 @@ redoubt-secret.workspace = true
 redoubt-util.workspace   = true
 redoubt-zero.workspace   = true
 smallvec.workspace       = true
-thiserror.workspace      = true
 
 [dev-dependencies]
 redoubt-alloc                = { workspace = true, features = ["test-utils"] }
 redoubt-forensics.workspace  = true
 redoubt-test-utils.workspace = true
+rstest.workspace             = true

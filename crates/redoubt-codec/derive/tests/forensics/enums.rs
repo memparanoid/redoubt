@@ -168,7 +168,7 @@ fn test_encoding_an_enum_into_a_buffer_too_small_leaves_nothing() -> Result<(), 
 
         assert_eq!(
             refused.map_err(|error| error.to_string()),
-            Err("RedoubtCodecBufferError: CapacityExceeded".to_string())
+            Err("the buffer is full: what is written does not fit its capacity".to_string())
         );
 
         // CORRECTNESS: after the capture. A call made before it writes over the
