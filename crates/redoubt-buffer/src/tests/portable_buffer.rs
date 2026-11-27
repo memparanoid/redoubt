@@ -2,17 +2,26 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // See LICENSE in the repository root for full license text.
 
+use core::fmt;
+
 use redoubt_zero::{AssertZeroizeOnDrop, FastZeroizable, ZeroizationProbe};
 
 use crate::error::BufferError;
 use crate::portable_buffer::PortableBuffer;
 use crate::traits::Buffer;
 
-#[derive(Debug, thiserror::Error)]
-#[error("a test callback refused with code {code}")]
+#[derive(Debug)]
 struct TestCallbackError {
     code: u32,
 }
+
+impl fmt::Display for TestCallbackError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "a test callback refused with code {}", self.code)
+    }
+}
+
+impl core::error::Error for TestCallbackError {}
 
 // ============================================================================
 // PortableBuffer

@@ -975,7 +975,7 @@ dependencies = [
  "redoubt-rand",
  "redoubt-test-utils",
  "redoubt-zero",
- "thiserror",
+ "rstest",
 ]
 
 [[package]]

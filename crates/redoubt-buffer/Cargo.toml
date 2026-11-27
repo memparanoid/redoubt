@@ -16,7 +16,6 @@ path = "src/lib.rs"
 [dependencies]
 libc                   = { workspace = true, optional = true }
 redoubt-zero.workspace = true
-thiserror.workspace    = true
 
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true
@@ -26,3 +25,4 @@ redoubt-forensics.workspace  = true
 redoubt-mem.workspace        = true
 redoubt-rand.workspace       = true
 redoubt-test-utils.workspace = true
+rstest.workspace             = true

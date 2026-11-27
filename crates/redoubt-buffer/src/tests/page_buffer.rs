@@ -21,9 +21,16 @@ mod page_buffer_tests {
 
     /// What a callback hands back where the test is about the refusal rather
     /// than about what it says.
-    #[derive(Debug, thiserror::Error)]
-    #[error("a test callback refused")]
+    #[derive(Debug)]
     struct Refused;
+
+    impl core::fmt::Display for Refused {
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            f.write_str("a test callback refused")
+        }
+    }
+
+    impl core::error::Error for Refused {}
 
     // =============================================================================
     // new()
