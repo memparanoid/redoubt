@@ -4,12 +4,26 @@
 
 //! The one way a derivation refuses.
 
-use thiserror::Error;
+use core::fmt;
+
+use crate::consts::MAX_OUTPUT_SIZE;
 
 /// What a derivation answers when it will not do what it was asked.
-#[derive(Error, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HkdfError {
     /// More output than the counter has blocks for.
-    #[error("requested output length exceeds maximum (255 * HashLen)")]
     OutputTooLong,
 }
+
+impl fmt::Display for HkdfError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::OutputTooLong => write!(
+                f,
+                "more output was asked for than the {MAX_OUTPUT_SIZE} bytes a derivation gives"
+            ),
+        }
+    }
+}
+
+impl core::error::Error for HkdfError {}

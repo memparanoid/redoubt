@@ -14,6 +14,7 @@ mod forensics;
 mod constant_time;
 
 mod backend;
+mod error;
 mod hkdf;
 mod libsodium;
 mod rfc;

@@ -1110,7 +1110,6 @@ dependencies = [
  "redoubt-mem",
  "redoubt-zero",
  "rstest",
- "thiserror",
 ]
 
 [[package]]

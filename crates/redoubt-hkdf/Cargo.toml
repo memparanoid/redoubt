@@ -33,7 +33,6 @@ cc.workspace = true
 redoubt-asm.workspace  = true
 redoubt-mem.workspace  = true
 redoubt-zero.workspace = true
-thiserror.workspace    = true
 
 [dev-dependencies]
 proptest.workspace          = true
