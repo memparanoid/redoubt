@@ -94,7 +94,6 @@ resolver = "2"
   quote            = "1.0.41"
   smallvec         = "1.15.1"
   syn              = "2.0.108"
-  thiserror        = "2.0.16"
 
   # Build dependencies
   cc = "1.2.49"
