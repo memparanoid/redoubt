@@ -11,4 +11,5 @@ mod constant_time;
 mod backend;
 mod decode;
 mod encode;
+mod error;
 mod roundtrip;

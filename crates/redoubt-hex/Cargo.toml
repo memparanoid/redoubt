@@ -21,7 +21,6 @@ constant-time = ["dep:crabgrind"]
 
 [dependencies]
 redoubt-asm.workspace = true
-thiserror.workspace   = true
 
 [target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
 crabgrind = { workspace = true, optional = true }

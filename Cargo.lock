@@ -1097,7 +1097,6 @@ dependencies = [
  "redoubt-forensics",
  "redoubt-mem",
  "rstest",
- "thiserror",
 ]
 
 [[package]]
