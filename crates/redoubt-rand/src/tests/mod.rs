@@ -6,6 +6,7 @@
 mod forensics;
 
 mod backend;
+mod error;
 mod fill;
 mod session;
 mod support;

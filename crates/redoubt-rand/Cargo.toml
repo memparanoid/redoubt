@@ -17,7 +17,6 @@ path = "src/lib.rs"
 getrandom.workspace   = true
 redoubt-asm.workspace = true
 redoubt-mem           = { workspace = true, optional = true }
-thiserror.workspace   = true
 
 [target.'cfg(any(target_os = "linux", target_os = "android", target_os = "macos", target_os = "ios"))'.dependencies]
 libc.workspace = true
