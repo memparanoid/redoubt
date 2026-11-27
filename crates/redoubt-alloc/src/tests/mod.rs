@@ -4,6 +4,7 @@
 
 mod support;
 
+mod error;
 mod redoubt_array;
 mod redoubt_option;
 mod redoubt_string;

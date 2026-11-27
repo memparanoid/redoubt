@@ -16,7 +16,7 @@ test-utils = []
 [dependencies]
 redoubt-mem.workspace  = true
 redoubt-zero.workspace = true
-thiserror.workspace    = true
 
 [dev-dependencies]
 redoubt-forensics.workspace = true
+rstest.workspace            = true

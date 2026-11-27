@@ -4,13 +4,12 @@
 
 //! Error types for redoubt-alloc.
 
-use thiserror::Error;
+use core::fmt;
 
 /// Error type for `AllockedVec` operations.
-#[derive(Debug, Error, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum AllockedVecError {
     /// Attempted to reserve capacity on an already-sealed vector.
-    #[error("Vector is already sealed and cannot be resized")]
     AlreadySealed,
 
     /// Integer overflow when computing new length.
@@ -18,10 +17,20 @@ pub enum AllockedVecError {
     /// This error is practically impossible to encounter in normal usage,
     /// as it would require a vector with length approaching `isize::MAX`.
     /// It exists as a defensive check for integer overflow safety.
-    #[error("Integer overflow: total length would exceed usize::MAX")]
     Overflow,
 
     /// Attempted to push beyond the vector's capacity.
-    #[error("Capacity exceeded: cannot push beyond sealed capacity")]
     CapacityExceeded,
 }
+
+impl fmt::Display for AllockedVecError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::AlreadySealed => f.write_str("the vector is sealed, and its capacity is fixed"),
+            Self::Overflow => f.write_str("the length would be past usize::MAX"),
+            Self::CapacityExceeded => f.write_str("the vector is full: its capacity is sealed"),
+        }
+    }
+}
+
+impl core::error::Error for AllockedVecError {}
